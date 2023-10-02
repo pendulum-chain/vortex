@@ -1,10 +1,10 @@
-import { Bars3Icon } from '@heroicons/react/20/solid';
-import { memo, useState } from 'preact/compat';
-import { Outlet } from 'react-router-dom';
-import { useGlobalState } from '../../GlobalStateProvider';
+import {Bars3Icon} from '@heroicons/react/20/solid';
+import {memo, useState} from 'preact/compat';
+import {Outlet} from 'react-router-dom';
+import {useGlobalState} from '../../GlobalStateProvider';
 import AmplitudeLogo from '../../assets/amplitud-logo.svg';
 import PendulumLogo from '../../assets/pendulum-logo.png';
-import { TenantName } from '../../models/Tenant';
+import {TenantName} from '../../models/Tenant';
 import OpenWallet from '../Wallet';
 import Nav from './Nav';
 import NetworkId from './NetworkId';
@@ -14,7 +14,7 @@ import './styles.sass';
 
 export default function Layout(): JSX.Element | null {
   const [visible, setVisible] = useState(false);
-  const { tenantName, dAppName } = useGlobalState();
+  const {tenantName, dAppName} = useGlobalState();
   const isPendulum = tenantName === TenantName.Pendulum;
   const isTestnet = tenantName === TenantName.Foucoco;
   const sideBarLogo = isPendulum ? PendulumLogo : AmplitudeLogo;
@@ -36,7 +36,7 @@ export default function Layout(): JSX.Element | null {
       <div id="sidebar-wrapper" className="flex flex-wrap z-50">
         <div
           style={{
-            ...(isPendulum ? null : { backgroundColor: '#1c1c1c' }),
+            ...(isPendulum ? null : {backgroundColor: '#1c1c1c'}),
           }}
           id="sidebar"
           className={`flex self-start text-center bottom-0 top-0 h-160 pt-8 h-screen transition-all lg:left-0 lg:relative absolute ${bgColor} ${
@@ -45,7 +45,7 @@ export default function Layout(): JSX.Element | null {
         >
           <div
             style={
-              isPendulum ? { marginLeft: 20, marginBottom: 20 } : { marginTop: 20, marginBottom: 30, marginLeft: 30 }
+              isPendulum ? {marginLeft: 20, marginBottom: 20} : {marginTop: 20, marginBottom: 30, marginLeft: 30}
             }
           >
             <a
@@ -53,13 +53,21 @@ export default function Layout(): JSX.Element | null {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <img className="logo" src={sideBarLogo} alt="" />
+              <img className="logo" src={sideBarLogo} alt=""/>
               {isTestnet && <div className="foucoco-tag">Foucoco testnet</div>}
             </a>
           </div>
-          <Nav onClick={() => setVisible(false)} />
+          <Nav onClick={() => setVisible(false)}/>
           <div className="sidebar-footer">
-            <SocialAndTermLinks />
+            <div>
+              Got a feature request? <br/>
+              Let us know and we'll make it happen. <br/> <br/>
+              <button className="btn"
+                      onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSetTxzsimRizLVyRJ0b53XxFrDdyFq1icRqzIRyyw-bVtTrxQ/viewform', '_blank')}>Request
+                a Feature
+              </button>
+            </div>
+            <SocialAndTermLinks/>
           </div>
         </div>
       </div>
@@ -68,10 +76,10 @@ export default function Layout(): JSX.Element | null {
           <div className="flex items-center flex-row-reverse h-15 gap-2">
             <div className="mobile-menu">
               <button type="button" onClick={() => setVisible((prev) => !prev)}>
-                <Bars3Icon className="w-7" />
+                <Bars3Icon className="w-7"/>
               </button>
             </div>
-            <OpenWallet dAppName={dAppName} />
+            <OpenWallet dAppName={dAppName}/>
             <div className="dropdown dropdown-end mr-2 hidden">
               <button className="flex space-x-2 items-center px-4 py-2 btn no-animation">
                 <span className={`${isPendulum ? 'text-white' : ''}  text-md`}>
@@ -95,14 +103,14 @@ export default function Layout(): JSX.Element | null {
               </button>
               <ul tabIndex={0} className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
                 <li>
-                  <FooterLink />
+                  <FooterLink/>
                 </li>
               </ul>
             </div>
           </div>
         </header>
         <main className="w-full flex-wrap px-4 sm:px-8 py-4 flex-grow">
-          <Outlet />
+          <Outlet/>
         </main>
       </section>
     </div>
