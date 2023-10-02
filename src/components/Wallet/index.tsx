@@ -1,21 +1,25 @@
-import { ArrowLeftOnRectangleIcon } from '@heroicons/react/20/solid';
-import { WalletSelect } from '@talismn/connect-components';
-import { Button, Divider, Dropdown } from 'react-daisyui';
-import { isMobile } from 'react-device-detect';
-import { useGlobalState } from '../../GlobalStateProvider';
-import { useNodeInfoState } from '../../NodeInfoProvider';
-import { getAddressForFormat } from '../../helpers/addressFormatter';
-import { useAccountBalance } from '../../shared/useAccountBalance';
-import { CopyableAddress } from '../PublicKey';
-import { Skeleton } from '../Skeleton';
+import {ArrowLeftOnRectangleIcon} from '@heroicons/react/20/solid';
+import {WalletSelect} from '@talismn/connect-components';
+import {Button, Divider, Dropdown, Modal} from 'react-daisyui';
+import {isMobile} from 'react-device-detect';
+import {useGlobalState} from '../../GlobalStateProvider';
+import {useNodeInfoState} from '../../NodeInfoProvider';
+import {getAddressForFormat} from '../../helpers/addressFormatter';
+import {useAccountBalance} from '../../shared/useAccountBalance';
+import {CopyableAddress} from '../PublicKey';
+import {Skeleton} from '../Skeleton';
 import NovaWallet from './NovaWallet';
 import WalletConnect from './WalletConnect';
+import {useState} from "preact/compat";
+import ModalCloseButton from "../Button/ModalClose";
 
-const OpenWallet = ({ dAppName }: { dAppName: string }): JSX.Element => {
-  const { walletAccount, setWalletAccount, removeWalletAccount } = useGlobalState();
-  const { wallet, address } = walletAccount || {};
-  const { query, balance } = useAccountBalance();
-  const { ss58Format, tokenSymbol } = useNodeInfoState().state;
+const OpenWallet = ({dAppName}: { dAppName: string }): JSX.Element => {
+  const {walletAccount, setWalletAccount, removeWalletAccount} = useGlobalState();
+  const {wallet, address} = walletAccount || {};
+  const {query, balance} = useAccountBalance();
+  const {ss58Format, tokenSymbol} = useNodeInfoState().state;
+
+  const [showDialog, setShowDialog] = useState(false);
 
   return (
     <>
@@ -36,7 +40,7 @@ const OpenWallet = ({ dAppName }: { dAppName: string }): JSX.Element => {
               </span>
             )}
             {walletAccount?.name}
-            <img src={wallet?.logo?.src || ''} className="w-[20px] ml-2" alt={wallet?.logo?.alt || ''} />
+            <img src={wallet?.logo?.src || ''} className="w-[20px] ml-2" alt={wallet?.logo?.alt || ''}/>
           </Button>
           <Dropdown.Menu className="card card-compact text-center bg-base-200 shadow-lg min-w-[240px] p-3">
             <div className="text-sm text-neutral-400">{walletAccount?.name}</div>
@@ -51,35 +55,25 @@ const OpenWallet = ({ dAppName }: { dAppName: string }): JSX.Element => {
               {balance} {tokenSymbol}
             </p>
             <Button className="bg-base-300" size="sm" onClick={removeWalletAccount}>
-              <ArrowLeftOnRectangleIcon className="mr-2 w-5" />
+              <ArrowLeftOnRectangleIcon className="mr-2 w-5"/>
               Disconnect
             </Button>
           </Dropdown.Menu>
         </Dropdown>
       ) : (
         <>
-          <WalletSelect
-            dappName={dAppName}
-            open={false}
-            showAccountsList={true}
-            triggerComponent={
-              <Button size="sm" className={`text-sm min-h-[2.1rem] h-auto px-1 sm:px-3`} color="primary" type="button">
-                Connect to Wallet
-              </Button>
-            }
-            onAccountSelected={setWalletAccount}
-            footer={
-              <>
-                {isMobile && (
-                  <>
-                    <NovaWallet setWalletAccount={setWalletAccount} />
-                    <Divider className="before:bg-transparent after:bg-transparent h-2" />
-                  </>
-                )}
-                <WalletConnect setWalletAccount={setWalletAccount} />
-              </>
-            }
-          />
+          <Button size="sm" className={`text-sm min-h-[2.1rem] h-auto px-1 sm:px-3`} color="primary" type="button"
+                  onClick={() => setShowDialog(true)}>
+            Connect to Wallet
+          </Button>
+          <Modal className="bg-base-200" open={showDialog} style={{borderRadius: '5px'}}>
+            <Modal.Header className="text-3xl mb-10">Connect Wallet
+              <ModalCloseButton onClick={() => setShowDialog(false)}/>
+            </Modal.Header>
+            <Modal.Body>
+              <WalletConnect setWalletAccount={setWalletAccount}/>
+            </Modal.Body>
+          </Modal>
         </>
       )}
     </>

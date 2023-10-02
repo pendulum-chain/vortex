@@ -54,7 +54,7 @@ const WalletConnect = ({ setWalletAccount }: WalletConnectProps) => {
   return (
     <div className="-mt-8">
       <button
-        className={`flex items-center gap-4 p-4 rounded-xl text-left w-full bg-[var(--modal-control-background)] hover:bg-[var(--modal-active-background)]`}
+        className='btn flex items-center gap-4 rounded-xl w-full my-2'
         onClick={walletConnectClick}
         disabled={loading}
       >
@@ -64,4 +64,5 @@ const WalletConnect = ({ setWalletAccount }: WalletConnectProps) => {
     </div>
   );
 };
+
 export default WalletConnect;
