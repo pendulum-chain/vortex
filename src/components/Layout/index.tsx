@@ -59,8 +59,6 @@ export default function Layout(): JSX.Element | null {
           </div>
           <Nav onClick={() => setVisible(false)} />
           <div className="sidebar-footer">
-            <Versions tenantName={tenantName} />
-            <NetworkId />
             <SocialAndTermLinks />
           </div>
         </div>

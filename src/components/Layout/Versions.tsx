@@ -30,7 +30,7 @@ const Versions: FC<Props> = memo(({ tenantName }: Props) => {
     <div className="pendulum-versions">
       <p>
         <span className="text-green-300 hover:text-green-500 cursor-default mr-1">{indicator}</span>
-        Runtime: {(state.nodeVersion && state.nodeVersion.toString()) || '0.0.0-00000000000'}
+        : {(state.nodeVersion && state.nodeVersion.toString()) || '0.0.0-00000000000'}
       </p>
     </div>
   );
