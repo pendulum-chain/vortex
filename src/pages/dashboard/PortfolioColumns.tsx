@@ -64,3 +64,16 @@ export const usdValueColumn: ColumnDef<PortfolioAsset> = {
     );
   },
 };
+
+export const sendButtonColumn: ColumnDef<PortfolioAsset> = {
+  header: '',
+  accessorKey: 'send',
+  enableMultiSort: false,
+  cell: ({ row }) => {
+    return (
+      <button className="btn btn-primary btn-sm" onClick={() => console.log('send')}>
+        Send
+      </button>
+    );
+  }
+}

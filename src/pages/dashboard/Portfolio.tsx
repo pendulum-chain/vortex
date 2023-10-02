@@ -9,7 +9,7 @@ import { addSuffix, currencyToString } from '../../helpers/spacewalk';
 import { useVaultRegistryPallet } from '../../hooks/spacewalk/vaultRegistry';
 import { usePriceFetcher } from '../../hooks/usePriceFetcher';
 import { nativeToDecimal } from '../../shared/parseNumbers';
-import { PortfolioAsset, amountColumn, priceColumn, tokenColumn, usdValueColumn } from './PortfolioColumns';
+import { PortfolioAsset, amountColumn, priceColumn, tokenColumn, usdValueColumn, sendButtonColumn } from './PortfolioColumns';
 
 function Portfolio() {
   const { walletAccount, tenantName, tenantRPC } = useGlobalState();
@@ -105,7 +105,7 @@ function Portfolio() {
   }, [data]);
 
   const columns = useMemo(() => {
-    return [tokenColumn, priceColumn, amountColumn, usdValueColumn];
+    return [tokenColumn, priceColumn, amountColumn, usdValueColumn, sendButtonColumn];
   }, []);
 
   return (
