@@ -5,7 +5,6 @@ import { useGlobalState } from '../../GlobalStateProvider';
 import AmplitudeLogo from '../../assets/amplitud-logo.svg';
 import PendulumLogo from '../../assets/pendulum-logo.png';
 import { TenantName } from '../../models/Tenant';
-import ChainSelector from '../ChainSelector';
 import OpenWallet from '../Wallet';
 import Nav from './Nav';
 import NetworkId from './NetworkId';
@@ -75,7 +74,6 @@ export default function Layout(): JSX.Element | null {
               </button>
             </div>
             <OpenWallet dAppName={dAppName} />
-            <ChainSelector />
             <div className="dropdown dropdown-end mr-2 hidden">
               <button className="flex space-x-2 items-center px-4 py-2 btn no-animation">
                 <span className={`${isPendulum ? 'text-white' : ''}  text-md`}>
