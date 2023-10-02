@@ -1,0 +1,135 @@
+.card-title {
+  font-size: 20px;
+}
+
+.banner h2 {
+  font-weight: 400;
+}
+
+.banner {
+  border: 1px solid var(--portfolio-border);
+  background-color: var(--portfolio-bg);
+}
+
+.banner.card-compact .card-body {
+  padding: 0;
+  gap: 0;
+}
+
+.banner.card-compact .card-title {
+  padding: 1rem;
+  margin: 0;
+}
+
+.card figure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+.portfolio {
+  background-color: var(--portfolio-bg);
+  border: 1px solid var(--portfolio-border);
+}
+
+.banner.card-compact .card-title {
+  padding: 1rem;
+  margin: 0;
+}
+
+.card figure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+}
+
+.graph {
+  float: right;
+  width: 70%;
+  height: 95%;
+  border-radius: 30px;
+  position: relative;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.graph-stats {
+  display: flex;
+  justify-content: space-between;
+  position: absolute;
+  bottom: 30px;
+  width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.graph-stats .token {
+  padding: 0 20px;
+}
+
+.graph-stats .token span {
+  font-weight: 500;
+}
+
+.dashboard {
+  background-color: var(--clear);
+}
+
+.collators-box {
+  border: 1px solid var(--table-border);
+}
+
+.collators-box span {
+  color: var(--table-text);
+}
+
+.collators-box h1,
+.collators-box h2,
+.collators-box h3 {
+  color: var(--table-text);
+}
+
+.collators-box h2 {
+  margin-bottom: 0.5em;
+}
+
+.collators-box h4 {
+  color: var(--primary);
+}
+
+.collators-box .card-body h3 {
+  font-style: normal;
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.collators-box .card-body p {
+  color: var(--subtitle-collator-box);
+}
+
+.collators-list-table th {
+  background-color: var(--table-background);
+  border-bottom: 1px solid var(--table-border);
+  color: var(--table-header-text);
+  font-size: 14px;
+}
+
+.collators-list-table {
+  border: 1px solid var(--table-border);
+  border-radius: 10px;
+  border-collapse: collapse;
+}
+
+.collators-list-table thead svg {
+  display: inline;
+}
+
+.collators-list-table td {
+  background-color: var(--table-background);
+  border-bottom: 1px solid var(--table-border);
+  color: var(--table-text);
+}

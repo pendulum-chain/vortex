@@ -1,0 +1,307 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --border-light: #eff2f5;
+  --border-dark: rgba(0, 0, 0, 0.1);
+  --nice-light: #907ea0;
+  --clear-light: #ffffff;
+  --footer-links-light: #58667e;
+  --nav-arrow-light: var(--clear-light);
+  --nice-dark: #09c63e;
+  --footer-links-dark: #616875;
+  --nav-arrow-dark: hsla(271, 25%, 19%, 1);
+  --darkner: #1c1c1c;
+  --dark-light: #202020;
+
+  /* From daisyUI theme variables*/
+  --text-primary: var(--bc);
+  --text-secondary: var(--nc);
+  --table-background: #1c1c1c;
+}
+
+[data-theme='amplitude'] {
+  --primary: #4ee59a;
+  --border: var(--border-dark);
+  --nice: var(--nice-dark);
+  --footer-links: var(--footer-links-dark);
+  --card-border: var(--border-dark);
+  --table-text: #bbbbbb;
+  --table-text-header: #fff;
+  --table-background: #1c1c1c;
+  --table-border: #242424;
+  --modal-title: var(--clear-light);
+  --portfolio-bg: var(--dark-light);
+  --portfolio-border: rgba(229, 229, 229, 0.03);
+  --selected-nav-item: hsla(158, 100%, 47%, 0.08);
+  --subtitle-collator-box: #fff;
+  --text-primary-disabled: rgba(88, 102, 126, 0.4);
+  --tag-background: rgba(78, 229, 154, 0.16); /* --primary 16% */
+  --network-bg: #252733;
+  --scroll-track: rgba(0, 0, 0, 0.5);
+  --scroll-bg: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme='pendulum'] {
+  --primary: #907ea0;
+  --border: var(--border-light);
+  --nice: var(--nice-dark);
+  --footer-links: var(--footer-links-light);
+  --card-border: var(--border-dark);
+  --table-text: #252733;
+  --table-text-header: #9fa2b4;
+  --table-background: #fff;
+  --table-border: #dfe0eb;
+  --modal-title: var(--darkner);
+  --portfolio-bg: var(--clear-light);
+  --portfolio-border: #e5e5e5;
+  --subtitle-collator-box: #828282;
+  --selected-nav-item: hsla(272, 15%, 56%, 0.1);
+  --text-primary-disabled: rgba(88, 102, 126, 0.4);
+  --tag-background: rgba(144, 126, 160, 0.16); /* --primary 16% */
+  --network-bg: hsla(0, 0%, 0%, 0.04);
+  --scroll-track: rgba(0, 0, 0, 0.12);
+  --scroll-bg: rgba(0, 0, 0, 0.25);
+}
+
+::-webkit-scrollbar {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  background-color: transparent;
+  z-index: 9999999;
+}
+::-webkit-scrollbar-track {
+  -webkit-box-shadow: inset 0 0 6px var(--scroll-track);
+  background-color: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 5px;
+  -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+  background-color: var(--scroll-bg);
+}
+
+body {
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 1.5;
+  color: initial;
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+}
+
+body,
+input,
+textarea,
+select {
+  font-family: 'Nunito Sans', sans-serif;
+}
+
+.font-2 {
+  font-family: 'Outfit', sans-serif;
+}
+
+strong {
+  font-weight: 700;
+}
+
+.pendulum-network-id {
+  background-color: var(--network-bg);
+  border-radius: 4px;
+  width: 160px;
+  margin-left: 30px;
+  padding: 8px;
+}
+
+.pendulum-network-id a:hover {
+  text-decoration: underline;
+}
+
+.pendulum-network-id li {
+  color: var(--nice);
+}
+
+.pendulum-network-id,
+.pendulum-versions {
+  position: relative;
+  text-align: left;
+  font-size: 12px;
+  justify-content: end;
+  align-items: flex-end;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.pendulum-versions p,
+.pendulum-network-id ul,
+.pendulum-network-id p {
+  margin-bottom: 5px;
+  margin-left: 30px;
+}
+
+.pendulum-network-id svg,
+.pendulum-network-id span {
+  display: inline;
+  margin-right: 10px;
+}
+
+.pendulum-network-id svg {
+  margin-top: -2px;
+  width: 5px;
+  height: 5px;
+  fill: hsla(137, 91%, 41%, 1);
+}
+
+.pendulum-social-and-terms {
+  margin-top: 20px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pendulum-social-and-terms .social ul {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.pendulum-social-and-terms .social li a {
+  transition: all 0.2s ease-out;
+}
+
+.pendulum-social-and-terms .social li a:hover {
+  opacity: 0.3;
+}
+
+.pendulum-social-and-terms .social img,
+.pendulum-social-and-terms .social svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--footer-links);
+}
+
+.pendulum-social-and-terms .terms {
+  margin-top: 1.2rem;
+}
+
+.pendulum-social-and-terms .terms ul {
+  display: flex;
+  width: 100%;
+  gap: 1.2rem;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.pendulum-social-and-terms .terms span,
+.pendulum-social-and-terms .terms a {
+  border-bottom: 1px solid var(--border);
+}
+
+.pendulum-social-and-terms .terms span:hover,
+.pendulum-social-and-terms .terms a:hover {
+  cursor: pointer;
+  border-bottom: 1px solid var(--footer-links);
+}
+
+table th .sort:not(.desc):not(.asc) {
+  transition: opacity 0.15s ease-out;
+  opacity: 0;
+}
+table th:hover .sort {
+  opacity: 0.8 !important;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type='number'] {
+  --moz-appearance: textfield;
+}
+
+/* utility classes */
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* theme override */
+.card {
+  border-radius: 0.75rem;
+}
+.card.card-bordered {
+  border: 1px solid var(--card-border);
+}
+
+.btn,
+.input {
+  line-height: 1.5;
+}
+
+.input-ghost:focus {
+  color: inherit;
+}
+
+.collapse .collapse-content {
+  padding: 0;
+}
+
+.collapse-title,
+:where(.collapse > input[type='checkbox']) {
+  min-height: 0;
+  height: 100%;
+}
+.modal.modal-top {
+  align-items: flex-start;
+}
+
+.input-ghost {
+  background-color: transparent;
+  outline: none;
+  border: 0;
+}
+.table thead tr th:not(.pinned) {
+  position: initial;
+}
+.table tr td.pinned {
+  position: sticky;
+  left: 0px;
+  right: 0px;
+}
+table th .sort:not(.desc):not(.asc) {
+  transition: opacity 0.15s ease-out;
+  opacity: 0;
+}
+table th:hover .sort {
+  opacity: 0.8 !important;
+}
+
+.btn-disabled,
+.btn-disabled:hover,
+.btn[disabled],
+.btn[disabled]:hover {
+  --tw-bg-opacity: 1;
+  --tw-text-opacity: 1;
+  background-color: hsl(var(--s));
+  opacity: 0.3;
+}
+
+w3m-modal {
+  position: relative;
+  z-index: 1000;
+}

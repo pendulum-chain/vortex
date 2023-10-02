@@ -1,0 +1,20 @@
+.box {
+  width: 100%;
+  border-radius: 30px;
+  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2);
+  background-color: var(--clear);
+  position: relative;
+  min-height: auto;
+}
+
+.box h2 {
+  font-size: 30px;
+  font-weight: 700;
+  padding: 20px;
+}
+
+.box h1 {
+  font-weight: 500;
+  font-size: 18px;
+  padding: 20px;
+}

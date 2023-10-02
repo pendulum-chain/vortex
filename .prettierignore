@@ -1,0 +1,16 @@
+node_modules/
+coverage/
+dist/
+build/
+preact/
+internals/
+docs/
+.lighthouseci/
+
+*.yml
+
+package-lock.json
+package.json
+yarn.lock
+
+CHANGELOG.md

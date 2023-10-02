@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+lib/
+types/
+coverage/
+gql/
+
+*.d.ts
+*.config.*
+.eslintrc.*

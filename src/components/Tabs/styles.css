@@ -1,0 +1,29 @@
+.date-tabs {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+}
+
+.date-tabs li {
+  display: inline;
+  padding: 10px 25px;
+  text-align: center;
+  background-color: var(--grey-f8);
+  margin-left: 5px;
+  margin-right: 5px;
+  border-radius: 40px;
+  border: 1px solid var(--grey-f9);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.date-tabs li:hover,
+.date-tabs .active {
+  background-color: var(--secondary);
+  border: 1px solid var(--border);
+  display: inline;
+}
+
+.date-tabs .active:hover {
+  border: 1px solid var(--border);
+}

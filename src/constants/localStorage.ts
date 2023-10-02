@@ -1,0 +1,6 @@
+export const storageKeys = {
+  ACCOUNT: 'ACCOUNT',
+  SWAP_SETTINGS: 'SWAP_SETTINGS',
+  GLOBAL: 'GLOBAL',
+  EXPIRY_DATE: '_EXPIRY_DATE',
+};
