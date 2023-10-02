@@ -3,7 +3,7 @@ import {memo, useState} from 'preact/compat';
 import {Outlet} from 'react-router-dom';
 import {useGlobalState} from '../../GlobalStateProvider';
 import AmplitudeLogo from '../../assets/amplitud-logo.svg';
-import PendulumLogo from '../../assets/pendulum-logo.png';
+import PendulumLogo from '../../assets/PendulumPay_Logo.svg';
 import {TenantName} from '../../models/Tenant';
 import OpenWallet from '../Wallet';
 import Nav from './Nav';
