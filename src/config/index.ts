@@ -52,7 +52,7 @@ export const config = {
   },
   walletConnect: {
     url: 'wss://relay.walletconnect.com',
-    projectId: 'df24e73d0039787e083b8e00b0120df3',
+    projectId: 'e88bb630fa556473d931162f1b98c111',
   },
   alchemyPay: {
     prodUrl: `https://ramp.alchemypay.org/?appId=wNxCyQNce01WLqyL&network=PEN&crypto=PENDULUM&showTable=buy&type=buy`,
