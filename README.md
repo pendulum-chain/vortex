@@ -4,8 +4,6 @@
 &nbsp; ![TypeScript](https://img.shields.io/badge/-TypeSript-05122A?style=flat&logo=typescript)&nbsp;
 ![Preact](https://img.shields.io/badge/-Preact-05122A?style=flat&logo=preact)&nbsp;
 ![Vite](https://img.shields.io/badge/-Vite-05122A?style=flat&logo=vite)&nbsp;
-![Tailwind CSS](https://img.shields.io/badge/-Tailwind-05122A?style=flat&logo=tailwindcss)&nbsp;
-![SASS](https://img.shields.io/badge/-Sass-05122A?style=flat&logo=sass)&nbsp;
 ![Polkadot](https://img.shields.io/badge/-Polkadot-05122A?style=flat&logo=polkadot)&nbsp;
 
 ---

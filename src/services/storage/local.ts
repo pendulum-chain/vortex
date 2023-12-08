@@ -1,4 +1,4 @@
-import {Storage} from './types';
+import { Storage } from './types';
 
 const exists = (value?: string | null): value is string => !!value && value.length > 0;
 export const storageService: Storage = {

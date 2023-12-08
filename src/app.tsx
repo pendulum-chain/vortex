@@ -1,11 +1,10 @@
-import {Navigate, Route, Routes} from 'react-router-dom';
-import Landing from "./pages/landing";
-
+import { Navigate, Route, Routes } from 'react-router-dom';
+import Landing from './pages/landing';
 
 export function App() {
   return (
     <Routes>
-      <Route path="/" element={<Landing/>}/>
+      <Route path="/" element={<Landing />} />
     </Routes>
   );
 }

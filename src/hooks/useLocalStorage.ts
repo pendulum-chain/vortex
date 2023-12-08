@@ -1,7 +1,7 @@
-import {DateTime} from 'luxon';
-import {useCallback, useEffect, useMemo, useRef, useState} from 'preact/compat';
-import {storageService} from '../services/storage/local';
-import {Storage} from '../services/storage/types';
+import { DateTime } from 'luxon';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/compat';
+import { storageService } from '../services/storage/local';
+import { Storage } from '../services/storage/types';
 
 export const debounce = <T extends any[]>(func: (...args: T) => any, timeout = 300) => {
   let timer: NodeJS.Timeout | undefined;
@@ -24,13 +24,13 @@ export type UseLocalStorageProps<T> = {
   expire?: number;
 } & (T extends undefined
   ? {
-    /** Default/fallback value */
-    defaultValue?: T;
-  }
+      /** Default/fallback value */
+      defaultValue?: T;
+    }
   : {
-    /** Default/fallback value */
-    defaultValue: T;
-  });
+      /** Default/fallback value */
+      defaultValue: T;
+    });
 
 export interface UseLocalStorageResponse<T> {
   /** Storage state/value */
@@ -45,7 +45,7 @@ export interface UseLocalStorageResponse<T> {
 
 const hasExpired = (date: DateTime, expire?: number) => {
   if (expire === undefined) return false;
-  return DateTime.now() < date.plus({seconds: expire});
+  return DateTime.now() < date.plus({ seconds: expire });
 };
 
 const getState = <T>(key: string, defaultValue: T, parse: boolean, expire?: number): T => {
@@ -55,19 +55,19 @@ const getState = <T>(key: string, defaultValue: T, parse: boolean, expire?: numb
   const parsed = storageService.getParsed<T>(key, defaultValue) as T;
   return defaultValue !== undefined
     ? ({
-      ...defaultValue,
-      ...parsed,
-    } as T)
+        ...defaultValue,
+        ...parsed,
+      } as T)
     : parsed;
 };
 
 export const useLocalStorage = <T>({
-                                     key,
-                                     defaultValue,
-                                     debounce: debounceTime,
-                                     parse,
-                                     expire,
-                                   }: UseLocalStorageProps<T>): UseLocalStorageResponse<T> => {
+  key,
+  defaultValue,
+  debounce: debounceTime,
+  parse,
+  expire,
+}: UseLocalStorageProps<T>): UseLocalStorageResponse<T> => {
   type TResponse = UseLocalStorageResponse<T>;
   const firstRef = useRef(false);
   const storageSet = useMemo<Storage['set']>(() => {
@@ -95,7 +95,7 @@ export const useLocalStorage = <T>({
   const merge = useCallback<TResponse['merge']>(
     (value) => {
       setState((prev) => {
-        const newVal = typeof value === 'function' ? value(prev) : ({...prev, ...value} as T);
+        const newVal = typeof value === 'function' ? value(prev) : ({ ...prev, ...value } as T);
         storageSet(key, newVal);
         return newVal;
       });
@@ -110,5 +110,5 @@ export const useLocalStorage = <T>({
     firstRef.current = true;
   }, [defaultValue, key, expire, parse]);
 
-  return {state, set, merge, clear};
+  return { state, set, merge, clear };
 };
