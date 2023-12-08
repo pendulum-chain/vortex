@@ -20,8 +20,11 @@
     "postinstall": "husky install"
   },
   "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
     "@heroicons/react": "^2.0.18",
     "@hookform/resolvers": "^2.9.11",
+    "@mui/material": "^5.14.20",
     "@pendulum-chain/api": "^0.3.1",
     "@polkadot/api": "^9.9.1",
     "@polkadot/api-base": "^9.9.1",
