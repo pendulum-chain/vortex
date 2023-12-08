@@ -3,7 +3,7 @@ import { SpacewalkPrimitivesCurrencyId } from '@polkadot/types/lookup';
 import Big from 'big.js';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useNodeInfoState } from '../../NodeInfoProvider';
-import { fixedPointToDecimal } from '../../shared/parseNumbers';
+import { fixedPointToDecimal } from '../../helpers/parseNumbers';
 
 export function useFeePallet() {
   const [issueFee, setIssueFee] = useState<Big>(new Big(0));
