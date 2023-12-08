@@ -4164,6 +4164,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/luxon@npm:^3":
+  version: 3.3.7
+  resolution: "@types/luxon@npm:3.3.7"
+  checksum: 7505007f220eca7e0c70cc77d1bb3eb3d9b03e20839ad2c8cc5f3d0fba30aa5eb1c4cb93d8b77c9f0b18277aaf50c8da10dae22abeff6576366341b94007710d
+  languageName: node
+  linkType: hard
+
 "@types/minimist@npm:^1.2.0":
   version: 1.2.2
   resolution: "@types/minimist@npm:1.2.2"
@@ -9364,6 +9371,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"luxon@npm:^3.4.4":
+  version: 3.4.4
+  resolution: "luxon@npm:3.4.4"
+  checksum: aa89c0ce0ce20ee17a793e747170d8c139b434be3704dfe2ff0f184121781d8bb1e90cf19780baaa6fef7f75a5918c16335f2e78963a692fe12192288a12c89e
+  languageName: node
+  linkType: hard
+
 "lz-string@npm:^1.4.4":
   version: 1.5.0
   resolution: "lz-string@npm:1.5.0"
@@ -10800,6 +10814,7 @@ __metadata:
     "@types/big.js": "npm:^6.1.6"
     "@types/jest": "npm:^29.4.0"
     "@types/lodash": "npm:^4"
+    "@types/luxon": "npm:^3"
     "@types/node": "npm:^18.14.1"
     "@types/react": "npm:^18.0.28"
     "@types/testing-library__jest-dom": "npm:^5.14.5"
@@ -10815,6 +10830,7 @@ __metadata:
     jest-environment-jsdom: "npm:^29.4.3"
     lint-staged: "npm:>=10"
     lodash: "npm:^4.17.21"
+    luxon: "npm:^3.4.4"
     preact: "npm:^10.12.1"
     prettier: "npm:^2.8.4"
     react-hook-form: "npm:^7.43.2"
