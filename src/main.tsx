@@ -2,19 +2,18 @@ import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
-import './index.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 import { render } from 'preact';
 import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material';
 import { App } from './app';
-
-const queryClient = new QueryClient();
+import defaultTheme from './theme';
 
 render(
-  <QueryClientProvider client={queryClient}>
+  <ThemeProvider theme={defaultTheme}>
     <BrowserRouter>
       <App />
     </BrowserRouter>
-  </QueryClientProvider>,
+  </ThemeProvider>,
   document.getElementById('app') as HTMLElement,
 );

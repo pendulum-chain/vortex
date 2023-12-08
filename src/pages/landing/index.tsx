@@ -1,5 +1,11 @@
+import { Container } from '@mui/material';
+
 function Landing() {
-  return <div>Landing</div>;
+  return (
+    <Container component="main">
+      <h1>Landing</h1>
+    </Container>
+  );
 }
 
 export default Landing;
