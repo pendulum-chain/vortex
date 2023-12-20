@@ -3560,10 +3560,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/big.js@npm:^6.1.6":
-  version: 6.1.6
-  resolution: "@types/big.js@npm:6.1.6"
-  checksum: 900766fb3c76ff62037439991b5eb0ab68a47c687944b6aaacc5bd5a9ca21d48ae52c7c1bc30192ff91821f4d0640a038c66f4d232a3ff630f1ad163204d6ea4
+"@types/bn.js@npm:^5":
+  version: 5.1.5
+  resolution: "@types/bn.js@npm:5.1.5"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 9719330c86aeae0a6a447c974cf0f853ba3660ede20de61f435b03d699e30e6d8b35bf71a8dc9fdc8317784438e83177644ba068ed653d0ae0106e1ecbfe289e
   languageName: node
   linkType: hard
 
@@ -3635,20 +3637,6 @@ __metadata:
   version: 7.0.11
   resolution: "@types/json-schema@npm:7.0.11"
   checksum: e50864a93f4dcb9de64c0c605d836f5416341c824d7a8cde1aa15a5fc68bed44b33cdcb2e04e5098339e9121848378f2d0cc5b124dec41c89203c6f67d6f344a
-  languageName: node
-  linkType: hard
-
-"@types/lodash@npm:^4":
-  version: 4.14.194
-  resolution: "@types/lodash@npm:4.14.194"
-  checksum: c075c0d52ddad80013586033f3ef9d04fa385ddd37eee0e7e0d9d0146e89f23d8834fb084f8f0807ca25aaee818f4da7cae94fdce07931c8cae58fcd94c469dd
-  languageName: node
-  linkType: hard
-
-"@types/luxon@npm:^3":
-  version: 3.3.7
-  resolution: "@types/luxon@npm:3.3.7"
-  checksum: 282ac72fd55da0c9d57f376ba9061ce83506cf6239c32259dacde0800964089f6183d2e449ef2ddd89b079fb8bfdffd7e5dbf187eb5c9f106aeaeca2aa60ed09
   languageName: node
   linkType: hard
 
@@ -8359,15 +8347,14 @@ __metadata:
     "@testing-library/jest-dom": "npm:^5.16.5"
     "@testing-library/preact": "npm:^3.2.3"
     "@testing-library/preact-hooks": "npm:^1.1.0"
-    "@types/big.js": "npm:^6.1.6"
+    "@types/bn.js": "npm:^5"
     "@types/jest": "npm:^29.4.0"
-    "@types/lodash": "npm:^4"
-    "@types/luxon": "npm:^3"
     "@types/node": "npm:^18.14.1"
     "@types/react": "npm:^18.0.28"
     "@types/testing-library__jest-dom": "npm:^5.14.5"
     "@typescript-eslint/eslint-plugin": "npm:^5.53.0"
     "@typescript-eslint/parser": "npm:^5.53.0"
+    bn.js: "npm:^5.2.1"
     eslint: "npm:^8.34.0"
     eslint-plugin-jest: "npm:^27.2.1"
     eslint-plugin-react: "npm:^7.32.2"

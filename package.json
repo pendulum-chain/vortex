@@ -34,6 +34,7 @@
     "@polkadot/rpc-provider": "^9.9.1",
     "@polkadot/types": "^9.9.1",
     "@polkadot/util": "^10.1.9",
+    "bn.js": "^5.2.1",
     "preact": "^10.12.1",
     "react-router-dom": "^6.8.1"
   },
@@ -53,6 +54,7 @@
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/preact": "^3.2.3",
     "@testing-library/preact-hooks": "^1.1.0",
+    "@types/bn.js": "^5",
     "@types/jest": "^29.4.0",
     "@types/node": "^18.14.1",
     "@types/react": "^18.0.28",
