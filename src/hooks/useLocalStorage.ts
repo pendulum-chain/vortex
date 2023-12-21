@@ -1,8 +1,16 @@
-import { DateTime } from 'luxon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/compat';
-import { debounce } from '../helpers/function';
 import { storageService } from '../services/storage/local';
 import { Storage } from '../services/storage/types';
+
+export const debounce = <T extends any[]>(func: (...args: T) => any, timeout = 300) => {
+  let timer: NodeJS.Timeout | undefined;
+  return (...args: T) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      func(...args);
+    }, timeout);
+  };
+};
 
 export type UseLocalStorageProps<T> = {
   /** Storage key */
@@ -34,14 +42,14 @@ export interface UseLocalStorageResponse<T> {
   clear: () => void;
 }
 
-const hasExpired = (date: DateTime, expire?: number) => {
-  if (expire === undefined) return false;
-  return DateTime.now() < date.plus({ seconds: expire });
+const hasExpired = (timestamp: number, expiredMillis?: number) => {
+  if (expiredMillis === undefined) return false;
+  return Date.now() < timestamp + expiredMillis;
 };
 
 const getState = <T>(key: string, defaultValue: T, parse: boolean, expire?: number): T => {
   const date = expire !== undefined ? storageService.get(`${key}_`) : undefined;
-  if (date?.length && hasExpired(DateTime.fromMillis(Number(date)), expire)) return defaultValue;
+  if (date?.length && hasExpired(Date.parse(date), expire)) return defaultValue;
   if (!parse) return (storageService.get(key) as T) ?? defaultValue;
   const parsed = storageService.getParsed<T>(key, defaultValue) as T;
   return defaultValue !== undefined
@@ -64,7 +72,7 @@ export const useLocalStorage = <T>({
   const storageSet = useMemo<Storage['set']>(() => {
     const internalSet = (key: string, value: unknown) => {
       storageService.set(key, value);
-      if (expire !== undefined) storageService.set(`${key}_`, DateTime.now());
+      if (expire !== undefined) storageService.set(`${key}_`, Date.now());
     };
     return debounceTime ? debounce(internalSet, debounceTime) : internalSet;
   }, [debounceTime, expire]);

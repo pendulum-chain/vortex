@@ -1,37 +1,19 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from 'preact';
-import { Theme } from 'react-daisyui';
-import { BrowserRouter } from 'react-router-dom';
-import { GlobalState, GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
-import { NodeInfoProvider } from './NodeInfoProvider';
-import SharedProvider from './SharedProvider';
-import { App } from './app';
-import { emptyFn } from './helpers/general';
-import './index.css';
-import { ThemeName, tenantTheme } from './models/Theme';
+import '@fontsource/roboto/300.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '@fontsource/roboto/700.css';
 
-const queryClient = new QueryClient();
+import { render } from 'preact';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material';
+import { App } from './app';
+import defaultTheme from './theme';
 
 render(
-  <QueryClientProvider client={queryClient}>
+  <ThemeProvider theme={defaultTheme}>
     <BrowserRouter>
-      <GlobalStateProvider>
-        <GlobalStateContext.Consumer>
-          {(globalState) => {
-            const { tenantRPC, getThemeName = emptyFn } = globalState as GlobalState;
-            return (
-              <NodeInfoProvider tenantRPC={tenantRPC}>
-                <SharedProvider>
-                  <Theme dataTheme={`${getThemeName()}`} className={tenantTheme[getThemeName() || ThemeName.Pendulum]}>
-                    <App />
-                  </Theme>
-                </SharedProvider>
-              </NodeInfoProvider>
-            );
-          }}
-        </GlobalStateContext.Consumer>
-      </GlobalStateProvider>
+      <App />
     </BrowserRouter>
-  </QueryClientProvider>,
+  </ThemeProvider>,
   document.getElementById('app') as HTMLElement,
 );
