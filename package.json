@@ -36,7 +36,9 @@
     "@polkadot/util": "^10.1.9",
     "bn.js": "^5.2.1",
     "preact": "^10.12.1",
-    "react-router-dom": "^6.8.1"
+    "react-router-dom": "^6.8.1",
+    "stellar-base": "^11.0.1",
+    "stellar-sdk": "^11.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.12",

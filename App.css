@@ -1,0 +1,29 @@
+.App {
+    text-align: center;
+  }
+  
+.inputBox, .eventBox {
+margin: 20px auto;
+width: 30%;
+padding: 20px;
+border: 1px solid #ccc;
+box-shadow: 0 0 10px #ccc;
+}
+
+.eventsContainer {
+display: flex;
+flex-direction: column;
+align-items: center;
+overflow-y: scroll;
+max-height: 70vh; 
+}
+
+input {
+margin: 10px;
+padding: 10px;
+}
+
+button {
+padding: 10px 20px;
+cursor: pointer;
+}

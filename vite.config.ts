@@ -45,29 +45,18 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: [],
     esbuildOptions: {
-      // Node.js global to browser globalThis
+      target: "esnext", 
+
       define: {
-        global: 'globalThis',
+        global: 'globalThis'
       },
-      // Enable esbuild polyfill plugins
-      plugins: [
-        NodeGlobalsPolyfillPlugin({
-          process: true,
-          buffer: true,
-        }),
-        NodeModulesPolyfillPlugin(),
-      ],
-    },
-  },
+      supported: { 
+        bigint: true 
+      },
+    }
+  }, 
   build: {
-    rollupOptions: {
-      plugins: [
-        // Enable rollup polyfills plugin
-        // used during production bundling
-        rollupNodePolyFill(),
-      ],
-    },
+    target: ["esnext"],
   },
 });
