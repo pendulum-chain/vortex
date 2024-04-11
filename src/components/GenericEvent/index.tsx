@@ -1,16 +1,19 @@
 import React from 'react';
-import {InputBoxEvent} from '../InputKeys/index'; 
 
+export interface GenericEvent{
+  value: string;
+  error: boolean;
+}
 interface EventBoxProps {
-  event: InputBoxEvent;
+  event: GenericEvent;
 }
 
-const EventBox: React.FC<EventBoxProps> = ({ event }) => {
+const EventBox = React.forwardRef<HTMLDivElement, EventBoxProps>(({ event }, ref) => {
   return (
-    <div className="eventBox">
-      <p>Event: {event.inputOne} and {event.inputTwo}</p>
+    <div ref={ref} className="eventBox">
+      <p>Event: {event.value}</p>
     </div>
   );
-}
+});
 
 export default EventBox;

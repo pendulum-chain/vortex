@@ -1,36 +1,35 @@
 import React, { useState } from 'react';
 
-export interface InputBoxEvent{
-    inputOne: string;
-    inputTwo: string;
+export interface IInputBoxData{
+    stellarFundingSecret: string;
+    pendulumSecret: string;
 }
 
 interface InputBoxProps {
-  onStart: (eventData: InputBoxEvent) => void;
-  onSubmit: (eventData: InputBoxEvent) => void;
+  onSubmit: (secrets: IInputBoxData) => void;
 }
 
-const InputBox: React.FC<InputBoxProps> = ({ onStart, onSubmit }) => {
-  const [inputOne, setInputOne] = useState<string>('');
-  const [inputTwo, setInputTwo] = useState<string>('');
+const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
+  const [stellarFundingSecret, setStellarFundingSecret] = useState<string>('');
+  const [pendulumSecret, setPendulumSecret] = useState<string>('');
 
   const handleSubmit = () => {
-    onSubmit({ inputOne, inputTwo });
+    onSubmit({ stellarFundingSecret, pendulumSecret });
   };
 
   return (
     <div className="inputBox">
         <input
             type="text"
-            value={inputOne}
-            onChange={(e) => setInputOne((e.target as HTMLInputElement).value)}
-            placeholder="Input One"
+            value={stellarFundingSecret}
+            onChange={(e) => setStellarFundingSecret((e.target as HTMLInputElement).value)}
+            placeholder="Stellar Funding Secret"
         />
         <input
             type="text"
-            value={inputTwo}
-            onChange={(e) => setInputTwo((e.target as HTMLInputElement).value)}
-            placeholder="Input Two"
+            value={pendulumSecret}
+            onChange={(e) => setPendulumSecret((e.target as HTMLInputElement).value)}
+            placeholder="Pendulum Secret"
         />
         <button onClick={handleSubmit}>Start</button>
     </div>

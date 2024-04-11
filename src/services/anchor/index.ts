@@ -7,12 +7,35 @@ export interface TomlValues {
     sep24Url?: string;
 }
 
+export interface ISep24Intermediate {
+  url: string;
+  id: string;
+}
+
 export interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
 }
+
+export interface ISep24Result{
+  amount: string;
+  memo: string;
+  offrampingAccount: string;
+
+}
   
 const exists = (value?: string | null): value is string => !!value && value?.length > 0;
+let ephemeralKeys: Keypair | null;
+
+export const getEphemeralKeys = () => {
+
+  if (ephemeralKeys) {
+    return ephemeralKeys;
+  }else{
+    ephemeralKeys = Keypair.random();
+    return ephemeralKeys;
+  }
+}
   
 export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues> => {
     const response = await fetch(TOML_FILE_URL);
@@ -46,7 +69,7 @@ export const sep10 = async (tomlValues: TomlValues): Promise<string> => {
       throw new Error("Missing values in TOML file");
     }
     const NETWORK_PASSPHRASE = Networks.PUBLIC;
-    const ephemeralKeys = Keypair.random();
+    const ephemeralKeys = getEphemeralKeys();
     const accountId = ephemeralKeys.publicKey();
     const urlParams = new URLSearchParams({
       account: accountId,
@@ -91,7 +114,7 @@ export const sep10 = async (tomlValues: TomlValues): Promise<string> => {
 
   }
 
-export async function sep24First(sessionParams: IAnchorSessionParams) {
+export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
     console.log("Initiate SEP-24");
     const { token, tomlValues } = sessionParams;
     const { sep24Url } = tomlValues;
@@ -115,14 +138,20 @@ export async function sep24First(sessionParams: IAnchorSessionParams) {
   
     console.log(`SEP-24 initiated. Please complete the form at ${url}.`);
 
-    return url;
+    return {url, id};
     
   }
 
-export async function sep24Second (id: string, sessionParams: IAnchorSessionParams) {
+export async function sep24Second (sep24Values: ISep24Intermediate, sessionParams: IAnchorSessionParams): Promise<ISep24Result> {
+    const { id } = sep24Values;
     const { token, tomlValues } = sessionParams;
     const { sep24Url } = tomlValues;
-    console.log("Waiting for interactive form to be completed.");
+
+    return {
+      amount: "todo",
+      memo: "todo",
+      offrampingAccount: "todo",
+    };
     let status;
     let transaction;
     do {
@@ -131,12 +160,14 @@ export async function sep24Second (id: string, sessionParams: IAnchorSessionPara
       const statusResponse = await fetch(`${sep24Url}/transaction?${idParam.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
+      
+
       if (statusResponse.status !== 200) {
         throw new Error(`Failed to fetch SEP-24 status: ${statusResponse.statusText}`);
       }
   
       let { transaction } = await statusResponse.json();
+      console.log(transaction)
       status = transaction;
     } while (status.status !== "pending_user_transfer_start");
   
