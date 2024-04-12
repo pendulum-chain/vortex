@@ -146,12 +146,16 @@ export async function sep24Second (sep24Values: ISep24Intermediate, sessionParam
     const { id } = sep24Values;
     const { token, tomlValues } = sessionParams;
     const { sep24Url } = tomlValues;
-
+    
+    // TODOmock, testing
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     return {
-      amount: "todo",
+      amount: "100000000000",
       memo: "todo",
-      offrampingAccount: "todo",
+      offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
     };
+    // end mock testing
+
     let status;
     let transaction;
     do {

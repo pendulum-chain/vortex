@@ -36,6 +36,7 @@
     "@polkadot/util": "^10.1.9",
     "big.js": "^6.2.1",
     "bn.js": "^5.2.1",
+    "buffer": "^6.0.3",
     "preact": "^10.12.1",
     "react-router-dom": "^6.8.1",
     "stellar-base": "^11.0.1",

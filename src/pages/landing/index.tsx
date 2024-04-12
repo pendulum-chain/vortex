@@ -5,59 +5,113 @@ import EventBox from '../../components/GenericEvent';
 import { GenericEvent } from '../../components/GenericEvent';
 import {IInputBoxData} from '../../components/InputKeys';
 import { fetchTomlValues, sep10, IAnchorSessionParams, ISep24Result, getEphemeralKeys} from '../../services/anchor';
-import {setUpAccountAndOperations, IStellarOperations} from '../../services/stellar';
-import Sep24 from '../../components/Sep24Component'
+import {setUpAccountAndOperations, IStellarOperations, submitOfframpTransaction, cleanupStellarEphemeral} from '../../services/stellar';
+import { executeSpacewalkRedeem } from '../../services/polkadot';
+import Sep24 from '../../components/Sep24Component';
+import { TOML_FILE_URL } from '../../constants/constants';
+
+
+enum OperationStatus {
+  Idle,
+  Submitting,
+  SettingUpStellar,
+  Redeeming,
+  FinalizingOfframp,
+  Completed,
+  Error,
+}
+
+
 
 function Landing() {
+
+  // system status
+  const [status, setStatus] = useState(OperationStatus.Idle);
+
+  // events state and refs
   const [events, setEvents] = useState<GenericEvent[]>([]);
   const eventsEndRef = useRef<HTMLDivElement | null>(null);
+  const [activeEventIndex, setActiveEventIndex] = useState<number>(-1);
 
+  // seession and operations states
   const [secrets, setSecrets] = useState<IInputBoxData | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
-  const [sep24Result, setSep24Result] = useState<ISep24Result | null>(null);
   const [stellarOperations, setStellarOperations] = useState<IStellarOperations | null>(null);
+  const [sep24Result, setSep24Result] = useState<ISep24Result | null>(null);
 
+  // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
-  
+  const [canInitiate, setCanInitiate] = useState<boolean>(false);
 
   const handleOnSubmit = (secrets: IInputBoxData) => {
     setSecrets(secrets);
+
+    // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
+    setStatus(OperationStatus.Submitting);
   }
 
   const handleOnSep24Completed = async (result: ISep24Result) => {
     setShowSep24(false);
     addEvent("SEP24 completed, settings stellar accounts", false);
+    console.log("SEP24 Result", result)
     setSep24Result(result);
 
-    //add a delay 1 second
-    await new Promise(resolve => setTimeout(resolve, 1000));
     // set up the ephemeral account and operations we will later neeed
-    
-    //let operations = await setUpAccountAndOperations(result, getEphemeralKeys(), secrets!.stellarFundingSecret)
-    //setStellarOperations(operations)
+    try{
+      let operations = await setUpAccountAndOperations(result, getEphemeralKeys(), secrets!.stellarFundingSecret)
+      setStellarOperations(operations)
+    }catch(error){
+      addEvent("Stellar setup failed", true);
+      return;
+    }
 
-    addEvent("Stellar things done!", false);
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    addEvent("Stellar things done!, Redeeming...", false);
 
-    //trigger redeem
-    executeRedeem()
-
+    //this will trigger redeem
+    setStatus(OperationStatus.Redeeming);
 
   }
 
-  const executeRedeem = async () => {
-    addEvent("Redeeming...", false);
+  const executeRedeem = async (sepResult: ISep24Result) => {
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    addEvent('Redeem process completed.', false);
+    try{
+      await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, secrets!.pendulumSecret, addEvent)
+    }catch(error){
+      console.error("Redeem failed", error);
+      addEvent("Redeem failed", true);
+      return;
+    }
+    addEvent('Redeem process completed, executing offramp transaction', false);
+
+    //this will trigger finalizeOfframp
+    setStatus(OperationStatus.FinalizingOfframp);
   
+  }
+
+  const finalizeOfframp = async () => {
+
+    try{
+      await submitOfframpTransaction(secrets!.stellarFundingSecret, stellarOperations!.offrampingTransaction);
+    }catch(error){
+      console.error("Offramp failed", error);
+      addEvent("Offramp transaction failed", true);
+      return;
+    }
+   
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    addEvent('Offramp Submitted! Funds should be available shortly', false);
+
+    // we may not necessarily need to show the user an error, since the offramp transaction is already submitted 
+    // and successful
+    // This will not affect the user
+    await cleanupStellarEphemeral(secrets!.stellarFundingSecret, stellarOperations!.mergeAccountTransaction)
+    
   }
 
   const addEvent = (message: string, isError: boolean) => {
     setEvents((prevEvents) => [...prevEvents, { value: message, error: isError }]);
+    setActiveEventIndex(prevIndex => prevIndex + 1);
 
   };
 
@@ -75,9 +129,10 @@ function Landing() {
   useEffect(() => {
     const initiate = async () => {
       try {
-        const values = await fetchTomlValues('https://mykobo.co/.well-known/stellar.toml');
+        const values = await fetchTomlValues(TOML_FILE_URL);
         const token = await sep10(values);
         setAnchorSessionParams({ token, tomlValues: values });
+        setCanInitiate(true);
         console.log("Token", token)
       } catch (error) {
         console.error("Error fetching token", error);
@@ -87,18 +142,37 @@ function Landing() {
     initiate();
   }, []);
 
+  useEffect(() => {
+    switch (status) {
+      case OperationStatus.Redeeming:
+        executeRedeem(sep24Result!);
+        return;
+      case OperationStatus.FinalizingOfframp:
+        finalizeOfframp();
+        return;
+    }
+  }, [status]);
+
   return (
     <div className="App">
-      {<InputBox  onSubmit={handleOnSubmit} />}
+      { canInitiate &&
+         (<InputBox  onSubmit={handleOnSubmit} />
+      )}
       {showSep24 && (
         <div>
-          <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} />
+          <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent}/>
         </div>
       )}
-      <div className="eventsContainer">
+       <div className="eventsContainer">
         {events.map((event, index) => (
-         <EventBox key={index} event={event} ref={index === events.length - 1 ? eventsEndRef : null} />
+          <EventBox
+            key={index}
+            event={event}
+            ref={index === events.length - 1 ? eventsEndRef : null}
+            className={index === activeEventIndex ? 'active' : ''}
+          />
         ))}
+        <div ref={eventsEndRef} />
       </div>
     </div>
   );

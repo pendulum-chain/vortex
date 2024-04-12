@@ -4,6 +4,7 @@ import {stellarHexToPublic} from "./convert";
 import {parseEventRedeemRequest} from "./eventParsers";
 import {Api} from "./polkadotApi";
 import {SpacewalkPrimitivesVaultId} from "@polkadot/types/lookup"
+import {Buffer} from "buffer";
 
 export function extractAssetFromWrapped(wrapped: any) {
     if (wrapped.Stellar === "StellarNative") {
@@ -59,14 +60,14 @@ export class VaultService {
     vaultId: SpacewalkPrimitivesVaultId | undefined = undefined;
     api: Api | undefined = undefined
 
-    constructor(vaultId: SpacewalkPrimitivesVaultId, api: Api) {
+    constructor(vaultId: any, api: Api) {
         this.vaultId = vaultId;
         // Potentially validate the vault given the network,
         // validate the wrapped asset consistency, etc
         this.api = api;
     }
 
-    async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer) {
+    async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer): Promise<any> {
         return new Promise(async (resolve, reject) => {
             const keyring = new Keyring({type: "sr25519"});
             keyring.setSS58Format(this.api!.ss58Format);

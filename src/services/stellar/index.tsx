@@ -1,11 +1,11 @@
 import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction } from 'stellar-sdk';
-import {HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER} from '../../constants/constants';
+import {HORIZON_URL, BASE_FEE, ASSET_CODE_MOCK, ASSET_ISSUER_MOCK} from '../../constants/constants';
 import { ISep24Result } from '../anchor';
 
 
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
+const NETWORK_PASSPHRASE = Networks.TESTNET;
 
 export interface IStellarOperations{
     offrampingTransaction: Transaction;
@@ -13,7 +13,6 @@ export interface IStellarOperations{
 
 }
   
-//getter for account and operations
 export async function setUpAccountAndOperations(sep24Result:ISep24Result, ephemeralKeys: Keypair, stellarFundingSecret: string): Promise<IStellarOperations> {
 
     await setupStellarAccount(stellarFundingSecret, ephemeralKeys);
@@ -64,9 +63,11 @@ async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair
   
     try {
       await horizonServer.submitTransaction(createAccountTransaction);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Could not submit the offramping transaction");
-      //console.error(error.response.data.extras);
+      const horizonError = error as { response: { data: { extras: any } } };
+      console.error(horizonError.response.data.extras);
+      throw new Error("Could not submit the change trust transaction")
     }
   
     const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
@@ -76,7 +77,7 @@ async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair
     })
       .addOperation(
         Operation.changeTrust({
-          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
         })
       )
       .setTimeout(30)
@@ -88,8 +89,10 @@ async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair
     try {
       await horizonServer.submitTransaction(changeTrustTransaction);
     } catch (error) {
+      const horizonError = error as { response: { data: { extras: any } } };
       console.error("Could not submit the change trust transaction");
-     // console.error(error.response.data.extras);
+      console.error(horizonError.response.data.extras);
+      throw new Error("Could not submit the change trust transaction")
     }
 }
 
@@ -105,7 +108,7 @@ async function createOfframpTransaction(sep24Result:ISep24Result  , ephemeralKey
       .addOperation(
         Operation.payment({
           amount,
-          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
           destination: offrampingAccount,
         })
       )
@@ -127,7 +130,7 @@ async function createAccountMergeTransaction(fundingSecret: string, ephemeralKey
     })
       .addOperation(
         Operation.changeTrust({
-          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
           limit: "0",
         })
       )
@@ -142,3 +145,44 @@ async function createAccountMergeTransaction(fundingSecret: string, ephemeralKey
   
     return transaction;
   }
+
+
+export async function submitOfframpTransaction(fundingSecret: string, offrampingTransaction: Transaction) {
+    
+    const fundingKeypair = Keypair.fromSecret(fundingSecret);
+    console.log("Submit offramping transaction");
+    offrampingTransaction.sign(fundingKeypair);
+    try {
+      await horizonServer.submitTransaction(offrampingTransaction);
+    } catch (error) {
+      console.error("Could not submit the offramping transaction");
+      
+      const horizonError = error as { response: { data: { extras: any } } };
+      console.error(horizonError.response.data.extras);
+      throw new Error("Could not submit the offramping transaction")
+    }
+  
+  }
+
+export async function cleanupStellarEphemeral(fundingSecret: string, mergeAccountTransaction: Transaction) {
+  
+  console.log("Submit cleanup transaction");
+  const fundingKeypair = Keypair.fromSecret(fundingSecret);
+  mergeAccountTransaction.sign(fundingKeypair);
+  
+  try {
+    await horizonServer.submitTransaction(mergeAccountTransaction);
+  } catch (error) {
+    console.error("Could not submit the cleanup transaction");
+    
+    const horizonError = error as { response: { data: { extras: any } } };
+    console.error(horizonError.response.data.extras);
+    throw new Error("Could not submit the cleanup transaction")
+  }
+  
+  
+}
+
+ 
+
+  

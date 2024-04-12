@@ -2,7 +2,7 @@
     text-align: center;
   }
   
-.inputBox, .eventBox {
+.inputBox {
   margin: 20px auto;
   width: 30%;
   padding: 20px;
@@ -10,6 +10,10 @@
   box-shadow: 0 0 10px #ccc;
 }
 
+.inputBox input:disabled {
+  background-color: #ccc; 
+  color: #666; 
+}
 .eventsContainer {
   display: flex;
   flex-direction: column;
@@ -34,8 +38,23 @@ button {
   padding: 20px;
   border: 1px solid #ccc;
   box-shadow: 0 0 10px #ccc;
+  transition: all 0.5s ease-in-out;
+}
+
+.eventBox.active {
+  transform: scale(1.3); 
+  background-color: #f0f0f0; 
 }
 
 .eventBox.error {
+  margin: 20px auto;
+  width: 30%;
+  padding: 20px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 10px #ccc;
+  transition: all 0.5s ease-in-out;
   color: red; 
 }
+
+
+

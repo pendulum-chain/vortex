@@ -5,6 +5,7 @@ import { sep24First, sep24Second } from '../../services/anchor';
 interface Sep24Props {
     sessionParams:  IAnchorSessionParams | null;
     onSep24Complete: (sep24Reslt: ISep24Result) => void;
+    addEvent: (message: string, isError: boolean) => void;
 }
 
 interface Sep24ProcessStatus {
@@ -12,7 +13,7 @@ interface Sep24ProcessStatus {
     waitingSep24Second: boolean;
 }
 
-const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete }) => {
+const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent }) => {
   const [iframe, iframeOpened] = useState<boolean>(false);
   const [sep24IntermediateValues, setSep24IntermediateValues] = useState<ISep24Intermediate | null>(null);
   const [processStatus, setProcessStatus] = useState<Sep24ProcessStatus>({
@@ -21,7 +22,6 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete }) => {
 
   useEffect(() => {
     if (!processStatus?.processStarted) {
-      //will this be called exactly when the component is mounted?
       startProcess();
       setProcessStatus({
         processStarted: true,
@@ -31,8 +31,6 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete }) => {
   }, []); 
 
   const startProcess = () => {
-    console.log('Sep Process started');
-    // we could validate that seession params is not null
     if (sessionParams) {
       sep24First(sessionParams).then((response) => {
         setSep24IntermediateValues(response)
@@ -49,13 +47,12 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete }) => {
     // sessionParams
     iframeOpened(false);
     sep24Second(sep24IntermediateValues!, sessionParams!).then((response) => {
-      console.log('Sep24 Second completed', response);
       onSep24Complete(response);
     
     });
+    addEvent('Waiting for confirmation from Mykobo', false);
     setProcessStatus({processStarted: true, waitingSep24Second: true})
   }
-
 
   return (
     <div>

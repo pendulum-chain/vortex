@@ -1,7 +1,7 @@
 import {ApiPromise, WsProvider} from "@polkadot/api";
 
 const NETWORK = "Pendulum"
-const PENDULUM_WSS = "wss://rpc-pendulum.prd.pendulumchain.tech"
+const PENDULUM_WSS = "ws://127.0.0.1:8000"
 
 export interface Api {
     api: ApiPromise,
@@ -38,7 +38,7 @@ class ApiManager {
     }
 
     async getApi(): Promise<Api> {
-        if (this.apiData?.api) {
+        if (!this.apiData) {
             await this.populateApi();
         }
         // will always be populated

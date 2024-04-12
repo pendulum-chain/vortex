@@ -1,5 +1,6 @@
 import {StrKey} from "stellar-sdk";
 import BigNumber from "big.js";
+import { Buffer } from 'buffer';
 
 export function stellarHexToPublic(hexString: string) {
     return StrKey.encodeEd25519PublicKey(hexToBuffer(hexString));

@@ -8,7 +8,7 @@ import { decimalToStellarNative } from "../../helpers/parseNumbers";
 import { EventListener } from "./eventListener";
 export const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(ASSET_ISSUER).rawPublicKey().toString("hex")}`;
 
-export async function executeSpacewalkRedeem(stellarTargetAccountId: any, amountString: string, pendulumSecret: string) {
+export async function executeSpacewalkRedeem(stellarTargetAccountId: string, amountString: string, pendulumSecret: string, renderEvent: (event: string, error: boolean) => void) {
     console.log("Executing Spacewalk redeem");
   
     const pendulumApi = await new ApiManager().getApi();
@@ -29,19 +29,39 @@ export async function executeSpacewalkRedeem(stellarTargetAccountId: any, amount
     let stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
   
     console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
-    let redeemRequestEvent = await vaultService.requestRedeem(pendulumSecret, amountRaw, stellarTargetAccountIdRaw);
-  
+
+    //TODO mock assume redeem was succesfull
+    return;
+
+    let redeemRequestEvent;
+    try{
+      redeemRequestEvent = await vaultService.requestRedeem(pendulumSecret, amountRaw, stellarTargetAccountIdRaw);
+    }catch(error){
+      // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
+      console.log(`Failed to request redeem: ${error}`);
+      throw new Error(`Failed to request redeem`)
+    }
+    
     console.log(
       `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(eurcVaultId)}`
     );
-  
+    //Render event that the extrinsic passed, and we are now waiting for the execution of it
+    renderEvent("Redeem request passed, waiting for execution", false);
+
     const eventListener = EventListener.getEventListener(pendulumApi.api);
     // We wait for up to 5 minutes
     const maxWaitingTimeMin = 5;
     const maxWaitingTimeMs = maxWaitingTimeMin * 60 * 1000;
     console.log(`Waiting up to ${maxWaitingTimeMin} minutes for redeem execution event...`);
   
-    const redeemEvent = await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
-  
-    console.log(`Successfully redeemed ${redeemEvent.amount} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
+    try{
+      const redeemEvent = await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
+      console.log(`Successfully redeemed ${redeemEvent.amount} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
+    }catch(error){
+      // This is a potentially recoverable error (due to network delay)
+      // in the future we should distinguish between recoverable and non-recoverable errors
+      console.log(`Failed to wait for redeem execution: ${error}`);
+      throw new Error(`Failed to wait for redeem execution`)
+    }
+    
   }
