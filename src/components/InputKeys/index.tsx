@@ -79,7 +79,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
           disabled={isSubmitted}
         />
         {pendulumError && <div style={{ color: 'red' }}>{pendulumError}</div>}
-        {!isSubmitted ? <button onClick={handleSubmit}>Begin Offramp</button> : <div>Started</div>}
+        {!isSubmitted ? <button onClick={handleSubmit}>Begin Offramp</button> : <div>Offramp Started</div>}
       </div>
     </div>
   );
