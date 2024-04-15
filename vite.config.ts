@@ -46,17 +46,17 @@ export default defineConfig({
   },
   optimizeDeps: {
     esbuildOptions: {
-      target: "esnext", 
+      target: 'esnext',
 
       define: {
-        global: 'globalThis'
+        global: 'globalThis',
       },
-      supported: { 
-        bigint: true 
+      supported: {
+        bigint: true,
       },
-    }
-  }, 
+    },
+  },
   build: {
-    target: ["esnext"],
+    target: ['esnext'],
   },
 });

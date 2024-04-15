@@ -1,9 +1,9 @@
 import React from 'react';
 
 export enum EventStatus {
-  Success = "success",
-  Error = "error",
-  Waiting = "waiting"
+  Success = 'success',
+  Error = 'error',
+  Waiting = 'waiting',
 }
 
 export interface GenericEvent {
@@ -15,7 +15,6 @@ interface EventBoxProps {
   event: GenericEvent;
   className: string;
 }
-
 
 const EventBox = React.forwardRef<HTMLDivElement, EventBoxProps>(({ event, className }, ref) => {
   const classes = `eventBox ${className} ${event.status}`;

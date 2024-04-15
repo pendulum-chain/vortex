@@ -4,9 +4,9 @@ import { checkPendulumAccount } from '../../services/polkadot/utils';
 import eurcSvg from '../../assets/coins/eurc.svg';
 import euroSvg from '../../assets/coins/euro.svg';
 import arrowSvg from '../../assets/coins/arrow.svg';
-export interface IInputBoxData{
-    stellarFundingSecret: string;
-    pendulumSecret: string;
+export interface IInputBoxData {
+  stellarFundingSecret: string;
+  pendulumSecret: string;
 }
 
 interface InputBoxProps {
@@ -23,20 +23,20 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
 
   const handleSubmit = async () => {
     const stellarResult = await checkStellarAccount(stellarFundingSecret);
-    
-    const pendulumResult =  await checkPendulumAccount(pendulumSecret) 
-    
+
+    const pendulumResult = await checkPendulumAccount(pendulumSecret);
+
     if (stellarResult && pendulumResult) {
       setIsSubmitted(true);
       onSubmit({ stellarFundingSecret, pendulumSecret });
     } else {
       if (!stellarResult) {
-        setStellarError("Please check the stellar secret");
+        setStellarError('Please check the stellar secret');
       }
       if (!pendulumResult) {
-        setPendulumError("Please check the pendulum secret");
+        setPendulumError('Please check the pendulum secret');
       }
-      console.error("One or both accounts do not exist or have insufficient balance.");
+      console.error('One or both accounts do not exist or have insufficient balance.');
     }
   };
 
@@ -48,42 +48,41 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
         <img src={euroSvg} className="icon" alt="Icon Y" />
       </div>
       <div className={`inputBox ${isSubmitted ? 'active' : ''}`}>
-        {!isSubmitted && <div className="description">
-        Enter your secrets below to start the offramp process.
-        <ul>
-          <li>Ensure to have enough EURC in Pendulum for the desired amount to offramp.</li>
-          <li>Do not close this window until the process is completed.</li>
-        </ul>
-        
-      </div>
-        }
+        {!isSubmitted && (
+          <div className="description">
+            Enter your secrets below to start the offramp process.
+            <ul>
+              <li>Ensure to have enough EURC in Pendulum for the desired amount to offramp.</li>
+              <li>Do not close this window until the process is completed.</li>
+            </ul>
+          </div>
+        )}
         <input
           type="password"
           value={stellarFundingSecret}
           onChange={(e) => {
             setStellarFundingSecret((e.target as HTMLInputElement).value);
-            if (stellarError) setStellarError(''); 
+            if (stellarError) setStellarError('');
           }}
           placeholder="Stellar Funding Secret"
           disabled={isSubmitted}
         />
-        {stellarError && <div style={{color: 'red'}}>{stellarError}</div>}
+        {stellarError && <div style={{ color: 'red' }}>{stellarError}</div>}
         <input
           type="password"
           value={pendulumSecret}
           onChange={(e) => {
             setPendulumSecret((e.target as HTMLInputElement).value);
-            if (pendulumError) setPendulumError(''); 
+            if (pendulumError) setPendulumError('');
           }}
           placeholder="Pendulum Secret"
           disabled={isSubmitted}
         />
-        {pendulumError && <div style={{color: 'red'}}>{pendulumError}</div>}
+        {pendulumError && <div style={{ color: 'red' }}>{pendulumError}</div>}
         {!isSubmitted ? <button onClick={handleSubmit}>Begin Offramp</button> : <div>Started</div>}
       </div>
     </div>
-  )
-
-}
+  );
+};
 
 export default InputBox;
