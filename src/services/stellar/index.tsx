@@ -1,11 +1,12 @@
 import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction } from 'stellar-sdk';
-import {HORIZON_URL, BASE_FEE, ASSET_CODE_MOCK, ASSET_ISSUER_MOCK} from '../../constants/constants';
+import {HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER} from '../../constants/constants';
 import { ISep24Result } from '../anchor';
 
 
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.TESTNET;
+const NETWORK_PASSPHRASE = Networks.PUBLIC;
+import { EventStatus } from '../../components/GenericEvent';
 
 export interface IStellarOperations{
     offrampingTransaction: Transaction;
@@ -13,9 +14,9 @@ export interface IStellarOperations{
 
 }
   
-export async function setUpAccountAndOperations(sep24Result:ISep24Result, ephemeralKeys: Keypair, stellarFundingSecret: string): Promise<IStellarOperations> {
+export async function setUpAccountAndOperations(sep24Result:ISep24Result, ephemeralKeys: Keypair, stellarFundingSecret: string, renderEvent: (event: string, status: EventStatus) => void): Promise<IStellarOperations> {
 
-    await setupStellarAccount(stellarFundingSecret, ephemeralKeys);
+    await setupStellarAccount(stellarFundingSecret, ephemeralKeys, renderEvent);
     const offrampingTransaction = await createOfframpTransaction(sep24Result, ephemeralKeys);
      const mergeAccountTransaction = await createAccountMergeTransaction(
          stellarFundingSecret,
@@ -26,7 +27,7 @@ export async function setUpAccountAndOperations(sep24Result:ISep24Result, epheme
 }
 
 
-async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair) {
+async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair, renderEvent: (event: string, status: EventStatus) => void) {
     console.log("Setup Stellar ephemeral account");
   
     const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
@@ -66,7 +67,8 @@ async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair
     } catch (error: unknown) {
       console.error("Could not submit the offramping transaction");
       const horizonError = error as { response: { data: { extras: any } } };
-      console.error(horizonError.response.data.extras);
+      console.error(horizonError.response.data.extras.toString());
+      renderEvent(`Could not submit the offramping transaction. ${JSON.stringify(horizonError.response.data.extras)}`, EventStatus.Error);
       throw new Error("Could not submit the change trust transaction")
     }
   
@@ -77,7 +79,7 @@ async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair
     })
       .addOperation(
         Operation.changeTrust({
-          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
         })
       )
       .setTimeout(30)
@@ -91,12 +93,13 @@ async function setupStellarAccount(fundingSecret: string, ephemeralKeys: Keypair
     } catch (error) {
       const horizonError = error as { response: { data: { extras: any } } };
       console.error("Could not submit the change trust transaction");
-      console.error(horizonError.response.data.extras);
+      console.error(horizonError.response.data.extras.toString());
+      renderEvent(`Could not submit the change trust transaction. ${JSON.stringify(horizonError.response.data.extras)}`, EventStatus.Error);
       throw new Error("Could not submit the change trust transaction")
     }
 }
 
-async function createOfframpTransaction(sep24Result:ISep24Result  , ephemeralKeys: Keypair) {
+async function createOfframpTransaction(sep24Result:ISep24Result, ephemeralKeys: Keypair) {
     // this operation would run completely in the browser
     // that is where the signature of the ephemeral account is added
     const { amount, memo, offrampingAccount } = sep24Result;
@@ -108,7 +111,7 @@ async function createOfframpTransaction(sep24Result:ISep24Result  , ephemeralKey
       .addOperation(
         Operation.payment({
           amount,
-          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
           destination: offrampingAccount,
         })
       )
@@ -130,7 +133,7 @@ async function createAccountMergeTransaction(fundingSecret: string, ephemeralKey
     })
       .addOperation(
         Operation.changeTrust({
-          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
           limit: "0",
         })
       )
@@ -147,24 +150,25 @@ async function createAccountMergeTransaction(fundingSecret: string, ephemeralKey
   }
 
 
-export async function submitOfframpTransaction(fundingSecret: string, offrampingTransaction: Transaction) {
+export async function submitOfframpTransaction(fundingSecret: string, offrampingTransaction: Transaction, renderEvent: (event: string, status: EventStatus) => void) {
     
     const fundingKeypair = Keypair.fromSecret(fundingSecret);
     console.log("Submit offramping transaction");
     offrampingTransaction.sign(fundingKeypair);
     try {
       await horizonServer.submitTransaction(offrampingTransaction);
-    } catch (error) {
-      console.error("Could not submit the offramping transaction");
-      
+    } catch (error) {      
       const horizonError = error as { response: { data: { extras: any } } };
+      renderEvent(`Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras)}`, EventStatus.Error);
+
+      console.error("Could not submit the offramping transaction");
       console.error(horizonError.response.data.extras);
       throw new Error("Could not submit the offramping transaction")
     }
   
   }
 
-export async function cleanupStellarEphemeral(fundingSecret: string, mergeAccountTransaction: Transaction) {
+export async function cleanupStellarEphemeral(fundingSecret: string, mergeAccountTransaction: Transaction, renderEvent: (event: string, status: EventStatus) => void) {
   
   console.log("Submit cleanup transaction");
   const fundingKeypair = Keypair.fromSecret(fundingSecret);
@@ -173,9 +177,11 @@ export async function cleanupStellarEphemeral(fundingSecret: string, mergeAccoun
   try {
     await horizonServer.submitTransaction(mergeAccountTransaction);
   } catch (error) {
-    console.error("Could not submit the cleanup transaction");
-    
+
     const horizonError = error as { response: { data: { extras: any } } };
+    renderEvent(`Could not submit the cleanup transaction ${JSON.stringify(horizonError.response.data.extras)}`, EventStatus.Error);
+    
+    console.error("Could not submit the cleanup transaction");
     console.error(horizonError.response.data.extras);
     throw new Error("Could not submit the cleanup transaction")
   }

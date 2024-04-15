@@ -53,13 +53,16 @@ function Landing() {
 
   const handleOnSep24Completed = async (result: ISep24Result) => {
     setShowSep24(false);
-    addEvent("SEP24 completed, settings stellar accounts", EventStatus.Waiting);
+    
     console.log("SEP24 Result", result)
+    // log the result 
+    addEvent(`SEP24 completed, amount: ${result.amount}, memo: ${result.memo}, offramping account: ${result.offrampingAccount}`, EventStatus.Waiting);
     setSep24Result(result);
 
     // set up the ephemeral account and operations we will later neeed
     try{
-      let operations = await setUpAccountAndOperations(result, getEphemeralKeys(), secrets!.stellarFundingSecret)
+      addEvent("Settings stellar accounts", EventStatus.Waiting);
+      let operations = await setUpAccountAndOperations(result, getEphemeralKeys(), secrets!.stellarFundingSecret, addEvent)
       setStellarOperations(operations)
     }catch(error){
       addEvent("Stellar setup failed", EventStatus.Error);
@@ -78,8 +81,6 @@ function Landing() {
     try{
       await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, secrets!.pendulumSecret, addEvent)
     }catch(error){
-      console.error("Redeem failed", error);
-      addEvent("Redeem failed", EventStatus.Error);
       return;
     }
     addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
@@ -92,7 +93,7 @@ function Landing() {
   const finalizeOfframp = async () => {
 
     try{
-      await submitOfframpTransaction(secrets!.stellarFundingSecret, stellarOperations!.offrampingTransaction);
+      await submitOfframpTransaction(secrets!.stellarFundingSecret, stellarOperations!.offrampingTransaction, addEvent);
     }catch(error){
       console.error("Offramp failed", error);
       addEvent("Offramp transaction failed", EventStatus.Error);
@@ -105,7 +106,7 @@ function Landing() {
     // we may not necessarily need to show the user an error, since the offramp transaction is already submitted 
     // and successful
     // This will not affect the user
-    await cleanupStellarEphemeral(secrets!.stellarFundingSecret, stellarOperations!.mergeAccountTransaction)
+    await cleanupStellarEphemeral(secrets!.stellarFundingSecret, stellarOperations!.mergeAccountTransaction, addEvent);
     
   }
 

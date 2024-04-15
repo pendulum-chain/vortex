@@ -33,7 +33,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
 
   const startProcess = () => {
     if (sessionParams) {
-      sep24First(sessionParams).then((response) => {
+      sep24First(sessionParams, addEvent).then((response) => {
         setSep24IntermediateValues(response)
         iframeOpened(true);
 
@@ -47,7 +47,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
     // at this point setSep24IntermediateValues should not be null, as well as 
     // sessionParams
     iframeOpened(false);
-    sep24Second(sep24IntermediateValues!, sessionParams!).then((response) => {
+    sep24Second(sep24IntermediateValues!, sessionParams!, addEvent).then((response) => {
       onSep24Complete(response);
     
     });
@@ -63,7 +63,6 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
               <button onClick={() => handleIframeCompletion()}>I'm Done</button>
           </div>
       )}
-      {processStatus.waitingSep24Second && <p>Waiting for process to be completed</p>}
     </div>
 
   );

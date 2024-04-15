@@ -1,6 +1,6 @@
 import {  Transaction, Keypair, Networks} from "stellar-sdk";
 import { ASSET_CODE } from "../../constants/constants";
-
+import { EventStatus } from "../../components/GenericEvent";
 export interface TomlValues {
     signingKey?: string;
     webAuthEndpoint?: string;
@@ -114,7 +114,7 @@ export const sep10 = async (tomlValues: TomlValues): Promise<string> => {
 
   }
 
-export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
+export async function sep24First(sessionParams: IAnchorSessionParams, renderEvent: (event: string, status: EventStatus) => void): Promise<ISep24Intermediate> {
     console.log("Initiate SEP-24");
     const { token, tomlValues } = sessionParams;
     const { sep24Url } = tomlValues;
@@ -128,11 +128,13 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
       body: sep24Params.toString(),
     });
     if (sep24Response.status !== 200) {
+      renderEvent(`Failed to initiate SEP-24: ${sep24Response.statusText}`, EventStatus.Error);
       throw new Error(`Failed to initiate SEP-24: ${sep24Response.statusText}`);
     }
   
     const { type, url, id } = await sep24Response.json();
     if (type !== "interactive_customer_info_needed") {
+      renderEvent(`Unexpected SEP-24 type: ${type}`, EventStatus.Error);
       throw new Error(`Unexpected SEP-24 type: ${type}`);
     }
   
@@ -142,18 +144,19 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
     
   }
 
-export async function sep24Second (sep24Values: ISep24Intermediate, sessionParams: IAnchorSessionParams): Promise<ISep24Result> {
+export async function sep24Second (sep24Values: ISep24Intermediate, sessionParams: IAnchorSessionParams, renderEvent: (event: string, status: EventStatus) => void): Promise<ISep24Result> {
     const { id } = sep24Values;
     const { token, tomlValues } = sessionParams;
     const { sep24Url } = tomlValues;
     
     // TODOmock, testing
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return {
-      amount: "100000000000",
-      memo: "todo",
-      offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
-    };
+    // await new Promise((resolve) => setTimeout(resolve, 1000));
+    // return {
+    //   amount: "100000000000",
+    //   memo: "todo",
+    //   offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
+    // };
+   
     // end mock testing
 
     let status;
@@ -176,6 +179,7 @@ export async function sep24Second (sep24Values: ISep24Intermediate, sessionParam
     } while (status.status !== "pending_user_transfer_start");
   
     if (status.withdraw_memo_type !== "text") {
+      renderEvent(`Unexpected offramp memo type: ${transaction!.withdraw_memo_type}`, EventStatus.Error);
       throw new Error(`Unexpected offramp memo type: ${transaction!.withdraw_memo_type}`);
     }
   

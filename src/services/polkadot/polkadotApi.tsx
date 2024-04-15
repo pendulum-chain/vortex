@@ -1,7 +1,7 @@
 import {ApiPromise, WsProvider} from "@polkadot/api";
-
+import { PENDULUM_WSS } from "../../constants/constants";
 const NETWORK = "Pendulum"
-const PENDULUM_WSS = "ws://127.0.0.1:8000"
+
 
 export interface Api {
     api: ApiPromise,

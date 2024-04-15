@@ -48,7 +48,15 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
         <img src={euroSvg} className="icon" alt="Icon Y" />
       </div>
       <div className={`inputBox ${isSubmitted ? 'active' : ''}`}>
-        {!isSubmitted && <div className="description">Enter your secrets below to start the offramp process.</div>}
+        {!isSubmitted && <div className="description">
+        Enter your secrets below to start the offramp process.
+        <ul>
+          <li>Ensure to have enough EURC in Pendulum for the desired amount to offramp.</li>
+          <li>Do not close this window until the process is completed.</li>
+        </ul>
+        
+      </div>
+        }
         <input
           type="password"
           value={stellarFundingSecret}

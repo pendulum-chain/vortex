@@ -33,13 +33,14 @@ export async function executeSpacewalkRedeem(stellarTargetAccountId: string, amo
     console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
 
     //TODO mock assume redeem was succesfull
-    return;
+    //return;
 
     let redeemRequestEvent;
     try{
       redeemRequestEvent = await vaultService.requestRedeem(pendulumSecret, amountRaw, stellarTargetAccountIdRaw);
     }catch(error){
       // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
+      renderEvent(`Failed to request redeem: ${error}`, EventStatus.Error);
       console.log(`Failed to request redeem: ${error}`);
       throw new Error(`Failed to request redeem`)
     }
@@ -48,21 +49,25 @@ export async function executeSpacewalkRedeem(stellarTargetAccountId: string, amo
       `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(eurcVaultId)}`
     );
     //Render event that the extrinsic passed, and we are now waiting for the execution of it
-    renderEvent("Redeem request passed, waiting for execution", EventStatus.Waiting);
+    
 
     const eventListener = EventListener.getEventListener(pendulumApi.api);
     // We wait for up to 5 minutes
     const maxWaitingTimeMin = 5;
     const maxWaitingTimeMs = maxWaitingTimeMin * 60 * 1000;
+
+    renderEvent(`Redeem request passed, waiting up to ${maxWaitingTimeMin} minutes for redeem execution event...`, EventStatus.Waiting);
     console.log(`Waiting up to ${maxWaitingTimeMin} minutes for redeem execution event...`);
   
     try{
       const redeemEvent = await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
       console.log(`Successfully redeemed ${redeemEvent.amount} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
     }catch(error){
+
       // This is a potentially recoverable error (due to network delay)
       // in the future we should distinguish between recoverable and non-recoverable errors
       console.log(`Failed to wait for redeem execution: ${error}`);
+      renderEvent(`Failed to wait for redeem execution: Max waiting time exceeded`, EventStatus.Error);
       throw new Error(`Failed to wait for redeem execution`)
     }
     
