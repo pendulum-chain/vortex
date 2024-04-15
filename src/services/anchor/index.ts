@@ -162,7 +162,7 @@ export async function sep24Second(
   // end mock testing
 
   let status;
-  let transaction;
+  let transaction: any;
   do {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const idParam = new URLSearchParams({ id });
