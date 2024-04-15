@@ -41,6 +41,7 @@ input {
   box-shadow: 0 0 10px #ccc;
   transition: all 0.5s ease-in-out;
   color: #333;
+  word-break: break-all;
 }
 
 .eventBox.waiting {
