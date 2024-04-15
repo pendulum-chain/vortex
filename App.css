@@ -58,6 +58,7 @@ input {
   transition: all 0.5s ease-in-out;
   color: #333;
   word-wrap: break-word;
+  text-align: center;
 }
 
 .eventBox.waiting {
