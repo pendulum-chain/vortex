@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Container } from '@mui/material';
 import { IAnchorSessionParams, ISep24Intermediate, ISep24Result } from '../../services/anchor';
 import { sep24First, sep24Second } from '../../services/anchor';
 import { EventStatus } from '../GenericEvent';
@@ -22,7 +21,16 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
     waitingSep24Second: false,
   });
 
+  // we want this to run only once when the component mounts
   useEffect(() => {
+    const startProcess = () => {
+      if (sessionParams) {
+        sep24First(sessionParams, addEvent).then((response) => {
+          setSep24IntermediateValues(response);
+          iframeOpened(true);
+        });
+      }
+    };
     if (!processStatus?.processStarted) {
       startProcess();
       setProcessStatus({
@@ -30,16 +38,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
         waitingSep24Second: false,
       });
     }
-  }, []);
-
-  const startProcess = () => {
-    if (sessionParams) {
-      sep24First(sessionParams, addEvent).then((response) => {
-        setSep24IntermediateValues(response);
-        iframeOpened(true);
-      });
-    }
-  };
+  }, [sessionParams, addEvent, processStatus]);
 
   const handleIframeCompletion = () => {
     // at this point setSep24IntermediateValues should not be null, as well as
@@ -61,7 +60,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
             title="External Content"
             style={{ width: '50%', height: '400px' }}
           ></iframe>
-          <button onClick={() => handleIframeCompletion()}>I'm Done</button>
+          <button onClick={() => handleIframeCompletion()}>I&apos;m Done</button>
         </div>
       )}
     </div>

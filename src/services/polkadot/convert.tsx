@@ -14,7 +14,7 @@ export function hexToBuffer(hexString: string) {
 }
 
 export function hexToString(hexString: string) {
-  let asBuffer = hexToBuffer(hexString);
+  const asBuffer = hexToBuffer(hexString);
   return asBuffer.toString('utf8');
 }
 

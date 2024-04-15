@@ -37,9 +37,9 @@ export class EventListener {
   }
 
   waitForRedeemExecuteEvent(redeemId: string, maxWaitingTimeMs: number) {
-    let filter = (event: any) => {
+    const filter = (event: any) => {
       if (event.event.section === 'redeem' && event.event.method === 'ExecuteRedeem') {
-        let eventParsed = parseEventRedeemExecution(event);
+        const eventParsed = parseEventRedeemExecution(event);
         if (eventParsed.redeemId == redeemId) {
           return eventParsed;
         }

@@ -11,7 +11,6 @@ export interface Api {
 class ApiManager {
   apiData: Api | undefined = undefined;
 
-  constructor() {}
 
   async connectApi(socketUrl: string) {
     const wsProvider = new WsProvider(socketUrl);

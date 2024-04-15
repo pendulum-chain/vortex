@@ -73,6 +73,10 @@ export class VaultService {
     this.api = api;
   }
 
+  // we should probably refactor to move the promse to only the requestRedeem call, 
+  // and avoid using an async promise executor
+
+  // eslint-disable-next-line no-async-promise-executor
   async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer): Promise<any> {
     return new Promise(async (resolve, reject) => {
       const keyring = new Keyring({ type: 'sr25519' });
@@ -99,13 +103,13 @@ export class VaultService {
               return reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
             }
             //find all redeem request events and filter the one that matches the requester
-            let redeemEvents = events.filter((event) => {
+            const redeemEvents = events.filter((event) => {
               return (
                 event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
               );
             });
 
-            let event = redeemEvents
+            const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
               .filter((event) => {
                 return event.redeemer === origin.address;

@@ -174,7 +174,7 @@ export async function sep24Second(
       throw new Error(`Failed to fetch SEP-24 status: ${statusResponse.statusText}`);
     }
 
-    let { transaction } = await statusResponse.json();
+    const { transaction } = await statusResponse.json();
     console.log(transaction);
     status = transaction;
   } while (status.status !== 'pending_user_transfer_start');

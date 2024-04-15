@@ -70,7 +70,7 @@ async function setupStellarAccount(
     const horizonError = error as { response: { data: { extras: any } } };
     console.error(horizonError.response.data.extras.toString());
     renderEvent(
-      `Could not submit the offramping transaction. ${JSON.stringify(horizonError.response.data.extras)}`,
+      `Could not submit the offramping transaction. ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
       EventStatus.Error,
     );
     throw new Error('Could not submit the change trust transaction');
@@ -99,7 +99,7 @@ async function setupStellarAccount(
     console.error('Could not submit the change trust transaction');
     console.error(horizonError.response.data.extras.toString());
     renderEvent(
-      `Could not submit the change trust transaction. ${JSON.stringify(horizonError.response.data.extras)}`,
+      `Could not submit the change trust transaction. ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
       EventStatus.Error,
     );
     throw new Error('Could not submit the change trust transaction');
@@ -169,7 +169,7 @@ export async function submitOfframpTransaction(
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };
     renderEvent(
-      `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras)}`,
+      `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
       EventStatus.Error,
     );
 
@@ -193,7 +193,7 @@ export async function cleanupStellarEphemeral(
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };
     renderEvent(
-      `Could not submit the cleanup transaction ${JSON.stringify(horizonError.response.data.extras)}`,
+      `Could not submit the cleanup transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
       EventStatus.Error,
     );
 

@@ -66,7 +66,7 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      let operations = await setUpAccountAndOperations(
+      const operations = await setUpAccountAndOperations(
         result,
         getEphemeralKeys(),
         secrets!.stellarFundingSecret,
@@ -154,7 +154,7 @@ function Landing() {
         finalizeOfframp();
         return;
     }
-  }, [status]);
+  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="App">

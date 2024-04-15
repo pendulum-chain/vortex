@@ -54,9 +54,21 @@ export default defineConfig({
       supported: {
         bigint: true,
       },
+      plugins: [
+        NodeGlobalsPolyfillPlugin({
+          process: true,
+          buffer: true,
+        }),
+        NodeModulesPolyfillPlugin(),
+      ],
     },
   },
   build: {
     target: ['esnext'],
+    rollupOptions: {
+      plugins: [
+        rollupNodePolyFill(),
+      ],
+    },
   },
 });

@@ -19,20 +19,20 @@ export async function executeSpacewalkRedeem(
 
   const pendulumApi = await new ApiManager().getApi();
   // The Vault ID of the EURC vault
-  let eurcVaultId = {
+  const eurcVaultId = {
     accountId: EURC_VAULT_ACCOUNT_ID,
     currencies: {
       collateral: { XCM: 0 },
       wrapped: { Stellar: { AlphaNum4: { code: ASSET_CODE, issuer: ASSET_ISSUER_RAW } } },
     },
   };
-  let vaultService = new VaultService(eurcVaultId, pendulumApi);
+  const vaultService = new VaultService(eurcVaultId, pendulumApi);
 
   // We currently charge 0 fees for redeem requests on Spacewalk so the amount is the same as the requested amount
   const amountRaw = decimalToStellarNative(amountString).toString();
   // Generate raw public key for target
-  let stellarTargetKeypair = Keypair.fromPublicKey(stellarTargetAccountId);
-  let stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
+  const stellarTargetKeypair = Keypair.fromPublicKey(stellarTargetAccountId);
+  const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
 
   console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
 
