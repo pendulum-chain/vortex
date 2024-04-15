@@ -6,9 +6,11 @@ import { VaultService } from "./spacewalk";
 import { prettyPrintVaultId } from "./spacewalk";
 import { decimalToStellarNative } from "../../helpers/parseNumbers";
 import { EventListener } from "./eventListener";
+import { EventStatus } from "../../components/GenericEvent";
+
 export const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(ASSET_ISSUER).rawPublicKey().toString("hex")}`;
 
-export async function executeSpacewalkRedeem(stellarTargetAccountId: string, amountString: string, pendulumSecret: string, renderEvent: (event: string, error: boolean) => void) {
+export async function executeSpacewalkRedeem(stellarTargetAccountId: string, amountString: string, pendulumSecret: string, renderEvent: (event: string, status: EventStatus) => void) {
     console.log("Executing Spacewalk redeem");
   
     const pendulumApi = await new ApiManager().getApi();
@@ -46,7 +48,7 @@ export async function executeSpacewalkRedeem(stellarTargetAccountId: string, amo
       `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(eurcVaultId)}`
     );
     //Render event that the extrinsic passed, and we are now waiting for the execution of it
-    renderEvent("Redeem request passed, waiting for execution", false);
+    renderEvent("Redeem request passed, waiting for execution", EventStatus.Waiting);
 
     const eventListener = EventListener.getEventListener(pendulumApi.api);
     // We wait for up to 5 minutes

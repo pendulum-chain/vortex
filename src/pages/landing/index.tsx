@@ -2,7 +2,7 @@ import '../../../App.css'
 import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
 import EventBox from '../../components/GenericEvent';
-import { GenericEvent } from '../../components/GenericEvent';
+import { GenericEvent, EventStatus } from '../../components/GenericEvent';
 import {IInputBoxData} from '../../components/InputKeys';
 import { fetchTomlValues, sep10, IAnchorSessionParams, ISep24Result, getEphemeralKeys} from '../../services/anchor';
 import {setUpAccountAndOperations, IStellarOperations, submitOfframpTransaction, cleanupStellarEphemeral} from '../../services/stellar';
@@ -53,7 +53,7 @@ function Landing() {
 
   const handleOnSep24Completed = async (result: ISep24Result) => {
     setShowSep24(false);
-    addEvent("SEP24 completed, settings stellar accounts", false);
+    addEvent("SEP24 completed, settings stellar accounts", EventStatus.Waiting);
     console.log("SEP24 Result", result)
     setSep24Result(result);
 
@@ -62,11 +62,11 @@ function Landing() {
       let operations = await setUpAccountAndOperations(result, getEphemeralKeys(), secrets!.stellarFundingSecret)
       setStellarOperations(operations)
     }catch(error){
-      addEvent("Stellar setup failed", true);
+      addEvent("Stellar setup failed", EventStatus.Error);
       return;
     }
 
-    addEvent("Stellar things done!, Redeeming...", false);
+    addEvent("Stellar things done!, Redeeming...", EventStatus.Waiting);
 
     //this will trigger redeem
     setStatus(OperationStatus.Redeeming);
@@ -79,10 +79,10 @@ function Landing() {
       await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, secrets!.pendulumSecret, addEvent)
     }catch(error){
       console.error("Redeem failed", error);
-      addEvent("Redeem failed", true);
+      addEvent("Redeem failed", EventStatus.Error);
       return;
     }
-    addEvent('Redeem process completed, executing offramp transaction', false);
+    addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
 
     //this will trigger finalizeOfframp
     setStatus(OperationStatus.FinalizingOfframp);
@@ -95,12 +95,12 @@ function Landing() {
       await submitOfframpTransaction(secrets!.stellarFundingSecret, stellarOperations!.offrampingTransaction);
     }catch(error){
       console.error("Offramp failed", error);
-      addEvent("Offramp transaction failed", true);
+      addEvent("Offramp transaction failed", EventStatus.Error);
       return;
     }
    
     await new Promise(resolve => setTimeout(resolve, 1000));
-    addEvent('Offramp Submitted! Funds should be available shortly', false);
+    addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
 
     // we may not necessarily need to show the user an error, since the offramp transaction is already submitted 
     // and successful
@@ -109,8 +109,8 @@ function Landing() {
     
   }
 
-  const addEvent = (message: string, isError: boolean) => {
-    setEvents((prevEvents) => [...prevEvents, { value: message, error: isError }]);
+  const addEvent = (message: string, status: EventStatus) => {
+    setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
     setActiveEventIndex(prevIndex => prevIndex + 1);
 
   };

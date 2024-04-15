@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Container } from '@mui/material';
 import {IAnchorSessionParams, ISep24Intermediate, ISep24Result} from '../../services/anchor';
 import { sep24First, sep24Second } from '../../services/anchor';
+import { EventStatus } from '../GenericEvent';
 interface Sep24Props {
     sessionParams:  IAnchorSessionParams | null;
     onSep24Complete: (sep24Reslt: ISep24Result) => void;
-    addEvent: (message: string, isError: boolean) => void;
+    addEvent: (message: string, status: EventStatus) => void;
 }
 
 interface Sep24ProcessStatus {
@@ -50,20 +51,21 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
       onSep24Complete(response);
     
     });
-    addEvent('Waiting for confirmation from Mykobo', false);
+    addEvent('Waiting for confirmation from Mykobo', EventStatus.Waiting);
     setProcessStatus({processStarted: true, waitingSep24Second: true})
   }
 
   return (
     <div>
-        {iframe && (
-          <Container>
-            <iframe src={sep24IntermediateValues!.url} title="External Content" style={{ width: "50%", height: "400px" }}></iframe>
-            <button onClick={() => handleIframeCompletion()}>I'm Done</button>
-          </Container>
-        )}
-        {processStatus.waitingSep24Second && <p>Waiting for process to be completed</p>}
+      {iframe && (
+          <div className="iframe-container">
+              <iframe src={sep24IntermediateValues!.url} title="External Content" style={{ width: "50%", height: "400px" }}></iframe>
+              <button onClick={() => handleIframeCompletion()}>I'm Done</button>
+          </div>
+      )}
+      {processStatus.waitingSep24Second && <p>Waiting for process to be completed</p>}
     </div>
+
   );
 }
 
