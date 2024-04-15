@@ -84,7 +84,6 @@
     "yarn": ">=1.22.19"
   },
   "lint-staged": {
-    "*.{ts,tsx}": "eslint --cache --fix",
     "*.--write": "prettier --write"
   }
 }
