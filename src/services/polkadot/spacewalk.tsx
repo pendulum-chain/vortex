@@ -5,6 +5,7 @@ import { parseEventRedeemRequest } from './eventParsers';
 import { Api } from './polkadotApi';
 import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 import { Buffer } from 'buffer';
+import { ISubmittableResult } from '@polkadot/types/types';
 
 export function extractAssetFromWrapped(wrapped: any) {
   if (wrapped.Stellar === 'StellarNative') {
@@ -73,63 +74,63 @@ export class VaultService {
     this.api = api;
   }
 
-  // we should probably refactor to move the promse to only the requestRedeem call, 
-  // and avoid using an async promise executor
+  async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer) {
+    const keyring = new Keyring({ type: 'sr25519' });
+    keyring.setSS58Format(this.api!.ss58Format);
+    const origin = keyring.addFromUri(uri);
 
-  // eslint-disable-next-line no-async-promise-executor
-  async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      const keyring = new Keyring({ type: 'sr25519' });
-      keyring.setSS58Format(this.api!.ss58Format);
-      const origin = keyring.addFromUri(uri);
+    const release = await this.api!.mutex.lock(origin.address);
+    const nonce = await this.api!.api.rpc.system.accountNextIndex(origin.publicKey);
 
-      const release = await this.api!.mutex.lock(origin.address);
-      const nonce = await this.api!.api.rpc.system.accountNextIndex(origin.publicKey);
-      await this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
-        .signAndSend(origin, { nonce }, (submissionResult) => {
-          const { status, events, dispatchError } = submissionResult;
+    // The result will be assigned in the callback
+    let result = undefined;
 
-          if (status.isFinalized) {
-            console.log(
-              `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`,
-            );
+    await this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
+      .signAndSend(origin, { nonce }, (submissionResult: ISubmittableResult) => {
+        const { status, events, dispatchError } = submissionResult;
 
-            // Try to find a 'system.ExtrinsicFailed' event
-            const systemExtrinsicFailedEvent = events.find((record) => {
-              return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
-            });
+        if (status.isFinalized) {
+          console.log(
+            `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`,
+          );
 
-            if (dispatchError) {
-              return reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
-            }
-            //find all redeem request events and filter the one that matches the requester
-            const redeemEvents = events.filter((event) => {
-              return (
-                event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
-              );
-            });
+          // Try to find a 'system.ExtrinsicFailed' event
+          const systemExtrinsicFailedEvent = events.find((record) => {
+            return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
+          });
 
-            const event = redeemEvents
-              .map((event) => parseEventRedeemRequest(event))
-              .filter((event) => {
-                return event.redeemer === origin.address;
-              });
-
-            if (event.length == 0) {
-              reject(new Error(`No redeem event found for account ${origin.address}`));
-            }
-            //we should only find one event corresponding to the issue request
-            if (event.length != 1) {
-              reject(new Error('Inconsistent amount of redeem request events for account'));
-            }
-            resolve(event[0]);
+          if (dispatchError) {
+            throw this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request');
           }
-        })
-        .catch((error) => {
-          reject(new Error(`Failed to request redeem: ${error}`));
-        })
-        .finally(() => release());
-    });
+          //find all redeem request events and filter the one that matches the requester
+          const redeemEvents = events.filter((event) => {
+            return (
+              event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
+            );
+          });
+
+          const event = redeemEvents
+            .map((event) => parseEventRedeemRequest(event))
+            .filter((event) => {
+              return event.redeemer === origin.address;
+            });
+
+          if (event.length == 0) {
+            throw new Error(`No redeem event found for account ${origin.address}`);
+          }
+          //we should only find one event corresponding to the issue request
+          if (event.length != 1) {
+            throw new Error('Inconsistent amount of redeem request events for account');
+          }
+          result = event[0];
+        }
+      })
+      .catch((error) => {
+        throw new Error(`Failed to request redeem: ${error}`);
+      })
+      .finally(() => release());
+
+    return result;
   }
 
   // We first check if dispatchError is of type "module",
