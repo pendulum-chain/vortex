@@ -55,11 +55,15 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
     <div>
       {iframe && (
         <div className="iframe-container">
-          <iframe
-            src={sep24IntermediateValues!.url}
-            title="External Content"
-            style={{ width: '50%', height: '400px' }}
-          ></iframe>
+          <a
+            href={sep24IntermediateValues!.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="button-link"
+            style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '5px', textAlign: 'center', margin: '10px 0' }}
+          >
+            Open External Content
+          </a>
           <button onClick={() => handleIframeCompletion()}>I&apos;m Done</button>
         </div>
       )}
