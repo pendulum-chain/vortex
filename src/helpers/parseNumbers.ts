@@ -1,5 +1,5 @@
 import { u128 } from '@polkadot/types-codec';
-import BigNumber from 'bn.js';
+import BigNumber from 'bignumber.js';
 
 // These are the decimals used for the native currency on the Amplitude network
 export const ChainDecimals = 12;
@@ -20,7 +20,7 @@ export const decimalToNative = (value: BigNumber | number | string) => {
     bigIntValue = new BigNumber(0);
   }
   const multiplier = new BigNumber(10).pow(new BigNumber(ChainDecimals));
-  return bigIntValue.mul(multiplier);
+  return bigIntValue.multipliedBy(multiplier);
 };
 
 export const decimalToStellarNative = (value: BigNumber | number | string) => {
@@ -31,7 +31,7 @@ export const decimalToStellarNative = (value: BigNumber | number | string) => {
     bigIntValue = new BigNumber(0);
   }
   const multiplier = new BigNumber(10).pow(new BigNumber(StellarDecimals));
-  return bigIntValue.mul(multiplier);
+  return bigIntValue.multipliedBy(multiplier);
 };
 
 export const fixedPointToDecimal = (value: BigNumber | number | string) => {

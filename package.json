@@ -35,6 +35,7 @@
     "@polkadot/types": "^9.9.1",
     "@polkadot/util": "^10.1.9",
     "big.js": "^6.2.1",
+    "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "buffer": "^6.0.3",
     "preact": "^10.12.1",

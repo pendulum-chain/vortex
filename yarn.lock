@@ -8470,6 +8470,7 @@ __metadata:
     "@typescript-eslint/eslint-plugin": "npm:^5.53.0"
     "@typescript-eslint/parser": "npm:^5.53.0"
     big.js: "npm:^6.2.1"
+    bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.1"
     buffer: "npm:^6.0.3"
     eslint: "npm:^8.34.0"
