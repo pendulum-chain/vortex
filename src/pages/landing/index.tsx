@@ -14,6 +14,7 @@ import {
 import { executeSpacewalkRedeem } from '../../services/polkadot';
 import Sep24 from '../../components/Sep24Component';
 import { TOML_FILE_URL } from '../../constants/constants';
+import { useCallback } from 'preact/compat';
 
 enum OperationStatus {
   Idle,
@@ -84,19 +85,27 @@ function Landing() {
     setStatus(OperationStatus.Redeeming);
   };
 
-  const executeRedeem = async (sepResult: ISep24Result) => {
-    try {
-      await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, secrets!.pendulumSecret, addEvent);
-    } catch (error) {
-      return;
-    }
-    addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
+  const executeRedeem = useCallback(
+    async (sepResult: ISep24Result) => {
+      try {
+        await executeSpacewalkRedeem(
+          getEphemeralKeys().publicKey(),
+          sepResult.amount,
+          secrets!.pendulumSecret,
+          addEvent,
+        );
+      } catch (error) {
+        return;
+      }
+      addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
 
-    //this will trigger finalizeOfframp
-    setStatus(OperationStatus.FinalizingOfframp);
-  };
+      //this will trigger finalizeOfframp
+      setStatus(OperationStatus.FinalizingOfframp);
+    },
+    [secrets],
+  );
 
-  const finalizeOfframp = async () => {
+  const finalizeOfframp = useCallback(async () => {
     try {
       await submitOfframpTransaction(secrets!.stellarFundingSecret, stellarOperations!.offrampingTransaction, addEvent);
     } catch (error) {
@@ -112,7 +121,7 @@ function Landing() {
     // and successful
     // This will not affect the user
     await cleanupStellarEphemeral(secrets!.stellarFundingSecret, stellarOperations!.mergeAccountTransaction, addEvent);
-  };
+  }, [secrets, stellarOperations]);
 
   const addEvent = (message: string, status: EventStatus) => {
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
@@ -142,19 +151,19 @@ function Landing() {
       }
     };
 
-    initiate();
+    initiate().catch(console.error);
   }, []);
 
   useEffect(() => {
     switch (status) {
       case OperationStatus.Redeeming:
-        executeRedeem(sep24Result!);
+        executeRedeem(sep24Result!).catch(console.error);
         return;
       case OperationStatus.FinalizingOfframp:
-        finalizeOfframp();
+        finalizeOfframp().catch(console.error);
         return;
     }
-  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [status, executeRedeem, finalizeOfframp, sep24Result]);
 
   return (
     <div className="App">

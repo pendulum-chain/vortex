@@ -1,10 +1,11 @@
 import { Keyring } from '@polkadot/api';
 import { Asset } from 'stellar-sdk';
 import { stellarHexToPublic } from './convert';
-import { parseEventRedeemRequest } from './eventParsers';
+import { parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from './eventParsers';
 import { Api } from './polkadotApi';
 import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 import { Buffer } from 'buffer';
+import { ISubmittableResult } from '@polkadot/types/types';
 
 export function extractAssetFromWrapped(wrapped: any) {
   if (wrapped.Stellar === 'StellarNative') {
@@ -73,20 +74,17 @@ export class VaultService {
     this.api = api;
   }
 
-  // we should probably refactor to move the promse to only the requestRedeem call, 
-  // and avoid using an async promise executor
+  async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer) {
+    const keyring = new Keyring({ type: 'sr25519' });
+    keyring.setSS58Format(this.api!.ss58Format);
+    const origin = keyring.addFromUri(uri);
 
-  // eslint-disable-next-line no-async-promise-executor
-  async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      const keyring = new Keyring({ type: 'sr25519' });
-      keyring.setSS58Format(this.api!.ss58Format);
-      const origin = keyring.addFromUri(uri);
+    const release = await this.api!.mutex.lock(origin.address);
+    const nonce = await this.api!.api.rpc.system.accountNextIndex(origin.publicKey);
 
-      const release = await this.api!.mutex.lock(origin.address);
-      const nonce = await this.api!.api.rpc.system.accountNextIndex(origin.publicKey);
-      await this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
-        .signAndSend(origin, { nonce }, (submissionResult) => {
+    return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
+      this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
+        .signAndSend(origin, { nonce }, (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
 
           if (status.isFinalized) {
@@ -100,7 +98,7 @@ export class VaultService {
             });
 
             if (dispatchError) {
-              return reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
+              reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
             }
             //find all redeem request events and filter the one that matches the requester
             const redeemEvents = events.filter((event) => {
@@ -128,8 +126,8 @@ export class VaultService {
         .catch((error) => {
           reject(new Error(`Failed to request redeem: ${error}`));
         })
-        .finally(() => release());
-    });
+        .finally(() => release()),
+    );
   }
 
   // We first check if dispatchError is of type "module",

@@ -1,5 +1,7 @@
 import { stellarHexToPublic, hexToString } from './convert.js';
 
+export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
+
 export function parseEventRedeemRequest(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
   const mappedData = {
