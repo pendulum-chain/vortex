@@ -1,4 +1,4 @@
-import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction } from 'stellar-sdk';
+import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction, Account } from 'stellar-sdk';
 import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
 import { ISep24Result } from '../anchor';
 
@@ -11,15 +11,20 @@ export interface IStellarOperations {
   mergeAccountTransaction: Transaction;
 }
 
+
 export async function setUpAccountAndOperations(
   sep24Result: ISep24Result,
   ephemeralKeys: Keypair,
   stellarFundingSecret: string,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<IStellarOperations> {
-  await setupStellarAccount(stellarFundingSecret, ephemeralKeys, renderEvent);
-  const offrampingTransaction = await createOfframpTransaction(sep24Result, ephemeralKeys);
-  const mergeAccountTransaction = await createAccountMergeTransaction(stellarFundingSecret, ephemeralKeys);
+  
+  setupStellarAccount(stellarFundingSecret, ephemeralKeys, renderEvent);
+
+  const ephemeralAccountId = ephemeralKeys.publicKey();
+  const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
+  const offrampingTransaction = await createOfframpTransaction(sep24Result, ephemeralKeys, ephemeralAccount);
+  const mergeAccountTransaction = await createAccountMergeTransaction(stellarFundingSecret, ephemeralKeys, ephemeralAccount);
 
   return { offrampingTransaction, mergeAccountTransaction };
 }
@@ -105,13 +110,13 @@ async function setupStellarAccount(
     );
     throw new Error('Could not submit the change trust transaction');
   }
+  return ephemeralAccount;
 }
 
-async function createOfframpTransaction(sep24Result: ISep24Result, ephemeralKeys: Keypair) {
+async function createOfframpTransaction(sep24Result: ISep24Result, ephemeralKeys: Keypair, ephemeralAccount:Account ) {
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added
   const { amount, memo, offrampingAccount } = sep24Result;
-  const ephemeralAccount = await horizonServer.loadAccount(ephemeralKeys.publicKey());
   const transaction = new TransactionBuilder(ephemeralAccount, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -131,10 +136,9 @@ async function createOfframpTransaction(sep24Result: ISep24Result, ephemeralKeys
   return transaction;
 }
 
-async function createAccountMergeTransaction(fundingSecret: string, ephemeralKeys: Keypair) {
+async function createAccountMergeTransaction(fundingSecret: string, ephemeralKeys: Keypair, ephemeralAccount:Account ) {
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added
-  const ephemeralAccount = await horizonServer.loadAccount(ephemeralKeys.publicKey());
   const transaction = new TransactionBuilder(ephemeralAccount, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
