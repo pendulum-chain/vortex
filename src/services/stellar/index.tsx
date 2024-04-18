@@ -18,16 +18,17 @@ export async function setUpAccountAndOperations(
   stellarFundingSecret: string,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<IStellarOperations> {
-  
-  setupStellarAccount(stellarFundingSecret, ephemeralKeys, renderEvent);
+
+  await setupStellarAccount(stellarFundingSecret, ephemeralKeys, renderEvent);
 
   const ephemeralAccountId = ephemeralKeys.publicKey();
   const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
   const offrampingTransaction = await createOfframpTransaction(sep24Result, ephemeralKeys, ephemeralAccount);
   const mergeAccountTransaction = await createAccountMergeTransaction(stellarFundingSecret, ephemeralKeys, ephemeralAccount);
-
   return { offrampingTransaction, mergeAccountTransaction };
+
 }
+
 
 async function setupStellarAccount(
   fundingSecret: string,

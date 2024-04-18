@@ -35,9 +35,7 @@ export async function executeSpacewalkRedeem(
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
 
   console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
-
-  //TODO mock assume redeem was succesfull
-  //return;
+  
 
   let redeemRequestEvent;
   try {

@@ -1,5 +1,5 @@
 import { u128 } from '@polkadot/types-codec';
-import BigNumber from 'bignumber.js';
+import BigNumber from 'big.js';
 
 // These are the decimals used for the native currency on the Amplitude network
 export const ChainDecimals = 12;
@@ -19,8 +19,8 @@ export const decimalToNative = (value: BigNumber | number | string) => {
   } catch (error) {
     bigIntValue = new BigNumber(0);
   }
-  const multiplier = new BigNumber(10).pow(new BigNumber(ChainDecimals));
-  return bigIntValue.multipliedBy(multiplier);
+  const multiplier = new BigNumber(10).pow((new BigNumber(ChainDecimals)).toNumber());
+  return bigIntValue.mul(multiplier);
 };
 
 export const decimalToStellarNative = (value: BigNumber | number | string) => {
@@ -30,13 +30,13 @@ export const decimalToStellarNative = (value: BigNumber | number | string) => {
   } catch (error) {
     bigIntValue = new BigNumber(0);
   }
-  const multiplier = new BigNumber(10).pow(new BigNumber(StellarDecimals));
-  return bigIntValue.multipliedBy(multiplier);
+  const multiplier = new BigNumber(10).pow((new BigNumber(StellarDecimals)).toNumber());
+  return bigIntValue.mul(multiplier);
 };
 
 export const fixedPointToDecimal = (value: BigNumber | number | string) => {
   const bigIntValue = new BigNumber(value);
-  const divisor = new BigNumber(10).pow(new BigNumber(FixedU128Decimals));
+  const divisor = new BigNumber(10).pow((new BigNumber(FixedU128Decimals)).toNumber());
 
   return bigIntValue.div(divisor);
 };
@@ -47,14 +47,14 @@ export const nativeToDecimal = (value: BigNumber | number | string | u128) => {
     value = new BigNumber(value.toString().replaceAll(',', ''));
   }
   const bigIntValue = new BigNumber(value);
-  const divisor = new BigNumber(10).pow(new BigNumber(ChainDecimals));
+  const divisor = new BigNumber(10).pow((new BigNumber(ChainDecimals)).toNumber());
 
   return bigIntValue.div(divisor);
 };
 
 export const nativeStellarToDecimal = (value: BigNumber | number | string) => {
   const bigIntValue = new BigNumber(value);
-  const divisor = new BigNumber(10).pow(new BigNumber(StellarDecimals));
+  const divisor = new BigNumber(10).pow((new BigNumber(StellarDecimals)).toNumber());
 
   return bigIntValue.div(divisor);
 };
