@@ -31,6 +31,7 @@ async function setupStellarAccount(
 ) {
   console.log('Setup Stellar ephemeral account');
 
+
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
   const fundingAccountId = fundingAccountKeypair.publicKey();
   const fundingAccount = await horizonServer.loadAccount(fundingAccountId);

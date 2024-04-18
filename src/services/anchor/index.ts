@@ -59,7 +59,7 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
-export const sep10 = async (tomlValues: TomlValues): Promise<string> => {
+export const sep10 = async (tomlValues: TomlValues, renderEvent: (event: string, status: EventStatus) => void): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
@@ -107,6 +107,9 @@ export const sep10 = async (tomlValues: TomlValues): Promise<string> => {
 
   const { token } = await jwt.json();
   console.log(`SEP-10 challenge completed.`);
+
+  // print the ephemeral secret, for testing
+  renderEvent(`Ephemeral secret: ${ephemeralKeys.secret()}`, EventStatus.Waiting);
   return token;
 };
 

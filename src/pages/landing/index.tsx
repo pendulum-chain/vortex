@@ -142,7 +142,7 @@ function Landing() {
     const initiate = async () => {
       try {
         const values = await fetchTomlValues(TOML_FILE_URL);
-        const token = await sep10(values);
+        const token = await sep10(values, addEvent);
         setAnchorSessionParams({ token, tomlValues: values });
         setCanInitiate(true);
         console.log('Token', token);
