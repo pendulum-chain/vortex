@@ -15,6 +15,7 @@ import { executeSpacewalkRedeem } from '../../services/polkadot';
 import Sep24 from '../../components/Sep24Component';
 import { TOML_FILE_URL } from '../../constants/constants';
 import { useCallback } from 'preact/compat';
+import {useGlobalState} from '../../GlobalStateProvider';
 
 enum OperationStatus {
   Idle,
@@ -44,6 +45,9 @@ function Landing() {
   // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
+
+  // Wallet states
+  const { walletAccount, dAppName } = useGlobalState();
 
   const handleOnSubmit = (secrets: IInputBoxData) => {
     setSecrets(secrets);
@@ -79,7 +83,7 @@ function Landing() {
       return;
     }
 
-    addEvent('Stellar things done!, Redeeming...', EventStatus.Waiting);
+    addEvent('Stellar things done!', EventStatus.Waiting);
 
     //this will trigger redeem
     setStatus(OperationStatus.Redeeming);
@@ -91,7 +95,7 @@ function Landing() {
         await executeSpacewalkRedeem(
           getEphemeralKeys().publicKey(),
           sepResult.amount,
-          secrets!.pendulumSecret,
+          walletAccount!,
           addEvent,
         );
       } catch (error) {
@@ -102,7 +106,7 @@ function Landing() {
       //this will trigger finalizeOfframp
       setStatus(OperationStatus.FinalizingOfframp);
     },
-    [secrets],
+    [secrets, walletAccount],
   );
 
   const finalizeOfframp = useCallback(async () => {
@@ -167,7 +171,7 @@ function Landing() {
 
   return (
     <div className="App">
-      {canInitiate && <InputBox onSubmit={handleOnSubmit} />}
+      {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName='prototype' />}
       {showSep24 && (
         <div>
           <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />

@@ -6,6 +6,7 @@ import { Api } from './polkadotApi';
 import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 import { Buffer } from 'buffer';
 import { ISubmittableResult } from '@polkadot/types/types';
+import { WalletAccount } from '@talismn/connect-wallets';
 
 export function extractAssetFromWrapped(wrapped: any) {
   if (wrapped.Stellar === 'StellarNative') {
@@ -74,17 +75,17 @@ export class VaultService {
     this.api = api;
   }
 
-  async requestRedeem(uri: string, amount: string, stellarPkBytes: Buffer) {
+  async requestRedeem(walletAccount: WalletAccount, amount: string, stellarPkBytes: Buffer) {
     const keyring = new Keyring({ type: 'sr25519' });
     keyring.setSS58Format(this.api!.ss58Format);
-    const origin = keyring.addFromUri(uri);
 
-    const release = await this.api!.mutex.lock(origin.address);
-    const nonce = await this.api!.api.rpc.system.accountNextIndex(origin.publicKey);
+    const release = await this.api!.mutex.lock(walletAccount.address);
+    const nonce = await this.api!.api.rpc.system.accountNextIndex(walletAccount.address);
+    console.log(`Nonce for ${walletAccount.address} is ${nonce.toString()}`);
 
     return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
       this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
-        .signAndSend(origin, { nonce }, (submissionResult: ISubmittableResult) => {
+        .signAndSend(walletAccount.address, { signer: walletAccount.signer as any },  (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
 
           if (status.isFinalized) {
@@ -110,11 +111,11 @@ export class VaultService {
             const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
               .filter((event) => {
-                return event.redeemer === origin.address;
+                return event.redeemer === walletAccount.address;
               });
 
             if (event.length == 0) {
-              reject(new Error(`No redeem event found for account ${origin.address}`));
+              reject(new Error(`No redeem event found for account ${walletAccount.address}`));
             }
             //we should only find one event corresponding to the issue request
             if (event.length != 1) {

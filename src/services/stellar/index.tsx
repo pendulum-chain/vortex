@@ -1,9 +1,9 @@
 import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction, Account } from 'stellar-sdk';
-import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
+import { HORIZON_URL, BASE_FEE, ASSET_CODE_MOCK, ASSET_ISSUER_MOCK } from '../../constants/constants';
 import { ISep24Result } from '../anchor';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
+const NETWORK_PASSPHRASE = Networks.TESTNET;
 import { EventStatus } from '../../components/GenericEvent';
 
 export interface IStellarOperations {
@@ -90,7 +90,7 @@ async function setupStellarAccount(
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
       }),
     )
     .setTimeout(30)
@@ -125,7 +125,7 @@ async function createOfframpTransaction(sep24Result: ISep24Result, ephemeralKeys
     .addOperation(
       Operation.payment({
         amount,
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
         destination: offrampingAccount,
       }),
     )
@@ -146,7 +146,7 @@ async function createAccountMergeTransaction(fundingSecret: string, ephemeralKey
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
         limit: '0',
       }),
     )

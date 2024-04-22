@@ -41,6 +41,7 @@ class ApiManager {
     // will always be populated
     return this.apiData!;
   }
+
 }
 
 class Mutex {
@@ -65,6 +66,16 @@ class Mutex {
       resolveLock(undefined);
     };
   }
+}
+
+let instance: ApiManager | undefined = undefined;
+
+export async function getInstance(): Promise<ApiManager> {
+  if (!instance) {
+    instance = new ApiManager();
+    await instance.populateApi();
+  }
+  return instance;
 }
 
 export { ApiManager, ApiPromise };
