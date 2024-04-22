@@ -85,6 +85,7 @@ export class VaultService {
 
     return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
       this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
+      //Should we specify the nonce or is the wallet taking care of this?
         .signAndSend(walletAccount.address, { signer: walletAccount.signer as any },  (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
 

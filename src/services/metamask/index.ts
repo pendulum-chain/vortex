@@ -117,7 +117,8 @@ export async function initiateMetamaskInjectedAccount(tenantName: TenantName) {
       source: WALLET_SOURCE_METAMASK,
       signer: {
         signPayload: async (payload: SignerPayloadJSON) => {
-          const stringResult = await api.signPayloadJSON(payload);
+          // TODO casting payload as any is only temporary, we need to fix the types
+          const stringResult = await api.signPayloadJSON(payload as any);
           // Metamask snap doesn't provide a request Id, but just the hex string, so
           // adding id: 1 to be compliant with SignerResult
           return { id: 1, signature: stringResult } as SignerResult;
