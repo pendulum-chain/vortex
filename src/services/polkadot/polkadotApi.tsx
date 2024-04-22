@@ -20,7 +20,7 @@ class ApiManager {
     });
     const mutex = new Mutex();
 
-    const chainProperties = await api.registry.getChainProperties();
+    const chainProperties = api.registry.getChainProperties();
     const ss58Format = Number(chainProperties?.get('ss58Format').toString() || 42);
 
     return { api, mutex, ss58Format };
@@ -70,7 +70,7 @@ class Mutex {
 
 let instance: ApiManager | undefined = undefined;
 
-export async function getInstance(): Promise<ApiManager> {
+export async function getApiManagerInstance(): Promise<ApiManager> {
   if (!instance) {
     instance = new ApiManager();
     await instance.populateApi();

@@ -156,11 +156,11 @@ export async function sep24Second(
 
   // TODOmock, testing
   // await new Promise((resolve) => setTimeout(resolve, 1000));
-  return {
-    amount: "10.3",
-    memo: "todo",
-    offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
-  };
+  // return {
+  //   amount: "10.3",
+  //   memo: "todo",
+  //   offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
+  // };
 
   // end mock testing
 

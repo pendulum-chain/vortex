@@ -5,7 +5,11 @@ import euroSvg from '../../assets/coins/euro.svg';
 import arrowSvg from '../../assets/coins/arrow.svg';
 import OpenWallet from '../Wallet';
 import { useGlobalState } from '../../GlobalStateProvider'; 
-import {getInstance, ApiManager} from '../../services/polkadot/polkadotApi'; 
+import {getApiManagerInstance, ApiManager} from '../../services/polkadot/polkadotApi'; 
+import { useAccountBalance } from './BalanceState'
+import {MIN_WITHDRAWAL_AMOUNT} from '../../constants/constants';
+import {nativeToDecimal} from '../../helpers/parseNumbers';
+
 export interface IInputBoxData {
   stellarFundingSecret: string;
   pendulumSecret: string;
@@ -25,11 +29,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const [apiManager, setApiManager] = useState<ApiManager>();
   const [ss58Format, setSs58Format] = useState<number>(42);
 
-  
+  const { balance, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
+
 
   useEffect(() => {
     const initializeApiManager = async () => {
-      const manager = await getInstance(); 
+      const manager = await getApiManagerInstance(); 
       const { api, ss58Format } = await manager.getApi(); 
       setApiManager(manager);
       setSs58Format(ss58Format); 
@@ -43,6 +48,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       alert("Please connect to a wallet first.");
       return;
     }
+
+    if (balance){
+      if (Number(balance) < nativeToDecimal(MIN_WITHDRAWAL_AMOUNT).toNumber()){
+        alert("Insufficient balance to offramp. Minimum withdrawal amount is 10 EURC.");
+        return;
+      }
+    } 
 
     const stellarResult = await checkStellarAccount(stellarFundingSecret);
     if (stellarResult) {
@@ -83,8 +95,16 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             {stellarError && <div style={{ color: 'red' }}>{stellarError}</div>}
             <div>
                 <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
-              </div>
-
+            </div>
+            <div>
+            { !walletAccount?.address ? (
+              null
+            ) : balanceError ? (
+              <p>Error loading balance</p>
+            ) : (
+              <p>EURC Balance: {balance}</p>
+            )}
+            </div>  
             {!isSubmitted ? <button onClick={handleSubmit}>Begin Offramp</button> : <div>Offramp Started</div>}
           </div>
     </div>
