@@ -7,6 +7,7 @@ import { decimalToStellarNative } from '../../helpers/parseNumbers';
 import { EventListener } from './eventListener';
 import { EventStatus } from '../../components/GenericEvent';
 import { WalletAccount } from '@talismn/connect-wallets';
+import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 
 
 export const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(ASSET_ISSUER).rawPublicKey().toString('hex')}`;
@@ -27,7 +28,7 @@ export async function executeSpacewalkRedeem(
       collateral: { XCM: 0 },
       wrapped: { Stellar: { AlphaNum4: { code: ASSET_CODE, issuer: ASSET_ISSUER_RAW } } },
     },
-  };
+  } as unknown as SpacewalkPrimitivesVaultId;
   const vaultService = new VaultService(eurcVaultId, pendulumApi);
 
   // We currently charge 0 fees for redeem requests on Spacewalk so the amount is the same as the requested amount
@@ -37,12 +38,15 @@ export async function executeSpacewalkRedeem(
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
 
   console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
-  
-
 
   let redeemRequestEvent;
   try {
-    renderEvent(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(eurcVaultId)}. Please sign the transaction`, EventStatus.Waiting);
+    renderEvent(
+      `Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(
+        eurcVaultId,
+      )}. Please sign the transaction`,
+      EventStatus.Waiting,
+    );
     redeemRequestEvent = await vaultService.requestRedeem(walletAccount, amountRaw, stellarTargetAccountIdRaw);
   } catch (error) {
     // Generic failure of the extrinsic itself OR lack of funds to even make the transaction

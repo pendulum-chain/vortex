@@ -1,4 +1,4 @@
-import { stellarHexToPublic, hexToString } from './convert.js';
+import { stellarHexToPublic, hexToString } from './convert';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
 

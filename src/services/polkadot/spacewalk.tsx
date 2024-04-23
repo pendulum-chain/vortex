@@ -7,7 +7,7 @@ import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 import { Buffer } from 'buffer';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { WalletAccount } from '@talismn/connect-wallets';
-import {getAddressForFormat} from '../../helpers/addressFormatter';
+import { getAddressForFormat } from '../../helpers/addressFormatter';
 
 export function extractAssetFromWrapped(wrapped: any) {
   if (wrapped.Stellar === 'StellarNative') {
@@ -69,7 +69,7 @@ export class VaultService {
   vaultId: SpacewalkPrimitivesVaultId | undefined = undefined;
   api: Api | undefined = undefined;
 
-  constructor(vaultId: any, api: Api) {
+  constructor(vaultId: SpacewalkPrimitivesVaultId, api: Api) {
     this.vaultId = vaultId;
     // Potentially validate the vault given the network,
     // validate the wrapped asset consistency, etc
@@ -86,46 +86,52 @@ export class VaultService {
 
     return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
       this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
-      //Should we specify the nonce or is the wallet taking care of this?
-        .signAndSend(walletAccount.address, { signer: walletAccount.signer as any },  (submissionResult: ISubmittableResult) => {
-          const { status, events, dispatchError } = submissionResult;
+        //Should we specify the nonce or is the wallet taking care of this?
+        .signAndSend(
+          walletAccount.address,
+          { signer: walletAccount.signer as any },
+          (submissionResult: ISubmittableResult) => {
+            const { status, events, dispatchError } = submissionResult;
 
-          if (status.isFinalized) {
-            console.log(
-              `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`,
-            );
-
-            // Try to find a 'system.ExtrinsicFailed' event
-            const systemExtrinsicFailedEvent = events.find((record) => {
-              return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
-            });
-
-            if (dispatchError) {
-              reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
-            }
-            //find all redeem request events and filter the one that matches the requester
-            const redeemEvents = events.filter((event) => {
-              return (
-                event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
+            if (status.isFinalized) {
+              console.log(
+                `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${
+                  status.type
+                }`,
               );
-            });
 
-            const event = redeemEvents
-              .map((event) => parseEventRedeemRequest(event))
-              .filter((event) => {
-                return event.redeemer === getAddressForFormat(walletAccount.address, this.api!.ss58Format);
+              // Try to find a 'system.ExtrinsicFailed' event
+              const systemExtrinsicFailedEvent = events.find((record) => {
+                return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
               });
 
-            if (event.length == 0) {
-              reject(new Error(`No redeem event found for account ${walletAccount.address}`));
+              if (dispatchError) {
+                reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
+              }
+              //find all redeem request events and filter the one that matches the requester
+              const redeemEvents = events.filter((event) => {
+                return (
+                  event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
+                );
+              });
+
+              const event = redeemEvents
+                .map((event) => parseEventRedeemRequest(event))
+                .filter((event) => {
+                  return event.redeemer === getAddressForFormat(walletAccount.address, this.api!.ss58Format);
+                });
+
+              if (event.length == 0) {
+                reject(new Error(`No redeem event found for account ${walletAccount.address}`));
+              }
+              //we should only find one event corresponding to the issue request
+              if (event.length != 1) {
+                reject(new Error('Inconsistent amount of redeem request events for account'));
+              }
+              resolve(event[0]);
             }
-            //we should only find one event corresponding to the issue request
-            if (event.length != 1) {
-              reject(new Error('Inconsistent amount of redeem request events for account'));
-            }
-            resolve(event[0]);
-          }
-        })
+          },
+        )
         .catch((error) => {
           reject(new Error(`Failed to request redeem: ${error}`));
         })
