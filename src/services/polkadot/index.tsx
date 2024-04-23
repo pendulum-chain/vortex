@@ -8,6 +8,7 @@ import { EventListener } from './eventListener';
 import { EventStatus } from '../../components/GenericEvent';
 import { WalletAccount } from '@talismn/connect-wallets';
 
+
 export const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(ASSET_ISSUER).rawPublicKey().toString('hex')}`;
 
 export async function executeSpacewalkRedeem(

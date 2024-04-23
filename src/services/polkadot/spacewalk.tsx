@@ -7,6 +7,7 @@ import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 import { Buffer } from 'buffer';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { WalletAccount } from '@talismn/connect-wallets';
+import {getAddressForFormat} from '../../helpers/addressFormatter';
 
 export function extractAssetFromWrapped(wrapped: any) {
   if (wrapped.Stellar === 'StellarNative') {
@@ -81,7 +82,7 @@ export class VaultService {
 
     const release = await this.api!.mutex.lock(walletAccount.address);
     const nonce = await this.api!.api.rpc.system.accountNextIndex(walletAccount.address);
-    console.log(`Nonce for ${walletAccount.address} is ${nonce.toString()}`);
+    console.log(`Nonce for ${getAddressForFormat(walletAccount.address, this.api!.ss58Format)} is ${nonce.toString()}`);
 
     return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
       this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
@@ -112,7 +113,7 @@ export class VaultService {
             const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
               .filter((event) => {
-                return event.redeemer === walletAccount.address;
+                return event.redeemer === getAddressForFormat(walletAccount.address, this.api!.ss58Format);
               });
 
             if (event.length == 0) {
