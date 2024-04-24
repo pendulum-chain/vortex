@@ -14,7 +14,7 @@ import { executeSpacewalkRedeem } from '../../services/polkadot';
 import Sep24 from '../../components/Sep24Component';
 import { TOML_FILE_URL } from '../../constants/constants';
 import { useCallback } from 'preact/compat';
-import {useGlobalState} from '../../GlobalStateProvider';
+import { useGlobalState } from '../../GlobalStateProvider';
 
 enum OperationStatus {
   Idle,
@@ -90,12 +90,7 @@ function Landing() {
   const executeRedeem = useCallback(
     async (sepResult: Sep24Result) => {
       try {
-        await executeSpacewalkRedeem(
-          getEphemeralKeys().publicKey(),
-          sepResult.amount,
-          walletAccount!,
-          addEvent,
-        );
+        await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, walletAccount!, addEvent);
       } catch (error) {
         return;
       }
@@ -104,7 +99,7 @@ function Landing() {
       //this will trigger finalizeOfframp
       setStatus(OperationStatus.FinalizingOfframp);
     },
-    [ walletAccount],
+    [walletAccount],
   );
 
   const finalizeOfframp = useCallback(async () => {
@@ -169,7 +164,7 @@ function Landing() {
 
   return (
     <div className="App">
-      {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName='prototype' />}
+      {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
           <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />

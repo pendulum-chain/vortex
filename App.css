@@ -4,9 +4,11 @@ html, body {
   width: 100%;
   height: 100%;
   display: flex;
-  justify-content: center;  
+  justify-content: center;
   overflow-x: hidden;
-}
+
+  /* Important to make sure the WalletConnect dialog is shown on top of the others */
+  --wcm-z-index: 1000;}
 
 #app {
   width: 100%;

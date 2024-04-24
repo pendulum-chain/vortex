@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'preact/compat';
 import { Modal } from 'react-daisyui';
 import { GlobalState, useGlobalState } from '../../../GlobalStateProvider';
 import logo from '../../../assets/metamask-wallet.png';
-import {
-  ExtensionAccount,
-  buildWalletAccount,
-  initiateMetamaskInjectedAccount,
-} from '../../../services/metamask';
+import { ExtensionAccount, buildWalletAccount, initiateMetamaskInjectedAccount } from '../../../services/metamask';
 import { Button } from 'react-daisyui';
 import { PublicKey } from '../../PublicKey';
 
@@ -29,7 +25,7 @@ const MetamaskWallet = ({ setWalletAccount }: MetamaskWalletProps) => {
       console.error('Something went wrong, snap not found.');
       setOpenModal(false);
     }
-  }, [setOpenModal]);
+  }, [setOpenModal, tenantName]);
 
   useEffect(() => {
     if (selectedAccount) {

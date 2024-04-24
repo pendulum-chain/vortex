@@ -2,7 +2,7 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 import { Asset } from 'stellar-sdk';
 import { stellarHexToPublic } from './convert';
 import { parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from './eventParsers';
-import { Api } from './polkadotApi';
+import { ApiComponents } from './polkadotApi';
 import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 import { Buffer } from 'buffer';
 import { ISubmittableResult } from '@polkadot/types/types';
@@ -92,18 +92,18 @@ function isWalletAccount(signer: WalletAccount | KeyringPair): signer is WalletA
 
 export class VaultService {
   vaultId: SpacewalkPrimitivesVaultId;
-  api: Api | undefined = undefined;
+  apiComponents: ApiComponents | undefined = undefined;
 
-  constructor(vaultId: SpacewalkPrimitivesVaultId, api: Api) {
+  constructor(vaultId: SpacewalkPrimitivesVaultId, apiComponents: ApiComponents) {
     this.vaultId = vaultId;
     // Potentially validate the vault given the network,
     // validate the wrapped asset consistency, etc
-    this.api = api;
+    this.apiComponents = apiComponents;
   }
 
   async requestRedeem(accountOrPair: WalletAccount | KeyringPair, amount: string, stellarPkBytesBuffer: Buffer) {
     const keyring = new Keyring({ type: 'sr25519' });
-    keyring.setSS58Format(this.api!.ss58Format);
+    keyring.setSS58Format(this.apiComponents!.ss58Format);
 
     // We distinguish between a WalletAccount and a KeyringPair because we need to handle the signer differently
     const addressOrPair = isWalletAccount(accountOrPair) ? accountOrPair.address : accountOrPair;
@@ -112,14 +112,14 @@ export class VaultService {
       : keyring.encodeAddress(accountOrPair.publicKey);
     const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any } : {};
 
-    const release = await this.api!.mutex.lock(address);
-    const nonce = await this.api!.api.rpc.system.accountNextIndex(address);
-    console.log(`Nonce for ${getAddressForFormat(address, this.api!.ss58Format)} is ${nonce.toString()}`);
+    const release = await this.apiComponents!.mutex.lock(address);
+    const nonce = await this.apiComponents!.api.rpc.system.accountNextIndex(address);
+    console.log(`Nonce for ${getAddressForFormat(address, this.apiComponents!.ss58Format)} is ${nonce.toString()}`);
 
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
 
     return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
-      this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
+      this.apiComponents!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
         //Should we specify the nonce or is the wallet taking care of this?
         .signAndSend(addressOrPair, options, (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
@@ -147,7 +147,7 @@ export class VaultService {
             const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
               .filter((event) => {
-                return event.redeemer === getAddressForFormat(accountOrPair.address, this.api!.ss58Format);
+                return event.redeemer === getAddressForFormat(accountOrPair.address, this.apiComponents!.ss58Format);
               });
 
             if (event.length == 0) {
@@ -171,7 +171,7 @@ export class VaultService {
   // If not we either return ExtrinsicFailedError or Unknown dispatch error
   handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
     if (dispatchError?.isModule) {
-      const decoded = this.api!.api.registry.findMetaError(dispatchError.asModule);
+      const decoded = this.apiComponents!.api.registry.findMetaError(dispatchError.asModule);
       const { docs, name, section, method } = decoded;
 
       return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
