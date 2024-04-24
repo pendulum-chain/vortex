@@ -17,7 +17,7 @@ export interface IAnchorSessionParams {
   tomlValues: TomlValues;
 }
 
-export interface ISep24Result {
+export interface Sep24Result {
   amount: string;
   memo: string;
   offrampingAccount: string;
@@ -149,19 +149,18 @@ export async function sep24Second(
   sep24Values: ISep24Intermediate,
   sessionParams: IAnchorSessionParams,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<ISep24Result> {
+): Promise<Sep24Result> {
   const { id } = sep24Values;
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  // TODOmock, testing
+  // Mock, testing
   // await new Promise((resolve) => setTimeout(resolve, 1000));
   // return {
   //   amount: "10.3",
   //   memo: "todo",
   //   offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
   // };
-
   // end mock testing
 
   let status;

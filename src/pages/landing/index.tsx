@@ -3,11 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
-import { IInputBoxData } from '../../components/InputKeys';
-import { fetchTomlValues, sep10, IAnchorSessionParams, ISep24Result, getEphemeralKeys } from '../../services/anchor';
+import { fetchTomlValues, sep10, IAnchorSessionParams, Sep24Result, getEphemeralKeys } from '../../services/anchor';
 import {
   setUpAccountAndOperations,
-  IStellarOperations,
+  StellarOperations,
   submitOfframpTransaction,
   cleanupStellarEphemeral,
 } from '../../services/stellar';
@@ -37,10 +36,10 @@ function Landing() {
   const [activeEventIndex, setActiveEventIndex] = useState<number>(-1);
 
   // seession and operations states
-  const [secrets, setSecrets] = useState<IInputBoxData | null>(null);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
-  const [stellarOperations, setStellarOperations] = useState<IStellarOperations | null>(null);
-  const [sep24Result, setSep24Result] = useState<ISep24Result | null>(null);
+  const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
+  const [sep24Result, setSep24Result] = useState<Sep24Result | null>(null);
 
   // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
@@ -49,15 +48,15 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = (secrets: IInputBoxData) => {
-    setSecrets(secrets);
+  const handleOnSubmit = (userSubstrateAddress: string) => {
+    setUserAddress(userSubstrateAddress);
 
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);
   };
 
-  const handleOnSep24Completed = async (result: ISep24Result) => {
+  const handleOnSep24Completed = async (result: Sep24Result) => {
     setShowSep24(false);
 
     console.log('SEP24 Result', result);
@@ -74,12 +73,11 @@ function Landing() {
       const operations = await setUpAccountAndOperations(
         result,
         getEphemeralKeys(),
-        secrets!.stellarFundingSecret,
         addEvent,
       );
       setStellarOperations(operations);
     } catch (error) {
-      addEvent('Stellar setup failed', EventStatus.Error);
+      addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
       return;
     }
 
@@ -90,7 +88,7 @@ function Landing() {
   };
 
   const executeRedeem = useCallback(
-    async (sepResult: ISep24Result) => {
+    async (sepResult: Sep24Result) => {
       try {
         await executeSpacewalkRedeem(
           getEphemeralKeys().publicKey(),
@@ -106,26 +104,26 @@ function Landing() {
       //this will trigger finalizeOfframp
       setStatus(OperationStatus.FinalizingOfframp);
     },
-    [secrets, walletAccount],
+    [ walletAccount],
   );
 
   const finalizeOfframp = useCallback(async () => {
     try {
-      await submitOfframpTransaction(secrets!.stellarFundingSecret, stellarOperations!.offrampingTransaction, addEvent);
+      await submitOfframpTransaction(stellarOperations!.offrampingTransaction, addEvent);
     } catch (error) {
       console.error('Offramp failed', error);
       addEvent('Offramp transaction failed', EventStatus.Error);
       return;
+
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
     addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
 
     // we may not necessarily need to show the user an error, since the offramp transaction is already submitted
     // and successful
     // This will not affect the user
-    await cleanupStellarEphemeral(secrets!.stellarFundingSecret, stellarOperations!.mergeAccountTransaction, addEvent);
-  }, [secrets, stellarOperations]);
+    await cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent);
+  }, [stellarOperations]);
 
   const addEvent = (message: string, status: EventStatus) => {
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);

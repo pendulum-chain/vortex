@@ -10,18 +10,13 @@ import { useAccountBalance } from './BalanceState'
 import {MIN_WITHDRAWAL_AMOUNT} from '../../constants/constants';
 import {nativeToDecimal} from '../../helpers/parseNumbers';
 
-export interface IInputBoxData {
-  stellarFundingSecret: string;
-  pendulumSecret: string;
-}
 
 interface InputBoxProps {
-  onSubmit: (secrets: IInputBoxData) => void;
+  onSubmit: (userSubstrateAddress: string) => void;
   dAppName: string;
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
-  const [stellarFundingSecret, setStellarFundingSecret] = useState<string>('');
   const { walletAccount } = useGlobalState();
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [stellarError, setStellarError] = useState<string>('');
@@ -56,13 +51,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       }
     } 
 
-    const stellarResult = await checkStellarAccount(stellarFundingSecret);
-    if (stellarResult) {
-      setIsSubmitted(true);
-      onSubmit({ stellarFundingSecret, pendulumSecret: walletAccount.address });
-    } else {
-      setStellarError('Please check the stellar secret');
-    }
+
+    onSubmit(walletAccount.address);
+
   };
 
   return (
@@ -75,23 +66,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
           <div className={`inputBox ${isSubmitted ? 'active' : ''}`}>
             {!isSubmitted && (
               <div className="description">
-                Enter your Stellar secret below to start the offramp process.
+                Connect your wallet to begin the process.
                 <ul>
                   <li>Ensure to have enough EURC in Pendulum for the desired amount to offramp.</li>
                   <li>Do not close this window until the process is completed.</li>
                 </ul>
               </div>
             )}
-            <input
-              type="password"
-              value={stellarFundingSecret}
-              onChange={(e) => {
-                setStellarFundingSecret((e.target as HTMLInputElement).value);
-                if (stellarError) setStellarError('');
-              }}
-              placeholder="Stellar Funding Secret"
-              disabled={isSubmitted}
-            />
             {stellarError && <div style={{ color: 'red' }}>{stellarError}</div>}
             <div>
                 <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
