@@ -1,0 +1,150 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;  
+  overflow-x: hidden;
+}
+
+#app {
+  width: 100%;
+  min-width: 1800px;
+  box-sizing: border-box;
+}
+
+
+.inputBox {
+  width: 30%;
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 10px #ccc;
+  transition: all 0.5s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.inputBox.active {
+  width: 21%;
+  margin-top: 5px;
+}
+
+.inputBox input:disabled {
+  background-color: #ccc;
+  color: #666;
+}
+.eventsContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: scroll;
+  max-height: 70vh;
+}
+
+input {
+  margin: 10px;
+  padding: 10px;
+}
+
+.eventBox {
+  margin: 20px auto;
+  width: 30%;
+  padding: 20px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 10px #ccc;
+  transition: all 0.5s ease-in-out;
+  color: #333;
+  word-wrap: break-word;
+  text-align: center;
+}
+
+.eventBox.waiting {
+  background-color: #ffffff;
+  border-color: #ccc;
+}
+
+.eventBox.active.waiting {
+  /*animation: rotateShadowBlue 5s linear infinite;*/
+  border-color: #ffffff;
+}
+
+/* @keyframes rotateShadowBlue {
+  0% { box-shadow: 0 0 15px #007bff; }
+  25% { box-shadow: 15px 0 15px #007bff; }
+  50% { box-shadow: 0 15px 15px #007bff; }
+  75% { box-shadow: -15px 0 15px #007bff; }
+  100% { box-shadow: 0 -15px 15px #007bff; }
+} */
+
+.eventBox.success {
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+}
+
+.eventBox.active {
+  transform: scale(1.3);
+  background-color: #f0f0f0;
+}
+
+.eventBox.error {
+  margin: 20px auto;
+  width: 30%;
+  padding: 20px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 10px #ccc;
+  transition: all 0.5s ease-in-out;
+  color: red;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: red;
+}
+
+.iframe-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 50px;
+}
+
+button {
+  padding: 10px 20px;
+  cursor: pointer;
+  margin-top: 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+}
+
+.description {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.icons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.icon {
+  width: 30px;
+  height: 30px;
+}
+
+.arrow {
+  width: 50px;
+  margin: 0 10px;
+}
