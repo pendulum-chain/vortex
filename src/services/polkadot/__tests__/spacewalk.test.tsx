@@ -51,15 +51,16 @@ describe('VaultService', () => {
         // Create polkadot.js keypair from secret phrase
         const keyring = new Keyring({ type: 'sr25519' });
         const keypair = keyring.addFromUri(TEST_ACCOUNT_SECRET_PHRASE);
+
         // Create a new VaultService instance
         const vaultService = new VaultService(testingVault.id, apiComponents);
-        const walletAccount: WalletAccount = { address: keypair.address, signer: keypair, source: 'polkadot' };
         const stellarPk = Keypair.fromPublicKey(TEST_STELLAR_DESTINATION_ADDRESS);
         const stellarPkBytes = stellarPk.rawPublicKey();
 
-        const amount = '100000';
+        const amount = await api.query.redeem.redeemMinimumTransferAmount();
+        const amountString = amount.toString();
 
-        const redeem = vaultService.requestRedeem(walletAccount, amount, stellarPkBytes);
+        const redeem = vaultService.requestRedeem(keypair, amountString, stellarPkBytes);
         expect(redeem).toBeInstanceOf(Promise);
 
         const redeemRequestEvent = await redeem;
@@ -68,6 +69,7 @@ describe('VaultService', () => {
         expect(redeemRequestEvent.redeemer).toBeDefined();
         expect(redeemRequestEvent.vaultId).toBeDefined();
         expect(redeemRequestEvent.amount).toBeDefined();
+        expect(redeemRequestEvent.amount).toEqual(amount.toNumber());
       },
       TIMEOUT,
     );
