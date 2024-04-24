@@ -29,7 +29,7 @@ function checkRequirements(): boolean {
 async function setupTest() {
   // Create a new instance of the PolkadotApi
   const apiManager = await getApiManagerInstance();
-  const apiComponents = await apiManager.getApi();
+  const apiComponents = await apiManager.getApiComponents();
   const api = apiComponents.api;
 
   const vaultsForCurrency = await getVaultsForCurrency(api, TEST_CURRENCY_SYMBOL);

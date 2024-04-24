@@ -19,14 +19,14 @@ export async function executeSpacewalkRedeem(
 ) {
   console.log('Executing Spacewalk redeem');
 
-  const pendulumApi = await new ApiManager().getApi();
+  const pendulumApiComponents = await new ApiManager().getApiComponents();
   // Query all available vaults for the currency
-  const vaultsForCurrency = await getVaultsForCurrency(pendulumApi.api, ASSET_CODE);
+  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, ASSET_CODE);
   if (vaultsForCurrency.length === 0) {
     throw new Error(`No vaults found for currency ${ASSET_CODE}`);
   }
   const targetVaultId = vaultsForCurrency[0].id;
-  const vaultService = new VaultService(targetVaultId, pendulumApi);
+  const vaultService = new VaultService(targetVaultId, pendulumApiComponents);
 
   // We currently charge 0 fees for redeem requests on Spacewalk so the amount is the same as the requested amount
   const amountRaw = decimalToStellarNative(amountString).toString();
@@ -57,7 +57,7 @@ export async function executeSpacewalkRedeem(
   );
   //Render event that the extrinsic passed, and we are now waiting for the execution of it
 
-  const eventListener = EventListener.getEventListener(pendulumApi.api);
+  const eventListener = EventListener.getEventListener(pendulumApiComponents.api);
   // We wait for up to 5 minutes
   const maxWaitingTimeMin = 5;
   const maxWaitingTimeMs = maxWaitingTimeMin * 60 * 1000;

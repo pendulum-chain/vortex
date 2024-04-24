@@ -2,15 +2,14 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { PENDULUM_WSS } from '../../constants/constants';
 const NETWORK = 'Pendulum';
 
-export interface Api {
+export interface ApiComponents {
   api: ApiPromise;
   mutex: Mutex;
   ss58Format: number;
 }
 
 class ApiManager {
-  apiData: Api | undefined = undefined;
-
+  apiData: ApiComponents | undefined = undefined;
 
   async connectApi(socketUrl: string) {
     const wsProvider = new WsProvider(socketUrl);
@@ -34,14 +33,13 @@ class ApiManager {
     console.log(`Connected to node ${network.wss}`);
   }
 
-  async getApi(): Promise<Api> {
+  async getApiComponents(): Promise<ApiComponents> {
     if (!this.apiData) {
       await this.populateApi();
     }
     // will always be populated
     return this.apiData!;
   }
-
 }
 
 class Mutex {
