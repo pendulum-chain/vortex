@@ -1,4 +1,4 @@
-import { Keyring } from '@polkadot/api';
+import { ApiPromise, Keyring } from '@polkadot/api';
 import { Asset } from 'stellar-sdk';
 import { stellarHexToPublic } from './convert';
 import { parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from './eventParsers';
@@ -69,6 +69,21 @@ function prettyPrintAssetInfo(assetInfo: any) {
   }
 
   return assetInfo.code;
+}
+
+export async function getVaultsForCurrency(api: ApiPromise, currencySymbol: string) {
+  const vaultEntries = await api.query.vaultRegistry.vaults.entries();
+  const vaults = vaultEntries.map(([key, value]) => value.unwrap());
+
+  const vaultsForCurrency = vaults.filter((vault) => {
+    return (
+      vault.id.currencies.wrapped.isStellar &&
+      vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
+      vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toHuman() === currencySymbol
+    );
+  });
+
+  return vaultsForCurrency;
 }
 
 function isWalletAccount(signer: WalletAccount | KeyringPair): signer is WalletAccount {
