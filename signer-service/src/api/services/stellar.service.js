@@ -1,10 +1,10 @@
 const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction, Account } = require('stellar-sdk');
-const { HORIZON_URL, BASE_FEE, ASSET_CODE_MOCK, ASSET_ISSUER_MOCK } = require( '../../constants/constants');
+const { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } = require( '../../constants/constants');
 
 const FUNDING_PUBLIC_KEY = process.env.FUNDING_PUBLIC_KEY;
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.TESTNET;
+const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime) {
 
@@ -36,7 +36,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
       .addOperation(
         Operation.changeTrust({
           source: ephemeralAccountId,
-          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
         }),
       )
       .setTimebounds(0,maxTime)
@@ -59,7 +59,7 @@ async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemer
       .addOperation(
         Operation.payment({
           amount,
-          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
           destination: offrampingAccount,
         }),
       )
@@ -74,7 +74,7 @@ async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemer
     })
       .addOperation(
         Operation.changeTrust({
-          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
           limit: '0',
         }),
       )
