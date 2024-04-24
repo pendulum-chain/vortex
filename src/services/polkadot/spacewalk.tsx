@@ -8,24 +8,31 @@ import { Buffer } from 'buffer';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
+import { KeyringPair } from '@polkadot/keyring/types';
+import { SpacewalkPrimitivesCurrencyId } from '@pendulum-chain/types/interfaces';
 
-export function extractAssetFromWrapped(wrapped: any) {
-  if (wrapped.Stellar === 'StellarNative') {
+export function extractAssetFromWrapped(wrapped: SpacewalkPrimitivesCurrencyId) {
+  if (!wrapped.isStellar) {
+    throw new Error('Invalid wrapped asset type');
+  }
+  const stellarAsset = wrapped.asStellar;
+  const stellarType = stellarAsset.type;
+  if (stellarType === 'StellarNative') {
     return Asset.native();
-  } else if ('AlphaNum4' in wrapped.Stellar) {
+  } else if (stellarType === 'AlphaNum4') {
     // Check if we need to convert the issuer to a public key
-    const issuer = wrapped.Stellar.AlphaNum4.issuer.startsWith('0x')
-      ? stellarHexToPublic(wrapped.Stellar.AlphaNum4.issuer)
-      : wrapped.Stellar.AlphaNum4.issuer;
+    const issuer = stellarAsset.asAlphaNum4.issuer.toString().startsWith('0x')
+      ? stellarHexToPublic(stellarAsset.asAlphaNum4.issuer.toString())
+      : stellarAsset.asAlphaNum4.issuer.toString();
 
-    return new Asset(trimCode(wrapped.Stellar.AlphaNum4.code), issuer);
-  } else if ('AlphaNum12' in wrapped.Stellar) {
+    return new Asset(trimCode(stellarAsset.asAlphaNum4.code.toString()), issuer);
+  } else if (stellarType === 'AlphaNum12') {
     // Check if we need to convert the issuer to a public key
-    const issuer = wrapped.Stellar.AlphaNum12.issuer.startsWith('0x')
-      ? stellarHexToPublic(wrapped.Stellar.AlphaNum12.issuer)
-      : wrapped.Stellar.AlphaNum12.issuer;
+    const issuer = stellarAsset.asAlphaNum12.issuer.toString().startsWith('0x')
+      ? stellarHexToPublic(stellarAsset.asAlphaNum12.issuer.toString())
+      : stellarAsset.asAlphaNum12.issuer.toString();
 
-    return new Asset(trimCode(wrapped.Stellar.AlphaNum12.code), issuer);
+    return new Asset(trimCode(stellarAsset.asAlphaNum12.code.toString()), issuer);
   } else {
     throw new Error('Invalid Stellar type in wrapped');
   }
@@ -47,12 +54,11 @@ function trimCode(code: any) {
   }
 }
 
-export function prettyPrintVaultId(vaultId: any) {
+export function prettyPrintVaultId(vaultId: SpacewalkPrimitivesVaultId) {
+  const collateralAssetInfo = vaultId.currencies.collateral.isXcm ? vaultId.currencies.collateral.asXcm : 'Unknown';
   const wrappedAssetInfo = extractAssetFromWrapped(vaultId.currencies.wrapped);
 
-  return `${vaultId.accountId} { XCM(${vaultId.currencies.collateral.XCM}) - ${prettyPrintAssetInfo(
-    wrappedAssetInfo,
-  )} }`;
+  return `${vaultId.accountId} { XCM(${collateralAssetInfo}) - ${prettyPrintAssetInfo(wrappedAssetInfo)} }`;
 }
 
 // We just omit the issuer here for readability
@@ -65,8 +71,12 @@ function prettyPrintAssetInfo(assetInfo: any) {
   return assetInfo.code;
 }
 
+function isWalletAccount(signer: WalletAccount | KeyringPair): signer is WalletAccount {
+  return (signer as WalletAccount).signer !== undefined;
+}
+
 export class VaultService {
-  vaultId: SpacewalkPrimitivesVaultId | undefined = undefined;
+  vaultId: SpacewalkPrimitivesVaultId;
   api: Api | undefined = undefined;
 
   constructor(vaultId: SpacewalkPrimitivesVaultId, api: Api) {
@@ -76,62 +86,65 @@ export class VaultService {
     this.api = api;
   }
 
-  async requestRedeem(walletAccount: WalletAccount, amount: string, stellarPkBytes: Buffer) {
+  async requestRedeem(accountOrPair: WalletAccount | KeyringPair, amount: string, stellarPkBytesBuffer: Buffer) {
     const keyring = new Keyring({ type: 'sr25519' });
     keyring.setSS58Format(this.api!.ss58Format);
 
-    const release = await this.api!.mutex.lock(walletAccount.address);
-    const nonce = await this.api!.api.rpc.system.accountNextIndex(walletAccount.address);
-    console.log(`Nonce for ${getAddressForFormat(walletAccount.address, this.api!.ss58Format)} is ${nonce.toString()}`);
+    // We distinguish between a WalletAccount and a KeyringPair because we need to handle the signer differently
+    const addressOrPair = isWalletAccount(accountOrPair) ? accountOrPair.address : accountOrPair;
+    const address = isWalletAccount(accountOrPair)
+      ? accountOrPair.address
+      : keyring.encodeAddress(accountOrPair.publicKey);
+    const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any } : {};
+
+    const release = await this.api!.mutex.lock(address);
+    const nonce = await this.api!.api.rpc.system.accountNextIndex(address);
+    console.log(`Nonce for ${getAddressForFormat(address, this.api!.ss58Format)} is ${nonce.toString()}`);
+
+    const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
 
     return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
       this.api!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
         //Should we specify the nonce or is the wallet taking care of this?
-        .signAndSend(
-          walletAccount.address,
-          { signer: walletAccount.signer as any },
-          (submissionResult: ISubmittableResult) => {
-            const { status, events, dispatchError } = submissionResult;
+        .signAndSend(addressOrPair, options, (submissionResult: ISubmittableResult) => {
+          const { status, events, dispatchError } = submissionResult;
 
-            if (status.isFinalized) {
-              console.log(
-                `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${
-                  status.type
-                }`,
-              );
+          if (status.isFinalized) {
+            console.log(
+              `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`,
+            );
 
-              // Try to find a 'system.ExtrinsicFailed' event
-              const systemExtrinsicFailedEvent = events.find((record) => {
-                return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
-              });
+            // Try to find a 'system.ExtrinsicFailed' event
+            const systemExtrinsicFailedEvent = events.find((record) => {
+              return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
+            });
 
-              if (dispatchError) {
-                reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
-              }
-              //find all redeem request events and filter the one that matches the requester
-              const redeemEvents = events.filter((event) => {
-                return (
-                  event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
-                );
-              });
-
-              const event = redeemEvents
-                .map((event) => parseEventRedeemRequest(event))
-                .filter((event) => {
-                  return event.redeemer === getAddressForFormat(walletAccount.address, this.api!.ss58Format);
-                });
-
-              if (event.length == 0) {
-                reject(new Error(`No redeem event found for account ${walletAccount.address}`));
-              }
-              //we should only find one event corresponding to the issue request
-              if (event.length != 1) {
-                reject(new Error('Inconsistent amount of redeem request events for account'));
-              }
-              resolve(event[0]);
+            if (dispatchError) {
+              reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
             }
-          },
-        )
+            //find all redeem request events and filter the one that matches the requester
+            const redeemEvents = events.filter((event) => {
+              return (
+                event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
+              );
+            });
+
+            const event = redeemEvents
+              .map((event) => parseEventRedeemRequest(event))
+              .filter((event) => {
+                return event.redeemer === getAddressForFormat(accountOrPair.address, this.api!.ss58Format);
+              });
+
+            if (event.length == 0) {
+              reject(new Error(`No redeem event found for account ${accountOrPair.address}`));
+            }
+            //we should only find one event corresponding to the issue request
+            if (event.length != 1) {
+              reject(new Error('Inconsistent amount of redeem request events for account'));
+            }
+            resolve(event[0]);
+          }
+        })
         .catch((error) => {
           reject(new Error(`Failed to request redeem: ${error}`));
         })
