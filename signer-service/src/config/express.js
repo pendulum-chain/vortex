@@ -1,19 +1,14 @@
-const express = require("express");
-const morgan = require("morgan");
-const bodyParser = require("body-parser");
-const compress = require("compression");
-const methodOverride = require("method-override");
-const cors = require("cors");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const routes = require("../api/routes/v1");
-const {
-  logs,
-  rateLimitMaxRequests,
-  rateLimitNumberOfProxies,
-  rateLimitWindowMinutes,
-} = require("./vars");
-const error = require("../api/middlewares/error");
+const express = require('express');
+const morgan = require('morgan');
+const bodyParser = require('body-parser');
+const compress = require('compression');
+const methodOverride = require('method-override');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const routes = require('../api/routes/v1');
+const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = require('./vars');
+const error = require('../api/middlewares/error');
 
 /**
  * Express instance
@@ -23,7 +18,7 @@ const app = express();
 
 // enable rate limiting
 // Set number of expected proxies
-app.set("trust proxy", rateLimitNumberOfProxies);
+app.set('trust proxy', rateLimitNumberOfProxies);
 // Define rate limiter
 const limiter = rateLimit({
   windowMs: rateLimitWindowMinutes * 60 * 1000,
@@ -53,21 +48,18 @@ app.use(helmet());
 // enable CORS - Cross Origin Resource Sharing
 app.use(cors());
 
+const allowedOrigins = ['http://localhost:5173', 'https://pendulum-pay.netlify.app'];
 
-const allowedOrigins = [
-  'http://localhost:5173', 
-  'https://pendulum-pay.netlify.app',
-];
-
-app.use(cors({
-  origin: '*',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  allowedHeaders: 'Content-Type,Authorization',
-}));
-
+app.use(
+  cors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type,Authorization',
+  }),
+);
 
 // mount api token routes
-app.use("/v1", routes);
+app.use('/v1', routes);
 
 // if error is not an instanceOf APIError, convert it.
 app.use(error.converter);

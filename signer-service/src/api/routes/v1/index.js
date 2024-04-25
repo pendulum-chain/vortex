@@ -1,13 +1,13 @@
-const express = require("express");
-const httpStatus = require("http-status");
-const statsRoutes = require("./stats.route");
+const express = require('express');
+const httpStatus = require('http-status');
+const statsRoutes = require('./stats.route');
 
 const router = express.Router({ mergeParams: true });
 
 /**
  * GET v1/status
  */
-router.get("/status", (req, res) => res.send(httpStatus.OK));
+router.get('/status', (req, res) => res.send(httpStatus.OK));
 
 /**
  * GET v1/docs
@@ -18,6 +18,6 @@ router.get("/status", (req, res) => res.send(httpStatus.OK));
 /**
  * POST v1/stellar
  */
-router.use("/stellar", statsRoutes);
+router.use('/stellar', statsRoutes);
 
 module.exports = router;

@@ -60,7 +60,16 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
             target="_blank"
             rel="noopener noreferrer"
             className="button-link"
-            style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '5px', textAlign: 'center', margin: '10px 0' }}
+            style={{
+              display: 'inline-block',
+              padding: '10px 20px',
+              backgroundColor: '#007BFF',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '5px',
+              textAlign: 'center',
+              margin: '10px 0',
+            }}
           >
             Open External Content
           </a>

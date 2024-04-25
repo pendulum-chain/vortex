@@ -10,7 +10,6 @@ import { useAccountBalance } from './BalanceState';
 import { MIN_WITHDRAWAL_AMOUNT } from '../../constants/constants';
 import { nativeToDecimal } from '../../helpers/parseNumbers';
 
-
 interface InputBoxProps {
   onSubmit: (userSubstrateAddress: string) => void;
   dAppName: string;
@@ -50,9 +49,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       }
     }
 
-
     onSubmit(walletAccount.address);
-
   };
 
   return (

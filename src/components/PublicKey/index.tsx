@@ -114,5 +114,5 @@ export const CopyableAddress = memo(function CopyableAddress(props: CopyableAddr
     clipboard.copyToClipboard(props.publicKey);
   }, [clipboard, onClick, props.publicKey]);
 
-  return <ClickableAddress {...props} onClick={handleClick}  />;
+  return <ClickableAddress {...props} onClick={handleClick} />;
 });

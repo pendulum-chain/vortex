@@ -70,11 +70,7 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(
-        result,
-        getEphemeralKeys(),
-        addEvent,
-      );
+      const operations = await setUpAccountAndOperations(result, getEphemeralKeys(), addEvent);
       setStellarOperations(operations);
     } catch (error) {
       addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
@@ -109,7 +105,6 @@ function Landing() {
       console.error('Offramp failed', error);
       addEvent('Offramp transaction failed', EventStatus.Error);
       return;
-
     }
 
     addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);

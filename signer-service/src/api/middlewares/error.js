@@ -1,7 +1,7 @@
-const httpStatus = require("http-status");
-const expressValidation = require("express-validation");
-const APIError = require("../errors/api-error");
-const { env } = require("../../config/vars");
+const httpStatus = require('http-status');
+const expressValidation = require('express-validation');
+const APIError = require('../errors/api-error');
+const { env } = require('../../config/vars');
 
 /**
  * Error handler. Send stacktrace only during development
@@ -15,7 +15,7 @@ const handler = (err, req, res, next) => {
     stack: err.stack,
   };
 
-  if (env !== "development") {
+  if (env !== 'development') {
     delete response.stack;
   }
 
@@ -33,7 +33,7 @@ exports.converter = (err, req, res, next) => {
 
   if (err instanceof expressValidation.ValidationError) {
     convertedError = new APIError({
-      message: "Validation Error",
+      message: 'Validation Error',
       errors: err.errors,
       status: err.status,
       stack: err.stack,
@@ -55,7 +55,7 @@ exports.converter = (err, req, res, next) => {
  */
 exports.notFound = (req, res, next) => {
   const err = new APIError({
-    message: "Not found",
+    message: 'Not found',
     status: httpStatus.NOT_FOUND,
   });
   return handler(err, req, res);

@@ -1,5 +1,5 @@
-const Memcached = require("memcached");
-const { cacheEndpoint, cacheLifetime } = require("./vars");
+const Memcached = require('memcached');
+const { cacheEndpoint, cacheLifetime } = require('./vars');
 
 const defaultOptions = {
   timeout: 5000,

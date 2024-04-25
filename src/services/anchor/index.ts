@@ -59,7 +59,10 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
-export const sep10 = async (tomlValues: TomlValues, renderEvent: (event: string, status: EventStatus) => void): Promise<string> => {
+export const sep10 = async (
+  tomlValues: TomlValues,
+  renderEvent: (event: string, status: EventStatus) => void,
+): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
