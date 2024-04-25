@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { IAnchorSessionParams, ISep24Intermediate, Sep24Result } from '../../services/anchor';
-import { sep24First, sep24Second } from '../../services/anchor';
-import { EventStatus } from '../GenericEvent';
+import { IAnchorSessionParams, ISep24Intermediate, Sep24Result } from '../services/anchor';
+import { sep24First, sep24Second } from '../services/anchor';
+import { EventStatus } from './GenericEvent';
 interface Sep24Props {
   sessionParams: IAnchorSessionParams | null;
   onSep24Complete: (sep24Reslt: Sep24Result) => void;
