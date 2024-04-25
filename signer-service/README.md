@@ -15,3 +15,13 @@ For production
 
 For debelopment
 `FUNDING_PUBLIC_KEY='{FUNDING_ACCOUNT_PUBLICK_KEY}' FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn dev`
+
+### Available environment variables
+
+- `NODE_ENV` - The environment the application is running in, default is `production`
+- `PORT` - The port the HTTP server will listen on, default is `3000`
+- `CACHE_URI` - The URI of the cache server instance, default is `http://localhost:11211`
+- `CACHE_LIFETIME_SECONDS` - The lifetime of a cache entry in seconds, default is `600` seconds
+- `RATE_LIMIT_MAX_REQUESTS` - The maximum number of requests per IP address, default is `100`
+- `RATE_LIMIT_WINDOW_MINUTES` - The time window in minutes for the rate limit, default is `15` minutes
+- `RATE_LIMIT_NUMBER_OF_PROXIES` - The number of proxies between server and user, default is `1`
