@@ -15,6 +15,7 @@ import Sep24 from '../../components/Sep24Component';
 import { TOML_FILE_URL } from '../../constants/constants';
 import { useCallback } from 'preact/compat';
 import { useGlobalState } from '../../GlobalStateProvider';
+import { fetchSigningServicePK } from '../../services/signingService';
 
 enum OperationStatus {
   Idle,
@@ -37,6 +38,7 @@ function Landing() {
 
   // seession and operations states
   const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
   const [sep24Result, setSep24Result] = useState<Sep24Result | null>(null);
@@ -70,7 +72,7 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(result, getEphemeralKeys(), addEvent);
+      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), addEvent);
       setStellarOperations(operations);
     } catch (error) {
       addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
@@ -135,9 +137,11 @@ function Landing() {
       try {
         const values = await fetchTomlValues(TOML_FILE_URL);
         const token = await sep10(values, addEvent);
+        const fundingPK = await fetchSigningServicePK();
+
+        setFundingPK(fundingPK);
         setAnchorSessionParams({ token, tomlValues: values });
         setCanInitiate(true);
-        console.log('Token', token);
       } catch (error) {
         console.error('Error fetching token', error);
       }

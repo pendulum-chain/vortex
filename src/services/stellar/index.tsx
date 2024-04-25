@@ -9,9 +9,9 @@ import {
   Transaction,
   Account,
 } from 'stellar-sdk';
-import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER, FUNDING_PUBLIC_KEY } from '../../constants/constants';
+import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
 import { Sep24Result } from '../anchor';
-import { TRANSACTION_CREATOR_URL } from '../../constants/constants';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
@@ -30,15 +30,17 @@ type StellarFundingSignatureResponse = {
 };
 
 export async function setUpAccountAndOperations(
+  fundingAccountPk: string,
   sep24Result: Sep24Result,
   ephemeralKeys: Keypair,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<StellarOperations> {
-  await setupStellarAccount(FUNDING_PUBLIC_KEY, ephemeralKeys, renderEvent);
+  await setupStellarAccount(fundingAccountPk, ephemeralKeys, renderEvent);
 
   const ephemeralAccountId = ephemeralKeys.publicKey();
   const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
   const { offrampingTransaction, mergeAccountTransaction } = await createOfframpAndMergeTransaction(
+    fundingAccountPk,
     sep24Result,
     ephemeralKeys,
     ephemeralAccount,
@@ -57,7 +59,7 @@ async function setupStellarAccount(
   // We set the max time to 10 minutes from now
   const maxTime = Date.now() + 1000 * 60 * 10;
 
-  const response = await fetch(`${TRANSACTION_CREATOR_URL}/create`, {
+  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/create`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -136,6 +138,7 @@ async function setupStellarAccount(
 }
 
 async function createOfframpAndMergeTransaction(
+  fundingAccountPk: string,
   sep24Result: Sep24Result,
   ephemeralKeys: Keypair,
   ephemeralAccount: Account,
@@ -176,7 +179,7 @@ async function createOfframpAndMergeTransaction(
     )
     .addOperation(
       Operation.accountMerge({
-        destination: FUNDING_PUBLIC_KEY,
+        destination: fundingAccountPk,
       }),
     )
     .setTimebounds(0, maxTime)
@@ -188,7 +191,7 @@ async function createOfframpAndMergeTransaction(
 
   // We also provide the ephemeral account's sequence number. This is more controlled
   // and transactions should be valid as long as they are executed in the proper order.
-  const response = await fetch(`${TRANSACTION_CREATOR_URL}/payment`, {
+  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/payment`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -3,11 +3,12 @@ const httpStatus = require('http-status');
 const statsRoutes = require('./stats.route');
 
 const router = express.Router({ mergeParams: true });
+const { sendStatusWithPk } = require('../../controllers/stellar.controller');
 
 /**
  * GET v1/status
  */
-router.get('/status', (req, res) => res.send(httpStatus.OK));
+router.get('/status', sendStatusWithPk);
 
 /**
  * GET v1/docs

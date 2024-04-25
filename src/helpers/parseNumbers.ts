@@ -11,7 +11,6 @@ export const StellarDecimals = ChainDecimals;
 // These are the decimals used by the FixedU128 type
 export const FixedU128Decimals = 18;
 
-
 // Converts a decimal number to the native representation (a large integer)
 export const decimalToNative = (value: BigNumber | number | string) => {
   let bigIntValue;
@@ -25,9 +24,9 @@ export const decimalToNative = (value: BigNumber | number | string) => {
 };
 
 // Same as above, but handle a string decimal
-export const stringDecimalToNative = (value: string) =>{
+export const stringDecimalToNative = (value: string) => {
   return decimalToNative(stringDecimalToBN(value, ChainDecimals));
-}
+};
 
 export const decimalToStellarNative = (value: BigNumber | number | string) => {
   let bigIntValue;
@@ -41,18 +40,18 @@ export const decimalToStellarNative = (value: BigNumber | number | string) => {
 };
 
 // Same as above, but handle a string decimal
-export const stringDecimalToStellarNative = (value: string) =>{
+export const stringDecimalToStellarNative = (value: string) => {
   return stringDecimalToBN(value, StellarDecimals);
-}
+};
 
 // Convert a string decimal to a BigNumber
 export const stringDecimalToBN = (value: string, chainDecimals: number) => {
   let [whole, decimal] = value.split('.');
-  decimal = decimal || '0'; 
+  decimal = decimal || '0';
 
   // pad the decimal part
   while (decimal.length < chainDecimals) {
-      decimal += '0';
+    decimal += '0';
   }
 
   // truncate the decimal part to max chain length digits
@@ -62,14 +61,13 @@ export const stringDecimalToBN = (value: string, chainDecimals: number) => {
 
   let bigIntValue;
   try {
-      bigIntValue = new BigNumber(fullIntegerValue);
+    bigIntValue = new BigNumber(fullIntegerValue);
   } catch (error) {
-      console.error("Error converting to BigNumber:", error);
-      bigIntValue = new BigNumber(0);
+    console.error('Error converting to BigNumber:', error);
+    bigIntValue = new BigNumber(0);
   }
   return bigIntValue;
 };
-
 
 export const fixedPointToDecimal = (value: BigNumber | number | string) => {
   const bigIntValue = new BigNumber(value);

@@ -1,5 +1,5 @@
 const express = require('express');
-const controller = require('../../controllers/token.controller');
+const controller = require('../../controllers/stellar.controller');
 const { validateCreationInput, validateChangeOpInput } = require('../../middlewares/validators');
 
 const router = express.Router({ mergeParams: true });
