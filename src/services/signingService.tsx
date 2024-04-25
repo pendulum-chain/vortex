@@ -2,7 +2,7 @@ import { SIGNING_SERVICE_URL } from '../constants/constants';
 
 interface SigningServiceStatus {
   status: boolean;
-  fundingPK: string;
+  public: string;
 }
 
 export const fetchSigningServicePK = async (): Promise<string> => {
@@ -10,7 +10,7 @@ export const fetchSigningServicePK = async (): Promise<string> => {
     const serviceResponse: SigningServiceStatus = await (await fetch(`${SIGNING_SERVICE_URL}/v1/status`)).json();
 
     if (serviceResponse.status == true) {
-      return serviceResponse.fundingPK;
+      return serviceResponse.public;
     }
     throw new Error('Could not fetch funding secret key or signing service is down');
   } catch {
