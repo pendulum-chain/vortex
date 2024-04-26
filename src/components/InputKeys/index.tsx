@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { checkStellarAccount } from '../../services/stellar/utils';
-import { checkPendulumAccount } from '../../services/polkadot/utils';
 import eurcSvg from '../../assets/coins/eurc.svg';
 import euroSvg from '../../assets/coins/euro.svg';
 import arrowSvg from '../../assets/coins/arrow.svg';
+import OpenWallet from '../Wallet';
+import { useGlobalState } from '../../GlobalStateProvider';
+import { getApiManagerInstance, ApiManager } from '../../services/polkadot/polkadotApi';
+import { useAccountBalance } from './BalanceState';
+import { MIN_WITHDRAWAL_AMOUNT } from '../../constants/constants';
+import { nativeToDecimal } from '../../helpers/parseNumbers';
+
 export interface IInputBoxData {
   stellarFundingSecret: string;
   pendulumSecret: string;
@@ -11,32 +17,50 @@ export interface IInputBoxData {
 
 interface InputBoxProps {
   onSubmit: (secrets: IInputBoxData) => void;
+  dAppName: string;
 }
 
-const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
+const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const [stellarFundingSecret, setStellarFundingSecret] = useState<string>('');
-  const [pendulumSecret, setPendulumSecret] = useState<string>('');
+  const { walletAccount } = useGlobalState();
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-
   const [stellarError, setStellarError] = useState<string>('');
-  const [pendulumError, setPendulumError] = useState<string>('');
+
+  const [apiManager, setApiManager] = useState<ApiManager>();
+  const [ss58Format, setSs58Format] = useState<number>(42);
+
+  const { balance, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
+
+  useEffect(() => {
+    const initializeApiManager = async () => {
+      const manager = await getApiManagerInstance();
+      const { api, ss58Format } = await manager.getApiComponents();
+      setApiManager(manager);
+      setSs58Format(ss58Format);
+    };
+
+    initializeApiManager();
+  }, []);
 
   const handleSubmit = async () => {
+    if (!walletAccount?.address) {
+      alert('Please connect to a wallet first.');
+      return;
+    }
+
+    if (balance) {
+      if (Number(balance) < nativeToDecimal(MIN_WITHDRAWAL_AMOUNT).toNumber()) {
+        alert('Insufficient balance to offramp. Minimum withdrawal amount is 10 EURC.');
+        return;
+      }
+    }
+
     const stellarResult = await checkStellarAccount(stellarFundingSecret);
-
-    const pendulumResult = await checkPendulumAccount(pendulumSecret);
-
-    if (stellarResult && pendulumResult) {
+    if (stellarResult) {
       setIsSubmitted(true);
-      onSubmit({ stellarFundingSecret, pendulumSecret });
+      onSubmit({ stellarFundingSecret, pendulumSecret: walletAccount.address });
     } else {
-      if (!stellarResult) {
-        setStellarError('Please check the stellar secret');
-      }
-      if (!pendulumResult) {
-        setPendulumError('Please check the pendulum secret');
-      }
-      console.error('One or both accounts do not exist or have insufficient balance.');
+      setStellarError('Please check the stellar secret');
     }
   };
 
@@ -50,7 +74,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
       <div className={`inputBox ${isSubmitted ? 'active' : ''}`}>
         {!isSubmitted && (
           <div className="description">
-            Enter your secrets below to start the offramp process.
+            Enter your Stellar secret below to start the offramp process.
             <ul>
               <li>Ensure to have enough EURC in Pendulum for the desired amount to offramp.</li>
               <li>Do not close this window until the process is completed.</li>
@@ -68,17 +92,16 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit }) => {
           disabled={isSubmitted}
         />
         {stellarError && <div style={{ color: 'red' }}>{stellarError}</div>}
-        <input
-          type="password"
-          value={pendulumSecret}
-          onChange={(e) => {
-            setPendulumSecret((e.target as HTMLInputElement).value);
-            if (pendulumError) setPendulumError('');
-          }}
-          placeholder="Pendulum Secret"
-          disabled={isSubmitted}
-        />
-        {pendulumError && <div style={{ color: 'red' }}>{pendulumError}</div>}
+        <div>
+          <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
+        </div>
+        <div>
+          {!walletAccount?.address ? null : balanceError ? (
+            <p>Error loading balance</p>
+          ) : (
+            <p>EURC Balance: {balance}</p>
+          )}
+        </div>
         {!isSubmitted ? <button onClick={handleSubmit}>Begin Offramp</button> : <div>Offramp Started</div>}
       </div>
     </div>

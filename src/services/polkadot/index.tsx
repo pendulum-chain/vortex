@@ -1,32 +1,32 @@
 import { Keypair } from 'stellar-sdk';
-import { ASSET_CODE, ASSET_ISSUER, EURC_VAULT_ACCOUNT_ID } from '../../constants/constants';
+import { ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
 import { ApiManager } from './polkadotApi';
-import { VaultService } from './spacewalk';
+import { getVaultsForCurrency, VaultService } from './spacewalk';
 import { prettyPrintVaultId } from './spacewalk';
 import { decimalToStellarNative } from '../../helpers/parseNumbers';
 import { EventListener } from './eventListener';
 import { EventStatus } from '../../components/GenericEvent';
+import { WalletAccount } from '@talismn/connect-wallets';
+import { KeyringPair } from '@polkadot/keyring/types';
 
 export const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(ASSET_ISSUER).rawPublicKey().toString('hex')}`;
 
 export async function executeSpacewalkRedeem(
   stellarTargetAccountId: string,
   amountString: string,
-  pendulumSecret: string,
+  accountOrPair: WalletAccount | KeyringPair,
   renderEvent: (event: string, status: EventStatus) => void,
 ) {
   console.log('Executing Spacewalk redeem');
 
-  const pendulumApi = await new ApiManager().getApi();
-  // The Vault ID of the EURC vault
-  const eurcVaultId = {
-    accountId: EURC_VAULT_ACCOUNT_ID,
-    currencies: {
-      collateral: { XCM: 0 },
-      wrapped: { Stellar: { AlphaNum4: { code: ASSET_CODE, issuer: ASSET_ISSUER_RAW } } },
-    },
-  };
-  const vaultService = new VaultService(eurcVaultId, pendulumApi);
+  const pendulumApiComponents = await new ApiManager().getApiComponents();
+  // Query all available vaults for the currency
+  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, ASSET_CODE);
+  if (vaultsForCurrency.length === 0) {
+    throw new Error(`No vaults found for currency ${ASSET_CODE}`);
+  }
+  const targetVaultId = vaultsForCurrency[0].id;
+  const vaultService = new VaultService(targetVaultId, pendulumApiComponents);
 
   // We currently charge 0 fees for redeem requests on Spacewalk so the amount is the same as the requested amount
   const amountRaw = decimalToStellarNative(amountString).toString();
@@ -34,12 +34,17 @@ export async function executeSpacewalkRedeem(
   const stellarTargetKeypair = Keypair.fromPublicKey(stellarTargetAccountId);
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
 
-  console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
-  
+  console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(targetVaultId)}`);
 
   let redeemRequestEvent;
   try {
-    redeemRequestEvent = await vaultService.requestRedeem(pendulumSecret, amountRaw, stellarTargetAccountIdRaw);
+    renderEvent(
+      `Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(
+        targetVaultId,
+      )}. Please sign the transaction`,
+      EventStatus.Waiting,
+    );
+    redeemRequestEvent = await vaultService.requestRedeem(accountOrPair, amountRaw, stellarTargetAccountIdRaw);
   } catch (error) {
     // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
     renderEvent(`Failed to request redeem: ${error}`, EventStatus.Error);
@@ -48,11 +53,11 @@ export async function executeSpacewalkRedeem(
   }
 
   console.log(
-    `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(eurcVaultId)}`,
+    `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(targetVaultId)}`,
   );
   //Render event that the extrinsic passed, and we are now waiting for the execution of it
 
-  const eventListener = EventListener.getEventListener(pendulumApi.api);
+  const eventListener = EventListener.getEventListener(pendulumApiComponents.api);
   // We wait for up to 5 minutes
   const maxWaitingTimeMin = 5;
   const maxWaitingTimeMs = maxWaitingTimeMin * 60 * 1000;
@@ -65,7 +70,7 @@ export async function executeSpacewalkRedeem(
 
   try {
     const redeemEvent = await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
-    console.log(`Successfully redeemed ${redeemEvent.amount} tokens for vault ${prettyPrintVaultId(eurcVaultId)}`);
+    console.log(`Successfully redeemed ${redeemEvent.amount} tokens for vault ${prettyPrintVaultId(targetVaultId)}`);
   } catch (error) {
     // This is a potentially recoverable error (due to network delay)
     // in the future we should distinguish between recoverable and non-recoverable errors

@@ -2,15 +2,14 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { PENDULUM_WSS } from '../../constants/constants';
 const NETWORK = 'Pendulum';
 
-export interface Api {
+export interface ApiComponents {
   api: ApiPromise;
   mutex: Mutex;
   ss58Format: number;
 }
 
 class ApiManager {
-  apiData: Api | undefined = undefined;
-
+  apiData: ApiComponents | undefined = undefined;
 
   async connectApi(socketUrl: string) {
     const wsProvider = new WsProvider(socketUrl);
@@ -20,7 +19,7 @@ class ApiManager {
     });
     const mutex = new Mutex();
 
-    const chainProperties = await api.registry.getChainProperties();
+    const chainProperties = api.registry.getChainProperties();
     const ss58Format = Number(chainProperties?.get('ss58Format').toString() || 42);
 
     return { api, mutex, ss58Format };
@@ -34,7 +33,7 @@ class ApiManager {
     console.log(`Connected to node ${network.wss}`);
   }
 
-  async getApi(): Promise<Api> {
+  async getApiComponents(): Promise<ApiComponents> {
     if (!this.apiData) {
       await this.populateApi();
     }
@@ -65,6 +64,16 @@ class Mutex {
       resolveLock(undefined);
     };
   }
+}
+
+let instance: ApiManager | undefined = undefined;
+
+export async function getApiManagerInstance(): Promise<ApiManager> {
+  if (!instance) {
+    instance = new ApiManager();
+    await instance.populateApi();
+  }
+  return instance;
 }
 
 export { ApiManager, ApiPromise };
