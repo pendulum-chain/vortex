@@ -11,8 +11,9 @@ const {
 } = require('stellar-sdk');
 const { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } = require('../../constants/constants');
 
-const FUNDING_PUBLIC_KEY = process.env.FUNDING_PUBLIC_KEY;
-
+const FUNDING_SECRET = process.env.FUNDING_SECRET;
+// Derive funding pk
+const FUNDING_PUBLIC_KEY= Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 

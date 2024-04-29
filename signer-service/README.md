@@ -11,10 +11,10 @@ Run to start the service.
 ### Running
 
 For production
-`FUNDING_PUBLIC_KEY='{FUNDING_ACCOUNT_PUBLICK_KEY}' FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn start`
+`FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn start`
 
 For debelopment
-`FUNDING_PUBLIC_KEY='{FUNDING_ACCOUNT_PUBLICK_KEY}' FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn dev`
+`FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn dev`
 
 ### Available environment variables
 

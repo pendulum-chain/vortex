@@ -48,8 +48,6 @@ app.use(helmet());
 // enable CORS - Cross Origin Resource Sharing
 app.use(cors());
 
-const allowedOrigins = ['http://localhost:5173', 'https://pendulum-pay.netlify.app'];
-
 app.use(
   cors({
     origin: '*',
