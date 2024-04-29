@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Horizon, Keypair} = require('stellar-sdk');
+const { Horizon, Keypair } = require('stellar-sdk');
 const { HORIZON_URL } = require('../../constants/constants');
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
 
@@ -8,7 +8,7 @@ const { buildCreationStellarTx, buildPaymentAndMergeTx } = require('../services/
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 // Derive funding pk
-const FUNDING_PUBLIC_KEY= Keypair.fromSecret(FUNDING_SECRET).publicKey();
+const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 
 exports.sendStatusWithPk = async (req, res, next) => {
   try {
