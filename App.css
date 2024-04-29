@@ -9,8 +9,7 @@ body {
   overflow-x: hidden;
 
   /* Important to make sure the WalletConnect dialog is shown on top of the others */
-  --wcm-z-index: 1000;
-}
+  --wcm-z-index: 1000;}
 
 #app {
   width: 100%;
@@ -180,6 +179,18 @@ button:hover {
   padding: 0.5rem 1rem;
 }
 
+
 .modal-select {
   max-height: 600px;
 }
+
+
+/* Fix wallet select modal to allow for scrolling */
+#react-portal-modal-container main {
+  overflow-y: auto;
+}
+
+#react-portal-modal-container > div > div {
+  max-height: 90vh;
+}
+

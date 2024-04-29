@@ -60,7 +60,7 @@ const WalletConnect = () => {
 
       //@eslint-disable-next-line no-explicit-any
     } catch (error: any) {
-      console.log(error);
+      console.log(error)
     } finally {
       setLoading(false);
     }

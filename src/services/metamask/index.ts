@@ -85,7 +85,7 @@ export async function buildWalletAccount(extAcc: ExtensionAccount) {
       installed: true,
       extension: undefined,
       signer: extAcc.signer,
-      logo: {
+      logo:{
         src: '',
         alt: 'Metamask Wallet',
       },
