@@ -76,7 +76,7 @@ async function setupStellarAccount(
   // The funding account with sequene as per received from the server
   // This will be valid as long as teh funding account does not make
   // a transaction in the meantime
-  let fundingAccount = new Account(fundingAccountPk, responseData.sequence);
+  const fundingAccount = new Account(fundingAccountPk, responseData.sequence);
 
   // add a setOption oeration in order to make this a 2-of-2 multisig account where the
   // funding account is a cosigner
