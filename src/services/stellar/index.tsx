@@ -23,7 +23,6 @@ export interface StellarOperations {
 }
 
 type StellarFundingSignatureResponse = {
-  success: boolean;
   signature: string[];
   public: string;
   sequence: string;
@@ -71,7 +70,6 @@ async function setupStellarAccount(
     throw new Error(`Error while fetching funding account signature`);
   }
   const responseData: StellarFundingSignatureResponse = await response.json();
-  console.log(responseData);
 
   // The funding account with sequene as per received from the server
   // This will be valid as long as teh funding account does not make

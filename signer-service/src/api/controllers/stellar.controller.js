@@ -31,7 +31,7 @@ exports.sendStatusWithPk = async (req, res, next) => {
 exports.createStellarTransaction = async (req, res, next) => {
   try {
     let { signature, sequence } = await buildCreationStellarTx(FUNDING_SECRET, req.body.accountId, req.body.maxTime);
-    return res.json({ signature, sequence, success: true, public: FUNDING_PUBLIC_KEY });
+    return res.json({ signature, sequence, public: FUNDING_PUBLIC_KEY });
   } catch (error) {
     console.error('Error in createStellarTransaction:', error);
     return res.status(500).json({ error: 'Failed to create transaction', details: error.message });
@@ -48,7 +48,7 @@ exports.changeOpTransaction = async (req, res, next) => {
       req.body.paymentData,
       req.body.maxTime,
     );
-    return res.json({ signature, success: true, public: FUNDING_PUBLIC_KEY });
+    return res.json({ signature, public: FUNDING_PUBLIC_KEY });
   } catch (error) {
     console.error('Error in changeOpTransaction:', error);
     return res.status(500).json({ error: 'Failed to process transaction', details: error.message });
