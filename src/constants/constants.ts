@@ -12,4 +12,4 @@ export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 export const ASSET_CODE_MOCK = 'USDC';
 export const ASSET_ISSUER_MOCK = 'GAKNDFRRWA3RPWNLTI3G4EBSD3RGNZZOY5WKWYMQ6CQTG3KIEKPYWAYC';
 
-export const SIGNING_SERVICE_URL = 'http://localhost:3000';
+export const SIGNING_SERVICE_URL = ' https://prototype-signer-service.pendulumchain.tech';
