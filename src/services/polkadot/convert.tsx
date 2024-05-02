@@ -1,5 +1,4 @@
 import { StrKey } from 'stellar-sdk';
-import BigNumber from 'big.js';
 import { Buffer } from 'buffer';
 
 export function stellarHexToPublic(hexString: string) {

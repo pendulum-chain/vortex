@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { IAnchorSessionParams, ISep24Intermediate, ISep24Result } from '../../services/anchor';
-import { sep24First, sep24Second } from '../../services/anchor';
-import { EventStatus } from '../GenericEvent';
+import { IAnchorSessionParams, ISep24Intermediate, Sep24Result } from '../services/anchor';
+import { sep24First, sep24Second } from '../services/anchor';
+import { EventStatus } from './GenericEvent';
 interface Sep24Props {
   sessionParams: IAnchorSessionParams | null;
-  onSep24Complete: (sep24Reslt: ISep24Result) => void;
+  onSep24Complete: (sep24Reslt: Sep24Result) => void;
   addEvent: (message: string, status: EventStatus) => void;
 }
 
@@ -60,7 +60,16 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
             target="_blank"
             rel="noopener noreferrer"
             className="button-link"
-            style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: '#007BFF', color: 'white', textDecoration: 'none', borderRadius: '5px', textAlign: 'center', margin: '10px 0' }}
+            style={{
+              display: 'inline-block',
+              padding: '10px 20px',
+              backgroundColor: '#007BFF',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '5px',
+              textAlign: 'center',
+              margin: '10px 0',
+            }}
           >
             Open External Content
           </a>

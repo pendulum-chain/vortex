@@ -3,7 +3,7 @@ import { ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
 import { ApiManager } from './polkadotApi';
 import { getVaultsForCurrency, VaultService } from './spacewalk';
 import { prettyPrintVaultId } from './spacewalk';
-import { decimalToStellarNative } from '../../helpers/parseNumbers';
+import { stringDecimalToStellarNative } from '../../helpers/parseNumbers';
 import { EventListener } from './eventListener';
 import { EventStatus } from '../../components/GenericEvent';
 import { WalletAccount } from '@talismn/connect-wallets';
@@ -29,7 +29,7 @@ export async function executeSpacewalkRedeem(
   const vaultService = new VaultService(targetVaultId, pendulumApiComponents);
 
   // We currently charge 0 fees for redeem requests on Spacewalk so the amount is the same as the requested amount
-  const amountRaw = decimalToStellarNative(amountString).toString();
+  const amountRaw = stringDecimalToStellarNative(amountString).toString();
   // Generate raw public key for target
   const stellarTargetKeypair = Keypair.fromPublicKey(stellarTargetAccountId);
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();

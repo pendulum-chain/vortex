@@ -14,15 +14,13 @@ render(
   <ThemeProvider theme={defaultTheme}>
     <BrowserRouter>
       <GlobalStateProvider>
-          <GlobalStateContext.Consumer>
-            {(globalState) => {
-              const { tenantRPC, getThemeName = () => undefined } = globalState as GlobalState;
-              return (
-                <App />
-              );
-            }}
-          </GlobalStateContext.Consumer>
-        </GlobalStateProvider>
+        <GlobalStateContext.Consumer>
+          {(globalState) => {
+            const { tenantRPC, getThemeName = () => undefined } = globalState as GlobalState;
+            return <App />;
+          }}
+        </GlobalStateContext.Consumer>
+      </GlobalStateProvider>
     </BrowserRouter>
   </ThemeProvider>,
   document.getElementById('app') as HTMLElement,

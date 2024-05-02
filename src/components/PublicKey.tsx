@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'preact/compat';
-import { useClipboard } from '../../hooks/useClipboard';
+import { useClipboard } from '../hooks/useClipboard';
 import { Button } from '@mui/material';
 
 type Variant = 'full' | 'short' | 'shorter' | 'hexa';

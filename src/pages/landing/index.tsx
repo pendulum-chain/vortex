@@ -3,11 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
-import { IInputBoxData } from '../../components/InputKeys';
-import { fetchTomlValues, sep10, IAnchorSessionParams, ISep24Result, getEphemeralKeys } from '../../services/anchor';
+import { fetchTomlValues, sep10, IAnchorSessionParams, Sep24Result, getEphemeralKeys } from '../../services/anchor';
 import {
   setUpAccountAndOperations,
-  IStellarOperations,
+  StellarOperations,
   submitOfframpTransaction,
   cleanupStellarEphemeral,
 } from '../../services/stellar';
@@ -16,6 +15,7 @@ import Sep24 from '../../components/Sep24Component';
 import { TOML_FILE_URL } from '../../constants/constants';
 import { useCallback } from 'preact/compat';
 import { useGlobalState } from '../../GlobalStateProvider';
+import { fetchSigningServicePK } from '../../services/signingService';
 
 enum OperationStatus {
   Idle,
@@ -37,10 +37,11 @@ function Landing() {
   const [activeEventIndex, setActiveEventIndex] = useState<number>(-1);
 
   // seession and operations states
-  const [secrets, setSecrets] = useState<IInputBoxData | null>(null);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
-  const [stellarOperations, setStellarOperations] = useState<IStellarOperations | null>(null);
-  const [sep24Result, setSep24Result] = useState<ISep24Result | null>(null);
+  const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
+  const [sep24Result, setSep24Result] = useState<Sep24Result | null>(null);
 
   // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
@@ -49,15 +50,15 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = (secrets: IInputBoxData) => {
-    setSecrets(secrets);
+  const handleOnSubmit = (userSubstrateAddress: string) => {
+    setUserAddress(userSubstrateAddress);
 
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);
   };
 
-  const handleOnSep24Completed = async (result: ISep24Result) => {
+  const handleOnSep24Completed = async (result: Sep24Result) => {
     setShowSep24(false);
 
     console.log('SEP24 Result', result);
@@ -71,15 +72,10 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(
-        result,
-        getEphemeralKeys(),
-        secrets!.stellarFundingSecret,
-        addEvent,
-      );
+      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), addEvent);
       setStellarOperations(operations);
     } catch (error) {
-      addEvent('Stellar setup failed', EventStatus.Error);
+      addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
       return;
     }
 
@@ -90,7 +86,7 @@ function Landing() {
   };
 
   const executeRedeem = useCallback(
-    async (sepResult: ISep24Result) => {
+    async (sepResult: Sep24Result) => {
       try {
         await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, walletAccount!, addEvent);
       } catch (error) {
@@ -106,21 +102,20 @@ function Landing() {
 
   const finalizeOfframp = useCallback(async () => {
     try {
-      await submitOfframpTransaction(secrets!.stellarFundingSecret, stellarOperations!.offrampingTransaction, addEvent);
+      await submitOfframpTransaction(stellarOperations!.offrampingTransaction, addEvent);
     } catch (error) {
       console.error('Offramp failed', error);
       addEvent('Offramp transaction failed', EventStatus.Error);
       return;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
     addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
 
     // we may not necessarily need to show the user an error, since the offramp transaction is already submitted
     // and successful
     // This will not affect the user
-    await cleanupStellarEphemeral(secrets!.stellarFundingSecret, stellarOperations!.mergeAccountTransaction, addEvent);
-  }, [secrets, stellarOperations]);
+    await cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent);
+  }, [stellarOperations]);
 
   const addEvent = (message: string, status: EventStatus) => {
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
@@ -142,9 +137,11 @@ function Landing() {
       try {
         const values = await fetchTomlValues(TOML_FILE_URL);
         const token = await sep10(values, addEvent);
+        const fundingPK = await fetchSigningServicePK();
+
+        setFundingPK(fundingPK);
         setAnchorSessionParams({ token, tomlValues: values });
         setCanInitiate(true);
-        console.log('Token', token);
       } catch (error) {
         console.error('Error fetching token', error);
       }

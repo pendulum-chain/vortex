@@ -1,5 +1,5 @@
 diff --git a/src/constants/constants.ts b/src/constants/constants.ts
-index 0518efd..5584238 100644
+index 1bd721a..dfb311b 100644
 --- a/src/constants/constants.ts
 +++ b/src/constants/constants.ts
 @@ -3,11 +3,11 @@ export const ASSET_CODE = 'EURC';
@@ -19,13 +19,13 @@ index 0518efd..5584238 100644
  export const ASSET_CODE_MOCK = 'USDC';
  export const ASSET_ISSUER_MOCK = 'GAKNDFRRWA3RPWNLTI3G4EBSD3RGNZZOY5WKWYMQ6CQTG3KIEKPYWAYC';
 diff --git a/src/services/anchor/index.ts b/src/services/anchor/index.ts
-index 054af4c..970074b 100644
+index 73ddd75..80f304b 100644
 --- a/src/services/anchor/index.ts
 +++ b/src/services/anchor/index.ts
 @@ -155,12 +155,12 @@ export async function sep24Second(
    const { sep24Url } = tomlValues;
  
-   // TODOmock, testing
+   // Mock, testing
 -  // await new Promise((resolve) => setTimeout(resolve, 1000));
 -  // return {
 -  //   amount: "10.3",
@@ -38,35 +38,37 @@ index 054af4c..970074b 100644
 +    memo: "todo",
 +    offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
 +  };
- 
    // end mock testing
  
+   let status;
 diff --git a/src/services/stellar/index.tsx b/src/services/stellar/index.tsx
-index f84f9a3..5455487 100644
+index 2508e0a..08d2aa3 100644
 --- a/src/services/stellar/index.tsx
 +++ b/src/services/stellar/index.tsx
-@@ -1,9 +1,9 @@
+@@ -1,11 +1,11 @@
  import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction, Account } from 'stellar-sdk';
--import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
-+import { HORIZON_URL, BASE_FEE, ASSET_CODE_MOCK, ASSET_ISSUER_MOCK } from '../../constants/constants';
- import { ISep24Result } from '../anchor';
+-import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER, FUNDING_PUBLIC_KEY } from '../../constants/constants';
++import { HORIZON_URL, BASE_FEE, ASSET_CODE_MOCK, ASSET_ISSUER_MOCK, FUNDING_PUBLIC_KEY } from '../../constants/constants';
+ import { Sep24Result } from '../anchor';
+ import { TRANSACTION_CREATOR_URL } from '../../constants/constants';
+ 
  
  const horizonServer = new Horizon.Server(HORIZON_URL);
 -const NETWORK_PASSPHRASE = Networks.PUBLIC;
 +const NETWORK_PASSPHRASE = Networks.TESTNET;
  import { EventStatus } from '../../components/GenericEvent';
  
- export interface IStellarOperations {
-@@ -90,7 +90,7 @@ async function setupStellarAccount(
-   })
-     .addOperation(
-       Operation.changeTrust({
--        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
-+        asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
-       }),
-     )
-     .setTimeout(30)
-@@ -125,7 +125,7 @@ async function createOfframpTransaction(sep24Result: ISep24Result, ephemeralKeys
+ export interface StellarOperations {
+@@ -94,7 +94,7 @@ async function setupStellarAccount(
+       .addOperation(
+         Operation.changeTrust({
+           source: ephemeralAccountId,
+-          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
++          asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+         }),
+       )
+       .setTimebounds(0,maxTime)
+@@ -146,7 +146,7 @@ async function createOfframpAndMergeTransaction(sep24Result: Sep24Result, epheme
      .addOperation(
        Operation.payment({
          amount,
@@ -75,7 +77,7 @@ index f84f9a3..5455487 100644
          destination: offrampingAccount,
        }),
      )
-@@ -146,7 +146,7 @@ async function createAccountMergeTransaction(fundingSecret: string, ephemeralKey
+@@ -162,7 +162,7 @@ async function createOfframpAndMergeTransaction(sep24Result: Sep24Result, epheme
    })
      .addOperation(
        Operation.changeTrust({
@@ -84,3 +86,103 @@ index f84f9a3..5455487 100644
          limit: '0',
        }),
      )
+@@ -177,7 +177,7 @@ async function createOfframpAndMergeTransaction(sep24Result: Sep24Result, epheme
+   // Fetch the signatures from the server
+   // Under this endpoint, it will return first first the signature of the offramp payment
+   // with information provided, then the signature of the merge account operation
+-  
++
+   // We also provide the ephemeral account's sequence number. This is more controlled
+   // and transactions should be valid as long as they are executed in the proper order.
+   const response = await fetch(`${TRANSACTION_CREATOR_URL}/payment`, {
+diff --git a/testing.patch b/testing.patch
+index 6dc9292..9800f44 100644
+--- a/testing.patch
++++ b/testing.patch
+@@ -1,86 +0,0 @@
+-diff --git a/src/constants/constants.ts b/src/constants/constants.ts
+-index 0518efd..5584238 100644
+---- a/src/constants/constants.ts
+-+++ b/src/constants/constants.ts
+-@@ -3,11 +3,11 @@ export const ASSET_CODE = 'EURC';
+- export const ASSET_ISSUER = 'GAQRF3UGHBT6JYQZ7YSUYCIYWAF4T2SAA5237Q5LIQYJOHHFAWDXZ7NM';
+- export const EURC_VAULT_ACCOUNT_ID = '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm';
+- export const MIN_WITHDRAWAL_AMOUNT = '10000000000000';
+--export const HORIZON_URL = 'https://horizon.stellar.org';
+--//export const HORIZON_URL = "https://horizon-testnet.stellar.org";
+-+//export const HORIZON_URL = 'https://horizon.stellar.org';
+-+export const HORIZON_URL = "https://horizon-testnet.stellar.org";
+- export const BASE_FEE = '1000000';
+--export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
+--//export const PENDULUM_WSS = 'ws://localhost:8000';
+-+//export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
+-+export const PENDULUM_WSS = 'ws://localhost:8000';
+- 
+- export const ASSET_CODE_MOCK = 'USDC';
+- export const ASSET_ISSUER_MOCK = 'GAKNDFRRWA3RPWNLTI3G4EBSD3RGNZZOY5WKWYMQ6CQTG3KIEKPYWAYC';
+-diff --git a/src/services/anchor/index.ts b/src/services/anchor/index.ts
+-index 054af4c..970074b 100644
+---- a/src/services/anchor/index.ts
+-+++ b/src/services/anchor/index.ts
+-@@ -155,12 +155,12 @@ export async function sep24Second(
+-   const { sep24Url } = tomlValues;
+- 
+-   // TODOmock, testing
+--  // await new Promise((resolve) => setTimeout(resolve, 1000));
+--  // return {
+--  //   amount: "10.3",
+--  //   memo: "todo",
+--  //   offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
+--  // };
+-+  await new Promise((resolve) => setTimeout(resolve, 1000));
+-+  return {
+-+    amount: "10.3",
+-+    memo: "todo",
+-+    offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
+-+  };
+- 
+-   // end mock testing
+- 
+-diff --git a/src/services/stellar/index.tsx b/src/services/stellar/index.tsx
+-index f84f9a3..5455487 100644
+---- a/src/services/stellar/index.tsx
+-+++ b/src/services/stellar/index.tsx
+-@@ -1,9 +1,9 @@
+- import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Transaction, Account } from 'stellar-sdk';
+--import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
+-+import { HORIZON_URL, BASE_FEE, ASSET_CODE_MOCK, ASSET_ISSUER_MOCK } from '../../constants/constants';
+- import { ISep24Result } from '../anchor';
+- 
+- const horizonServer = new Horizon.Server(HORIZON_URL);
+--const NETWORK_PASSPHRASE = Networks.PUBLIC;
+-+const NETWORK_PASSPHRASE = Networks.TESTNET;
+- import { EventStatus } from '../../components/GenericEvent';
+- 
+- export interface IStellarOperations {
+-@@ -90,7 +90,7 @@ async function setupStellarAccount(
+-   })
+-     .addOperation(
+-       Operation.changeTrust({
+--        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+-+        asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+-       }),
+-     )
+-     .setTimeout(30)
+-@@ -125,7 +125,7 @@ async function createOfframpTransaction(sep24Result: ISep24Result, ephemeralKeys
+-     .addOperation(
+-       Operation.payment({
+-         amount,
+--        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+-+        asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+-         destination: offrampingAccount,
+-       }),
+-     )
+-@@ -146,7 +146,7 @@ async function createAccountMergeTransaction(fundingSecret: string, ephemeralKey
+-   })
+-     .addOperation(
+-       Operation.changeTrust({
+--        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+-+        asset: new Asset(ASSET_CODE_MOCK, ASSET_ISSUER_MOCK),
+-         limit: '0',
+-       }),
+-     )
