@@ -16,7 +16,7 @@ import { TokenDetails } from '../../constants/tokenConfig';
 import { Buffer } from 'buffer';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.TESTNET;
+const NETWORK_PASSPHRASE = Networks.PUBLIC;
 import { EventStatus } from '../../components/GenericEvent';
 
 export interface StellarOperations {
