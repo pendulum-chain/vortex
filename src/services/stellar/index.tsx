@@ -9,9 +9,11 @@ import {
   Transaction,
   Account,
 } from 'stellar-sdk';
-import { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
+import { HORIZON_URL, BASE_FEE } from '../../constants/constants';
 import { Sep24Result } from '../anchor';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { TokenDetails } from '../../constants/tokenConfig';
+import { Buffer } from 'buffer';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
@@ -32,9 +34,10 @@ export async function setUpAccountAndOperations(
   fundingAccountPk: string,
   sep24Result: Sep24Result,
   ephemeralKeys: Keypair,
+  tokenConfig: TokenDetails,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<StellarOperations> {
-  await setupStellarAccount(fundingAccountPk, ephemeralKeys, renderEvent);
+  await setupStellarAccount(fundingAccountPk, ephemeralKeys, tokenConfig, renderEvent);
 
   const ephemeralAccountId = ephemeralKeys.publicKey();
   const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
@@ -43,6 +46,7 @@ export async function setUpAccountAndOperations(
     sep24Result,
     ephemeralKeys,
     ephemeralAccount,
+    tokenConfig,
   );
   return { offrampingTransaction, mergeAccountTransaction };
 }
@@ -50,6 +54,7 @@ export async function setUpAccountAndOperations(
 async function setupStellarAccount(
   fundingAccountPk: string,
   ephemeralKeys: Keypair,
+  tokenConfig: TokenDetails,
   renderEvent: (event: string, status: EventStatus) => void,
 ) {
   const ephemeralAccountId = ephemeralKeys.publicKey();
@@ -63,7 +68,7 @@ async function setupStellarAccount(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime }),
+    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetId: tokenConfig.assetCode }),
   });
 
   if (!response.ok) {
@@ -102,7 +107,7 @@ async function setupStellarAccount(
       .addOperation(
         Operation.changeTrust({
           source: ephemeralAccountId,
-          asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+          asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
         }),
       )
       .setTimebounds(0, maxTime)
@@ -140,14 +145,30 @@ async function createOfframpAndMergeTransaction(
   sep24Result: Sep24Result,
   ephemeralKeys: Keypair,
   ephemeralAccount: Account,
+  tokenConfig: TokenDetails,
 ) {
   // We allow for more TTL since the redeem may take time
   const maxTime = Date.now() + 1000 * 60 * 30;
   const sequence = ephemeralAccount.sequenceNumber();
+  const { amount, memo, memoType, offrampingAccount } = sep24Result;
+
+  //cast the memo to corresponding type
+  let transactionMemo;
+  switch (memoType) {
+    case "text":
+      transactionMemo = Memo.text(memo);
+      break;
+
+    case "hash":
+      transactionMemo = Memo.hash(Buffer.from(memo, "base64"));
+      break;
+
+    default:
+      throw new Error(`Unexpected offramp memo type: ${memoType}`);
+  }
 
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added
-  const { amount, memo, offrampingAccount } = sep24Result;
   const offrampingTransaction = new TransactionBuilder(ephemeralAccount, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -155,11 +176,11 @@ async function createOfframpAndMergeTransaction(
     .addOperation(
       Operation.payment({
         amount,
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
         destination: offrampingAccount,
       }),
     )
-    .addMemo(Memo.text(memo))
+    .addMemo(transactionMemo)
     .setTimebounds(0, maxTime)
     .build();
 
@@ -171,7 +192,7 @@ async function createOfframpAndMergeTransaction(
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
         limit: '0',
       }),
     )
@@ -194,7 +215,7 @@ async function createOfframpAndMergeTransaction(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccount.accountId(), paymentData: sep24Result, sequence, maxTime }),
+    body: JSON.stringify({ accountId: ephemeralAccount.accountId(), paymentData: sep24Result, sequence, maxTime, assetId: tokenConfig.assetCode }),
   });
 
   if (!response.ok) {

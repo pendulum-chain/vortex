@@ -1,6 +1,6 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
-import { ASSET_CODE } from '../../constants/constants';
 import { EventStatus } from '../../components/GenericEvent';
+import { TokenDetails } from '../../constants/tokenConfig';
 export interface TomlValues {
   signingKey?: string;
   webAuthEndpoint?: string;
@@ -15,11 +15,13 @@ export interface ISep24Intermediate {
 export interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
+  tokenConfig: TokenDetails;
 }
 
 export interface Sep24Result {
   amount: string;
   memo: string;
+  memoType: string;
   offrampingAccount: string;
 }
 
@@ -44,7 +46,7 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   const tomlFileContent = (await response.text()).split('\n');
   const findValueInToml = (key: string): string | undefined => {
     for (const line of tomlFileContent) {
-      const regexp = new RegExp(`^\s*${key}\s*=\s*"(.*)"\s*$`);
+      const regexp = new RegExp(`^\\s*${key}\\s*=\\s*"(.*)"\\s*$`);
       const match = regexp.exec(line);
       if (match) {
         return match[1];
@@ -124,16 +126,17 @@ export async function sep24First(
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
   const sep24Params = new URLSearchParams({
-    asset_code: ASSET_CODE,
+    asset_code: sessionParams.tokenConfig.assetCode,
   });
 
-  const sep24Response = await fetch(`${sep24Url}/transactions/withdraw/interactive`, {
+  const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;
+  const sep24Response = await fetch(fetchUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
     body: sep24Params.toString(),
   });
   if (sep24Response.status !== 200) {
-    renderEvent(`Failed to initiate SEP-24: ${sep24Response.statusText}`, EventStatus.Error);
+    renderEvent(`Failed to initiate SEP-24: ${sep24Response.statusText}, ${fetchUrl}`, EventStatus.Error);
     throw new Error(`Failed to initiate SEP-24: ${sep24Response.statusText}`);
   }
 
@@ -184,15 +187,11 @@ export async function sep24Second(
     status = transaction;
   } while (status.status !== 'pending_user_transfer_start');
 
-  if (status.withdraw_memo_type !== 'text') {
-    renderEvent(`Unexpected offramp memo type: ${transaction!.withdraw_memo_type}`, EventStatus.Error);
-    throw new Error(`Unexpected offramp memo type: ${transaction!.withdraw_memo_type}`);
-  }
-
   console.log('SEP-24 parameters received');
   return {
     amount: status.amount_in,
     memo: status.withdraw_memo,
+    memoType: status.withdraw_memo_type,
     offrampingAccount: status.withdraw_anchor_account,
   };
 }

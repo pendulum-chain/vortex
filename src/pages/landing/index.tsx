@@ -12,10 +12,10 @@ import {
 } from '../../services/stellar';
 import { executeSpacewalkRedeem } from '../../services/polkadot';
 import Sep24 from '../../components/Sep24Component';
-import { TOML_FILE_URL } from '../../constants/constants';
 import { useCallback } from 'preact/compat';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
+import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 
 enum OperationStatus {
   Idle,
@@ -50,8 +50,16 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = (userSubstrateAddress: string) => {
+  const handleOnSubmit = async (userSubstrateAddress: string, selectedAsset: string) => {
     setUserAddress(userSubstrateAddress);
+
+    const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset]
+    const values = await fetchTomlValues(tokenConfig.tomlFileUrl);
+    const token = await sep10(values, addEvent);
+    const fundingPK = await fetchSigningServicePK();
+
+    setFundingPK(fundingPK);
+    setAnchorSessionParams({ token, tomlValues: values, tokenConfig  });
 
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
@@ -72,7 +80,7 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), addEvent);
+      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), anchorSessionParams!.tokenConfig, addEvent);
       setStellarOperations(operations);
     } catch (error) {
       addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
@@ -88,7 +96,7 @@ function Landing() {
   const executeRedeem = useCallback(
     async (sepResult: Sep24Result) => {
       try {
-        await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, walletAccount!, addEvent);
+        await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, walletAccount!,anchorSessionParams!.tokenConfig, addEvent);
       } catch (error) {
         return;
       }
@@ -135,12 +143,7 @@ function Landing() {
   useEffect(() => {
     const initiate = async () => {
       try {
-        const values = await fetchTomlValues(TOML_FILE_URL);
-        const token = await sep10(values, addEvent);
-        const fundingPK = await fetchSigningServicePK();
-
-        setFundingPK(fundingPK);
-        setAnchorSessionParams({ token, tomlValues: values });
+        // TODO What are the checks for this if we now don't do the sep10 first?
         setCanInitiate(true);
       } catch (error) {
         console.error('Error fetching token', error);

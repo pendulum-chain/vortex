@@ -1,55 +1,74 @@
 import { useEffect, useState } from 'react';
-import { ApiPromise } from '@polkadot/api';
 import { nativeToDecimal } from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { ASSET_CODE } from '../../constants/constants';
-import { ASSET_ISSUER_RAW } from '../../services/polkadot/index';
+import { TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { Keypair } from 'stellar-sdk';
+
+export interface BalanceInfo {
+  balance: string;
+  canWithdraw: boolean;
+}
 
 export interface UseAccountBalanceResponse {
-  balance?: string;
+  balances: { [key: string]: BalanceInfo };
   isBalanceLoading: boolean;
   balanceError?: Error;
 }
 
 export const useAccountBalance = (address?: string): UseAccountBalanceResponse => {
-  const [balance, setBalance] = useState<string>();
+  const [balances, setBalances] = useState<{ [key: string]: BalanceInfo }>({});
   const [isBalanceLoading, setIsLoading] = useState(false);
   const [balanceError, setError] = useState<Error>();
 
   useEffect(() => {
-    const fetchBalance = async () => {
-      const apiManager = await getApiManagerInstance();
-      const apiComponents = await apiManager.getApiComponents();
-      if (!apiComponents || !address) {
-        setBalance(undefined);
+    const fetchBalances = async () => {
+      if (!address) {
+        setBalances({});
         return;
       }
 
-      try {
-        setIsLoading(true);
-        console.log(address);
-        const response = (
-          await apiComponents.api.query.tokens.accounts(address, {
-            Stellar: { AlphaNum4: { code: ASSET_CODE, issuer: ASSET_ISSUER_RAW } },
-          })
-        ).toHuman();
-        console.log(response);
-        const balance = response?.free?.toString() || '0';
-        const formattedBalance = nativeToDecimal(balance).toString();
+      const apiManager = await getApiManagerInstance();
+      const apiComponents = await apiManager.getApiComponents();
+      if (!apiComponents) {
+        setBalances({});
+        return;
+      }
 
-        setBalance(formattedBalance);
-        setIsLoading(false);
+      setIsLoading(true);
+      const newBalances: { [key: string]: BalanceInfo } = {};
+
+      try {
+        for (const [key, config] of Object.entries(TOKEN_CONFIG)) {
+          const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(config.assetIssuer).rawPublicKey().toString('hex')}`;
+          const response = (
+            await apiComponents.api.query.tokens.accounts(address, {
+              Stellar: { AlphaNum4: { code: config.assetCode, issuer: ASSET_ISSUER_RAW } },
+            })
+          ).toHuman();
+
+          const rawBalance = response?.free?.toString() || '0';
+          const formattedBalance = nativeToDecimal(rawBalance).toString();
+          const minWithdrawalAmount = nativeToDecimal(config.minWithdrawalAmount).toString();
+          const canWithdraw = Number(formattedBalance) >= Number(minWithdrawalAmount);
+
+          newBalances[key] = {
+            balance: formattedBalance,
+            canWithdraw
+          };
+        }
+        setBalances(newBalances);
       } catch (err) {
         setError(err as Error);
+      } finally {
         setIsLoading(false);
       }
     };
 
-    fetchBalance();
+    fetchBalances();
   }, [address]);
 
   return {
-    balance,
+    balances,
     isBalanceLoading,
     balanceError,
   };

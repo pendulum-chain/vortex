@@ -3,6 +3,11 @@ const validateCreationInput = (req, res, next) => {
   if (!accountId || !maxTime) {
     return res.status(400).json({ error: 'Missing accountId or maxTime parameter' });
   }
+
+  if (!assetId){
+    return res.status(400).json({ error: 'Missing assetId parameter' });
+  }
+
   if (typeof maxTime !== 'number') {
     return res.status(400).json({ error: 'maxTime must be a number' });
   }
@@ -14,6 +19,11 @@ const validateChangeOpInput = (req, res, next) => {
   if (!accountId || !sequence || !paymentData || !maxTime) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
+
+  if (!assetId){
+    return res.status(400).json({ error: 'Missing assetId parameter' });
+  }
+
   if (typeof sequence !== 'string' || typeof maxTime !== 'number') {
     return res.status(400).json({ error: 'Invalid input types' });
   }
