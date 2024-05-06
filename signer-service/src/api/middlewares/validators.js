@@ -1,5 +1,5 @@
 const validateCreationInput = (req, res, next) => {
-  const { accountId, maxTime } = req.body;
+  const { accountId, maxTime, assetId } = req.body;
   if (!accountId || !maxTime) {
     return res.status(400).json({ error: 'Missing accountId or maxTime parameter' });
   }
@@ -15,7 +15,7 @@ const validateCreationInput = (req, res, next) => {
 };
 
 const validateChangeOpInput = (req, res, next) => {
-  const { accountId, sequence, paymentData, maxTime } = req.body;
+  const { accountId, sequence, paymentData, maxTime, assetId } = req.body;
   if (!accountId || !sequence || !paymentData || !maxTime) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }

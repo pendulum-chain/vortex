@@ -5,7 +5,7 @@ import arrowSvg from '../../assets/coins/arrow.svg';
 import OpenWallet from '../Wallet';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { useAccountBalance } from './BalanceState';
+import { useAccountBalance } from './BalanceState'; 
 
 interface InputBoxProps {
   onSubmit: (userSubstrateAddress: string, selectedAsset: string) => void;
@@ -66,24 +66,36 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             </ul>
           </div>
         )}
-        <div>
+      <div>
           <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
-        </div>
-        <div>
-          {walletAccount?.address && Object.entries(balances).map(([key, { balance, canWithdraw }]) => (
-            <button key={key} disabled={!canWithdraw} onClick={() => handleSelectAsset(key)}>
-              {key.toUpperCase()} - Balance: {balance}
-            </button>
-          ))}
-        </div>
-        <div>
-          {!walletAccount?.address ? null : balanceError ? (
-            <p>Error loading balance</p>
-          ) : (
-            <p>Selected Asset Balance: {selectedAsset ? balances[selectedAsset].balance : 'None'}</p>
+      </div>
+      <div className="button-container">
+        {!isSubmitted && walletAccount?.address && (
+          <>
+            <div className="asset-selection-heading">Please select the asset to offramp:</div>
+            {Object.entries(balances).map(([key, { balance, canWithdraw }]) => (
+              <button key={key} className={`assetButton ${selectedAsset === key ? 'selected' : ''}`}
+                      disabled={!canWithdraw} onClick={() => handleSelectAsset(key)}>
+                {key.toUpperCase()}
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+        {!isSubmitted && selectedAsset && walletAccount?.address && (
+          <div className="selected-balance-info">
+            <p>Selected Asset: {selectedAsset.toUpperCase()}</p>
+            <p>Available Balance: {balances[selectedAsset].balance}</p>
+          </div>
+        )}
+        
+          {selectedAsset && !isSubmitted && walletAccount?.address ? <button className="begin-offramp-btn" onClick={handleSubmit}>Begin {selectedAsset.toUpperCase()} Offramp</button> : null}
+          {isSubmitted && (
+            <div className="offramp-started">
+              Offramp started for asset - {selectedAsset?.toUpperCase()}
+            </div>
           )}
-        </div>
-        {!isSubmitted && selectedAsset ? <button onClick={handleSubmit}>Begin Offramp</button> : <div>Offramp Started</div>}
+        
       </div>
     </div>
   );

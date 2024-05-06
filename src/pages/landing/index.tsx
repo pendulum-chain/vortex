@@ -80,7 +80,7 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), anchorSessionParams!.tokenConfig, addEvent);
+      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), tokenConfig, addEvent);
       setStellarOperations(operations);
     } catch (error) {
       addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
@@ -98,6 +98,7 @@ function Landing() {
       try {
         await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, walletAccount!,anchorSessionParams!.tokenConfig, addEvent);
       } catch (error) {
+        console.log(error)
         return;
       }
       addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
@@ -105,7 +106,7 @@ function Landing() {
       //this will trigger finalizeOfframp
       setStatus(OperationStatus.FinalizingOfframp);
     },
-    [walletAccount],
+    [walletAccount, anchorSessionParams],
   );
 
   const finalizeOfframp = useCallback(async () => {

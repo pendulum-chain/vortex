@@ -40,9 +40,13 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
       try {
         for (const [key, config] of Object.entries(TOKEN_CONFIG)) {
           const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(config.assetIssuer).rawPublicKey().toString('hex')}`;
+
+          // use assetCodeHex if exist, otherwise use asset_code
+          const assetCode = config.assetCodeHex || config.assetCode;
+
           const response = (
             await apiComponents.api.query.tokens.accounts(address, {
-              Stellar: { AlphaNum4: { code: config.assetCode, issuer: ASSET_ISSUER_RAW } },
+              Stellar: { AlphaNum4: { code: assetCode, issuer: ASSET_ISSUER_RAW } },
             })
           ).toHuman();
 

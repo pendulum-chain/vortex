@@ -47,7 +47,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
     sep24Second(sep24IntermediateValues!, sessionParams!, addEvent).then((response) => {
       onSep24Complete(response);
     });
-    addEvent('Waiting for confirmation from Mykobo', EventStatus.Waiting);
+    addEvent('Waiting for confirmation from Asset Issuer', EventStatus.Waiting);
     setProcessStatus({ processStarted: true, waitingSep24Second: true });
   };
 

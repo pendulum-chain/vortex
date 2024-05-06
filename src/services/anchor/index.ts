@@ -165,6 +165,7 @@ export async function sep24Second(
   // return {
   //   amount: "10.3",
   //   memo: "todo",
+  //   memoType: "text",
   //   offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
   // };
   // end mock testing

@@ -10,7 +10,7 @@ const {
   Account,
 } = require('stellar-sdk');
 const { HORIZON_URL, BASE_FEE } = require('../../constants/constants');
-const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
 // Derive funding pk
@@ -20,7 +20,7 @@ const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetId) {
 
-  const tokenConfig = TOKEN_CONFIG[assetId];
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetId);
   if (tokenConfig === undefined) {
     console.error("ERROR: Invalid asset id or configuration not found");
     throw new Error("Invalid asset id or configuration not found");
@@ -71,7 +71,7 @@ async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemer
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
   const { amount, memo, memoType, offrampingAccount } = paymentData;
 
-  const tokenConfig = TOKEN_CONFIG[assetId];
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetId);
   if (tokenConfig === undefined) {
     throw new Error("Invalid asset id or configuration not found");
   }
