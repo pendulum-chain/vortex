@@ -46,6 +46,7 @@ function Landing() {
   // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
+  const [backendError, setBackendError] = useState<boolean>(false);
 
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
@@ -146,6 +147,7 @@ function Landing() {
         setFundingPK(fundingPK);
         setCanInitiate(true);
       } catch (error) {
+        setBackendError(true);
         console.error('Error fetching token', error);
       }
     };
@@ -166,6 +168,14 @@ function Landing() {
 
   return (
     <div className="App">
+      {backendError && (
+        <div>
+           <h2 className="inputBox">Service is Down</h2>
+          <div className="general-service-error-message">
+            Please try again later or reload the page.
+          </div>
+        </div>
+      )}
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
