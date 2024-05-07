@@ -80,7 +80,7 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), tokenConfig, addEvent);
+      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), anchorSessionParams!.tokenConfig, addEvent);
       setStellarOperations(operations);
     } catch (error) {
       addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
