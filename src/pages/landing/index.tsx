@@ -56,9 +56,7 @@ function Landing() {
     const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset]
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl);
     const token = await sep10(values, addEvent);
-    const fundingPK = await fetchSigningServicePK();
 
-    setFundingPK(fundingPK);
     setAnchorSessionParams({ token, tomlValues: values, tokenConfig  });
 
     // showing (rendering) the Sep24 component will trigger the Sep24 process
@@ -144,7 +142,8 @@ function Landing() {
   useEffect(() => {
     const initiate = async () => {
       try {
-        // TODO What are the checks for this if we now don't do the sep10 first?
+        const fundingPK = await fetchSigningServicePK();
+        setFundingPK(fundingPK);
         setCanInitiate(true);
       } catch (error) {
         console.error('Error fetching token', error);
