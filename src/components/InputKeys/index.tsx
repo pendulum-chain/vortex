@@ -62,10 +62,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       <div className={`inputBox ${isSubmitted ? 'active' : ''}`}>
         {!isSubmitted && (
           <div className="description">
-            Enter your Stellar secret below to start the offramp process.
             <ul>
-              <li>Ensure to have enough EURC in Pendulum for the desired amount to offramp.</li>
+              <li>Ensure to have enough EURC in Pendulum wallet (min. 10 EURC)</li>
               <li>Do not close this window until the process is completed.</li>
+              <li>This is a non-custodial prototype, please use at your own risk.</li>
             </ul>
           </div>
         )}
@@ -79,7 +79,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             <p>EURC Balance: {balance}</p>
           )}
         </div>
-        {!isSubmitted ? <button onClick={handleSubmit}>Begin Offramp</button> : <div>Offramp Started</div>}
+        {!isSubmitted ? <button onClick={handleSubmit}>Prepare prototype</button> : <div>Offramp Started</div>}
       </div>
     </div>
   );
