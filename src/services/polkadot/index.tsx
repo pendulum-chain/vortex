@@ -20,9 +20,12 @@ export async function executeSpacewalkRedeem(
 
   const pendulumApiComponents = await new ApiManager().getApiComponents();
   // Query all available vaults for the currency
-  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, tokenConfig.assetCode);
+  // we give priority again to the hex string, since we know the vault will match against this value
+  // in case the asset is represented as this if the asset is 3 letter.
+  const assetCodeOrHex = tokenConfig.assetCodeHex || tokenConfig.assetCode;
+  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, assetCodeOrHex);
   if (vaultsForCurrency.length === 0) {
-    throw new Error(`No vaults found for currency ${tokenConfig.assetCode}`);
+    throw new Error(`No vaults found for currency ${assetCodeOrHex}`);
   }
   const targetVaultId = vaultsForCurrency[0].id;
   const vaultService = new VaultService(targetVaultId, pendulumApiComponents);
