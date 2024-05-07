@@ -112,7 +112,10 @@ export const sep10 = async (
   console.log(`SEP-10 challenge completed.`);
 
   // print the ephemeral secret, for testing
-  renderEvent(`Ephemeral secret: ${ephemeralKeys.secret()}`, EventStatus.Waiting);
+  renderEvent(
+    `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
+    EventStatus.Waiting,
+  );
   return token;
 };
 
