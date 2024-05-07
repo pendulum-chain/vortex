@@ -71,9 +71,9 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
               margin: '10px 0',
             }}
           >
-            2. Enter bank details (New window)
+            Enter bank details (New window)
           </a>
-          <button onClick={() => handleIframeCompletion()}>3. Start Offramping</button>
+          <button onClick={() => handleIframeCompletion()}>Start Offramping</button>
         </div>
       )}
     </div>

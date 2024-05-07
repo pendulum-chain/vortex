@@ -79,7 +79,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             <p>EURC Balance: {balance}</p>
           )}
         </div>
-        {!isSubmitted ? <button onClick={handleSubmit}>1. Prepare prototype</button> : <div>Offramp Started</div>}
+        {!isSubmitted ? <button onClick={handleSubmit}>Prepare prototype</button> : <div>Offramp Started</div>}
       </div>
     </div>
   );
