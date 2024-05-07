@@ -25,7 +25,6 @@ function getTokenConfigByAssetCode(cofig, assetCode) {
       return cofig[key] ;
     }
   }
-  // Return undefined if no match is found
   return undefined;
 }
   

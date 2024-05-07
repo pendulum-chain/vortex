@@ -14,6 +14,8 @@ For production `FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn start`
 
 For debelopment `FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn dev`
 
+Or alternatively, specify the funding secret in the .env file.
+
 ### Available environment variables
 
 - `NODE_ENV` - The environment the application is running in, default is `production`
@@ -21,3 +23,4 @@ For debelopment `FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn dev`
 - `RATE_LIMIT_MAX_REQUESTS` - The maximum number of requests per IP address, default is `100`
 - `RATE_LIMIT_WINDOW_MINUTES` - The time window in minutes for the rate limit, default is `15` minutes
 - `RATE_LIMIT_NUMBER_OF_PROXIES` - The number of proxies between server and user, default is `1`
+- `FUNDING_SECRET` - Secret of the funding account.
