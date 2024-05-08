@@ -18,9 +18,9 @@ const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetId) {
+async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetCode) {
 
-  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetId);
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
   if (tokenConfig === undefined) {
     console.error("ERROR: Invalid asset id or configuration not found");
     throw new Error("Invalid asset id or configuration not found");
@@ -66,12 +66,12 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
   };
 }
 
-async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemeralSequence, paymentData, maxTime, assetId) {
+async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemeralSequence, paymentData, maxTime, assetCode) {
   const ephemeralAccount = new Account(ephemeralAccountId, ephemeralSequence);
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
   const { amount, memo, memoType, offrampingAccount } = paymentData;
 
-  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetId);
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
   if (tokenConfig === undefined) {
     throw new Error("Invalid asset id or configuration not found");
   }

@@ -68,7 +68,7 @@ async function setupStellarAccount(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetId: tokenConfig.assetCode }),
+    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetCode: tokenConfig.assetCode }),
   });
 
   if (!response.ok) {
@@ -215,7 +215,7 @@ async function createOfframpAndMergeTransaction(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccount.accountId(), paymentData: sep24Result, sequence, maxTime, assetId: tokenConfig.assetCode }),
+    body: JSON.stringify({ accountId: ephemeralAccount.accountId(), paymentData: sep24Result, sequence, maxTime, assetCode: tokenConfig.assetCode }),
   });
 
   if (!response.ok) {

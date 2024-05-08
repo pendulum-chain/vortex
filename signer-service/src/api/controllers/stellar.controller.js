@@ -30,7 +30,7 @@ exports.sendStatusWithPk = async (req, res, next) => {
 
 exports.createStellarTransaction = async (req, res, next) => {
   try {
-    let { signature, sequence } = await buildCreationStellarTx(FUNDING_SECRET, req.body.accountId, req.body.maxTime, req.body.assetId);
+    let { signature, sequence } = await buildCreationStellarTx(FUNDING_SECRET, req.body.accountId, req.body.maxTime, req.body.assetCode);
     return res.json({ signature, sequence, public: FUNDING_PUBLIC_KEY });
   } catch (error) {
     console.error('Error in createStellarTransaction:', error);
@@ -46,7 +46,7 @@ exports.changeOpTransaction = async (req, res, next) => {
       req.body.sequence,
       req.body.paymentData,
       req.body.maxTime,
-      req.body.assetId
+      req.body.assetCode
     );
     return res.json({ signature, public: FUNDING_PUBLIC_KEY });
   } catch (error) {
