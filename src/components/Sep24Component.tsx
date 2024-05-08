@@ -71,9 +71,9 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
               margin: '10px 0',
             }}
           >
-            Open External Content
+            Enter bank details (New window)
           </a>
-          <button onClick={() => handleIframeCompletion()}>I&apos;m Done</button>
+          <button onClick={() => handleIframeCompletion()}>Start Offramping</button>
         </div>
       )}
     </div>
