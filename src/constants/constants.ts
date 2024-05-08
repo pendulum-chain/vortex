@@ -5,4 +5,4 @@ export const BASE_FEE = '1000000';
 export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 //export const PENDULUM_WSS = 'ws://localhost:8000';
 
-export const SIGNING_SERVICE_URL = 'http://localhost:3000';
+export const SIGNING_SERVICE_URL = process.env.PRODUCTION ? ''https://prototype-signer-service.pendulumchain.tech' : 'http://localhost:3000';
