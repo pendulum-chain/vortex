@@ -84,7 +84,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       </div>
         {!isSubmitted && selectedAsset && walletAccount?.address && (
           <div className="selected-balance-info">
-            <p>Selected Asset: {selectedAsset.toUpperCase()}</p>
             <p>Available Balance: {balances[selectedAsset].balance}</p>
           </div>
         )}
