@@ -75,7 +75,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             <div className="asset-selection-heading">Please select the asset to offramp:</div>
             {Object.entries(balances).map(([key, { balance, canWithdraw }]) => (
               <button key={key} className={`assetButton ${selectedAsset === key ? 'selected' : ''}`}
-                      disabled={!canWithdraw} onClick={() => handleSelectAsset(key)}>
+                      onClick={() => handleSelectAsset(key)}>
                 {key.toUpperCase()}
               </button>
             ))}
