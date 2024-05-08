@@ -12,7 +12,7 @@ Run to start the service.
 
 For production `FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn start`
 
-For debelopment `FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn dev`
+For development `FUNDING_SECRET='{FUNDING_ACCOUNT_SECRET_KEY}' yarn dev`
 
 Or alternatively, specify the funding secret in the .env file.
 
