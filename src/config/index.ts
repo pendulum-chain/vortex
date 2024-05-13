@@ -13,6 +13,7 @@ type TenantConfig = Record<
 
 export type Environment = 'development' | 'staging' | 'production';
 const nodeEnv = process.env.NODE_ENV as Environment;
+const maybeSignerServiceUrl = import.meta.env.VITE_SIGNING_SERVICE_URL;
 const env = (import.meta.env.VITE_ENVIRONMENT || nodeEnv) as Environment;
 
 export const config = {
@@ -20,6 +21,7 @@ export const config = {
   env,
   isProd: env === 'production',
   isDev: env === 'development',
+  maybeSignerServiceUrl,
   defaultPage: '/pendulum/dashboard',
   tenants: {
     [TenantName.Amplitude]: {
