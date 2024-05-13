@@ -1,5 +1,4 @@
 import { Keypair } from 'stellar-sdk';
-import { ASSET_CODE, ASSET_ISSUER } from '../../constants/constants';
 import { ApiManager } from './polkadotApi';
 import { getVaultsForCurrency, VaultService } from './spacewalk';
 import { prettyPrintVaultId } from './spacewalk';
@@ -8,22 +7,25 @@ import { EventListener } from './eventListener';
 import { EventStatus } from '../../components/GenericEvent';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { KeyringPair } from '@polkadot/keyring/types';
-
-export const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(ASSET_ISSUER).rawPublicKey().toString('hex')}`;
+import { TokenDetails } from '../../constants/tokenConfig';
 
 export async function executeSpacewalkRedeem(
   stellarTargetAccountId: string,
   amountString: string,
   accountOrPair: WalletAccount | KeyringPair,
+  tokenConfig: TokenDetails,
   renderEvent: (event: string, status: EventStatus) => void,
 ) {
   console.log('Executing Spacewalk redeem');
 
   const pendulumApiComponents = await new ApiManager().getApiComponents();
   // Query all available vaults for the currency
-  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, ASSET_CODE);
+  // we give priority again to the hex string, since we know the vault will match against this value
+  // in case the asset is represented as this if the asset is 3 letter.
+  const assetCodeOrHex = tokenConfig.assetCodeHex || tokenConfig.assetCode;
+  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, assetCodeOrHex);
   if (vaultsForCurrency.length === 0) {
-    throw new Error(`No vaults found for currency ${ASSET_CODE}`);
+    throw new Error(`No vaults found for currency ${assetCodeOrHex}`);
   }
   const targetVaultId = vaultsForCurrency[0].id;
   const vaultService = new VaultService(targetVaultId, pendulumApiComponents);

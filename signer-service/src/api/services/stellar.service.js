@@ -9,7 +9,8 @@ const {
   Transaction,
   Account,
 } = require('stellar-sdk');
-const { HORIZON_URL, BASE_FEE, ASSET_CODE, ASSET_ISSUER } = require('../../constants/constants');
+const { HORIZON_URL, BASE_FEE } = require('../../constants/constants');
+const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
 // Derive funding pk
@@ -17,7 +18,14 @@ const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime) {
+async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetCode) {
+
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
+  if (tokenConfig === undefined) {
+    console.error("ERROR: Invalid asset id or configuration not found");
+    throw new Error("Invalid asset id or configuration not found");
+  }
+
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
   const fundingAccountId = fundingAccountKeypair.publicKey();
   const fundingAccount = await horizonServer.loadAccount(fundingAccountId);
@@ -46,7 +54,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
     .addOperation(
       Operation.changeTrust({
         source: ephemeralAccountId,
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
       }),
     )
     .setTimebounds(0, maxTime)
@@ -58,10 +66,29 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
   };
 }
 
-async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemeralSequence, paymentData, maxTime) {
+async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemeralSequence, paymentData, maxTime, assetCode) {
   const ephemeralAccount = new Account(ephemeralAccountId, ephemeralSequence);
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
-  const { amount, memo, offrampingAccount } = paymentData;
+  const { amount, memo, memoType, offrampingAccount } = paymentData;
+
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
+  if (tokenConfig === undefined) {
+    throw new Error("Invalid asset id or configuration not found");
+  }
+
+  let transactionMemo;
+  switch (memoType) {
+    case "text":
+      transactionMemo = Memo.text(memo);
+      break;
+
+    case "hash":
+      transactionMemo = Memo.hash(Buffer.from(memo, "base64"));
+      break;
+
+    default:
+      throw new Error(`Unexpected offramp memo type: ${memoType}`);
+  }
 
   const paymentTransaction = new TransactionBuilder(ephemeralAccount, {
     fee: BASE_FEE,
@@ -70,11 +97,11 @@ async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemer
     .addOperation(
       Operation.payment({
         amount,
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
         destination: offrampingAccount,
       }),
     )
-    .addMemo(Memo.text(memo))
+    .addMemo(transactionMemo)
     .setTimebounds(0, maxTime)
     .build();
 
@@ -84,7 +111,7 @@ async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemer
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(ASSET_CODE, ASSET_ISSUER),
+        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
         limit: '0',
       }),
     )

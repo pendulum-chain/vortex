@@ -1,4 +1,4 @@
-FROM node:8-alpine
+FROM node:20.11.0
 
 EXPOSE 3000
 
@@ -11,4 +11,4 @@ ADD package.json yarn.lock /app/
 RUN yarn --pure-lockfile
 ADD . /app
 
-CMD ["yarn", "docker:start"]
+CMD ["yarn", "start"]
