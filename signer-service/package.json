@@ -12,7 +12,7 @@
   "scripts": {
     "precommit": "yarn lint-staged && yarn lint",
     "prestart": "yarn docs",
-    "start": "cross-env NODE_ENV=production pm2 start ./src/index.js",
+    "start": "node ./src/index.js",
     "dev": "nodemon ./src/index.js",
     "lint-staged": "prettier --write --ignore-unknown",
     "lint": "eslint ./src/ --ignore-path .gitignore --ignore-pattern internals/scripts",
