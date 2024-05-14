@@ -39,6 +39,12 @@ We call on `version.cjs` to show the commit version on the sidebar.\
 We also create a file, on the fly, a file named `_redirects` that will serve the index.html instead of giving a 404 no
 matter what URL the browser requests.
 
+## Env Variables
+
+`VITE_SIGNING_SERVICE_URL`: Optional variable to point to a specific signing backend service URL. If undefined, it will default to either:
+- http://localhost:3000 (if in development mode)
+- https://prototype-signer-service.pendulumchain.tech (if in production mode)
+
 ## Fixing type issues
 
 If you encounter issues with the IDE not detecting the type overwrites of the `@pendulum-chain/types` package properly,
