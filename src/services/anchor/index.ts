@@ -128,8 +128,10 @@ export async function sep24First(
   console.log('Initiate SEP-24');
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
+
+  // at this stage, assetCode should be defined, if the config is consistent.
   const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.assetCode,
+    asset_code: sessionParams.tokenConfig.assetCode!,
   });
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;

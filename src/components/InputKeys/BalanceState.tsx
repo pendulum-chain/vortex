@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { nativeToDecimal } from '../../helpers/parseNumbers';
+import { nativeToDecimal , customToDecimal} from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { Keypair } from 'stellar-sdk';
@@ -39,25 +39,31 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
 
       try {
         for (const [key, config] of Object.entries(TOKEN_CONFIG)) {
-          const ASSET_ISSUER_RAW = `0x${Keypair.fromPublicKey(config.assetIssuer).rawPublicKey().toString('hex')}`;
 
           // use assetCodeHex if exist, otherwise use asset_code
           const assetCode = config.assetCodeHex || config.assetCode;
 
           const response = (
-            await apiComponents.api.query.tokens.accounts(address, {
-              Stellar: { AlphaNum4: { code: assetCode, issuer: ASSET_ISSUER_RAW } },
-            })
-          ).toHuman();
+            await apiComponents.api.query.tokens.accounts(address, config.currencyId)
+          ).toHuman() as any;
 
           const rawBalance = response?.free?.toString() || '0';
           const formattedBalance = nativeToDecimal(rawBalance).toString();
-          const minWithdrawalAmount = nativeToDecimal(config.minWithdrawalAmount).toString();
-          const canWithdraw = Number(formattedBalance) >= Number(minWithdrawalAmount);
+
+          // if it is offramped, it should always ahve minWithrawalAmount defined
+          if (config.isOfframp && config.minWithdrawalAmount){
+            const minWithdrawalAmount = customToDecimal(config.minWithdrawalAmount, config.decimals).toString();
+            const canWithdraw = Number(formattedBalance) >= Number(minWithdrawalAmount);
+
+            newBalances[key] = {
+              balance: formattedBalance,
+              canWithdraw
+            };
+          }
 
           newBalances[key] = {
             balance: formattedBalance,
-            canWithdraw
+            canWithdraw: false
           };
         }
         setBalances(newBalances);

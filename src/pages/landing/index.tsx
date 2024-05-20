@@ -1,6 +1,8 @@
 import '../../../App.css';
 import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
+import {SwapOptions} from '../../components/InputKeys';
+
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
 import { fetchTomlValues, sep10, IAnchorSessionParams, Sep24Result, getEphemeralKeys } from '../../services/anchor';
@@ -16,9 +18,11 @@ import { useCallback } from 'preact/compat';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
+import { performSwap } from '../../services/nabla';
 
 enum OperationStatus {
   Idle,
+  MaybeSwapping,
   Submitting,
   SettingUpStellar,
   Redeeming,
@@ -51,15 +55,18 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = async (userSubstrateAddress: string, selectedAsset: string) => {
+  const handleOnSubmit = async (userSubstrateAddress: string, selectedAsset: string, swapOptions: SwapOptions  ) => {
     setUserAddress(userSubstrateAddress);
 
     const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset]
-    const values = await fetchTomlValues(tokenConfig.tomlFileUrl);
+    const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
+
+    // perform swap if necessary
+    await performSwap({swap: swapOptions, userAddress: userAddress!, walletAccount: walletAccount!}, addEvent);
+
     const token = await sep10(values, addEvent);
 
     setAnchorSessionParams({ token, tomlValues: values, tokenConfig  });
-
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);

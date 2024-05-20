@@ -23,7 +23,9 @@ export async function executeSpacewalkRedeem(
   // we give priority again to the hex string, since we know the vault will match against this value
   // in case the asset is represented as this if the asset is 3 letter.
   const assetCodeOrHex = tokenConfig.assetCodeHex || tokenConfig.assetCode;
-  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, assetCodeOrHex);
+  
+  // One of these two values must exist
+  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, assetCodeOrHex!);
   if (vaultsForCurrency.length === 0) {
     throw new Error(`No vaults found for currency ${assetCodeOrHex}`);
   }

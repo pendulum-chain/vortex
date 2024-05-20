@@ -23,6 +23,17 @@ export const decimalToNative = (value: BigNumber | number | string) => {
   return bigIntValue.mul(multiplier);
 };
 
+export const decimalToCustom = (value: BigNumber | number | string, decimals: number) => {
+  let bigIntValue;
+  try {
+    bigIntValue = new BigNumber(value);
+  } catch (error) {
+    bigIntValue = new BigNumber(0);
+  }
+  const multiplier = new BigNumber(10).pow(new BigNumber(decimals));
+  return bigIntValue.mul(multiplier);
+};
+
 // Same as above, but handle a string decimal
 export const stringDecimalToNative = (value: string) => {
   return decimalToNative(stringDecimalToBN(value, ChainDecimals));
@@ -94,6 +105,19 @@ export const nativeStellarToDecimal = (value: BigNumber | number | string) => {
   return bigIntValue.div(divisor);
 };
 
+export const customToDecimal = (value: BigNumber | number | string, decimals: number) => {
+  const bigIntValue = new BigNumber(value);
+  const divisor = new BigNumber(10).pow(new BigNumber(decimals));
+
+  if (bigIntValue.lt(divisor)) {
+    let result = bigIntValue.toNumber()/ divisor.toNumber();
+    return result;
+  } else {
+    // Normal division
+    return bigIntValue.div(divisor).toNumber();
+  }
+};
+
 const units = [
   { divider: 1e9, prefix: 'billion', char: 'B' },
   { divider: 1e6, prefix: 'million', char: 'M' },
@@ -131,3 +155,5 @@ export const prettyNumbers = (number: number, lang?: string, opts?: Intl.NumberF
 export const roundNumber = (value: number | string = 0, round = 6) => {
   return +Number(value).toFixed(round);
 };
+
+
