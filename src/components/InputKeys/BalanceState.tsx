@@ -3,9 +3,9 @@ import { nativeToDecimal , customToDecimal} from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { Keypair } from 'stellar-sdk';
-
-export interface BalanceInfo {
-  balance: string;
+import { ContractBalance } from '../../helpers/contracts';
+import BigNumber from 'bn.js';
+export interface BalanceInfo extends ContractBalance {
   canWithdraw: boolean;
 }
 
@@ -50,19 +50,31 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
           const rawBalance = response?.free?.toString() || '0';
           const formattedBalance = nativeToDecimal(rawBalance).toString();
 
+          const contractBalance = {
+            rawBalance: BigInt(rawBalance),
+            decimals: config.decimals,
+            preciseBigDecimal: new BigNumber(rawBalance),
+            preciseString: formattedBalance,
+            approximateStrings: {
+              atLeast2Decimals: formattedBalance,
+              atLeast4Decimals: formattedBalance,
+            },
+            approximateNumber: Number(formattedBalance),
+          };
+
           // if it is offramped, it should always ahve minWithrawalAmount defined
           if (config.isOfframp && config.minWithdrawalAmount){
             const minWithdrawalAmount = customToDecimal(config.minWithdrawalAmount, config.decimals).toString();
             const canWithdraw = Number(formattedBalance) >= Number(minWithdrawalAmount);
 
             newBalances[key] = {
-              balance: formattedBalance,
+              ...contractBalance,
               canWithdraw
             };
           }
 
           newBalances[key] = {
-            balance: formattedBalance,
+            ...contractBalance,
             canWithdraw: false
           };
         }
