@@ -3,7 +3,7 @@ export interface TokenDetails {
   isOfframp: boolean;
   decimals: number;
   erc20Address?: string;
-  assetCode?: string;
+  assetCode: string;
   assetIssuer?: string;
   canSwapTo: string[];
   // optional depending if the asset is allowd to be offramped
@@ -50,6 +50,7 @@ export const TOKEN_CONFIG: TokenConfig = {
         minWithdrawalAmount: '10000000000000'
       },
       usdt: {
+        assetCode: "USDT",
         currencyId: {XCM: 1},
         decimals: 6,
         canSwapTo: ["brl", "eurc"],
@@ -57,5 +58,7 @@ export const TOKEN_CONFIG: TokenConfig = {
         erc20Address: "6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs",
       },
 };
+
+
 
 

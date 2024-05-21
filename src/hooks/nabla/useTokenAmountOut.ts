@@ -29,6 +29,13 @@ export type UseTokenOutAmountProps = {
   setPending: React.StateUpdater<boolean>;
 };
 
+export interface UseTokenOutAmountResult {
+  isLoading: boolean;
+  enabled: boolean;
+  data: TokenOutData | undefined;
+  error: string | null;
+  refetch?: UseQueryResult<TokenOutData | undefined, string>['refetch'];
+}
 export interface TokenOutData {
   amountOut: ContractBalance;
   swapFee: ContractBalance;

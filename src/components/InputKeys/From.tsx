@@ -2,36 +2,34 @@ import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Button } from 'react-daisyui';
 import { FieldPath, FieldValues, UseFormReturn, useFormContext } from 'react-hook-form';
 
-import pendulumIcon from '../../../assets/pendulum-icon.svg';
+import pendulumIcon from '../../assets/pendulum-icon.svg';
 import { TokenDetails } from '../../constants/tokenConfig';
 import { AmountSelector } from './AmountSelector';
 import {BalanceInfo} from './BalanceState'; 
-
+import { SwapFormValues } from './schema';
 import { TokenBalance } from './TokenBalance';
 
 interface FromProps<FormFieldValues extends FieldValues, TFieldName extends FieldPath<FormFieldValues>> {
+  tokenId: string;
   fromToken: TokenDetails | undefined;
   onOpenSelector: () => void;
   inputHasError: boolean;
   fromFormFieldName: TFieldName;
   form: UseFormReturn<FormFieldValues>;
-  fromTokenBalance: BalanceInfo | undefined;
-}
-
-interface SwapFormValues {
-    fromAmount: string;
-    fromToken: TokenDetails | undefined;    
+  fromTokenBalances: {[key: string]: BalanceInfo};
 }
 
 export function From<FormFieldValues extends FieldValues, TFieldName extends FieldPath<FormFieldValues>>({
+  tokenId,
   fromToken,
   onOpenSelector,
   inputHasError,
   fromFormFieldName,
   form,
-  fromTokenBalance,
+  fromTokenBalances,
 }: FromProps<FormFieldValues, TFieldName>) {
   const { setValue } = useFormContext<SwapFormValues>();
+  const fromTokenBalance = tokenId ? fromTokenBalances[tokenId] : undefined;
 
   return (
     <div
