@@ -22,7 +22,6 @@ import { performSwap } from '../../services/nabla';
 
 enum OperationStatus {
   Idle,
-  MaybeSwapping,
   Submitting,
   SettingUpStellar,
   Redeeming,
@@ -55,15 +54,20 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = async (userSubstrateAddress: string, selectedAsset: string, swapOptions: SwapOptions  ) => {
+  const handleOnSubmit = async (userSubstrateAddress: string, swapsFirst: boolean, selectedAsset: string, swapOptions: SwapOptions  ) => {
     setUserAddress(userSubstrateAddress);
 
     const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset]
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
     // perform swap if necessary
-    await performSwap({swap: swapOptions, userAddress: userAddress!, walletAccount: walletAccount!}, addEvent);
-
+    if (swapsFirst) {
+      await performSwap({swap: swapOptions, userAddress: userAddress!, walletAccount: walletAccount!}, addEvent);
+    }
+    //TODO validate in some way that the swap was successful
+    // and how much the user got. Must be between miminum amount and desired of course
+    // that is what they will truly be able to offramp 
+    
     const token = await sep10(values, addEvent);
 
     setAnchorSessionParams({ token, tomlValues: values, tokenConfig  });
@@ -107,6 +111,7 @@ function Landing() {
         console.log(error)
         return;
       }
+
       addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
 
       //this will trigger finalizeOfframp

@@ -51,7 +51,8 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" />
+            {fromToken && (<img src={`src/assets/coins/${fromToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
+            {!fromToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" /> }
           </span>
           <strong className="font-bold">{fromToken?.assetCode || 'Select'}</strong>
           <ChevronDownIcon className="w-4 h-4 inline ml-px" />
@@ -68,7 +69,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
                 className="text-primary hover:underline"
                 onClick={() => {
                   if (fromTokenBalance.approximateNumber !== undefined) {
-                    setValue('fromAmount',(fromTokenBalance.approximateNumber/50).toString());
+                    setValue('fromAmount',(fromTokenBalance.approximateNumber*0.5).toString());
                   }
                 }}
                 type="button"
@@ -79,7 +80,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
                 className="text-primary hover:underline"
                 onClick={() => {
                   if (fromTokenBalance.approximateNumber !== undefined) {
-                    setValue('fromAmount', (fromTokenBalance.approximateNumber/100).toString());
+                    setValue('fromAmount', (fromTokenBalance.approximateNumber).toString());
                   }
                 }}
                 type="button"

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { IAnchorSessionParams, ISep24Intermediate, Sep24Result } from '../services/anchor';
 import { sep24First, sep24Second } from '../services/anchor';
 import { EventStatus } from './GenericEvent';
+import { Button } from 'react-daisyui';
 interface Sep24Props {
   sessionParams: IAnchorSessionParams | null;
   onSep24Complete: (sep24Reslt: Sep24Result) => void;
@@ -73,7 +74,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
           >
             Enter bank details (New window)
           </a>
-          <button onClick={() => handleIframeCompletion()}>Start Offramping</button>
+          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>
         </div>
       )}
     </div>

@@ -2,7 +2,6 @@ import { ArrowPathRoundedSquareIcon, ChevronDownIcon } from '@heroicons/react/20
 import { useEffect } from 'preact/compat';
 import { Button } from 'react-daisyui';
 import { useFormContext } from 'react-hook-form';
-import BigNumber from 'bn.js';
 
 import pendulumIcon from '../../assets/pendulum-icon.svg';
 import { NumberLoader } from './TokenBalance';
@@ -11,24 +10,31 @@ import { SwapFormValues } from './schema';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { useBoolean } from '../../hooks/useBoolean';
 import { TokenDetails } from '../../constants/tokenConfig';
+import {BalanceInfo} from './BalanceState'; 
 
 export interface ToProps {
+  tokenId: string;
   onOpenSelector: () => void;
   fromToken: TokenDetails | undefined;
   toToken: TokenDetails | undefined;
   toAmountQuote: UseTokenOutAmountResult;
-  fromAmount: BigNumber | undefined;
+  fromAmount: number | undefined;
   slippage: number;
+  fromTokenBalances: {[key: string]: BalanceInfo};
 }
 
 export function To({
+  tokenId,
   fromToken,
   toToken,
   onOpenSelector,
   toAmountQuote,
   fromAmount,
   slippage,
+  fromTokenBalances,
 }: ToProps): JSX.Element | null {
+
+  const toTokenBalance = (fromTokenBalances && tokenId && fromTokenBalances[tokenId]) ? fromTokenBalances[tokenId].approximateNumber : 0;
 
   // replace with use state 
   const [isOpen, { toggle }] = useBoolean(true);
@@ -50,7 +56,7 @@ export function To({
             <NumberLoader />
           ) : toAmountQuote.data !== undefined ? (
             `${toAmountQuote.data.amountOut.approximateStrings.atLeast4Decimals}`
-          ) : fromAmount !== undefined && fromAmount.gt(new BigNumber(0)) ? (
+          ) : fromAmount !== undefined && fromAmount > 0  ? (
             <button
               type="button"
               onClick={() => toAmountQuote.refetch?.()}
@@ -70,7 +76,8 @@ export function To({
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" />
+            {toToken && (<img src={`src/assets/coins/${toToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
+            {!toToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" /> }  
           </span>
           <strong className="font-bold">{toToken?.assetCode || 'Select'}</strong>
           <ChevronDownIcon className="w-4 h-4 inline ml-px" />
@@ -79,14 +86,7 @@ export function To({
       <div className="flex justify-between items-center mt-1 dark:text-neutral-300 text-neutral-500">
         {/* <div className="text-sm mt-px">{toToken ? <NablaTokenPrice address={toToken.id} fallback="$ -" /> : '$ -'}</div> */}
         <div className="flex gap-1 text-sm">
-          Your balance:{' '}
-          0
-          {/* <Erc20Balance
-            abi={erc20WrapperAbi}
-            erc20ContractDefinition={
-              toToken ? { contractAddress: toToken.assetCode, decimals: toToken.decimals, symbol: toToken.assetCode } : undefined
-            }
-          /> */}
+          Your balance:{' '} {toTokenBalance}
         </div>
       </div>
       <div className="mt-4 h-px -mx-4 bg-[rgba(0,0,0,0.15)]" />
@@ -130,7 +130,7 @@ export function To({
           </div>
           <div className="flex justify-between">
             <div>Minimum received after slippage ({slippage}%)</div>
-            {toAmountQuote.data !== undefined ? (
+            {toAmountQuote.data !== undefined && toToken !== undefined ? (
               <div>
                 <Skeleton isLoading={toAmountQuote.isLoading || toAmountQuote.data === undefined}>
                   {toAmountQuote.data !== undefined ? toAmountQuote.data.minAmountOut : ''} {toToken?.assetCode || ''}

@@ -32,9 +32,18 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
     defaultValue: '0' as K,
   });
 
-  const amountBigDecimal = useMemo(() => {
+  //DEPRECATED: will always be undefinied for less than 1 values with this library
+  // const amountBigDecimal = useMemo(() => {
+  //   try {
+  //     return new BigNumber(amountString);
+  //   } catch {
+  //     return undefined;
+  //   }
+  // }, [amountString]);
+
+  const amountNumber = useMemo(() => {
     try {
-      return new BigNumber(amountString);
+      return Number(amountString);
     } catch {
       return undefined;
     }
@@ -43,9 +52,9 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
   useEffect(() => {
     const determineErrorMessage = (): string | undefined => {
       if (amountString.length === 0) return;
-      if (amountBigDecimal === undefined) return 'Enter a proper number';
+      if (amountNumber === undefined )return 'Enter a proper number';
       if (maxBalance === undefined) return;
-      if (amountBigDecimal.gt(maxBalance.preciseBigDecimal)) return 'Amount exceeds maximum';
+      //if (amountBigDecimal.gt(maxBalance.preciseBigDecimal)) return 'Amount exceeds maximum';
 
       // if (amountBigDecimal.c[0] !== 0) {
       //   if (amountBigDecimal.e + 1 + maxBalance.decimals < amountBigDecimal.c.length)
@@ -59,7 +68,7 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
     } else {
       clearErrors(formFieldName);
     }
-  }, [amountString, amountBigDecimal, formFieldName, maxBalance, setError, clearErrors]);
+  }, [amountString, formFieldName, maxBalance, setError, clearErrors]);
 
   if (onlyShowNumberInput === true) {
     return (
@@ -120,7 +129,7 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
         max={100}
         size="sm"
         disabled={maxBalance === undefined}
-        value={amountBigDecimal && maxBalance ? amountBigDecimal.div(maxBalance.preciseBigDecimal).toNumber() * 100 : 0}
+        value={amountNumber && maxBalance ? amountNumber/maxBalance.approximateNumber * 100 : 0}
         onChange={(ev: ChangeEvent<HTMLInputElement>) => {
           if (maxBalance === undefined) return;
           setValue(formFieldName, (maxBalance.approximateNumber/Number(ev.currentTarget.value)).toString() as K, {

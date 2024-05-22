@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { nativeToDecimal , customToDecimal} from '../../helpers/parseNumbers';
+import { stringDecimalToBN , customToDecimal} from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { Keypair } from 'stellar-sdk';
@@ -39,21 +39,16 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
 
       try {
         for (const [key, config] of Object.entries(TOKEN_CONFIG)) {
-
-          // use assetCodeHex if exist, otherwise use asset_code
-          const assetCode = config.assetCodeHex || config.assetCode;
-
           const response = (
             await apiComponents.api.query.tokens.accounts(address, config.currencyId)
           ).toHuman() as any;
-
-          const rawBalance = response?.free?.toString() || '0';
-          const formattedBalance = nativeToDecimal(rawBalance).toString();
-
+          
+          const rawBalance = response?.free || '0';
+          const formattedBalance = customToDecimal(rawBalance, TOKEN_CONFIG[key].decimals).toString();
+            
           const contractBalance = {
-            rawBalance: BigInt(rawBalance),
             decimals: config.decimals,
-            preciseBigDecimal: new BigNumber(rawBalance),
+            preciseBigDecimal: new BigNumber(formattedBalance),
             preciseString: formattedBalance,
             approximateStrings: {
               atLeast2Decimals: formattedBalance,
@@ -71,6 +66,7 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
               ...contractBalance,
               canWithdraw
             };
+            continue;
           }
 
           newBalances[key] = {

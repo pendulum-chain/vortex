@@ -8,27 +8,15 @@ import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useAccountBalance } from './BalanceState'; 
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
-import { Typography, Box } from '@material-ui/core';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
-import { Button, Card } from 'react-daisyui';
+import {  Button, Card } from 'react-daisyui';
 import { From } from './From';
-import { Resolver, useForm, useWatch } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import { SwapFormValues } from './schema';
-import schema from './schema';
-import { storageService } from '../../services/localStorage';
-import { getValidDeadline, getValidSlippage } from '../../helpers/transaction';
-import { storageKeys } from '../../constants/localStorage';
-import { config } from '../../config';
 import { PoolSelectorModal } from './SelectionModal';
-import BigNumber from 'bn.js';
-import { debounce } from '../../helpers/function';
-import { PoolEntry } from './SelectionModal';
 import { FormProvider } from 'react-hook-form';
 import { To } from './To';
-
+import { useSwapForm } from './useSwapForm';
 interface InputBoxProps {
-  onSubmit: (userSubstrateAddress: string, selectedAsset: string, swap: SwapOptions) => void;
+  onSubmit: (userSubstrateAddress: string,  swapsFirst: boolean, selectedAsset: string, swap: SwapOptions) => void;
   dAppName: string;
 }
 
@@ -43,89 +31,44 @@ export interface SwapOptions {
   assetIn: string;
   assetOut: string;
   amountIn: number;
+  minAmountOut: number;
+  initialDesired: number;
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const { walletAccount } = useGlobalState();
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
-  const [secondSelectedAsset, setSecondSelectedAsset] = useState<string | null>(null);
-  const [amount, setAmount] = useState<number>(0);
-
-  const [expectedSwappedAmount, setExpectedSwappedAmount] = useState<{expectedSwap: number, fee: number} >({expectedSwap: 0, fee: 0}); 
-  const [swapQueryError, setSwapQueryError] = useState<string | null>(null);
-  const [swapQueryPending, setSwapQuertPending] = useState<boolean>(false);
-  const [modalType, setModalType] = useState<string | undefined>(undefined);
 
   const [ss58Format, setSs58Format] = useState<number>(42);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [wantsSwap, setWantsSwap] = useState<boolean>(false);
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
-  const tokensModal = useState<undefined | 'from' | 'to'>();
-  const setTokenModal = tokensModal[1];
 
-  const storageSet = debounce(storageService.set, 1000);
+  const {
+    tokensModal: [modalType, setModalType],
+    onFromChange,
+    onToChange,
+    form,
+    fromAmount,
+    fromToken,
+    toToken,
+    slippage,
+    from,
+    to
+  } = useSwapForm();
+
 
   const tokenOutData = useTokenOutAmount({
+    wantsSwap,
     api: api,
     walletAccount,
-    fromAmount: amount, 
-    fromToken: selectedAsset,
-    toToken: secondSelectedAsset,
+    fromAmount, 
+    fromToken: from,
+    toToken: to,
     maximumFromAmount: undefined,
-    slippage: 0,
-    setExpectedSwappedAmount, 
-    setError: setSwapQueryError,
-    setPending: setSwapQuertPending
+    slippage,
+    form
   });
-
-  const initialState: SwapFormValues =  {
-      from:  '',
-      toAmount: '0', 
-      to: '',
-      fromAmount: '0',
-      slippage: 0,
-      deadline:  config.swap.defaults.deadline
-    }
-   
-
-  const form = useForm<SwapFormValues>({
-    resolver: yupResolver(schema) as Resolver<SwapFormValues>,
-    defaultValues: initialState,
-  });
-
-  const inputHasErrors = form.formState.errors.fromAmount?.message !== undefined || form.formState.errors.root?.message !== undefined;
-
-  const control = form.control;
-  const from = useWatch({ control, name: 'from' });
-  const to = useWatch({ control, name: 'to' });
-
-  const fromToken = from?  TOKEN_CONFIG[from] : undefined;
-  const toToken = to? TOKEN_CONFIG[to]: undefined;
-
-  const fromAmountString = useWatch({
-    control,
-    name: 'fromAmount',
-    defaultValue: '0',
-  });
-
-  let fromAmount: BigNumber | undefined;
-  try {
-    fromAmount = new BigNumber(fromAmountString);
-  } catch {
-    fromAmount = undefined;
-  }
-
-  const slippage = getValidSlippage(
-    Number(
-      useWatch({
-        control,
-        name: 'slippage',
-        defaultValue: config.swap.defaults.slippage,
-      }),
-    ),
-  );
-
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -138,8 +81,37 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     initializeApiManager();
   }, []);
 
+  const canOfframpDirectly =  useCallback((asset: string) => {
+
+      if (asset !== '') {
+        // if it's not offramp, we need to force wantsSwap state to be true
+        if (!TOKEN_CONFIG[asset].isOfframp){
+          setWantsSwap(true);
+          return false;
+        };
+      }
+      // unselected asset does not matter here. We don't yet want to show the swap option.
+      return true
+  }, [setWantsSwap])
+
+
   const handleSubmit = async () => {
-    let assetToOfframp = secondSelectedAsset? secondSelectedAsset : selectedAsset;
+
+    if (fromAmount === 0 ){
+      alert('Please enter an amount to offramp.');
+      return;
+    }
+
+    let assetToOfframp;
+    if (wantsSwap) {
+      // ensure the swap was calculated and no errors were found
+      if (inputHasErrors || tokenOutData.isLoading){
+        return
+      }
+      assetToOfframp = to;
+    } else {
+      assetToOfframp = from;
+    }
 
     if (!walletAccount?.address) {
       alert('Please connect to a wallet first.');
@@ -147,74 +119,25 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     }
 
     // if (assetToOfframp && !balances[assetToOfframp].canWithdraw) {
-    //   alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${selectedAsset} is not met.`);
+    //   alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
     //   return;
     // }
 
     setIsSubmitted(true);
-    onSubmit(walletAccount.address, assetToOfframp!, {amountIn: amount, assetIn: selectedAsset!, assetOut: assetToOfframp!});
+    console.log('submitting', walletAccount.address, wantsSwap, assetToOfframp, fromAmount, from, to, tokenOutData.data?.minAmountOut, tokenOutData.data?.amountOut);
+
+    onSubmit( walletAccount.address,
+       wantsSwap, assetToOfframp, 
+       {amountIn: fromAmount,
+        assetIn: from, assetOut:
+        to,
+        minAmountOut: Number(tokenOutData.data?.minAmountOut), 
+        initialDesired: tokenOutData.data?.amountOut.approximateNumber!,
+      });
   };
 
-  const updateStorage = useCallback(
-    (newValues: Partial<SwapSettings>) => {
-      const prev = form.getValues();
-      const updated = {
-        slippage: prev.slippage || config.swap.defaults.slippage,
-        deadline: prev.deadline || config.swap.defaults.deadline,
-        ...newValues,
-      };
-      storageSet(storageKeys.SWAP_SETTINGS, updated);
-      return updated;
-    },
-    [form.getValues],
-  );
-
-  const onFromChange = useCallback(
-    (a: TokenDetails | PoolEntry, event = true) => {
-      const f = typeof a === 'string' ? a : a.assetCode;
-      const prev = form.getValues();
-      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
-        return tokenDetails.assetCode === f;
-      })[0][0];
-      console.log(prev);
-      const updated = {
-        from: tokenKey,
-        to: prev?.to === tokenKey ? prev?.from : prev?.to,
-      };
-      console.log(updated);
-      updateStorage(updated);
-      form.setValue('from', updated.from);
-      setSelectedAsset(tokenKey);
-      setAmount(0); // Reset amount when a new asset is selected
-
-      setTokenModal(undefined);
-    },
-    [form.getValues, setTokenModal, form.setValue, updateStorage],
-  );
-
-  const onToChange = useCallback(
-    (a: TokenDetails | PoolEntry, event = true) => {
-      const f = typeof a === 'string' ? a : a.assetCode;
-      const prev = form.getValues();
-      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
-        return tokenDetails.assetCode === f;
-      })[0][0];
-      console.log(prev);
-      const updated = {
-        to: tokenKey,
-        from: prev?.from === tokenKey ? prev?.to : prev?.from,
-      };
-      updateStorage(updated);
-      // if (updated.from && prev?.from !== updated.from) form.setValue('from', updated.from);
-      form.setValue('to', updated.to);
-      setSecondSelectedAsset(tokenKey);
-    },
-    [form.getValues, setTokenModal, form.setValue, updateStorage],
-  );
-
-  const getMaxAmountHint = (asset: string | null) => {
-    return asset && balances[asset] ? `Max: ${balances[asset].approximateNumber}` : '';
-  };
+  // we don't propagate errors if wants swap is not defined
+  const inputHasErrors = wantsSwap ?  (form.formState.errors.fromAmount?.message !== undefined || form.formState.errors.root?.message !== undefined) : false;
 
   return (
     <div>
@@ -268,14 +191,36 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                   fromTokenBalances={balances}
                 />
                 <div>
-                    <button onClick={() => setWantsSwap(!wantsSwap)}>Swap to other asset before offramp</button>
-                  </div>
+                  {tokenOutData.error && wantsSwap && <p className="text-red-600">{tokenOutData.error}</p>}
+                </div>
+                <div className="flex justify-center mb-7 mt-7">
+                  { !wantsSwap && canOfframpDirectly(from) && !isSubmitted && (
+                    <Button
+                      type="button"
+                      size="md"
+                      color="secondary"
+                      onClick={() => setWantsSwap(!wantsSwap)}>Swap to other asset before offramp
+                    </Button>
+                  )}
+                  { wantsSwap && canOfframpDirectly(from) && !isSubmitted && (
+                    <Button 
+                      type="button"
+                      size="md"
+                      color="secondary"
+                      onClick={() => setWantsSwap(!wantsSwap)}>
+                      Don't want swap anymore
+                    </Button>
+                  )}
+                    
+                </div>
                   <div>
-                    {!canOfframpDirectly(selectedAsset) && (<p>Asset {selectedAsset} cannot be offramped directly, select the asset to swap to and offramp.</p>)}
+                    {!canOfframpDirectly(from) && (<p>Asset {from} cannot be offramped directly, select the asset to swap to and offramp.</p>)}
                   </div>
-                    {(!canOfframpDirectly(selectedAsset)  || wantsSwap )&& (
+                    {(!canOfframpDirectly(from)  || wantsSwap ) && !isBalanceLoading && (
                         <div>
                           <To
+                              tokenId={to}
+                              fromTokenBalances={balances}
                               toToken={toToken}
                               fromToken={fromToken}
                               toAmountQuote={
@@ -291,31 +236,18 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         </FormProvider>
       </div>
         </div>
-        
-        {selectedAsset && !isSubmitted && walletAccount?.address ? (
-          <button className="begin-offramp-btn" onClick={handleSubmit}>Prepare prototype</button>
+        {!(from === '') && !isSubmitted && walletAccount?.address ? (
+          <Button className="mt-10"  size="md" color="primary" onClick={handleSubmit}>Prepare prototype</Button>
         ) : null}
         {isSubmitted && (
           <div className="offramp-started">
-            Offramp started for asset - {secondSelectedAsset ? secondSelectedAsset.toUpperCase() : selectedAsset?.toUpperCase()}
+            Offramp started for asset - {to && wantsSwap ? to.toUpperCase() : from?.toUpperCase()}
           </div>
         )}
       </div>
     </div>
   );
 };
-
-
-//can withdraw directly function
-const canOfframpDirectly = (asset: string | null) => {
-  if (asset) {
-    return TOKEN_CONFIG[asset].isOfframp;
-  }
-
-  // unselected asset does not matter here. We don't yet want to show the swap option.
-  return true
-}
-
 
 
 

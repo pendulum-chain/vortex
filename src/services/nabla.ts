@@ -22,7 +22,7 @@ export interface PerformSwapProps {
 export async function performSwap({swap, userAddress, walletAccount}: PerformSwapProps, renderEvent: (event: string, status: EventStatus) => void){
     // event attempting swap 
     renderEvent('Attempting swap', EventStatus.Waiting);
-
+    console.log(swap)
     // get chain api, abi
     const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
     const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
@@ -30,6 +30,7 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
     // get asset details
     const assetInDetails = TOKEN_CONFIG[swap.assetIn];
     const assetOutDetails = TOKEN_CONFIG[swap.assetOut];
+
     // call the current allowance of the user
     const response: ReadMessageResult = await readMessage({
             abi: erc20ContractAbi,
@@ -51,6 +52,7 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
 
     const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
     const amountToSwapBig = stringDecimalToBN(swap.amountIn.toString(), assetInDetails.decimals);
+    const amountMinBig = stringDecimalToBN(swap.minAmountOut?.toString() ?? '0', assetInDetails.decimals)
     //maybe do allowance
     if (
         currentAllowance !== undefined &&
@@ -73,7 +75,7 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
     // Try swap
     try{
         renderEvent(`Please sign swap transaction for: ${swap.amountIn}`, EventStatus.Waiting);
-        await doActualSwap({api: pendulumApiComponents.api, amount: amountToSwapBig, tokenIn: assetInDetails.erc20Address!, tokenOut: assetOutDetails.erc20Address!, contractAbi: routerAbiObject, walletAccount});  
+        await doActualSwap({api: pendulumApiComponents.api, amount: amountToSwapBig.toString(), amountMin: amountMinBig.toString() ,tokenIn: assetInDetails.erc20Address!, tokenOut: assetOutDetails.erc20Address!, contractAbi: routerAbiObject, walletAccount});  
     }catch(e){
         console.log(e);
         renderEvent(`Could not swap token: ${e}`, EventStatus.Error);
@@ -88,29 +90,29 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
 
 async function approve({api, token, spender, amount,  contractAbi, walletAccount}: any){
     console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
-    const response = await executeMessage({
-        abi: contractAbi,
-        api,
-        callerAddress: walletAccount.address,
-        contractDeploymentAddress: token,
-        getSigner: () =>
-        Promise.resolve({
-            type: 'signer',
-            address: walletAccount.address,
-            signer: walletAccount.signer,
-        }),
-        messageName: 'approve',
-        messageArguments: [spender, amount],
-        limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
-        gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
-    });
+    // const response = await executeMessage({
+    //     abi: contractAbi,
+    //     api,
+    //     callerAddress: walletAccount.address,
+    //     contractDeploymentAddress: token,
+    //     getSigner: () =>
+    //     Promise.resolve({
+    //         type: 'signer',
+    //         address: walletAccount.address,
+    //         signer: walletAccount.signer,
+    //     }),
+    //     messageName: 'approve',
+    //     messageArguments: [spender, amount],
+    //     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
+    //     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+    // });
 
-    if (response?.result?.type !== 'success') throw response;
-    return response;
+    // if (response?.result?.type !== 'success') throw response;
+    // return response;
 }
 
-async function doActualSwap({api, tokenIn, tokenOut, amount,  contractAbi, walletAccount}: any){
-    console.log('write', `call swap ${tokenIn} for ${tokenOut} with amount ${amount} `);
+async function doActualSwap({api, tokenIn, tokenOut, amount, amountMin,  contractAbi, walletAccount}: any){
+    console.log('write', `call swap ${tokenIn} for ${tokenOut} with amount ${amount}, minimum expexted ${amountMin} `);
     const response = await executeMessage({
         abi: contractAbi,
         api,
@@ -123,8 +125,8 @@ async function doActualSwap({api, tokenIn, tokenOut, amount,  contractAbi, walle
             signer: walletAccount.signer,
         }),
         messageName: 'swapExactTokensForTokens',
-        // TODO pass min from the previously shown quote and slippage (user accepted min)
-        messageArguments: [amount, 0, [tokenIn, tokenOut], walletAccount.address, calcDeadline(5)],
+        // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
+        messageArguments: [amount, amountMin, [tokenIn, tokenOut], walletAccount.address, calcDeadline(5)],
         limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
         gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
     });

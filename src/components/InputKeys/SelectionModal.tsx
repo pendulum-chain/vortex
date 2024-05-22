@@ -91,7 +91,7 @@ function PoolList({ onSelect, selected }: PoolListProps) {
                   <Avatar
                     size={'xs' as AvatarProps['size']}
                     letters={poolEntry.assetCode}
-                    /* src={token.logoURI} */
+                    src={`src/assets/coins/${poolEntry.assetCode.toUpperCase()}.png`}
                     shape="circle"
                     className="text-xs"
                   />

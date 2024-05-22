@@ -106,6 +106,11 @@ export const nativeStellarToDecimal = (value: BigNumber | number | string) => {
 };
 
 export const customToDecimal = (value: BigNumber | number | string, decimals: number) => {
+  
+  if (typeof value === 'string' || value instanceof u128) {
+    // Replace the unnecessary ',' with '' to prevent BigNumber from throwing an error
+    value = new BigNumber(value.toString().replaceAll(',', ''));
+  }
   const bigIntValue = new BigNumber(value);
   const divisor = new BigNumber(10).pow(new BigNumber(decimals));
 

@@ -39,7 +39,6 @@ export const createWriteOptions = (api: ApiPromise, opts?: ContractOptions) => (
 });
 
 export interface ContractBalance {
-  rawBalance: bigint;
   decimals: number;
   preciseBigDecimal: BigNumber;
   preciseString: string;
@@ -74,7 +73,6 @@ export function parseContractBalanceResponse(
 
   // TODO improve the names, given the change of big decimal library
   return {  
-    rawBalance: rawBalanceBigInt,
     decimals,
     preciseBigDecimal: new BigNumber(rawBalanceString),
     preciseString: preciseDecimal.toString(),
