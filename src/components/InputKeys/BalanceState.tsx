@@ -21,6 +21,8 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
   const [balanceError, setError] = useState<Error>();
 
   useEffect(() => {
+
+   
     const fetchBalances = async () => {
       if (!address) {
         setBalances({});
@@ -37,6 +39,7 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
       setIsLoading(true);
       const newBalances: { [key: string]: BalanceInfo } = {};
 
+
       try {
         for (const [key, config] of Object.entries(TOKEN_CONFIG)) {
           const response = (
@@ -44,23 +47,23 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
           ).toHuman() as any;
           
           const rawBalance = response?.free || '0';
-          const formattedBalance = customToDecimal(rawBalance, TOKEN_CONFIG[key].decimals).toString();
-            
+          const balanceDecimal = customToDecimal(rawBalance, TOKEN_CONFIG[key].decimals);
+
           const contractBalance = {
             decimals: config.decimals,
-            preciseBigDecimal: new BigNumber(formattedBalance),
-            preciseString: formattedBalance,
+            preciseBigDecimal: new BigNumber(0),
+            preciseString: balanceDecimal.toString(),
             approximateStrings: {
-              atLeast2Decimals: formattedBalance,
-              atLeast4Decimals: formattedBalance,
+              atLeast2Decimals: balanceDecimal.toString(),
+              atLeast4Decimals: balanceDecimal.toString(),
             },
-            approximateNumber: Number(formattedBalance),
+            approximateNumber: balanceDecimal,
           };
 
           // if it is offramped, it should always ahve minWithrawalAmount defined
           if (config.isOfframp && config.minWithdrawalAmount){
             const minWithdrawalAmount = customToDecimal(config.minWithdrawalAmount, config.decimals).toString();
-            const canWithdraw = Number(formattedBalance) >= Number(minWithdrawalAmount);
+            const canWithdraw = balanceDecimal >= Number(minWithdrawalAmount);
 
             newBalances[key] = {
               ...contractBalance,

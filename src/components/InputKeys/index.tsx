@@ -15,6 +15,8 @@ import { PoolSelectorModal } from './SelectionModal';
 import { FormProvider } from 'react-hook-form';
 import { To } from './To';
 import { useSwapForm } from './useSwapForm';
+import { customToDecimal } from '../../helpers/parseNumbers';
+import {Skeleton} from "../Skeleton";
 interface InputBoxProps {
   onSubmit: (userSubstrateAddress: string,  swapsFirst: boolean, selectedAsset: string, swap: SwapOptions) => void;
   dAppName: string;
@@ -33,6 +35,15 @@ export interface SwapOptions {
   amountIn: number;
   minAmountOut: number;
   initialDesired: number;
+}
+
+function Loader() {
+  return (
+    <div className="flex justify-center items-center h-64">
+      <Skeleton className="w-full max-w-8xl h-40" isLoading={true} text="Getting things ready...">
+      </Skeleton>
+    </div>
+  );
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
@@ -118,10 +129,19 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       return;
     }
 
-    // if (assetToOfframp && !balances[assetToOfframp].canWithdraw) {
-    //   alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
-    //   return;
-    // }
+    
+    // check balance if the offramp is direct
+    if (!wantsSwap && (Number(balances[assetToOfframp].approximateNumber) < Number(fromAmount))) {
+      alert(`Insufficient balance to offramp. Current balance is ${balances[assetToOfframp].approximateNumber} ${assetToOfframp}.`);
+      return;
+    }
+
+    // Check the minimum comparing to the minimum expected swap
+    const minWithdrawalAmountNumber = customToDecimal(TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!,TOKEN_CONFIG[assetToOfframp].decimals);
+    if (assetToOfframp && (minWithdrawalAmountNumber > Number(tokenOutData.data?.minAmountOut!))) {
+      alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
+      return;
+    }
 
     setIsSubmitted(true);
     console.log('submitting', walletAccount.address, wantsSwap, assetToOfframp, fromAmount, from, to, tokenOutData.data?.minAmountOut, tokenOutData.data?.amountOut);
@@ -159,6 +179,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         isLoading={false}
       />
       </div>
+     
       <div className={`inputBox ${isSubmitted ? 'active' : ''}`}>
         {!isSubmitted && (
           <div className="description">
@@ -173,10 +194,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
           <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
         </div>
         <div className="input-container">
-        <div>
-        <FormProvider {...form}>
-          <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                <div className="flex justify-between mb-2">
+          {(api ===null || isBalanceLoading)? (
+            <Loader />
+          ) : (
+            <FormProvider {...form}>
+              <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                <div className="text-center my-5">
                   <Card.Title tag="h2" className="text-3xl font-normal">
                     Offramp Asset
                   </Card.Title>
@@ -211,31 +234,31 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       Don't want swap anymore
                     </Button>
                   )}
-                    
                 </div>
-                  <div>
-                    {!canOfframpDirectly(from) && (<p>Asset {from} cannot be offramped directly, select the asset to swap to and offramp.</p>)}
-                  </div>
-                    {(!canOfframpDirectly(from)  || wantsSwap ) && !isBalanceLoading && (
-                        <div>
-                          <To
-                              tokenId={to}
-                              fromTokenBalances={balances}
-                              toToken={toToken}
-                              fromToken={fromToken}
-                              toAmountQuote={
-                                inputHasErrors ? { enabled: false, data: undefined, error: null, isLoading: false } : tokenOutData
-                              }
-                              onOpenSelector={() => setModalType('to')}
-                              fromAmount={fromAmount}
-                              slippage={slippage}
-                            />
-                      </div>
-                    )}
-          </Card>   
-        </FormProvider>
-      </div>
+                <div className="text-center text-red-600 my-2">
+                  {!canOfframpDirectly(from) && (
+                    <p>Asset {from} cannot be offramped directly, select the asset to swap to and offramp.</p>
+                  )}
+                </div>
+                {(!canOfframpDirectly(from) || wantsSwap) && !isBalanceLoading && (
+                  <To
+                    tokenId={to}
+                    fromTokenBalances={balances}
+                    toToken={toToken}
+                    fromToken={fromToken}
+                    toAmountQuote={
+                      inputHasErrors ? { enabled: false, data: undefined, error: null, isLoading: false } : tokenOutData
+                    }
+                    onOpenSelector={() => setModalType('to')}
+                    fromAmount={fromAmount}
+                    slippage={slippage}
+                  />
+                )}
+              </Card>   
+            </FormProvider>
+          )}
         </div>
+
         {!(from === '') && !isSubmitted && walletAccount?.address ? (
           <Button className="mt-10"  size="md" color="primary" onClick={handleSubmit}>Prepare prototype</Button>
         ) : null}

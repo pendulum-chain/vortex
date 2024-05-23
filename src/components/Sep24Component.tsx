@@ -4,6 +4,7 @@ import { sep24First, sep24Second } from '../services/anchor';
 import { EventStatus } from './GenericEvent';
 import { Button } from 'react-daisyui';
 interface Sep24Props {
+  maxOfframpBalance: number;
   sessionParams: IAnchorSessionParams | null;
   onSep24Complete: (sep24Reslt: Sep24Result) => void;
   addEvent: (message: string, status: EventStatus) => void;
@@ -14,7 +15,7 @@ interface Sep24ProcessStatus {
   waitingSep24Second: boolean;
 }
 
-const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent }) => {
+const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent, maxOfframpBalance }) => {
   const [iframe, iframeOpened] = useState<boolean>(false);
   const [sep24IntermediateValues, setSep24IntermediateValues] = useState<ISep24Intermediate | null>(null);
   const [processStatus, setProcessStatus] = useState<Sep24ProcessStatus>({
@@ -56,24 +57,9 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
     <div>
       {iframe && (
         <div className="iframe-container">
-          <a
-            href={sep24IntermediateValues!.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="button-link"
-            style={{
-              display: 'inline-block',
-              padding: '10px 20px',
-              backgroundColor: '#007BFF',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '5px',
-              textAlign: 'center',
-              margin: '10px 0',
-            }}
-          >
-            Enter bank details (New window)
-          </a>
+          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => {
+               window.open(`${sep24IntermediateValues!.url}`, '_blank') 
+          }} >Enter bank details (New window). Max offramp value is {maxOfframpBalance}</Button>
           <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>
         </div>
       )}

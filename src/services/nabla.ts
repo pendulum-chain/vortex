@@ -6,12 +6,13 @@ import { erc20WrapperAbi } from '../contracts/ERC20Wrapper'
 import {routerAbi} from '../contracts/Router'
 import { NABLA_ROUTER} from '../constants/constants';
 import { defaultReadLimits } from "../helpers/contracts";
-import { readMessage, ReadMessageResult , executeMessage} from '@pendulum-chain/api-solang';
+import { readMessage, ReadMessageResult , executeMessage, ExecuteMessageResult} from '@pendulum-chain/api-solang';
 import { parseContractBalanceResponse } from "../helpers/contracts";
 import { TOKEN_CONFIG } from "../constants/tokenConfig";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
 import { stringDecimalToBN } from '../helpers/parseNumbers';
+import { customToDecimal } from "../helpers/parseNumbers";
 
 export interface PerformSwapProps {
     swap: SwapOptions;
@@ -19,7 +20,7 @@ export interface PerformSwapProps {
     walletAccount: WalletAccount
 }
 
-export async function performSwap({swap, userAddress, walletAccount}: PerformSwapProps, renderEvent: (event: string, status: EventStatus) => void){
+export async function performSwap({swap, userAddress, walletAccount}: PerformSwapProps, renderEvent: (event: string, status: EventStatus) => void): Promise<number>{
     // event attempting swap 
     renderEvent('Attempting swap', EventStatus.Waiting);
     console.log(swap)
@@ -63,7 +64,7 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
         const amountToAllow = amountToSwapBig.sub(currentAllowance.preciseBigDecimal);
 
         try{
-            renderEvent(`Please sign approval for amount: ${swap.amountIn}`, EventStatus.Waiting);
+            renderEvent(`Please sign approval swap: ${amountToAllow} ${assetInDetails.assetCode.toUpperCase()}`, EventStatus.Waiting);
             await approve({api: pendulumApiComponents.api, amount: amountToAllow.toString() , token: assetInDetails.erc20Address!, spender: NABLA_ROUTER, contractAbi: erc20ContractAbi, walletAccount}); 
 
         }catch(e){
@@ -71,10 +72,15 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
             return Promise.reject('Could not approve token');
         }
     }
+    //delay to reflect allowance change, as it is done here
+    // https://github.com/pendulum-chain/portal/blob/c164e5b083e751e4c748edecc8560746e80a5be0/src/hooks/nabla/useErc20TokenApproval.ts#L70
+    // TODO is it really necessary, how much is "safe"? 
+    // Alternatively we can call again until reflected.
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Try swap
     try{
-        renderEvent(`Please sign swap transaction for: ${swap.amountIn}`, EventStatus.Waiting);
+        renderEvent(`Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${swap.initialDesired} ${assetOutDetails.assetCode.toUpperCase()} `, EventStatus.Waiting);
         await doActualSwap({api: pendulumApiComponents.api, amount: amountToSwapBig.toString(), amountMin: amountMinBig.toString() ,tokenIn: assetInDetails.erc20Address!, tokenOut: assetOutDetails.erc20Address!, contractAbi: routerAbiObject, walletAccount});  
     }catch(e){
         console.log(e);
@@ -82,33 +88,46 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
         return Promise.reject('Could not swap token');
     }
 
-    //TODO verify token balance before releasing this process.
-    renderEvent('Swap successful', EventStatus.Success);
+    //verify token balance before releasing this process.
+    const responseBalanceAfter = (
+        await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
+    ).toHuman() as any;
+    console.log(responseBalanceAfter)
 
+    const rawBalance = responseBalanceAfter?.free || '0';
+    console.log(rawBalance)
+    const actualBalance = customToDecimal(rawBalance, assetOutDetails.decimals)
+    console.log(actualBalance)
+    
+    renderEvent(`Swap successful. Amount available : ${actualBalance}`, EventStatus.Success);
+
+    return actualBalance;
 }
 
 
 async function approve({api, token, spender, amount,  contractAbi, walletAccount}: any){
     console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
-    // const response = await executeMessage({
-    //     abi: contractAbi,
-    //     api,
-    //     callerAddress: walletAccount.address,
-    //     contractDeploymentAddress: token,
-    //     getSigner: () =>
-    //     Promise.resolve({
-    //         type: 'signer',
-    //         address: walletAccount.address,
-    //         signer: walletAccount.signer,
-    //     }),
-    //     messageName: 'approve',
-    //     messageArguments: [spender, amount],
-    //     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
-    //     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
-    // });
+    const response = await executeMessage({
+        abi: contractAbi,
+        api,
+        callerAddress: walletAccount.address,
+        contractDeploymentAddress: token,
+        getSigner: () =>
+        Promise.resolve({
+            type: 'signer',
+            address: walletAccount.address,
+            signer: walletAccount.signer,
+        }),
+        messageName: 'approve',
+        messageArguments: [spender, amount],
+        limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
+        gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+    });
 
-    // if (response?.result?.type !== 'success') throw response;
-    // return response;
+    console.log('write', 'call approve response', walletAccount.address, [spender, amount], response);
+
+    if (response?.result?.type !== 'success') throw response;
+    return response;
 }
 
 async function doActualSwap({api, tokenIn, tokenOut, amount, amountMin,  contractAbi, walletAccount}: any){

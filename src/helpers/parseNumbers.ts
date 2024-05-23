@@ -111,9 +111,12 @@ export const customToDecimal = (value: BigNumber | number | string, decimals: nu
     // Replace the unnecessary ',' with '' to prevent BigNumber from throwing an error
     value = new BigNumber(value.toString().replaceAll(',', ''));
   }
+  console.log(value, decimals)
   const bigIntValue = new BigNumber(value);
+ 
   const divisor = new BigNumber(10).pow(new BigNumber(decimals));
 
+  // TODO else branch is truncating the values
   if (bigIntValue.lt(divisor)) {
     let result = bigIntValue.toNumber()/ divisor.toNumber();
     return result;

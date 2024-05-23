@@ -38,24 +38,22 @@ export const TOKEN_CONFIG: TokenConfig = {
       eurc: {
         tomlFileUrl: "https://mykobo.co/.well-known/stellar.toml",
         isOfframp: true,
-        decimals: 12,
-        currencyId: {
-          Stellar: { AlphaNum4: { code: "EURC", issuer: "0x2112ee863867e4e219fe254c0918b00bc9ea400775bfc3ab4430971ce505877c" } },
-        },
+        decimals: 10,
+        currencyId: {XCM: 3},
         canSwapTo: ["usdt", "brl"],
         assetCode: "EURC",
         assetIssuer: "GAQRF3UGHBT6JYQZ7YSUYCIYWAF4T2SAA5237Q5LIQYJOHHFAWDXZ7NM",
         vaultAccountId: "6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm",
-        erc20Address: "6fA9DRKJ12oTXfSAU7ZZGZ9gEQ92YnyRXeJzW1wXekPzeXZC",
-        minWithdrawalAmount: '10000000000000'
+        erc20Address: "6jasFwu3L9YEwVvB98Mcr8N4kEBxwVWdi31bc5k9iux5PgJw",
+        minWithdrawalAmount: '100'
       },
       usdt: {
         assetCode: "USDT",
-        currencyId: {XCM: 1},
-        decimals: 6,
+        currencyId: {XCM: 0},
+        decimals: 7,
         canSwapTo: ["brl", "eurc"],
         isOfframp: false,
-        erc20Address: "6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs",
+        erc20Address: "6hiUVSFUat7pSK8H8FW7FkPFR49Hw9uRnPT5BzwSZAJgxPfa",
       },
 };
 

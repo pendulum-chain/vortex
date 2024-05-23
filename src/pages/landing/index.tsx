@@ -45,6 +45,7 @@ function Landing() {
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
   const [sep24Result, setSep24Result] = useState<Sep24Result | null>(null);
+  const [maxOfframpBalance, setMaxOfframpBalance] = useState<number>(0);
 
   // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
@@ -61,9 +62,11 @@ function Landing() {
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
     // perform swap if necessary
+    let availableBalanceToOfframp = swapOptions.amountIn;
     if (swapsFirst) {
-      await performSwap({swap: swapOptions, userAddress: userAddress!, walletAccount: walletAccount!}, addEvent);
+      availableBalanceToOfframp = await performSwap({swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount!}, addEvent);
     }
+    setMaxOfframpBalance(availableBalanceToOfframp)
     //TODO validate in some way that the swap was successful
     // and how much the user got. Must be between miminum amount and desired of course
     // that is what they will truly be able to offramp 
@@ -191,7 +194,7 @@ function Landing() {
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
-          <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />
+          <Sep24 maxOfframpBalance={maxOfframpBalance} sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />
         </div>
       )}
       <div className="eventsContainer">
