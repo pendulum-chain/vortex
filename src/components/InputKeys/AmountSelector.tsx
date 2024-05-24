@@ -5,6 +5,7 @@ import { useEffect, useMemo } from 'preact/hooks';
 import { NumberInput } from './NumberInput';
 import { ChangeEvent, ReactNode } from 'preact/compat';
 import { BalanceInfo } from './BalanceState';
+import BigNumber  from "big.js"
 
 interface AmountSelectorProps<FormFieldValues extends FieldValues, TFieldName extends FieldPath<FormFieldValues>> {
   maxBalance: BalanceInfo | undefined;
@@ -31,14 +32,13 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
     defaultValue: '0' as K,
   });
 
-  //DEPRECATED: will always be undefinied for less than 1 values with this library
-  // const amountBigDecimal = useMemo(() => {
-  //   try {
-  //     return new BigNumber(amountString);
-  //   } catch {
-  //     return undefined;
-  //   }
-  // }, [amountString]);
+  const amountBigDecimal = useMemo(() => {
+    try {
+      return new BigNumber(amountString);
+    } catch {
+      return undefined;
+    }
+  }, [amountString]);
 
   const amountNumber = useMemo(() => {
     try {
@@ -51,14 +51,14 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
   useEffect(() => {
     const determineErrorMessage = (): string | undefined => {
       if (amountString.length === 0) return;
-      if (amountNumber === undefined )return 'Enter a proper number';
+      if (amountBigDecimal === undefined )return 'Enter a proper number';
       if (maxBalance === undefined) return;
-      //if (amountBigDecimal.gt(maxBalance.preciseBigDecimal)) return 'Amount exceeds maximum';
+      if (amountBigDecimal.gt(maxBalance.preciseBigDecimal)) return 'Amount exceeds maximum';
 
-      // if (amountBigDecimal.c[0] !== 0) {
-      //   if (amountBigDecimal.e + 1 + maxBalance.decimals < amountBigDecimal.c.length)
-      //     return `The number you entered must have at most ${maxBalance.decimals} decimal places`;
-      // }
+      if (amountBigDecimal.c[0] !== 0) {
+        if (amountBigDecimal.e + 1 + maxBalance.decimals < amountBigDecimal.c.length)
+          return `The number you entered must have at most ${maxBalance.decimals} decimal places`;
+      }
     };
 
     const errorMessage = determineErrorMessage();

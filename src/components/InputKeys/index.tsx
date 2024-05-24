@@ -146,7 +146,15 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     }
 
     setIsSubmitted(true);
-    console.log('submitting', walletAccount.address, wantsSwap, assetToOfframp, fromAmount, from, to, tokenOutData.data?.minAmountOut, tokenOutData.data?.amountOut);
+    console.log('submitting offramp', '\n',
+                'user address: ', walletAccount.address, '\n',
+                'wants swap: ', wantsSwap, '\n',
+                'asset to offramp: ', assetToOfframp, '\n',
+                'amount in: ', fromAmount, '\n',
+                'asset in: ', from, '\n',
+                'asset out: ', to, '\n',
+                'min amount out: ', tokenOutData.data?.minAmountOut, '\n',
+                'initial desired: ', tokenOutData.data?.amountOut.approximateNumber);
 
     const maxBalanceFrom = balances[from].approximateNumber;
 

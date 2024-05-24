@@ -23,7 +23,6 @@ export interface PerformSwapProps {
 export async function performSwap({swap, userAddress, walletAccount}: PerformSwapProps, renderEvent: (event: string, status: EventStatus) => void): Promise<number>{
     // event attempting swap 
     renderEvent('Attempting swap', EventStatus.Waiting);
-    console.log(swap)
     // get chain api, abi
     const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
     const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
@@ -43,7 +42,6 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
             limits: defaultReadLimits,
         });
         
-    console.log('read', 'Call message result', assetInDetails.erc20Address, 'allowance', [walletAccount.address, NABLA_ROUTER], response);
     if (response.type !== 'success') {
         let message = 'Could not load token allowance';
         renderEvent(message, EventStatus.Error);
@@ -53,7 +51,6 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
     const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
     const amountToSwapBig = stringDecimalToBN(swap.amountIn.toString(), assetInDetails.decimals);
     const amountMinBig = stringDecimalToBN(swap.minAmountOut?.toString() ?? '0', assetInDetails.decimals)
-    console.log('amountToSwapBig', amountToSwapBig.toString(), 'amountMinBig', amountMinBig.toString(),"current all " ,currentAllowance?.rawBalance.toString())
     //maybe do allowance
     if (
         currentAllowance !== undefined &&
@@ -81,8 +78,12 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
         renderEvent(`Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${swap.initialDesired} ${assetOutDetails.assetCode.toUpperCase()} `, EventStatus.Waiting);
         await doActualSwap({api: pendulumApiComponents.api, amount: amountToSwapBig.toString(), amountMin: amountMinBig.toString() ,tokenIn: assetInDetails.erc20Address!, tokenOut: assetOutDetails.erc20Address!, contractAbi: routerAbiObject, walletAccount});  
     }catch(e){
-        console.log(e)
-        renderEvent(`Could not swap token: ${(e as any).error}`, EventStatus.Error);
+        let errorMessage='';
+        const result = (e as ExecuteMessageResult).result
+        if (result.type === 'reverted') {errorMessage = result.description}
+        else if (result.type === 'error') {errorMessage = result.error}
+        else {errorMessage = 'Something went wrong'}
+        renderEvent(`Could not swap token: ${errorMessage}`, EventStatus.Error);
         return Promise.reject('Could not swap token');
     }
 

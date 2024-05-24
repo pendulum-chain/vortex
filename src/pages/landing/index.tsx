@@ -67,9 +67,6 @@ function Landing() {
       availableBalanceToOfframp = await performSwap({swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount!}, addEvent);
     }
     setMaxOfframpBalance(availableBalanceToOfframp)
-    //TODO validate in some way that the swap was successful
-    // and how much the user got. Must be between miminum amount and desired of course
-    // that is what they will truly be able to offramp 
     
     const token = await sep10(values, addEvent);
 
@@ -82,7 +79,6 @@ function Landing() {
   const handleOnSep24Completed = async (result: Sep24Result) => {
     setShowSep24(false);
 
-    console.log('SEP24 Result', result);
     // log the result
     addEvent(
       `SEP24 completed, amount: ${result.amount}, memo: ${result.memo}, offramping account: ${result.offrampingAccount}`,
