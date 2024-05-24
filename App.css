@@ -319,107 +319,6 @@ strong {
   font-weight: 700;
 }
 
-.pendulum-network-id {
-  background-color: var(--network-bg);
-  border-radius: 4px;
-  width: 160px;
-  padding: 8px;
-}
-
-.pendulum-network-id a:hover {
-  text-decoration: underline;
-}
-
-.pendulum-network-id li {
-  color: var(--nice);
-}
-
-.pendulum-network-id,
-.pendulum-versions {
-  position: relative;
-  text-align: left;
-  font-size: 12px;
-  justify-content: end;
-  align-items: flex-end;
-  margin-bottom: 10px;
-  color: var(--text-primary);
-}
-
-.pendulum-versions p,
-.pendulum-network-id ul,
-.pendulum-network-id p {
-  margin-bottom: 5px;
-  margin-left: 30px;
-}
-
-.pendulum-network-id svg,
-.pendulum-network-id span {
-  display: inline;
-  margin-right: 10px;
-}
-
-.pendulum-network-id svg {
-  margin-top: -2px;
-  width: 5px;
-  height: 5px;
-  fill: hsla(137, 91%, 41%, 1);
-}
-
-.pendulum-social-and-terms {
-  margin-top: 20px;
-  padding: 20px 0;
-  border-top: 1px solid var(--border);
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.pendulum-social-and-terms .social ul {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.pendulum-social-and-terms .social li a {
-  transition: all 0.2s ease-out;
-}
-
-.pendulum-social-and-terms .social li a:hover {
-  opacity: 0.3;
-}
-
-.pendulum-social-and-terms .social img,
-.pendulum-social-and-terms .social svg {
-  width: 18px;
-  height: 18px;
-  fill: var(--footer-links);
-}
-
-.pendulum-social-and-terms .terms {
-  margin-top: 1.2rem;
-}
-
-.pendulum-social-and-terms .terms ul {
-  display: flex;
-  width: 100%;
-  gap: 1.2rem;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.pendulum-social-and-terms .terms span,
-.pendulum-social-and-terms .terms a {
-  border-bottom: 1px solid var(--border);
-}
-
-.pendulum-social-and-terms .terms span:hover,
-.pendulum-social-and-terms .terms a:hover {
-  cursor: pointer;
-  border-bottom: 1px solid var(--footer-links);
-}
 
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
@@ -470,21 +369,6 @@ input[type='number'] {
   background-color: transparent;
   outline: none;
   border: 0;
-}
-.table thead tr th:not(.pinned) {
-  position: initial;
-}
-.table tr td.pinned {
-  position: sticky;
-  left: 0px;
-  right: 0px;
-}
-table th .sort:not(.desc):not(.asc) {
-  transition: opacity 0.15s ease-out;
-  opacity: 0.3;
-}
-table th:hover .sort {
-  opacity: 0.8 !important;
 }
 
 .btn-disabled,
@@ -599,51 +483,6 @@ w3m-modal {
 
 #react-portal-modal-container > div > div {
   max-height: 90vh;
-}
-
-.button-container {
-  display: flex;
-  flex-direction: row;
-  align-items: center; 
-  margin-top: 20px; 
-}
-
-.assetButton {
-  padding: 8px 16px;
-  margin: 5px;
-  border: none;
-  border-radius: 4px;
-  background-color: #191091;  
-  cursor: pointer;
-  transition: background-color 0.3s, box-shadow 0.3s;
-}
-
-.assetButton:hover {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-}
-
-.assetButton.selected {
-  padding: 12px 27px; 
-  box-shadow: 0 0 8px rgba(0, 68, 204, 0.8); 
-}
-
-.assetButton:disabled {
-  background-color: #ccc; 
-  color: white;
-  cursor: not-allowed;
-}
-
-.selected-balance-info {
-  background-color: #4f46d3; 
-  color: #f5f5f5; 
-  border-radius: 8px;
-  padding: 15px;
-  margin-top: 10px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  display: grid;
-  grid-template-columns: auto auto;
-  column-gap: 20px;
-  align-items: center;
 }
 
 .offramp-started {

@@ -18,7 +18,7 @@ import { useSwapForm } from './useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import {Skeleton} from "../Skeleton";
 interface InputBoxProps {
-  onSubmit: (userSubstrateAddress: string,  swapsFirst: boolean, selectedAsset: string, swap: SwapOptions) => void;
+  onSubmit: (userSubstrateAddress: string,  swapsFirst: boolean, selectedAsset: string, swap: SwapOptions, maxBalanceFrom: number) => void;
   dAppName: string;
 }
 
@@ -131,14 +131,16 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
 
     
     // check balance if the offramp is direct
-    if (!wantsSwap && (Number(balances[assetToOfframp].approximateNumber) < Number(fromAmount))) {
+    if (!wantsSwap && (balances[assetToOfframp].approximateNumber < fromAmount)) {
       alert(`Insufficient balance to offramp. Current balance is ${balances[assetToOfframp].approximateNumber} ${assetToOfframp}.`);
       return;
     }
 
-    // Check the minimum comparing to the minimum expected swap
-    const minWithdrawalAmountNumber = toBigNumber(TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!,TOKEN_CONFIG[assetToOfframp].decimals);
-    if (assetToOfframp && (minWithdrawalAmountNumber > Number(tokenOutData.data?.minAmountOut!))) {
+    // If swap will happen, check the minimum comparing to the minimum expected swap
+    const minWithdrawalAmountBigNumber = toBigNumber(TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!,TOKEN_CONFIG[assetToOfframp].decimals);
+    const minAmountOutBigNumber = toBigNumber(tokenOutData.data?.minAmountOut! ?? '0', TOKEN_CONFIG[assetToOfframp].decimals);
+
+    if (wantsSwap && assetToOfframp && (minWithdrawalAmountBigNumber.gt(minAmountOutBigNumber))) {
       alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
       return;
     }
@@ -146,14 +148,21 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     setIsSubmitted(true);
     console.log('submitting', walletAccount.address, wantsSwap, assetToOfframp, fromAmount, from, to, tokenOutData.data?.minAmountOut, tokenOutData.data?.amountOut);
 
-    onSubmit( walletAccount.address,
-       wantsSwap, assetToOfframp, 
-       {amountIn: fromAmount,
+    const maxBalanceFrom = balances[from].approximateNumber;
+
+    onSubmit( 
+      walletAccount.address,
+      wantsSwap, 
+      assetToOfframp, 
+      {
+        amountIn: fromAmount,
         assetIn: from, assetOut:
         to,
         minAmountOut: Number(tokenOutData.data?.minAmountOut), 
         initialDesired: tokenOutData.data?.amountOut.approximateNumber!,
-      });
+      },
+      maxBalanceFrom,
+      );
   };
 
   // we don't propagate errors if wants swap is not defined

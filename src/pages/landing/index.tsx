@@ -55,14 +55,14 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = async (userSubstrateAddress: string, swapsFirst: boolean, selectedAsset: string, swapOptions: SwapOptions  ) => {
+  const handleOnSubmit = async (userSubstrateAddress: string, swapsFirst: boolean, selectedAsset: string, swapOptions: SwapOptions, maxBalanceFrom: number ) => {
     setUserAddress(userSubstrateAddress);
 
     const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset]
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
     // perform swap if necessary
-    let availableBalanceToOfframp = swapOptions.amountIn;
+    let availableBalanceToOfframp = maxBalanceFrom;
     if (swapsFirst) {
       availableBalanceToOfframp = await performSwap({swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount!}, addEvent);
     }
