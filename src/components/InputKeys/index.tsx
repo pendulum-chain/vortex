@@ -179,6 +179,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       <div>
       <PoolSelectorModal
         open={!!modalType}
+        type = {modalType}
         onSelect={modalType === 'from' ? onFromChange : onToChange}
         selected={{
           type: 'token',

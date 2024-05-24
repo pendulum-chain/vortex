@@ -93,23 +93,11 @@ export const useSwapForm = () => {
         updateStorage(updated);
         if (updated.from && prev?.from !== updated.from) form.setValue('from', updated.from);
         form.setValue('to', updated.to);
-        //setSecondSelectedAsset(tokenKey);
+        setTokenModal(undefined);
     },
     [form.getValues, setTokenModal, form.setValue, updateStorage],
     );
 
-    // const resetSwapDestination = useCallback(() => {
-    //     form.setValue('to', '');
-    //     form.setValue('fromAmount', '0');
-
-    //     const updated = {
-    //         from: tokenKey,
-    //         to: prev?.to === tokenKey ? prev?.from : prev?.to,
-    //     };
-
-    //     if (updated.to && prev?.to === tokenKey) setValue('to', updated.to);
-    //     updateStorage(updated);
-    // })
 
     const fromAmountString = useWatch({
         control,

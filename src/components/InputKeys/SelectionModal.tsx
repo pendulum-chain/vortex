@@ -13,6 +13,7 @@ interface PoolSelectorModalProps extends PoolListProps {
 export type PoolEntry = TokenDetails;
 
 interface PoolListProps {
+  type: string | undefined;
   onSelect: (pool: PoolEntry) => void;
   selected:
     | { type: 'token'; tokenAddress: string | undefined }
@@ -26,6 +27,7 @@ export function PoolSelectorModal({
     onSelect,
     onClose,
     open,
+    type,
   }: PoolSelectorModalProps) {
     return (
       <Modal className="bg-[--bg-modal]" open={open}>
@@ -38,7 +40,7 @@ export function PoolSelectorModal({
             {isLoading ? (
               <Skeleton className="w-full h-10 mb-2" />
             ) : (
-              <PoolList onSelect={onSelect} selected={selected} />
+              <PoolList type={type} onSelect={onSelect} selected={selected} />
             )}
           </div>
         </Modal.Body>
@@ -47,18 +49,19 @@ export function PoolSelectorModal({
   }
 
 
-function PoolList({ onSelect, selected }: PoolListProps) {
+function PoolList({ onSelect, selected, type }: PoolListProps) {
     const [filter, setFilter] = useState<string>();
   
     const poolList = useMemo(() => {
       let poolList: PoolEntry[]=[];
        Object.keys(TOKEN_CONFIG).forEach((token) => {
+        if (type === 'to' && !TOKEN_CONFIG[token].isOfframp)  return;
         poolList.push(TOKEN_CONFIG[token]);
       });
 
   
       return poolList;
-    }, [ filter]);
+    }, [ filter, type]);
     
     return (
       <div className="relative">
