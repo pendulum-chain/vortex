@@ -99,7 +99,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         if (!TOKEN_CONFIG[asset].isOfframp){
           setWantsSwap(true);
           return false;
-        };
+        }
       }
       // unselected asset does not matter here. We don't yet want to show the swap option.
       return true
@@ -137,12 +137,22 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     }
 
     // If swap will happen, check the minimum comparing to the minimum expected swap
-    const minWithdrawalAmountBigNumber = toBigNumber(TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!,TOKEN_CONFIG[assetToOfframp].decimals);
-    const minAmountOutBigNumber = toBigNumber(tokenOutData.data?.minAmountOut! ?? '0', TOKEN_CONFIG[assetToOfframp].decimals);
+    const minWithdrawalAmountBigNumber = toBigNumber(TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!, TOKEN_CONFIG[assetToOfframp].decimals);
+
+    let minAmountOutBigNumber = toBigNumber('0', TOKEN_CONFIG[assetToOfframp].decimals);
+    if (tokenOutData.data){
+      minAmountOutBigNumber = toBigNumber(tokenOutData.data.minAmountOut
+        ?? '0', 0);
+      }
 
     if (wantsSwap && assetToOfframp && (minWithdrawalAmountBigNumber.gt(minAmountOutBigNumber))) {
       alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
       return;
+    }
+
+    let initialDesired = 0;
+    if (tokenOutData.data){
+      initialDesired = tokenOutData.data.amountOut.approximateNumber;
     }
 
     setIsSubmitted(true);
@@ -166,8 +176,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         amountIn: fromAmount,
         assetIn: from, assetOut:
         to,
-        minAmountOut: Number(tokenOutData.data?.minAmountOut), 
-        initialDesired: tokenOutData.data?.amountOut.approximateNumber!,
+        minAmountOut: minAmountOutBigNumber.toNumber(), 
+        initialDesired,
       },
       maxBalanceFrom,
       );
@@ -249,7 +259,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       size="md"
                       color="secondary"
                       onClick={() => setWantsSwap(!wantsSwap)}>
-                      Don't want swap anymore
+                      Do not swap. Offramp first asset
                     </Button>
                   )}
                 </div>

@@ -54,7 +54,7 @@ export const useSwapForm = () => {
           storageSet(storageKeys.SWAP_SETTINGS, updated);
           return updated;
         },
-        [form.getValues],
+        [form],
       );
     
     const onFromChange = useCallback(
@@ -76,7 +76,7 @@ export const useSwapForm = () => {
 
         setTokenModal(undefined);
     },
-    [form.getValues, setTokenModal, form.setValue, updateStorage],
+    [form, form.getValues, setTokenModal, form.setValue, updateStorage],
     );
 
     const onToChange = useCallback(
@@ -95,7 +95,7 @@ export const useSwapForm = () => {
         form.setValue('to', updated.to);
         setTokenModal(undefined);
     },
-    [form.getValues, setTokenModal, form.setValue, updateStorage],
+    [form, setTokenModal, updateStorage],
     );
 
 

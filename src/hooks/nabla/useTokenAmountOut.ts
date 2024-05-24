@@ -57,8 +57,8 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
     return { isLoading: false, enabled: false, data: undefined, error: 'Required parameters are missing', refetch: undefined }
   }
 
-  let fromTokenDetails: TokenDetails = TOKEN_CONFIG[fromToken];
-  let toTokenDetails: TokenDetails = TOKEN_CONFIG[toToken];
+  const fromTokenDetails: TokenDetails = TOKEN_CONFIG[fromToken];
+  const toTokenDetails: TokenDetails = TOKEN_CONFIG[toToken];
 
   const debouncedFromAmount = useDebouncedValue(fromAmount, 800);
   const debouncedAmountBigDecimal = stringDecimalToBN(debouncedFromAmount.toString(), fromTokenDetails.decimals);

@@ -3,7 +3,7 @@ import { FieldPath, FieldValues, PathValue, UseFormReturn, useWatch } from 'reac
 import { useEffect, useMemo } from 'preact/hooks';
 
 import { NumberInput } from './NumberInput';
-import { ChangeEvent, ReactNode } from 'preact/compat';
+import { ChangeEvent } from 'preact/compat';
 import { BalanceInfo } from './BalanceState';
 import BigNumber  from "big.js"
 
@@ -67,7 +67,7 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
     } else {
       clearErrors(formFieldName);
     }
-  }, [amountString, formFieldName, maxBalance, setError, clearErrors]);
+  }, [amountString, amountBigDecimal, formFieldName, maxBalance, setError, clearErrors]);
 
   if (onlyShowNumberInput === true) {
     return (

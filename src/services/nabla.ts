@@ -43,7 +43,7 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
         });
         
     if (response.type !== 'success') {
-        let message = 'Could not load token allowance';
+        const message = 'Could not load token allowance';
         renderEvent(message, EventStatus.Error);
         return Promise.reject(message);
     }

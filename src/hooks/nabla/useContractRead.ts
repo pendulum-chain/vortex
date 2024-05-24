@@ -61,9 +61,7 @@ export function useContractRead<ReturnType>(
             console.log('read', 'Call message', address, method, args);
         }
 
-        let response: ReadMessageResult;
-
-        response = await readMessage({
+        const response = await readMessage({
             abi: contractAbi,
             api,
             contractDeploymentAddress: address,

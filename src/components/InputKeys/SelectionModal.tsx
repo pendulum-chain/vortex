@@ -53,7 +53,7 @@ function PoolList({ onSelect, selected, type }: PoolListProps) {
     const [filter, setFilter] = useState<string>();
   
     const poolList = useMemo(() => {
-      let poolList: PoolEntry[]=[];
+      const poolList: PoolEntry[]=[];
        Object.keys(TOKEN_CONFIG).forEach((token) => {
         if (type === 'to' && !TOKEN_CONFIG[token].isOfframp)  return;
         poolList.push(TOKEN_CONFIG[token]);
@@ -61,7 +61,7 @@ function PoolList({ onSelect, selected, type }: PoolListProps) {
 
   
       return poolList;
-    }, [ filter, type]);
+    }, [ type]);
     
     return (
       <div className="relative">
