@@ -1,4 +1,4 @@
-import BigNumber from 'bn.js';
+import BigNumber from 'big.js';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router'
 import { ContractBalance, parseContractBalanceResponse } from '../../helpers/contracts';

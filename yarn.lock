@@ -4915,6 +4915,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/big.js@npm:^6":
+  version: 6.2.2
+  resolution: "@types/big.js@npm:6.2.2"
+  checksum: 075cf86f454bf98fedf1957020e6c36d1f58c80694c0ad445dee45b44727f4af254c59800d96018e966348acd8499a2db301cb4a6b39e5bf5285b4a1e1982f5c
+  languageName: node
+  linkType: hard
+
 "@types/bn.js@npm:^5, @types/bn.js@npm:^5.1.5":
   version: 5.1.5
   resolution: "@types/bn.js@npm:5.1.5"
@@ -6207,6 +6214,13 @@ __metadata:
   dependencies:
     safe-buffer: "npm:5.1.2"
   checksum: 3419b805d5dfc518f3a05dcf42aa53aa9ce820e50b6df5097f9e186322e1bc733c36722b624802cd37e791035aa73b828ed814d8362333d42d7f5cd04d7a5e48
+  languageName: node
+  linkType: hard
+
+"big.js@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "big.js@npm:6.2.1"
+  checksum: 1d4b621451de712cab20464a26f22b2eee5e7daf0ee88c49dfbfa76061ec37cff2257751e8c3fc183c231bcffac2f006e33af930d8f49b03c758890080b76ada
   languageName: node
   linkType: hard
 
@@ -12585,6 +12599,7 @@ __metadata:
     "@testing-library/jest-dom": "npm:^5.16.5"
     "@testing-library/preact": "npm:^3.2.3"
     "@testing-library/preact-hooks": "npm:^1.1.0"
+    "@types/big.js": "npm:^6"
     "@types/bn.js": "npm:^5"
     "@types/jest": "npm:^29.4.0"
     "@types/node": "npm:^18.14.1"
@@ -12595,6 +12610,7 @@ __metadata:
     "@walletconnect/modal": "npm:^2.6.2"
     "@walletconnect/universal-provider": "npm:^2.12.2"
     autoprefixer: "npm:^10.4.19"
+    big.js: "npm:^6.2.1"
     bn.js: "npm:^5.2.1"
     buffer: "npm:^6.0.3"
     daisyui: "npm:^4.11.1"

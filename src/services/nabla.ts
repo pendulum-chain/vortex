@@ -12,7 +12,7 @@ import { TOKEN_CONFIG } from "../constants/tokenConfig";
 import { WalletAccount } from "@talismn/connect-wallets";
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
 import { stringDecimalToBN } from '../helpers/parseNumbers';
-import { customToDecimal } from "../helpers/parseNumbers";
+import { toBigNumber } from "../helpers/parseNumbers";
 
 export interface PerformSwapProps {
     swap: SwapOptions;
@@ -37,14 +37,13 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
             abi: erc20ContractAbi,
             api: pendulumApiComponents.api,
             contractDeploymentAddress: assetInDetails.erc20Address!,
-            callerAddress: userAddress,
+            callerAddress: walletAccount.address,
             messageName: 'allowance',
-            messageArguments: [userAddress, NABLA_ROUTER],
+            messageArguments: [walletAccount.address, NABLA_ROUTER],
             limits: defaultReadLimits,
         });
         
-    console.log('read', 'Call message result', assetInDetails.erc20Address, 'allowance', [userAddress, NABLA_ROUTER], response);
-
+    console.log('read', 'Call message result', assetInDetails.erc20Address, 'allowance', [walletAccount.address, NABLA_ROUTER], response);
     if (response.type !== 'success') {
         let message = 'Could not load token allowance';
         renderEvent(message, EventStatus.Error);
@@ -54,18 +53,17 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
     const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
     const amountToSwapBig = stringDecimalToBN(swap.amountIn.toString(), assetInDetails.decimals);
     const amountMinBig = stringDecimalToBN(swap.minAmountOut?.toString() ?? '0', assetInDetails.decimals)
+    console.log('amountToSwapBig', amountToSwapBig.toString(), 'amountMinBig', amountMinBig.toString(),"current all " ,currentAllowance?.rawBalance.toString())
     //maybe do allowance
     if (
         currentAllowance !== undefined &&
         currentAllowance !== undefined &&
-        currentAllowance.preciseBigDecimal.lt(amountToSwapBig)
+        currentAllowance.rawBalance.lt(amountToSwapBig)
     ) {
-        // approve the difference
-        const amountToAllow = amountToSwapBig.sub(currentAllowance.preciseBigDecimal);
 
         try{
-            renderEvent(`Please sign approval swap: ${amountToAllow} ${assetInDetails.assetCode.toUpperCase()}`, EventStatus.Waiting);
-            await approve({api: pendulumApiComponents.api, amount: amountToAllow.toString() , token: assetInDetails.erc20Address!, spender: NABLA_ROUTER, contractAbi: erc20ContractAbi, walletAccount}); 
+            renderEvent(`Please sign approval swap: ${toBigNumber(amountToSwapBig, assetInDetails.decimals)} ${assetInDetails.assetCode.toUpperCase()}`, EventStatus.Waiting);
+            await approve({api: pendulumApiComponents.api, amount: amountToSwapBig.toString() , token: assetInDetails.erc20Address!, spender: NABLA_ROUTER, contractAbi: erc20ContractAbi, walletAccount}); 
 
         }catch(e){
             renderEvent(`Could not approve token: ${e}`, EventStatus.Error);
@@ -83,8 +81,8 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
         renderEvent(`Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${swap.initialDesired} ${assetOutDetails.assetCode.toUpperCase()} `, EventStatus.Waiting);
         await doActualSwap({api: pendulumApiComponents.api, amount: amountToSwapBig.toString(), amountMin: amountMinBig.toString() ,tokenIn: assetInDetails.erc20Address!, tokenOut: assetOutDetails.erc20Address!, contractAbi: routerAbiObject, walletAccount});  
     }catch(e){
-        console.log(e);
-        renderEvent(`Could not swap token: ${e}`, EventStatus.Error);
+        console.log(e)
+        renderEvent(`Could not swap token: ${(e as any).error}`, EventStatus.Error);
         return Promise.reject('Could not swap token');
     }
 
@@ -92,16 +90,13 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
     const responseBalanceAfter = (
         await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
     ).toHuman() as any;
-    console.log(responseBalanceAfter)
 
     const rawBalance = responseBalanceAfter?.free || '0';
-    console.log(rawBalance)
-    const actualBalance = customToDecimal(rawBalance, assetOutDetails.decimals)
-    console.log(actualBalance)
+    const actualBalanceBigDecimal = toBigNumber(rawBalance, assetOutDetails.decimals)
     
-    renderEvent(`Swap successful. Amount available : ${actualBalance}`, EventStatus.Success);
+    renderEvent(`Swap successful. Amount available : ${actualBalanceBigDecimal}`, EventStatus.Success);
 
-    return actualBalance;
+    return actualBalanceBigDecimal.toNumber();
 }
 
 

@@ -15,7 +15,7 @@ import { PoolSelectorModal } from './SelectionModal';
 import { FormProvider } from 'react-hook-form';
 import { To } from './To';
 import { useSwapForm } from './useSwapForm';
-import { customToDecimal } from '../../helpers/parseNumbers';
+import { toBigNumber } from '../../helpers/parseNumbers';
 import {Skeleton} from "../Skeleton";
 interface InputBoxProps {
   onSubmit: (userSubstrateAddress: string,  swapsFirst: boolean, selectedAsset: string, swap: SwapOptions) => void;
@@ -137,7 +137,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     }
 
     // Check the minimum comparing to the minimum expected swap
-    const minWithdrawalAmountNumber = customToDecimal(TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!,TOKEN_CONFIG[assetToOfframp].decimals);
+    const minWithdrawalAmountNumber = toBigNumber(TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!,TOKEN_CONFIG[assetToOfframp].decimals);
     if (assetToOfframp && (minWithdrawalAmountNumber > Number(tokenOutData.data?.minAmountOut!))) {
       alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
       return;

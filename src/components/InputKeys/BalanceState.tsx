@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { stringDecimalToBN , customToDecimal} from '../../helpers/parseNumbers';
+import { stringDecimalToBN , toBigNumber} from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { Keypair } from 'stellar-sdk';
+import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
-import BigNumber from 'bn.js';
 export interface BalanceInfo extends ContractBalance {
   canWithdraw: boolean;
 }
@@ -47,23 +46,29 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
           ).toHuman() as any;
           
           const rawBalance = response?.free || '0';
-          const balanceDecimal = customToDecimal(rawBalance, TOKEN_CONFIG[key].decimals);
+          const preciseBigDecimal = toBigNumber(rawBalance, TOKEN_CONFIG[key].decimals);
+          const balanceBigNumber = toBigNumber(rawBalance, 0);
+
+          const atLeast2Decimals = stringifyBigWithSignificantDecimals(preciseBigDecimal, 2);
+          const atLeast4Decimals = stringifyBigWithSignificantDecimals(preciseBigDecimal, 4);
+
 
           const contractBalance = {
+            rawBalance: balanceBigNumber,
             decimals: config.decimals,
-            preciseBigDecimal: new BigNumber(0),
-            preciseString: balanceDecimal.toString(),
+            preciseBigDecimal,
+            preciseString: balanceBigNumber.toString(),
             approximateStrings: {
-              atLeast2Decimals: balanceDecimal.toString(),
-              atLeast4Decimals: balanceDecimal.toString(),
+              atLeast2Decimals: atLeast2Decimals,
+              atLeast4Decimals: atLeast4Decimals,
             },
-            approximateNumber: balanceDecimal,
+            approximateNumber: preciseBigDecimal.toNumber(),
           };
 
           // if it is offramped, it should always ahve minWithrawalAmount defined
           if (config.isOfframp && config.minWithdrawalAmount){
-            const minWithdrawalAmount = customToDecimal(config.minWithdrawalAmount, config.decimals).toString();
-            const canWithdraw = balanceDecimal >= Number(minWithdrawalAmount);
+            const minWithdrawalAmount = toBigNumber(config.minWithdrawalAmount, 0);
+            const canWithdraw = balanceBigNumber.gte(minWithdrawalAmount);
 
             newBalances[key] = {
               ...contractBalance,

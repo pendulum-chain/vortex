@@ -1,7 +1,6 @@
 import { Button, Range } from 'react-daisyui';
 import { FieldPath, FieldValues, PathValue, UseFormReturn, useWatch } from 'react-hook-form';
 import { useEffect, useMemo } from 'preact/hooks';
-import BigNumber from 'bn.js'
 
 import { NumberInput } from './NumberInput';
 import { ChangeEvent, ReactNode } from 'preact/compat';
