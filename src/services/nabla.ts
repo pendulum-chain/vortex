@@ -66,12 +66,7 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
             return Promise.reject('Could not approve token');
         }
     }
-    //delay to reflect allowance change, as it is done here
-    // https://github.com/pendulum-chain/portal/blob/c164e5b083e751e4c748edecc8560746e80a5be0/src/hooks/nabla/useErc20TokenApproval.ts#L70
-    // TODO is it really necessary, how much is "safe"? 
-    // Alternatively we can call again until reflected.
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
+    
     // Try swap
     try{
         renderEvent(`Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${swap.initialDesired} ${assetOutDetails.assetCode.toUpperCase()} `, EventStatus.Waiting);
