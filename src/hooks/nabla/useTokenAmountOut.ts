@@ -2,7 +2,7 @@ import BigNumber from 'big.js';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router'
 import { ContractBalance, parseContractBalanceResponse } from '../../helpers/contracts';
-import { decimalToCustom, stringDecimalToBN } from '../../helpers/parseNumbers';
+import { decimalToCustom } from '../../helpers/parseNumbers';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
 import { UseQueryResult } from '@tanstack/react-query';
@@ -53,7 +53,18 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
 }: UseTokenOutAmountProps<FormFieldValues>) {
   const { setError, clearErrors } = form;
 
-  if (fromToken === '' || toToken === '' || fromAmount === null || !walletAccount || api === null || !wantsSwap) {
+  // Handle different errors either from form or parameters needed for the swap
+  const inputHasErrors =  form.formState.errors.fromAmount?.message !== undefined ;
+  if (inputHasErrors) {
+    console.log("errors", form.formState.errors.fromAmount?.message)
+    return { isLoading: false, enabled: false, data: undefined, error: form.formState.errors.fromAmount?.message ?? "The specified swap cannot be performed at the moment", refetch: undefined };
+  }
+
+  if( !walletAccount){
+    return { isLoading: false, enabled: false, data: undefined, error: 'Wallet not connected', refetch: undefined }
+  }
+
+  if (fromToken === '' || toToken === '' || fromAmount === null  || api === null || !wantsSwap) {
     return { isLoading: false, enabled: false, data: undefined, error: 'Required parameters are missing', refetch: undefined }
   }
 
@@ -61,7 +72,14 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   const toTokenDetails: TokenDetails = TOKEN_CONFIG[toToken];
 
   const debouncedFromAmount = useDebouncedValue(fromAmount, 800);
-  const debouncedAmountBigDecimal = stringDecimalToBN(debouncedFromAmount.toString(), fromTokenDetails.decimals);
+  const debouncedAmountBigDecimal = decimalToCustom(debouncedFromAmount.toString(), fromTokenDetails.decimals);
+
+  // Even though we check for errors, due to possible delay in value update we need to check that the value is not
+  // less than 1, or larger than e+20, since BigNumber.toString() will return scientific notation.
+  // this is no error, but temporary empty return until the value gets properly updated.
+  if (debouncedAmountBigDecimal === undefined || debouncedAmountBigDecimal.lt(new BigNumber(1)) || debouncedAmountBigDecimal.e > 20) {
+    return { isLoading: false, enabled: false, data: undefined, error: '', refetch: undefined }
+  }
 
   const enabled = fromToken !== undefined &&
                   toToken !== undefined &&

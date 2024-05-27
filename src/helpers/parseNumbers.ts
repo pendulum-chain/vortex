@@ -60,7 +60,7 @@ export const stringDecimalToBN = (value: string, chainDecimals: number) => {
   let [whole, decimal] = value.split('.');
   decimal = decimal || '0';
 
-  //TODO this may not be needid now that we go back to big.js
+  //TODO this may not be needed now that we go back to big.js
   // pad the decimal part
   while (decimal.length < chainDecimals) {
     decimal += '0';

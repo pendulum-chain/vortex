@@ -61,6 +61,13 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
         if (amountBigDecimal.e + 1 + maxBalance.decimals < amountBigDecimal.c.length)
           return `The number you entered must have at most ${maxBalance.decimals} decimal places`;
       }
+      
+      // To big numbers will break BigNumber.toString() since they return a string with a scientific notation
+      // this happens beyond 1e+20, so we can check if the number is bigger than that
+      if (amountBigDecimal.c[0] !== 0) {
+        if (amountBigDecimal.e + maxBalance.decimals > 20)
+          return `The number you entered is too large`;
+      }
     };
 
     const errorMessage = determineErrorMessage();

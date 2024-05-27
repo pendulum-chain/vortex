@@ -54,7 +54,6 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
     //maybe do allowance
     if (
         currentAllowance !== undefined &&
-        currentAllowance !== undefined &&
         currentAllowance.rawBalance.lt(amountToSwapBig)
     ) {
 
