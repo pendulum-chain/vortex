@@ -3,10 +3,12 @@ import { IAnchorSessionParams, ISep24Intermediate, Sep24Result } from '../servic
 import { sep24First, sep24Second } from '../services/anchor';
 import { EventStatus } from './GenericEvent';
 import { Button } from 'react-daisyui';
+import { sep10 } from '../services/anchor';
 interface Sep24Props {
   maxOfframpBalance: number;
   sessionParams: IAnchorSessionParams | null;
   onSep24Complete: (sep24Reslt: Sep24Result) => void;
+  setAnchorSessionParams: (params: IAnchorSessionParams) => void;
   addEvent: (message: string, status: EventStatus) => void;
 }
 
@@ -17,6 +19,7 @@ interface Sep24ProcessStatus {
 
 const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent, maxOfframpBalance }) => {
   const [iframe, iframeOpened] = useState<boolean>(false);
+  const [externalWindowClicked, setExternalWindowClicked] = useState<boolean>(false);
   const [sep24IntermediateValues, setSep24IntermediateValues] = useState<ISep24Intermediate | null>(null);
   const [processStatus, setProcessStatus] = useState<Sep24ProcessStatus>({
     processStarted: false,
@@ -42,6 +45,16 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent,
     }
   }, [sessionParams, addEvent, processStatus]);
 
+  const onExternalWindowClicked = () => {
+    //get a new token in case user waited for too long before opening the window
+    sep10(sessionParams?.tomlValues!, addEvent).then((token: string) => {
+      sessionParams!.token = token;
+      window.open(`${sep24IntermediateValues!.url}`, '_blank') 
+      console.log("new token", token)
+      setExternalWindowClicked(true);
+    })
+  }
+
   const handleIframeCompletion = () => {
     // at this point setSep24IntermediateValues should not be null, as well as
     // sessionParams
@@ -57,10 +70,10 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent,
     <div>
       {iframe && (
         <div className="iframe-container">
-          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => {
-               window.open(`${sep24IntermediateValues!.url}`, '_blank') 
-          }} >Enter bank details (New window). Max offramp value is {maxOfframpBalance}</Button>
-          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>
+          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked} >Enter bank details (New window). Max offramp value is {maxOfframpBalance}</Button>
+          {externalWindowClicked && (
+            <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>
+          )}
         </div>
       )}
     </div>

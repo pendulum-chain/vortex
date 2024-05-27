@@ -5,7 +5,7 @@ import {SwapOptions} from '../../components/InputKeys';
 
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
-import { fetchTomlValues, sep10, IAnchorSessionParams, Sep24Result, getEphemeralKeys } from '../../services/anchor';
+import { fetchTomlValues, IAnchorSessionParams, Sep24Result, getEphemeralKeys, sep10 } from '../../services/anchor';
 import {
   setUpAccountAndOperations,
   StellarOperations,
@@ -69,7 +69,6 @@ function Landing() {
     setMaxOfframpBalance(availableBalanceToOfframp)
     
     const token = await sep10(values, addEvent);
-
     setAnchorSessionParams({ token, tomlValues: values, tokenConfig  });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
@@ -190,7 +189,12 @@ function Landing() {
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
-          <Sep24 maxOfframpBalance={maxOfframpBalance} sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />
+          <Sep24 
+              maxOfframpBalance={maxOfframpBalance} 
+              sessionParams={anchorSessionParams!} 
+              onSep24Complete={handleOnSep24Completed} 
+              setAnchorSessionParams={setAnchorSessionParams}
+              addEvent={addEvent} />
         </div>
       )}
       <div className="eventsContainer">
