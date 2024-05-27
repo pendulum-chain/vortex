@@ -129,10 +129,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       return;
     }
 
-    
-    // check balance if the offramp is direct
-    if (!wantsSwap && (balances[assetToOfframp].approximateNumber < fromAmount)) {
-      alert(`Insufficient balance to offramp. Current balance is ${balances[assetToOfframp].approximateNumber} ${assetToOfframp}.`);
+    // check balance of the asset used to offramp directly or to pay for the swap
+    if (balances[from].approximateNumber < fromAmount) {
+      alert(`Insufficient balance to offramp. Current balance is ${balances[from].approximateNumber} ${from.toUpperCase()}.`);
       return;
     }
 
@@ -143,7 +142,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     if (tokenOutData.data){
       minAmountOutBigNumber = toBigNumber(tokenOutData.data.minAmountOut
         ?? '0', 0);
-      }
+    }
 
     if (wantsSwap && assetToOfframp && (minWithdrawalAmountBigNumber.gt(minAmountOutBigNumber))) {
       alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
@@ -264,7 +263,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                   )}
                 </div>
                 <div className="text-center text-red-600 my-2">
-                  {!canOfframpDirectly(from) && (
+                  {!canOfframpDirectly(from) && to==='' && (
                     <p>Asset {from} cannot be offramped directly, select the asset to swap to and offramp.</p>
                   )}
                 </div>

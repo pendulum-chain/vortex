@@ -53,7 +53,9 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
       if (amountString.length === 0) return;
       if (amountBigDecimal === undefined )return 'Enter a proper number';
       if (maxBalance === undefined) return;
-      if (amountBigDecimal.gt(maxBalance.preciseBigDecimal)) return 'Amount exceeds maximum';
+      // If we don't want to show the quote result if the balance is lower that the selected at from,
+      // we can do so uncommenting this line.
+      //if (amountBigDecimal.gt(maxBalance.preciseBigDecimal)) return 'Amount exceeds maximum';
 
       if (amountBigDecimal.c[0] !== 0) {
         if (amountBigDecimal.e + 1 + maxBalance.decimals < amountBigDecimal.c.length)
