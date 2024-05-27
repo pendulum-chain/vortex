@@ -1,5 +1,5 @@
 export const storageKeys = {
     ACCOUNT: 'ACCOUNT',
-    SWAP_SETTINGS: 'SWAP_SETTINGS',
+    SWAP_SETTINGS: 'SWAP_SETTINGS_OFFRAMP',
     POOL_SETTINGS: 'POOL_SETTINGS',
   };
