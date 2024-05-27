@@ -2,9 +2,9 @@ import { Button, Range } from 'react-daisyui';
 import { FieldPath, FieldValues, PathValue, UseFormReturn, useWatch } from 'react-hook-form';
 import { useEffect, useMemo } from 'preact/hooks';
 
-import { NumberInput } from './NumberInput';
+import { NumberInput } from '../Nabla/NumberInput';
 import { ChangeEvent } from 'preact/compat';
-import { BalanceInfo } from './BalanceState';
+import { BalanceInfo } from '../Nabla/BalanceState';
 import BigNumber  from "big.js"
 
 interface AmountSelectorProps<FormFieldValues extends FieldValues, TFieldName extends FieldPath<FormFieldValues>> {

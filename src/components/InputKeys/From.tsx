@@ -5,9 +5,9 @@ import { FieldPath, FieldValues, UseFormReturn, useFormContext } from 'react-hoo
 import pendulumIcon from '../../assets/pendulum-icon.svg';
 import { TokenDetails } from '../../constants/tokenConfig';
 import { AmountSelector } from './AmountSelector';
-import {BalanceInfo} from './BalanceState'; 
-import { SwapFormValues } from './schema';
-import { TokenBalance } from './TokenBalance';
+import {BalanceInfo} from '../Nabla/BalanceState'; 
+import { SwapFormValues } from '../Nabla/schema';
+import { TokenBalance } from '../Nabla/TokenBalance';
 
 interface FromProps<FormFieldValues extends FieldValues, TFieldName extends FieldPath<FormFieldValues>> {
   tokenId: string;

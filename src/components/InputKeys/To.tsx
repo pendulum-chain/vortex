@@ -4,13 +4,13 @@ import { Button } from 'react-daisyui';
 import { useFormContext } from 'react-hook-form';
 
 import pendulumIcon from '../../assets/pendulum-icon.svg';
-import { NumberLoader } from './TokenBalance';
+import { NumberLoader } from '../Nabla/TokenBalance';
 import { Skeleton } from '../Skeleton';
-import { SwapFormValues } from './schema';
+import { SwapFormValues } from '../Nabla/schema';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { useBoolean } from '../../hooks/useBoolean';
 import { TokenDetails } from '../../constants/tokenConfig';
-import {BalanceInfo} from './BalanceState'; 
+import {BalanceInfo} from '../Nabla/BalanceState'; 
 
 export interface ToProps {
   tokenId: string;

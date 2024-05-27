@@ -5,7 +5,7 @@ import arrowSvg from '../../assets/coins/arrow.svg';
 import OpenWallet from '../Wallet';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { useAccountBalance } from './BalanceState'; 
+import { useAccountBalance } from '../Nabla/BalanceState'; 
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
@@ -14,7 +14,7 @@ import { From } from './From';
 import { PoolSelectorModal } from './SelectionModal';
 import { FormProvider } from 'react-hook-form';
 import { To } from './To';
-import { useSwapForm } from './useSwapForm';
+import { useSwapForm } from '../Nabla/useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import {Skeleton} from "../Skeleton";
 interface InputBoxProps {

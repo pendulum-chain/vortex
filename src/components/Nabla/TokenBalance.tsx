@@ -1,5 +1,5 @@
 import { Skeleton } from '../Skeleton';
-import {BalanceInfo} from '../InputKeys/BalanceState';
+import {BalanceInfo} from './BalanceState';
 
 export function NumberLoader() {
   return <Skeleton className="inline-block">10000</Skeleton>;
