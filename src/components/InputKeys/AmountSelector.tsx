@@ -13,9 +13,12 @@ interface AmountSelectorProps<FormFieldValues extends FieldValues, TFieldName ex
   form: UseFormReturn<FormFieldValues>;
   children?: ReactNode;
   onlyShowNumberInput?: boolean;
+  offrampStarted: boolean;
+
 }
 
 export function AmountSelector<FormFieldValues extends FieldValues, TFieldName extends FieldPath<FormFieldValues>>({
+  offrampStarted,
   formFieldName,
   maxBalance,
   form,
@@ -81,6 +84,7 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
   if (onlyShowNumberInput === true) {
     return (
       <NumberInput
+        disabled={offrampStarted}
         autoFocus
         className="input-ghost w-full text-4xl font-outfit"
         placeholder="Amount"
@@ -94,6 +98,7 @@ export function AmountSelector<FormFieldValues extends FieldValues, TFieldName e
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-1">
           <NumberInput
+            disabled={offrampStarted}
             autoFocus
             className="input-ghost w-full flex-grow text-4xl font-outfit px-0 py-3"
             placeholder="Amount"

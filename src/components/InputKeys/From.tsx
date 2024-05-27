@@ -17,6 +17,7 @@ interface FromProps<FormFieldValues extends FieldValues, TFieldName extends Fiel
   fromFormFieldName: TFieldName;
   form: UseFormReturn<FormFieldValues>;
   fromTokenBalances: {[key: string]: BalanceInfo};
+  offrampStarted: boolean;
 }
 
 export function From<FormFieldValues extends FieldValues, TFieldName extends FieldPath<FormFieldValues>>({
@@ -27,6 +28,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
   fromFormFieldName,
   form,
   fromTokenBalances,
+  offrampStarted
 }: FromProps<FormFieldValues, TFieldName>) {
   const { setValue } = useFormContext<SwapFormValues>();
   const fromTokenBalance = tokenId ? fromTokenBalances[tokenId] : undefined;
@@ -38,6 +40,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
       <div className="w-full flex justify-between">
         <div className="flex-grow text-4xl text-[inherit] font-outfit">
           <AmountSelector
+            offrampStarted={offrampStarted}
             maxBalance={fromTokenBalance}
             formFieldName={fromFormFieldName}
             form={form}

@@ -133,10 +133,7 @@ body {
   margin-top: 5px;
 }
 
-.inputBox input:disabled {
-  background-color: #ccc;
-  color: #666;
-}
+
 .eventsContainer {
   display: flex;
   flex-direction: column;
@@ -273,7 +270,7 @@ input[type='number'] {
 .modal.modal-top {
   align-items: flex-start;
 }
-
+.input-ghost:disabled,
 .input-ghost {
   background-color: transparent;
   outline: none;

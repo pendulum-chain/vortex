@@ -3,13 +3,14 @@ import { FieldPath, FieldValues, useFormContext } from 'react-hook-form';
 
 export interface NumberInputProps<SwapFormValues extends FieldValues> extends HTMLAttributes<HTMLInputElement> {
   registerName: FieldPath<SwapFormValues>;
+  disabled: boolean;
 }
 
 // Hack required for Preact compatibility with react-hook-form
 export function NumberInput<SwapFormValues extends FieldValues>(attributes: NumberInputProps<SwapFormValues>) {
   const { register } = useFormContext<SwapFormValues>();
 
-  const { registerName } = attributes;
+  const { registerName, disabled } = attributes;
 
   const registerAttributes: HTMLAttributes<HTMLInputElement> = register(registerName);
   const { onChange } = registerAttributes;
@@ -30,5 +31,5 @@ export function NumberInput<SwapFormValues extends FieldValues>(attributes: Numb
     [onChange],
   );
 
-  return <input inputMode="numeric" type="text" {...attributesWithoutOnChange} {...attributes} onInput={onInput} />;
+  return <input inputMode="numeric" type="text" {...attributesWithoutOnChange} {...attributes} disabled={disabled} onInput={onInput} />;
 }

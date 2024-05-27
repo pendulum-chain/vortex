@@ -232,6 +232,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                   </Card.Title>
                 </div>
                 <From
+                  offrampStarted={isSubmitted}
                   tokenId={from}
                   fromToken={fromToken}
                   onOpenSelector={() => setModalType('from')}
