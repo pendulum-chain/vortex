@@ -10,11 +10,14 @@ interface PoolSelectorModalProps extends PoolListProps {
     open: boolean;
 }
 
-export type PoolEntry = TokenDetails;
+export interface SelectorMode {
+  type: "from" | "to" | undefined;
+  swap: boolean;
+}
 
 interface PoolListProps {
-  type: string | undefined;
-  onSelect: (pool: PoolEntry) => void;
+  mode: SelectorMode;
+  onSelect: (pool: TokenDetails) => void;
   selected:
     | { type: 'token'; tokenAddress: string | undefined }
     | { type: 'backstopPool' }
@@ -27,7 +30,7 @@ export function PoolSelectorModal({
     onSelect,
     onClose,
     open,
-    type,
+    mode,
   }: PoolSelectorModalProps) {
     return (
       <Modal className="bg-[--bg-modal]" open={open}>
@@ -40,7 +43,7 @@ export function PoolSelectorModal({
             {isLoading ? (
               <Skeleton className="w-full h-10 mb-2" />
             ) : (
-              <PoolList type={type} onSelect={onSelect} selected={selected} />
+              <PoolList mode={mode} onSelect={onSelect} selected={selected} />
             )}
           </div>
         </Modal.Body>
@@ -49,19 +52,27 @@ export function PoolSelectorModal({
   }
 
 
-function PoolList({ onSelect, selected, type }: PoolListProps) {
+function PoolList({ onSelect, selected, mode }: PoolListProps) {
     const [filter, setFilter] = useState<string>();
   
     const poolList = useMemo(() => {
-      const poolList: PoolEntry[]=[];
+      const poolList: TokenDetails[]=[];
        Object.keys(TOKEN_CONFIG).forEach((token) => {
-        if (type === 'to' && !TOKEN_CONFIG[token].isOfframp)  return;
+        // special case rules
+        // do not allow non-offramp tokens in the to field, 
+        console.log(mode)
+        if (mode.type === 'to' && mode.swap && !TOKEN_CONFIG[token].isOfframp) return;
+
+        // only allow USDT asset code 
+        if (mode.type === 'from' && mode.swap && TOKEN_CONFIG[token].assetCode !== "USDT")  return;
+
+
         poolList.push(TOKEN_CONFIG[token]);
       });
 
   
       return poolList;
-    }, [ type]);
+    }, [ mode]);
     
     return (
       <div className="relative">
@@ -72,8 +83,8 @@ function PoolList({ onSelect, selected, type }: PoolListProps) {
           placeholder="Find by name or address"
         />
         <div className="flex flex-col gap-1">
-          {poolList?.map((poolEntry) => {
-            const {assetCode  } = poolEntry;
+          {poolList?.map((TokenDetails) => {
+            const {assetCode  } = TokenDetails;
             let isSelected;
             switch (selected.type) {
               case 'token':
@@ -86,15 +97,15 @@ function PoolList({ onSelect, selected, type }: PoolListProps) {
                 type="button"
                 size="md"
                 color="secondary"
-                key={poolEntry.assetCode}
-                onClick={() => onSelect(poolEntry)}
+                key={TokenDetails.assetCode}
+                onClick={() => onSelect(TokenDetails)}
                 className="w-full items-center justify-start gap-4 px-3 py-2 h-auto border-0 bg-blackAlpha-200 text-left hover:opacity-80 dark:bg-whiteAlpha-200"
               >
                 <span className="relative">
                   <Avatar
                     size={'xs' as AvatarProps['size']}
-                    letters={poolEntry.assetCode}
-                    src={`/assets/coins/${poolEntry.assetCode.toUpperCase()}.png`}
+                    letters={TokenDetails.assetCode}
+                    src={`/assets/coins/${TokenDetails.assetCode.toUpperCase()}.png`}
                     shape="circle"
                     className="text-xs"
                   />
@@ -105,10 +116,10 @@ function PoolList({ onSelect, selected, type }: PoolListProps) {
                 <span className="flex flex-col">
                   <span className="text-lg dark:text-white leading-5">
                     <strong>
-                      {poolEntry.assetCode}
+                      {TokenDetails.assetCode}
                     </strong>
                   </span>
-                  <span className="text-sm text-neutral-500 leading-5">{poolEntry.assetCode}</span>
+                  <span className="text-sm text-neutral-500 leading-5">{TokenDetails.assetCode}</span>
                 </span>
               </Button>
             );

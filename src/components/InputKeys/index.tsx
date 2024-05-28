@@ -55,11 +55,25 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const { walletAccount } = useGlobalState();
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
-  const [ss58Format, setSs58Format] = useState<number>(42);
-  const [api, setApi] = useState<ApiPromise | null>(null);
-  const [wantsSwap, setWantsSwap] = useState<boolean>(false);
-  const [canOfframpDirectly, setCanOfframpDirectly] = useState<boolean>(false);
+  const [ ss58Format, setSs58Format] = useState<number>(42);
+  const [ api, setApi] = useState<ApiPromise | null>(null);
+  const [ wantsSwap, setWantsSwap] = useState<boolean>(false);
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
+  const [ activeTab, setActiveTab] = useState<"swap" | "direct">("direct");
+
+  useEffect(() => {
+    if (activeTab === "swap") {
+      
+      setWantsSwap(true);
+    } else {
+      setWantsSwap(false);
+    }
+  }, [activeTab]);
+
+  const handleInnerClick = (e:any) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
 
   const {
     tokensModal: [modalType, setModalType],
@@ -97,18 +111,18 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     initializeApiManager();
   }, []);
 
-  useEffect(() => {
-    if (from !== '') {
-      // if it's not offramp, we need to force wantsSwap state to be true
-      if (!TOKEN_CONFIG[from].isOfframp) {
-        setWantsSwap(true);
-        setCanOfframpDirectly(false);
-        return;
-      }
-    }
-    // unselected asset does not matter here. We don't yet want to show the swap option.
-    setCanOfframpDirectly(true);
-  }, [from]);
+  // useEffect(() => {
+  //   if (from !== '') {
+  //     // if it's not offramp, we need to force wantsSwap state to be true
+  //     if (!TOKEN_CONFIG[from].isOfframp) {
+  //       setWantsSwap(true);
+  //       setCanOfframpDirectly(false);
+  //       return;
+  //     }
+  //   }
+  //   // unselected asset does not matter here. We don't yet want to show the swap option.
+  //   setCanOfframpDirectly(true);
+  // }, [from]);
 
   const handleSubmit = async () => {
     if (fromAmount === 0) {
@@ -221,11 +235,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         <img src={arrowSvg} className="arrow" alt="Arrow" />
         <img src={euroSvg} className="icon" alt="EURO" />
       </div>
-
       <div>
         <PoolSelectorModal
           open={!!modalType}
-          type={modalType}
+          // pass this to the modal. I get error when defining object here
+          mode={ {type: modalType, swap: wantsSwap }}
           onSelect={modalType === 'from' ? onFromChange : onToChange}
           selected={{
             type: 'token',
@@ -249,62 +263,75 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         <div>
           <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
         </div>
-        <div className="input-container">
-          {api === null || isBalanceLoading ? (
-            <Loader />
-          ) : (
-            <FormProvider {...form}>
-              <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                <div className="text-center my-5">
-                  <Card.Title tag="h2" className="text-3xl font-normal">
-                    Offramp Asset
-                  </Card.Title>
-                </div>
-                <From
-                  offrampStarted={isSubmitted}
-                  tokenId={from}
-                  fromToken={fromToken}
-                  onOpenSelector={() => setModalType('from')}
-                  inputHasError={inputHasErrors}
-                  form={form}
-                  fromFormFieldName="fromAmount"
-                  fromTokenBalances={balances}
-                />
-                <div>{tokenOutData.error && wantsSwap && <p className="text-red-600">{tokenOutData.error}</p>}</div>
-                <div className="flex justify-center mb-7 mt-7">
-                  {!wantsSwap && canOfframpDirectly && !isSubmitted && (
-                    <Button type="button" size="md" color="secondary" onClick={() => setWantsSwap(!wantsSwap)}>
-                      Swap to other asset before offramp
-                    </Button>
-                  )}
-                  {wantsSwap && canOfframpDirectly && !isSubmitted && (
-                    <Button type="button" size="md" color="secondary" onClick={() => setWantsSwap(!wantsSwap)}>
-                      Do not swap. Offramp first asset
-                    </Button>
-                  )}
-                </div>
-                <div className="text-center text-red-600 my-2">
-                  {!canOfframpDirectly && to === '' && (
-                    <p>Asset {from} cannot be offramped directly, select the asset to swap to and offramp.</p>
-                  )}
-                </div>
-                {(!canOfframpDirectly || wantsSwap) && !isBalanceLoading && (
-                  <To
-                    tokenId={to}
-                    fromTokenBalances={balances}
-                    toToken={toToken}
-                    fromToken={fromToken}
-                    toAmountQuote={
-                      inputHasErrors ? { enabled: false, data: undefined, error: null, isLoading: false } : tokenOutData
-                    }
-                    onOpenSelector={() => setModalType('to')}
-                    fromAmount={fromAmount}
-                    slippage={slippage}
-                  />
-                )}
-              </Card>
-            </FormProvider>
-          )}
+        <div className="text-center my-5">
+          <Card.Title tag="h2" className="text-3xl font-normal">
+            Offramp Asset
+          </Card.Title>
+        </div>
+        <div role="tablist" class="tabs tabs-lifted">
+          <input type="radio" name="my_tabs_2" id="direct" onClick={() => setActiveTab("direct")} role="tab" class="tab" aria-label="Direct Offramp" />
+          <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 bg-transparent"  onClick={handleInnerClick}>
+            <div className="input-container">
+              {api === null || isBalanceLoading ? (
+                <Loader />
+              ) : (
+                <FormProvider {...form}>
+                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                    <From
+                      offrampStarted={isSubmitted}
+                      tokenId={from}
+                      fromToken={fromToken}
+                      onOpenSelector={() => setModalType('from')}
+                      inputHasError={inputHasErrors}
+                      form={form}
+                      fromFormFieldName="fromAmount"
+                      fromTokenBalances={balances}
+                    />
+                    <div>{tokenOutData.error && wantsSwap && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                  </Card>
+                </FormProvider>
+              )}
+            </div>
+          </div>
+          <input type="radio" name="my_tabs_2" id="swap" onClick={() => setActiveTab("swap")} role="tab" class="tab" aria-label="USDT offramp"  />
+          <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 bg-transparent"  onClick={handleInnerClick}>
+            <div className="input-container">
+              {api === null || isBalanceLoading ? (
+                <Loader />
+              ) : (
+                <FormProvider {...form}>
+                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                    <From
+                      offrampStarted={isSubmitted}
+                      tokenId={from}
+                      fromToken={fromToken}
+                      onOpenSelector={() => setModalType('from')}
+                      inputHasError={inputHasErrors}
+                      form={form}
+                      fromFormFieldName="fromAmount"
+                      fromTokenBalances={balances}
+                    />
+                    <div>{tokenOutData.error && wantsSwap && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                    <div className="separator mt-10 mb-10"></div>
+                    <To
+                      tokenId={to}
+                      fromTokenBalances={balances}
+                      toToken={toToken}
+                      fromToken={fromToken}
+                      toAmountQuote={
+                        inputHasErrors
+                          ? { enabled: false, data: undefined, error: null, isLoading: false }
+                          : tokenOutData
+                      }
+                      onOpenSelector={() => setModalType('to')}
+                      fromAmount={fromAmount}
+                      slippage={slippage}
+                    />
+                  </Card>
+                </FormProvider>
+              )}
+            </div>
+          </div>
         </div>
 
         {!(from === '') && !isSubmitted && walletAccount?.address ? (

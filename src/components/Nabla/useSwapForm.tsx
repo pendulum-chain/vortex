@@ -58,7 +58,7 @@ export const useSwapForm = () => {
       );
     
     const onFromChange = useCallback(
-    (a: TokenDetails , event = true) => {
+    (a: TokenDetails) => {
         const f = a.assetCode;
         const prev = form.getValues();
         const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
@@ -80,7 +80,7 @@ export const useSwapForm = () => {
     );
 
     const onToChange = useCallback(
-    (a: TokenDetails , event = true) => {
+    (a: TokenDetails) => {
         const f = a.assetCode;
         const prev = form.getValues();
         const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
