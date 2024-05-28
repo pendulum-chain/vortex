@@ -76,7 +76,7 @@ export function To({
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            {toToken && (<img src={`src/assets/coins/${toToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
+            {toToken && (<img src={`/assets/coins/${toToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
             {!toToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" /> }  
           </span>
           <strong className="font-bold">{toToken?.assetCode || 'Select'}</strong>

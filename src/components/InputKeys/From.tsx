@@ -54,7 +54,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            {fromToken && (<img src={`src/assets/coins/${fromToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
+            {fromToken && (<img src={`/assets/coins/${fromToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
             {!fromToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" /> }
           </span>
           <strong className="font-bold">{fromToken?.assetCode || 'Select'}</strong>

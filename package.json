@@ -6,7 +6,7 @@
   "packageManager": "yarn@4.0.2",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && echo '/* /index.html 200' | cat > dist/_redirects",
+    "build": "tsc && vite build && cp -R src/assets/coins dist/assets/coins && echo '/* /index.html 200' | cat > dist/_redirects",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
