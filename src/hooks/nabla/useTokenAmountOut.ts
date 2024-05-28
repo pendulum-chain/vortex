@@ -2,7 +2,7 @@ import BigNumber from 'big.js';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router'
 import { ContractBalance, parseContractBalanceResponse } from '../../helpers/contracts';
-import { decimalToCustom } from '../../helpers/parseNumbers';
+import { decimalToCustom, toBigNumber } from '../../helpers/parseNumbers';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
 import { UseQueryResult } from '@tanstack/react-query';
@@ -110,7 +110,18 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
         }
         const amountOut = parseContractBalanceResponse(toTokenDetails.decimals, data[0]);
         const swapFee = parseContractBalanceResponse(toTokenDetails.decimals, data[1]);
-        const effectiveExchangeRate = amountOut.preciseBigDecimal.div(debouncedAmountBigDecimal).toString();
+
+        // 
+        const decimalDifference = fromTokenDetails.decimals - toTokenDetails.decimals;
+        let  effectiveExchangeRate;
+        if (decimalDifference > 0) {
+          const decimalDiffCorrection = new BigNumber(10).pow(decimalDifference);
+          effectiveExchangeRate = amountOut.rawBalance.div(debouncedAmountBigDecimal).mul(decimalDiffCorrection).toString();
+        } else{
+          const decimalDiffCorrection = new BigNumber(10).pow(-decimalDifference);
+          effectiveExchangeRate = amountOut.rawBalance.div(debouncedAmountBigDecimal.mul(decimalDiffCorrection)).toString();
+        }
+
         const minAmountOut = amountOut.approximateNumber * (1 - slippage/100);
 
         return {
