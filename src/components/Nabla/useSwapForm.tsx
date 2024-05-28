@@ -11,7 +11,6 @@ import { getValidDeadline, getValidSlippage } from '../../helpers/transaction';
 import { storageKeys } from '../../constants/localStorage';
 import { config } from '../../config';
 import { debounce } from '../../helpers/function';
-import { PoolEntry } from '../InputKeys/SelectionModal';
 import { SwapSettings } from '../InputKeys';
 const storageSet = debounce(storageService.set, 1000);
 

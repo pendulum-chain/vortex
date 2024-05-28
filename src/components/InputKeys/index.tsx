@@ -64,8 +64,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   useEffect(() => {
     if (activeTab === "swap") {
       
+      // force usdt selection
       setWantsSwap(true);
+      onFromChange(TOKEN_CONFIG.usdt);
     } else {
+      // removes possible usdt selected
+      form.setValue('from', '');
       setWantsSwap(false);
     }
   }, [activeTab]);
@@ -209,7 +213,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     const maxBalanceFrom = balances[from].approximateNumber;
 
     onSubmit(
-      walletAccount.address,
+      walletAccount!.address,
       wantsSwap,
       assetToOfframp,
       {
@@ -269,27 +273,29 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
           </Card.Title>
         </div>
         <div role="tablist" class="tabs tabs-lifted">
+        <FormProvider {...form}>
           <input type="radio" name="my_tabs_2" id="direct" onClick={() => setActiveTab("direct")} role="tab" class="tab" aria-label="Direct Offramp" />
           <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 bg-transparent"  onClick={handleInnerClick}>
             <div className="input-container">
               {api === null || isBalanceLoading ? (
                 <Loader />
               ) : (
-                <FormProvider {...form}>
-                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                    <From
-                      offrampStarted={isSubmitted}
-                      tokenId={from}
-                      fromToken={fromToken}
-                      onOpenSelector={() => setModalType('from')}
-                      inputHasError={inputHasErrors}
-                      form={form}
-                      fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
-                    />
-                    <div>{tokenOutData.error && wantsSwap && <p className="text-red-600">{tokenOutData.error}</p>}</div>
-                  </Card>
-                </FormProvider>
+
+                wantsSwap ? null : (  
+                <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                  <From
+                    offrampStarted={isSubmitted}
+                    tokenId={from}
+                    fromToken={fromToken}
+                    onOpenSelector={() => setModalType('from')}
+                    inputHasError={inputHasErrors}
+                    form={form}
+                    fromFormFieldName="fromAmount"
+                    fromTokenBalances={balances}
+                  />
+                  <div>{tokenOutData.error && !tokenOutData.error.includes("missing") && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                </Card>
+                )
               )}
             </div>
           </div>
@@ -299,39 +305,40 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
               {api === null || isBalanceLoading ? (
                 <Loader />
               ) : (
-                <FormProvider {...form}>
-                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                    <From
-                      offrampStarted={isSubmitted}
-                      tokenId={from}
-                      fromToken={fromToken}
-                      onOpenSelector={() => setModalType('from')}
-                      inputHasError={inputHasErrors}
-                      form={form}
-                      fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
-                    />
-                    <div>{tokenOutData.error && wantsSwap && <p className="text-red-600">{tokenOutData.error}</p>}</div>
-                    <div className="separator mt-10 mb-10"></div>
-                    <To
-                      tokenId={to}
-                      fromTokenBalances={balances}
-                      toToken={toToken}
-                      fromToken={fromToken}
-                      toAmountQuote={
-                        inputHasErrors
-                          ? { enabled: false, data: undefined, error: null, isLoading: false }
-                          : tokenOutData
-                      }
-                      onOpenSelector={() => setModalType('to')}
-                      fromAmount={fromAmount}
-                      slippage={slippage}
-                    />
-                  </Card>
-                </FormProvider>
+                wantsSwap ? (  
+              <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                <From
+                  offrampStarted={isSubmitted}
+                  tokenId={from}
+                  fromToken={fromToken}
+                  onOpenSelector={() => setModalType('from')}
+                  inputHasError={inputHasErrors}
+                  form={form}
+                  fromFormFieldName="fromAmount"
+                  fromTokenBalances={balances}
+                />
+                <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                <div className="separator mt-10 mb-10"></div>
+                <To
+                  tokenId={to}
+                  fromTokenBalances={balances}
+                  toToken={toToken}
+                  fromToken={fromToken}
+                  toAmountQuote={
+                    inputHasErrors
+                      ? { enabled: false, data: undefined, error: null, isLoading: false }
+                      : tokenOutData
+                  }
+                  onOpenSelector={() => setModalType('to')}
+                  fromAmount={fromAmount}
+                  slippage={slippage}
+                />
+              </Card>
+            ) : null
               )}
             </div>
           </div>
+          </FormProvider>
         </div>
 
         {!(from === '') && !isSubmitted && walletAccount?.address ? (

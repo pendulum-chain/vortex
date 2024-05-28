@@ -46,13 +46,8 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent,
   }, [sessionParams, addEvent, processStatus]);
 
   const onExternalWindowClicked = () => {
-    //get a new token in case user waited for too long before opening the window
-    sep10(sessionParams?.tomlValues!, addEvent).then((token: string) => {
-      sessionParams!.token = token;
-      window.open(`${sep24IntermediateValues!.url}`, '_blank') 
-      console.log("new token", token)
-      setExternalWindowClicked(true);
-    })
+    window.open(`${sep24IntermediateValues!.url}`, '_blank') 
+    setExternalWindowClicked(true);
   }
 
   const handleIframeCompletion = () => {
@@ -70,7 +65,9 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent,
     <div>
       {iframe && (
         <div className="iframe-container">
-          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked} >Enter bank details (New window). Max offramp value is {maxOfframpBalance}</Button>
+          {!externalWindowClicked && (
+                      <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked} >Enter bank details (New window). Max offramp value is {maxOfframpBalance}</Button>
+          )}
           {externalWindowClicked && (
             <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>
           )}

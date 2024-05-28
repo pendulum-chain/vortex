@@ -60,11 +60,13 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
        Object.keys(TOKEN_CONFIG).forEach((token) => {
         // special case rules
         // do not allow non-offramp tokens in the to field, 
-        console.log(mode)
         if (mode.type === 'to' && mode.swap && !TOKEN_CONFIG[token].isOfframp) return;
 
         // only allow USDT asset code 
         if (mode.type === 'from' && mode.swap && TOKEN_CONFIG[token].assetCode !== "USDT")  return;
+
+        // Do not allow non offrampable tokens in the from field if no swap
+        if (mode.type === 'from' && !mode.swap && !TOKEN_CONFIG[token].isOfframp)  return;
 
 
         poolList.push(TOKEN_CONFIG[token]);
