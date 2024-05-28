@@ -30,8 +30,7 @@ export const TOKEN_CONFIG: TokenConfig = {
         canSwapTo: ["usdt", "eurc"],
         assetIssuer: "GDVKY2GU2DRXWTBEYJJWSFXIGBZV6AZNBVVSUHEPZI54LIS6BA7DVVSP",
         vaultAccountId: "6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS",
-        //todo tbc minWithdrawalAmount for this asset
-        minWithdrawalAmount: '10000000000000',
+        minWithdrawalAmount: '1000000000000',
         assetCodeHex: "0x42524c00",
         erc20Address: "6dZCR7KVmrcxBoUTcM3vUgpQagQAW2wg2izMrT3N4reftwW5",
       },
