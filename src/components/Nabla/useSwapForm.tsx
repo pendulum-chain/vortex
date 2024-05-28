@@ -58,8 +58,8 @@ export const useSwapForm = () => {
       );
     
     const onFromChange = useCallback(
-    (a: TokenDetails | PoolEntry, event = true) => {
-        const f = typeof a === 'string' ? a : a.assetCode;
+    (a: TokenDetails , event = true) => {
+        const f = a.assetCode;
         const prev = form.getValues();
         const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
         return tokenDetails.assetCode === f;
@@ -80,8 +80,8 @@ export const useSwapForm = () => {
     );
 
     const onToChange = useCallback(
-    (a: TokenDetails | PoolEntry, event = true) => {
-        const f = typeof a === 'string' ? a : a.assetCode;
+    (a: TokenDetails , event = true) => {
+        const f = a.assetCode;
         const prev = form.getValues();
         const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
         return tokenDetails.assetCode === f;

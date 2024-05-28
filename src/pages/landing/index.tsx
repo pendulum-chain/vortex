@@ -1,7 +1,7 @@
 import '../../../App.css';
 import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
-import {SwapOptions} from '../../components/InputKeys';
+import { SwapOptions } from '../../components/InputKeys';
 
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
@@ -55,21 +55,30 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = async (userSubstrateAddress: string, swapsFirst: boolean, selectedAsset: string, swapOptions: SwapOptions, maxBalanceFrom: number ) => {
+  const handleOnSubmit = async (
+    userSubstrateAddress: string,
+    swapsFirst: boolean,
+    selectedAsset: string,
+    swapOptions: SwapOptions,
+    maxBalanceFrom: number,
+  ) => {
     setUserAddress(userSubstrateAddress);
 
-    const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset]
+    const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
     // perform swap if necessary
     let availableBalanceToOfframp = maxBalanceFrom;
     if (swapsFirst) {
-      availableBalanceToOfframp = await performSwap({swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount!}, addEvent);
+      availableBalanceToOfframp = await performSwap(
+        { swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount! },
+        addEvent,
+      );
     }
-    setMaxOfframpBalance(availableBalanceToOfframp)
-    
+    setMaxOfframpBalance(availableBalanceToOfframp);
+
     const token = await sep10(values, addEvent);
-    setAnchorSessionParams({ token, tomlValues: values, tokenConfig  });
+    setAnchorSessionParams({ token, tomlValues: values, tokenConfig });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);
@@ -88,7 +97,13 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), anchorSessionParams!.tokenConfig, addEvent);
+      const operations = await setUpAccountAndOperations(
+        fundingPK!,
+        result,
+        getEphemeralKeys(),
+        anchorSessionParams!.tokenConfig,
+        addEvent,
+      );
       setStellarOperations(operations);
     } catch (error) {
       addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
@@ -104,9 +119,15 @@ function Landing() {
   const executeRedeem = useCallback(
     async (sepResult: Sep24Result) => {
       try {
-        await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, walletAccount!,anchorSessionParams!.tokenConfig, addEvent);
+        await executeSpacewalkRedeem(
+          getEphemeralKeys().publicKey(),
+          sepResult.amount,
+          walletAccount!,
+          anchorSessionParams!.tokenConfig,
+          addEvent,
+        );
       } catch (error) {
-        console.log(error)
+        console.log(error);
         return;
       }
 
@@ -180,21 +201,20 @@ function Landing() {
     <div className="App">
       {backendError && (
         <div>
-           <h2 className="inputBox">Service is Down</h2>
-          <div className="general-service-error-message">
-            Please try again later or reload the page.
-          </div>
+          <h2 className="inputBox">Service is Down</h2>
+          <div className="general-service-error-message">Please try again later or reload the page.</div>
         </div>
       )}
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
-          <Sep24 
-              maxOfframpBalance={maxOfframpBalance} 
-              sessionParams={anchorSessionParams!} 
-              onSep24Complete={handleOnSep24Completed} 
-              setAnchorSessionParams={setAnchorSessionParams}
-              addEvent={addEvent} />
+          <Sep24
+            maxOfframpBalance={maxOfframpBalance}
+            sessionParams={anchorSessionParams!}
+            onSep24Complete={handleOnSep24Completed}
+            setAnchorSessionParams={setAnchorSessionParams}
+            addEvent={addEvent}
+          />
         </div>
       )}
       <div className="eventsContainer">
