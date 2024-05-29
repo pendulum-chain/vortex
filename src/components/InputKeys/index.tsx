@@ -17,6 +17,9 @@ import { To } from './To';
 import { useSwapForm } from '../Nabla/useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { Skeleton } from '../Skeleton';
+import {Tabs} from 'react-daisyui';
+
+const { RadioTab} = Tabs;
 interface InputBoxProps {
   onSubmit: (
     userSubstrateAddress: string,
@@ -74,11 +77,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     }
   }, [activeTab]);
 
-  const handleInnerClick = (e:any) => {
-    e.stopPropagation();
-    e.preventDefault();
-  };
-
   const {
     tokensModal: [modalType, setModalType],
     onFromChange,
@@ -113,6 +111,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     };
 
     initializeApiManager();
+    setActiveTab("swap")
+    setWantsSwap(true);
   }, []);
 
   // useEffect(() => {
@@ -272,36 +272,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             Offramp Asset
           </Card.Title>
         </div>
-        <div role="tablist" class="tabs tabs-lifted">
-        <FormProvider {...form}>
-          <input type="radio" name="my_tabs_2" id="direct" onClick={() => setActiveTab("direct")} role="tab" class="tab" aria-label="Direct Offramp" />
-          <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 bg-transparent"  onClick={handleInnerClick}>
-            <div className="input-container">
-              {api === null || isBalanceLoading ? (
-                <Loader />
-              ) : (
 
-                wantsSwap ? null : (  
-                <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                  <From
-                    offrampStarted={isSubmitted}
-                    tokenId={from}
-                    fromToken={fromToken}
-                    onOpenSelector={() => setModalType('from')}
-                    inputHasError={inputHasErrors}
-                    form={form}
-                    fromFormFieldName="fromAmount"
-                    fromTokenBalances={balances}
-                  />
-                  <div>{tokenOutData.error && !tokenOutData.error.includes("missing") && <p className="text-red-600">{tokenOutData.error}</p>}</div>
-                </Card>
-                )
-              )}
-            </div>
-          </div>
-          <input type="radio" name="my_tabs_2" id="swap" onClick={() => setActiveTab("swap")} role="tab" class="tab" aria-label="USDT offramp"  />
-          <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6 bg-transparent"  onClick={handleInnerClick}>
-            <div className="input-container">
+        <FormProvider {...form}>
+        <Tabs variant="boxed" size="md">
+          <RadioTab label="USDT Routed Offramp" checked={activeTab === "swap"}  onClick={() => setActiveTab("swap")}>
+          <div className="input-container">
               {api === null || isBalanceLoading ? (
                 <Loader />
               ) : (
@@ -336,10 +311,37 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
               </Card>
             ) : null
               )}
-            </div>
-          </div>
+            </div>          
+          </RadioTab>
+            
+          <RadioTab label="Direct Offramp" checked={activeTab === "direct"} onClick={() => setActiveTab("direct")}>
+            <div className="input-container">
+                  {api === null || isBalanceLoading ? (
+                    <Loader />
+                  ) : (
+                    wantsSwap ? null : (  
+                    <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                      <From
+                        offrampStarted={isSubmitted}
+                        tokenId={from}
+                        fromToken={fromToken}
+                        onOpenSelector={() => setModalType('from')}
+                        inputHasError={inputHasErrors}
+                        form={form}
+                        fromFormFieldName="fromAmount"
+                        fromTokenBalances={balances}
+                      />
+                      <div>{tokenOutData.error && !tokenOutData.error.includes("missing") && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                    </Card>
+                    )
+                  )}
+                </div>  
+          </RadioTab>
+          
+         </Tabs>
+
+        
           </FormProvider>
-        </div>
 
         {!(from === '') && !isSubmitted && walletAccount?.address ? (
           <Button className="mt-10" size="md" color="primary" onClick={handleSubmit}>
