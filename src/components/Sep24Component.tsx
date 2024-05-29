@@ -27,25 +27,36 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
 
   // we want this to run only once when the component mounts
   useEffect(() => {
-    const startProcess = () => {
-      if (sessionParams) {
-        sep24First(sessionParams, addEvent).then((response) => {
-          setSep24IntermediateValues(response);
-          iframeOpened(true);
-        });
-      }
-    };
-    if (!processStatus?.processStarted) {
-      startProcess();
-      setProcessStatus({
-        processStarted: true,
-        waitingSep24Second: false,
-      });
-    }
+    // const startProcess = () => {
+    //   if (sessionParams) {
+    //     sep24First(sessionParams, addEvent).then((response) => {
+    //       setSep24IntermediateValues(response);
+    //       iframeOpened(true);
+    //     });
+    //   }
+    // };
+    // if (!processStatus?.processStarted) {
+    //   startProcess();
+    //   setProcessStatus({
+    //     processStarted: true,
+    //     waitingSep24Second: false,
+    //   });
+    // }
   }, [sessionParams, addEvent, processStatus]);
 
   const onExternalWindowClicked = () => {
-    window.open(`${sep24IntermediateValues!.url}`, '_blank') 
+    if (sessionParams) {
+      sep24First(sessionParams, addEvent).then((response) => {
+        setProcessStatus({
+          processStarted: true,
+          waitingSep24Second: false,
+        });
+        window.open(`${response.url}`, '_blank') 
+        setSep24IntermediateValues(response);
+        iframeOpened(true);
+      });
+    }
+    
     setExternalWindowClicked(true);
   }
 
@@ -62,7 +73,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
 
   return (
     <div>
-      {iframe && (
+
         <div className="iframe-container">
           {!externalWindowClicked && (
                       <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked} >Enter bank details (New window).</Button>
@@ -71,7 +82,6 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
             <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>
           )}
         </div>
-      )}
     </div>
   );
 };
