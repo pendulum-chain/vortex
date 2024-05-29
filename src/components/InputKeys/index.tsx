@@ -60,22 +60,36 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
 
   const [ ss58Format, setSs58Format] = useState<number>(42);
   const [ api, setApi] = useState<ApiPromise | null>(null);
-  const [ wantsSwap, setWantsSwap] = useState<boolean>(false);
+  //const [ wantsSwap, setWantsSwap] = useState<boolean>(false);
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
   const [ activeTab, setActiveTab] = useState<"swap" | "direct">("direct");
+
+  useEffect(() => {
+    const initializeApiManager = async () => {
+      const manager = await getApiManagerInstance();
+      const { api, ss58Format } = await manager.getApiComponents();
+      setApi(api);
+      setSs58Format(ss58Format);
+    };
+
+    initializeApiManager();
+    setActiveTab("swap")
+  }, []);
 
   useEffect(() => {
     if (activeTab === "swap") {
       
       // force usdt selection
-      setWantsSwap(true);
+      //setWantsSwap(true);
       onFromChange(TOKEN_CONFIG.usdt);
     } else {
       // removes possible usdt selected
       form.setValue('from', '');
-      setWantsSwap(false);
+      //setWantsSwap(false);
     }
   }, [activeTab]);
+
+  const wantsSwap = activeTab === 'swap';
 
   const {
     tokensModal: [modalType, setModalType],
@@ -102,18 +116,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     form,
   });
 
-  useEffect(() => {
-    const initializeApiManager = async () => {
-      const manager = await getApiManagerInstance();
-      const { api, ss58Format } = await manager.getApiComponents();
-      setApi(api);
-      setSs58Format(ss58Format);
-    };
-
-    initializeApiManager();
-    setActiveTab("swap")
-    setWantsSwap(true);
-  }, []);
+  
 
   // useEffect(() => {
   //   if (from !== '') {
