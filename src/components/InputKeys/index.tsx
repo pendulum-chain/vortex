@@ -60,7 +60,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
 
   const [ss58Format, setSs58Format] = useState<number>(42);
   const [api, setApi] = useState<ApiPromise | null>(null);
-  //const [ wantsSwap, setWantsSwap] = useState<boolean>(false);
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
   const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
 
@@ -112,19 +111,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     slippage,
     form,
   });
-
-  // useEffect(() => {
-  //   if (from !== '') {
-  //     // if it's not offramp, we need to force wantsSwap state to be true
-  //     if (!TOKEN_CONFIG[from].isOfframp) {
-  //       setWantsSwap(true);
-  //       setCanOfframpDirectly(false);
-  //       return;
-  //     }
-  //   }
-  //   // unselected asset does not matter here. We don't yet want to show the swap option.
-  //   setCanOfframpDirectly(true);
-  // }, [from]);
 
   const handleSubmit = async () => {
     if (fromAmount === 0) {
