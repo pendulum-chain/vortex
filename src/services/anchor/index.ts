@@ -16,6 +16,7 @@ export interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
   tokenConfig: TokenDetails;
+  offrampAmount: string;
 }
 
 export interface Sep24Result {
@@ -129,6 +130,7 @@ export async function sep24First(
   // at this stage, assetCode should be defined, if the config is consistent.
   const sep24Params = new URLSearchParams({
     asset_code: sessionParams.tokenConfig.assetCode!,
+    amount: sessionParams.offrampAmount,
   });
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;

@@ -258,70 +258,71 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         </div>
 
         <FormProvider {...form}>
-          <Tabs variant="boxed" size="md">
-            <RadioTab label="USDT Routed Offramp" checked={activeTab === 'swap'} onClick={() => setActiveTab('swap')}>
-              <div className="input-container">
-                {api === null || isBalanceLoading ? (
-                  <Loader />
-                ) : (
-                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                    <From
-                      offrampStarted={isSubmitted}
-                      tokenId={from}
-                      fromToken={fromToken}
-                      onOpenSelector={() => setModalType('from')}
-                      inputHasError={inputHasErrors}
-                      form={form}
-                      fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
-                    />
-                    <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
-                    <div className="separator mt-10 mb-10"></div>
-                    <To
-                      tokenId={to}
-                      fromTokenBalances={balances}
-                      toToken={toToken}
-                      fromToken={fromToken}
-                      toAmountQuote={
-                        inputHasErrors
-                          ? { enabled: false, data: undefined, error: null, isLoading: false }
-                          : tokenOutData
-                      }
-                      onOpenSelector={() => setModalType('to')}
-                      fromAmount={fromAmount}
-                      slippage={slippage}
-                    />
-                  </Card>
-                )}
-              </div>
-            </RadioTab>
+        <Tabs variant="boxed" size="md">
+          <RadioTab label="USDT Routed Offramp" checked={activeTab === "swap"}  onClick={() => setActiveTab("swap")}>
+          <div className="input-container">
+              {api === null || isBalanceLoading ? (
+                <Loader />
+              ) : (
+                wantsSwap ? (  
+              <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                <From
+                  offrampStarted={isSubmitted}
+                  tokenId={from}
+                  fromToken={fromToken}
+                  onOpenSelector={() => setModalType('from')}
+                  inputHasError={inputHasErrors}
+                  form={form}
+                  fromFormFieldName="fromAmount"
+                  fromTokenBalances={balances}
+                />
+                <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                <div className="separator mt-10 mb-10"></div>
+                <To
+                  tokenId={to}
+                  fromTokenBalances={balances}
+                  toToken={toToken}
+                  fromToken={fromToken}
+                  toAmountQuote={
+                    inputHasErrors
+                      ? { enabled: false, data: undefined, error: null, isLoading: false }
+                      : tokenOutData
+                  }
+                  onOpenSelector={() => setModalType('to')}
+                  fromAmount={fromAmount}
+                  slippage={slippage}
+                />
+              </Card>
+            ) : null
+              )}
+            </div>          
+          </RadioTab>
 
-            <RadioTab label="Direct Offramp" checked={activeTab === 'direct'} onClick={() => setActiveTab('direct')}>
-              <div className="input-container">
-                {api === null || isBalanceLoading ? (
-                  <Loader />
-                ) : (
-                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                    <From
-                      offrampStarted={isSubmitted}
-                      tokenId={from}
-                      fromToken={fromToken}
-                      onOpenSelector={() => setModalType('from')}
-                      inputHasError={inputHasErrors}
-                      form={form}
-                      fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
-                    />
-                    <div>
-                      {tokenOutData.error && !tokenOutData.error.includes('missing') && (
-                        <p className="text-red-600">{tokenOutData.error}</p>
-                      )}
-                    </div>
-                  </Card>
-                )}
-              </div>
-            </RadioTab>
-          </Tabs>
+          <RadioTab label="Direct Offramp" checked={activeTab === "direct"} onClick={() => setActiveTab("direct")}>
+            <div className="input-container">
+                  {api === null || isBalanceLoading ? (
+                    <Loader />
+                  ) : (
+                    wantsSwap ? null : (  
+                    <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                      <From
+                        offrampStarted={isSubmitted}
+                        tokenId={from}
+                        fromToken={fromToken}
+                        onOpenSelector={() => setModalType('from')}
+                        inputHasError={inputHasErrors}
+                        form={form}
+                        fromFormFieldName="fromAmount"
+                        fromTokenBalances={balances}
+                      />
+                      <div>{tokenOutData.error && !tokenOutData.error.includes("missing") && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                    </Card>
+                    )
+                  )}
+                </div>  
+          </RadioTab>
+
+         </Tabs>
         </FormProvider>
 
         {!(from === '') && !isSubmitted && walletAccount?.address ? (

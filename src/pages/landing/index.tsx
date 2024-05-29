@@ -45,7 +45,6 @@ function Landing() {
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
   const [sep24Result, setSep24Result] = useState<Sep24Result | null>(null);
-  const [maxOfframpBalance, setMaxOfframpBalance] = useState<number>(0);
 
   // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
@@ -68,17 +67,21 @@ function Landing() {
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
     // perform swap if necessary
-    let availableBalanceToOfframp = maxBalanceFrom;
+    // if no swapping, the balance to offramp is the initial desired amount
+    // otherwise, it will be the obtained value from the swap.
+    let balanceToOfframp = swapOptions.amountIn;
     if (swapsFirst) {
-      availableBalanceToOfframp = await performSwap(
+      balanceToOfframp = await performSwap(
         { swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount! },
         addEvent,
       );
     }
-    setMaxOfframpBalance(availableBalanceToOfframp);
+        // truncate the value to 2 decimal places
+    const balanceToOfframpTruncated = Math.trunc(balanceToOfframp * 100) / 100
 
     const token = await sep10(values, addEvent);
-    setAnchorSessionParams({ token, tomlValues: values, tokenConfig });
+
+    setAnchorSessionParams({ token, tomlValues: values, tokenConfig, offrampAmount: balanceToOfframpTruncated.toString()});
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);
@@ -209,7 +212,6 @@ function Landing() {
       {showSep24 && (
         <div>
           <Sep24
-            maxOfframpBalance={maxOfframpBalance}
             sessionParams={anchorSessionParams!}
             onSep24Complete={handleOnSep24Completed}
             setAnchorSessionParams={setAnchorSessionParams}

@@ -5,7 +5,6 @@ import { EventStatus } from './GenericEvent';
 import { Button } from 'react-daisyui';
 import { sep10 } from '../services/anchor';
 interface Sep24Props {
-  maxOfframpBalance: number;
   sessionParams: IAnchorSessionParams | null;
   onSep24Complete: (sep24Reslt: Sep24Result) => void;
   setAnchorSessionParams: (params: IAnchorSessionParams) => void;
@@ -17,7 +16,7 @@ interface Sep24ProcessStatus {
   waitingSep24Second: boolean;
 }
 
-const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent, maxOfframpBalance }) => {
+const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent }) => {
   const [iframe, iframeOpened] = useState<boolean>(false);
   const [externalWindowClicked, setExternalWindowClicked] = useState<boolean>(false);
   const [sep24IntermediateValues, setSep24IntermediateValues] = useState<ISep24Intermediate | null>(null);
@@ -66,7 +65,7 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent,
       {iframe && (
         <div className="iframe-container">
           {!externalWindowClicked && (
-                      <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked} >Enter bank details (New window). Max offramp value is {maxOfframpBalance}</Button>
+                      <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked} >Enter bank details (New window).</Button>
           )}
           {externalWindowClicked && (
             <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>

@@ -66,7 +66,14 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
             return Promise.reject('Could not approve token');
         }
     }
-    
+    // balance before the swap
+    const responseBalanceBefore = (
+        await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
+    ).toHuman() as any;
+
+    const rawBalanceBefore = responseBalanceBefore?.free || '0';
+    const balanceBeforeBigDecimal = toBigNumber(rawBalanceBefore, assetOutDetails.decimals)
+
     // Try swap
     try{
         renderEvent(`Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${swap.initialDesired} ${assetOutDetails.assetCode.toUpperCase()} `, EventStatus.Waiting);
@@ -86,12 +93,15 @@ export async function performSwap({swap, userAddress, walletAccount}: PerformSwa
         await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
     ).toHuman() as any;
 
-    const rawBalance = responseBalanceAfter?.free || '0';
-    const actualBalanceBigDecimal = toBigNumber(rawBalance, assetOutDetails.decimals)
-    
-    renderEvent(`Swap successful. Amount available : ${actualBalanceBigDecimal}`, EventStatus.Success);
 
-    return actualBalanceBigDecimal.toNumber();
+    const rawBalanceAfter = responseBalanceAfter?.free || '0';
+    const balanceAfterBigDecimal = toBigNumber(rawBalanceAfter, assetOutDetails.decimals)
+
+    const actualOfframpValue = balanceAfterBigDecimal.sub(balanceBeforeBigDecimal)
+    
+    renderEvent(`Swap successful. Amount to offramp : ${actualOfframpValue}`, EventStatus.Success);
+
+    return actualOfframpValue.toNumber();
 }
 
 
