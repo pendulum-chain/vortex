@@ -17,9 +17,9 @@ import { To } from './To';
 import { useSwapForm } from '../Nabla/useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { Skeleton } from '../Skeleton';
-import {Tabs} from 'react-daisyui';
+import { Tabs } from 'react-daisyui';
 
-const { RadioTab} = Tabs;
+const { RadioTab } = Tabs;
 interface InputBoxProps {
   onSubmit: (
     userSubstrateAddress: string,
@@ -58,11 +58,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const { walletAccount } = useGlobalState();
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
-  const [ ss58Format, setSs58Format] = useState<number>(42);
-  const [ api, setApi] = useState<ApiPromise | null>(null);
+  const [ss58Format, setSs58Format] = useState<number>(42);
+  const [api, setApi] = useState<ApiPromise | null>(null);
   //const [ wantsSwap, setWantsSwap] = useState<boolean>(false);
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
-  const [ activeTab, setActiveTab] = useState<"swap" | "direct">("direct");
+  const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -73,19 +73,16 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     };
 
     initializeApiManager();
-    setActiveTab("swap")
+    setActiveTab('swap');
   }, []);
 
   useEffect(() => {
-    if (activeTab === "swap") {
-      
+    if (activeTab === 'swap') {
       // force usdt selection
-      //setWantsSwap(true);
       onFromChange(TOKEN_CONFIG.usdt);
     } else {
       // removes possible usdt selected
       form.setValue('from', '');
-      //setWantsSwap(false);
     }
   }, [activeTab]);
 
@@ -115,8 +112,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     slippage,
     form,
   });
-
-  
 
   // useEffect(() => {
   //   if (from !== '') {
@@ -246,7 +241,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         <PoolSelectorModal
           open={!!modalType}
           // pass this to the modal. I get error when defining object here
-          mode={ {type: modalType, swap: wantsSwap }}
+          mode={{ type: modalType, swap: wantsSwap }}
           onSelect={modalType === 'from' ? onFromChange : onToChange}
           selected={{
             type: 'token',
@@ -277,74 +272,71 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         </div>
 
         <FormProvider {...form}>
-        <Tabs variant="boxed" size="md">
-          <RadioTab label="USDT Routed Offramp" checked={activeTab === "swap"}  onClick={() => setActiveTab("swap")}>
-          <div className="input-container">
-              {api === null || isBalanceLoading ? (
-                <Loader />
-              ) : (
-                wantsSwap ? (  
-              <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                <From
-                  offrampStarted={isSubmitted}
-                  tokenId={from}
-                  fromToken={fromToken}
-                  onOpenSelector={() => setModalType('from')}
-                  inputHasError={inputHasErrors}
-                  form={form}
-                  fromFormFieldName="fromAmount"
-                  fromTokenBalances={balances}
-                />
-                <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
-                <div className="separator mt-10 mb-10"></div>
-                <To
-                  tokenId={to}
-                  fromTokenBalances={balances}
-                  toToken={toToken}
-                  fromToken={fromToken}
-                  toAmountQuote={
-                    inputHasErrors
-                      ? { enabled: false, data: undefined, error: null, isLoading: false }
-                      : tokenOutData
-                  }
-                  onOpenSelector={() => setModalType('to')}
-                  fromAmount={fromAmount}
-                  slippage={slippage}
-                />
-              </Card>
-            ) : null
-              )}
-            </div>          
-          </RadioTab>
-            
-          <RadioTab label="Direct Offramp" checked={activeTab === "direct"} onClick={() => setActiveTab("direct")}>
-            <div className="input-container">
-                  {api === null || isBalanceLoading ? (
-                    <Loader />
-                  ) : (
-                    wantsSwap ? null : (  
-                    <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                      <From
-                        offrampStarted={isSubmitted}
-                        tokenId={from}
-                        fromToken={fromToken}
-                        onOpenSelector={() => setModalType('from')}
-                        inputHasError={inputHasErrors}
-                        form={form}
-                        fromFormFieldName="fromAmount"
-                        fromTokenBalances={balances}
-                      />
-                      <div>{tokenOutData.error && !tokenOutData.error.includes("missing") && <p className="text-red-600">{tokenOutData.error}</p>}</div>
-                    </Card>
-                    )
-                  )}
-                </div>  
-          </RadioTab>
-          
-         </Tabs>
+          <Tabs variant="boxed" size="md">
+            <RadioTab label="USDT Routed Offramp" checked={activeTab === 'swap'} onClick={() => setActiveTab('swap')}>
+              <div className="input-container">
+                {api === null || isBalanceLoading ? (
+                  <Loader />
+                ) : (
+                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                    <From
+                      offrampStarted={isSubmitted}
+                      tokenId={from}
+                      fromToken={fromToken}
+                      onOpenSelector={() => setModalType('from')}
+                      inputHasError={inputHasErrors}
+                      form={form}
+                      fromFormFieldName="fromAmount"
+                      fromTokenBalances={balances}
+                    />
+                    <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                    <div className="separator mt-10 mb-10"></div>
+                    <To
+                      tokenId={to}
+                      fromTokenBalances={balances}
+                      toToken={toToken}
+                      fromToken={fromToken}
+                      toAmountQuote={
+                        inputHasErrors
+                          ? { enabled: false, data: undefined, error: null, isLoading: false }
+                          : tokenOutData
+                      }
+                      onOpenSelector={() => setModalType('to')}
+                      fromAmount={fromAmount}
+                      slippage={slippage}
+                    />
+                  </Card>
+                )}
+              </div>
+            </RadioTab>
 
-        
-          </FormProvider>
+            <RadioTab label="Direct Offramp" checked={activeTab === 'direct'} onClick={() => setActiveTab('direct')}>
+              <div className="input-container">
+                {api === null || isBalanceLoading ? (
+                  <Loader />
+                ) : (
+                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                    <From
+                      offrampStarted={isSubmitted}
+                      tokenId={from}
+                      fromToken={fromToken}
+                      onOpenSelector={() => setModalType('from')}
+                      inputHasError={inputHasErrors}
+                      form={form}
+                      fromFormFieldName="fromAmount"
+                      fromTokenBalances={balances}
+                    />
+                    <div>
+                      {tokenOutData.error && !tokenOutData.error.includes('missing') && (
+                        <p className="text-red-600">{tokenOutData.error}</p>
+                      )}
+                    </div>
+                  </Card>
+                )}
+              </div>
+            </RadioTab>
+          </Tabs>
+        </FormProvider>
 
         {!(from === '') && !isSubmitted && walletAccount?.address ? (
           <Button className="mt-10" size="md" color="primary" onClick={handleSubmit}>
