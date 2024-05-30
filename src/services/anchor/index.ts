@@ -150,7 +150,6 @@ export async function sep24First(
     throw new Error(`Unexpected SEP-24 type: ${type}`);
   }
 
-
   return { url, id };
 }
 

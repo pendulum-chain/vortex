@@ -31,5 +31,14 @@ export function NumberInput<SwapFormValues extends FieldValues>(attributes: Numb
     [onChange],
   );
 
-  return <input inputMode="numeric" type="text" {...attributesWithoutOnChange} {...attributes} disabled={disabled} onInput={onInput} />;
+  return (
+    <input
+      inputMode="numeric"
+      type="text"
+      {...attributesWithoutOnChange}
+      {...attributes}
+      disabled={disabled}
+      onInput={onInput}
+    />
+  );
 }

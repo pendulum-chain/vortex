@@ -1,5 +1,5 @@
 import { INumber } from '@polkadot/types-codec/types';
-import BigNumber from 'big.js'
+import BigNumber from 'big.js';
 import { Limits } from '@pendulum-chain/api-solang';
 import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
 import type { ApiPromise } from '@polkadot/api';
@@ -65,7 +65,6 @@ export function parseContractBalanceResponse(
   const rawBalanceBigInt = balanceResponse?.toBigInt();
   if (rawBalanceBigInt === undefined || decimals === undefined) return undefined;
 
-
   const rawBalanceString = rawBalanceBigInt.toString();
   const preciseBigDecimal = multiplyByPowerOfTen(new BigNumber(rawBalanceString), -decimals);
 
@@ -86,7 +85,6 @@ export function parseContractBalanceResponse(
   };
 }
 
-
 function roundDownToSignificantDecimals(big: BigNumber, decimals: number) {
   return big.prec(Math.max(0, big.e + 1) + decimals, 0);
 }
@@ -103,7 +101,6 @@ export function stringifyBigWithSignificantDecimals(big: BigNumber, decimals: nu
 
   return rounded.toFixed(significantDecimals, 0);
 }
-
 
 function multiplyByPowerOfTen(bigDecimal: BigNumber, power: number) {
   const newBigDecimal = new BigNumber(bigDecimal);

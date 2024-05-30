@@ -1,6 +1,6 @@
 import BigNumber from 'big.js';
 import { activeOptions, cacheKeys } from '../../constants/cache';
-import { routerAbi } from '../../contracts/Router'
+import { routerAbi } from '../../contracts/Router';
 import { ContractBalance, parseContractBalanceResponse } from '../../helpers/contracts';
 import { decimalToCustom, toBigNumber } from '../../helpers/parseNumbers';
 import { NABLA_ROUTER } from '../../constants/constants';
@@ -19,11 +19,11 @@ export type UseTokenOutAmountProps<FormFieldValues extends FieldValues> = {
   api: ApiPromise | null;
   walletAccount: WalletAccount | undefined;
   fromAmount: number | null;
-  fromToken: string ;
-  toToken: string ;
+  fromToken: string;
+  toToken: string;
   maximumFromAmount: BigNumber | undefined;
   slippage: number;
-  form: UseFormReturn<FormFieldValues>
+  form: UseFormReturn<FormFieldValues>;
 };
 
 export interface UseTokenOutAmountResult {
@@ -49,23 +49,35 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   toToken,
   maximumFromAmount,
   slippage,
-  form
+  form,
 }: UseTokenOutAmountProps<FormFieldValues>) {
   const { setError, clearErrors } = form;
 
   // Handle different errors either from form or parameters needed for the swap
-  const inputHasErrors =  form.formState.errors.fromAmount?.message !== undefined ;
+  const inputHasErrors = form.formState.errors.fromAmount?.message !== undefined;
   if (inputHasErrors) {
-    console.log("errors", form.formState.errors.fromAmount?.message)
-    return { isLoading: false, enabled: false, data: undefined, error: form.formState.errors.fromAmount?.message ?? "The specified swap cannot be performed at the moment", refetch: undefined };
+    console.log('errors', form.formState.errors.fromAmount?.message);
+    return {
+      isLoading: false,
+      enabled: false,
+      data: undefined,
+      error: form.formState.errors.fromAmount?.message ?? 'The specified swap cannot be performed at the moment',
+      refetch: undefined,
+    };
   }
 
-  if( !walletAccount){
-    return { isLoading: false, enabled: false, data: undefined, error: 'Wallet not connected', refetch: undefined }
+  if (!walletAccount) {
+    return { isLoading: false, enabled: false, data: undefined, error: 'Wallet not connected', refetch: undefined };
   }
 
-  if (fromToken === '' || toToken === '' || fromAmount === null  || api === null || !wantsSwap) {
-    return { isLoading: false, enabled: false, data: undefined, error: 'Required parameters are missing', refetch: undefined }
+  if (fromToken === '' || toToken === '' || fromAmount === null || api === null || !wantsSwap) {
+    return {
+      isLoading: false,
+      enabled: false,
+      data: undefined,
+      error: 'Required parameters are missing',
+      refetch: undefined,
+    };
   }
 
   const fromTokenDetails: TokenDetails = TOKEN_CONFIG[fromToken];
@@ -77,15 +89,20 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   // Even though we check for errors, due to possible delay in value update we need to check that the value is not
   // less than 1, or larger than e+20, since BigNumber.toString() will return scientific notation.
   // this is no error, but temporary empty return until the value gets properly updated.
-  if (debouncedAmountBigDecimal === undefined || debouncedAmountBigDecimal.lt(new BigNumber(1)) || debouncedAmountBigDecimal.e > 20) {
-    return { isLoading: false, enabled: false, data: undefined, error: '', refetch: undefined }
+  if (
+    debouncedAmountBigDecimal === undefined ||
+    debouncedAmountBigDecimal.lt(new BigNumber(1)) ||
+    debouncedAmountBigDecimal.e > 20
+  ) {
+    return { isLoading: false, enabled: false, data: undefined, error: '', refetch: undefined };
   }
 
-  const enabled = fromToken !== undefined &&
-                  toToken !== undefined &&
-                  debouncedAmountBigDecimal !== undefined &&
-                  debouncedAmountBigDecimal.gt(new BigNumber(0)) &&
-                  (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
+  const enabled =
+    fromToken !== undefined &&
+    toToken !== undefined &&
+    debouncedAmountBigDecimal !== undefined &&
+    debouncedAmountBigDecimal.gt(new BigNumber(0)) &&
+    (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
 
   const amountIn = debouncedAmountBigDecimal?.toString();
 
@@ -104,25 +121,29 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
         enabled,
       },
       parseSuccessOutput: (data) => {
-
         if (toToken === undefined || fromToken === undefined || debouncedAmountBigDecimal === undefined) {
           return undefined;
         }
         const amountOut = parseContractBalanceResponse(toTokenDetails.decimals, data[0]);
         const swapFee = parseContractBalanceResponse(toTokenDetails.decimals, data[1]);
 
-        // 
+        //
         const decimalDifference = fromTokenDetails.decimals - toTokenDetails.decimals;
-        let  effectiveExchangeRate;
+        let effectiveExchangeRate;
         if (decimalDifference > 0) {
           const decimalDiffCorrection = new BigNumber(10).pow(decimalDifference);
-          effectiveExchangeRate = amountOut.rawBalance.div(debouncedAmountBigDecimal).mul(decimalDiffCorrection).toString();
-        } else{
+          effectiveExchangeRate = amountOut.rawBalance
+            .div(debouncedAmountBigDecimal)
+            .mul(decimalDiffCorrection)
+            .toString();
+        } else {
           const decimalDiffCorrection = new BigNumber(10).pow(-decimalDifference);
-          effectiveExchangeRate = amountOut.rawBalance.div(debouncedAmountBigDecimal.mul(decimalDiffCorrection)).toString();
+          effectiveExchangeRate = amountOut.rawBalance
+            .div(debouncedAmountBigDecimal.mul(decimalDiffCorrection))
+            .toString();
         }
 
-        const minAmountOut = amountOut.approximateNumber * (1 - slippage/100);
+        const minAmountOut = amountOut.approximateNumber * (1 - slippage / 100);
 
         return {
           amountOut,

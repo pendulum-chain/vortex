@@ -10,7 +10,7 @@ import { SwapFormValues } from '../Nabla/schema';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { useBoolean } from '../../hooks/useBoolean';
 import { TokenDetails } from '../../constants/tokenConfig';
-import {BalanceInfo} from '../Nabla/BalanceState'; 
+import { BalanceInfo } from '../Nabla/BalanceState';
 
 export interface ToProps {
   tokenId: string;
@@ -20,7 +20,7 @@ export interface ToProps {
   toAmountQuote: UseTokenOutAmountResult;
   fromAmount: number | undefined;
   slippage: number;
-  fromTokenBalances: {[key: string]: BalanceInfo};
+  fromTokenBalances: { [key: string]: BalanceInfo };
 }
 
 export function To({
@@ -33,10 +33,10 @@ export function To({
   slippage,
   fromTokenBalances,
 }: ToProps): JSX.Element | null {
+  const toTokenBalance =
+    fromTokenBalances && tokenId && fromTokenBalances[tokenId] ? fromTokenBalances[tokenId].approximateNumber : 0;
 
-  const toTokenBalance = (fromTokenBalances && tokenId && fromTokenBalances[tokenId]) ? fromTokenBalances[tokenId].approximateNumber : 0;
-
-  // replace with use state 
+  // replace with use state
   const [isOpen, { toggle }] = useBoolean(true);
   const { setValue } = useFormContext<SwapFormValues>();
 
@@ -56,7 +56,7 @@ export function To({
             <NumberLoader />
           ) : toAmountQuote.data !== undefined ? (
             `${toAmountQuote.data.amountOut.approximateStrings.atLeast4Decimals}`
-          ) : fromAmount !== undefined && fromAmount > 0  ? (
+          ) : fromAmount !== undefined && fromAmount > 0 ? (
             <button
               type="button"
               onClick={() => toAmountQuote.refetch?.()}
@@ -76,8 +76,14 @@ export function To({
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            {toToken && (<img src={`/assets/coins/${toToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
-            {!toToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" /> }  
+            {toToken && (
+              <img
+                src={`/assets/coins/${toToken.assetCode.toUpperCase()}.png`}
+                alt="Pendulum"
+                className="h-full w-auto"
+              />
+            )}
+            {!toToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" />}
           </span>
           <strong className="font-bold">{toToken?.assetCode || 'Select'}</strong>
           <ChevronDownIcon className="w-4 h-4 inline ml-px" />
@@ -85,9 +91,7 @@ export function To({
       </div>
       <div className="flex justify-between items-center mt-1 dark:text-neutral-300 text-neutral-500">
         {/* <div className="text-sm mt-px">{toToken ? <NablaTokenPrice address={toToken.id} fallback="$ -" /> : '$ -'}</div> */}
-        <div className="flex gap-1 text-sm">
-          Your balance:{' '} {toTokenBalance}
-        </div>
+        <div className="flex gap-1 text-sm">Your balance: {toTokenBalance}</div>
       </div>
       <div className="mt-4 h-px -mx-4 bg-[rgba(0,0,0,0.15)]" />
       <div

@@ -25,25 +25,6 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
     waitingSep24Second: false,
   });
 
-  // we want this to run only once when the component mounts
-  useEffect(() => {
-    // const startProcess = () => {
-    //   if (sessionParams) {
-    //     sep24First(sessionParams, addEvent).then((response) => {
-    //       setSep24IntermediateValues(response);
-    //       iframeOpened(true);
-    //     });
-    //   }
-    // };
-    // if (!processStatus?.processStarted) {
-    //   startProcess();
-    //   setProcessStatus({
-    //     processStarted: true,
-    //     waitingSep24Second: false,
-    //   });
-    // }
-  }, [sessionParams, addEvent, processStatus]);
-
   const onExternalWindowClicked = () => {
     if (sessionParams) {
       sep24First(sessionParams, addEvent).then((response) => {
@@ -51,14 +32,14 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
           processStarted: true,
           waitingSep24Second: false,
         });
-        window.open(`${response.url}`, '_blank') 
+        window.open(`${response.url}`, '_blank');
         setSep24IntermediateValues(response);
         iframeOpened(true);
       });
     }
-    
+
     setExternalWindowClicked(true);
-  }
+  };
 
   const handleIframeCompletion = () => {
     // at this point setSep24IntermediateValues should not be null, as well as
@@ -73,15 +54,18 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
 
   return (
     <div>
-
-        <div className="iframe-container">
-          {!externalWindowClicked && (
-                      <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked} >Enter bank details (New window).</Button>
-          )}
-          {externalWindowClicked && (
-            <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>Start Offramping</Button>
-          )}
-        </div>
+      <div className="iframe-container">
+        {!externalWindowClicked && (
+          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked}>
+            Enter bank details (New window).
+          </Button>
+        )}
+        {externalWindowClicked && (
+          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>
+            Start Offramping
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

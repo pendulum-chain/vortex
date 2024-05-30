@@ -26,7 +26,6 @@ render(
         </GlobalStateProvider>
       </BrowserRouter>
     </ThemeProvider>
-  </QueryClientProvider>
-  ,
+  </QueryClientProvider>,
   document.getElementById('app') as HTMLElement,
 );

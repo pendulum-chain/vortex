@@ -57,7 +57,7 @@ export const config = {
       },
       deadline: {
         min: 1,
-        max: 1440, 
+        max: 1440,
       },
     },
   },
@@ -71,5 +71,4 @@ export const config = {
     url: 'wss://relay.walletconnect.com',
     projectId: '299fda67fbf3b60a31ba8695524534cd',
   },
-  
 };

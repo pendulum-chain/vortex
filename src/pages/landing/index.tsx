@@ -76,12 +76,17 @@ function Landing() {
         addEvent,
       );
     }
-        // truncate the value to 2 decimal places
-    const balanceToOfframpTruncated = Math.trunc(balanceToOfframp * 100) / 100
+    // truncate the value to 2 decimal places
+    const balanceToOfframpTruncated = Math.trunc(balanceToOfframp * 100) / 100;
 
     const token = await sep10(values, addEvent);
 
-    setAnchorSessionParams({ token, tomlValues: values, tokenConfig, offrampAmount: balanceToOfframpTruncated.toString()});
+    setAnchorSessionParams({
+      token,
+      tomlValues: values,
+      tokenConfig,
+      offrampAmount: balanceToOfframpTruncated.toString(),
+    });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);

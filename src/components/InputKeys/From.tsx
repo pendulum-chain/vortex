@@ -5,7 +5,7 @@ import { FieldPath, FieldValues, UseFormReturn, useFormContext } from 'react-hoo
 import pendulumIcon from '../../assets/pendulum-icon.svg';
 import { TokenDetails } from '../../constants/tokenConfig';
 import { AmountSelector } from './AmountSelector';
-import {BalanceInfo} from '../Nabla/BalanceState'; 
+import { BalanceInfo } from '../Nabla/BalanceState';
 import { SwapFormValues } from '../Nabla/schema';
 import { TokenBalance } from '../Nabla/TokenBalance';
 
@@ -16,7 +16,7 @@ interface FromProps<FormFieldValues extends FieldValues, TFieldName extends Fiel
   inputHasError: boolean;
   fromFormFieldName: TFieldName;
   form: UseFormReturn<FormFieldValues>;
-  fromTokenBalances: {[key: string]: BalanceInfo};
+  fromTokenBalances: { [key: string]: BalanceInfo };
   offrampStarted: boolean;
 }
 
@@ -28,7 +28,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
   fromFormFieldName,
   form,
   fromTokenBalances,
-  offrampStarted
+  offrampStarted,
 }: FromProps<FormFieldValues, TFieldName>) {
   const { setValue } = useFormContext<SwapFormValues>();
   const fromTokenBalance = tokenId ? fromTokenBalances[tokenId] : undefined;
@@ -54,8 +54,14 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            {fromToken && (<img src={`/assets/coins/${fromToken.assetCode.toUpperCase()}.png`} alt="Pendulum" className="h-full w-auto" />   )}
-            {!fromToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" /> }
+            {fromToken && (
+              <img
+                src={`/assets/coins/${fromToken.assetCode.toUpperCase()}.png`}
+                alt="Pendulum"
+                className="h-full w-auto"
+              />
+            )}
+            {!fromToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" />}
           </span>
           <strong className="font-bold">{fromToken?.assetCode || 'Select'}</strong>
           <ChevronDownIcon className="w-4 h-4 inline ml-px" />
@@ -72,7 +78,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
                 className="text-primary hover:underline"
                 onClick={() => {
                   if (fromTokenBalance.approximateNumber !== undefined) {
-                    setValue('fromAmount',(fromTokenBalance.approximateNumber*0.5).toString());
+                    setValue('fromAmount', (fromTokenBalance.approximateNumber * 0.5).toString());
                   }
                 }}
                 type="button"
@@ -83,7 +89,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
                 className="text-primary hover:underline"
                 onClick={() => {
                   if (fromTokenBalance.approximateNumber !== undefined) {
-                    setValue('fromAmount', (fromTokenBalance.approximateNumber).toString());
+                    setValue('fromAmount', fromTokenBalance.approximateNumber.toString());
                   }
                 }}
                 type="button"

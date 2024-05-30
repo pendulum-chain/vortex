@@ -1,4 +1,4 @@
-import { useState,  useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 
@@ -14,120 +14,116 @@ import { debounce } from '../../helpers/function';
 import { SwapSettings } from '../InputKeys';
 const storageSet = debounce(storageService.set, 1000);
 
-
 export const useSwapForm = () => {
+  const tokensModal = useState<undefined | 'from' | 'to'>();
+  const setTokenModal = tokensModal[1];
 
-    const tokensModal = useState<undefined | 'from' | 'to'>();
-    const setTokenModal = tokensModal[1];
-
-    const initialState = useMemo(() => {
+  const initialState = useMemo(() => {
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
     return {
-        from:  storageValues?.from ?? '',
-        to:  storageValues?.to ?? '',
-        slippage: getValidSlippage(storageValues?.slippage),
-        deadline: getValidDeadline(storageValues?.deadline ?? 0),
+      from: storageValues?.from ?? '',
+      to: storageValues?.to ?? '',
+      slippage: getValidSlippage(storageValues?.slippage),
+      deadline: getValidDeadline(storageValues?.deadline ?? 0),
     };
-    }, []);
+  }, []);
 
-    const form = useForm<SwapFormValues>({
+  const form = useForm<SwapFormValues>({
     resolver: yupResolver(schema) as Resolver<SwapFormValues>,
     defaultValues: initialState,
-    });
+  });
 
-    const { setValue, getValues, control } = form;
-    const from = useWatch({ control, name: 'from' });
-    const to = useWatch({ control, name: 'to' });
+  const { setValue, getValues, control } = form;
+  const from = useWatch({ control, name: 'from' });
+  const to = useWatch({ control, name: 'to' });
 
-    const fromToken = from?  TOKEN_CONFIG[from] : undefined;
-    const toToken = to? TOKEN_CONFIG[to]: undefined;
+  const fromToken = from ? TOKEN_CONFIG[from] : undefined;
+  const toToken = to ? TOKEN_CONFIG[to] : undefined;
 
-    const updateStorage = useCallback(
-        (newValues: Partial<SwapSettings>) => {
-          const prev = form.getValues();
-          const updated = {
-            slippage: prev.slippage || config.swap.defaults.slippage,
-            deadline: prev.deadline || config.swap.defaults.deadline,
-            ...newValues,
-          };
-          storageSet(storageKeys.SWAP_SETTINGS, updated);
-          return updated;
-        },
-        [form],
-      );
-    
-    const onFromChange = useCallback(
+  const updateStorage = useCallback(
+    (newValues: Partial<SwapSettings>) => {
+      const prev = form.getValues();
+      const updated = {
+        slippage: prev.slippage || config.swap.defaults.slippage,
+        deadline: prev.deadline || config.swap.defaults.deadline,
+        ...newValues,
+      };
+      storageSet(storageKeys.SWAP_SETTINGS, updated);
+      return updated;
+    },
+    [form],
+  );
+
+  const onFromChange = useCallback(
     (a: TokenDetails) => {
-        const f = a.assetCode;
-        const prev = form.getValues();
-        const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
+      const f = a.assetCode;
+      const prev = form.getValues();
+      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails]) => {
         return tokenDetails.assetCode === f;
-        })[0][0];
+      })[0][0];
 
-        const updated = {
-            from: tokenKey,
-            to: prev?.to === tokenKey ? prev?.from : prev?.to,
-        };
+      const updated = {
+        from: tokenKey,
+        to: prev?.to === tokenKey ? prev?.from : prev?.to,
+      };
 
-        if (updated.to && prev?.to === tokenKey) setValue('to', updated.to);
-        updateStorage(updated);
-        form.setValue('from', updated.from);
+      if (updated.to && prev?.to === tokenKey) setValue('to', updated.to);
+      updateStorage(updated);
+      form.setValue('from', updated.from);
 
-        setTokenModal(undefined);
+      setTokenModal(undefined);
     },
     [form, form.getValues, setTokenModal, form.setValue, updateStorage],
-    );
+  );
 
-    const onToChange = useCallback(
+  const onToChange = useCallback(
     (a: TokenDetails) => {
-        const f = a.assetCode;
-        const prev = form.getValues();
-        const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails])  => {
+      const f = a.assetCode;
+      const prev = form.getValues();
+      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails]) => {
         return tokenDetails.assetCode === f;
-        })[0][0];
-        const updated = {
+      })[0][0];
+      const updated = {
         to: tokenKey,
         from: prev?.from === tokenKey ? prev?.to : prev?.from,
-        };
-        updateStorage(updated);
-        if (updated.from && prev?.from !== updated.from) form.setValue('from', updated.from);
-        form.setValue('to', updated.to);
-        setTokenModal(undefined);
+      };
+      updateStorage(updated);
+      if (updated.from && prev?.from !== updated.from) form.setValue('from', updated.from);
+      form.setValue('to', updated.to);
+      setTokenModal(undefined);
     },
     [form, setTokenModal, updateStorage],
-    );
+  );
 
+  const fromAmountString = useWatch({
+    control,
+    name: 'fromAmount',
+    defaultValue: '0',
+  });
 
-    const fromAmountString = useWatch({
-        control,
-        name: 'fromAmount',
-        defaultValue: '0',
-    });
-    
-    const slippage = getValidSlippage(
+  const slippage = getValidSlippage(
     Number(
-        useWatch({
+      useWatch({
         control,
         name: 'slippage',
         defaultValue: config.swap.defaults.slippage,
-        }),
+      }),
     ),
-    );
+  );
 
-    const fromAmount = Number(fromAmountString);
-    
-    return {
-        form,
-        from,
-        to,
-        tokensModal,
-        onFromChange,
-        onToChange,
-        updateStorage,
-        fromAmount,
-        fromToken,
-        toToken,
-        slippage
-    }
+  const fromAmount = Number(fromAmountString);
 
-}
+  return {
+    form,
+    from,
+    to,
+    tokensModal,
+    onFromChange,
+    onToChange,
+    updateStorage,
+    fromAmount,
+    fromToken,
+    toToken,
+    slippage,
+  };
+};

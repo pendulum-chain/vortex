@@ -42,52 +42,51 @@ export function useContractRead<ReturnType>(
     parseError,
   }: UseContractReadProps<ReturnType>,
 ): UseContractReadResult<ReturnType> {
+  const contractAbi = useMemo(
+    () => (abi && api?.registry ? new Abi(abi, api.registry.getChainProperties()) : undefined),
+    [abi, api?.registry],
+  );
 
-    const contractAbi = useMemo(
-        () => (abi && api?.registry ? new Abi(abi, api.registry.getChainProperties()) : undefined),
-        [abi, api?.registry],
-    );
+  const actualWalletAddress = noWalletAddressRequired === true ? ALICE : walletAddress;
 
-    const actualWalletAddress = noWalletAddressRequired === true ? ALICE : walletAddress;
+  const enabled = !!contractAbi && queryOptions.enabled === true && !!address && !!api && !!actualWalletAddress;
 
-    const enabled = !!contractAbi && queryOptions.enabled === true && !!address && !!api && !!actualWalletAddress;
+  const queryKey = enabled ? key : emptyCacheKey;
+  const queryFn = async () => {
+    if (!enabled) return;
+    const limits = defaultReadLimits;
 
-    const queryKey = enabled ? key : emptyCacheKey;
-    const queryFn = async () => {
-        if (!enabled) return;
-        const limits = defaultReadLimits;
-
-        if (isDevelopment) {
-            console.log('read', 'Call message', address, method, args);
-        }
-
-        const response = await readMessage({
-            abi: contractAbi,
-            api,
-            contractDeploymentAddress: address,
-            callerAddress: actualWalletAddress,
-            messageName: method,
-            messageArguments: args || [],
-            limits,
-        });
-        
-        if (isDevelopment) {
-            console.log('read', 'Call message result', address, method, args, response);
-        }
-        if (response.type !== 'success') {
-            let message;
-            if (typeof parseError === 'string') {
-            message = parseError;
-            } else {
-            message = parseError(response as MessageCallErrorResult);
-            }
-            return Promise.reject(message);
-        }
-
-        return parseSuccessOutput(response.value);
+    if (isDevelopment) {
+      console.log('read', 'Call message', address, method, args);
     }
 
-    const query = useQuery<ReturnType | undefined, string>({...queryOptions, queryKey, queryFn, enabled, retry: false})  
+    const response = await readMessage({
+      abi: contractAbi,
+      api,
+      contractDeploymentAddress: address,
+      callerAddress: actualWalletAddress,
+      messageName: method,
+      messageArguments: args || [],
+      limits,
+    });
 
-    return query;
+    if (isDevelopment) {
+      console.log('read', 'Call message result', address, method, args, response);
     }
+    if (response.type !== 'success') {
+      let message;
+      if (typeof parseError === 'string') {
+        message = parseError;
+      } else {
+        message = parseError(response as MessageCallErrorResult);
+      }
+      return Promise.reject(message);
+    }
+
+    return parseSuccessOutput(response.value);
+  };
+
+  const query = useQuery<ReturnType | undefined, string>({ ...queryOptions, queryKey, queryFn, enabled, retry: false });
+
+  return query;
+}
