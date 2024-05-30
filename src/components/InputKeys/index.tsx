@@ -218,11 +218,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
 
   return (
     <div>
-      <div className="icons">
-        <img src={eurcSvg} className="icon" alt="EURC" />
-        <img src={arrowSvg} className="arrow" alt="Arrow" />
-        <img src={euroSvg} className="icon" alt="EURO" />
-      </div>
       <div>
         <PoolSelectorModal
           open={!!modalType}
