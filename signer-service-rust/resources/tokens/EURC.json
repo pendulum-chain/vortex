@@ -1,0 +1,7 @@
+{
+  "toml_url": "https://mykobo.co/.well-known/stellar.toml",
+  "asset_code": "EURC",
+  "asset_issuer": "GAQRF3UGHBT6JYQZ7YSUYCIYWAF4T2SAA5237Q5LIQYJOHHFAWDXZ7NM",
+  "vault_account_id": "6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm",
+  "min_withdrawal_amount": "10000000000000"
+}

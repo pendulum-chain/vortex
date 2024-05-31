@@ -1,0 +1,7 @@
+{
+  "toml_url": "https://ntokens.com/.well-known/stellar.toml",
+  "asset_code": "BRL",
+  "asset_issuer": "GDVKY2GU2DRXWTBEYJJWSFXIGBZV6AZNBVVSUHEPZI54LIS6BA7DVVSP",
+  "vault_account_id": "6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS",
+  "min_withdrawal_amount": "10000000000000"
+}
