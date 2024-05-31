@@ -3,11 +3,13 @@ use std::{
     net::SocketAddr,
     path::Path
 };
-use crate::config::{Error, get_env_port};
-use crate::config::Error::MissingServerPort;
+use crate::config::{Error, try_get_port_from_env};
+
+const SERVER_HOST:&str = "SERVER_HOST";
+const SERVER_PORT:&str = "SERVER_PORT";
 
 const DEFAULT_SERVER_HOST:&str = "127.0.0.1";
-const DEFAULT_SERVER_PORT:u16 = 3000;
+const DEFAULT_SERVER_PORT:u16 = 3001;
 
 /// Holds the address of our server
 #[derive(Debug)]
@@ -26,10 +28,10 @@ impl Default for ServerConfig {
 }
 
 impl ServerConfig {
-    pub fn from_env() -> Result<Self,Error> {
+    pub(super) fn try_from_env() -> Result<Self,Error> {
         Ok(ServerConfig {
-            host: env::var("SERVER_HOST").map_err(|_| Error::MissingServerHost)?,
-            port: get_env_port("SERVER_PORT", MissingServerPort)?
+            host: env::var(SERVER_HOST).map_err(|_| Error::MissingServerHost)?,
+            port: try_get_port_from_env(SERVER_PORT, Error::MissingServerPort)?
         })
     }
 
@@ -46,7 +48,7 @@ impl ServerConfig {
         // Parse the socket address
        address.parse()
             .map_err(|e| {
-                tracing::error!("Failed to parse address {address}: {e:?}");
+                tracing::error!("‼️{:<3} - Parsing Server Address:{address}: {e:?}", "FAILED");
                 Error::ParseFailed("server address".to_string())
             })
     }

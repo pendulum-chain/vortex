@@ -12,5 +12,8 @@ pub enum Error {
     MissingDatabaseUser,
     MissingDatabasePassword,
 
+    MissingStellarSecretKey,
+    MissingStellarNetworkIdentifier,
+    CreateWalletFailed,
     ParseFailed(String)
 }

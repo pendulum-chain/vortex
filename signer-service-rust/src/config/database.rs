@@ -1,8 +1,12 @@
 use std::env;
 use std::fmt::{Debug, Formatter};
 use deadpool_diesel::Manager;
-use crate::config::{Error, get_env_port};
-use crate::infra;
+use crate::config::{Error, try_get_port_from_env};
+
+const DATABASE_HOST:&str = "DATABASE_HOST";
+const DATABASE_PORT:&str = "DATABASE_PORT";
+const POSTGRES_USER:&str = "POSTGRES_USER";
+const POSTGRES_PASSWORD:&str = "POSTGRES_PASSWORD";
 
 pub struct DatabaseConfig {
     host: String,
@@ -26,12 +30,12 @@ impl Debug for DatabaseConfig {
 }
 
 impl DatabaseConfig {
-    pub fn from_env() -> Result<Self,Error> {
+    pub(super) fn try_from_env() -> Result<Self,Error> {
         Ok(DatabaseConfig{
-            host: env::var("DATABASE_HOST").map_err(|_| Error::MissingDatabaseHost)?,
-            port: get_env_port("DATABASE_PORT",Error::MissingDatabasePort)?,
-            user: env::var("POSTGRES_USER").map_err(|_| Error::MissingDatabaseUser)?,
-            pass: env::var("POSTGRES_PASSWORD").map_err(|_| Error::MissingDatabaseUser)?
+            host: env::var(DATABASE_HOST).map_err(|_| Error::MissingDatabaseHost)?,
+            port: try_get_port_from_env(DATABASE_PORT,Error::MissingDatabasePort)?,
+            user: env::var(POSTGRES_USER).map_err(|_| Error::MissingDatabaseUser)?,
+            pass: env::var(POSTGRES_PASSWORD).map_err(|_| Error::MissingDatabaseUser)?
         })
     }
 
