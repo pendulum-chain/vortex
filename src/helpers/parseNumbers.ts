@@ -1,5 +1,5 @@
 import { u128 } from '@polkadot/types-codec';
-import BigNumber from 'bn.js';
+import BigNumber from 'big.js';
 
 // These are the decimals used for the native currency on the Amplitude network
 export const ChainDecimals = 12;
@@ -19,7 +19,18 @@ export const decimalToNative = (value: BigNumber | number | string) => {
   } catch (error) {
     bigIntValue = new BigNumber(0);
   }
-  const multiplier = new BigNumber(10).pow(new BigNumber(ChainDecimals));
+  const multiplier = new BigNumber(10).pow(ChainDecimals);
+  return bigIntValue.mul(multiplier);
+};
+
+export const decimalToCustom = (value: BigNumber | number | string, decimals: number) => {
+  let bigIntValue;
+  try {
+    bigIntValue = new BigNumber(value);
+  } catch (error) {
+    bigIntValue = new BigNumber(0);
+  }
+  const multiplier = new BigNumber(10).pow(decimals);
   return bigIntValue.mul(multiplier);
 };
 
@@ -35,7 +46,7 @@ export const decimalToStellarNative = (value: BigNumber | number | string) => {
   } catch (error) {
     bigIntValue = new BigNumber(0);
   }
-  const multiplier = new BigNumber(10).pow(new BigNumber(StellarDecimals));
+  const multiplier = new BigNumber(10).pow(StellarDecimals);
   return bigIntValue.mul(multiplier);
 };
 
@@ -49,6 +60,7 @@ export const stringDecimalToBN = (value: string, chainDecimals: number) => {
   let [whole, decimal] = value.split('.');
   decimal = decimal || '0';
 
+  //TODO this may not be needed now that we go back to big.js
   // pad the decimal part
   while (decimal.length < chainDecimals) {
     decimal += '0';
@@ -71,7 +83,7 @@ export const stringDecimalToBN = (value: string, chainDecimals: number) => {
 
 export const fixedPointToDecimal = (value: BigNumber | number | string) => {
   const bigIntValue = new BigNumber(value);
-  const divisor = new BigNumber(10).pow(new BigNumber(FixedU128Decimals));
+  const divisor = new BigNumber(10).pow(FixedU128Decimals);
 
   return bigIntValue.div(divisor);
 };
@@ -82,15 +94,26 @@ export const nativeToDecimal = (value: BigNumber | number | string | u128) => {
     value = new BigNumber(value.toString().replaceAll(',', ''));
   }
   const bigIntValue = new BigNumber(value);
-  const divisor = new BigNumber(10).pow(new BigNumber(ChainDecimals));
+  const divisor = new BigNumber(10).pow(ChainDecimals);
 
   return bigIntValue.div(divisor);
 };
 
 export const nativeStellarToDecimal = (value: BigNumber | number | string) => {
   const bigIntValue = new BigNumber(value);
-  const divisor = new BigNumber(10).pow(new BigNumber(StellarDecimals));
+  const divisor = new BigNumber(10).pow(StellarDecimals);
 
+  return bigIntValue.div(divisor);
+};
+
+export const toBigNumber = (value: BigNumber | number | string, decimals: number) => {
+  if (typeof value === 'string' || value instanceof u128) {
+    // Replace the unnecessary ',' with '' to prevent BigNumber from throwing an error
+    value = new BigNumber(value.toString().replaceAll(',', ''));
+  }
+  const bigIntValue = new BigNumber(value);
+
+  const divisor = new BigNumber(10).pow(decimals);
   return bigIntValue.div(divisor);
 };
 

@@ -16,14 +16,14 @@ export async function executeSpacewalkRedeem(
   tokenConfig: TokenDetails,
   renderEvent: (event: string, status: EventStatus) => void,
 ) {
-  console.log('Executing Spacewalk redeem');
-
   const pendulumApiComponents = await new ApiManager().getApiComponents();
   // Query all available vaults for the currency
   // we give priority again to the hex string, since we know the vault will match against this value
   // in case the asset is represented as this if the asset is 3 letter.
   const assetCodeOrHex = tokenConfig.assetCodeHex || tokenConfig.assetCode;
-  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, assetCodeOrHex);
+
+  // One of these two values must exist
+  const vaultsForCurrency = await getVaultsForCurrency(pendulumApiComponents.api, assetCodeOrHex!);
   if (vaultsForCurrency.length === 0) {
     throw new Error(`No vaults found for currency ${assetCodeOrHex}`);
   }
@@ -68,11 +68,9 @@ export async function executeSpacewalkRedeem(
     `Redeem request passed, waiting up to ${maxWaitingTimeMin} minutes for redeem execution event...`,
     EventStatus.Waiting,
   );
-  console.log(`Waiting up to ${maxWaitingTimeMin} minutes for redeem execution event...`);
 
   try {
     const redeemEvent = await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
-    console.log(`Successfully redeemed ${redeemEvent.amount} tokens for vault ${prettyPrintVaultId(targetVaultId)}`);
   } catch (error) {
     // This is a potentially recoverable error (due to network delay)
     // in the future we should distinguish between recoverable and non-recoverable errors
