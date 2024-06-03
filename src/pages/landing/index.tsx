@@ -1,9 +1,11 @@
 import '../../../App.css';
 import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
+import { SwapOptions } from '../../components/InputKeys';
+
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
-import { fetchTomlValues, sep10, IAnchorSessionParams, Sep24Result, getEphemeralKeys } from '../../services/anchor';
+import { fetchTomlValues, IAnchorSessionParams, Sep24Result, getEphemeralKeys, sep10 } from '../../services/anchor';
 import {
   setUpAccountAndOperations,
   StellarOperations,
@@ -16,6 +18,7 @@ import { useCallback } from 'preact/compat';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
+import { performSwap } from '../../services/nabla';
 
 enum OperationStatus {
   Idle,
@@ -51,15 +54,39 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = async (userSubstrateAddress: string, selectedAsset: string) => {
+  const handleOnSubmit = async (
+    userSubstrateAddress: string,
+    swapsFirst: boolean,
+    selectedAsset: string,
+    swapOptions: SwapOptions,
+    maxBalanceFrom: number,
+  ) => {
     setUserAddress(userSubstrateAddress);
 
-    const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset]
-    const values = await fetchTomlValues(tokenConfig.tomlFileUrl);
+    const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset];
+    const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
+
+    // perform swap if necessary
+    // if no swapping, the balance to offramp is the initial desired amount
+    // otherwise, it will be the obtained value from the swap.
+    let balanceToOfframp = swapOptions.amountIn;
+    if (swapsFirst) {
+      balanceToOfframp = await performSwap(
+        { swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount! },
+        addEvent,
+      );
+    }
+    // truncate the value to 2 decimal places
+    const balanceToOfframpTruncated = Math.trunc(balanceToOfframp * 100) / 100;
+
     const token = await sep10(values, addEvent);
 
-    setAnchorSessionParams({ token, tomlValues: values, tokenConfig  });
-
+    setAnchorSessionParams({
+      token,
+      tomlValues: values,
+      tokenConfig,
+      offrampAmount: balanceToOfframpTruncated.toString(),
+    });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);
@@ -68,7 +95,6 @@ function Landing() {
   const handleOnSep24Completed = async (result: Sep24Result) => {
     setShowSep24(false);
 
-    console.log('SEP24 Result', result);
     // log the result
     addEvent(
       `SEP24 completed, amount: ${result.amount}, memo: ${result.memo}, offramping account: ${result.offrampingAccount}`,
@@ -79,7 +105,13 @@ function Landing() {
     // set up the ephemeral account and operations we will later neeed
     try {
       addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(fundingPK!, result, getEphemeralKeys(), anchorSessionParams!.tokenConfig, addEvent);
+      const operations = await setUpAccountAndOperations(
+        fundingPK!,
+        result,
+        getEphemeralKeys(),
+        anchorSessionParams!.tokenConfig,
+        addEvent,
+      );
       setStellarOperations(operations);
     } catch (error) {
       addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
@@ -95,11 +127,18 @@ function Landing() {
   const executeRedeem = useCallback(
     async (sepResult: Sep24Result) => {
       try {
-        await executeSpacewalkRedeem(getEphemeralKeys().publicKey(), sepResult.amount, walletAccount!,anchorSessionParams!.tokenConfig, addEvent);
+        await executeSpacewalkRedeem(
+          getEphemeralKeys().publicKey(),
+          sepResult.amount,
+          walletAccount!,
+          anchorSessionParams!.tokenConfig,
+          addEvent,
+        );
       } catch (error) {
-        console.log(error)
+        console.log(error);
         return;
       }
+
       addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
 
       //this will trigger finalizeOfframp
@@ -170,16 +209,19 @@ function Landing() {
     <div className="App">
       {backendError && (
         <div>
-           <h2 className="inputBox">Service is Down</h2>
-          <div className="general-service-error-message">
-            Please try again later or reload the page.
-          </div>
+          <h2 className="inputBox">Service is Down</h2>
+          <div className="general-service-error-message">Please try again later or reload the page.</div>
         </div>
       )}
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
-          <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />
+          <Sep24
+            sessionParams={anchorSessionParams!}
+            onSep24Complete={handleOnSep24Completed}
+            setAnchorSessionParams={setAnchorSessionParams}
+            addEvent={addEvent}
+          />
         </div>
       )}
       <div className="eventsContainer">

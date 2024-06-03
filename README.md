@@ -41,7 +41,9 @@ matter what URL the browser requests.
 
 ## Env Variables
 
-`VITE_SIGNING_SERVICE_URL`: Optional variable to point to a specific signing backend service URL. If undefined, it will default to either:
+`VITE_SIGNING_SERVICE_URL`: Optional variable to point to a specific signing backend service URL. If undefined, it will
+default to either:
+
 - http://localhost:3000 (if in development mode)
 - https://prototype-signer-service.pendulumchain.tech (if in production mode)
 

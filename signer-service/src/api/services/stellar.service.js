@@ -19,11 +19,10 @@ const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetCode) {
-
   const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
   if (tokenConfig === undefined) {
-    console.error("ERROR: Invalid asset id or configuration not found");
-    throw new Error("Invalid asset id or configuration not found");
+    console.error('ERROR: Invalid asset id or configuration not found');
+    throw new Error('Invalid asset id or configuration not found');
   }
 
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
@@ -66,24 +65,31 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
   };
 }
 
-async function buildPaymentAndMergeTx(fundingSecret, ephemeralAccountId, ephemeralSequence, paymentData, maxTime, assetCode) {
+async function buildPaymentAndMergeTx(
+  fundingSecret,
+  ephemeralAccountId,
+  ephemeralSequence,
+  paymentData,
+  maxTime,
+  assetCode,
+) {
   const ephemeralAccount = new Account(ephemeralAccountId, ephemeralSequence);
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
   const { amount, memo, memoType, offrampingAccount } = paymentData;
 
   const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
   if (tokenConfig === undefined) {
-    throw new Error("Invalid asset id or configuration not found");
+    throw new Error('Invalid asset id or configuration not found');
   }
 
   let transactionMemo;
   switch (memoType) {
-    case "text":
+    case 'text':
       transactionMemo = Memo.text(memo);
       break;
 
-    case "hash":
-      transactionMemo = Memo.hash(Buffer.from(memo, "base64"));
+    case 'hash':
+      transactionMemo = Memo.hash(Buffer.from(memo, 'base64'));
       break;
 
     default:
