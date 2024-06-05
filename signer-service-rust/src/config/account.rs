@@ -1,7 +1,8 @@
 use std::env;
 use std::fmt::{Debug, Formatter};
-use substrate_stellar_sdk::{SecretKey, StellarTypeToString};
-use tracing::{error, warn};
+use substrate_stellar_sdk::{PublicKey, SecretKey, Transaction};
+use substrate_stellar_sdk::network::{Network, PUBLIC_NETWORK, TEST_NETWORK};
+use tracing::error;
 use wallet::StellarWallet;
 use crate::config::Error;
 use crate::utils::public_key_as_string;
@@ -9,21 +10,22 @@ use crate::utils::public_key_as_string;
 const STELLAR_SECRET_KEY:&str = "STELLAR_SECRET_KEY";
 const STELLAR_PUBLIC_NETWORK:&str = "STELLAR_PUBLIC_NETWORK";
 
-pub struct WalletConfig {
+#[derive(Clone)]
+pub struct AccountConfig {
     secret:SecretKey,
     is_public_network: bool
 }
 
-impl Debug for WalletConfig {
+impl Debug for AccountConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WalletConfig")
+        f.debug_struct("AccountConfig")
             .field("secret", &"******")
             .field("is_public_network", &self.is_public_network)
             .finish()
     }
 }
 
-impl WalletConfig {
+impl AccountConfig {
     pub(super) fn try_from_env() -> Result<Self,Error> {
         let secret = env::var("STELLAR_SECRET_KEY").map_err(|_| Error::MissingStellarSecretKey)?;
         let secret = SecretKey::from_encoding(&secret)
@@ -39,7 +41,7 @@ impl WalletConfig {
                 Error::ParseFailed("stellar public network".to_string())
             })?;
 
-        Ok(WalletConfig {
+        Ok(AccountConfig {
             secret,
             is_public_network,
         })
@@ -49,6 +51,51 @@ impl WalletConfig {
         public_key_as_string(self.secret.get_public())
     }
 
+    pub fn public_key(&self) -> PublicKey {
+        self.public_key()
+    }
+    
+    pub fn network(&self) -> &Network {
+        if self.is_public_network {
+            &PUBLIC_NETWORK
+        } else {
+            &TEST_NETWORK
+        }
+    }
+
+    /// Returns a signature OR the Vec<u8> version of the signature
+    pub fn create_base64_signature(
+        &self,
+        tx:Transaction
+    ) -> Result<String,Error> {
+        let x = tx.into_transaction_envelope();
+        let res = x.create_base64_signature(
+            self.network(),
+            &self.secret
+        );
+
+        String::from_utf8(res.clone())
+            .map_err(|e| {
+                error!("⚠️{:<3} - converting Vec<u8> to base64 signature: {e:?}\n", "FAILED");
+                Error::ParseFailed("base64 signature".to_string())
+            })
+    }
+
+    pub async fn get_sequence(&self) -> Result<i64,Error> {
+        let pub_key = self.public_key_as_str();
+
+        let wallet = StellarWallet::from_secret_key(self.secret.clone(),self.is_public_network)
+            .map_err(|e|{
+                error!("⚠️{:<3} - creating wallet of {pub_key}: {e:?}\n", "FAILED");
+                Error::CreateWalletFailed
+            })?;
+
+        wallet.get_sequence().await.map_err(|e|{
+            error!("⚠️{:<3} - retrieving next sequence of {pub_key}: {e:?}\n", "FAILED");
+            Error::CreateWalletFailed
+        })
+    }
+
     pub fn create_wallet(&self) -> Result<StellarWallet,Error> {
         StellarWallet::from_secret_key(self.secret.clone(), self.is_public_network)
             .map_err(|e| {
@@ -56,4 +103,5 @@ impl WalletConfig {
                 Error::CreateWalletFailed
             })
     }
+
 }

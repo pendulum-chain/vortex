@@ -1,7 +1,7 @@
 mod config;
 pub mod infra;
 mod api;
-mod domain;
+pub mod domain;
 pub mod utils;
 
 use axum::Router;
@@ -14,7 +14,7 @@ use tracing_subscriber::{
     util::SubscriberInitExt
 };
 use wallet::StellarWallet;
-use crate::api::routes::status;
+use crate::api::routes::{v1_routes};
 
 pub struct State;
 #[tokio::main]
@@ -23,16 +23,15 @@ async fn main() {
 
     let config = config::Config::try_from_env_file(".env").unwrap();
     let server_addr = config.server_config().socket_address().unwrap();
-    let wallet = config.wallet_config().create_wallet().unwrap();
 
+    let account_cfg = config.account_config();
+    let wallet = account_cfg.create_wallet().unwrap();
 
     let listener = tokio::net::TcpListener::bind(server_addr).await.unwrap();
     info!("🚀{:<3} - {:?}\n", "LISTENING", listener.local_addr());
 
-    let routes = Router::new().route("/", get(root))
-        .route("/status", get(status))
-        .with_state(wallet);
-    axum::serve(listener,routes).await.unwrap();
+
+    axum::serve(listener,v1_routes(account_cfg)).await.unwrap();
 }
 
 async fn root() -> &'static str {

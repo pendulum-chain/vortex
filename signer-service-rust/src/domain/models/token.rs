@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use substrate_stellar_sdk::{Asset, PublicKey};
 use substrate_stellar_sdk::types::{AlphaNum12, AlphaNum4};
 
-use tracing::{error, warn};
+use tracing::error;
 use crate::domain::models::Error;
 
 #[derive(Debug, Serialize,Deserialize)]
@@ -15,6 +15,7 @@ pub struct Token {
 }
 
 impl Token {
+    /// Returns a Token by reading from a json file
     pub fn try_from_path(path: &str) -> Result<Self,Error> {
         let read_file = std::fs::read_to_string(path)
             .map_err(|e| {
@@ -33,6 +34,8 @@ impl Token {
             })
     }
 
+    /// Returns a Token based on a supported asset_code
+    /// todo: read from database next time
     pub fn try_by_asset_code(asset_code:&str) -> Result<Self,Error> {
         let asset_code = asset_code.to_uppercase();
         let path = format!("./resources/tokens/{asset_code}.json");
@@ -66,18 +69,25 @@ impl Token {
     }
 
     pub fn get_asset_type(&self) -> Result<Asset,Error> {
+        let _asset_code = self.asset_code.as_bytes();
         Ok(
             if self.asset_code.len() <= 4 {
+                let mut asset_code = [0; 4];
+                asset_code[.._asset_code.len()].copy_from_slice(_asset_code);
+
                 Asset::AssetTypeCreditAlphanum4(
                     AlphaNum4 {
-                        asset_code: self.asset_code.clone().into(),
+                        asset_code,
                         issuer: self.asset_issuer()?
                     }
                 )
             } else {
+                let mut asset_code = [0; 12];
+                asset_code[.._asset_code.len()].copy_from_slice(_asset_code);
+
                 Asset::AssetTypeCreditAlphanum12(
                     AlphaNum12 {
-                        asset_code: self.asset_code.clone().into(),
+                        asset_code,
                         issuer: self.asset_issuer()?,
                     }
                 )

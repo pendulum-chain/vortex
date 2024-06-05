@@ -1,7 +1,6 @@
 use std::{
-    env::{self, VarError},
+    env,
     net::SocketAddr,
-    path::Path
 };
 use crate::config::{Error, try_get_port_from_env};
 

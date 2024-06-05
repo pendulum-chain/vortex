@@ -1,14 +1,13 @@
 mod server;
 mod database;
 mod error;
-mod wallet;
+mod account;
 
 use std::env;
-use serde_json::error::Category::Data;
 pub use server::ServerConfig;
 pub use database::DatabaseConfig;
+pub use account::AccountConfig;
 pub use error::Error;
-use crate::config::wallet::WalletConfig;
 
 use tracing::error;
 
@@ -16,7 +15,7 @@ use tracing::error;
 pub struct Config {
     server:ServerConfig,
     database: DatabaseConfig,
-    wallet: WalletConfig
+    account: AccountConfig
 }
 
 impl Config {
@@ -30,7 +29,7 @@ impl Config {
         Ok(Config {
             server: ServerConfig::try_from_env()?,
             database: DatabaseConfig::try_from_env()?,
-            wallet: WalletConfig::try_from_env()?
+            account: AccountConfig::try_from_env()?
         })
     }
 
@@ -42,7 +41,7 @@ impl Config {
         &self.database
     }
 
-    pub fn wallet_config(&self) -> &WalletConfig { &self.wallet }
+    pub fn account_config(&self) -> AccountConfig { self.account.clone() }
 }
 
 #[doc(hidden)]
