@@ -2,10 +2,11 @@ use substrate_stellar_sdk::{Asset, Memo, Operation, PublicKey, TimeBounds, Trans
 use substrate_stellar_sdk::types::{ChangeTrustAsset, Preconditions};
 use tracing::error;
 use crate::api::Error;
-use crate::domain::models::Token;
 
 const BASE_FEE:u32 = 1000000;
 
+#[doc(hidden)]
+/// A helper macro to convert [`substrate_stellar_sdk::StellarSdkError`] to [`Error::OperationError`]
 macro_rules! operation_with_custom_err {
     ($op:expr, $op_str:expr) => {
         $op.map_err(|e| {
@@ -17,8 +18,9 @@ macro_rules! operation_with_custom_err {
 }
 
 pub(super) use operation_with_custom_err;
+use crate::infra::Token;
 
-/// Basic transaction without any operations yet
+/// Returns a basic [`Transaction`] WITHOUT any operations yet
 pub(super) fn create_transaction_no_operations(
     source_account: PublicKey,
     next_sequence: i64,
@@ -47,7 +49,7 @@ pub(super) fn change_trust_operation(token:&Token) -> Result<Operation,Error> {
    )
 }
 pub(super) fn asset_to_change_trust_asset_type(token:&Token) -> Result<ChangeTrustAsset,Error> {
-    token.get_asset_type().map(|asset| match asset {
+    token.asset_type().map(|asset| match asset {
         Asset::AssetTypeCreditAlphanum4(res) =>
             ChangeTrustAsset::AssetTypeCreditAlphanum4(res),
         Asset::AssetTypeCreditAlphanum12(res) =>

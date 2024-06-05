@@ -1,8 +1,13 @@
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Error {
     InternalServerError,
     NotFound,
-    PoolError
+    PoolError,
 
+    TokenDoesNotExist,
+    DoesNotExist(String),
+    EncodingFailed(String),
+    SerdeError(String),
 }

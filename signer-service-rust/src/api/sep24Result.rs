@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use substrate_stellar_sdk::{Memo, PublicKey, StroopAmount};
 use substrate_stellar_sdk::compound_types::LimitedString;
 use tracing::error;
-use crate::domain::models::Error;
+use crate::api::Error;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Sep24Result {
     pub amount: i64,
@@ -18,7 +18,10 @@ impl Sep24Result {
     pub fn amount(&self) -> StroopAmount {
         StroopAmount(self.amount)
     }
-    
+
+    /// returns a [`Memo`] from the fields [`self.memo`] and [`self.memo_type`].
+    /// [`self.memo_type`] can be a numeric String value
+    /// derived from [`substrate_stellar_sdk::types::MemoType`]
     pub fn memo(&self) -> Result<Memo,Error>{
         let memo_type = self.memo_type.to_lowercase();
 
@@ -45,13 +48,13 @@ impl Sep24Result {
             }
         }
     }
-    
-    pub fn offramping_account(&self) -> Result<PublicKey,Error> {
+
+    /// returns offramping_account as [`PublicKey`]
+    pub fn offramping_account_id(&self) -> Result<PublicKey,Error> {
         PublicKey::from_encoding(&self.offramping_account).map_err(|e| {
             error!("‼️{:<3} - Encoding offramping account {}: {e:?}", "FAILED", self.offramping_account);
             Error::EncodingFailed("offramping account".to_string())
         })
-
     }
     
     #[cfg(test)]

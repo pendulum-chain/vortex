@@ -3,7 +3,7 @@ use substrate_stellar_sdk::{Asset, PublicKey};
 use substrate_stellar_sdk::types::{AlphaNum12, AlphaNum4};
 
 use tracing::error;
-use crate::domain::models::Error;
+use crate::infra::Error;
 
 #[derive(Debug, Serialize,Deserialize)]
 pub struct Token {
@@ -16,20 +16,17 @@ pub struct Token {
 
 impl Token {
     /// Returns a Token by reading from a json file
+    /// todo: read from db next time
     pub fn try_from_path(path: &str) -> Result<Self,Error> {
         let read_file = std::fs::read_to_string(path)
-            .map_err(|e| {
+            .map_err(|_| {
                 error!("‼️{:<3} - Reading file {path}", "FAILED");
-
-                Error::FileDoesNotExist(path.to_string())
-
+                Error::DoesNotExist(path.to_string())
             })?;
 
         serde_json::from_str(&read_file)
             .map_err(|e| {
                 error!("‼️{:<3} - Deserializing to Token struct in file {path}: {e:?}", "FAILED");
-
-
                 Error::SerdeError(format!("Token struct in file {path}"))
             })
     }
@@ -42,7 +39,7 @@ impl Token {
 
         Self::try_from_path(&path).map_err(|e| {
             match e {
-                Error::FileDoesNotExist(_) => {
+                Error::DoesNotExist(_) => {
                     Error::TokenDoesNotExist
                 }
                 _ => e
@@ -60,15 +57,7 @@ impl Token {
         hex
     }
 
-    fn asset_issuer(&self) -> Result<PublicKey,Error> {
-        PublicKey::from_encoding(&self.asset_issuer).map_err(|e|{
-            error!("‼️{:<3} - Encoding asset issuer:{}: {e:?}", "FAILED", &self.asset_issuer);
-
-            Error::EncodingFailed("asset issuer".to_string())
-        })
-    }
-
-    pub fn get_asset_type(&self) -> Result<Asset,Error> {
+    pub fn asset_type(&self) -> Result<Asset,Error> {
         let _asset_code = self.asset_code.as_bytes();
         Ok(
             if self.asset_code.len() <= 4 {
@@ -94,16 +83,11 @@ impl Token {
             }
         )
     }
-}
 
-#[cfg(test)]
-mod test {
-    use crate::domain::models::Token;
-
-    #[test]
-    fn test_me() {
-        let cfg = Token::try_by_asset_code("BRL");
-        println!("The value of cfg: {cfg:?}");
-        assert!(true);
+    fn asset_issuer(&self) -> Result<PublicKey,Error> {
+        PublicKey::from_encoding(&self.asset_issuer).map_err(|e|{
+            error!("‼️{:<3} - Encoding asset issuer:{}: {e:?}", "FAILED", &self.asset_issuer);
+            Error::EncodingFailed("asset issuer".to_string())
+        })
     }
 }

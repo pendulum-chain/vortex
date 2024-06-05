@@ -1,19 +1,19 @@
-use axum::{debug_handler, Json};
+use axum::Json;
 use axum::extract::State;
 use serde_json::{json, Value};
 use tokio::time::Instant;
 
 use tracing::{info, warn};
-use wallet::{HorizonBalance, StellarWallet};
-use crate::api::{build_create_account_tx, build_payment_and_merge_tx};
-use crate::config::{AccountConfig, Error};
+use wallet::HorizonBalance;
+use crate::api::{build_create_account_tx, build_payment_and_merge_tx, requests};
+use crate::config::AccountConfig;
 
-use crate::domain::models::requests;
-
+/// Performs POST /v1/stellar/create
 pub(super) async fn create_account(
     State(funding_account): State<AccountConfig>,
     Json(payload): Json<requests::StellarCreateRequestBody>
 ) -> Json<Value> {
+    info!("📦{:<3}: {payload:#?}","POST create payload");
     let start = Instant::now();
 
     let ephemeral_account_id = match payload.account_id_as_public_key() {
@@ -37,15 +37,16 @@ pub(super) async fn create_account(
         });
 
     let duration = start.elapsed();
-    info!("➡️ create {duration:?}");
+    info!("➡️{:<3} {duration:?}", "POST create");
     res
 }
 
+/// Performs POST /v1/stellar/payment
 pub(super) async fn payment(
     State(funding_account): State<AccountConfig>,
     Json(payload): Json<requests::StellarPaymentRequestBody>
 ) -> Json<Value>  {
-    info!("📦 {payload:#?}");
+    info!("📦{:<3}: {payload:#?}","POST payment payload");
 
     let start = Instant::now();
 
@@ -53,9 +54,6 @@ pub(super) async fn payment(
         Ok(id) => id,
         Err(result) => return result
     };
-
-
-    info!("  ephemeral_account_id: {ephemeral_account_id:?}");
 
     let res = build_payment_and_merge_tx(
         &funding_account,
@@ -74,34 +72,20 @@ pub(super) async fn payment(
     });
 
     let duration = start.elapsed();
-    info!("➡️ payment {duration:?}");
+    info!("➡️{:<3} {duration:?}", "POST payment");
     res
 }
 
-#[debug_handler]
+
+/// Performs GET /v1/status
 pub(super) async fn status(State(account): State<AccountConfig>) -> Json<Value> {
     let start = Instant::now();
 
     let pub_key = account.public_key_as_str();
-    let wallet = match account.create_wallet() {
-        Ok(w) => w,
-        Err(e) => {
-            let e = format!("{e:?}");
-            return Json(json!({
-                "status": 500,
-                "error": "Server Error",
-                "details": e
-            }));
-        }
-    };
-
-
-    let res = match wallet.get_balances().await {
+    let res = match account.get_balances().await {
         Ok(balances) => _get_balance_success(&pub_key, balances),
         Err(e) => {
-            let e = e.to_string();
-            warn!("⚠️{:<3} - Stellar Public Key {pub_key} balances: {e}", "FAILED");
-
+            let e = format!("{e:?}");
             Json(json!({
                 "status": 500,
                 "error": "Server Error",
@@ -111,16 +95,15 @@ pub(super) async fn status(State(account): State<AccountConfig>) -> Json<Value> 
     };
 
     let duration = start.elapsed();
-    info!("➡️ status {duration:?}");
-
+    info!("➡️{:<3} {duration:?}", "GET status");
     res
 }
 
 
-fn _get_balance_success(public_key:&str, balances: Vec<HorizonBalance>) -> Json<Value> {
+fn _get_balance_success(public_key_as_str:&str, balances: Vec<HorizonBalance>) -> Json<Value> {
     let failed_status = Json(json!({
                 "status": false,
-                "public": public_key
+                "public": public_key_as_str
             }));
 
     let Some(native_balance) = balances.iter().find(|bal| {
@@ -131,18 +114,18 @@ fn _get_balance_success(public_key:&str, balances: Vec<HorizonBalance>) -> Json<
         }
     }
     ) else {
-        warn!("⚠️{:<3} - XLM balance of Stellar Public Key {public_key}\n", "NOT FOUND");
+        warn!("⚠️{:<3} - XLM balance of Stellar Public Key {public_key_as_str}\n", "NOT FOUND");
         return failed_status;
     };
 
     if native_balance.balance < 2.5 {
-        warn!("⚠️{:<3} - XLM balance of Stellar Public Key {public_key}\n", "INSUFFICIENT");
+        warn!("⚠️{:<3} - XLM balance of Stellar Public Key {public_key_as_str}\n", "INSUFFICIENT");
         return failed_status;
     }
 
-    info!("💰️{:<3} - Stellar Public Key {public_key} has sufficient XLM balance", "EXIST");
+    info!("💰️{:<3} - Stellar Public Key {public_key_as_str} has sufficient XLM balance", "EXIST");
     Json(json!({
         "status": true,
-        "public": public_key
+        "public": public_key_as_str
     }))
 }

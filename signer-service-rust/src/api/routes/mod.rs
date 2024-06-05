@@ -1,25 +1,11 @@
-
 mod routes;
 
-use axum::handler::Handler;
 use axum::Router;
 use axum::routing::{get, post};
-use wallet::StellarWallet;
-pub use routes::*;
+use crate::api::routes::routes::{create_account, payment, status};
 use crate::config::AccountConfig;
 
-
-// pub fn routes(account:&AccountConfig, wallet:StellarWallet) -> Router {
-//     let status_router = Router::new().route("/status", get(status))
-//         .with_state(wallet);
-//
-//     Router::new().nest("/v1",
-//                        Router::new()
-//                            .merge(status_router)
-//                            .merge(stellar_routes(account))
-//     )
-// }
-
+/// Returns /v1/... routes
 pub fn v1_routes(account:AccountConfig) -> Router {
     Router::new().nest(
         "/v1",
@@ -27,11 +13,15 @@ pub fn v1_routes(account:AccountConfig) -> Router {
             .merge(stellar_routes(account))
     )
 }
+
+/// GET /v1/status
 fn status_route(account:AccountConfig) -> Router {
     Router::new().route("/status", get(status))
         .with_state(account)
 }
 
+/// POST /v1/stellar/create and
+/// POST /v1/stellar/payment
 fn stellar_routes(account:AccountConfig) -> Router {
     Router::new()
         .route("/stellar/create", post(create_account))

@@ -4,9 +4,9 @@ use substrate_stellar_sdk::{Operation, PublicKey, Signer, SignerKey, StroopAmoun
 use tracing::error;
 use wallet::operations::AppendExt;
 use crate::api::Error;
-use crate::domain::models::{Token};
 use crate::api::horizon::helper::{change_trust_operation, create_transaction_no_operations, operation_with_custom_err};
 use crate::config::AccountConfig;
+use crate::infra::Token;
 
 const SET_OPT_LOW_THRESHOLD:u8 = 2;
 const SET_OPT_MED_THRESHOLD:u8 = 2;
@@ -15,6 +15,13 @@ const SET_OPT_SIGNER_WEIGHT:u32 = 1;
 
 const NEW_ACCOUNT_STARTING_BALANCE:StroopAmount = StroopAmount(2500000);
 
+/// Returns a [`Json`] of the `funding_account`'s signature (for signing this transaction)
+/// and sequence number (when submitting this transaction)
+///
+/// This transaction will perform 3 operations:
+///  * Create an account, for `ephemeral_account_id`
+///  * Add threshold to that account
+///  * Add a trust line wth the given `asset_code`
 pub async fn build_create_account_tx(
     funding_account: &AccountConfig,
     ephemeral_account_id: &PublicKey,
@@ -22,6 +29,7 @@ pub async fn build_create_account_tx(
     max_time: u64,
 ) -> Result<Json<Value>,Error> {
     let sequence = funding_account.get_sequence().await?;
+
     // prepare the transaction:
     let mut tx = create_transaction_no_operations(
         funding_account.public_key(),
@@ -52,7 +60,6 @@ pub async fn build_create_account_tx(
         "public": public_key
     })))
 }
-
 
 fn prepare_all_operations(
     funding_account: &AccountConfig,

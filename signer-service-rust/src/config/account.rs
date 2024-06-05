@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use substrate_stellar_sdk::{PublicKey, SecretKey, Transaction};
 use substrate_stellar_sdk::network::{Network, PUBLIC_NETWORK, TEST_NETWORK};
 use tracing::error;
-use wallet::StellarWallet;
+use wallet::{HorizonBalance, StellarWallet};
 use crate::config::Error;
 use crate::utils::public_key_as_string;
 
@@ -27,14 +27,14 @@ impl Debug for AccountConfig {
 
 impl AccountConfig {
     pub(super) fn try_from_env() -> Result<Self,Error> {
-        let secret = env::var("STELLAR_SECRET_KEY").map_err(|_| Error::MissingStellarSecretKey)?;
+        let secret = env::var(STELLAR_SECRET_KEY).map_err(|_| Error::MissingStellarSecretKey)?;
         let secret = SecretKey::from_encoding(&secret)
             .map_err(|e| {
                 error!("‼️Failed to parse stellar secret key  ******: {e:?}");
                 Error::ParseFailed("stellar secret key".to_string())
             })?;
 
-        let is_public_network = env::var("STELLAR_PUBLIC_NETWORK").map_err(|_| Error::MissingStellarNetworkIdentifier)?;
+        let is_public_network = env::var(STELLAR_PUBLIC_NETWORK).map_err(|_| Error::MissingStellarNetworkIdentifier)?;
         let is_public_network = is_public_network.parse::<bool>()
             .map_err(|_| {
                 error!("‼️Failed to parse stellar public network {is_public_network}");
@@ -52,7 +52,7 @@ impl AccountConfig {
     }
 
     pub fn public_key(&self) -> PublicKey {
-        self.public_key()
+        self.secret.get_public().clone()
     }
     
     pub fn network(&self) -> &Network {
@@ -82,24 +82,30 @@ impl AccountConfig {
     }
 
     pub async fn get_sequence(&self) -> Result<i64,Error> {
-        let pub_key = self.public_key_as_str();
-
-        let wallet = StellarWallet::from_secret_key(self.secret.clone(),self.is_public_network)
-            .map_err(|e|{
-                error!("⚠️{:<3} - creating wallet of {pub_key}: {e:?}\n", "FAILED");
-                Error::CreateWalletFailed
-            })?;
+        let wallet = self.create_wallet()?;
 
         wallet.get_sequence().await.map_err(|e|{
+            let pub_key = self.public_key_as_str();
             error!("⚠️{:<3} - retrieving next sequence of {pub_key}: {e:?}\n", "FAILED");
             Error::CreateWalletFailed
         })
     }
 
-    pub fn create_wallet(&self) -> Result<StellarWallet,Error> {
-        StellarWallet::from_secret_key(self.secret.clone(), self.is_public_network)
-            .map_err(|e| {
-                error!("‼️{:<3} - Wallet creation for Stellar Public Key: {}", "FAILED", self.public_key_as_str());
+    pub async fn get_balances(&self) -> Result<Vec<HorizonBalance>, Error> {
+        let wallet = self.create_wallet()?;
+
+        wallet.get_balances().await.map_err(|e|{
+            let pub_key = self.public_key_as_str();
+            error!("⚠️{:<3} - retrieving balances of {pub_key}: {e:?}\n", "FAILED");
+            Error::CreateWalletFailed
+        })
+    }
+
+    fn create_wallet(&self) -> Result<StellarWallet,Error> {
+        StellarWallet::from_secret_key(self.secret.clone(),self.is_public_network)
+            .map_err(|e|{
+                let pub_key = self.public_key_as_str();
+                error!("⚠️{:<3} - creating wallet of {pub_key}: {e:?}\n", "FAILED");
                 Error::CreateWalletFailed
             })
     }
