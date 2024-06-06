@@ -6,7 +6,7 @@ pub mod requests;
 pub use sep24Result::Sep24Result;
 
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use crate::config::Error as ConfigError;
 use crate::infra::Error as InfraError;
 

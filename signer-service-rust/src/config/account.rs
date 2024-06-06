@@ -5,7 +5,7 @@ use substrate_stellar_sdk::network::{Network, PUBLIC_NETWORK, TEST_NETWORK};
 use tracing::error;
 use wallet::{HorizonBalance, StellarWallet};
 use crate::config::Error;
-use crate::utils::public_key_as_string;
+use crate::helper::public_key_as_string;
 
 const STELLAR_SECRET_KEY:&str = "STELLAR_SECRET_KEY";
 const STELLAR_PUBLIC_NETWORK:&str = "STELLAR_PUBLIC_NETWORK";

@@ -55,6 +55,7 @@ pub(super) async fn payment(
         Err(result) => return result
     };
 
+
     let res = build_payment_and_merge_tx(
         &funding_account,
         ephemeral_account_id,

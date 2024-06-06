@@ -1,23 +1,21 @@
 use std::fmt::Debug;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use substrate_stellar_sdk::{Memo, PublicKey, StroopAmount};
 use substrate_stellar_sdk::compound_types::LimitedString;
 use tracing::error;
 use crate::api::Error;
+use crate::helper::de_str_to_i64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Sep24Result {
-    pub amount: i64,
+    pub amount: String,
     pub memo: String,
     pub memo_type: String,
     pub offramping_account: String,
 }
 
 impl Sep24Result {
-    pub fn amount(&self) -> StroopAmount {
-        StroopAmount(self.amount)
-    }
 
     /// returns a [`Memo`] from the fields [`self.memo`] and [`self.memo_type`].
     /// [`self.memo_type`] can be a numeric String value

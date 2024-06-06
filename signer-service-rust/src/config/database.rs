@@ -1,6 +1,7 @@
 use std::env;
 use std::fmt::{Debug, Formatter};
 use deadpool_diesel::Manager;
+use deadpool_diesel::postgres::Pool;
 use crate::config::{Error, try_get_port_from_env};
 
 const DATABASE_HOST:&str = "DATABASE_HOST";
@@ -40,11 +41,14 @@ impl DatabaseConfig {
     }
 
     /// Create a connection pool to the PostgreSQL database
-    pub fn create_connection_pool<C:diesel::Connection>(&self) -> Manager<C> {
-        Manager::new(
+    pub fn create_pool(&self) -> Pool {
+        let url = self.url();
+        println!("The db url: {url}");
+        let manager = Manager::new(
             self.url(),
             deadpool_diesel::Runtime::Tokio1
-        )
+        );
+        Pool::builder(manager).build().unwrap()
     }
 
     // set to private, so as not to accidentally print the username and password somewhere else
@@ -56,4 +60,8 @@ impl DatabaseConfig {
             self.port
         )
     }
+
+
+
+
 }

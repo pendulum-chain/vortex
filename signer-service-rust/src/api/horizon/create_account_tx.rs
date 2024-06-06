@@ -1,10 +1,10 @@
 use axum::Json;
 use serde_json::{json, Value};
-use substrate_stellar_sdk::{Operation, PublicKey, Signer, SignerKey, StroopAmount};
-use tracing::error;
+use substrate_stellar_sdk::{Operation, PublicKey, Signer, SignerKey, StroopAmount, XdrCodec};
+use tracing::{error, info};
 use wallet::operations::AppendExt;
 use crate::api::Error;
-use crate::api::horizon::helper::{change_trust_operation, create_transaction_no_operations, operation_with_custom_err};
+use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, operation_with_custom_err};
 use crate::config::AccountConfig;
 use crate::infra::Token;
 
@@ -13,7 +13,7 @@ const SET_OPT_MED_THRESHOLD:u8 = 2;
 const SET_OPT_HIGH_THRESHOLD:u8 = 2;
 const SET_OPT_SIGNER_WEIGHT:u32 = 1;
 
-const NEW_ACCOUNT_STARTING_BALANCE:StroopAmount = StroopAmount(2500000);
+const NEW_ACCOUNT_STARTING_BALANCE:&'static str = "2.5";
 
 /// Returns a [`Json`] of the `funding_account`'s signature (for signing this transaction)
 /// and sequence number (when submitting this transaction)
@@ -33,7 +33,8 @@ pub async fn build_create_account_tx(
     // prepare the transaction:
     let mut tx = create_transaction_no_operations(
         funding_account.public_key(),
-        sequence,
+        // increment the sequence number
+        sequence + 1,
         max_time,
         None
     )?;
@@ -51,7 +52,11 @@ pub async fn build_create_account_tx(
             Error::TransactionError("append multiple operations".to_string())
         })?;
 
-    let tx_sig = funding_account.create_base64_signature(tx)?;
+    let tx_sig = funding_account.create_base64_signature(tx.clone())?;
+    let payment_env = tx.into_transaction_envelope().to_base64_xdr();
+    let payment_env = String::from_utf8(payment_env).unwrap();
+
+    info!("CARLA CARLA CARLA ENV: {payment_env}");
 
     let public_key = funding_account.public_key_as_str();
     Ok(Json(json!({
@@ -66,16 +71,17 @@ fn prepare_all_operations(
     ephemeral_account_id: PublicKey,
     asset_code:&str
 ) -> Result<Vec<Operation>,Error> {
+    // create account op
     let create_op = operation_with_custom_err!(
         Operation::new_create_account(
-            ephemeral_account_id,
+            ephemeral_account_id.clone(),
             NEW_ACCOUNT_STARTING_BALANCE
         ),
         "create account"
     )?;
 
     // add threshold to the new account
-    let set_opt_op = operation_with_custom_err!(Operation::new_set_options::<PublicKey,&str>(
+    let mut set_opt_op = operation_with_custom_err!(Operation::new_set_options::<PublicKey,&str>(
         None,
         None,
         None,
@@ -90,10 +96,16 @@ fn prepare_all_operations(
         })),
         "set options"
     )?;
+    set_opt_op.source_account = Some(ephemeral_account_id.clone().into());
 
     // create a trust line
     let token = Token::try_by_asset_code(asset_code)?;
-    let change_trust_op = change_trust_operation(&token)?;
+    let tk_asset = asset_to_change_trust_asset_type(&token)?;
+    let mut change_trust_op = operation_with_custom_err!(
+        Operation::new_change_trust(tk_asset),
+        "change trust"
+   )?;
+    change_trust_op.source_account = Some(ephemeral_account_id.into());
 
     Ok(vec![create_op,set_opt_op, change_trust_op])
 }

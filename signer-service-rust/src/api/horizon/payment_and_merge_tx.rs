@@ -1,13 +1,14 @@
 use axum::Json;
 use serde_json::{json, Value};
-use substrate_stellar_sdk::{Operation, PublicKey, Transaction};
-use tracing::error;
+use substrate_stellar_sdk::{Operation, PublicKey, Transaction, XdrCodec};
+use tracing::{error, info};
 use wallet::operations::AppendExt;
 use crate::api::{Error, Sep24Result};
-use crate::api::horizon::helper::{change_trust_operation, create_transaction_no_operations};
+use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, operation_with_custom_err};
 use crate::config::AccountConfig;
 use crate::infra::Token;
 
+const CHANGE_TRUST_LIMIT:&'static str = "0";
 
 /// Returns a [`Json`] of the `funding_account`'s signatures for signing 2 transactions:
 ///   * payment transaction
@@ -25,7 +26,8 @@ pub fn build_payment_and_merge_tx(
 
     let payment_tx = payment_transaction(
         ephemeral_account_id.clone(),
-        ephemeral_sequence,
+        // increment the sequence
+        ephemeral_sequence + 1,
         &token,
         max_time,
         payment_data
@@ -33,14 +35,17 @@ pub fn build_payment_and_merge_tx(
 
     let merge_tx = merge_transaction(
         ephemeral_account_id,
-        ephemeral_sequence,
+        // increment the sequence again
+        ephemeral_sequence + 2,
         &token,
         max_time,
         funding_account.public_key()
     )?;
 
     let payment_tx_sig = funding_account.create_base64_signature(payment_tx)?;
+
     let merge_tx_sig = funding_account.create_base64_signature(merge_tx)?;
+
 
     let public_key = funding_account.public_key_as_str();
     Ok(Json(json!({
@@ -65,16 +70,16 @@ fn payment_transaction(
         Some(payment_data.memo()?)
     )?;
 
-    payment_tx.append_operation(
+    let payment_op = operation_with_custom_err!(
         Operation::new_payment(
             payment_data.offramping_account_id()?,
             token.asset_type()?,
-            payment_data.amount()
-        ).map_err(|e| {
-            error!("‼️{:<3} - payment operation: {e:?}", "FAILED");
-            Error::OperationError("payment operation".to_string())
-        })?
-    ).map_err(|e| {
+            payment_data.amount
+        ),
+        "payment"
+        )?;
+
+    payment_tx.append_operation(payment_op).map_err(|e| {
         error!("‼️{:<3} - appending operation to transaction: {e:?}", "FAILED");
         Error::TransactionError("append operation".to_string())
     })?;
@@ -90,15 +95,17 @@ fn merge_transaction(
     destination_account_id: PublicKey,
 ) -> Result<Transaction,Error> {
     // create a trust line
-    let change_trust_op = change_trust_operation(&token)?;
+    let tk_asset = asset_to_change_trust_asset_type(token)?;
+    let change_trust_op = operation_with_custom_err!(
+        Operation::new_change_trust_with_limit(tk_asset,CHANGE_TRUST_LIMIT),
+        "change trust"
+   )?;
 
     // account merge op
-    let merge_op = Operation::new_account_merge(
-        destination_account_id
-    ).map_err(|e| {
-        error!("‼️{:<3} - account merge operation: {e:?}", "FAILED");
-        Error::OperationError("account merge operation".to_string())
-    })?;
+    let merge_op = operation_with_custom_err!(
+        Operation::new_account_merge(destination_account_id),
+        "account merge"
+    )?;
 
     let mut merge_tx = create_transaction_no_operations(
         source_account_id,

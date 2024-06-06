@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use substrate_stellar_sdk::PublicKey;
 use tracing::error;
 use crate::api::Sep24Result;
+use crate::helper::de_str_to_i64;
 
 /// Request Body of [crate::api::routes::create_account()]
 /// with api: POST /v1/stellar/create
@@ -28,6 +29,7 @@ impl StellarCreateRequestBody {
 #[serde(rename_all = "camelCase")]
 pub struct StellarPaymentRequestBody {
     pub account_id: String,
+    #[serde(deserialize_with = "de_str_to_i64")]
     pub sequence: i64,
     pub payment_data: Sep24Result,
     pub max_time: u64,

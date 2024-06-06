@@ -1,3 +1,5 @@
+
+use diesel::prelude::Insertable;
 use serde::{Deserialize, Serialize};
 use substrate_stellar_sdk::{Asset, PublicKey};
 use substrate_stellar_sdk::types::{AlphaNum12, AlphaNum4};
@@ -5,18 +7,18 @@ use substrate_stellar_sdk::types::{AlphaNum12, AlphaNum4};
 use tracing::error;
 use crate::infra::Error;
 
-#[derive(Debug, Serialize,Deserialize)]
+#[derive(Insertable, PartialEq, Debug, Serialize,Deserialize)]
+#[diesel(table_name = crate::infra::schema::tokens)]
 pub struct Token {
-    pub toml_url: String,
     pub asset_code: String,
     pub asset_issuer: String,
     pub vault_account_id: String,
-    pub min_withdrawal_amount: String,
+    pub toml_url: String,
+    pub min_withdrawal_amount: Option<String>,
 }
 
 impl Token {
     /// Returns a Token by reading from a json file
-    /// todo: read from db next time
     pub fn try_from_path(path: &str) -> Result<Self,Error> {
         let read_file = std::fs::read_to_string(path)
             .map_err(|_| {
@@ -40,7 +42,7 @@ impl Token {
         Self::try_from_path(&path).map_err(|e| {
             match e {
                 Error::DoesNotExist(_) => {
-                    Error::TokenDoesNotExist
+                    Error::NotFound
                 }
                 _ => e
             }

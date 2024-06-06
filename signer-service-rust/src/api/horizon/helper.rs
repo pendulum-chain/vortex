@@ -41,13 +41,6 @@ pub(super) fn create_transaction_no_operations(
     })
 }
 
-pub(super) fn change_trust_operation(token:&Token) -> Result<Operation,Error> {
-    let tk_asset = asset_to_change_trust_asset_type(token)?;
-    operation_with_custom_err!(Operation::new_change_trust(
-        tk_asset),
-        "change trust"
-   )
-}
 pub(super) fn asset_to_change_trust_asset_type(token:&Token) -> Result<ChangeTrustAsset,Error> {
     token.asset_type().map(|asset| match asset {
         Asset::AssetTypeCreditAlphanum4(res) =>

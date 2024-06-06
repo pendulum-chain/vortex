@@ -34,14 +34,6 @@ impl ServerConfig {
         })
     }
 
-    pub fn host(&self) -> &str {
-        &self.host
-    }
-
-    pub fn port(&self) -> u16 {
-        self.port
-    }
-
     pub fn socket_address(&self) -> Result<SocketAddr,Error> {
         let address = format!("{}:{}", self.host, self.port);
         // Parse the socket address

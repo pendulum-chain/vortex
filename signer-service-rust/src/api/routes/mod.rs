@@ -1,8 +1,8 @@
-mod routes;
+mod methods;
 
 use axum::Router;
 use axum::routing::{get, post};
-use crate::api::routes::routes::{create_account, payment, status};
+use crate::api::routes::methods::{create_account, payment, status};
 use crate::config::AccountConfig;
 
 /// Returns /v1/... routes

@@ -1,7 +1,7 @@
 mod config;
 pub mod infra;
 mod api;
-pub mod utils;
+pub mod helper;
 
 use tracing::info;
 use tracing_subscriber::{
@@ -11,6 +11,7 @@ use tracing_subscriber::{
     util::SubscriberInitExt
 };
 use crate::api::routes::{v1_routes};
+use crate::infra::run_migrations;
 
 pub struct State;
 #[tokio::main]
@@ -18,13 +19,16 @@ async fn main() {
     init_tracing();
 
     let config = config::Config::try_from_env_file(".env").unwrap();
+
+    let db_cfg = config.database_config();
+    let pool = db_cfg.create_pool();
+    run_migrations(&pool).await;
+
     let server_addr = config.server_config().socket_address().unwrap();
-
-    let account_cfg = config.account_config();
-
     let listener = tokio::net::TcpListener::bind(server_addr).await.unwrap();
     info!("🚀{:<3} - {:?}\n", "LISTENING", listener.local_addr());
 
+    let account_cfg = config.account_config();
     axum::serve(listener,v1_routes(account_cfg)).await.unwrap();
 }
 
