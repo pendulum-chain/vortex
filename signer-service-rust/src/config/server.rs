@@ -4,13 +4,15 @@ use std::{
 };
 use crate::config::{Error, try_get_port_from_env};
 
+#[doc(hidden)]
 const SERVER_HOST:&str = "SERVER_HOST";
+#[doc(hidden)]
 const SERVER_PORT:&str = "SERVER_PORT";
 
 const DEFAULT_SERVER_HOST:&str = "127.0.0.1";
 const DEFAULT_SERVER_PORT:u16 = 3001;
 
-/// Holds the address of our server
+/// The configuration to hold the address of our server
 #[derive(Debug)]
 pub struct ServerConfig {
     host: String,
@@ -27,6 +29,7 @@ impl Default for ServerConfig {
 }
 
 impl ServerConfig {
+    /// Create new config via environment variables
     pub(super) fn try_from_env() -> Result<Self,Error> {
         Ok(ServerConfig {
             host: env::var(SERVER_HOST).map_err(|_| Error::MissingServerHost)?,
@@ -34,12 +37,14 @@ impl ServerConfig {
         })
     }
 
+    /// Returns [`SocketAddr`] derived from the `host` and `port` or
+    /// [ParseFailed](Error::ParseFailed) if address is invalid
     pub fn socket_address(&self) -> Result<SocketAddr,Error> {
         let address = format!("{}:{}", self.host, self.port);
         // Parse the socket address
        address.parse()
             .map_err(|e| {
-                tracing::error!("‼️{:<3} - Parsing Server Address:{address}: {e:?}", "FAILED");
+                tracing::error!("‼️{:<6} - Parsing Server Address:{address}: {e:?}", "FAILED");
                 Error::ParseFailed("server address".to_string())
             })
     }

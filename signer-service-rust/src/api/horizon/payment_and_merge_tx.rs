@@ -1,28 +1,37 @@
 use axum::Json;
+use deadpool_diesel::postgres::Pool;
 use serde_json::{json, Value};
-use substrate_stellar_sdk::{Operation, PublicKey, Transaction, XdrCodec};
-use tracing::{error, info};
+use substrate_stellar_sdk::{Operation, PublicKey, Transaction};
+use tracing::error;
 use wallet::operations::AppendExt;
 use crate::api::{Error, Sep24Result};
-use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, operation_with_custom_err};
+use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, get_single_token, operation_with_custom_err};
 use crate::config::AccountConfig;
 use crate::infra::Token;
 
 const CHANGE_TRUST_LIMIT:&'static str = "0";
 
-/// Returns a [`Json`] of the `funding_account`'s signatures for signing 2 transactions:
-///   * payment transaction
-///   * account merge transaction
-///       * merging the `ephemeral_account_id` to the `funding_account`
-pub fn build_payment_and_merge_tx(
+/// Returns a [`Json`] of:
+///    * the `funding_account`'s signatures (for signing this transaction)
+///    * the `funding_account`'s [`PublicKey`] in [`String`] format
+///
+/// The `funding_account`'s signatures comes from signing 2 transactions:
+///    * [payment](Operation::new_payment) transaction
+///    * account merge transaction
+///       * [Add a trust line](Operation::new_change_trust_with_limit) from the given `asset_code`. If the asset code does not exist in the db,
+///          it will return [`NotFound`](crate::infra::Error::NotFound)
+///       * [Merging](Operation::new_account_merge) the `ephemeral_account_id` to the `funding_account`
+pub async fn build_payment_and_merge_tx(
+    pool: &Pool,
     funding_account: &AccountConfig,
     ephemeral_account_id: PublicKey,
     ephemeral_sequence: i64,
-    payment_data: Sep24Result,
+    asset_code: &str,
     max_time:u64,
-    asset_code: &str
+    payment_data: Sep24Result,
 ) -> Result<Json<Value>,Error>{
-    let token = Token::try_by_asset_code(asset_code)?;
+    // retrieve the token
+    let token = get_single_token(pool, asset_code).await?;
 
     let payment_tx = payment_transaction(
         ephemeral_account_id.clone(),
@@ -56,6 +65,8 @@ pub fn build_payment_and_merge_tx(
         "public": public_key
     })))
 }
+
+#[doc(hidden)]
 fn payment_transaction(
     source_account_id: PublicKey,
     next_sequence: i64,
@@ -80,13 +91,14 @@ fn payment_transaction(
         )?;
 
     payment_tx.append_operation(payment_op).map_err(|e| {
-        error!("‼️{:<3} - appending operation to transaction: {e:?}", "FAILED");
+        error!("‼️{:<6} - appending operation to transaction: {e:?}", "FAILED");
         Error::TransactionError("append operation".to_string())
     })?;
 
     Ok(payment_tx)
 }
 
+#[doc(hidden)]
 fn merge_transaction(
     source_account_id: PublicKey,
     next_sequence: i64,
@@ -116,7 +128,7 @@ fn merge_transaction(
 
     merge_tx.append_multiple(vec![change_trust_op,merge_op])
         .map_err(|e| {
-            error!("‼️{:<3} - appending operations to transaction: {e:?}", "FAILED");
+            error!("‼️{:<6} - appending operations to transaction: {e:?}", "FAILED");
             Error::TransactionError("append multiple operations".to_string())
         })?;
 

@@ -15,5 +15,7 @@ pub enum Error {
     MissingStellarSecretKey,
     MissingStellarNetworkIdentifier,
     CreateWalletFailed,
-    ParseFailed(String)
+    ParseFailed(String),
+
+    ConnectionPoolError
 }

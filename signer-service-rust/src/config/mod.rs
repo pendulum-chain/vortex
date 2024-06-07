@@ -22,7 +22,7 @@ impl Config {
     pub fn try_from_env_file(file_name:&str) -> Result<Self,Error> {
         // Load environment variables from .env file.
         if let None = dotenvy::from_filename(file_name).ok() {
-            error!("‼️{:<3} - Reading file {file_name}", "FAILED");
+            error!("‼️{:<6} - Reading file {file_name}", "FAILED");
             return Err(Error::FileDoesNotExist(file_name.to_string()));
         };
 
@@ -52,7 +52,7 @@ fn try_get_port_from_env(env_var_name:&str, error:Error) -> Result<u16,Error> {
     };
 
     port_as_str.parse::<u16>().map_err(|_| {
-        error!("‼️{:<3} - Convert {env_var_name} {port_as_str} to u16", "FAILED");
+        error!("‼️{:<6} - Convert {env_var_name} {port_as_str} to u16", "FAILED");
         error
     })
 }

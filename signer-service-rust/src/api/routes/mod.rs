@@ -1,31 +1,33 @@
-mod methods;
+
+/// implementations of the routes
+mod impls;
 
 use axum::Router;
 use axum::routing::{get, post};
-use crate::api::routes::methods::{create_account, payment, status};
-use crate::config::AccountConfig;
+use crate::api::routes::impls::{create_account, payment, status};
+use crate::AppState;
 
 /// Returns /v1/... routes
-pub fn v1_routes(account:AccountConfig) -> Router {
+pub fn v1_routes(state:AppState) -> Router {
     Router::new().nest(
         "/v1",
-        status_route(account.clone())
-            .merge(stellar_routes(account))
+        status_route(state.clone())
+            .merge(stellar_routes(state))
     )
 }
 
 /// GET /v1/status
-fn status_route(account:AccountConfig) -> Router {
+fn status_route(state:AppState) -> Router {
     Router::new().route("/status", get(status))
-        .with_state(account)
+        .with_state(state)
 }
 
 /// POST /v1/stellar/create and
 /// POST /v1/stellar/payment
-fn stellar_routes(account:AccountConfig) -> Router {
+fn stellar_routes(state:AppState) -> Router {
     Router::new()
         .route("/stellar/create", post(create_account))
         .route("/stellar/payment", post(payment))
-        .with_state(account)
+        .with_state(state)
 
 }

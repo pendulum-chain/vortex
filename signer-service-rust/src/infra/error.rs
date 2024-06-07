@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Error {
-    InternalServerError,
+    InternalServerError(String),
     NotFound,
+    MigrationFailed,
 
     DoesNotExist(String),
     SerdeError(String),
@@ -21,7 +22,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::NotFound => write!(f, "Not found"),
-            Error::InternalServerError => write!(f, "Internal server error"),
+            Error::InternalServerError(e) => write!(f, "Internal server error: {}",e.to_string()),
             other => write!(f, "{:?}", other)
         }
     }
@@ -35,19 +36,19 @@ impl ErrorExt for diesel::result::Error {
     fn as_infra_error(&self) -> Error {
         match self {
             diesel::result::Error::NotFound => Error::NotFound,
-            _ => Error::InternalServerError,
+            other => { Error::InternalServerError(other.to_string()) },
         }
     }
 }
 
 impl ErrorExt for deadpool_diesel::PoolError {
     fn as_infra_error(&self) -> Error {
-        Error::InternalServerError
+        Error::InternalServerError(self.to_string())
     }
 }
 
 impl ErrorExt for InteractError {
     fn as_infra_error(&self) -> Error {
-        Error::InternalServerError
+        Error::InternalServerError(self.to_string())
     }
 }

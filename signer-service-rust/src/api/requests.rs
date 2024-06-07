@@ -6,8 +6,7 @@ use tracing::error;
 use crate::api::Sep24Result;
 use crate::helper::de_str_to_i64;
 
-/// Request Body of [crate::api::routes::create_account()]
-/// with api: POST /v1/stellar/create
+/// Request Body of api POST /v1/stellar/create to create an account in Stellar
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StellarCreateRequestBody {
@@ -23,8 +22,7 @@ impl StellarCreateRequestBody {
     }
 }
 
-/// Request Body of [crate::api::routes::payment()]
-/// with api: POST /v1/stellar/create
+/// Request Body of api POST /v1/stellar/payment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StellarPaymentRequestBody {
@@ -43,9 +41,10 @@ impl StellarPaymentRequestBody {
     }
 }
 
+#[doc(hidden)]
 fn get_public_key_or_return_json_error(id:&str, name:&str) -> Result<PublicKey,Json<Value>> {
     PublicKey::from_encoding(id).map_err(|e|{
-        error!("‼️{:<3} - Encoding {name} {id}: {e:?}", "FAILED");
+        error!("‼️{:<6} - Encoding {name} {id}: {e:?}", "FAILED");
         let error = format!("Encoding Failed: {name}");
 
         Json(json!({

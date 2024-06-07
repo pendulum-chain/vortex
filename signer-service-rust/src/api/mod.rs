@@ -3,10 +3,11 @@ mod horizon;
 mod sep24Result;
 pub mod requests;
 
+
 pub use sep24Result::Sep24Result;
 
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use crate::config::Error as ConfigError;
 use crate::infra::Error as InfraError;
 
