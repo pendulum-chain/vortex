@@ -21,9 +21,9 @@ pub fn v1_routes(state:AppState) -> Router {
 /// contains the /status and /tokens
 fn first_level(state:AppState) -> Router {
     Router::new()
-        /// GET /v1/status
+        // GET /v1/status
         .route("/status", get(status))
-        /// GET /v1/tokens
+        // GET /v1/tokens
         .route("/tokens", get(tokens))
         .with_state(state)
 }
