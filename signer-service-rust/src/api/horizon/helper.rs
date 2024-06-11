@@ -64,31 +64,3 @@ pub(super) fn asset_to_change_trust_asset_type(token:&Token) -> Result<ChangeTru
             ChangeTrustAsset::AssetTypeNative
     }).map_err(|e| e.into())
 }
-
-
-#[cfg(test)]
-mod test {
-    use substrate_stellar_sdk::Asset;
-    use crate::api::horizon::helper::asset_to_change_trust_asset_type;
-    use crate::infra::Token;
-
-    // #[test]
-    // fn test_asset_to_change_trust_asset_type() {
-    //     let token = Token {
-    //         asset_code: "XXXXXX".to_string(),
-    //         asset_issuer: "GAENCD6BPYV46VEXWI7KH6D6DW342DB3HIVDM4ES2EDJGLX5MPFB74TG".to_string(),
-    //         vault_account_id: "6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS".to_string(),
-    //         toml_url: "sample toml".to_string(),
-    //         min_withdrawal_amount: None,
-    //     };
-    //
-    //     assert_eq!(
-    //         asset_to_change_trust_asset_type(&token),
-    //         Ok(Asset::AssetTypeCreditAlphanum12(token.as))
-    //
-    //     )
-    //
-    //     asset_to_change_trust_asset_type(&token)
-    // }
-    
-}

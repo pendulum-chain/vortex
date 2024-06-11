@@ -72,7 +72,7 @@ impl Token {
                         issuer: self.asset_issuer_as_public_key()?
                     }
                 )
-            } else {
+            } else if  self.asset_code.len() <= 12 {
                 let mut asset_code = [0; 12];
                 asset_code[.._asset_code.len()].copy_from_slice(_asset_code);
 
@@ -82,6 +82,9 @@ impl Token {
                         issuer: self.asset_issuer_as_public_key()?,
                     }
                 )
+            } else {
+                error!("‼️{:<6} - Asset Code {} exceed max characters of 12", "OUT OF RANGE", &self.asset_code);
+                return Err(Error::EncodingFailed("asset_code".to_string()));
             }
         )
     }
@@ -99,6 +102,16 @@ pub struct TokensFilter {
     pub asset_code: Option<String>,
     pub asset_issuer: Option<String>,
     pub vault_account_id: Option<String>,
+}
+
+impl  TokensFilter {
+    pub fn empty() -> Self {
+        TokensFilter {
+            asset_code: None,
+            asset_issuer: None,
+            vault_account_id: None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -162,7 +175,11 @@ mod test {
 
         #[test]
         fn test_asset_issuer_as_public_key() {
+            let mut token = test_token();
+            assert!(token.asset_issuer_as_public_key().is_ok());
 
+            token.asset_issuer = "XXXXXXXXXXXXXXXX".to_string();
+            assert!(token.asset_issuer_as_public_key().is_err());
         }
 
     }
