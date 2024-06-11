@@ -1,5 +1,5 @@
 ## Signer Service in `Rust`
-This contains a list of apis equivalent to [signer-service](../signer-service).
+This is a rust version of [signer-service](../signer-service), using [axum](https://github.com/tokio-rs/axum) and [diesel](https://github.com/diesel-rs/diesel).
 Tokens are stored/retrieved in postgres.
 
 ## How to Run
