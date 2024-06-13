@@ -13,6 +13,8 @@ import { WalletAccount } from '@talismn/connect-wallets';
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
 import { stringDecimalToBN } from '../helpers/parseNumbers';
 import { toBigNumber } from '../helpers/parseNumbers';
+import { Keyring } from '@polkadot/api';
+import { getEphemeralAccount } from './polkadot/ephemeral';
 
 export interface PerformSwapProps {
   swap: SwapOptions;
@@ -133,6 +135,9 @@ export async function performSwap(
 
 async function approve({ api, token, spender, amount, contractAbi, walletAccount }: any) {
   console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
+
+  let keypairEphemeral = getEphemeralAccount();
+  
   const response = await executeMessage({
     abi: contractAbi,
     api,
@@ -140,9 +145,8 @@ async function approve({ api, token, spender, amount, contractAbi, walletAccount
     contractDeploymentAddress: token,
     getSigner: () =>
       Promise.resolve({
-        type: 'signer',
-        address: walletAccount.address,
-        signer: walletAccount.signer,
+        type: "keypair",
+        keypair: keypairEphemeral,
       }),
     messageName: 'approve',
     messageArguments: [spender, amount],
@@ -158,6 +162,8 @@ async function approve({ api, token, spender, amount, contractAbi, walletAccount
 
 async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contractAbi, walletAccount }: any) {
   console.log('write', `call swap ${tokenIn} for ${tokenOut} with amount ${amount}, minimum expexted ${amountMin} `);
+
+  let keypairEphemeral = getEphemeralAccount();
   const response = await executeMessage({
     abi: contractAbi,
     api,
@@ -165,9 +171,8 @@ async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contrac
     contractDeploymentAddress: NABLA_ROUTER,
     getSigner: () =>
       Promise.resolve({
-        type: 'signer',
-        address: walletAccount.address,
-        signer: walletAccount.signer,
+        type: "keypair",
+        keypair: keypairEphemeral,
       }),
     messageName: 'swapExactTokensForTokens',
     // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98

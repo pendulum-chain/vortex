@@ -19,6 +19,9 @@ import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { performSwap } from '../../services/nabla';
+import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance } from '../../services/polkadot/ephemeral';
+import {TRANSFER_WAITING_TIME_SECONDS} from '../../constants/constants'
+;
 
 enum OperationStatus {
   Idle,
@@ -54,6 +57,8 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
+  // useCallback that will only be executed upon first load
+
   const handleOnSubmit = async (
     userSubstrateAddress: string,
     swapsFirst: boolean,
@@ -65,6 +70,24 @@ function Landing() {
 
     const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
+
+    // TODO6A
+    // Wait for ephemeral to receive native balance
+    // Wait for ephemeral to receive the funds of the token to be offramped
+    getEphemeralAccount();
+    // define a local promise that, on a loop, will call checkBalance until it returns true
+    let ready;
+    do {
+      ready = await checkBalance();
+    } while (!ready);
+    console.log("Waiting to receive token: ", TOKEN_CONFIG[swapOptions.assetIn].currencyId);
+    let tokenTransferEvent = await waitForTokenReceptionEvent(TOKEN_CONFIG[swapOptions.assetIn].currencyId, TRANSFER_WAITING_TIME_SECONDS*1000);
+
+    // TODO check that the balance received was as expected, wait for merger of Phase 6B
+    // PR that unifies big number use across application
+    // if (tokenTransferEvent.amount.lt(swapOptions.amountIn)){
+    //   Throw....
+    // }
 
     // perform swap if necessary
     // if no swapping, the balance to offramp is the initial desired amount
@@ -127,10 +150,11 @@ function Landing() {
   const executeRedeem = useCallback(
     async (sepResult: Sep24Result) => {
       try {
+        const ephemeralAccount = getEphemeralAccount();
         await executeSpacewalkRedeem(
           getEphemeralKeys().publicKey(),
           sepResult.amount,
-          walletAccount!,
+          ephemeralAccount,
           anchorSessionParams!.tokenConfig,
           addEvent,
         );
