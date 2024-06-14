@@ -59,7 +59,7 @@ const WalletConnect = () => {
       await handleConnect();
 
       //@eslint-disable-next-line no-explicit-any
-    } catch (error: any) {
+    } catch (error) {
       console.log(error);
     } finally {
       setLoading(false);

@@ -54,51 +54,43 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            {fromToken && (
-              <img
-                src={`/assets/coins/${fromToken.assetCode.toUpperCase()}.png`}
-                alt="Pendulum"
-                className="h-full w-auto"
-              />
-            )}
+            {fromToken && <img src={fromToken.icon} alt="Pendulum" className="h-full w-auto" />}
             {!fromToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" />}
           </span>
           <strong className="font-bold">{fromToken?.assetCode || 'Select'}</strong>
           <ChevronDownIcon className="w-4 h-4 inline ml-px" />
         </Button>
       </div>
-      <div className="flex justify-between items-center mt-1 dark:text-neutral-400 text-neutral-500">
-        <div className="flex gap-1 text-sm">
-          {fromTokenBalance !== undefined && (
-            <>
-              <span className="mr-1">
-                Your Balance: <TokenBalance query={fromTokenBalance} symbol={fromToken?.assetCode}></TokenBalance>
-              </span>
-              <button
-                className="text-primary hover:underline"
-                onClick={() => {
-                  if (fromTokenBalance.approximateNumber !== undefined) {
-                    setValue('fromAmount', (fromTokenBalance.approximateNumber * 0.5).toString());
-                  }
-                }}
-                type="button"
-              >
-                50%
-              </button>
-              <button
-                className="text-primary hover:underline"
-                onClick={() => {
-                  if (fromTokenBalance.approximateNumber !== undefined) {
-                    setValue('fromAmount', fromTokenBalance.approximateNumber.toString());
-                  }
-                }}
-                type="button"
-              >
-                MAX
-              </button>
-            </>
-          )}
-        </div>
+      <div className="justify-between items-center mt-1 dark:text-neutral-400 text-neutral-500">
+        {fromTokenBalance !== undefined && (
+          <div className="flex text-sm gap-4">
+            <span className="mr-1 grow">
+              Your Balance: <TokenBalance query={fromTokenBalance} symbol={fromToken?.assetCode}></TokenBalance>
+            </span>
+            <button
+              className="text-primary hover:underline"
+              onClick={() => {
+                if (fromTokenBalance.approximateNumber !== undefined) {
+                  setValue('fromAmount', (fromTokenBalance.approximateNumber * 0.5).toString());
+                }
+              }}
+              type="button"
+            >
+              50%
+            </button>
+            <button
+              className="text-primary hover:underline"
+              onClick={() => {
+                if (fromTokenBalance.approximateNumber !== undefined) {
+                  setValue('fromAmount', fromTokenBalance.approximateNumber.toString());
+                }
+              }}
+              type="button"
+            >
+              MAX
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

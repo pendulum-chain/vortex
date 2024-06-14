@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { stringDecimalToBN, toBigNumber } from '../../helpers/parseNumbers';
+import { toBigNumber } from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
+import { parseContractBalanceResponse } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
 export interface BalanceInfo extends ContractBalance {
   canWithdraw: boolean;
@@ -41,28 +41,12 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
           const response = (await apiComponents.api.query.tokens.accounts(address, config.currencyId)).toHuman() as any;
 
           const rawBalance = response?.free || '0';
-          const preciseBigDecimal = toBigNumber(rawBalance, TOKEN_CONFIG[key].decimals);
-          const balanceBigNumber = toBigNumber(rawBalance, 0);
+          const contractBalance = parseContractBalanceResponse(TOKEN_CONFIG[key].decimals, rawBalance);
 
-          const atLeast2Decimals = stringifyBigWithSignificantDecimals(preciseBigDecimal, 2);
-          const atLeast4Decimals = stringifyBigWithSignificantDecimals(preciseBigDecimal, 4);
-
-          const contractBalance = {
-            rawBalance: balanceBigNumber,
-            decimals: config.decimals,
-            preciseBigDecimal,
-            preciseString: balanceBigNumber.toString(),
-            approximateStrings: {
-              atLeast2Decimals: atLeast2Decimals,
-              atLeast4Decimals: atLeast4Decimals,
-            },
-            approximateNumber: preciseBigDecimal.toNumber(),
-          };
-
-          // if it is offramped, it should always ahve minWithrawalAmount defined
+          // if it is offramped, it should always have minWithrawalAmount defined
           if (config.isOfframp && config.minWithdrawalAmount) {
             const minWithdrawalAmount = toBigNumber(config.minWithdrawalAmount, 0);
-            const canWithdraw = balanceBigNumber.gte(minWithdrawalAmount);
+            const canWithdraw = contractBalance.rawBalance.gte(minWithdrawalAmount);
 
             newBalances[key] = {
               ...contractBalance,

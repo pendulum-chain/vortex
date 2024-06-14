@@ -29,8 +29,8 @@ export type UseContractReadResult<ReturnType> = UseQueryResult<ReturnType | unde
 
 export function useContractRead<ReturnType>(
   key: QueryKey,
-  api: ApiPromise,
-  walletAddress: string,
+  api: ApiPromise | null,
+  walletAddress: string | undefined,
   {
     abi,
     address,

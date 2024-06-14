@@ -1,8 +1,9 @@
+import Big from 'big.js';
+import { useState, useEffect, useRef } from 'react';
+
 import '../../../App.css';
-import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
 import { SwapOptions } from '../../components/InputKeys';
-
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
 import { fetchTomlValues, IAnchorSessionParams, Sep24Result, getEphemeralKeys, sep10 } from '../../services/anchor';
@@ -19,6 +20,7 @@ import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { performSwap } from '../../services/nabla';
+import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 
 enum OperationStatus {
   Idle,
@@ -30,9 +32,17 @@ enum OperationStatus {
   Error,
 }
 
+export interface ExecutionInput {
+  userSubstrateAddress: string;
+  assetToOfframp: string;
+  amountIn: Big;
+  swapOptions: SwapOptions | undefined; // undefined means direct offramp
+}
+
 function Landing() {
   // system status
   const [status, setStatus] = useState(OperationStatus.Idle);
+  const [executionInput, setExecutionInput] = useState<ExecutionInput | undefined>(undefined);
 
   // events state and refs
   const [events, setEvents] = useState<GenericEvent[]>([]);
@@ -40,7 +50,6 @@ function Landing() {
   const [activeEventIndex, setActiveEventIndex] = useState<number>(-1);
 
   // seession and operations states
-  const [userAddress, setUserAddress] = useState<string | null>(null);
   const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
@@ -54,30 +63,13 @@ function Landing() {
   // Wallet states
   const { walletAccount, dAppName } = useGlobalState();
 
-  const handleOnSubmit = async (
-    userSubstrateAddress: string,
-    swapsFirst: boolean,
-    selectedAsset: string,
-    swapOptions: SwapOptions,
-    maxBalanceFrom: number,
-  ) => {
-    setUserAddress(userSubstrateAddress);
-
-    const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset];
+  const handleOnSubmit = async ({ userSubstrateAddress, assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
+    setExecutionInput({ userSubstrateAddress, assetToOfframp, amountIn, swapOptions });
+    const tokenConfig: TokenDetails = TOKEN_CONFIG[assetToOfframp];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
-    // perform swap if necessary
-    // if no swapping, the balance to offramp is the initial desired amount
-    // otherwise, it will be the obtained value from the swap.
-    let balanceToOfframp = swapOptions.amountIn;
-    if (swapsFirst) {
-      balanceToOfframp = await performSwap(
-        { swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount! },
-        addEvent,
-      );
-    }
-    // truncate the value to 2 decimal places
-    const balanceToOfframpTruncated = Math.trunc(balanceToOfframp * 100) / 100;
+    const amountToOfframp = swapOptions !== undefined ? swapOptions.minAmountOut : amountIn;
+    const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(amountToOfframp.round(2, 0), 2);
 
     const token = await sep10(values, addEvent);
 
@@ -85,7 +77,7 @@ function Landing() {
       token,
       tomlValues: values,
       tokenConfig,
-      offrampAmount: balanceToOfframpTruncated.toString(),
+      offrampAmount: truncatedAmountToOfframp,
     });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
@@ -101,6 +93,34 @@ function Landing() {
       EventStatus.Waiting,
     );
     setSep24Result(result);
+
+    if (executionInput === undefined) return;
+    const { userSubstrateAddress, assetToOfframp, amountIn, swapOptions } = executionInput;
+
+    if (swapOptions) {
+      const enteredAmountDecimal = new Big(result.amount);
+      if (enteredAmountDecimal.gt(swapOptions.minAmountOut)) {
+        addEvent(
+          `The amount you entered is too high. Maximum possible amount to offramp: ${swapOptions.minAmountOut.toString()}), you entered: ${
+            result.amount
+          }.`,
+          EventStatus.Error,
+        );
+        return;
+      }
+
+      await performSwap(
+        {
+          amountIn,
+          assetOut: assetToOfframp,
+          assetIn: swapOptions.assetIn,
+          minAmountOut: swapOptions.minAmountOut,
+          userAddress: userSubstrateAddress,
+          walletAccount: walletAccount!,
+        },
+        addEvent,
+      );
+    }
 
     // set up the ephemeral account and operations we will later neeed
     try {

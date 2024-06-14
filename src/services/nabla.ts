@@ -1,29 +1,32 @@
-import { SwapOptions } from '../components/InputKeys';
+import { Abi } from '@polkadot/api-contract';
+import Big from 'big.js';
+import { readMessage, ReadMessageResult, executeMessage, ExecuteMessageResult } from '@pendulum-chain/api-solang';
+
 import { EventStatus } from '../components/GenericEvent';
 import { getApiManagerInstance } from './polkadot/polkadotApi';
-import { Abi } from '@polkadot/api-contract';
 import { erc20WrapperAbi } from '../contracts/ERC20Wrapper';
 import { routerAbi } from '../contracts/Router';
 import { NABLA_ROUTER } from '../constants/constants';
-import { defaultReadLimits } from '../helpers/contracts';
-import { readMessage, ReadMessageResult, executeMessage, ExecuteMessageResult } from '@pendulum-chain/api-solang';
+import { defaultReadLimits, multiplyByPowerOfTen } from '../helpers/contracts';
 import { parseContractBalanceResponse } from '../helpers/contracts';
 import { TOKEN_CONFIG } from '../constants/tokenConfig';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
-import { stringDecimalToBN } from '../helpers/parseNumbers';
 import { toBigNumber } from '../helpers/parseNumbers';
 
 export interface PerformSwapProps {
-  swap: SwapOptions;
+  amountIn: Big;
+  assetOut: string;
+  assetIn: string;
+  minAmountOut: Big;
   userAddress: string;
   walletAccount: WalletAccount;
 }
 
 export async function performSwap(
-  { swap, userAddress, walletAccount }: PerformSwapProps,
+  { amountIn, assetOut, assetIn, minAmountOut, userAddress, walletAccount }: PerformSwapProps,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<number> {
+): Promise<Big> {
   // event attempting swap
   renderEvent('Attempting swap', EventStatus.Waiting);
   // get chain api, abi
@@ -31,8 +34,8 @@ export async function performSwap(
   const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
   const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
   // get asset details
-  const assetInDetails = TOKEN_CONFIG[swap.assetIn];
-  const assetOutDetails = TOKEN_CONFIG[swap.assetOut];
+  const assetInDetails = TOKEN_CONFIG[assetIn];
+  const assetOutDetails = TOKEN_CONFIG[assetOut];
 
   // call the current allowance of the user
   const response: ReadMessageResult = await readMessage({
@@ -52,21 +55,22 @@ export async function performSwap(
   }
 
   const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
-  const amountToSwapBig = stringDecimalToBN(swap.amountIn.toString(), assetInDetails.decimals);
-  const amountMinBig = stringDecimalToBN(swap.minAmountOut?.toString() ?? '0', assetInDetails.decimals);
+  const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals);
+  const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetInDetails.decimals);
+
   //maybe do allowance
-  if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(amountToSwapBig)) {
+  if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(rawAmountToSwapBig)) {
     try {
       renderEvent(
         `Please sign approval swap: ${toBigNumber(
-          amountToSwapBig,
+          rawAmountToSwapBig,
           assetInDetails.decimals,
         )} ${assetInDetails.assetCode.toUpperCase()}`,
         EventStatus.Waiting,
       );
       await approve({
         api: pendulumApiComponents.api,
-        amount: amountToSwapBig.toString(),
+        amount: rawAmountToSwapBig.toFixed(), // toString can render exponential notation
         token: assetInDetails.erc20Address!,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
@@ -88,15 +92,13 @@ export async function performSwap(
   // Try swap
   try {
     renderEvent(
-      `Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${
-        swap.initialDesired
-      } ${assetOutDetails.assetCode.toUpperCase()} `,
+      `Please sign transaction to swap ${amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${minAmountOut} ${assetOutDetails.assetCode.toUpperCase()} `,
       EventStatus.Waiting,
     );
     await doActualSwap({
       api: pendulumApiComponents.api,
-      amount: amountToSwapBig.toString(),
-      amountMin: amountMinBig.toString(),
+      amount: rawAmountToSwapBig.toFixed(), // toString can render exponential notation
+      amountMin: rawAmountMinBig.toFixed(), // toString can render exponential notation
       tokenIn: assetInDetails.erc20Address!,
       tokenOut: assetOutDetails.erc20Address!,
       contractAbi: routerAbiObject,
@@ -112,7 +114,7 @@ export async function performSwap(
     } else {
       errorMessage = 'Something went wrong';
     }
-    renderEvent(`Could not swap token: ${errorMessage}`, EventStatus.Error);
+    renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
     return Promise.reject('Could not swap token');
   }
 
@@ -126,9 +128,9 @@ export async function performSwap(
 
   const actualOfframpValue = balanceAfterBigDecimal.sub(balanceBeforeBigDecimal);
 
-  renderEvent(`Swap successful. Amount to offramp : ${actualOfframpValue}`, EventStatus.Success);
+  renderEvent(`Swap successful. Amount received: ${actualOfframpValue}`, EventStatus.Success);
 
-  return actualOfframpValue.toNumber();
+  return actualOfframpValue;
 }
 
 async function approve({ api, token, spender, amount, contractAbi, walletAccount }: any) {

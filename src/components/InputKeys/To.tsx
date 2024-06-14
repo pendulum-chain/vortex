@@ -2,6 +2,7 @@ import { ArrowPathRoundedSquareIcon, ChevronDownIcon } from '@heroicons/react/20
 import { useEffect } from 'preact/compat';
 import { Button } from 'react-daisyui';
 import { useFormContext } from 'react-hook-form';
+import Big from 'big.js';
 
 import pendulumIcon from '../../assets/pendulum-icon.svg';
 import { NumberLoader } from '../Nabla/TokenBalance';
@@ -18,8 +19,7 @@ export interface ToProps {
   fromToken: TokenDetails | undefined;
   toToken: TokenDetails | undefined;
   toAmountQuote: UseTokenOutAmountResult;
-  fromAmount: number | undefined;
-  slippage: number;
+  fromAmount: Big | undefined;
   fromTokenBalances: { [key: string]: BalanceInfo };
 }
 
@@ -30,7 +30,6 @@ export function To({
   onOpenSelector,
   toAmountQuote,
   fromAmount,
-  slippage,
   fromTokenBalances,
 }: ToProps): JSX.Element | null {
   const toTokenBalance =
@@ -56,7 +55,7 @@ export function To({
             <NumberLoader />
           ) : toAmountQuote.data !== undefined ? (
             `${toAmountQuote.data.amountOut.approximateStrings.atLeast4Decimals}`
-          ) : fromAmount !== undefined && fromAmount > 0 ? (
+          ) : fromAmount !== undefined && fromAmount.gt(0) ? (
             <button
               type="button"
               onClick={() => toAmountQuote.refetch?.()}
@@ -76,13 +75,7 @@ export function To({
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            {toToken && (
-              <img
-                src={`/assets/coins/${toToken.assetCode.toUpperCase()}.png`}
-                alt="Pendulum"
-                className="h-full w-auto"
-              />
-            )}
+            {toToken && <img src={toToken.icon} alt="Pendulum" className="h-full w-auto" />}
             {!toToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" />}
           </span>
           <strong className="font-bold">{toToken?.assetCode || 'Select'}</strong>
@@ -126,18 +119,6 @@ export function To({
               <div>
                 <Skeleton isLoading={toAmountQuote.isLoading}>
                   {toAmountQuote.data?.amountOut.approximateStrings.atLeast4Decimals} {toToken?.assetCode || ''}
-                </Skeleton>
-              </div>
-            ) : (
-              <div>N/A</div>
-            )}
-          </div>
-          <div className="flex justify-between">
-            <div>Minimum received after slippage ({slippage}%)</div>
-            {toAmountQuote.data !== undefined && toToken !== undefined ? (
-              <div>
-                <Skeleton isLoading={toAmountQuote.isLoading || toAmountQuote.data === undefined}>
-                  {toAmountQuote.data !== undefined ? toAmountQuote.data.minAmountOut : ''} {toToken?.assetCode || ''}
                 </Skeleton>
               </div>
             ) : (
