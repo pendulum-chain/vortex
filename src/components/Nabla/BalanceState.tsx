@@ -38,7 +38,7 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
 
       try {
         for (const [key, config] of Object.entries(TOKEN_CONFIG)) {
-          const response = (await apiComponents.api.query.tokens.accounts(address, config.currencyId)).toHuman() as any;
+          const response = (await apiComponents.api.query.tokens.accounts(address, config.currencyId)) as any;
 
           const rawBalance = response?.free || '0';
           const contractBalance = parseContractBalanceResponse(TOKEN_CONFIG[key].decimals, rawBalance);

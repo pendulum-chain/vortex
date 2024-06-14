@@ -1,7 +1,12 @@
 import BigNumber from 'big.js';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
-import { ContractBalance, multiplyByPowerOfTen, parseContractBalanceResponse } from '../../helpers/contracts';
+import {
+  ContractBalance,
+  multiplyByPowerOfTen,
+  parseContractBalanceResponse,
+  stringifyBigWithSignificantDecimals,
+} from '../../helpers/contracts';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
 import { UseQueryResult } from '@tanstack/react-query';
@@ -106,7 +111,10 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
 
         return {
           amountOut,
-          effectiveExchangeRate: amountOut.preciseBigDecimal.div(debouncedAmountBigDecimal).toString(),
+          effectiveExchangeRate: stringifyBigWithSignificantDecimals(
+            amountOut.preciseBigDecimal.div(debouncedAmountBigDecimal),
+            4,
+          ),
           swapFee,
         };
       },

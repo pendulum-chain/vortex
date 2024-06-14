@@ -137,6 +137,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     }
 
     // check balance of the asset used to offramp directly or to pay for the swap
+    console.log('balances', balances);
     if (balances[from].preciseBigDecimal.lt(fromAmount)) {
       alert(
         `Insufficient balance to offramp. Current balance is ${
@@ -253,13 +254,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       inputHasError={inputHasErrors}
                       form={form}
                       fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
+                      tokenBalances={balances}
                     />
                     <div>{formErrorMessage !== undefined && <p className="text-red-600">{formErrorMessage}</p>}</div>
                     <div className="separator mt-10 mb-10"></div>
                     <To
                       tokenId={to}
-                      fromTokenBalances={balances}
+                      tokenBalances={balances}
                       toToken={toToken}
                       fromToken={fromToken}
                       toAmountQuote={
@@ -287,7 +288,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       inputHasError={inputHasErrors}
                       form={form}
                       fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
+                      tokenBalances={balances}
                     />
                   </Card>
                 )}

@@ -16,7 +16,7 @@ interface FromProps<FormFieldValues extends FieldValues, TFieldName extends Fiel
   inputHasError: boolean;
   fromFormFieldName: TFieldName;
   form: UseFormReturn<FormFieldValues>;
-  fromTokenBalances: { [key: string]: BalanceInfo };
+  tokenBalances: { [key: string]: BalanceInfo };
   offrampStarted: boolean;
 }
 
@@ -27,11 +27,11 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
   inputHasError,
   fromFormFieldName,
   form,
-  fromTokenBalances,
+  tokenBalances,
   offrampStarted,
 }: FromProps<FormFieldValues, TFieldName>) {
   const { setValue } = useFormContext<SwapFormValues>();
-  const fromTokenBalance = tokenId ? fromTokenBalances[tokenId] : undefined;
+  const fromTokenBalance = tokenId ? tokenBalances[tokenId] : undefined;
 
   return (
     <div

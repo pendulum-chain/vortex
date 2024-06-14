@@ -5,7 +5,7 @@ import { useFormContext } from 'react-hook-form';
 import Big from 'big.js';
 
 import pendulumIcon from '../../assets/pendulum-icon.svg';
-import { NumberLoader } from '../Nabla/TokenBalance';
+import { NumberLoader, TokenBalance } from '../Nabla/TokenBalance';
 import { Skeleton } from '../Skeleton';
 import { SwapFormValues } from '../Nabla/schema';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
@@ -20,7 +20,7 @@ export interface ToProps {
   toToken: TokenDetails | undefined;
   toAmountQuote: UseTokenOutAmountResult;
   fromAmount: Big | undefined;
-  fromTokenBalances: { [key: string]: BalanceInfo };
+  tokenBalances: { [key: string]: BalanceInfo };
 }
 
 export function To({
@@ -30,10 +30,9 @@ export function To({
   onOpenSelector,
   toAmountQuote,
   fromAmount,
-  fromTokenBalances,
+  tokenBalances,
 }: ToProps): JSX.Element | null {
-  const toTokenBalance =
-    fromTokenBalances && tokenId && fromTokenBalances[tokenId] ? fromTokenBalances[tokenId].approximateNumber : 0;
+  const toTokenBalance = tokenBalances && tokenId ? tokenBalances[tokenId] : undefined;
 
   // replace with use state
   const [isOpen, { toggle }] = useBoolean(true);
@@ -84,7 +83,10 @@ export function To({
       </div>
       <div className="flex justify-between items-center mt-1 dark:text-neutral-300 text-neutral-500">
         {/* <div className="text-sm mt-px">{toToken ? <NablaTokenPrice address={toToken.id} fallback="$ -" /> : '$ -'}</div> */}
-        <div className="flex gap-1 text-sm">Your balance: {toTokenBalance}</div>
+        <div className="flex gap-1 text-sm">
+          Your balance:{' '}
+          {toTokenBalance ? <TokenBalance query={toTokenBalance} symbol={toToken?.assetCode}></TokenBalance> : '0'}
+        </div>
       </div>
       <div className="mt-4 h-px -mx-4 bg-[rgba(0,0,0,0.15)]" />
       <div
