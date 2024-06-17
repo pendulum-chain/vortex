@@ -1,7 +1,8 @@
 use std::fmt::Debug;
+use base64::Engine;
+use base64::engine::general_purpose;
 use serde::{Deserialize, Serialize};
-use substrate_stellar_sdk::{Memo, PublicKey};
-use substrate_stellar_sdk::compound_types::LimitedString;
+use substrate_stellar_sdk::{Hash, Memo, PublicKey};
 use tracing::error;
 use crate::api::Error;
 
@@ -23,20 +24,23 @@ impl Sep24Result {
 
         match memo_type.as_str() {
             "1" | "text" | "memotext" => {
-                let memo = self.memo.clone().into_bytes();
-                Ok(Memo::MemoText(
-                    LimitedString::new(memo)
-                        .map_err(|e| {
-                            error!("‼️{:<6} - Convert memo to type Memo: {e:?}", "FAILED");
-                            Error::InvalidMemo
-                        })?
-                ))
+                Memo::from_text_memo(self.memo.clone()).map_err(|e| {
+                    error!("‼️{:<6} - Invalid offramp text memo: {e:?}", "FAILED");
+                    Error::InvalidMemo
+                } )
             }
             "3" | "hash" | "memohash" => {
-                let _memo  = self.memo.as_bytes();
-                let mut memo = [0;32];
-                memo[.._memo.len()].copy_from_slice(_memo);
-                Ok(Memo::MemoHash(memo))
+                // base64 decode
+                let bytes = general_purpose::STANDARD
+                    .decode(self.memo.as_bytes()).map_err(|e| {
+                    error!("‼️{:<6} - Invalid offramp hash memo: {e:?}", "FAILED");
+                    Error::InvalidMemo
+                })?;
+
+                Memo::from_hash_memo::<Hash>(bytes.try_into().unwrap()).map_err(|e| {
+                    error!("‼️{:<6} - Invalid offramp hash memo: {e:?}", "FAILED");
+                    Error::InvalidMemo
+                })
             }
             _ => {
                 error!("‼️{:<6} - Unsupported offramp memo type: {:?}", "FAILED", self.memo_type);

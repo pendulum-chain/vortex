@@ -8,6 +8,8 @@ use wallet::HorizonBalance;
 use crate::api::{build_create_account_tx, build_payment_and_merge_tx, requests};
 use crate::AppState;
 
+const XLM_BALANCE_MINIMUM_MARGIN: f64 = 2.5;
+
 /// Performs POST /v1/stellar/create and requires [`StellarCreateRequestBody`] request body
 /// Calls the function [`build_create_account_tx`]
 pub(super) async fn create_account(
@@ -123,7 +125,7 @@ fn _get_balance_success(public_key_as_str:&str, balances: Vec<HorizonBalance>) -
         return failed_status;
     };
 
-    if native_balance.balance < 2.5 {
+    if native_balance.balance < XLM_BALANCE_MINIMUM_MARGIN {
         warn!("⚠️{:<6} - XLM balance of Stellar Public Key {public_key_as_str}\n", "INSUFFICIENT");
         return failed_status;
     }

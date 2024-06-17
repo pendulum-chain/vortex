@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.7.5", features = ["macros"] }
+base64 = "0.22.0" # for memo hash
 
 deadpool-diesel = { version = "0.6.1", features = ["postgres"] }
 diesel = { version = "2.2", features = ["postgres", "serde_json", "uuid"]}

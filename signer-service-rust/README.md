@@ -8,7 +8,10 @@ Tokens are stored/retrieved in postgres.
 See [example](.env.example) 
 
 ### Prepare Postgres DB
-[Postgres docker](https://hub.docker.com/_/postgres) can be used:
+Install [Postgres](https://www.postgresql.org/download/) in your platform and make sure it is running.  
+It can run in [linux](https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql-linux/), [macOS](https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql-macos/), [windows](https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql/).  
+
+[Postgres docker](https://hub.docker.com/_/postgres) can also be used:
 ```script
     docker run --name <image_name> -e POSTGRES_USER=<POSTGRES_USER> -e POSTGRES_PASSWORD=<POSTGRES_PASSWORD> -d -p <DATABASE_PORT>:<DATABASE_PORT> postgres
 ```
