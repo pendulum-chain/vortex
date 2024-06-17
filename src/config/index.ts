@@ -50,7 +50,7 @@ export const config = {
     },
   } satisfies TenantConfig,
   swap: {
-    slippageBasicPoints: 20,
+    slippageBasisPoints: 20,
     deadline: 30,
   },
   walletConnect: {

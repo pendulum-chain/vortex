@@ -87,7 +87,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     fromToken: from,
     toToken: to,
     maximumFromAmount: undefined,
-    slippageBasisPoints: config.swap.slippageBasicPoints,
+    slippageBasisPoints: config.swap.slippageBasisPoints,
     form,
   });
 
