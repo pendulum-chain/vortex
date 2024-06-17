@@ -114,6 +114,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       return;
     }
 
+    if (tokenOutData.data === null) return;
+
     let assetToOfframp;
     let swapOptions: SwapOptions | undefined;
     if (wantsSwap) {
@@ -263,9 +265,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       tokenBalances={balances}
                       toToken={toToken}
                       fromToken={fromToken}
-                      toAmountQuote={
-                        inputHasErrors ? { enabled: false, data: undefined, isLoading: false } : tokenOutData
-                      }
+                      toAmountQuote={inputHasErrors ? { enabled: false, data: null, isLoading: false } : tokenOutData}
                       onOpenSelector={() => setModalType('to')}
                       fromAmount={fromAmount}
                     />

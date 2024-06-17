@@ -56,7 +56,7 @@ export async function performSwap(
 
   const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
   const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals);
-  const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetInDetails.decimals);
+  const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
 
   //maybe do allowance
   if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(rawAmountToSwapBig)) {

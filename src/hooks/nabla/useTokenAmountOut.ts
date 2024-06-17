@@ -33,8 +33,8 @@ export type UseTokenOutAmountProps<FormFieldValues extends FieldValues> = {
 export interface UseTokenOutAmountResult {
   isLoading: boolean;
   enabled: boolean;
-  data: TokenOutData | undefined;
-  refetch?: UseQueryResult<TokenOutData | undefined, string>['refetch'];
+  data: TokenOutData | undefined | null;
+  refetch?: UseQueryResult<TokenOutData | null, string>['refetch'];
 }
 
 export interface TokenOutData {
@@ -84,7 +84,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
     debouncedAmountBigDecimal.gt(new BigNumber(0)) &&
     (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
 
-  const { isLoading, fetchStatus, data, error, refetch } = useContractRead<TokenOutData | undefined>(
+  const { isLoading, fetchStatus, data, error, refetch } = useContractRead<TokenOutData | null>(
     [cacheKeys.tokenOutAmount, fromTokenDetails?.erc20Address, toTokenDetails?.erc20Address, amountIn],
     api,
     walletAccount?.address,
@@ -100,7 +100,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
       },
       parseSuccessOutput: (data) => {
         if (toTokenDetails === undefined || fromTokenDetails === undefined || debouncedAmountBigDecimal === undefined) {
-          return undefined;
+          return null;
         }
 
         const bigIntResponse = data[0]?.toBigInt();

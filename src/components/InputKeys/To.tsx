@@ -52,7 +52,7 @@ export function To({
         <div className="flex-grow text-4xl text-[inherit] font-outfit overflow-x-auto overflow-y-hidden mr-2">
           {toAmountQuote.isLoading ? (
             <NumberLoader />
-          ) : toAmountQuote.data !== undefined ? (
+          ) : toAmountQuote.data !== undefined && toAmountQuote.data !== null ? (
             `${toAmountQuote.data.amountOut.approximateStrings.atLeast4Decimals}`
           ) : fromAmount !== undefined && fromAmount.gt(0) ? (
             <button
@@ -99,7 +99,7 @@ export function To({
             {fromToken !== undefined &&
             toToken !== undefined &&
             !toAmountQuote.isLoading &&
-            toAmountQuote.data !== undefined ? (
+            toAmountQuote.data != undefined ? (
               <>{`1 ${fromToken.assetCode} = ${toAmountQuote.data.effectiveExchangeRate} ${toToken.assetCode}`}</>
             ) : (
               `-`
@@ -130,7 +130,7 @@ export function To({
           <div className="flex justify-between">
             <div>Swap fee:</div>
             <div>
-              {toAmountQuote.data !== undefined ? toAmountQuote.data.swapFee.approximateStrings.atLeast2Decimals : ''}{' '}
+              {toAmountQuote.data != undefined ? toAmountQuote.data.swapFee.approximateStrings.atLeast2Decimals : ''}{' '}
               {toToken?.assetCode || ''}
             </div>
           </div>
