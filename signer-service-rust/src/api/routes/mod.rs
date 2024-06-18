@@ -1,11 +1,9 @@
 
 /// implementations of the routes
 mod stellar_impls;
-mod impls;
 
 use axum::Router;
 use axum::routing::{get, post};
-use crate::api::routes::impls::tokens;
 use crate::api::routes::stellar_impls::{create_account, payment, status};
 use crate::AppState;
 
@@ -13,18 +11,14 @@ use crate::AppState;
 pub fn v1_routes(state:AppState) -> Router {
     Router::new().nest(
         "/v1",
-        first_level(state.clone())
+        status_route(state.clone())
             .merge(stellar_routes(state))
     )
 }
 
-/// contains the /status and /tokens
-fn first_level(state:AppState) -> Router {
-    Router::new()
-        // GET /v1/status
-        .route("/status", get(status))
-        // GET /v1/tokens
-        .route("/tokens", get(tokens))
+// GET /v1/status
+fn status_route(state:AppState) -> Router {
+    Router::new().route("/status", get(status))
         .with_state(state)
 }
 

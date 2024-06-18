@@ -5,9 +5,9 @@ use std::{
 use crate::config::{Error, try_get_port_from_env};
 
 #[doc(hidden)]
-const SERVER_HOST:&str = "SERVER_HOST";
+const ENV_VAR_NAME_SERVER_HOST:&str = "SERVER_HOST";
 #[doc(hidden)]
-const SERVER_PORT:&str = "SERVER_PORT";
+const ENV_VAR_NAME_SERVER_PORT:&str = "SERVER_PORT";
 
 const DEFAULT_SERVER_HOST:&str = "127.0.0.1";
 const DEFAULT_SERVER_PORT:u16 = 3001;
@@ -32,8 +32,8 @@ impl ServerConfig {
     /// Create new config via environment variables
     pub(super) fn try_from_env() -> Result<Self,Error> {
         Ok(ServerConfig {
-            host: env::var(SERVER_HOST).map_err(|_| Error::MissingServerHost)?,
-            port: try_get_port_from_env(SERVER_PORT, Error::MissingServerPort)?
+            host: env::var(ENV_VAR_NAME_SERVER_HOST).map_err(|_| Error::MissingServerHost)?,
+            port: try_get_port_from_env(ENV_VAR_NAME_SERVER_PORT, Error::MissingServerPort)?
         })
     }
 

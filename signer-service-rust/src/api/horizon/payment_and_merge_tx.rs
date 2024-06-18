@@ -1,13 +1,12 @@
 use axum::Json;
-use deadpool_diesel::postgres::Pool;
 use serde_json::{json, Value};
 use substrate_stellar_sdk::{Operation, PublicKey, Transaction};
 use tracing::error;
 use wallet::operations::AppendExt;
 use crate::api::{Error, Sep24Result};
-use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, get_single_token, operation_with_custom_err};
+use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, operation_with_custom_err};
+use crate::api::token::Token;
 use crate::config::AccountConfig;
-use crate::infra::Token;
 
 const CHANGE_TRUST_LIMIT:&'static str = "0";
 
@@ -22,7 +21,6 @@ const CHANGE_TRUST_LIMIT:&'static str = "0";
 ///          it will return [`NotFound`](crate::infra::Error::NotFound)
 ///       * [Merging](Operation::new_account_merge) the `ephemeral_account_id` to the `funding_account`
 pub async fn build_payment_and_merge_tx(
-    pool: &Pool,
     funding_account: &AccountConfig,
     ephemeral_account_id: PublicKey,
     ephemeral_sequence: i64,
@@ -31,7 +29,7 @@ pub async fn build_payment_and_merge_tx(
     payment_data: Sep24Result,
 ) -> Result<Json<Value>,Error>{
     // retrieve the token
-    let token = get_single_token(pool, asset_code).await?;
+    let token = Token::try_by_asset_code(asset_code)?;
 
     let payment_tx = payment_transaction(
         ephemeral_account_id.clone(),

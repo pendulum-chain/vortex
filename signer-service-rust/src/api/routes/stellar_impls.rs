@@ -25,7 +25,6 @@ pub(super) async fn create_account(
     };
 
     let res = build_create_account_tx(
-        &state.pool,
         &state.account,
         &ephemeral_account_id,
         &payload.asset_code,
@@ -62,7 +61,6 @@ pub(super) async fn payment(
 
 
     let res = build_payment_and_merge_tx(
-        &state.pool,
         &state.account,
         ephemeral_account_id,
         payload.sequence,

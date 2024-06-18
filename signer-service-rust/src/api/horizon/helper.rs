@@ -1,4 +1,3 @@
-use deadpool_diesel::postgres::Pool;
 use substrate_stellar_sdk::{Asset, Memo, PublicKey, TimeBounds, Transaction};
 use substrate_stellar_sdk::types::{ChangeTrustAsset, Preconditions};
 use tracing::error;
@@ -20,17 +19,7 @@ macro_rules! operation_with_custom_err {
 }
 
 pub(super) use operation_with_custom_err;
-use crate::infra::{get_all_tokens, Token, TokensFilter};
-
-pub(super) async fn get_single_token(pool:&Pool, asset_code: &str) -> Result<Token,Error> {
-    let mut tokens = get_all_tokens(pool,TokensFilter{
-        asset_code: Some(asset_code.to_string()),
-        asset_issuer: None,
-        vault_account_id: None,
-    }).await?;
-
-    tokens.pop().ok_or(Error::InfraError(crate::infra::Error::DoesNotExist(asset_code.to_string())))
-}
+use crate::api::token::Token;
 
 
 /// Returns a basic [`Transaction`] WITHOUT any operations yet

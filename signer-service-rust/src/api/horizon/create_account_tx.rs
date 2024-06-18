@@ -1,11 +1,11 @@
 use axum::Json;
-use deadpool_diesel::postgres::Pool;
 use serde_json::{json, Value};
 use substrate_stellar_sdk::{Operation, PublicKey, Signer, SignerKey};
 use tracing::error;
 use wallet::operations::AppendExt;
 use crate::api::Error;
-use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, get_single_token, operation_with_custom_err};
+use crate::api::horizon::helper::{asset_to_change_trust_asset_type, create_transaction_no_operations, operation_with_custom_err};
+use crate::api::token::Token;
 use crate::config::AccountConfig;
 
 const SET_OPT_LOW_THRESHOLD:u8 = 2;
@@ -26,7 +26,6 @@ const NEW_ACCOUNT_STARTING_BALANCE:&'static str = "2.5";
 ///    * [Add a trust line](Operation::new_change_trust) from the given `asset_code`. If the asset code does not exist in the db,
 ///      it will return [`NotFound`](crate::infra::Error::NotFound)
 pub async fn build_create_account_tx(
-    pool: &Pool,
     funding_account: &AccountConfig,
     ephemeral_account_id: &PublicKey,
     asset_code:&str,
@@ -46,8 +45,7 @@ pub async fn build_create_account_tx(
     let operations = prepare_all_operations(
         funding_account,
         ephemeral_account_id.clone(),
-        asset_code,
-        pool
+        asset_code
     ).await?;
 
     // insert all 3 operations
@@ -73,7 +71,6 @@ async fn prepare_all_operations(
     funding_account: &AccountConfig,
     ephemeral_account_id: PublicKey,
     asset_code:&str,
-    pool: &Pool
 ) -> Result<Vec<Operation>,Error> {
     // create account op
     let create_op = operation_with_custom_err!(
@@ -103,15 +100,15 @@ async fn prepare_all_operations(
     set_opt_op.source_account = Some(ephemeral_account_id.clone().into());
 
     // add trust line
-    let mut change_trust_op = change_trust_op(pool,asset_code).await?;
+    let mut change_trust_op = change_trust_op(asset_code).await?;
     change_trust_op.source_account = Some(ephemeral_account_id.into());
 
     Ok(vec![create_op,set_opt_op, change_trust_op])
 }
 
 #[doc(hidden)]
-async fn change_trust_op(pool:&Pool, asset_code:&str) -> Result<Operation,Error> {
-    let token = get_single_token(pool,asset_code).await?;
+async fn change_trust_op(asset_code:&str) -> Result<Operation,Error> {
+    let token = Token::try_by_asset_code(asset_code)?;
     let tk_asset = asset_to_change_trust_asset_type(&token)?;
 
     operation_with_custom_err!(

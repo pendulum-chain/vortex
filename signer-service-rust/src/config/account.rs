@@ -9,11 +9,11 @@ use crate::helper::public_key_as_string;
 
 #[doc(hidden)]
 /// the environment variable name to store the secret key
-const STELLAR_SECRET_KEY:&str = "STELLAR_SECRET_KEY";
+const ENV_VAR_NAME_STELLAR_SECRET_KEY:&str = "STELLAR_SECRET_KEY";
 
 #[doc(hidden)]
 /// the environment variable name to store whether to use Public network or Test network
-const STELLAR_PUBLIC_NETWORK:&str = "STELLAR_PUBLIC_NETWORK";
+const ENV_VAR_NAME_STELLAR_PUBLIC_NETWORK:&str = "STELLAR_PUBLIC_NETWORK";
 
 /// The configuration of the funding account
 #[derive(Clone)]
@@ -34,14 +34,14 @@ impl Debug for AccountConfig {
 impl AccountConfig {
     /// Create new config via environment variables
     pub(super) fn try_from_env() -> Result<Self,Error> {
-        let secret = env::var(STELLAR_SECRET_KEY).map_err(|_| Error::MissingStellarSecretKey)?;
+        let secret = env::var(ENV_VAR_NAME_STELLAR_SECRET_KEY).map_err(|_| Error::MissingStellarSecretKey)?;
         let secret = SecretKey::from_encoding(&secret)
             .map_err(|e| {
                 error!("‼️Failed to parse stellar secret key  ******: {e:?}");
                 Error::ParseFailed("stellar secret key".to_string())
             })?;
 
-        let is_public_network = env::var(STELLAR_PUBLIC_NETWORK).map_err(|_| Error::MissingStellarNetworkIdentifier)?;
+        let is_public_network = env::var(ENV_VAR_NAME_STELLAR_PUBLIC_NETWORK).map_err(|_| Error::MissingStellarNetworkIdentifier)?;
         let is_public_network = is_public_network.parse::<bool>()
             .map_err(|_| {
                 error!("‼️Failed to parse stellar public network {is_public_network}");

@@ -6,13 +6,13 @@ use tracing::error;
 use crate::config::{Error, try_get_port_from_env};
 
 #[doc(hidden)]
-const DATABASE_HOST:&str = "DATABASE_HOST";
+const ENV_VAR_NAME_DATABASE_HOST:&str = "DATABASE_HOST";
 #[doc(hidden)]
-const DATABASE_PORT:&str = "DATABASE_PORT";
+const ENV_VAR_NAME_DATABASE_PORT:&str = "DATABASE_PORT";
 #[doc(hidden)]
-const POSTGRES_USER:&str = "POSTGRES_USER";
+const ENV_VAR_NAME_POSTGRES_USER:&str = "POSTGRES_USER";
 #[doc(hidden)]
-const POSTGRES_PASSWORD:&str = "POSTGRES_PASSWORD";
+const ENV_VAR_NAME_POSTGRES_PASSWORD:&str = "POSTGRES_PASSWORD";
 
 /// The configuration of the Postgres db
 pub struct DatabaseConfig {
@@ -40,10 +40,10 @@ impl DatabaseConfig {
     /// Create new config via environment variables
     pub(super) fn try_from_env() -> Result<Self,Error> {
         Ok(DatabaseConfig{
-            host: env::var(DATABASE_HOST).map_err(|_| Error::MissingDatabaseHost)?,
-            port: try_get_port_from_env(DATABASE_PORT,Error::MissingDatabasePort)?,
-            user: env::var(POSTGRES_USER).map_err(|_| Error::MissingDatabaseUser)?,
-            pass: env::var(POSTGRES_PASSWORD).map_err(|_| Error::MissingDatabaseUser)?
+            host: env::var(ENV_VAR_NAME_DATABASE_HOST).map_err(|_| Error::MissingDatabaseHost)?,
+            port: try_get_port_from_env(ENV_VAR_NAME_DATABASE_PORT,Error::MissingDatabasePort)?,
+            user: env::var(ENV_VAR_NAME_POSTGRES_USER).map_err(|_| Error::MissingDatabaseUser)?,
+            pass: env::var(ENV_VAR_NAME_POSTGRES_PASSWORD).map_err(|_| Error::MissingDatabaseUser)?
         })
     }
 

@@ -1,10 +1,9 @@
 mod config;
-pub mod infra;
+mod infra;
 mod api;
 
 #[doc(hidden)]
 pub mod helper;
-
 
 use deadpool_diesel::postgres::Pool;
 use tracing::info;
@@ -16,12 +15,12 @@ use tracing_subscriber::{
 };
 use crate::api::routes::{v1_routes};
 use crate::config::AccountConfig;
-use crate::infra::{initialize_db, run_migrations};
+use crate::infra::run_migrations;
 
 /// Application State that can be shared amongst routes
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: Pool,
+    pub connection_pool: Pool,
     pub account: AccountConfig
 }
 
@@ -32,16 +31,15 @@ async fn main() {
     let config = config::Config::try_from_env_file(".env").unwrap();
 
     let db_cfg = config.database_config();
-    let pool = db_cfg.create_pool().unwrap();
-    run_migrations(&pool).await.unwrap();
-    initialize_db(&pool).await.unwrap();
+    let connection_pool = db_cfg.create_pool().unwrap();
+    run_migrations(&connection_pool).await.unwrap();
 
     let server_addr = config.server_config().socket_address().unwrap();
     let listener = tokio::net::TcpListener::bind(server_addr).await.unwrap();
     info!("🚀{:<6} - {:?}\n", "LISTENING", listener.local_addr());
 
     let state = AppState {
-        pool,
+        connection_pool,
         account: config.account_config(),
     };
     axum::serve(listener,v1_routes(state)).await.unwrap();

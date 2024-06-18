@@ -21,13 +21,6 @@ And the log should print:
 ```log
 INFO signer_service_rust: 🚀LISTENING - Ok(127.0.0.1:3001)
 ```
-On the succeeding runs while your db is still up, you might encounter these logs which can be ignored:
-```log
-WARN signer_service_rust::infra: ⚠️WARNING - inserting BRL to db: Internal server error: duplicate key value violates unique constraint "tokens_asset_code_asset_issuer_key"
-WARN signer_service_rust::infra: ⚠️WARNING - inserting EURC to db: Internal server error: duplicate key value violates unique constraint "tokens_asset_code_asset_issuer_key"
-```
-It only warns that the following [tokens](./resources/tokens) are already in the table.
-
 ## The routes
 
 ### **`GET`** http://127.0.0.1:3001/v1/status
@@ -37,27 +30,6 @@ if successful, will show the public key of environment variable `STELLAR_SECRET_
     "public": "GAENC...",
     "status": true
 }
-```
-
-### **`GET`** http://127.0.0.1:3001/v1/tokens
-returns all the supported tokens
-```json
-[
-    {
-        "asset_code": "BRL",
-        "asset_issuer": "GDVKY2GU2DRXWTBEYJJWSFXIGBZV6AZNBVVSUHEPZI54LIS6BA7DVVSP",
-        "min_withdrawal_amount": "10000000000000",
-        "toml_url": "https://ntokens.com/.well-known/stellar.toml",
-        "vault_account_id": "6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS"
-    },
-    {
-        "asset_code": "EURC",
-        "asset_issuer": "GAQRF3UGHBT6JYQZ7YSUYCIYWAF4T2SAA5237Q5LIQYJOHHFAWDXZ7NM",
-        "min_withdrawal_amount": "10000000000000",
-        "toml_url": "https://mykobo.co/.well-known/stellar.toml",
-        "vault_account_id": "6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm"
-    }
-]
 ```
 
 ### **`POST`** http://127.0.0.1:3001/v1/stellar/payment
