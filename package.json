@@ -37,9 +37,10 @@
     "@polkadot/rpc-provider": "^9.9.1",
     "@polkadot/types": "^9.9.1",
     "@polkadot/util": "^10.1.9",
+    "@rainbow-me/rainbowkit": "^2.1.2",
     "@talismn/connect-components": "^1.1.8",
     "@talismn/connect-wallets": "^1.2.5",
-    "@tanstack/react-query": "^5.31.0",
+    "@tanstack/react-query": "^5.45.1",
     "@walletconnect/modal": "^2.6.2",
     "@walletconnect/universal-provider": "^2.12.2",
     "bn.js": "^5.2.1",
@@ -49,7 +50,9 @@
     "react-native-compat": "^1.0.0",
     "react-router-dom": "^6.8.1",
     "stellar-base": "^11.0.1",
-    "stellar-sdk": "^11.3.0"
+    "stellar-sdk": "^11.3.0",
+    "viem": "2.x",
+    "wagmi": "^2.10.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.12",
