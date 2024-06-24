@@ -7,22 +7,51 @@ import '@rainbow-me/rainbowkit/styles.css';
 import { render } from 'preact';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
-import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { WagmiProvider } from 'wagmi';
+import { connectorsForWallets, getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import { createConfig, http, WagmiProvider } from 'wagmi';
 import { polygon, base } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { App } from './app';
 import defaultTheme from './theme';
 import { GlobalState, GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
+import { walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
+import { injectedWallet } from '@rainbow-me/rainbowkit/wallets';
+import { safeWallet } from '@rainbow-me/rainbowkit/wallets';
+import { createClient } from 'viem';
 
-const config = getDefaultConfig({
+const queryClient = new QueryClient();
+
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: 'Recommended',
+      wallets: [injectedWallet, safeWallet, walletConnectWallet],
+    },
+  ],
+  {
+    appName: 'Vortex',
+    projectId: '495a5f574d57e27fd65caa26d9ea4f10',
+  },
+);
+
+const defaultConfig = getDefaultConfig({
   appName: 'Vortex',
-  projectId: 'YOUR_PROJECT_ID',
+  projectId: '495a5f574d57e27fd65caa26d9ea4f10',
   chains: [polygon, base],
   ssr: false, // If your dApp uses server side rendering (SSR)
 });
 
-const queryClient = new QueryClient();
+const config = createConfig({
+  client({ chain }) {
+    return createClient({
+      chain,
+      transport: http(),
+    });
+  },
+  chains: defaultConfig.chains,
+  connectors,
+  ssr: false,
+});
 
 render(
   <ThemeProvider theme={defaultTheme}>
