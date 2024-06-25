@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import eurcSvg from '../../assets/coins/eurc.svg';
 import euroSvg from '../../assets/coins/euro.svg';
 import arrowSvg from '../../assets/coins/arrow.svg';
-import OpenWallet from '../Wallet';
+import { useWagmiHooks } from '../../hooks/useWagmiHooks';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { useAccountBalance } from './BalanceState'; 
+import { useAccountBalance } from './BalanceState';
 
 interface InputBoxProps {
   onSubmit: (userSubstrateAddress: string, selectedAsset: string) => void;
@@ -17,7 +18,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
-  const [ss58Format, setSs58Format] = useState<number>(42);
+  useWagmiHooks();
 
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
 
@@ -25,10 +26,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     const initializeApiManager = async () => {
       const manager = await getApiManagerInstance();
       const { api, ss58Format } = await manager.getApiComponents();
-      setSs58Format(ss58Format);
     };
 
-    initializeApiManager();
+    initializeApiManager().catch(console.error);
   }, []);
 
   const handleSelectAsset = (asset: string) => {
@@ -66,34 +66,37 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             </ul>
           </div>
         )}
-      <div>
-          <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
-      </div>
-      <div className="button-container">
-        {!isSubmitted && walletAccount?.address && (
-          <>
-            <div className="asset-selection-heading">Please select the asset to offramp:</div>
-            {Object.entries(balances).map(([key, { balance, canWithdraw }]) => (
-              <button key={key} className={`assetButton ${selectedAsset === key ? 'selected' : ''}`}
-                      onClick={() => handleSelectAsset(key)}>
-                {key.toUpperCase()}
-              </button>
-            ))}
-          </>
-        )}
-      </div>
+        <ConnectButton chainStatus="full" showBalance={true} accountStatus="address" label="Connect to Wallet" />
+        <div className="button-container">
+          {!isSubmitted && walletAccount?.address && (
+            <>
+              <div className="asset-selection-heading">Please select the asset to offramp:</div>
+              {Object.entries(balances).map(([key, { balance, canWithdraw }]) => (
+                <button
+                  key={key}
+                  className={`assetButton ${selectedAsset === key ? 'selected' : ''}`}
+                  onClick={() => handleSelectAsset(key)}
+                >
+                  {key.toUpperCase()}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
         {!isSubmitted && selectedAsset && walletAccount?.address && (
           <div className="selected-balance-info">
             <p>Available Balance: {balances[selectedAsset].balance}</p>
           </div>
         )}
-        
-          {selectedAsset && !isSubmitted && walletAccount?.address ? <button className="begin-offramp-btn" onClick={handleSubmit}>Prepare prototype</button> : null}
-          {isSubmitted && (
-            <div className="offramp-started">
-              Offramp started for asset - {selectedAsset?.toUpperCase()}
-            </div>
-          )}
+
+        {selectedAsset && !isSubmitted && walletAccount?.address ? (
+          <button className="begin-offramp-btn" onClick={handleSubmit}>
+            Prepare prototype
+          </button>
+        ) : null}
+        {isSubmitted && (
+          <div className="offramp-started">Offramp started for asset - {selectedAsset?.toUpperCase()}</div>
+        )}
       </div>
     </div>
   );
