@@ -52,7 +52,9 @@ function Landing() {
   const [backendError, setBackendError] = useState<boolean>(false);
 
   // Wallet states
-  const { walletAccount, dAppName } = useGlobalState();
+  // const { walletAccount, dAppName } = useGlobalState();
+  // TODO - use different wallet account
+  const walletAccount = null;
 
   const handleOnSubmit = async (
     userSubstrateAddress: string,

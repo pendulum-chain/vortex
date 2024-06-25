@@ -6,7 +6,8 @@ import arrowSvg from '../../assets/coins/arrow.svg';
 import { useWagmiHooks } from '../../hooks/useWagmiHooks';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { useAccountBalance } from '../Nabla/BalanceState';import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
+import { useAccountBalance } from '../Nabla/BalanceState';
+import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { Button, Card } from 'react-daisyui';
@@ -18,8 +19,10 @@ import { useSwapForm } from '../Nabla/useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { Skeleton } from '../Skeleton';
 import { Tabs } from 'react-daisyui';
+import { useAccount, useBalance } from 'wagmi';
 
 const { RadioTab } = Tabs;
+
 interface InputBoxProps {
   onSubmit: (
     userSubstrateAddress: string,
@@ -55,7 +58,8 @@ function Loader() {
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
-  const { walletAccount } = useGlobalState();
+  // TODO - use different wallet account
+  const walletAccount: { address: string; source: string } = { address: '', source: '' };
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   useWagmiHooks();
