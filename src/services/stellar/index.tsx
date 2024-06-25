@@ -155,12 +155,12 @@ async function createOfframpAndMergeTransaction(
   //cast the memo to corresponding type
   let transactionMemo;
   switch (memoType) {
-    case "text":
+    case 'text':
       transactionMemo = Memo.text(memo);
       break;
 
-    case "hash":
-      transactionMemo = Memo.hash(Buffer.from(memo, "base64"));
+    case 'hash':
+      transactionMemo = Memo.hash(Buffer.from(memo, 'base64'));
       break;
 
     default:
@@ -215,7 +215,13 @@ async function createOfframpAndMergeTransaction(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccount.accountId(), paymentData: sep24Result, sequence, maxTime, assetCode: tokenConfig.assetCode }),
+    body: JSON.stringify({
+      accountId: ephemeralAccount.accountId(),
+      paymentData: sep24Result,
+      sequence,
+      maxTime,
+      assetCode: tokenConfig.assetCode,
+    }),
   });
 
   if (!response.ok) {

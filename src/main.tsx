@@ -54,9 +54,10 @@ const config = createConfig({
 });
 
 render(
-  <ThemeProvider theme={defaultTheme}>
-    <BrowserRouter>
-      <WagmiProvider config={config}>
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider theme={defaultTheme}>
+      <BrowserRouter>
+        <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
           <RainbowKitProvider>
             <GlobalStateProvider>
@@ -70,7 +71,8 @@ render(
           </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>
-    </BrowserRouter>
-  </ThemeProvider>,
+      </BrowserRouter>
+    </ThemeProvider>
+  </QueryClientProvider>,
   document.getElementById('app') as HTMLElement,
 );

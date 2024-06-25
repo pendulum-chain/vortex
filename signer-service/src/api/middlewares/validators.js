@@ -4,7 +4,7 @@ const validateCreationInput = (req, res, next) => {
     return res.status(400).json({ error: 'Missing accountId or maxTime parameter' });
   }
 
-  if (!assetCode){
+  if (!assetCode) {
     return res.status(400).json({ error: 'Missing assetCode parameter' });
   }
 
@@ -20,7 +20,7 @@ const validateChangeOpInput = (req, res, next) => {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
 
-  if (!assetCode){
+  if (!assetCode) {
     return res.status(400).json({ error: 'Missing assetCode parameter' });
   }
 

@@ -16,6 +16,7 @@ export interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
   tokenConfig: TokenDetails;
+  offrampAmount: string;
 }
 
 export interface Sep24Result {
@@ -77,7 +78,6 @@ export const sep10 = async (
     account: accountId,
   });
 
-  console.log('Initiate SEP-10');
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
     throw new Error(`Failed to fetch SEP-10 challenge: ${challenge.statusText}`);
@@ -111,7 +111,6 @@ export const sep10 = async (
   }
 
   const { token } = await jwt.json();
-  console.log(`SEP-10 challenge completed.`);
 
   // print the ephemeral secret, for testing
   renderEvent(
@@ -125,11 +124,13 @@ export async function sep24First(
   sessionParams: IAnchorSessionParams,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<ISep24Intermediate> {
-  console.log('Initiate SEP-24');
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
+
+  // at this stage, assetCode should be defined, if the config is consistent.
   const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.assetCode,
+    asset_code: sessionParams.tokenConfig.assetCode!,
+    amount: sessionParams.offrampAmount,
   });
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;
@@ -148,8 +149,6 @@ export async function sep24First(
     renderEvent(`Unexpected SEP-24 type: ${type}`, EventStatus.Error);
     throw new Error(`Unexpected SEP-24 type: ${type}`);
   }
-
-  console.log(`SEP-24 initiated. Please complete the form at ${url}.`);
 
   return { url, id };
 }
@@ -187,11 +186,9 @@ export async function sep24Second(
     }
 
     const { transaction } = await statusResponse.json();
-    console.log(transaction);
     status = transaction;
   } while (status.status !== 'pending_user_transfer_start');
 
-  console.log('SEP-24 parameters received');
   return {
     amount: status.amount_in,
     memo: status.withdraw_memo,
