@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import eurcSvg from '../../assets/coins/eurc.svg';
-import euroSvg from '../../assets/coins/euro.svg';
-import arrowSvg from '../../assets/coins/arrow.svg';
-import { useWagmiHooks } from '../../hooks/useWagmiHooks';
-import { useGlobalState } from '../../GlobalStateProvider';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useAccountBalance } from '../Nabla/BalanceState';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
@@ -19,7 +14,6 @@ import { useSwapForm } from '../Nabla/useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { Skeleton } from '../Skeleton';
 import { Tabs } from 'react-daisyui';
-import { useAccount, useBalance } from 'wagmi';
 
 const { RadioTab } = Tabs;
 
@@ -62,7 +56,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const walletAccount: { address: string; source: string } = { address: '', source: '' };
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
-  useWagmiHooks();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
   const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
