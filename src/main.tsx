@@ -37,7 +37,7 @@ const connectors = connectorsForWallets(
 const defaultConfig = getDefaultConfig({
   appName: 'Vortex',
   projectId: '495a5f574d57e27fd65caa26d9ea4f10',
-  chains: [polygon, base],
+  chains: [polygon],
   ssr: false, // If your dApp uses server side rendering (SSR)
 });
 
@@ -58,19 +58,19 @@ render(
     <ThemeProvider theme={defaultTheme}>
       <BrowserRouter>
         <WagmiProvider config={config}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider>
-            <GlobalStateProvider>
-              <GlobalStateContext.Consumer>
-                {(globalState) => {
-                  const { tenantRPC, getThemeName = () => undefined } = globalState as GlobalState;
-                  return <App />;
-                }}
-              </GlobalStateContext.Consumer>
-            </GlobalStateProvider>
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
+          <QueryClientProvider client={queryClient}>
+            <RainbowKitProvider>
+              <GlobalStateProvider>
+                <GlobalStateContext.Consumer>
+                  {(globalState) => {
+                    const { tenantRPC, getThemeName = () => undefined } = globalState as GlobalState;
+                    return <App />;
+                  }}
+                </GlobalStateContext.Consumer>
+              </GlobalStateProvider>
+            </RainbowKitProvider>
+          </QueryClientProvider>
+        </WagmiProvider>
       </BrowserRouter>
     </ThemeProvider>
   </QueryClientProvider>,
