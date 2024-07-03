@@ -95,7 +95,7 @@ function Landing() {
     let balanceToOfframp = swapOptions.amountIn;
     if (swapsFirst) {
       balanceToOfframp = await performSwap(
-        { swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount! },
+        { swap: swapOptions, userAddress: userSubstrateAddress },
         addEvent,
       );
     }
@@ -168,7 +168,7 @@ function Landing() {
       //this will trigger finalizeOfframp
       setStatus(OperationStatus.FinalizingOfframp);
     },
-    [walletAccount, anchorSessionParams],
+    [anchorSessionParams],
   );
 
   const finalizeOfframp = useCallback(async () => {

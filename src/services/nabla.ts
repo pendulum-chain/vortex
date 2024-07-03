@@ -19,11 +19,10 @@ import { getEphemeralAccount } from './polkadot/ephemeral';
 export interface PerformSwapProps {
   swap: SwapOptions;
   userAddress: string;
-  walletAccount: WalletAccount;
 }
 
 export async function performSwap(
-  { swap, userAddress, walletAccount }: PerformSwapProps,
+  { swap, userAddress }: PerformSwapProps,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<number> {
   // event attempting swap
@@ -36,14 +35,17 @@ export async function performSwap(
   const assetInDetails = TOKEN_CONFIG[swap.assetIn];
   const assetOutDetails = TOKEN_CONFIG[swap.assetOut];
 
+  // get ephermal keypair and account
+  let keypairEphemeral = getEphemeralAccount();
+
   // call the current allowance of the user
   const response: ReadMessageResult = await readMessage({
     abi: erc20ContractAbi,
     api: pendulumApiComponents.api,
     contractDeploymentAddress: assetInDetails.erc20Address!,
-    callerAddress: walletAccount.address,
+    callerAddress: keypairEphemeral.address,
     messageName: 'allowance',
-    messageArguments: [walletAccount.address, NABLA_ROUTER],
+    messageArguments: [keypairEphemeral.address, NABLA_ROUTER],
     limits: defaultReadLimits,
   });
 
@@ -72,7 +74,7 @@ export async function performSwap(
         token: assetInDetails.erc20Address!,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
-        walletAccount,
+        keypairEphemeral,
       });
     } catch (e) {
       renderEvent(`Could not approve token: ${e}`, EventStatus.Error);
@@ -102,7 +104,7 @@ export async function performSwap(
       tokenIn: assetInDetails.erc20Address!,
       tokenOut: assetOutDetails.erc20Address!,
       contractAbi: routerAbiObject,
-      walletAccount,
+      keypairEphemeral,
     });
   } catch (e) {
     let errorMessage = '';
@@ -133,15 +135,13 @@ export async function performSwap(
   return actualOfframpValue.toNumber();
 }
 
-async function approve({ api, token, spender, amount, contractAbi, walletAccount }: any) {
+async function approve({ api, token, spender, amount, contractAbi, keypairEphemeral }: any) {
   console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
-
-  let keypairEphemeral = getEphemeralAccount();
   
   const response = await executeMessage({
     abi: contractAbi,
     api,
-    callerAddress: walletAccount.address,
+    callerAddress: keypairEphemeral.address,
     contractDeploymentAddress: token,
     getSigner: () =>
       Promise.resolve({
@@ -154,20 +154,19 @@ async function approve({ api, token, spender, amount, contractAbi, walletAccount
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
   });
 
-  console.log('write', 'call approve response', walletAccount.address, [spender, amount], response);
+  console.log('write', 'call approve response', keypairEphemeral.address, [spender, amount], response);
 
   if (response?.result?.type !== 'success') throw response;
   return response;
 }
 
-async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contractAbi, walletAccount }: any) {
+async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contractAbi, keypairEphemeral }: any) {
   console.log('write', `call swap ${tokenIn} for ${tokenOut} with amount ${amount}, minimum expexted ${amountMin} `);
 
-  let keypairEphemeral = getEphemeralAccount();
   const response = await executeMessage({
     abi: contractAbi,
     api,
-    callerAddress: walletAccount.address,
+    callerAddress: keypairEphemeral.address,
     contractDeploymentAddress: NABLA_ROUTER,
     getSigner: () =>
       Promise.resolve({
@@ -176,7 +175,7 @@ async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contrac
       }),
     messageName: 'swapExactTokensForTokens',
     // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
-    messageArguments: [amount, amountMin, [tokenIn, tokenOut], walletAccount.address, calcDeadline(5)],
+    messageArguments: [amount, amountMin, [tokenIn, tokenOut], keypairEphemeral.address, calcDeadline(5)],
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
   });
