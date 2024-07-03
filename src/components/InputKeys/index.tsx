@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import eurcSvg from '../../assets/coins/eurc.svg';
-import euroSvg from '../../assets/coins/euro.svg';
-import arrowSvg from '../../assets/coins/arrow.svg';
-import OpenWallet from '../Wallet';
-import { useGlobalState } from '../../GlobalStateProvider';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useAccountBalance } from '../Nabla/BalanceState';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
@@ -20,6 +16,7 @@ import { Skeleton } from '../Skeleton';
 import { Tabs } from 'react-daisyui';
 
 const { RadioTab } = Tabs;
+
 interface InputBoxProps {
   onSubmit: (
     userSubstrateAddress: string,
@@ -55,10 +52,10 @@ function Loader() {
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
-  const { walletAccount } = useGlobalState();
+  // TODO - use different wallet account
+  const walletAccount: { address: string; source: string } = { address: '', source: '' };
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
-  const [ss58Format, setSs58Format] = useState<number>(42);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
   const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
@@ -68,10 +65,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       const manager = await getApiManagerInstance();
       const { api, ss58Format } = await manager.getApiComponents();
       setApi(api);
-      setSs58Format(ss58Format);
     };
 
-    initializeApiManager();
+    initializeApiManager().catch(console.error);
     setActiveTab('swap');
   }, []);
 
@@ -243,9 +239,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             </ul>
           </div>
         )}
-        <div>
-          <OpenWallet dAppName={dAppName} ss58Format={ss58Format} offrampStarted={isSubmitted} />
-        </div>
+        <ConnectButton chainStatus="full" showBalance={true} accountStatus="address" label="Connect to Wallet" />
         <div className="text-center my-5">
           <Card.Title tag="h2" className="text-3xl font-normal">
             Offramp Asset
