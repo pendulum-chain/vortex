@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import eurcSvg from '../../assets/coins/eurc.svg';
-import euroSvg from '../../assets/coins/euro.svg';
-import arrowSvg from '../../assets/coins/arrow.svg';
+import React, { useState, useEffect } from 'react';
 import OpenWallet from '../Wallet';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useAccountBalance } from '../Nabla/BalanceState';
-import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
+import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { Button, Card } from 'react-daisyui';
@@ -18,32 +15,24 @@ import { useSwapForm } from '../Nabla/useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { Skeleton } from '../Skeleton';
 import { Tabs } from 'react-daisyui';
+import { config } from '../../config';
+import Big from 'big.js';
+import { ExecutionInput } from '../../pages/landing';
 
 const { RadioTab } = Tabs;
 interface InputBoxProps {
-  onSubmit: (
-    userSubstrateAddress: string,
-    swapsFirst: boolean,
-    selectedAsset: string,
-    swap: SwapOptions,
-    maxBalanceFrom: number,
-  ) => void;
+  onSubmit: (input: ExecutionInput) => void;
   dAppName: string;
 }
 
 export interface SwapSettings {
-  slippage?: number;
-  deadline: number;
   from: string;
   to: string;
 }
 
 export interface SwapOptions {
   assetIn: string;
-  assetOut: string;
-  amountIn: number;
-  minAmountOut: number;
-  initialDesired: number;
+  minAmountOut: Big;
 }
 
 function Loader() {
@@ -60,7 +49,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
 
   const [ss58Format, setSs58Format] = useState<number>(42);
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
+  const { balances, isBalanceLoading } = useAccountBalance(walletAccount?.address);
   const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
 
   useEffect(() => {
@@ -75,16 +64,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     setActiveTab('swap');
   }, []);
 
-  useEffect(() => {
-    if (activeTab === 'swap') {
-      // force usdt selection
-      onFromChange(TOKEN_CONFIG.usdt);
-    } else {
-      // removes possible usdt selected
-      form.setValue('from', '');
-    }
-  }, [activeTab]);
-
   const wantsSwap = activeTab === 'swap';
 
   const {
@@ -93,9 +72,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     onToChange,
     form,
     fromAmount,
+    fromAmountString,
     fromToken,
     toToken,
-    slippage,
     from,
     to,
   } = useSwapForm();
@@ -104,26 +83,51 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     wantsSwap,
     api: api,
     walletAccount,
-    fromAmount,
+    fromAmountString,
     fromToken: from,
     toToken: to,
     maximumFromAmount: undefined,
-    slippage,
+    slippageBasisPoints: config.swap.slippageBasisPoints,
     form,
   });
 
+  const {
+    setValue,
+    formState: { errors },
+  } = form;
+
+  const formErrorMessage = errors.fromAmount?.message ?? errors.root?.message;
+
+  useEffect(() => {
+    if (activeTab === 'swap') {
+      // force usdt selection
+      onFromChange(TOKEN_CONFIG.usdt);
+    } else {
+      // removes possible usdt selected
+      setValue('from', '');
+    }
+  }, [activeTab, setValue, onFromChange]);
+
   const handleSubmit = async () => {
-    if (fromAmount === 0) {
+    if (fromAmount === undefined || fromAmount.eq(0)) {
       alert('Please enter an amount to offramp.');
       return;
     }
 
+    if (tokenOutData.data === null) return;
+
     let assetToOfframp;
+    let swapOptions: SwapOptions | undefined;
     if (wantsSwap) {
       // ensure the swap was calculated and no errors were found
-      if (inputHasErrors || tokenOutData.isLoading) {
+      if (inputHasErrors || tokenOutData.isLoading || tokenOutData.data === undefined) {
         return;
       }
+
+      swapOptions = {
+        assetIn: from,
+        minAmountOut: tokenOutData.data.amountOut.preciseBigDecimal,
+      };
       assetToOfframp = to;
     } else {
       assetToOfframp = from;
@@ -135,7 +139,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     }
 
     // check balance of the asset used to offramp directly or to pay for the swap
-    if (balances[from].approximateNumber < fromAmount) {
+    console.log('balances', balances);
+    if (balances[from].preciseBigDecimal.lt(fromAmount)) {
       alert(
         `Insufficient balance to offramp. Current balance is ${
           balances[from].approximateNumber
@@ -150,19 +155,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       TOKEN_CONFIG[assetToOfframp].decimals,
     );
 
-    let minAmountOutBigNumber = toBigNumber('0', TOKEN_CONFIG[assetToOfframp].decimals);
-    if (tokenOutData.data) {
-      minAmountOutBigNumber = toBigNumber(tokenOutData.data.minAmountOut ?? '0', 0);
-    }
-
-    if (wantsSwap && assetToOfframp && minWithdrawalAmountBigNumber.gt(minAmountOutBigNumber)) {
+    if (
+      wantsSwap &&
+      from &&
+      tokenOutData.data !== undefined &&
+      minWithdrawalAmountBigNumber.gt(tokenOutData.data.amountOut.preciseBigDecimal)
+    ) {
       alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
       return;
-    }
-
-    let initialDesired = 0;
-    if (tokenOutData.data) {
-      initialDesired = tokenOutData.data.amountOut.approximateNumber;
     }
 
     setIsSubmitted(true);
@@ -187,34 +187,15 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       'asset out: ',
       to,
       '\n',
-      'min amount out: ',
-      tokenOutData.data?.minAmountOut,
-      '\n',
       'initial desired: ',
       tokenOutData.data?.amountOut.approximateNumber,
     );
 
-    const maxBalanceFrom = balances[from].approximateNumber;
-
-    onSubmit(
-      walletAccount!.address,
-      wantsSwap,
-      assetToOfframp,
-      {
-        amountIn: fromAmount,
-        assetIn: from,
-        assetOut: to,
-        minAmountOut: minAmountOutBigNumber.toNumber(),
-        initialDesired,
-      },
-      maxBalanceFrom,
-    );
+    onSubmit({ userSubstrateAddress: walletAccount!.address, assetToOfframp, amountIn: fromAmount, swapOptions });
   };
 
   // we don't propagate errors if wants swap is not defined
-  const inputHasErrors = wantsSwap
-    ? form.formState.errors.fromAmount?.message !== undefined || form.formState.errors.root?.message !== undefined
-    : false;
+  const inputHasErrors = wantsSwap && formErrorMessage !== undefined;
 
   return (
     <div>
@@ -237,7 +218,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         {!isSubmitted && (
           <div className="description">
             <ul>
-              <li>Ensure to have enough token funds in Pendulum wallet (min. 10 Tokens)</li>
+              <li>
+                Ensure to have enough token funds in Pendulum wallet{' '}
+                {toToken &&
+                  toToken.minWithdrawalAmount &&
+                  `(min. ${BigInt(toToken.minWithdrawalAmount) / 10n ** BigInt(toToken.decimals)} ${
+                    toToken.assetCode
+                  })`}
+              </li>
               <li>Do not close this window until the process is completed.</li>
               <li>This is a non-custodial prototype, please use at your own risk.</li>
             </ul>
@@ -268,23 +256,18 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       inputHasError={inputHasErrors}
                       form={form}
                       fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
+                      tokenBalances={balances}
                     />
-                    <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+                    <div>{formErrorMessage !== undefined && <p className="text-red-600">{formErrorMessage}</p>}</div>
                     <div className="separator mt-10 mb-10"></div>
                     <To
                       tokenId={to}
-                      fromTokenBalances={balances}
+                      tokenBalances={balances}
                       toToken={toToken}
                       fromToken={fromToken}
-                      toAmountQuote={
-                        inputHasErrors
-                          ? { enabled: false, data: undefined, error: null, isLoading: false }
-                          : tokenOutData
-                      }
+                      toAmountQuote={inputHasErrors ? { enabled: false, data: null, isLoading: false } : tokenOutData}
                       onOpenSelector={() => setModalType('to')}
                       fromAmount={fromAmount}
-                      slippage={slippage}
                     />
                   </Card>
                 ) : null}
@@ -305,13 +288,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       inputHasError={inputHasErrors}
                       form={form}
                       fromFormFieldName="fromAmount"
-                      fromTokenBalances={balances}
+                      tokenBalances={balances}
                     />
-                    <div>
-                      {tokenOutData.error && !tokenOutData.error.includes('missing') && (
-                        <p className="text-red-600">{tokenOutData.error}</p>
-                      )}
-                    </div>
                   </Card>
                 )}
               </div>
@@ -320,7 +298,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         </FormProvider>
 
         {!(from === '') && !isSubmitted && walletAccount?.address ? (
-          <Button className="mt-10" size="md" color="primary" onClick={handleSubmit}>
+          <Button className="mt-10" size="md" color="primary" onClick={handleSubmit} disabled={inputHasErrors}>
             Prepare prototype
           </Button>
         ) : null}

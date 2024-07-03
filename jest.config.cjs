@@ -1,8 +1,5 @@
 module.exports = {
   roots: ['<rootDir>/src'],
-  transform: {
-    '\\.(ts|tsx)?$': 'babel-jest',
-  },
   testMatch: ['**/?(*.)+(spec|test).{ts,tsx}'],
   testEnvironment: 'jsdom',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],

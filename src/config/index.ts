@@ -49,23 +49,9 @@ export const config = {
       explorer: 'https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-foucoco.pendulumchain.tech#/explorer/query',
     },
   } satisfies TenantConfig,
-  transaction: {
-    settings: {
-      slippage: {
-        min: 0.1,
-        max: 99.9,
-      },
-      deadline: {
-        min: 1,
-        max: 1440,
-      },
-    },
-  },
   swap: {
-    defaults: {
-      slippage: 0.5,
-      deadline: 30,
-    },
+    slippageBasisPoints: 20,
+    deadline: 30,
   },
   walletConnect: {
     url: 'wss://relay.walletconnect.com',

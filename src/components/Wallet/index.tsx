@@ -3,7 +3,6 @@ import { WalletSelect } from '@talismn/connect-components';
 import { Button, Divider } from 'react-daisyui';
 import { useGlobalState } from '../../GlobalStateProvider';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
-import { CopyableAddress } from '../PublicKey';
 import MetamaskWallet from './MetamaskWallet';
 import WalletConnect from './WalletConnect';
 

@@ -1,3 +1,7 @@
+import BrlIcon from '../assets/coins/BRL.png';
+import UsdtIcon from '../assets/coins/USDT.png';
+import EurcIcon from '../assets/coins/EURC.png';
+
 export interface TokenDetails {
   currencyId: any;
   isOfframp: boolean;
@@ -11,6 +15,7 @@ export interface TokenDetails {
   vaultAccountId?: string;
   minWithdrawalAmount?: string;
   assetCodeHex?: string; // Optional property
+  icon: string;
 }
 
 export interface TokenConfig {
@@ -32,9 +37,10 @@ export const TOKEN_CONFIG: TokenConfig = {
     canSwapTo: ['usdt', 'eurc'],
     assetIssuer: 'GDVKY2GU2DRXWTBEYJJWSFXIGBZV6AZNBVVSUHEPZI54LIS6BA7DVVSP',
     vaultAccountId: '6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS',
-    minWithdrawalAmount: '1000000000000',
+    minWithdrawalAmount: '200000000000000',
     assetCodeHex: '0x42524c00',
     erc20Address: '6dZCR7KVmrcxBoUTcM3vUgpQagQAW2wg2izMrT3N4reftwW5',
+    icon: BrlIcon,
   },
   eurc: {
     tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
@@ -51,6 +57,7 @@ export const TOKEN_CONFIG: TokenConfig = {
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     erc20Address: '6fA9DRKJ12oTXfSAU7ZZGZ9gEQ92YnyRXeJzW1wXekPzeXZC',
     minWithdrawalAmount: '10000000000000',
+    icon: EurcIcon,
   },
   usdt: {
     assetCode: 'USDT',
@@ -59,5 +66,6 @@ export const TOKEN_CONFIG: TokenConfig = {
     canSwapTo: ['brl', 'eurc'],
     isOfframp: false,
     erc20Address: '6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs',
+    icon: UsdtIcon,
   },
 };
