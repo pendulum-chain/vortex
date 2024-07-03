@@ -2,9 +2,10 @@ import { ArrowPathRoundedSquareIcon, ChevronDownIcon } from '@heroicons/react/20
 import { useEffect } from 'preact/compat';
 import { Button } from 'react-daisyui';
 import { useFormContext } from 'react-hook-form';
+import Big from 'big.js';
 
 import pendulumIcon from '../../assets/pendulum-icon.svg';
-import { NumberLoader } from '../Nabla/TokenBalance';
+import { NumberLoader, TokenBalance } from '../Nabla/TokenBalance';
 import { Skeleton } from '../Skeleton';
 import { SwapFormValues } from '../Nabla/schema';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
@@ -18,9 +19,8 @@ export interface ToProps {
   fromToken: TokenDetails | undefined;
   toToken: TokenDetails | undefined;
   toAmountQuote: UseTokenOutAmountResult;
-  fromAmount: number | undefined;
-  slippage: number;
-  fromTokenBalances: { [key: string]: BalanceInfo };
+  fromAmount: Big | undefined;
+  tokenBalances: { [key: string]: BalanceInfo };
 }
 
 export function To({
@@ -30,11 +30,9 @@ export function To({
   onOpenSelector,
   toAmountQuote,
   fromAmount,
-  slippage,
-  fromTokenBalances,
+  tokenBalances,
 }: ToProps): JSX.Element | null {
-  const toTokenBalance =
-    fromTokenBalances && tokenId && fromTokenBalances[tokenId] ? fromTokenBalances[tokenId].approximateNumber : 0;
+  const toTokenBalance = tokenBalances && tokenId ? tokenBalances[tokenId] : undefined;
 
   // replace with use state
   const [isOpen, { toggle }] = useBoolean(true);
@@ -54,9 +52,9 @@ export function To({
         <div className="flex-grow text-4xl text-[inherit] font-outfit overflow-x-auto overflow-y-hidden mr-2">
           {toAmountQuote.isLoading ? (
             <NumberLoader />
-          ) : toAmountQuote.data !== undefined ? (
+          ) : toAmountQuote.data !== undefined && toAmountQuote.data !== null ? (
             `${toAmountQuote.data.amountOut.approximateStrings.atLeast4Decimals}`
-          ) : fromAmount !== undefined && fromAmount > 0 ? (
+          ) : fromAmount !== undefined && fromAmount.gt(0) ? (
             <button
               type="button"
               onClick={() => toAmountQuote.refetch?.()}
@@ -76,13 +74,7 @@ export function To({
           type="button"
         >
           <span className="rounded-full bg-[rgba(0,0,0,0.15)] h-full p-px mr-1">
-            {toToken && (
-              <img
-                src={`/assets/coins/${toToken.assetCode.toUpperCase()}.png`}
-                alt="Pendulum"
-                className="h-full w-auto"
-              />
-            )}
+            {toToken && <img src={toToken.icon} alt="Pendulum" className="h-full w-auto" />}
             {!toToken && <img src={pendulumIcon} alt="Pendulum" className="h-full w-auto" />}
           </span>
           <strong className="font-bold">{toToken?.assetCode || 'Select'}</strong>
@@ -91,7 +83,10 @@ export function To({
       </div>
       <div className="flex justify-between items-center mt-1 dark:text-neutral-300 text-neutral-500">
         {/* <div className="text-sm mt-px">{toToken ? <NablaTokenPrice address={toToken.id} fallback="$ -" /> : '$ -'}</div> */}
-        <div className="flex gap-1 text-sm">Your balance: {toTokenBalance}</div>
+        <div className="flex gap-1 text-sm">
+          Your balance:{' '}
+          {toTokenBalance ? <TokenBalance query={toTokenBalance} symbol={toToken?.assetCode}></TokenBalance> : '0'}
+        </div>
       </div>
       <div className="mt-4 h-px -mx-4 bg-[rgba(0,0,0,0.15)]" />
       <div
@@ -104,7 +99,7 @@ export function To({
             {fromToken !== undefined &&
             toToken !== undefined &&
             !toAmountQuote.isLoading &&
-            toAmountQuote.data !== undefined ? (
+            toAmountQuote.data != undefined ? (
               <>{`1 ${fromToken.assetCode} = ${toAmountQuote.data.effectiveExchangeRate} ${toToken.assetCode}`}</>
             ) : (
               `-`
@@ -133,21 +128,9 @@ export function To({
             )}
           </div>
           <div className="flex justify-between">
-            <div>Minimum received after slippage ({slippage}%)</div>
-            {toAmountQuote.data !== undefined && toToken !== undefined ? (
-              <div>
-                <Skeleton isLoading={toAmountQuote.isLoading || toAmountQuote.data === undefined}>
-                  {toAmountQuote.data !== undefined ? toAmountQuote.data.minAmountOut : ''} {toToken?.assetCode || ''}
-                </Skeleton>
-              </div>
-            ) : (
-              <div>N/A</div>
-            )}
-          </div>
-          <div className="flex justify-between">
             <div>Swap fee:</div>
             <div>
-              {toAmountQuote.data !== undefined ? toAmountQuote.data.swapFee.approximateStrings.atLeast2Decimals : ''}{' '}
+              {toAmountQuote.data != undefined ? toAmountQuote.data.swapFee.approximateStrings.atLeast2Decimals : ''}{' '}
               {toToken?.assetCode || ''}
             </div>
           </div>

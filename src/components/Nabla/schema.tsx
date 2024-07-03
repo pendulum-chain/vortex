@@ -5,15 +5,6 @@ export type SwapFormValues = {
   fromAmount: string;
   to: string;
   toAmount: string;
-  slippage: number | undefined;
-  deadline: number;
-};
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const transformNumber = (value: any, originalValue: any) => {
-  if (!originalValue) return 0;
-  if (typeof originalValue === 'string' && originalValue !== '') value = Number(originalValue) ?? 0;
-  return value;
 };
 
 const schema = Yup.object<SwapFormValues>().shape({
@@ -21,8 +12,6 @@ const schema = Yup.object<SwapFormValues>().shape({
   fromAmount: Yup.string().required(),
   to: Yup.string().min(5).required(),
   toAmount: Yup.string().required(),
-  slippage: Yup.number().nullable().transform(transformNumber),
-  deadline: Yup.number().nullable().transform(transformNumber),
 });
 
 export default schema;
