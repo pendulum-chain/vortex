@@ -15,7 +15,6 @@ import {
 import { executeSpacewalkRedeem } from '../../services/polkadot';
 import Sep24 from '../../components/Sep24Component';
 import { useCallback } from 'preact/compat';
-import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { performSwap } from '../../services/nabla';

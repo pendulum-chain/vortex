@@ -9,7 +9,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
 import { connectorsForWallets, getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { createConfig, http, WagmiProvider } from 'wagmi';
-import { polygon, base } from 'wagmi/chains';
+import { polygon } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { App } from './app';
 import defaultTheme from './theme';
