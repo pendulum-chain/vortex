@@ -16,7 +16,7 @@ interface FromProps<FormFieldValues extends FieldValues, TFieldName extends Fiel
   inputHasError: boolean;
   fromFormFieldName: TFieldName;
   form: UseFormReturn<FormFieldValues>;
-  tokenBalances: { [key: string]: BalanceInfo };
+  tokenBalance:  BalanceInfo ;
   offrampStarted: boolean;
 }
 
@@ -27,11 +27,12 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
   inputHasError,
   fromFormFieldName,
   form,
-  tokenBalances,
+  tokenBalance,
   offrampStarted,
 }: FromProps<FormFieldValues, TFieldName>) {
   const { setValue } = useFormContext<SwapFormValues>();
-  const fromTokenBalance = tokenId ? tokenBalances[tokenId] : undefined;
+  // we can get rid of this and just load USDC balance, not pass tokenBalance object.
+  const fromTokenBalance = tokenBalance;
 
   return (
     <div

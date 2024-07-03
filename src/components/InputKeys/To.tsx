@@ -20,7 +20,6 @@ export interface ToProps {
   toToken: TokenDetails | undefined;
   toAmountQuote: UseTokenOutAmountResult;
   fromAmount: Big | undefined;
-  tokenBalances: { [key: string]: BalanceInfo };
 }
 
 export function To({
@@ -30,9 +29,8 @@ export function To({
   onOpenSelector,
   toAmountQuote,
   fromAmount,
-  tokenBalances,
 }: ToProps): JSX.Element | null {
-  const toTokenBalance = tokenBalances && tokenId ? tokenBalances[tokenId] : undefined;
+  const toTokenBalance = undefined;
 
   // replace with use state
   const [isOpen, { toggle }] = useBoolean(true);

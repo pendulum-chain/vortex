@@ -21,7 +21,6 @@ import Big from 'big.js';
 export type UseTokenOutAmountProps<FormFieldValues extends FieldValues> = {
   wantsSwap: boolean;
   api: ApiPromise | null;
-  walletAccount: WalletAccount | undefined;
   fromAmountString: string;
   fromToken: string;
   toToken: string;
@@ -46,7 +45,6 @@ export interface TokenOutData {
 export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   wantsSwap,
   api,
-  walletAccount,
   fromAmountString,
   fromToken,
   toToken,
@@ -79,7 +77,6 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
     wantsSwap &&
     fromTokenDetails !== undefined &&
     toTokenDetails !== undefined &&
-    walletAccount !== undefined &&
     debouncedAmountBigDecimal !== undefined &&
     debouncedAmountBigDecimal.gt(new BigNumber(0)) &&
     (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
@@ -87,7 +84,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   const { isLoading, fetchStatus, data, error, refetch } = useContractRead<TokenOutData | null>(
     [cacheKeys.tokenOutAmount, fromTokenDetails?.erc20Address, toTokenDetails?.erc20Address, amountIn],
     api,
-    walletAccount?.address,
+    undefined, // Does not matter since noWalletAddressRequired is true
     {
       abi: routerAbi,
       address: NABLA_ROUTER,

@@ -4,64 +4,68 @@ import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { parseContractBalanceResponse } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
+import { useReadContract } from 'wagmi'
+import BigNumber from 'big.js';
+import erc20ABI from '../../contracts/ERC20';
+
 export interface BalanceInfo extends ContractBalance {
   canWithdraw: boolean;
 }
 
 export interface UseAccountBalanceResponse {
-  balances: { [key: string]: BalanceInfo };
+  balance:  BalanceInfo;
   isBalanceLoading: boolean;
   balanceError?: Error;
 }
+ ;
+ let zeroBalance =  {
+                  ...parseContractBalanceResponse(6, BigInt(0)),
+                  canWithdraw: false,
+                }
 
 export const useAccountBalance = (address?: string): UseAccountBalanceResponse => {
-  const [balances, setBalances] = useState<{ [key: string]: BalanceInfo }>({});
+  const [balanceParsed, setBalance] = useState<BalanceInfo>(zeroBalance);
   const [isBalanceLoading, setIsLoading] = useState(false);
   const [balanceError, setError] = useState<Error>();
 
+  const { data: balance } = useReadContract({
+    abi: erc20ABI,
+    address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+    functionName: 'balanceOf',
+    args: [address],
+  })
+  
+
   useEffect(() => {
     const fetchBalances = async () => {
+      console.log(address)
       if (!address) {
-        setBalances({});
+        setBalance( {
+          ...zeroBalance,
+          canWithdraw: false,
+        });
         return;
-      }
-
-      const apiManager = await getApiManagerInstance();
-      const apiComponents = await apiManager.getApiComponents();
-      if (!apiComponents) {
-        setBalances({});
-        return;
-      }
-
-      setIsLoading(true);
-      const newBalances: { [key: string]: BalanceInfo } = {};
-
+      }     
       try {
-        for (const [key, config] of Object.entries(TOKEN_CONFIG)) {
-          const response = (await apiComponents.api.query.tokens.accounts(address, config.currencyId)) as any;
 
-          const rawBalance = response?.free || '0';
-          const contractBalance = parseContractBalanceResponse(TOKEN_CONFIG[key].decimals, rawBalance);
+        const rawBalance = balance as bigint;
+        const contractBalance = parseContractBalanceResponse(6, rawBalance);
+        console.log(contractBalance)
 
-          // if it is offramped, it should always have minWithrawalAmount defined
-          if (config.isOfframp && config.minWithdrawalAmount) {
-            const minWithdrawalAmount = toBigNumber(config.minWithdrawalAmount, 0);
-            const canWithdraw = contractBalance.rawBalance.gte(minWithdrawalAmount);
+        // if it is offramped, it should always have minWithrawalAmount defined
 
-            newBalances[key] = {
-              ...contractBalance,
-              canWithdraw,
-            };
-            continue;
-          }
+        const minWithdrawalAmount = toBigNumber(100, 0);
+        const canWithdraw = contractBalance.rawBalance.gte(minWithdrawalAmount);
 
-          newBalances[key] = {
+        const balancePolygonAsset = {
             ...contractBalance,
-            canWithdraw: false,
+            canWithdraw,
           };
-        }
-        setBalances(newBalances);
+
+    
+        setBalance(balancePolygonAsset);
       } catch (err) {
+        console.log(err)
         setError(err as Error);
       } finally {
         setIsLoading(false);
@@ -72,7 +76,7 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
   }, [address]);
 
   return {
-    balances,
+    balance: balanceParsed,
     isBalanceLoading,
     balanceError,
   };

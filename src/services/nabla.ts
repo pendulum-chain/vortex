@@ -21,11 +21,10 @@ export interface PerformSwapProps {
   assetOut: string;
   assetIn: string;
   minAmountOut: Big;
-  userAddress: string;
 }
 
 export async function performSwap(
-  { amountIn, assetOut, assetIn, minAmountOut, userAddress }: PerformSwapProps,
+  { amountIn, assetOut, assetIn, minAmountOut }: PerformSwapProps,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<Big> {
   // event attempting swap
@@ -87,7 +86,7 @@ export async function performSwap(
   }
   // balance before the swap
   const responseBalanceBefore = (
-    await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
+    await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
   ).toHuman() as any;
 
   const rawBalanceBefore = responseBalanceBefore?.free || '0';
@@ -124,7 +123,7 @@ export async function performSwap(
 
   //verify token balance before releasing this process.
   const responseBalanceAfter = (
-    await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
+    await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
   ).toHuman() as any;
 
   const rawBalanceAfter = responseBalanceAfter?.free || '0';

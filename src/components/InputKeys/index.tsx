@@ -17,6 +17,8 @@ import { Tabs } from 'react-daisyui';
 import { config } from '../../config';
 import Big from 'big.js';
 import { ExecutionInput } from '../../pages/landing';
+import { useAccount, useSignMessage, useBalance } from 'wagmi';
+import { BalanceInfo } from '../Nabla/BalanceState';
 
 const { RadioTab } = Tabs;
 
@@ -44,12 +46,12 @@ function Loader() {
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
-  // TODO - use different wallet account
-  const walletAccount: { address: string; source: string } = { address: '', source: '' };
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const { address } = useAccount();
+  const { signMessage } = useSignMessage();
 
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { balances, isBalanceLoading } = useAccountBalance(walletAccount?.address);
+  const {balance, isBalanceLoading} = useAccountBalance(address);
   const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
 
   useEffect(() => {
@@ -81,7 +83,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const tokenOutData = useTokenOutAmount({
     wantsSwap,
     api: api,
-    walletAccount,
     fromAmountString,
     fromToken: from,
     toToken: to,
@@ -132,21 +133,20 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       assetToOfframp = from;
     }
 
-    if (!walletAccount?.address) {
+    if (address) {
       alert('Please connect to a wallet first.');
       return;
     }
 
     // check balance of the asset used to offramp directly or to pay for the swap
-    console.log('balances', balances);
-    if (balances[from].preciseBigDecimal.lt(fromAmount)) {
-      alert(
-        `Insufficient balance to offramp. Current balance is ${
-          balances[from].approximateNumber
-        } ${from.toUpperCase()}.`,
-      );
-      return;
-    }
+    // if (balances[from].preciseBigDecimal.lt(fromAmount)) {
+    //   alert(
+    //     `Insufficient balance to offramp. Current balance is ${
+    //       balances[from].approximateNumber
+    //     } ${from.toUpperCase()}.`,
+    //   );
+    //   return;
+    // }
 
     // If swap will happen, check the minimum comparing to the minimum expected swap
     const minWithdrawalAmountBigNumber = toBigNumber(
@@ -169,7 +169,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       'submitting offramp',
       '\n',
       'user address: ',
-      walletAccount.address,
+      address,
       '\n',
       'wants swap: ',
       wantsSwap,
@@ -190,7 +190,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       tokenOutData.data?.amountOut.approximateNumber,
     );
 
-    onSubmit({ userSubstrateAddress: walletAccount!.address, assetToOfframp, amountIn: fromAmount, swapOptions });
+    onSubmit({ assetToOfframp, amountIn: fromAmount, swapOptions });
   };
 
   // we don't propagate errors if wants swap is not defined
@@ -253,13 +253,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                       inputHasError={inputHasErrors}
                       form={form}
                       fromFormFieldName="fromAmount"
-                      tokenBalances={balances}
+                      tokenBalances={balance}
                     />
                     <div>{formErrorMessage !== undefined && <p className="text-red-600">{formErrorMessage}</p>}</div>
                     <div className="separator mt-10 mb-10"></div>
                     <To
                       tokenId={to}
-                      tokenBalances={balances}
                       toToken={toToken}
                       fromToken={fromToken}
                       toAmountQuote={inputHasErrors ? { enabled: false, data: null, isLoading: false } : tokenOutData}
@@ -271,7 +270,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
               </div>
             </RadioTab>
 
-            <RadioTab label="Direct Offramp" checked={activeTab === 'direct'} onClick={() => setActiveTab('direct')}>
+            {/* <RadioTab label="Direct Offramp" checked={activeTab === 'direct'} onClick={() => setActiveTab('direct')}>
               <div className="input-container">
                 {api === null || isBalanceLoading ? (
                   <Loader />
@@ -290,11 +289,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                   </Card>
                 )}
               </div>
-            </RadioTab>
+            </RadioTab> */}
           </Tabs>
         </FormProvider>
 
-        {!(from === '') && !isSubmitted && walletAccount?.address ? (
+        {!(from === '') && !isSubmitted && address ? (
           <Button className="mt-10" size="md" color="primary" onClick={handleSubmit} disabled={inputHasErrors}>
             Prepare prototype
           </Button>

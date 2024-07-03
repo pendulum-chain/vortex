@@ -35,7 +35,6 @@ enum OperationStatus {
 }
 
 export interface ExecutionInput {
-  userSubstrateAddress: string;
   assetToOfframp: string;
   amountIn: Big;
   swapOptions: SwapOptions | undefined; // undefined means direct offramp
@@ -62,13 +61,8 @@ function Landing() {
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
   const [backendError, setBackendError] = useState<boolean>(false);
 
-  // Wallet states
-  // const { walletAccount, dAppName } = useGlobalState();
-  // TODO - use different wallet account
-  const walletAccount = null;
-
-  const handleOnSubmit = async ({ userSubstrateAddress, assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
-    setExecutionInput({ userSubstrateAddress, assetToOfframp, amountIn, swapOptions });
+  const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
+    setExecutionInput({ assetToOfframp, amountIn, swapOptions });
     const tokenConfig: TokenDetails = TOKEN_CONFIG[assetToOfframp];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
@@ -99,11 +93,16 @@ function Landing() {
     setSep24Result(result);
 
     if (executionInput === undefined) return;
-    const { userSubstrateAddress, assetToOfframp, amountIn, swapOptions } = executionInput;
+    const {assetToOfframp, amountIn, swapOptions } = executionInput;
 
     // Wait for ephemeral to receive native balance
     // And wait for ephemeral to receive the funds of the token to be offramped
-    getEphemeralAccount();
+    let ephemeralAccount = getEphemeralAccount();
+    // TODO fund the ephemeral, communicate with the backend to get the amount to fund
+    // Send to the backend the ephemeral address also send some id regarding the axelar bridge
+    // we will only fund one ephemeral account per id.
+    
+
     // define a local promise that, on a loop, will call checkBalance until it returns true
     let ready;
     do {
@@ -134,7 +133,6 @@ function Landing() {
           assetOut: assetToOfframp,
           assetIn: swapOptions.assetIn,
           minAmountOut: swapOptions.minAmountOut,
-          userAddress: userSubstrateAddress,
         },
         addEvent,
       );
