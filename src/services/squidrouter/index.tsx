@@ -66,11 +66,11 @@ function useSendSwapTransaction(transactionRequest: any) {
 
 enum TransactionStatus {
   Idle = 'Idle',
+  RouteRequested = 'RouteRequested',
   ApproveSpending = 'ApproveSpending',
   SpendingApproved = 'SpendingApproved',
   InitiateSwap = 'InitiateSwap',
   SwapCompleted = 'SwapCompleted',
-  Error = 'Error',
 }
 
 export function useSquidRouterSwap(amount: string) {
@@ -99,9 +99,7 @@ export function useSquidRouterSwap(amount: string) {
 
   // Update the transaction status
   useEffect(() => {
-    if (approveError || swapError) {
-      setTransactionStatus(TransactionStatus.Error);
-    } else if (isApprovalConfirming) {
+    if (isApprovalConfirming) {
       setTransactionStatus(TransactionStatus.ApproveSpending);
     } else if (isSpendingApproved) {
       setTransactionStatus(TransactionStatus.SpendingApproved);
@@ -110,23 +108,31 @@ export function useSquidRouterSwap(amount: string) {
     } else if (isSwapCompleted) {
       setTransactionStatus(TransactionStatus.SwapCompleted);
     }
-  }, [isSpendingApproved, isSwapCompleted]);
+  }, [
+    approveError,
+    swapError,
+    isApprovalConfirming,
+    isSpendingApproved,
+    isSwapConfirming,
+    isSwapCompleted,
+    transactionStatus,
+  ]);
 
   useEffect(() => {
-    if (!transactionRequest) return;
+    if (!transactionRequest || transactionStatus !== TransactionStatus.RouteRequested) return;
 
     console.log('Calling function to approve spending');
     // Approve the transactionRequest.target to spend fromAmount of fromToken
     approveSpending().catch((error) => console.error('Error approving spending:', error));
-  }, [approveSpending, transactionRequest]);
+  }, [approveSpending, transactionRequest, transactionStatus]);
 
   useEffect(() => {
-    if (!isSpendingApproved) return;
+    if (!isSpendingApproved || transactionStatus !== TransactionStatus.SpendingApproved) return;
 
     console.log('Transaction approved, executing swap');
     // Execute the swap transaction
     sendSwapTransaction().catch((error) => console.error('Error sending swap transaction:', error));
-  }, [isSpendingApproved, sendSwapTransaction]);
+  }, [isSpendingApproved, sendSwapTransaction, transactionStatus]);
 
   useEffect(() => {
     if (!hash || !isSwapCompleted) return;
@@ -148,6 +154,9 @@ export function useSquidRouterSwap(amount: string) {
       console.error('No account address found or amount found');
       return;
     }
+
+    // Reset the transaction status
+    setTransactionStatus(TransactionStatus.RouteRequested);
 
     // Start by getting the transaction request for the Route
     getRouteTransactionRequest(accountData.address, amount)
