@@ -49,7 +49,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const { address } = useAccount();
   const { signMessage } = useSignMessage();
-
   const [api, setApi] = useState<ApiPromise | null>(null);
   const {balance, isBalanceLoading} = useAccountBalance(address);
   const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
@@ -133,20 +132,20 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       assetToOfframp = from;
     }
 
-    if (address) {
+    if (!address) {
       alert('Please connect to a wallet first.');
       return;
     }
 
     // check balance of the asset used to offramp directly or to pay for the swap
-    // if (balances[from].preciseBigDecimal.lt(fromAmount)) {
-    //   alert(
-    //     `Insufficient balance to offramp. Current balance is ${
-    //       balances[from].approximateNumber
-    //     } ${from.toUpperCase()}.`,
-    //   );
-    //   return;
-    // }
+    if (balance.preciseBigDecimal.lt(fromAmount)) {
+      alert(
+        `Insufficient balance to offramp. Current balance is ${
+          balance.approximateNumber
+        } ${from.toUpperCase()}.`,
+      );
+      return;
+    }
 
     // If swap will happen, check the minimum comparing to the minimum expected swap
     const minWithdrawalAmountBigNumber = toBigNumber(
@@ -238,59 +237,34 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         </div>
 
         <FormProvider {...form}>
-          <Tabs variant="boxed" size="md">
-            <RadioTab label="USDT Routed Offramp" checked={activeTab === 'swap'} onClick={() => setActiveTab('swap')}>
-              <div className="input-container">
-                {api === null || isBalanceLoading ? (
-                  <Loader />
-                ) : wantsSwap ? (
-                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                    <From
-                      offrampStarted={isSubmitted}
-                      tokenId={from}
-                      fromToken={fromToken}
-                      onOpenSelector={() => setModalType('from')}
-                      inputHasError={inputHasErrors}
-                      form={form}
-                      fromFormFieldName="fromAmount"
-                      tokenBalances={balance}
-                    />
-                    <div>{formErrorMessage !== undefined && <p className="text-red-600">{formErrorMessage}</p>}</div>
-                    <div className="separator mt-10 mb-10"></div>
-                    <To
-                      tokenId={to}
-                      toToken={toToken}
-                      fromToken={fromToken}
-                      toAmountQuote={inputHasErrors ? { enabled: false, data: null, isLoading: false } : tokenOutData}
-                      onOpenSelector={() => setModalType('to')}
-                      fromAmount={fromAmount}
-                    />
-                  </Card>
-                ) : null}
-              </div>
-            </RadioTab>
-
-            {/* <RadioTab label="Direct Offramp" checked={activeTab === 'direct'} onClick={() => setActiveTab('direct')}>
-              <div className="input-container">
-                {api === null || isBalanceLoading ? (
-                  <Loader />
-                ) : wantsSwap ? null : (
-                  <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
-                    <From
-                      offrampStarted={isSubmitted}
-                      tokenId={from}
-                      fromToken={fromToken}
-                      onOpenSelector={() => setModalType('from')}
-                      inputHasError={inputHasErrors}
-                      form={form}
-                      fromFormFieldName="fromAmount"
-                      tokenBalances={balances}
-                    />
-                  </Card>
-                )}
-              </div>
-            </RadioTab> */}
-          </Tabs>
+          <div className="input-container">
+            {api === null || isBalanceLoading ? (
+              <Loader />
+            ) : wantsSwap ? (
+              <Card bordered className="w-full max-w-xl bg-base-200 shadow-0">
+                <From
+                  offrampStarted={isSubmitted}
+                  tokenId={from}
+                  fromToken={fromToken}
+                  onOpenSelector={() => setModalType('from')}
+                  inputHasError={inputHasErrors}
+                  form={form}
+                  fromFormFieldName="fromAmount"
+                  tokenBalance={balance}
+                />
+                <div>{formErrorMessage !== undefined && <p className="text-red-600">{formErrorMessage}</p>}</div>
+                <div className="separator mt-10 mb-10"></div>
+                <To
+                  tokenId={to}
+                  toToken={toToken}
+                  fromToken={fromToken}
+                  toAmountQuote={inputHasErrors ? { enabled: false, data: null, isLoading: false } : tokenOutData}
+                  onOpenSelector={() => setModalType('to')}
+                  fromAmount={fromAmount}
+                />
+              </Card>
+            ) : null}
+          </div>
         </FormProvider>
 
         {!(from === '') && !isSubmitted && address ? (

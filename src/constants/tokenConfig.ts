@@ -18,8 +18,24 @@ export interface TokenDetails {
   icon: string;
 }
 
+export interface PolygonTokenDetails{
+  erc20Address: `0x${string}`;
+  decimals: number;
+}
+
 export interface TokenConfig {
   [key: string]: TokenDetails;
+}
+
+export interface PolygonTokenConfig {
+  [key: string]:  PolygonTokenDetails;
+}
+
+export const POLYGON_TOKEN_CONFIG: PolygonTokenConfig = {
+  usdc: {
+    erc20Address : '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+    decimals : 6,
+  }
 }
 
 // Every asset specified in here must either be offrampable or be swapable to an offrampable asset

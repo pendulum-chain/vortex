@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { POLYGON_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { parseContractBalanceResponse } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
 import { useReadContract } from 'wagmi'
@@ -25,20 +25,18 @@ export interface UseAccountBalanceResponse {
 
 export const useAccountBalance = (address?: string): UseAccountBalanceResponse => {
   const [balanceParsed, setBalance] = useState<BalanceInfo>(zeroBalance);
-  const [isBalanceLoading, setIsLoading] = useState(false);
+  const [isBalanceLoading, setIsLoading] = useState(true);
   const [balanceError, setError] = useState<Error>();
 
   const { data: balance } = useReadContract({
     abi: erc20ABI,
-    address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+    address: POLYGON_TOKEN_CONFIG["usdc"].erc20Address,
     functionName: 'balanceOf',
     args: [address],
   })
-  
 
   useEffect(() => {
     const fetchBalances = async () => {
-      console.log(address)
       if (!address) {
         setBalance( {
           ...zeroBalance,
@@ -50,10 +48,10 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
 
         const rawBalance = balance as bigint;
         const contractBalance = parseContractBalanceResponse(6, rawBalance);
-        console.log(contractBalance)
 
-        // if it is offramped, it should always have minWithrawalAmount defined
 
+        // We don't need this, now. Unless we wan't to support also offramp from native polygon chain.
+        // otherwise, the minimum is irrelevant.
         const minWithdrawalAmount = toBigNumber(100, 0);
         const canWithdraw = contractBalance.rawBalance.gte(minWithdrawalAmount);
 
@@ -62,7 +60,6 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
             canWithdraw,
           };
 
-    
         setBalance(balancePolygonAsset);
       } catch (err) {
         console.log(err)

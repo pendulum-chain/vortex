@@ -114,7 +114,6 @@ function Landing() {
     console.log("Waiting to receive token: ", tokenToReceive);
     let tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS*1000);
 
-
     if (swapOptions) {
       const enteredAmountDecimal = new Big(result.amount);
       if (enteredAmountDecimal.gt(swapOptions.minAmountOut)) {

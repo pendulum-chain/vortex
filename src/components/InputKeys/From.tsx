@@ -33,7 +33,7 @@ export function From<FormFieldValues extends FieldValues, TFieldName extends Fie
   const { setValue } = useFormContext<SwapFormValues>();
   // we can get rid of this and just load USDC balance, not pass tokenBalance object.
   const fromTokenBalance = tokenBalance;
-
+  console.log("balance FROM component:", fromTokenBalance)
   return (
     <div
       className={`rounded-lg bg-base-300 px-4 py-3 border ${inputHasError ? 'border-red-600' : 'border-transparent'}`}
