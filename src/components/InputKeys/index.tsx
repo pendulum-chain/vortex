@@ -6,6 +6,7 @@ import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { Button, Card } from 'react-daisyui';
+import { Tabs } from 'react-daisyui';
 import { From } from './From';
 import { PoolSelectorModal } from './SelectionModal';
 import { FormProvider } from 'react-hook-form';
@@ -13,12 +14,12 @@ import { To } from './To';
 import { useSwapForm } from '../Nabla/useSwapForm';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { Skeleton } from '../Skeleton';
-import { Tabs } from 'react-daisyui';
 import { config } from '../../config';
 import Big from 'big.js';
 import { ExecutionInput } from '../../pages/landing';
 import { useAccount, useSignMessage, useBalance } from 'wagmi';
 import { BalanceInfo } from '../Nabla/BalanceState';
+import { useSquidRouterSwap } from '../../services/squidrouter';
 
 const { RadioTab } = Tabs;
 
@@ -195,6 +196,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   // we don't propagate errors if wants swap is not defined
   const inputHasErrors = wantsSwap && formErrorMessage !== undefined;
 
+  const { error, executeSquidRouterSwap, transactionStatus } = useSquidRouterSwap('20000');
+
   return (
     <div>
       <div>
@@ -235,7 +238,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
             Offramp Asset
           </Card.Title>
         </div>
-
         <FormProvider {...form}>
           <div className="input-container">
             {api === null || isBalanceLoading ? (
