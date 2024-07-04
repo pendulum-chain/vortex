@@ -1,6 +1,7 @@
 import BrlIcon from '../assets/coins/BRL.png';
 import UsdtIcon from '../assets/coins/USDT.png';
 import EurcIcon from '../assets/coins/EURC.png';
+import UsdcIcon from '../assets/coins/USDC.png'
 
 export interface TokenDetails {
   currencyId: any;
@@ -16,26 +17,13 @@ export interface TokenDetails {
   minWithdrawalAmount?: string;
   assetCodeHex?: string; // Optional property
   icon: string;
+  isPolygonChain?: boolean;
+  erc20AddressNativeChain?: string;
 }
 
-export interface PolygonTokenDetails{
-  erc20Address: `0x${string}`;
-  decimals: number;
-}
 
 export interface TokenConfig {
   [key: string]: TokenDetails;
-}
-
-export interface PolygonTokenConfig {
-  [key: string]:  PolygonTokenDetails;
-}
-
-export const POLYGON_TOKEN_CONFIG: PolygonTokenConfig = {
-  usdc: {
-    erc20Address : '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
-    decimals : 6,
-  }
 }
 
 // Every asset specified in here must either be offrampable or be swapable to an offrampable asset
@@ -75,13 +63,22 @@ export const TOKEN_CONFIG: TokenConfig = {
     minWithdrawalAmount: '10000000000000',
     icon: EurcIcon,
   },
-  usdt: {
-    assetCode: 'USDT',
-    currencyId: { XCM: 1 },
-    decimals: 6,
-    canSwapTo: ['brl', 'eurc'],
+  // We treat many of the properties of polygon token as the equivalent axl{X} one on Pendulum.
+  // we will receive 
+  usdc: {
+    assetCode: "USDC",
+    erc20AddressNativeChain : '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+    // erc20Address is that of axlUSDC on pendulum
+    // this is done to provide the user with the expected exchange rate
+    erc20Address: '6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs', // TODO replace with axlUSDC erc correct address
+    // Decimals should be consistent in BOTH CHAINS
+    decimals : 6,
+    // currency id of axlUSDC
+    currencyId: { XCM: 12 },
     isOfframp: false,
-    erc20Address: '6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs',
-    icon: UsdtIcon,
-  },
+    // whatever axlUSDC can be offramped to...
+    canSwapTo: ['eurc'],
+    icon: UsdcIcon,
+    isPolygonChain: true,
+  }
 };

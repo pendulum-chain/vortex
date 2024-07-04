@@ -65,6 +65,7 @@
     "tailwindcss": "^3.4.3",
     "viem": "2.x",
     "wagmi": "^2.10.3",
+    "web3": "^4.10.0",
     "yup": "^1.4.0"
   },
   "devDependencies": {

@@ -1,8 +1,10 @@
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { useCallback, useEffect, useState } from 'preact/compat';
 import { getRouteTransactionRequest, updateTransactionStatus } from './route';
-import { erc20Abi } from '../../contracts/Erc20';
+import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
+import Big from 'big.js';
+import { decimalToCustom } from '../../helpers/parseNumbers';
 
 function useApproveSpending(
   transactionRequestTarget: string | undefined,
@@ -18,7 +20,7 @@ function useApproveSpending(
     console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
 
     writeContract({
-      abi: erc20Abi,
+      abi: erc20ABI,
       address: fromToken,
       functionName: 'approve',
       args: [transactionRequestTarget, fromAmount],
@@ -74,6 +76,8 @@ enum TransactionStatus {
 }
 
 export function useSquidRouterSwap(amount: string) {
+ 
+
   const { fromToken } = getSquidRouterConfig();
 
   const [requestId, setRequestId] = useState<string>('');
@@ -144,9 +148,9 @@ export function useSquidRouterSwap(amount: string) {
     console.log(`Finished! Check Axelarscan for details: ${axelarScanLink}`);
 
     // Update transaction status until it completes
-    updateTransactionStatus(hash, requestId).catch((error) =>
-      console.error('Error updating transaction status:', error),
-    );
+    // updateTransactionStatus(hash, requestId).catch((error) =>
+    //   console.error('Error updating transaction status:', error),
+    // );
   }, [hash, isSwapCompleted]);
 
   const executeSquidRouterSwap = useCallback(async () => {

@@ -54,8 +54,8 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
       // do not allow non-offramp tokens in the to field,
       if (mode.type === 'to' && mode.swap && !TOKEN_CONFIG[token].isOfframp) return;
 
-      // only allow USDT asset code
-      if (mode.type === 'from' && mode.swap && TOKEN_CONFIG[token].assetCode !== 'USDT') return;
+      // only allow USDC asset code from otherChain property
+      if (mode.type === 'from' && mode.swap && TOKEN_CONFIG[token].assetCode !== 'USDC' && TOKEN_CONFIG[token].isPolygonChain !== true) return;
 
       // Do not allow non offrampable tokens in the from field if no swap
       if (mode.type === 'from' && !mode.swap && !TOKEN_CONFIG[token].isOfframp) return;

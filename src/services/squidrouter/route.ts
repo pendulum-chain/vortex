@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
 import { squidReceiverABI } from '../../contracts/SquidReceiver';
-import { erc20Abi } from '../../contracts/Erc20';
+import erc20ABI  from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
-
-// Same payload used for Axelar tests
-const payload: string =
-  '0x00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000180000000000000000000000000000000000000000000000000000000003b9aca00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000002082e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000148d0bbba567ae73a06a8678e53dc7add0af6b7039000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000005000000082e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000220180fb9b50c5b785126981757bce1b7bf047e3b0eaa3cda2b8983ae35443294b3900000000000000000000000000000000000000000000000000000000000000';
+import encodePayload from './payload'
+import { getEphemeralAccount } from '../polkadot/ephemeral';
+import { u8aToHex } from "@polkadot/util"
+import { decodeAddress } from "@polkadot/util-crypto"
 
 interface RouteParams {
   fromAddress: string;
@@ -32,16 +32,24 @@ interface RouteParams {
 function createRouteParams(userAddress: string, amount: string): RouteParams {
   const { fromToken, fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig();
 
-  const transferErc20 = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: 'transfer',
-    args: [receivingContractAddress, 1000],
+  // TODO this must be approval, max amount
+  const approvalErc20 = encodeFunctionData({
+    abi: erc20ABI,
+    functionName: 'approve',
+    args: [receivingContractAddress, 1000000000],
   });
+
+  let ephemeralAccount = getEphemeralAccount();
+  const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccount.address))
+
+  
+  console.log("encoding payload with dest address: ", ephemeralAccountHex)
+  const payload = encodePayload(ephemeralAccountHex);
 
   const executeXCMEncodedData = encodeFunctionData({
     abi: squidReceiverABI,
     functionName: 'executeXCM',
-    args: [payload, 1000],
+    args: [payload, "0"],
   });
 
   return {
@@ -59,28 +67,28 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
     postHook: {
       chainType: 'evm',
       calls: [
-        // transfer call. Transfers the tokens from the router to our contract
+        // approval call.
         {
-          callType: 1,
+          callType: 0, 
           target: axlUSDC_MOONBEAM,
-          value: '0', // this will be replaced by the full native balance of the multicall after the swap
-          callData: transferErc20,
+          value: "0", // this will be replaced by the full native balance of the multicall after the swap
+          callData: approvalErc20,
           payload: {
             tokenAddress: axlUSDC_MOONBEAM, // unused in callType 2, dummy value
-            inputPos: '1', // unused
+            inputPos: "1", // unused
           },
-          estimatedGas: '700000',
-          chainType: 'evm',
+          estimatedGas: "500000",
+          chainType: "evm",
         },
         // trigger the xcm call
         {
-          callType: 0, // SquidCallType.DEFAULT
+          callType: 1, // SquidCallType.FULL_TOKEN_BALANCE
           target: receivingContractAddress,
           value: '0',
           callData: executeXCMEncodedData,
           payload: {
-            tokenAddress: axlUSDC_MOONBEAM, // unused in callType 0, dummy value
-            inputPos: 0, // unused in callType 0, dummy value
+            tokenAddress: axlUSDC_MOONBEAM, 
+            inputPos: "1", 
           },
           estimatedGas: '700000',
           chainType: 'evm',

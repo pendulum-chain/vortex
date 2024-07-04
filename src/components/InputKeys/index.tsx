@@ -18,7 +18,6 @@ import { config } from '../../config';
 import Big from 'big.js';
 import { ExecutionInput } from '../../pages/landing';
 import { useAccount, useSignMessage, useBalance } from 'wagmi';
-import { BalanceInfo } from '../Nabla/BalanceState';
 import { useSquidRouterSwap } from '../../services/squidrouter';
 
 const { RadioTab } = Tabs;
@@ -154,15 +153,16 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       TOKEN_CONFIG[assetToOfframp].decimals,
     );
 
-    if (
-      wantsSwap &&
-      from &&
-      tokenOutData.data !== undefined &&
-      minWithdrawalAmountBigNumber.gt(tokenOutData.data.amountOut.preciseBigDecimal)
-    ) {
-      alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
-      return;
-    }
+    //TESTING
+    // if (
+    //   wantsSwap &&
+    //   from &&
+    //   tokenOutData.data !== undefined &&
+    //   minWithdrawalAmountBigNumber.gt(tokenOutData.data.amountOut.preciseBigDecimal)
+    // ) {
+    //   alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
+    //   return;
+    // }
 
     setIsSubmitted(true);
     console.log(
@@ -195,8 +195,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
 
   // we don't propagate errors if wants swap is not defined
   const inputHasErrors = wantsSwap && formErrorMessage !== undefined;
-
-  const { error, executeSquidRouterSwap, transactionStatus } = useSquidRouterSwap('20000');
 
   return (
     <div>

@@ -23,7 +23,7 @@ import { performSwap } from '../../services/nabla';
 import {TRANSFER_WAITING_TIME_SECONDS} from '../../constants/constants'
 import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance } from '../../services/polkadot/ephemeral';
 import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-
+import {useSquidRouterSwap} from '../../services/squidrouter'
 enum OperationStatus {
   Idle,
   Submitting,
@@ -33,6 +33,7 @@ enum OperationStatus {
   Completed,
   Error,
 }
+import { decimalToCustom } from '../../helpers/parseNumbers';
 
 export interface ExecutionInput {
   assetToOfframp: string;
@@ -60,9 +61,18 @@ function Landing() {
   const [showSep24, setShowSep24] = useState<boolean>(false);
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
   const [backendError, setBackendError] = useState<boolean>(false);
+  
+
+  //Squidrouter hook
+  const [amountInNative, setAmountIn] = useState<string>('0')
+  const {transactionStatus, executeSquidRouterSwap, error}  = useSquidRouterSwap(amountInNative)
 
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
+    
+    // we always want swap now, but for now we hardcode the starting token
+    setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
     setExecutionInput({ assetToOfframp, amountIn, swapOptions });
+
     const tokenConfig: TokenDetails = TOKEN_CONFIG[assetToOfframp];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
@@ -71,11 +81,12 @@ function Landing() {
 
     const token = await sep10(values, addEvent);
 
+    // TESTING add a proper offramp amount
     setAnchorSessionParams({
       token,
       tomlValues: values,
       tokenConfig,
-      offrampAmount: truncatedAmountToOfframp,
+      offrampAmount: '10.5', // TESTING truncatedAmountToOfframp
     });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
@@ -92,27 +103,33 @@ function Landing() {
     );
     setSep24Result(result);
 
+    
+
     if (executionInput === undefined) return;
     const {assetToOfframp, amountIn, swapOptions } = executionInput;
+    // Start the squid router process
+    executeSquidRouterSwap()
 
     // Wait for ephemeral to receive native balance
     // And wait for ephemeral to receive the funds of the token to be offramped
     let ephemeralAccount = getEphemeralAccount();
+    
+    const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
+    
+    console.log("Waiting to receive token: ", tokenToReceive);
+    let tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS*1000);
+    console.log("token received", tokenTransferEvent);
+
+    // define a local promise that, on a loop, will call checkBalance until it returns true
     // TODO fund the ephemeral, communicate with the backend to get the amount to fund
     // Send to the backend the ephemeral address also send some id regarding the axelar bridge
     // we will only fund one ephemeral account per id.
-    
-
-    // define a local promise that, on a loop, will call checkBalance until it returns true
     let ready;
     do {
       ready = await checkBalance();
     } while (!ready);
     
-    const tokenToReceive = swapOptions? TOKEN_CONFIG[swapOptions.assetIn].currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
     
-    console.log("Waiting to receive token: ", tokenToReceive);
-    let tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS*1000);
 
     if (swapOptions) {
       const enteredAmountDecimal = new Big(result.amount);
@@ -128,9 +145,9 @@ function Landing() {
 
       await performSwap(
         {
-          amountIn,
+          amountIn: tokenTransferEvent.amount,
           assetOut: assetToOfframp,
-          assetIn: swapOptions.assetIn,
+          assetIn: 'axlUSDC',
           minAmountOut: swapOptions.minAmountOut,
         },
         addEvent,

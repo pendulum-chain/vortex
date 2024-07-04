@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toBigNumber } from '../../helpers/parseNumbers';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { POLYGON_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { parseContractBalanceResponse } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
 import { useReadContract } from 'wagmi'
@@ -18,10 +18,9 @@ export interface UseAccountBalanceResponse {
   balanceError?: Error;
 }
  ;
- let zeroBalance =  {
-                  ...parseContractBalanceResponse(6, BigInt(0)),
-                  canWithdraw: false,
-                }
+ let zeroBalance = {
+                    ...parseContractBalanceResponse(6, BigInt(0)),
+                    canWithdraw: false}
 
 export const useAccountBalance = (address?: string): UseAccountBalanceResponse => {
   const [balanceParsed, setBalance] = useState<BalanceInfo>(zeroBalance);
@@ -30,7 +29,7 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
 
   const { data: balance } = useReadContract({
     abi: erc20ABI,
-    address: POLYGON_TOKEN_CONFIG["usdc"].erc20Address,
+    address: TOKEN_CONFIG.usdc.erc20AddressNativeChain as `0x${string}`,
     functionName: 'balanceOf',
     args: [address],
   })
@@ -48,8 +47,7 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
 
         const rawBalance = balance as bigint;
         const contractBalance = parseContractBalanceResponse(6, rawBalance);
-
-
+        
         // We don't need this, now. Unless we wan't to support also offramp from native polygon chain.
         // otherwise, the minimum is irrelevant.
         const minWithdrawalAmount = toBigNumber(100, 0);
@@ -62,7 +60,6 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
 
         setBalance(balancePolygonAsset);
       } catch (err) {
-        console.log(err)
         setError(err as Error);
       } finally {
         setIsLoading(false);
@@ -70,7 +67,7 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
     };
 
     fetchBalances();
-  }, [address]);
+  }, [address, balance]);
 
   return {
     balance: balanceParsed,

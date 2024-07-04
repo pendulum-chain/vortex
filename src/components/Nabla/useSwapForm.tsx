@@ -40,6 +40,7 @@ export const useSwapForm = () => {
   const onFromChange = useCallback(
     (a: TokenDetails) => {
       const prev = getValues();
+      console.log('a',a)
       const tokenKey = Object.keys(TOKEN_CONFIG).find((key) => TOKEN_CONFIG[key]!.assetCode === a.assetCode);
       if (!tokenKey) return;
 
