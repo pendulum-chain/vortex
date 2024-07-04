@@ -64,7 +64,7 @@ export const NumericInput = ({
         onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}
         onInput={handleOnInput}
         pattern="^[0-9]*[.,]?[0-9]*$"
-        placeholder="0.0"
+        // placeholder="0.0"
         readOnly={readOnly}
         spellcheck="false"
         step="any"
