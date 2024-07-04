@@ -119,7 +119,7 @@ async function getRoute(params: RouteParams) {
   }
 }
 
-export async function sendTransactionRequest(userAddress: string, amount: string) {
+export async function getRouteTransactionRequest(userAddress: string, amount: string) {
   const routeParams = createRouteParams(userAddress, amount);
 
   // Get the swap route using Squid API

@@ -1,6 +1,6 @@
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { useCallback, useEffect, useState } from 'preact/compat';
-import { sendTransactionRequest, updateTransactionStatus } from './route';
+import { getRouteTransactionRequest, updateTransactionStatus } from './route';
 import { erc20Abi } from '../../contracts/Erc20';
 import { getSquidRouterConfig } from './config';
 
@@ -14,9 +14,9 @@ function useApproveSpending(
     hash,
   });
 
-  console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
-
   const approveSpending = useCallback(async () => {
+    console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
+
     writeContract({
       abi: erc20Abi,
       address: fromToken,
@@ -35,7 +35,7 @@ function useApproveSpending(
 }
 
 function useSendSwapTransaction(transactionRequest: any) {
-  const { data: hash, isPending, error, sendTransaction } = useSendTransaction();
+  const { data: hash, isPending, error, status, sendTransaction } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: hash });
 
   const sendSwapTransaction = useCallback(async () => {
@@ -44,11 +44,14 @@ function useSendSwapTransaction(transactionRequest: any) {
       return;
     }
 
+    console.log('Sending swap transaction');
+
     // Execute the swap transaction
     sendTransaction({
       to: transactionRequest.target,
       data: transactionRequest.data,
       value: transactionRequest.value,
+      gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
     });
   }, [transactionRequest, sendTransaction]);
 
@@ -61,27 +64,53 @@ function useSendSwapTransaction(transactionRequest: any) {
   };
 }
 
+enum TransactionStatus {
+  Idle = 'Idle',
+  ApproveSpending = 'ApproveSpending',
+  SpendingApproved = 'SpendingApproved',
+  InitiateSwap = 'InitiateSwap',
+  SwapCompleted = 'SwapCompleted',
+  Error = 'Error',
+}
+
 export function useSquidRouterSwap(amount: string) {
   const { fromToken } = getSquidRouterConfig();
 
-  // Set up parameters for bridging the tokens and later calling the receiver contract
-  const accountData = useAccount();
-
   const [requestId, setRequestId] = useState<string>('');
   const [transactionRequest, setTransactionRequest] = useState<any>();
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>(TransactionStatus.Idle);
+
+  const accountData = useAccount();
+
   const {
     approveSpending,
+    isConfirming: isApprovalConfirming,
     isConfirmed: isSpendingApproved,
     error: approveError,
   } = useApproveSpending(transactionRequest?.target, fromToken, amount);
 
   const {
     hash,
+    isConfirming: isSwapConfirming,
     isConfirmed: isSwapCompleted,
     sendSwapTransaction,
-    isConfirming,
     error: swapError,
   } = useSendSwapTransaction(transactionRequest);
+
+  // Update the transaction status
+  useEffect(() => {
+    if (approveError || swapError) {
+      setTransactionStatus(TransactionStatus.Error);
+    } else if (isApprovalConfirming) {
+      setTransactionStatus(TransactionStatus.ApproveSpending);
+    } else if (isSpendingApproved) {
+      setTransactionStatus(TransactionStatus.SpendingApproved);
+    } else if (isSwapConfirming) {
+      setTransactionStatus(TransactionStatus.InitiateSwap);
+    } else if (isSwapCompleted) {
+      setTransactionStatus(TransactionStatus.SwapCompleted);
+    }
+  }, [isSpendingApproved, isSwapCompleted]);
 
   useEffect(() => {
     if (!transactionRequest) return;
@@ -114,13 +143,14 @@ export function useSquidRouterSwap(amount: string) {
     );
   }, [hash, isSwapCompleted]);
 
-  const doSwap = useCallback(async () => {
+  const executeSquidRouterSwap = useCallback(async () => {
     if (!accountData.address || !amount) {
       console.error('No account address found or amount found');
       return;
     }
 
-    sendTransactionRequest(accountData.address, amount)
+    // Start by getting the transaction request for the Route
+    getRouteTransactionRequest(accountData.address, amount)
       .then(({ requestId, transactionRequest }) => {
         setRequestId(requestId);
         setTransactionRequest(transactionRequest);
@@ -128,5 +158,9 @@ export function useSquidRouterSwap(amount: string) {
       .catch((error) => console.error('Error sending transaction request:', error));
   }, [accountData.address, amount]);
 
-  return doSwap;
+  return {
+    transactionStatus,
+    executeSquidRouterSwap,
+    error: approveError || swapError,
+  };
 }
