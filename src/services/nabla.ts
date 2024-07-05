@@ -29,6 +29,7 @@ export async function performSwap(
 ): Promise<Big> {
   // event attempting swap
   renderEvent('Attempting swap', EventStatus.Waiting);
+  console.log('swap', 'Attempting swap', amountIn, assetOut, assetIn, minAmountOut);
   // get chain api, abi
   const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
   const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());

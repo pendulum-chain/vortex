@@ -24,6 +24,8 @@ import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
 import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance } from '../../services/polkadot/ephemeral';
 import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { useSquidRouterSwap } from '../../services/squidrouter';
+import { decimalToCustom } from '../../helpers/parseNumbers';
+import { TokenType } from '../../constants/tokenConfig';
 enum OperationStatus {
   Idle,
   Submitting,
@@ -33,10 +35,9 @@ enum OperationStatus {
   Completed,
   Error,
 }
-import { decimalToCustom } from '../../helpers/parseNumbers';
 
 export interface ExecutionInput {
-  assetToOfframp: string;
+  assetToOfframp: TokenType;
   amountIn: Big;
   swapOptions: SwapOptions | undefined; // undefined means direct offramp
 }
@@ -104,7 +105,7 @@ function Landing() {
     if (executionInput === undefined) return;
     const { assetToOfframp, amountIn, swapOptions } = executionInput;
     // Start the squid router process
-    executeSquidRouterSwap();
+    //executeSquidRouterSwap();
 
     // Wait for ephemeral to receive native balance
     // And wait for ephemeral to receive the funds of the token to be offramped
@@ -116,10 +117,8 @@ function Landing() {
     let tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS * 1000);
     console.log('token received', tokenTransferEvent);
 
-    // define a local promise that, on a loop, will call checkBalance until it returns true
-    // TODO fund the ephemeral, communicate with the backend to get the amount to fund
-    // Send to the backend the ephemeral address also send some id regarding the axelar bridge
-    // we will only fund one ephemeral account per id.
+    // call checkBalance until it returns true
+    // TODO fund the ephemeral
     let ready;
     do {
       ready = await checkBalance();
@@ -139,9 +138,9 @@ function Landing() {
 
       await performSwap(
         {
-          amountIn: tokenTransferEvent.amount,
+          amountIn: new Big(1000), //Testing tokenTransferEvent.amount
           assetOut: assetToOfframp,
-          assetIn: 'axlUSDC',
+          assetIn: swapOptions.assetIn,
           minAmountOut: swapOptions.minAmountOut,
         },
         addEvent,

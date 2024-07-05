@@ -6,7 +6,7 @@ import { parseContractBalanceResponse } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
 import { useReadContract } from 'wagmi';
 import BigNumber from 'big.js';
-import erc20ABI from '../../contracts/Erc20';
+import erc20ABI from '../../contracts/ERC20';
 
 export interface BalanceInfo extends ContractBalance {
   canWithdraw: boolean;

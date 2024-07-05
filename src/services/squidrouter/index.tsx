@@ -1,7 +1,7 @@
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { useCallback, useEffect, useState } from 'preact/compat';
 import { getRouteTransactionRequest, updateTransactionStatus } from './route';
-import erc20ABI from '../../contracts/Erc20';
+import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
 import Big from 'big.js';
 import { decimalToCustom } from '../../helpers/parseNumbers';
@@ -146,6 +146,7 @@ export function useSquidRouterSwap(amount: string) {
     console.log(`Finished! Check Axelarscan for details: ${axelarScanLink}`);
 
     // Update transaction status until it completes
+    // We don't do anything with the follow-up for now, but we might in the future
     // updateTransactionStatus(hash, requestId).catch((error) =>
     //   console.error('Error updating transaction status:', error),
     // );

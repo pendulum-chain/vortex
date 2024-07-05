@@ -34,21 +34,17 @@ export const useSwapForm = () => {
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
-  console.log('From', from);
-
   const fromToken = from ? TOKEN_CONFIG[from as TokenType] : undefined;
   const toToken = to ? TOKEN_CONFIG[to as TokenType] : undefined;
 
   const onFromChange = useCallback(
     (a: TokenDetails) => {
       const prev = getValues();
-      console.log('a', a);
       const tokenKey = Object.keys(TOKEN_CONFIG).find(
         (key) => TOKEN_CONFIG[key as TokenType]!.assetCode === a.assetCode,
       );
       if (!tokenKey) return;
 
-      console.log('b', tokenKey);
       const updated = {
         from: tokenKey,
         to: prev?.to === tokenKey ? prev?.from : prev?.to,
@@ -56,7 +52,6 @@ export const useSwapForm = () => {
 
       if (updated.to && prev?.to === tokenKey) setValue('to', updated.to);
       setStorageForSwapSettings(updated);
-      console.log('Set from A', tokenKey);
       setValue('from', tokenKey);
 
       setTokenModal(undefined);

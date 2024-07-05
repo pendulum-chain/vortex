@@ -115,9 +115,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         assetIn: from,
         minAmountOut: tokenOutData.data.amountOut.preciseBigDecimal,
       };
-      assetToOfframp = to;
+      assetToOfframp = to as TokenType;
     } else {
-      assetToOfframp = from;
+      assetToOfframp = from as TokenType;
     }
 
     if (!address) {

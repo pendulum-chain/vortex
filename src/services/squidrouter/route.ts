@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
 import { squidReceiverABI } from '../../contracts/SquidReceiver';
-import erc20ABI from '../../contracts/Erc20';
+import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
 import encodePayload from './payload';
 import { getEphemeralAccount } from '../polkadot/ephemeral';
@@ -42,7 +42,6 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
   let ephemeralAccount = getEphemeralAccount();
   const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccount.address));
 
-  console.log('encoding payload with dest address: ', ephemeralAccountHex);
   const payload = encodePayload(ephemeralAccountHex);
 
   const executeXCMEncodedData = encodeFunctionData({
