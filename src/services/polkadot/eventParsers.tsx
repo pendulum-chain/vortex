@@ -83,8 +83,8 @@ export function parseTokenTransferEvent(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
   const mappedData = {
     currencyId: rawEventData[0],
-    from: rawEventData[1].toString() as string, 
-    to: rawEventData[2].toString() as string, 
+    from: rawEventData[1].toString() as string,
+    to: rawEventData[2].toString() as string,
     amount: new Big(rawEventData[3].toString()) as Big,
   };
   return mappedData;
@@ -94,8 +94,8 @@ export function parseTokenTransferEvent(event: any) {
 // where {XCM: x} == {xcm: x}
 function normalizeObjectKeys(obj: any) {
   return Object.keys(obj).reduce((acc: any, key) => {
-      acc[key.toLowerCase()] = obj[key];
-      return acc;
+    acc[key.toLowerCase()] = obj[key];
+    return acc;
   }, {});
 }
 
@@ -107,13 +107,13 @@ export function compareObjects(obj1: any, obj2: any) {
   const keys2 = Object.keys(normalizedObj2);
 
   if (keys1.length !== keys2.length) {
-      return false;
+    return false;
   }
 
   for (let key of keys1) {
-      if (normalizedObj1[key] !== normalizedObj2[key]) {
-          return false;
-      }
+    if (normalizedObj1[key] !== normalizedObj2[key]) {
+      return false;
+    }
   }
 
   return true;

@@ -16,7 +16,7 @@ interface FromProps<FormFieldValues extends FieldValues, TFieldName extends Fiel
   inputHasError: boolean;
   fromFormFieldName: TFieldName;
   form: UseFormReturn<FormFieldValues>;
-  tokenBalance:  BalanceInfo ;
+  tokenBalance: BalanceInfo;
   offrampStarted: boolean;
 }
 

@@ -20,10 +20,10 @@ import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { performSwap } from '../../services/nabla';
-import {TRANSFER_WAITING_TIME_SECONDS} from '../../constants/constants'
+import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
 import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance } from '../../services/polkadot/ephemeral';
 import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import {useSquidRouterSwap} from '../../services/squidrouter'
+import { useSquidRouterSwap } from '../../services/squidrouter';
 enum OperationStatus {
   Idle,
   Submitting,
@@ -61,14 +61,12 @@ function Landing() {
   const [showSep24, setShowSep24] = useState<boolean>(false);
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
   const [backendError, setBackendError] = useState<boolean>(false);
-  
 
   //Squidrouter hook
-  const [amountInNative, setAmountIn] = useState<string>('0')
-  const {transactionStatus, executeSquidRouterSwap, error}  = useSquidRouterSwap(amountInNative)
+  const [amountInNative, setAmountIn] = useState<string>('0');
+  const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
 
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
-    
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
     setExecutionInput({ assetToOfframp, amountIn, swapOptions });
@@ -103,22 +101,20 @@ function Landing() {
     );
     setSep24Result(result);
 
-    
-
     if (executionInput === undefined) return;
-    const {assetToOfframp, amountIn, swapOptions } = executionInput;
+    const { assetToOfframp, amountIn, swapOptions } = executionInput;
     // Start the squid router process
-    executeSquidRouterSwap()
+    executeSquidRouterSwap();
 
     // Wait for ephemeral to receive native balance
     // And wait for ephemeral to receive the funds of the token to be offramped
     let ephemeralAccount = getEphemeralAccount();
-    
+
     const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
-    
-    console.log("Waiting to receive token: ", tokenToReceive);
-    let tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS*1000);
-    console.log("token received", tokenTransferEvent);
+
+    console.log('Waiting to receive token: ', tokenToReceive);
+    let tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS * 1000);
+    console.log('token received', tokenTransferEvent);
 
     // define a local promise that, on a loop, will call checkBalance until it returns true
     // TODO fund the ephemeral, communicate with the backend to get the amount to fund
@@ -128,8 +124,6 @@ function Landing() {
     do {
       ready = await checkBalance();
     } while (!ready);
-    
-    
 
     if (swapOptions) {
       const enteredAmountDecimal = new Big(result.amount);
