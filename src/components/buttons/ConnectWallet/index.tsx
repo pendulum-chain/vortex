@@ -50,15 +50,16 @@ export const ConnectWallet = () => (
             }
 
             return (
-              <button
-                onClick={openAccountModal}
-                type="button"
-                className="btn rounded-3xl bg-pink-600 text-white border-pink-600"
-              >
-                <AccountBalanceWalletOutlinedIcon className="w-4" />
-                {account.displayName}
-                {account.displayBalance ? ` (${account.displayBalance})` : ''}
-              </button>
+              <>
+                <button
+                  onClick={openAccountModal}
+                  type="button"
+                  className="btn rounded-3xl bg-pink-600 text-white border-pink-600"
+                >
+                  <AccountBalanceWalletOutlinedIcon className="w-4" />
+                  <p className="font-thin">{account.displayName}</p>
+                </button>
+              </>
             );
           })()}
         </div>
