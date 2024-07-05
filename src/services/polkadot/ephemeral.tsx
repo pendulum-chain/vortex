@@ -30,7 +30,7 @@ export const fundEphemeralAccount = async () => {
 
     await apiData.api.tx.balances
       .transfer(ephemeralAddress, MIN_BALANCE_NATIVE)
-      .signAndSend(keypair.address);
+      .signAndSend(keypair);
   } catch (error) {
     console.error('Error funding account', error);
   }
