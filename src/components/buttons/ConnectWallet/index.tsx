@@ -1,4 +1,5 @@
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export const ConnectWallet = () => (
@@ -54,6 +55,7 @@ export const ConnectWallet = () => (
                 type="button"
                 className="btn rounded-3xl bg-pink-600 text-white border-pink-600"
               >
+                <AccountBalanceWalletOutlinedIcon className="w-4" />
                 {account.displayName}
                 {account.displayBalance ? ` (${account.displayBalance})` : ''}
               </button>
