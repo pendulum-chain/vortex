@@ -65,7 +65,8 @@ export const TOKEN_CONFIG: TokenConfig = {
   // we will receive
   usdc: {
     assetCode: 'USDC',
-    erc20AddressNativeChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+    // erc20AddressNativeChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
+    erc20AddressNativeChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
     // erc20Address is that of axlUSDC on pendulum
     // this is done to provide the user with the expected exchange rate
     erc20Address: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',
