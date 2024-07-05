@@ -68,7 +68,7 @@ export const TOKEN_CONFIG: TokenConfig = {
     erc20AddressNativeChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
     // erc20Address is that of axlUSDC on pendulum
     // this is done to provide the user with the expected exchange rate
-    erc20Address: '6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs', // TODO replace with axlUSDC erc correct address
+    erc20Address: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',
     // Decimals should be consistent in BOTH CHAINS
     decimals: 6,
     // currency id of axlUSDC
