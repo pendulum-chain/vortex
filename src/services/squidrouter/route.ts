@@ -39,7 +39,7 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
     args: [receivingContractAddress, 1000000000],
   });
 
-  let ephemeralAccount = getEphemeralAccount();
+  const ephemeralAccount = getEphemeralAccount();
   const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccount.address));
 
   const payload = encodePayload(ephemeralAccountHex);

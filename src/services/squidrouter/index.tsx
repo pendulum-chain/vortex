@@ -25,7 +25,7 @@ function useApproveSpending(
       functionName: 'approve',
       args: [transactionRequestTarget, fromAmount],
     });
-  }, [fromToken, transactionRequestTarget, writeContract]);
+  }, [fromToken, fromAmount, transactionRequestTarget, writeContract]);
 
   return {
     approveSpending,
@@ -39,7 +39,7 @@ function useApproveSpending(
 function useSendSwapTransaction(transactionRequest: any) {
   const { data: hash, isPending, error, status, sendTransaction } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: hash });
-  
+
   const sendSwapTransaction = useCallback(async () => {
     if (!transactionRequest) {
       console.error('No transaction request found');

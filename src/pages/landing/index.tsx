@@ -113,7 +113,7 @@ function Landing() {
     const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
 
     console.log('Waiting to receive token: ', tokenToReceive);
-    let tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS * 1000);
+    const tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS * 1000);
     console.log('token received', tokenTransferEvent);
 
     // call checkBalance until it returns true

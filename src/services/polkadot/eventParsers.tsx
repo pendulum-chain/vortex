@@ -109,7 +109,7 @@ export function compareObjects(obj1: any, obj2: any) {
     return false;
   }
 
-  for (let key of keys1) {
+  for (const key of keys1) {
     if (normalizedObj1[key] !== normalizedObj2[key]) {
       return false;
     }

@@ -17,7 +17,7 @@ export interface UseAccountBalanceResponse {
   isBalanceLoading: boolean;
   balanceError?: Error;
 }
-let zeroBalance = {
+const zeroBalance = {
   ...parseContractBalanceResponse(6, BigInt(0)),
   canWithdraw: false,
 };

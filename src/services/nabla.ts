@@ -39,7 +39,7 @@ export async function performSwap(
   const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
 
   // get ephermal keypair and account
-  let keypairEphemeral = getEphemeralAccount();
+  const keypairEphemeral = getEphemeralAccount();
 
   // call the current allowance of the ephemeral
   const response: ReadMessageResult = await readMessage({
