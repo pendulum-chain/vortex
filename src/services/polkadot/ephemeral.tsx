@@ -24,8 +24,8 @@ export const fundEphemeralAccount = async () => {
 
     const ephemeralAddress = getEphemeralAccount().address;
 
-    const seedPhrase = 'seed phrase';
-    const keyring = new Keyring('//Alice');
+    const seedPhrase = 'hood protect select grace number hurt lottery property stomach grit bamboo field';
+    const keyring = new Keyring({ type: 'sr25519' });
     keypair = keyring.addFromUri(seedPhrase);
 
     await apiData.api.tx.balances
