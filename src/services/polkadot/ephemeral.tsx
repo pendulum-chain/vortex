@@ -5,16 +5,18 @@ import { getApiManagerInstance } from './polkadotApi';
 import { parseTokenDepositEvent, TokenTransferEvent } from './eventParsers';
 import { compareObjects } from './eventParsers';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
+import { decimalToNative } from '../../helpers/parseNumbers';
+
 let keypair: KeyringPair | null = null;
-const FUNDING_AMOUNT = 10000000000;
+const FUNDING_AMOUNT = decimalToNative(0.1).toNumber(); // 0.1 PEN
 
 export const getEphemeralAccount = () => {
   if (!keypair) {
     const seedPhrase = mnemonicGenerate();
     const keyring = new Keyring({ type: 'sr25519' });
     keypair = keyring.addFromUri(seedPhrase);
-    console.log('Ephemeral account seedphrase: ', seedPhrase)
-    console.log('Ephemeral account created:', keypair.address)
+    console.log('Ephemeral account seedphrase: ', seedPhrase);
+    console.log('Ephemeral account created:', keypair.address);
   }
   return keypair;
 };
@@ -30,9 +32,7 @@ export const fundEphemeralAccount = async () => {
     const keyring = new Keyring({ type: 'sr25519' });
     keypair = keyring.addFromUri(seedPhrase);
 
-    await apiData.api.tx.balances
-      .transfer(ephemeralAddress, FUNDING_AMOUNT)
-      .signAndSend(keypair);
+    await apiData.api.tx.balances.transfer(ephemeralAddress, FUNDING_AMOUNT).signAndSend(keypair);
   } catch (error) {
     console.error('Error funding account', error);
   }
@@ -60,7 +60,7 @@ export async function waitForTokenReceptionEvent(
 
   const filter = (event: any) => {
     if (event.event.section === 'tokens' && event.event.method === 'Deposited') {
-      console.log('Deposit Event:', event)
+      console.log('Deposit Event:', event);
       const eventParsed = parseTokenDepositEvent(event);
       if (eventParsed.to != getAddressForFormat(ephemeralAddress, apiData.ss58Format)) {
         return null;
