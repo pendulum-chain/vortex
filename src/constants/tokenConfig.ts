@@ -1,7 +1,7 @@
 import BrlIcon from '../assets/coins/BRL.png';
 import UsdtIcon from '../assets/coins/USDT.png';
 import EurcIcon from '../assets/coins/EURC.png';
-import UsdcIcon from '../assets/coins/USDC.png'
+import UsdcIcon from '../assets/coins/USDC.png';
 
 export interface TokenDetails {
   currencyId: any;
@@ -21,10 +21,8 @@ export interface TokenDetails {
   erc20AddressNativeChain?: string;
 }
 
-
-export interface TokenConfig {
-  [key: string]: TokenDetails;
-}
+export type TokenType = 'brl' | 'eurc' | 'usdc';
+export type TokenConfig = Record<TokenType, TokenDetails>;
 
 // Every asset specified in here must either be offrampable or be swapable to an offrampable asset
 export const TOKEN_CONFIG: TokenConfig = {
@@ -64,15 +62,15 @@ export const TOKEN_CONFIG: TokenConfig = {
     icon: EurcIcon,
   },
   // We treat many of the properties of polygon token as the equivalent axl{X} one on Pendulum.
-  // we will receive 
+  // we will receive
   usdc: {
-    assetCode: "USDC",
-    erc20AddressNativeChain : '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+    assetCode: 'USDC',
+    erc20AddressNativeChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
     // erc20Address is that of axlUSDC on pendulum
     // this is done to provide the user with the expected exchange rate
     erc20Address: '6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs', // TODO replace with axlUSDC erc correct address
     // Decimals should be consistent in BOTH CHAINS
-    decimals : 6,
+    decimals: 6,
     // currency id of axlUSDC
     currencyId: { XCM: 12 },
     isOfframp: false,
@@ -80,5 +78,5 @@ export const TOKEN_CONFIG: TokenConfig = {
     canSwapTo: ['eurc'],
     icon: UsdcIcon,
     isPolygonChain: true,
-  }
-};
+  },
+} as const;

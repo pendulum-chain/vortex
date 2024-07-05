@@ -11,7 +11,7 @@ import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
 import { UseQueryResult } from '@tanstack/react-query';
 import { useDebouncedValue } from '../useDebouncedValue';
-import { TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { TOKEN_CONFIG, TokenType } from '../../constants/tokenConfig';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -62,8 +62,8 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
     // no action required
   }
 
-  const fromTokenDetails = TOKEN_CONFIG[fromToken];
-  const toTokenDetails = TOKEN_CONFIG[toToken];
+  const fromTokenDetails = TOKEN_CONFIG[fromToken as TokenType];
+  const toTokenDetails = TOKEN_CONFIG[toToken as TokenType];
 
   const fromTokenDecimals = fromTokenDetails?.decimals;
 

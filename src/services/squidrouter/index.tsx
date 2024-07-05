@@ -1,7 +1,7 @@
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { useCallback, useEffect, useState } from 'preact/compat';
 import { getRouteTransactionRequest, updateTransactionStatus } from './route';
-import erc20ABI from '../../contracts/ERC20';
+import erc20ABI from '../../contracts/Erc20';
 import { getSquidRouterConfig } from './config';
 import Big from 'big.js';
 import { decimalToCustom } from '../../helpers/parseNumbers';
@@ -76,8 +76,6 @@ enum TransactionStatus {
 }
 
 export function useSquidRouterSwap(amount: string) {
- 
-
   const { fromToken } = getSquidRouterConfig();
 
   const [requestId, setRequestId] = useState<string>('');

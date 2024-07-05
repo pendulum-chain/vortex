@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useAccountBalance } from '../Nabla/BalanceState';
-import { TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { TOKEN_CONFIG, TokenType } from '../../constants/tokenConfig';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { Button, Card } from 'react-daisyui';
@@ -50,8 +50,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   const { address } = useAccount();
   const { signMessage } = useSignMessage();
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const {balance, isBalanceLoading} = useAccountBalance(address);
-  const [activeTab, setActiveTab] = useState<'swap' | 'direct'>('direct');
+  const { balance, isBalanceLoading } = useAccountBalance(address);
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -61,10 +60,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     };
 
     initializeApiManager().catch(console.error);
-    setActiveTab('swap');
   }, []);
 
-  const wantsSwap = activeTab === 'swap';
+  const wantsSwap = true;
 
   const {
     tokensModal: [modalType, setModalType],
@@ -96,16 +94,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
   } = form;
 
   const formErrorMessage = errors.fromAmount?.message ?? errors.root?.message;
-
-  useEffect(() => {
-    if (activeTab === 'swap') {
-      // force usdt selection
-      onFromChange(TOKEN_CONFIG.usdt);
-    } else {
-      // removes possible usdt selected
-      setValue('from', '');
-    }
-  }, [activeTab, setValue, onFromChange]);
 
   const handleSubmit = async () => {
     if (fromAmount === undefined || fromAmount.eq(0)) {
@@ -139,18 +127,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
 
     // check balance of the asset used to offramp directly or to pay for the swap
     if (balance.preciseBigDecimal.lt(fromAmount)) {
-      alert(
-        `Insufficient balance to offramp. Current balance is ${
-          balance.approximateNumber
-        } ${from.toUpperCase()}.`,
-      );
+      alert(`Insufficient balance to offramp. Current balance is ${balance.approximateNumber} ${from.toUpperCase()}.`);
       return;
     }
 
     // If swap will happen, check the minimum comparing to the minimum expected swap
     const minWithdrawalAmountBigNumber = toBigNumber(
-      TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount!,
-      TOKEN_CONFIG[assetToOfframp].decimals,
+      TOKEN_CONFIG[assetToOfframp as TokenType].minWithdrawalAmount!,
+      TOKEN_CONFIG[assetToOfframp as TokenType].decimals,
     );
 
     //TESTING

@@ -2,7 +2,7 @@ import { Skeleton } from '../Skeleton';
 import { Avatar, AvatarProps, Modal, Button, Input, ButtonProps } from 'react-daisyui';
 import { ChangeEvent, useMemo, useState } from 'preact/compat';
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
+import { TOKEN_CONFIG, TokenDetails, TokenType } from '../../constants/tokenConfig';
 
 interface PoolSelectorModalProps extends PoolListProps {
   isLoading?: boolean;
@@ -49,13 +49,19 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
 
   const poolList = useMemo(() => {
     const poolList: TokenDetails[] = [];
-    Object.keys(TOKEN_CONFIG).forEach((token) => {
+    (Object.keys(TOKEN_CONFIG) as TokenType[]).forEach((token) => {
       // special case rules
       // do not allow non-offramp tokens in the to field,
       if (mode.type === 'to' && mode.swap && !TOKEN_CONFIG[token].isOfframp) return;
 
       // only allow USDC asset code from otherChain property
-      if (mode.type === 'from' && mode.swap && TOKEN_CONFIG[token].assetCode !== 'USDC' && TOKEN_CONFIG[token].isPolygonChain !== true) return;
+      if (
+        mode.type === 'from' &&
+        mode.swap &&
+        TOKEN_CONFIG[token].assetCode !== 'USDC' &&
+        TOKEN_CONFIG[token].isPolygonChain !== true
+      )
+        return;
 
       // Do not allow non offrampable tokens in the from field if no swap
       if (mode.type === 'from' && !mode.swap && !TOKEN_CONFIG[token].isOfframp) return;

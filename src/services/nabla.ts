@@ -9,7 +9,7 @@ import { routerAbi } from '../contracts/Router';
 import { NABLA_ROUTER } from '../constants/constants';
 import { defaultReadLimits, multiplyByPowerOfTen } from '../helpers/contracts';
 import { parseContractBalanceResponse } from '../helpers/contracts';
-import { TOKEN_CONFIG } from '../constants/tokenConfig';
+import { TOKEN_CONFIG, TokenType } from '../constants/tokenConfig';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
 import { toBigNumber } from '../helpers/parseNumbers';
@@ -34,8 +34,8 @@ export async function performSwap(
   const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
   const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
   // get asset details
-  const assetInDetails = TOKEN_CONFIG[assetIn];
-  const assetOutDetails = TOKEN_CONFIG[assetOut];
+  const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
+  const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
 
   // get ephermal keypair and account
   let keypairEphemeral = getEphemeralAccount();
@@ -138,7 +138,7 @@ export async function performSwap(
 
 async function approve({ api, token, spender, amount, contractAbi, keypairEphemeral }: any) {
   console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
-  
+
   const response = await executeMessage({
     abi: contractAbi,
     api,
@@ -146,7 +146,7 @@ async function approve({ api, token, spender, amount, contractAbi, keypairEpheme
     contractDeploymentAddress: token,
     getSigner: () =>
       Promise.resolve({
-        type: "keypair",
+        type: 'keypair',
         keypair: keypairEphemeral,
       }),
     messageName: 'approve',
@@ -171,7 +171,7 @@ async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contrac
     contractDeploymentAddress: NABLA_ROUTER,
     getSigner: () =>
       Promise.resolve({
-        type: "keypair",
+        type: 'keypair',
         keypair: keypairEphemeral,
       }),
     messageName: 'swapExactTokensForTokens',

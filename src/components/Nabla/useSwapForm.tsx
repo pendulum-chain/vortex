@@ -3,7 +3,7 @@ import Big from 'big.js';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 
-import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
+import { TOKEN_CONFIG, TokenDetails, TokenType } from '../../constants/tokenConfig';
 import schema, { SwapFormValues } from './schema';
 import { storageService } from '../../services/localStorage';
 import { storageKeys } from '../../constants/localStorage';
@@ -20,7 +20,7 @@ export const useSwapForm = () => {
   const initialState = useMemo(() => {
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
     return {
-      from: storageValues?.from ?? '',
+      from: storageValues?.from ?? 'usdc',
       to: storageValues?.to ?? '',
     };
   }, []);
@@ -34,16 +34,21 @@ export const useSwapForm = () => {
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
-  const fromToken = from ? TOKEN_CONFIG[from] : undefined;
-  const toToken = to ? TOKEN_CONFIG[to] : undefined;
+  console.log('From', from);
+
+  const fromToken = from ? TOKEN_CONFIG[from as TokenType] : undefined;
+  const toToken = to ? TOKEN_CONFIG[to as TokenType] : undefined;
 
   const onFromChange = useCallback(
     (a: TokenDetails) => {
       const prev = getValues();
-      console.log('a',a)
-      const tokenKey = Object.keys(TOKEN_CONFIG).find((key) => TOKEN_CONFIG[key]!.assetCode === a.assetCode);
+      console.log('a', a);
+      const tokenKey = Object.keys(TOKEN_CONFIG).find(
+        (key) => TOKEN_CONFIG[key as TokenType]!.assetCode === a.assetCode,
+      );
       if (!tokenKey) return;
 
+      console.log('b', tokenKey);
       const updated = {
         from: tokenKey,
         to: prev?.to === tokenKey ? prev?.from : prev?.to,
@@ -51,6 +56,7 @@ export const useSwapForm = () => {
 
       if (updated.to && prev?.to === tokenKey) setValue('to', updated.to);
       setStorageForSwapSettings(updated);
+      console.log('Set from A', tokenKey);
       setValue('from', tokenKey);
 
       setTokenModal(undefined);
@@ -61,7 +67,9 @@ export const useSwapForm = () => {
   const onToChange = useCallback(
     (a: TokenDetails) => {
       const prev = getValues();
-      const tokenKey = Object.keys(TOKEN_CONFIG).find((key) => TOKEN_CONFIG[key]!.assetCode === a.assetCode);
+      const tokenKey = Object.keys(TOKEN_CONFIG).find(
+        (key) => TOKEN_CONFIG[key as TokenType]!.assetCode === a.assetCode,
+      );
       if (!tokenKey) return;
 
       const updated = {

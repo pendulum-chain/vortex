@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
 import { squidReceiverABI } from '../../contracts/SquidReceiver';
-import erc20ABI  from '../../contracts/ERC20';
+import erc20ABI from '../../contracts/Erc20';
 import { getSquidRouterConfig } from './config';
-import encodePayload from './payload'
+import encodePayload from './payload';
 import { getEphemeralAccount } from '../polkadot/ephemeral';
-import { u8aToHex } from "@polkadot/util"
-import { decodeAddress } from "@polkadot/util-crypto"
+import { u8aToHex } from '@polkadot/util';
+import { decodeAddress } from '@polkadot/util-crypto';
 
 interface RouteParams {
   fromAddress: string;
@@ -40,16 +40,15 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
   });
 
   let ephemeralAccount = getEphemeralAccount();
-  const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccount.address))
+  const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccount.address));
 
-  
-  console.log("encoding payload with dest address: ", ephemeralAccountHex)
+  console.log('encoding payload with dest address: ', ephemeralAccountHex);
   const payload = encodePayload(ephemeralAccountHex);
 
   const executeXCMEncodedData = encodeFunctionData({
     abi: squidReceiverABI,
     functionName: 'executeXCM',
-    args: [payload, "0"],
+    args: [payload, '0'],
   });
 
   return {
@@ -69,16 +68,16 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
       calls: [
         // approval call.
         {
-          callType: 0, 
+          callType: 0,
           target: axlUSDC_MOONBEAM,
-          value: "0", // this will be replaced by the full native balance of the multicall after the swap
+          value: '0', // this will be replaced by the full native balance of the multicall after the swap
           callData: approvalErc20,
           payload: {
             tokenAddress: axlUSDC_MOONBEAM, // unused in callType 2, dummy value
-            inputPos: "1", // unused
+            inputPos: '1', // unused
           },
-          estimatedGas: "500000",
-          chainType: "evm",
+          estimatedGas: '500000',
+          chainType: 'evm',
         },
         // trigger the xcm call
         {
@@ -87,8 +86,8 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
           value: '0',
           callData: executeXCMEncodedData,
           payload: {
-            tokenAddress: axlUSDC_MOONBEAM, 
-            inputPos: "1", 
+            tokenAddress: axlUSDC_MOONBEAM,
+            inputPos: '1',
           },
           estimatedGas: '700000',
           chainType: 'evm',

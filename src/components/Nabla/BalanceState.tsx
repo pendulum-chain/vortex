@@ -4,23 +4,23 @@ import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { parseContractBalanceResponse } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
-import { useReadContract } from 'wagmi'
+import { useReadContract } from 'wagmi';
 import BigNumber from 'big.js';
-import erc20ABI from '../../contracts/ERC20';
+import erc20ABI from '../../contracts/Erc20';
 
 export interface BalanceInfo extends ContractBalance {
   canWithdraw: boolean;
 }
 
 export interface UseAccountBalanceResponse {
-  balance:  BalanceInfo;
+  balance: BalanceInfo;
   isBalanceLoading: boolean;
   balanceError?: Error;
 }
- ;
- let zeroBalance = {
-                    ...parseContractBalanceResponse(6, BigInt(0)),
-                    canWithdraw: false}
+let zeroBalance = {
+  ...parseContractBalanceResponse(6, BigInt(0)),
+  canWithdraw: false,
+};
 
 export const useAccountBalance = (address?: string): UseAccountBalanceResponse => {
   const [balanceParsed, setBalance] = useState<BalanceInfo>(zeroBalance);
@@ -32,31 +32,30 @@ export const useAccountBalance = (address?: string): UseAccountBalanceResponse =
     address: TOKEN_CONFIG.usdc.erc20AddressNativeChain as `0x${string}`,
     functionName: 'balanceOf',
     args: [address],
-  })
+  });
 
   useEffect(() => {
     const fetchBalances = async () => {
       if (!address) {
-        setBalance( {
+        setBalance({
           ...zeroBalance,
           canWithdraw: false,
         });
         return;
-      }     
+      }
       try {
-
         const rawBalance = balance as bigint;
         const contractBalance = parseContractBalanceResponse(6, rawBalance);
-        
+
         // We don't need this, now. Unless we wan't to support also offramp from native polygon chain.
         // otherwise, the minimum is irrelevant.
         const minWithdrawalAmount = toBigNumber(100, 0);
         const canWithdraw = contractBalance.rawBalance.gte(minWithdrawalAmount);
 
         const balancePolygonAsset = {
-            ...contractBalance,
-            canWithdraw,
-          };
+          ...contractBalance,
+          canWithdraw,
+        };
 
         setBalance(balancePolygonAsset);
       } catch (err) {
