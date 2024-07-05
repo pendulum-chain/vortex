@@ -3,7 +3,7 @@ import Big from 'big.js';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
 
-export type TokenTransferEvent = ReturnType<typeof parseTokenTransferEvent>;
+export type TokenTransferEvent = ReturnType<typeof parseTokenDepositEvent>;
 
 export function parseEventRedeemRequest(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
@@ -79,13 +79,12 @@ function extractStellarAssetInfo(data: any) {
   }
 }
 
-export function parseTokenTransferEvent(event: any) {
+export function parseTokenDepositEvent(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
   const mappedData = {
     currencyId: rawEventData[0],
-    from: rawEventData[1].toString() as string,
-    to: rawEventData[2].toString() as string,
-    amount: new Big(rawEventData[3].toString()) as Big,
+    to: rawEventData[1].toString() as string,
+    amount: new Big(rawEventData[2].toString()) as Big,
   };
   return mappedData;
 }

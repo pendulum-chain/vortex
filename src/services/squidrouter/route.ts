@@ -32,7 +32,7 @@ interface RouteParams {
 function createRouteParams(userAddress: string, amount: string): RouteParams {
   const { fromToken, fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig();
 
-  // TODO this must be approval, max amount
+  // TODO this must be approval, should we use max amount?? Or is this unsafe.
   const approvalErc20 = encodeFunctionData({
     abi: erc20ABI,
     functionName: 'approve',

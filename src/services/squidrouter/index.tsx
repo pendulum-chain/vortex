@@ -39,7 +39,8 @@ function useApproveSpending(
 function useSendSwapTransaction(transactionRequest: any) {
   const { data: hash, isPending, error, status, sendTransaction } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: hash });
-
+  
+  console.log("swapTransaction isSuccess ", isConfirmed);
   const sendSwapTransaction = useCallback(async () => {
     if (!transactionRequest) {
       console.error('No transaction request found');
@@ -66,7 +67,7 @@ function useSendSwapTransaction(transactionRequest: any) {
   };
 }
 
-enum TransactionStatus {
+export enum TransactionStatus {
   Idle = 'Idle',
   RouteRequested = 'RouteRequested',
   ApproveSpending = 'ApproveSpending',
@@ -98,7 +99,6 @@ export function useSquidRouterSwap(amount: string) {
     sendSwapTransaction,
     error: swapError,
   } = useSendSwapTransaction(transactionRequest);
-
   // Update the transaction status
   useEffect(() => {
     if (isApprovalConfirming) {
@@ -140,7 +140,6 @@ export function useSquidRouterSwap(amount: string) {
     if (!hash || !isSwapCompleted) return;
 
     console.log('Transaction confirmed!');
-
     // Show the transaction receipt with Axelarscan link
     const axelarScanLink = 'https://axelarscan.io/gmp/' + hash;
     console.log(`Finished! Check Axelarscan for details: ${axelarScanLink}`);
@@ -148,8 +147,8 @@ export function useSquidRouterSwap(amount: string) {
     // Update transaction status until it completes
     // We don't do anything with the follow-up for now, but we might in the future
     // updateTransactionStatus(hash, requestId).catch((error) =>
-    //   console.error('Error updating transaction status:', error),
-    // );
+    //    console.error('Error updating transaction status:', error),
+    //  );
   }, [hash, isSwapCompleted]);
 
   const executeSquidRouterSwap = useCallback(async () => {

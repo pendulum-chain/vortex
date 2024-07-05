@@ -2,17 +2,18 @@ import { Keyring } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { getApiManagerInstance } from './polkadotApi';
-import { parseTokenTransferEvent, TokenTransferEvent } from './eventParsers';
+import { parseTokenDepositEvent, TokenTransferEvent } from './eventParsers';
 import { compareObjects } from './eventParsers';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
 let keypair: KeyringPair | null = null;
-const MIN_BALANCE_NATIVE = 1000000000;
+const FUNDING_AMOUNT = 1000000000;
 
 export const getEphemeralAccount = () => {
   if (!keypair) {
     const seedPhrase = mnemonicGenerate();
     const keyring = new Keyring({ type: 'sr25519' });
     keypair = keyring.addFromUri(seedPhrase);
+    console.log('Ephemeral account created:', keypair.address)
   }
   return keypair;
 };
@@ -29,8 +30,8 @@ export const fundEphemeralAccount = async () => {
     keypair = keyring.addFromUri(seedPhrase);
 
     await apiData.api.tx.balances
-      .transfer(ephemeralAddress, MIN_BALANCE_NATIVE)
-      .signAndSend(keypair.address);
+      .transfer(ephemeralAddress, FUNDING_AMOUNT)
+      .signAndSend(keypair);
   } catch (error) {
     console.error('Error funding account', error);
   }
@@ -45,7 +46,7 @@ export async function checkBalance(): Promise<boolean> {
   const { data: balance } = await pendulumApiComponents.apiData!.api.query.system.account(keypair?.address);
 
   // check if balance is higher than minimum required, then we consider the account ready
-  return balance.free.toNumber() > MIN_BALANCE_NATIVE;
+  return balance.free.toNumber() >= FUNDING_AMOUNT;
 }
 
 export async function waitForTokenReceptionEvent(
@@ -57,8 +58,8 @@ export async function waitForTokenReceptionEvent(
   const apiData = pendulumApiComponents.apiData!;
 
   const filter = (event: any) => {
-    if (event.event.section === 'tokens' && event.event.method === 'Transfer') {
-      const eventParsed = parseTokenTransferEvent(event);
+    if (event.event.section === 'tokens' && event.event.method === 'Deposit') {
+      const eventParsed = parseTokenDepositEvent(event);
       if (eventParsed.to != getAddressForFormat(ephemeralAddress, apiData.ss58Format)) {
         return null;
       }

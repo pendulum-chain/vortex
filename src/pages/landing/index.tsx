@@ -23,7 +23,7 @@ import { performSwap } from '../../services/nabla';
 import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
 import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance, fundEphemeralAccount } from '../../services/polkadot/ephemeral';
 import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { useSquidRouterSwap } from '../../services/squidrouter';
+import { useSquidRouterSwap, TransactionStatus } from '../../services/squidrouter';
 import { decimalToCustom } from '../../helpers/parseNumbers';
 import { TokenType } from '../../constants/tokenConfig';
 enum OperationStatus {
@@ -66,7 +66,6 @@ function Landing() {
   //Squidrouter hook
   const [amountInNative, setAmountIn] = useState<string>('0');
   const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
-
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
@@ -92,6 +91,15 @@ function Landing() {
     setStatus(OperationStatus.Submitting);
   };
 
+  // Fund the ephemeral account after the squid swap is completed
+  useEffect(() => {
+    if (transactionStatus == TransactionStatus.SwapCompleted) {
+      console.log("Funding account after squid swap is completed")
+      addEvent('Squid router Bridge-Swap done', EventStatus.Success);
+      fundEphemeralAccount();
+    }
+  },[transactionStatus, error]);
+
   const handleOnSep24Completed = async (result: Sep24Result) => {
     setShowSep24(false);
 
@@ -105,11 +113,10 @@ function Landing() {
     if (executionInput === undefined) return;
     const { assetToOfframp, amountIn, swapOptions } = executionInput;
     // Start the squid router process
-    //executeSquidRouterSwap();
+    executeSquidRouterSwap();
 
     // Wait for ephemeral to receive native balance
     // And wait for ephemeral to receive the funds of the token to be offramped
-    fundEphemeralAccount();
 
     const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
 
@@ -118,7 +125,6 @@ function Landing() {
     console.log('token received', tokenTransferEvent);
 
     // call checkBalance until it returns true
-    // TODO fund the ephemeral
     let ready;
     do {
       ready = await checkBalance();
@@ -138,7 +144,7 @@ function Landing() {
 
       await performSwap(
         {
-          amountIn: new Big(1000), //Testing tokenTransferEvent.amount
+          amountIn: tokenTransferEvent.amount,
           assetOut: assetToOfframp,
           assetIn: swapOptions.assetIn,
           minAmountOut: swapOptions.minAmountOut,
@@ -220,6 +226,7 @@ function Landing() {
       eventsEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
+
 
   useEffect(() => {
     scrollToLatestEvent();
