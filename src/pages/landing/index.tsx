@@ -67,6 +67,7 @@ function Landing() {
   const [amountInNative, setAmountIn] = useState<string>('0');
   const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
+
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
     setExecutionInput({ assetToOfframp, amountIn, swapOptions });
@@ -90,15 +91,6 @@ function Landing() {
     setShowSep24(true);
     setStatus(OperationStatus.Submitting);
   };
-
-  // Fund the ephemeral account after the squid swap is completed
-  useEffect(() => {
-    if (transactionStatus == TransactionStatus.SwapCompleted) {
-      console.log("Funding account after squid swap is completed")
-      addEvent('Squid router Bridge-Swap done', EventStatus.Success);
-      fundEphemeralAccount();
-    }
-  },[transactionStatus, error]);
 
   const handleOnSep24Completed = async (result: Sep24Result) => {
     setShowSep24(false);
@@ -132,15 +124,16 @@ function Landing() {
 
     if (swapOptions) {
       const enteredAmountDecimal = new Big(result.amount);
-      if (enteredAmountDecimal.gt(swapOptions.minAmountOut)) {
-        addEvent(
-          `The amount you entered is too high. Maximum possible amount to offramp: ${swapOptions.minAmountOut.toString()}), you entered: ${
-            result.amount
-          }.`,
-          EventStatus.Error,
-        );
-        return;
-      }
+      //TESTING commented since we are mocking the response of the KYC
+      // if (enteredAmountDecimal.gt(swapOptions.minAmountOut)) {
+      //   addEvent(
+      //     `The amount you entered is too high. Maximum possible amount to offramp: ${swapOptions.minAmountOut.toString()}), you entered: ${
+      //       result.amount
+      //     }.`,
+      //     EventStatus.Error,
+      //   );
+      //   return;
+      // }
 
       await performSwap(
         {
@@ -227,6 +220,18 @@ function Landing() {
     }
   };
 
+   // Fund the ephemeral account after the squid swap is completed
+
+   // Should we fund this after approval or after the swap is completed?
+   // Right now, the SwapCompleted variant is never set.
+   useEffect(() => {
+    console.log("Transaction status: ", transactionStatus)
+    if (transactionStatus == TransactionStatus.SpendingApproved) {
+      console.log("Funding account after squid swap is completed")
+      addEvent('Approval to Squidrouter completed', EventStatus.Success);
+      fundEphemeralAccount();
+    }
+  },[transactionStatus, error]);
 
   useEffect(() => {
     scrollToLatestEvent();

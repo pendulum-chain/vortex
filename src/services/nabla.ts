@@ -59,14 +59,16 @@ export async function performSwap(
   }
 
   const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
-  const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals);
+  // Probably no need to multiply by power of ten here since amountIn comes from the event
+  //const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals); 
+  const rawAmountToSwapBig = amountIn;
   const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
 
   //maybe do allowance
   if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(rawAmountToSwapBig)) {
     try {
       renderEvent(
-        `Please sign approval swap: ${toBigNumber(
+        `Approving tokens: ${toBigNumber(
           rawAmountToSwapBig,
           assetInDetails.decimals,
         )} ${assetInDetails.assetCode.toUpperCase()}`,
@@ -95,8 +97,9 @@ export async function performSwap(
 
   // Try swap
   try {
+    //TODO amountIN has all zeroes now, need to fix the message.
     renderEvent(
-      `Please sign transaction to swap ${amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${minAmountOut} ${assetOutDetails.assetCode.toUpperCase()} `,
+      `Swapping ${amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${minAmountOut} ${assetOutDetails.assetCode.toUpperCase()} `,
       EventStatus.Waiting,
     );
     await doActualSwap({

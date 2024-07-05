@@ -6,13 +6,14 @@ import { parseTokenDepositEvent, TokenTransferEvent } from './eventParsers';
 import { compareObjects } from './eventParsers';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
 let keypair: KeyringPair | null = null;
-const FUNDING_AMOUNT = 1000000000;
+const FUNDING_AMOUNT = 10000000000;
 
 export const getEphemeralAccount = () => {
   if (!keypair) {
     const seedPhrase = mnemonicGenerate();
     const keyring = new Keyring({ type: 'sr25519' });
     keypair = keyring.addFromUri(seedPhrase);
+    console.log('Ephemeral account seedphrase: ', seedPhrase)
     console.log('Ephemeral account created:', keypair.address)
   }
   return keypair;
@@ -58,7 +59,8 @@ export async function waitForTokenReceptionEvent(
   const apiData = pendulumApiComponents.apiData!;
 
   const filter = (event: any) => {
-    if (event.event.section === 'tokens' && event.event.method === 'Deposit') {
+    if (event.event.section === 'tokens' && event.event.method === 'Deposited') {
+      console.log('Deposit Event:', event)
       const eventParsed = parseTokenDepositEvent(event);
       if (eventParsed.to != getAddressForFormat(ephemeralAddress, apiData.ss58Format)) {
         return null;

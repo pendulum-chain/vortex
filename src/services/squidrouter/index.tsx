@@ -40,7 +40,6 @@ function useSendSwapTransaction(transactionRequest: any) {
   const { data: hash, isPending, error, status, sendTransaction } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: hash });
   
-  console.log("swapTransaction isSuccess ", isConfirmed);
   const sendSwapTransaction = useCallback(async () => {
     if (!transactionRequest) {
       console.error('No transaction request found');

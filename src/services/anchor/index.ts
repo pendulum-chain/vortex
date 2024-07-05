@@ -165,7 +165,7 @@ export async function sep24Second(
   // Mock, testing
   await new Promise((resolve) => setTimeout(resolve, 1000));
   return {
-    amount: '10.3',
+    amount: '0.3684',
     memo: 'todo',
     memoType: 'text',
     offrampingAccount: 'GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS',
