@@ -21,7 +21,7 @@ import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { performSwap } from '../../services/nabla';
 import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
-import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance } from '../../services/polkadot/ephemeral';
+import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance, fundEphemeralAccount } from '../../services/polkadot/ephemeral';
 import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { useSquidRouterSwap } from '../../services/squidrouter';
 import { decimalToCustom } from '../../helpers/parseNumbers';
@@ -109,7 +109,7 @@ function Landing() {
 
     // Wait for ephemeral to receive native balance
     // And wait for ephemeral to receive the funds of the token to be offramped
-    let ephemeralAccount = getEphemeralAccount();
+    fundEphemeralAccount();
 
     const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
 

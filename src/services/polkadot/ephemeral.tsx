@@ -17,6 +17,25 @@ export const getEphemeralAccount = () => {
   return keypair;
 };
 
+export const fundEphemeralAccount = async () => {
+  try {
+    const pendulumApiComponents = await getApiManagerInstance();
+    const apiData = pendulumApiComponents.apiData!;
+
+    const ephemeralAddress = getEphemeralAccount().address;
+
+    const seedPhrase = 'seed phrase';
+    const keyring = new Keyring('//Alice');
+    keypair = keyring.addFromUri(seedPhrase);
+
+    await apiData.api.tx.balances
+      .transfer(ephemeralAddress, MIN_BALANCE_NATIVE)
+      .signAndSend(keypair.address);
+  } catch (error) {
+    console.error('Error funding account', error);
+  }
+};
+
 // function to check balance of account, native token
 export async function checkBalance(): Promise<boolean> {
   const pendulumApiComponents = await getApiManagerInstance();
