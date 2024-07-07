@@ -21,7 +21,12 @@ import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { performSwap } from '../../services/nabla';
 import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
-import { waitForTokenReceptionEvent, getEphemeralAccount, checkBalance, fundEphemeralAccount } from '../../services/polkadot/ephemeral';
+import {
+  waitForTokenReceptionEvent,
+  getEphemeralAccount,
+  checkBalance,
+  fundEphemeralAccount,
+} from '../../services/polkadot/ephemeral';
 import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { useSquidRouterSwap, TransactionStatus } from '../../services/squidrouter';
 import { decimalToCustom } from '../../helpers/parseNumbers';
@@ -67,7 +72,6 @@ function Landing() {
   const [amountInNative, setAmountIn] = useState<string>('0');
   const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
-
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
     setExecutionInput({ assetToOfframp, amountIn, swapOptions });
@@ -80,12 +84,11 @@ function Landing() {
 
     const token = await sep10(values, addEvent);
 
-    // TESTING add a proper offramp amount
     setAnchorSessionParams({
       token,
       tomlValues: values,
       tokenConfig,
-      offrampAmount: '10.5', // TESTING truncatedAmountToOfframp
+      offrampAmount: truncatedAmountToOfframp,
     });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
@@ -137,7 +140,7 @@ function Landing() {
 
       await performSwap(
         {
-          amountIn: tokenTransferEvent.amount,
+          amountInRaw: tokenTransferEvent.amountRaw,
           assetOut: assetToOfframp,
           assetIn: swapOptions.assetIn,
           minAmountOut: swapOptions.minAmountOut,
@@ -220,18 +223,18 @@ function Landing() {
     }
   };
 
-   // Fund the ephemeral account after the squid swap is completed
+  // Fund the ephemeral account after the squid swap is completed
 
-   // Should we fund this after approval or after the swap is completed?
-   // Right now, the SwapCompleted variant is never set.
-   useEffect(() => {
-    console.log("Transaction status: ", transactionStatus)
+  // Should we fund this after approval or after the swap is completed?
+  // Right now, the SwapCompleted variant is never set.
+  useEffect(() => {
+    console.log('Transaction status: ', transactionStatus);
     if (transactionStatus == TransactionStatus.SpendingApproved) {
-      console.log("Funding account after squid swap is completed")
+      console.log('Funding account after squid swap is completed');
       addEvent('Approval to Squidrouter completed', EventStatus.Success);
       fundEphemeralAccount();
     }
-  },[transactionStatus, error]);
+  }, [transactionStatus, error]);
 
   useEffect(() => {
     scrollToLatestEvent();

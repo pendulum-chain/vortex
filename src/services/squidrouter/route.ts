@@ -125,7 +125,7 @@ async function getRoute(params: RouteParams) {
   }
 }
 
-async function getRouteApiPlus(params: RouteParamsApiPlus) {
+async function getRouteApiPlus(params: RouteParams) {
   // This is the integrator ID for the Squid API by https://v2.app.squidrouter.com/
   const integratorId = 'squid-v21-swap-widget-449AA6D3-42BC-450A-B66A-9D68D9534E95';
   const url = 'https://apiplus.squidrouter.com/v2/route';
@@ -137,6 +137,7 @@ async function getRouteApiPlus(params: RouteParamsApiPlus) {
         'Content-Type': 'application/json',
       },
     });
+
     const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
     return { data: result.data, requestId: requestId };
   } catch (error) {

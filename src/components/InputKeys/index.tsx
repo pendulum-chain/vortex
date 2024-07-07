@@ -84,12 +84,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
     fromToken: from,
     toToken: to,
     maximumFromAmount: undefined,
+    xcmFees: config.xcm.fees,
     slippageBasisPoints: config.swap.slippageBasisPoints,
     form,
   });
 
   const {
-    setValue,
     formState: { errors },
   } = form;
 

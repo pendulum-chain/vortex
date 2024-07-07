@@ -3,6 +3,7 @@ import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
 import {
   ContractBalance,
+  clampedDifference,
   multiplyByPowerOfTen,
   parseContractBalanceResponse,
   stringifyBigWithSignificantDecimals,
@@ -12,7 +13,6 @@ import { useContractRead } from './useContractRead';
 import { UseQueryResult } from '@tanstack/react-query';
 import { useDebouncedValue } from '../useDebouncedValue';
 import { TOKEN_CONFIG, TokenType } from '../../constants/tokenConfig';
-import { WalletAccount } from '@talismn/connect-wallets';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { FieldValues, UseFormReturn } from 'react-hook-form';
 import { useEffect } from 'preact/hooks';
@@ -25,6 +25,7 @@ export type UseTokenOutAmountProps<FormFieldValues extends FieldValues> = {
   fromToken: string;
   toToken: string;
   maximumFromAmount: BigNumber | undefined;
+  xcmFees: string;
   slippageBasisPoints: number;
   form: UseFormReturn<FormFieldValues>;
 };
@@ -49,6 +50,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   fromToken,
   toToken,
   maximumFromAmount,
+  xcmFees,
   slippageBasisPoints,
   form,
 }: UseTokenOutAmountProps<FormFieldValues>) {
@@ -67,9 +69,15 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
 
   const fromTokenDecimals = fromTokenDetails?.decimals;
 
-  const amountIn =
+  const amountInOriginal =
     fromTokenDecimals !== undefined && debouncedAmountBigDecimal !== undefined
       ? multiplyByPowerOfTen(debouncedAmountBigDecimal, fromTokenDecimals).toFixed(0, 0)
+      : undefined;
+
+  const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), fromTokenDetails.decimals).toFixed(0, 0);
+  const amountIn =
+    amountInOriginal !== undefined
+      ? clampedDifference(BigInt(amountInOriginal), BigInt(rawXcmFees)).toString()
       : undefined;
 
   const enabled =

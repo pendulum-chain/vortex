@@ -1,10 +1,8 @@
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 import { useCallback, useEffect, useState } from 'preact/compat';
-import { getRouteTransactionRequest, updateTransactionStatus } from './route';
+import { getRouteTransactionRequest } from './route';
 import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
-import Big from 'big.js';
-import { decimalToCustom } from '../../helpers/parseNumbers';
 
 function useApproveSpending(
   transactionRequestTarget: string | undefined,

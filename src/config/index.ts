@@ -49,6 +49,7 @@ export const config = {
       explorer: 'https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-foucoco.pendulumchain.tech#/explorer/query',
     },
   } satisfies TenantConfig,
+  xcm: { fees: '0.016' },
   swap: {
     slippageBasisPoints: 20,
     deadline: 30,

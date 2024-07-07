@@ -84,7 +84,7 @@ export function parseTokenDepositEvent(event: any) {
   const mappedData = {
     currencyId: rawEventData[0],
     to: rawEventData[1].toString() as string,
-    amount: new Big(rawEventData[2].toString()) as Big,
+    amountRaw: new Big(rawEventData[2].toString()) as Big,
   };
   return mappedData;
 }

@@ -17,17 +17,22 @@ import { Keyring } from '@polkadot/api';
 import { getEphemeralAccount } from './polkadot/ephemeral';
 
 export interface PerformSwapProps {
-  amountIn: Big;
+  amountInRaw: Big;
   assetOut: string;
   assetIn: string;
   minAmountOut: Big;
 }
 
 export async function performSwap(
-  { amountIn, assetOut, assetIn, minAmountOut }: PerformSwapProps,
+  { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<Big> {
   // event attempting swap
+  const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
+  const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
+
+  const amountIn = toBigNumber(amountInRaw, assetInDetails.decimals);
+
   renderEvent('Attempting swap', EventStatus.Waiting);
   console.log('swap', 'Attempting swap', amountIn, assetOut, assetIn, minAmountOut);
   // get chain api, abi
@@ -35,8 +40,6 @@ export async function performSwap(
   const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
   const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
   // get asset details
-  const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
-  const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
 
   // get ephermal keypair and account
   const keypairEphemeral = getEphemeralAccount();
@@ -59,9 +62,10 @@ export async function performSwap(
   }
 
   const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
+
   // Probably no need to multiply by power of ten here since amountIn comes from the event
-  //const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals); 
-  const rawAmountToSwapBig = amountIn;
+  //const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals);
+  const rawAmountToSwapBig = amountInRaw;
   const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
 
   //maybe do allowance
