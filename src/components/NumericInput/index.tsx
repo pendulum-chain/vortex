@@ -14,6 +14,7 @@ interface NumericInputProps {
   maxDecimals?: number;
   defaultValue?: string;
   autoFocus?: boolean;
+  disabled?: boolean;
 }
 
 function isValidNumericInput(value: string): boolean {
@@ -46,34 +47,34 @@ export const NumericInput = ({
   register,
   readOnly = false,
   additionalStyle,
-  maxDecimals = 12,
+  maxDecimals = 2,
   defaultValue,
   autoFocus,
+  disabled,
 }: NumericInputProps) => (
-  <div className="w-full flex justify-between">
-    <div className="flex-grow text-4xl text-black font-outfit">
-      <Input
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="none"
-        className={
-          'input-ghost w-full text-4xl font-outfit pl-0 focus:outline-none focus:text-accent-content text-accent-content ' +
-          additionalStyle
-        }
-        minlength="1"
-        onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}
-        onInput={handleOnInput}
-        pattern="^[0-9]*[.,]?[0-9]*$"
-        // placeholder="0.0"
-        readOnly={readOnly}
-        spellcheck="false"
-        step="any"
-        type="text"
-        inputmode="decimal"
-        value={defaultValue}
-        autoFocus={autoFocus}
-        {...register}
-      />
-    </div>
+  <div className="flex-grow text-black font-outfit">
+    <Input
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
+      className={
+        'input-ghost w-full text-lg font-outfit pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
+        additionalStyle
+      }
+      minlength="1"
+      onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}
+      onInput={handleOnInput}
+      pattern="^[0-9]*[.,]?[0-9]*$"
+      placeholder="0.0"
+      readOnly={readOnly}
+      spellcheck="false"
+      step="any"
+      type="text"
+      inputmode="decimal"
+      value={defaultValue}
+      autoFocus={autoFocus}
+      disabled={disabled}
+      {...register}
+    />
   </div>
 );

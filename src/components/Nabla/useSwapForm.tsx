@@ -25,6 +25,8 @@ export const useSwapForm = () => {
       to: storageValues?.to ?? '',
       slippage: getValidSlippage(storageValues?.slippage),
       deadline: getValidDeadline(storageValues?.deadline ?? 0),
+      taxNumber: '',
+      bankAccount: '',
     };
   }, []);
 
@@ -33,7 +35,7 @@ export const useSwapForm = () => {
     defaultValues: initialState,
   });
 
-  const { setValue, getValues, control } = form;
+  const { setValue, control } = form;
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
@@ -73,7 +75,7 @@ export const useSwapForm = () => {
 
       setTokenModal(undefined);
     },
-    [form, form.getValues, setTokenModal, form.setValue, updateStorage],
+    [form, setValue, updateStorage, setTokenModal],
   );
 
   const onToChange = useCallback(
