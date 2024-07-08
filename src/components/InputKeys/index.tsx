@@ -197,7 +197,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         />
       </div>
 
-      <div className={`inputBox ${isSubmitted ? 'active' : ''}`}>
+      <div className={`flex-grow mt-4 mx-5 my-auto flex-col flex items-center   ${isSubmitted ? 'active' : ''}`}>
         {!isSubmitted && (
           <div className="description">
             <ul>
@@ -237,7 +237,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
                   tokenBalance={balance}
                 />
                 <div>{formErrorMessage !== undefined && <p className="text-red-600">{formErrorMessage}</p>}</div>
-                <div className="separator mt-10 mb-10"></div>
+                <div className="my-4"></div>
                 <To
                   tokenId={to}
                   toToken={toToken}

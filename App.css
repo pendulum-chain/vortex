@@ -93,7 +93,6 @@ body {
 
 #app {
   width: 100%;
-  min-width: 1800px;
   box-sizing: border-box;
 }
 
@@ -141,23 +140,12 @@ body {
   margin-top: 5px;
 }
 
-.eventsContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  overflow-y: scroll;
-  max-height: 70vh;
-}
-
 input {
   margin: 10px;
   padding: 10px;
 }
 
 .eventBox {
-  margin: 20px auto;
-  width: 30%;
-  padding: 20px;
   border: 1px solid #ccc;
   box-shadow: 0 0 10px #ccc;
   transition: all 0.5s ease-in-out;
@@ -182,14 +170,11 @@ input {
 }
 
 .eventBox.active {
-  transform: scale(1.3);
+  transform: scale(1.2);
   background-color: #f0f0f0;
 }
 
 .eventBox.error {
-  margin: 20px auto;
-  width: 30%;
-  padding: 20px;
   border: 1px solid #ccc;
   box-shadow: 0 0 10px #ccc;
   transition: all 0.5s ease-in-out;
@@ -204,7 +189,6 @@ input {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-top: 50px;
 }
 
 @tailwind base;

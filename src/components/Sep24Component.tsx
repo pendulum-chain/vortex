@@ -39,12 +39,12 @@ const Sep24: React.FC<Sep24Props> = ({ sessionParams, onSep24Complete, addEvent 
     <div>
       <div className="iframe-container">
         {!externalWindowClicked && (
-          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={onExternalWindowClicked}>
+          <Button className="md:my-10 my-4" color="primary" size="lg" onClick={onExternalWindowClicked}>
             Enter bank details (New window).
           </Button>
         )}
         {externalWindowClicked && (
-          <Button className="mt-10 mb-10" color="primary" size="lg" onClick={() => handleIframeCompletion()}>
+          <Button className="md:my-10 my-4" color="primary" size="lg" onClick={() => handleIframeCompletion()}>
             Start Offramping
           </Button>
         )}

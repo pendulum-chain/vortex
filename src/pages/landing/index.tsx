@@ -287,7 +287,7 @@ function Landing() {
           />
         </div>
       )}
-      <div className="eventsContainer">
+      <div className="flex flex-col items-center overflow-y-auto py-5">
         {events.map((event, index) => (
           <EventBox
             key={index}
