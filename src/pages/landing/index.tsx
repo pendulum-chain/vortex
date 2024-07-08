@@ -26,6 +26,7 @@ import {
   getEphemeralAccount,
   checkBalance,
   fundEphemeralAccount,
+  cleanEphemeralAccount,
 } from '../../services/polkadot/ephemeral';
 import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { useSquidRouterSwap, TransactionStatus } from '../../services/squidrouter';
@@ -210,6 +211,7 @@ function Landing() {
     // and successful
     // This will not affect the user
     await cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent);
+    await cleanEphemeralAccount();
   }, [stellarOperations]);
 
   const addEvent = (message: string, status: EventStatus) => {

@@ -6,10 +6,7 @@ function encodePayload(address: string): string {
   // on the contract so it can be anything.
 
   const asset = [0, ['0x0424', '0x8d0BBbA567Ae73a06A8678e53Dc7ADD0AF6b7039']];
-  const destination = [
-    1,
-    ['0x000000082E', '0x01' + address.slice(2) + '00'],
-  ];
+  const destination = [1, ['0x000000082E', '0x01' + address.slice(2) + '00']];
 
   // Encode the data
   const payload = eth.abi.encodeParameters(

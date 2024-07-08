@@ -39,9 +39,7 @@ export async function executeSpacewalkRedeem(
   let redeemRequestEvent;
   try {
     renderEvent(
-      `Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(
-        targetVaultId,
-      )}`,
+      `Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(targetVaultId)}`,
       EventStatus.Waiting,
     );
     redeemRequestEvent = await vaultService.requestRedeem(accountOrPair, amountRaw, stellarTargetAccountIdRaw);

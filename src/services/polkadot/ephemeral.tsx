@@ -9,6 +9,8 @@ import { decimalToNative } from '../../helpers/parseNumbers';
 
 let fundingAccountKeypair: KeyringPair | null = null;
 const FUNDING_AMOUNT = decimalToNative(0.1).toNumber(); // 0.1 PEN
+// TODO: replace
+const SEED_PHRASE = 'hood protect select grace number hurt lottery property stomach grit bamboo field';
 
 // print the public key using the correct ss58 format
 async function printEphemeralAccount(seedPhrase: string) {
@@ -36,14 +38,29 @@ export const fundEphemeralAccount = async () => {
 
     const ephemeralAddress = getEphemeralAccount().address;
 
-    // TODO: replace
-    const seedPhrase = 'hood protect select grace number hurt lottery property stomach grit bamboo field';
     const keyring = new Keyring({ type: 'sr25519' });
-    const fundingAccountKeypair = keyring.addFromUri(seedPhrase);
+    const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
 
     await apiData.api.tx.balances.transfer(ephemeralAddress, FUNDING_AMOUNT).signAndSend(fundingAccountKeypair);
   } catch (error) {
     console.error('Error funding account', error);
+  }
+};
+
+export const cleanEphemeralAccount = async () => {
+  try {
+    const pendulumApiComponents = await getApiManagerInstance();
+    const apiData = pendulumApiComponents.apiData!;
+
+    const ephemeralKeyring = getEphemeralAccount();
+
+    const keyring = new Keyring({ type: 'sr25519' });
+    const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
+    const fundingAccountAddress = fundingAccountKeypair.address;
+
+    await apiData.api.tx.balances.transferAll(fundingAccountAddress, false).signAndSend(ephemeralKeyring);
+  } catch (error) {
+    console.error('Error cleaning pendulum ephemeral account', error);
   }
 };
 
