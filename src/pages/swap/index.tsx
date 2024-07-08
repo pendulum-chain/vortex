@@ -22,11 +22,7 @@ const Arrow = () => (
 
 export const Swap = () => {
   const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
-
-  function onSubmit(e: Event) {
-    e.preventDefault();
-    setIsExchangeSectionSubmitted(true);
-  }
+  const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
 
   const walletAccount: { address: string; source: string } = { address: '', source: '' };
   const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
@@ -67,12 +63,28 @@ export const Swap = () => {
     form,
   });
 
+  function onSubmit(e: Event) {
+    e.preventDefault();
+
+    if (!isExchangeSectionSubmitted) {
+      const errors = form.formState.errors;
+      const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
+      const isValid = Boolean(from) && Boolean(to) && Boolean(fromAmount);
+
+      if (noErrors && isValid) {
+        setIsExchangeSectionSubmittedError(false);
+        setIsExchangeSectionSubmitted(true);
+      } else {
+        setIsExchangeSectionSubmittedError(true);
+      }
+      return;
+    }
+  }
+
   useEffect(() => {
     const toAmount = Number(tokenOutData.data?.amountOut.preciseString);
     form.setValue('toAmount', isNaN(toAmount) ? '0' : toAmount.toFixed(2));
   }, [form, fromAmount, tokenOutData]);
-
-  console.log('tokenOutData', tokenOutData);
 
   const ReceiveNumericInput = () => (
     <AssetNumericInput
@@ -117,6 +129,13 @@ export const Swap = () => {
           <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
           <Arrow />
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
+          <div>
+            {isExchangeSectionSubmittedError ? (
+              <p className="text-red-600">You must first enter the amount you wish to withdraw</p>
+            ) : (
+              <></>
+            )}
+          </div>
           <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
           <Collapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
