@@ -51,7 +51,7 @@ export const config = {
   } satisfies TenantConfig,
   xcm: { fees: '0.016' },
   swap: {
-    slippageBasisPoints: 20,
+    slippageBasisPoints: 30,
     deadline: 30,
   },
   walletConnect: {
