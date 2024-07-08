@@ -211,7 +211,7 @@ function Landing() {
     // and successful
     // This will not affect the user
     await cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent);
-    await cleanEphemeralAccount();
+    await cleanEphemeralAccount(executionInput?.assetToOfframp!);
   }, [stellarOperations]);
 
   const addEvent = (message: string, status: EventStatus) => {
