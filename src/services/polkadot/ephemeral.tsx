@@ -6,6 +6,8 @@ import { parseTokenDepositEvent, TokenTransferEvent } from './eventParsers';
 import { compareObjects } from './eventParsers';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
 import { decimalToNative } from '../../helpers/parseNumbers';
+import { TokenType } from '../../constants/tokenConfig';
+import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 
 let fundingAccountKeypair: KeyringPair | null = null;
 const FUNDING_AMOUNT = decimalToNative(0.1).toNumber(); // 0.1 PEN
@@ -47,16 +49,26 @@ export const fundEphemeralAccount = async () => {
   }
 };
 
-export const cleanEphemeralAccount = async () => {
+export const cleanEphemeralAccount = async (token: TokenType) => {
   try {
     const pendulumApiComponents = await getApiManagerInstance();
     const apiData = pendulumApiComponents.apiData!;
 
     const ephemeralKeyring = getEphemeralAccount();
+    const ephemeralAddress = getAddressForFormat(ephemeralKeyring.address, apiData.ss58Format);
 
     const keyring = new Keyring({ type: 'sr25519' });
     const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
-    const fundingAccountAddress = fundingAccountKeypair.address;
+    const fundingAccountAddress = getAddressForFormat(fundingAccountKeypair.address, apiData.ss58Format);
+
+    // fetch XCM received token dust balance
+    const response = (await apiData.api.query.tokens.accounts(ephemeralAddress, TOKEN_CONFIG[token].currencyId)).toHuman() as any;
+    const rawBalanceString = response?.free || '0';
+    // probably will never be exactly '0', but to be safe
+    // TODO: if the value is too small, do we really want to transfer token dust and spend fees?
+    if (rawBalanceString !== '0') {
+      await apiData.api.tx.tokens.transferAll(fundingAccountAddress, TOKEN_CONFIG[token].currencyId, false).signAndSend(ephemeralKeyring);
+    }
 
     await apiData.api.tx.balances.transferAll(fundingAccountAddress, false).signAndSend(ephemeralKeyring);
   } catch (error) {
