@@ -1,6 +1,9 @@
 name: Gitlab Pipeline Executor
 run-name: Gitlab Pipeline Executor
-on: [push]
+on:
+  push:
+    branches:
+      - offramp-prototype-staging
 jobs:
   Execute-Gitlab-Pipeline:
     runs-on: ubuntu-latest
