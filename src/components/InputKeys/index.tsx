@@ -17,8 +17,7 @@ import { Skeleton } from '../Skeleton';
 import { config } from '../../config';
 import Big from 'big.js';
 import { ExecutionInput } from '../../pages/landing';
-import { useAccount, useSignMessage, useBalance } from 'wagmi';
-import { useSquidRouterSwap } from '../../services/squidrouter';
+import { useAccount, useSignMessage } from 'wagmi';
 
 const { RadioTab } = Tabs;
 
@@ -137,16 +136,15 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
       TOKEN_CONFIG[assetToOfframp as TokenType].decimals,
     );
 
-    //TESTING
-    // if (
-    //   wantsSwap &&
-    //   from &&
-    //   tokenOutData.data !== undefined &&
-    //   minWithdrawalAmountBigNumber.gt(tokenOutData.data.amountOut.preciseBigDecimal)
-    // ) {
-    //   alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
-    //   return;
-    // }
+    if (
+      wantsSwap &&
+      from &&
+      tokenOutData.data !== undefined &&
+      minWithdrawalAmountBigNumber.gt(tokenOutData.data.amountOut.preciseBigDecimal)
+    ) {
+      alert(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
+      return;
+    }
 
     setIsSubmitted(true);
     console.log(

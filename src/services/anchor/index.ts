@@ -140,6 +140,7 @@ export async function sep24First(
     body: sep24Params.toString(),
   });
   if (sep24Response.status !== 200) {
+    console.log(await sep24Response.json(), sep24Params.toString());
     renderEvent(`Failed to initiate SEP-24: ${sep24Response.statusText}, ${fetchUrl}`, EventStatus.Error);
     throw new Error(`Failed to initiate SEP-24: ${sep24Response.statusText}`);
   }
@@ -156,14 +157,12 @@ export async function sep24First(
 export async function sep24Second(
   sep24Values: ISep24Intermediate,
   sessionParams: IAnchorSessionParams,
-  renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<Sep24Result> {
   const { id } = sep24Values;
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
   let status;
-  let transaction: any;
   do {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const idParam = new URLSearchParams({ id });

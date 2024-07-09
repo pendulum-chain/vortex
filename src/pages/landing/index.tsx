@@ -81,6 +81,8 @@ function Landing() {
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
     const amountToOfframp = swapOptions !== undefined ? swapOptions.minAmountOut : amountIn;
+    console.log(amountToOfframp);
+
     const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(amountToOfframp.round(2, 0), 2);
 
     const token = await sep10(values, addEvent);
@@ -279,12 +281,7 @@ function Landing() {
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
-          <Sep24
-            sessionParams={anchorSessionParams!}
-            onSep24Complete={handleOnSep24Completed}
-            setAnchorSessionParams={setAnchorSessionParams}
-            addEvent={addEvent}
-          />
+          <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />
         </div>
       )}
       <div className="flex flex-col items-center overflow-y-auto py-5">
