@@ -52,6 +52,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   form,
 }: UseTokenOutAmountProps<FormFieldValues>) {
   const { setError, clearErrors } = form;
+  const debouncedFromAmount = useDebouncedValue(fromAmount, 800);
 
   // Handle different errors either from form or parameters needed for the swap
   const inputHasErrors = form.formState.errors.fromAmount?.message !== undefined;
@@ -83,8 +84,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   const fromTokenDetails: TokenDetails = TOKEN_CONFIG[fromToken];
   const toTokenDetails: TokenDetails = TOKEN_CONFIG[toToken];
 
-  const debouncedFromAmount = useDebouncedValue(fromAmount, 800);
-  const debouncedAmountBigDecimal = decimalToCustom(debouncedFromAmount.toString(), fromTokenDetails.decimals);
+  const debouncedAmountBigDecimal = decimalToCustom((debouncedFromAmount || '').toString(), fromTokenDetails.decimals);
 
   // Even though we check for errors, due to possible delay in value update we need to check that the value is not
   // less than 1, or larger than e+20, since BigNumber.toString() will return scientific notation.

@@ -5,7 +5,7 @@ import { FC } from 'preact/compat';
 
 interface CollapseProps {
   amount?: string;
-  currency: string;
+  currency?: string;
 }
 
 const FEES_RATE = 0.005;
@@ -37,7 +37,7 @@ export const Collapse: FC<CollapseProps> = ({ amount, currency }) => {
             </strong>
             &nbsp;is what you will receive, after fees
           </p>
-          <div className="flex items-center ml-5">
+          <div className="flex items-center ml-5 select-none">
             <p>Show fees</p>
             {chevron}
           </div>

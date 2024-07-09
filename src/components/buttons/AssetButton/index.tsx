@@ -8,7 +8,7 @@ interface AssetButtonProps {
 }
 export const AssetButton: FC<AssetButtonProps> = ({ token, onClick }) => (
   <button
-    className="hover:bg-blue-200 absolute translate-y-1/2 bottom-1/2 left-2 rounded-full min-h-none h-8 flex items-center mt-0.5 border border-blue-700 px-2 py-1 pr-3"
+    className="hover:bg-blue-200 absolute z-20 translate-y-1/2 bottom-1/2 left-2 rounded-full min-h-none h-8 flex items-center mt-0.5 border border-blue-700 px-2 py-1 pr-3"
     onClick={onClick}
     type="button"
   >

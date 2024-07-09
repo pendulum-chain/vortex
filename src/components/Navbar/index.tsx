@@ -19,10 +19,10 @@ export const Navbar = () => (
     <div className="flex">
       <img src={whiteLogo} alt="Vortex Logo" className="max-w-52 max-h-12 mr-6" />
       <nav className="m-auto">
-        <ul className="flex justify-around items-center">
+        <ul className="justify-around items-center hidden md:flex">
           {navItems.map((item) => (
             <li key={item.title}>
-              <a href={item.link} className="text-white font-thin px-7 hover:text-amber-500 hover:underline">
+              <a href={item.link} className="text-white font-thin px-4 lg:px-7 hover:text-amber-500 hover:underline">
                 {item.title}
               </a>
             </li>

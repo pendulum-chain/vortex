@@ -5,8 +5,6 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 export const ConnectWallet = () => (
   <ConnectButton.Custom>
     {({ account, chain, openAccountModal, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
-      // Note: If your app doesn't use authentication, you
-      // can remove all 'authenticationStatus' checks
       const ready = mounted && authenticationStatus !== 'loading';
       const connected =
         ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');

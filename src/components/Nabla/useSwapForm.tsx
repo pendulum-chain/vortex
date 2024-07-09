@@ -1,17 +1,16 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useDeferredValue } from 'preact/compat';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
-
-import { Resolver, useForm, useWatch } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import { SwapFormValues } from './schema';
-import schema from './schema';
 import { storageService } from '../../services/localStorage';
 import { getValidDeadline, getValidSlippage } from '../../helpers/transaction';
 import { storageKeys } from '../../constants/localStorage';
 import { config } from '../../config';
 import { debounce } from '../../helpers/function';
 import { SwapSettings } from '../InputKeys';
+import schema, { SwapFormValues } from './schema';
+
 const storageSet = debounce(storageService.set, 1000);
 
 export const useSwapForm = () => {
@@ -60,7 +59,7 @@ export const useSwapForm = () => {
     (a: TokenDetails) => {
       const f = a.assetCode;
       const prev = form.getValues();
-      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails]) => {
+      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([_, tokenDetails]) => {
         return tokenDetails.assetCode === f;
       })[0][0];
 
@@ -82,7 +81,7 @@ export const useSwapForm = () => {
     (a: TokenDetails) => {
       const f = a.assetCode;
       const prev = form.getValues();
-      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails]) => {
+      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([_, tokenDetails]) => {
         return tokenDetails.assetCode === f;
       })[0][0];
       const updated = {
@@ -113,7 +112,7 @@ export const useSwapForm = () => {
     ),
   );
 
-  const fromAmount = Number(fromAmountString);
+  const fromAmount = Number(useDeferredValue(fromAmountString));
 
   return {
     form,
@@ -127,5 +126,6 @@ export const useSwapForm = () => {
     fromToken,
     toToken,
     slippage,
+    reset: form.reset,
   };
 };

@@ -1,92 +1,19 @@
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useAccount } from 'wagmi';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
-import { useEffect, useState } from 'preact/hooks';
+
 import { Navbar } from '../../components/Navbar';
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
 import { Collapse } from '../../components/Collapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { BalanceInfo, useAccountBalance } from '../../components/Nabla/BalanceState';
-
 import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { BankDetails } from './sections/BankDetails';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
-import { WalletAccount } from '@talismn/connect-wallets';
-import { toBigNumber } from '../../helpers/parseNumbers';
-import { TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { SwapOptions } from '../../components/InputKeys';
-
-interface SubmitForm {
-  fromAmount: number;
-  walletAccount: WalletAccount;
-  balances: {
-    [key: string]: BalanceInfo;
-  };
-  onSubmit: (
-    userSubstrateAddress: string,
-    swapsFirst: boolean,
-    selectedAsset: string,
-    swap: SwapOptions,
-    maxBalanceFrom: number,
-  ) => void;
-}
-
-function submitForm({ fromAmount, walletAccount, balances, from, tokenOutData, onSubmit }: SubmitForm) {
-  if (fromAmount === 0) {
-    return new Error('Please enter an amount to offramp.');
-  }
-
-  if (walletAccount?.address) {
-    return new Error('Please connect wallet first.');
-  }
-
-  // check balance of the asset used to offramp directly or to pay for the swap
-  if (balances[from].approximateNumber < fromAmount) {
-    return new Error(
-      `Insufficient balance to offramp. Current balance is ${balances[from].approximateNumber} ${from.toUpperCase()}.`,
-    );
-  }
-
-  const assetToOfframp = from;
-
-  // If swap will happen, check the minimum comparing to the minimum expected swap
-  const minWithdrawalAmountBigNumber = toBigNumber(
-    TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount,
-    TOKEN_CONFIG[assetToOfframp].decimals,
-  );
-
-  let minAmountOutBigNumber = toBigNumber('0', TOKEN_CONFIG[assetToOfframp].decimals);
-
-  if (tokenOutData.data) {
-    minAmountOutBigNumber = toBigNumber(tokenOutData.data.minAmountOut ?? '0', 0);
-  }
-
-  if (assetToOfframp && minWithdrawalAmountBigNumber.gt(minAmountOutBigNumber)) {
-    return new Error(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
-  }
-
-  const initialDesired = tokenOutData.data.amountOut.approximateNumber;
-
-  setIsSubmitted(true);
-
-  const maxBalanceFrom = balances[from].approximateNumber;
-
-  onSubmit(
-    walletAccount.address,
-    wantsSwap,
-    assetToOfframp,
-    {
-      amountIn: fromAmount,
-      assetIn: from,
-      assetOut: to,
-      minAmountOut: minAmountOutBigNumber.toNumber(),
-      initialDesired,
-    },
-    maxBalanceFrom,
-  );
-}
+import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
+import { BankDetails } from './sections/BankDetails';
 
 const Arrow = () => (
   <div className="w-full flex justify-center my-5">
@@ -97,10 +24,15 @@ const Arrow = () => (
 export const Swap = () => {
   const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
   const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
+  const formRef = useRef<HTMLDivElement | null>(null);
 
-  const walletAccount: { address: string; source: string } = { address: '', source: '' };
-  const { balances, isBalanceLoading, balanceError } = useAccountBalance(walletAccount?.address);
   const [api, setApi] = useState<ApiPromise | null>(null);
+
+  const { isDisconnected, address } = useAccount();
+  const walletAccount: { address: string; source: string } = useMemo(
+    () => ({ address: address || '', source: '' }),
+    [address],
+  );
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -123,7 +55,15 @@ export const Swap = () => {
     slippage,
     from,
     to,
+    reset,
   } = useSwapForm();
+
+  useEffect(() => {
+    if (form.formState.isDirty && isExchangeSectionSubmitted && isDisconnected) {
+      setIsExchangeSectionSubmitted(false);
+      reset();
+    }
+  }, [form.formState.isDirty, isDisconnected, isExchangeSectionSubmitted, reset]);
 
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
@@ -156,28 +96,43 @@ export const Swap = () => {
   }
 
   useEffect(() => {
+    if (isExchangeSectionSubmitted) {
+      formRef.current && formRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [isExchangeSectionSubmitted]);
+
+  useEffect(() => {
     const toAmount = Number(tokenOutData.data?.amountOut.preciseString);
-    form.setValue('toAmount', isNaN(toAmount) ? '0' : toAmount.toFixed(2));
+    form.setValue('toAmount', isNaN(toAmount) ? '' : toAmount.toFixed(2));
   }, [form, fromAmount, tokenOutData]);
 
-  const ReceiveNumericInput = () => (
-    <AssetNumericInput
-      additionalText="PIX / Bank Account"
-      fromToken={toToken}
-      onClick={() => setModalType('to')}
-      registerInput={form.register('toAmount')}
-      disabled={tokenOutData.isLoading}
-      readOnly={true}
-    />
+  const ReceiveNumericInput = useMemo(
+    // eslint-disable-next-line react/display-name
+    () => () =>
+      (
+        <AssetNumericInput
+          additionalText="PIX / Bank Account"
+          fromToken={toToken}
+          onClick={() => setModalType('to')}
+          registerInput={form.register('toAmount')}
+          disabled={tokenOutData.isLoading}
+          readOnly={true}
+        />
+      ),
+    [form, toToken, setModalType, tokenOutData.isLoading],
   );
 
-  const WidthrawNumericInput = () => (
-    <AssetNumericInput
-      additionalText="Polygon"
-      registerInput={form.register('fromAmount')}
-      fromToken={fromToken}
-      onClick={() => setModalType('from')}
-    />
+  const WidthrawNumericInput = useMemo(
+    // eslint-disable-next-line react/display-name
+    () => () =>
+      (
+        <AssetNumericInput
+          registerInput={form.register('fromAmount')}
+          fromToken={fromToken}
+          onClick={() => setModalType('from')}
+        />
+      ),
+    [form, fromToken, setModalType],
   );
 
   return (
@@ -194,9 +149,9 @@ export const Swap = () => {
         isLoading={false}
       />
       <Navbar />
-      <main className="flex justify-center items-center mt-12">
+      <main className="flex justify-center items-center mt-12" ref={formRef}>
         <form
-          className="shadow-custom px-4 py-8 rounded-lg mb-12 mx-8 md:mx-auto w-full md:w-2/3 lg:w-3/5 xl:w-1/2 max-w-2xl"
+          className="shadow-custom px-4 py-8 rounded-lg mb-12 mx-8 md:mx-auto w-full md:w-2/3 lg:w-3/5 xl:w-1/2 max-w-2xl transition-[height] duration-1000"
           onSubmit={onSubmit}
         >
           <h1 className="text-3xl text-blue-700 font-bold text-center mb-5">Withdraw</h1>
@@ -210,7 +165,11 @@ export const Swap = () => {
               <></>
             )}
           </div>
-          <div>{tokenOutData.error && <p className="text-red-600">{tokenOutData.error}</p>}</div>
+          <div>
+            {form.formState.isDirty && !tokenOutData.isLoading && tokenOutData.error && (
+              <p className="text-red-600">{tokenOutData.error}</p>
+            )}
+          </div>
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
           <Collapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
           <section className="w-full flex items-center justify-center mt-5">
@@ -224,9 +183,7 @@ export const Swap = () => {
           ) : (
             <></>
           )}
-          <button className="btn rounded-xl bg-blue-700 text-white w-full mt-5">
-            {isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
-          </button>
+          <SwapSubmitButton text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'} />
         </form>
       </main>
     </>

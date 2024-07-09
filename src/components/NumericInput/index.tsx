@@ -58,7 +58,7 @@ export const NumericInput = ({
       autocorrect="off"
       autocapitalize="none"
       className={
-        'input-ghost w-full text-lg font-outfit pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
+        'input-ghost w-full text-lg pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 disabled:border-gray-200 ' +
         additionalStyle
       }
       minlength="1"
