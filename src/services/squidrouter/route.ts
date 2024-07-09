@@ -104,7 +104,7 @@ async function getRoute(params: RouteParams) {
 
   try {
     const result = await axios.post(
-      'https://v2.api.squidrouter.com/v2/route',
+      'https://apiplus.squidrouter.com/v2/route',
 
       params,
       {
