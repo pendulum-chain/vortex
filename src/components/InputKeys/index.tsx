@@ -201,14 +201,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onSubmit, dAppName }) => {
         {!isSubmitted && (
           <div className="description">
             <ul>
-              <li>
-                Ensure to have enough token funds in Pendulum wallet{' '}
-                {toToken &&
-                  toToken.minWithdrawalAmount &&
-                  `(min. ${BigInt(toToken.minWithdrawalAmount) / 10n ** BigInt(toToken.decimals)} ${
-                    toToken.assetCode
-                  })`}
-              </li>
               <li>Do not close this window until the process is completed.</li>
               <li>This is a non-custodial prototype, please use at your own risk.</li>
             </ul>
