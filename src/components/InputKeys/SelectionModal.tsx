@@ -1,8 +1,10 @@
 import { Skeleton } from '../Skeleton';
-import { Avatar, AvatarProps, Modal, Button, Input, ButtonProps } from 'react-daisyui';
+import { Avatar, AvatarProps, Button, Input } from 'react-daisyui';
 import { ChangeEvent, useMemo, useState } from 'preact/compat';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
+import { getIcon } from '../../shared/getIcon';
+import { Dialog } from '../Dialog';
 
 interface PoolSelectorModalProps extends PoolListProps {
   isLoading?: boolean;
@@ -25,27 +27,17 @@ interface PoolListProps {
 }
 
 export function PoolSelectorModal({ selected, isLoading, onSelect, onClose, open, mode }: PoolSelectorModalProps) {
-  return (
-    <Modal className="bg-[--bg-modal]" open={open}>
-      <Modal.Header className="mb-0">
-        <ModalCloseButton onClick={onClose} />
-        <h3 className="text-2xl font-normal">{'Select a token'}</h3>
-      </Modal.Header>
-      <Modal.Body>
-        <div className="py-4">
-          {isLoading ? (
-            <Skeleton className="w-full h-10 mb-2" />
-          ) : (
-            <PoolList mode={mode} onSelect={onSelect} selected={selected} />
-          )}
-        </div>
-      </Modal.Body>
-    </Modal>
+  const content = isLoading ? (
+    <Skeleton className="w-full h-10 mb-2" />
+  ) : (
+    <PoolList mode={mode} onSelect={onSelect} selected={selected} />
   );
+
+  return <Dialog visible={open} onClose={onClose} headerText="Select a token" content={content} />;
 }
 
 function PoolList({ onSelect, selected, mode }: PoolListProps) {
-  const [filter, setFilter] = useState<string>();
+  const [_, setFilter] = useState<string>();
 
   const poolList = useMemo(() => {
     const poolList: TokenDetails[] = [];
@@ -97,7 +89,7 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
                 <Avatar
                   size={'xs' as AvatarProps['size']}
                   letters={TokenDetails.assetCode}
-                  src={`/assets/coins/${TokenDetails.assetCode.toUpperCase()}.png`}
+                  src={getIcon(TokenDetails.assetCode)}
                   shape="circle"
                   className="text-xs"
                 />
@@ -118,11 +110,3 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
     </div>
   );
 }
-
-const ModalCloseButton = (props: ButtonProps): JSX.Element | null => (
-  <Button size="sm" color="secondary" shape="circle" className="absolute right-2 top-2" type="button" {...props}>
-    ✕
-  </Button>
-);
-
-export default ModalCloseButton;

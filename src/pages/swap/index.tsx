@@ -5,7 +5,7 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
 import { Collapse } from '../../components/Collapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { useAccountBalance } from '../../components/Nabla/BalanceState';
+import { BalanceInfo, useAccountBalance } from '../../components/Nabla/BalanceState';
 
 import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -13,6 +13,80 @@ import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { BankDetails } from './sections/BankDetails';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
+import { WalletAccount } from '@talismn/connect-wallets';
+import { toBigNumber } from '../../helpers/parseNumbers';
+import { TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { SwapOptions } from '../../components/InputKeys';
+
+interface SubmitForm {
+  fromAmount: number;
+  walletAccount: WalletAccount;
+  balances: {
+    [key: string]: BalanceInfo;
+  };
+  onSubmit: (
+    userSubstrateAddress: string,
+    swapsFirst: boolean,
+    selectedAsset: string,
+    swap: SwapOptions,
+    maxBalanceFrom: number,
+  ) => void;
+}
+
+function submitForm({ fromAmount, walletAccount, balances, from, tokenOutData, onSubmit }: SubmitForm) {
+  if (fromAmount === 0) {
+    return new Error('Please enter an amount to offramp.');
+  }
+
+  if (walletAccount?.address) {
+    return new Error('Please connect wallet first.');
+  }
+
+  // check balance of the asset used to offramp directly or to pay for the swap
+  if (balances[from].approximateNumber < fromAmount) {
+    return new Error(
+      `Insufficient balance to offramp. Current balance is ${balances[from].approximateNumber} ${from.toUpperCase()}.`,
+    );
+  }
+
+  const assetToOfframp = from;
+
+  // If swap will happen, check the minimum comparing to the minimum expected swap
+  const minWithdrawalAmountBigNumber = toBigNumber(
+    TOKEN_CONFIG[assetToOfframp].minWithdrawalAmount,
+    TOKEN_CONFIG[assetToOfframp].decimals,
+  );
+
+  let minAmountOutBigNumber = toBigNumber('0', TOKEN_CONFIG[assetToOfframp].decimals);
+
+  if (tokenOutData.data) {
+    minAmountOutBigNumber = toBigNumber(tokenOutData.data.minAmountOut ?? '0', 0);
+  }
+
+  if (assetToOfframp && minWithdrawalAmountBigNumber.gt(minAmountOutBigNumber)) {
+    return new Error(`Insufficient balance to offramp. Minimum withdrawal amount for ${assetToOfframp} is not met.`);
+  }
+
+  const initialDesired = tokenOutData.data.amountOut.approximateNumber;
+
+  setIsSubmitted(true);
+
+  const maxBalanceFrom = balances[from].approximateNumber;
+
+  onSubmit(
+    walletAccount.address,
+    wantsSwap,
+    assetToOfframp,
+    {
+      amountIn: fromAmount,
+      assetIn: from,
+      assetOut: to,
+      minAmountOut: minAmountOutBigNumber.toNumber(),
+      initialDesired,
+    },
+    maxBalanceFrom,
+  );
+}
 
 const Arrow = () => (
   <div className="w-full flex justify-center my-5">
