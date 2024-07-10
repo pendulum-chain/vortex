@@ -76,7 +76,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
       isLoading: false,
       enabled: false,
       data: undefined,
-      error: 'Required parameters are missing',
+      error: '',
       refetch: undefined,
     };
   }

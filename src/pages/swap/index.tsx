@@ -16,14 +16,15 @@ import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
 
 const Arrow = () => (
-  <div className="w-full flex justify-center my-5">
-    <ArrowDownIcon className="w-7 text-blue-700" />
+  <div className="flex justify-center w-full my-5">
+    <ArrowDownIcon className="text-blue-700 w-7" />
   </div>
 );
 
 export const Swap = () => {
   const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
   const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
+  const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const [api, setApi] = useState<ApiPromise | null>(null);
@@ -104,6 +105,9 @@ export const Swap = () => {
   useEffect(() => {
     const toAmount = Number(tokenOutData.data?.amountOut.preciseString);
     form.setValue('toAmount', isNaN(toAmount) ? '' : toAmount.toFixed(2));
+    if (toAmount) {
+      setIsQuoteSubmitted(false);
+    }
   }, [form, fromAmount, tokenOutData]);
 
   const ReceiveNumericInput = useMemo(
@@ -115,11 +119,11 @@ export const Swap = () => {
           fromToken={toToken}
           onClick={() => setModalType('to')}
           registerInput={form.register('toAmount')}
-          disabled={tokenOutData.isLoading}
+          disabled={isQuoteSubmitted || tokenOutData.isLoading}
           readOnly={true}
         />
       ),
-    [form, toToken, setModalType, tokenOutData.isLoading],
+    [toToken, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
@@ -127,7 +131,7 @@ export const Swap = () => {
     () => () =>
       (
         <AssetNumericInput
-          registerInput={form.register('fromAmount')}
+          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
           fromToken={fromToken}
           onClick={() => setModalType('from')}
         />
@@ -135,6 +139,7 @@ export const Swap = () => {
     [form, fromToken, setModalType],
   );
 
+  console.log('tokenOutData:', tokenOutData);
   return (
     <>
       <PoolSelectorModal
@@ -149,12 +154,12 @@ export const Swap = () => {
         isLoading={false}
       />
       <Navbar />
-      <main className="flex justify-center items-center mt-12" ref={formRef}>
+      <main className="flex items-center justify-center mt-12" ref={formRef}>
         <form
-          className="shadow-custom px-4 py-8 rounded-lg mb-12 mx-8 md:mx-auto w-full md:w-2/3 lg:w-3/5 xl:w-1/2 max-w-2xl transition-[height] duration-1000"
+          className="shadow-custom px-4 py-8 rounded-lg mb-12 mx-4 md:mx-8 md:mx-auto w-full md:w-2/3 lg:w-3/5 xl:w-1/2 max-w-2xl transition-[height] duration-1000"
           onSubmit={onSubmit}
         >
-          <h1 className="text-3xl text-blue-700 font-bold text-center mb-5">Withdraw</h1>
+          <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
           <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
           <Arrow />
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
@@ -172,7 +177,7 @@ export const Swap = () => {
           </div>
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
           <Collapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
-          <section className="w-full flex items-center justify-center mt-5">
+          <section className="flex items-center justify-center w-full mt-5">
             <BenefitsList amount={fromAmount} currency={from} />
           </section>
           {isExchangeSectionSubmitted ? (

@@ -17,3 +17,7 @@ div[data-rk] {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root:has(:is(.modal-open, .modal:target, .modal-toggle:checked + .modal, .modal[open])) {
+  scrollbar-gutter: unset;
+}

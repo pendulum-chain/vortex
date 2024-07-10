@@ -26,7 +26,7 @@ export const ConnectWallet = () => (
                 <button
                   onClick={openConnectModal}
                   type="button"
-                  className="btn rounded-3xl bg-pink-600 text-white border-pink-600"
+                  className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                 >
                   Connect Wallet
                   <PlayCircleIcon className="w-5" />
@@ -39,7 +39,7 @@ export const ConnectWallet = () => (
                 <button
                   onClick={openChainModal}
                   type="button"
-                  className="btn rounded-3xl bg-pink-600 text-white border-pink-600"
+                  className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                 >
                   Wrong network
                   <PlayCircleIcon className="w-5" />
@@ -52,10 +52,10 @@ export const ConnectWallet = () => (
                 <button
                   onClick={openAccountModal}
                   type="button"
-                  className="btn rounded-3xl bg-pink-600 text-white border-pink-600"
+                  className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                 >
                   <AccountBalanceWalletOutlinedIcon className="w-4" />
-                  <p className="font-thin">{account.displayName}</p>
+                  <p className="hidden font-thin md:block">{account.displayName}</p>
                 </button>
               </>
             );

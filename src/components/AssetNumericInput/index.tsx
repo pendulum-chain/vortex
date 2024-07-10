@@ -1,4 +1,4 @@
-import { FC } from 'preact/compat';
+import { FC, useMemo } from 'preact/compat';
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { TokenDetails } from '../../constants/tokenConfig';
 import { AssetButton } from '../buttons/AssetButton';
@@ -10,7 +10,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 export const ChainName = () => (
   <ConnectButton.Custom>
     {({ chain }) => (
-      <p className="text-blue-700 text-sm absolute translate-y-1/2 bottom-1/2 left-28">
+      <p className="absolute text-sm text-blue-700 translate-y-1/2 bottom-1/2 left-28">
         {chain?.name || 'Select chain'}
       </p>
     )}
@@ -30,15 +30,20 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   onClick,
   registerInput,
   ...rest
-}) => (
-  <div className="relative hover:cursor-pointer">
-    <AssetButton token={fromToken} onClick={onClick} />
-    {additionalText ? (
-      <p className="text-blue-700 text-sm absolute translate-y-1/2 bottom-1/2 left-28">{additionalText}</p>
-    ) : (
-      <ChainName />
-    )}
+}) => {
+  // eslint-disable-next-line react/display-name
+  const Asset = useMemo(() => () => <AssetButton token={fromToken} onClick={onClick} />, [fromToken, onClick]);
 
-    <NumericInput register={registerInput} additionalStyle="text-right text-lg" {...rest} />
-  </div>
-);
+  return (
+    <div className="relative hover:cursor-pointer">
+      <Asset />
+      {additionalText ? (
+        <p className="absolute text-sm text-blue-700 translate-y-1/2 bottom-1/2 left-28">{additionalText}</p>
+      ) : (
+        <ChainName />
+      )}
+
+      <NumericInput register={registerInput} additionalStyle="text-right text-lg" {...rest} />
+    </div>
+  );
+};
