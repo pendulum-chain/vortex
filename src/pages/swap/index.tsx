@@ -139,7 +139,23 @@ export const Swap = () => {
     [form, fromToken, setModalType],
   );
 
-  console.log('tokenOutData:', tokenOutData);
+  const errors = (
+    <>
+      <div>
+        {isExchangeSectionSubmittedError ? (
+          <p className="text-red-600">You must first enter the amount you wish to withdraw</p>
+        ) : (
+          <></>
+        )}
+      </div>
+      <div>
+        {form.formState.isDirty && !tokenOutData.isLoading && tokenOutData.error && (
+          <p className="text-red-600">{tokenOutData.error}</p>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <>
       <PoolSelectorModal
@@ -163,18 +179,7 @@ export const Swap = () => {
           <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
           <Arrow />
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-          <div>
-            {isExchangeSectionSubmittedError ? (
-              <p className="text-red-600">You must first enter the amount you wish to withdraw</p>
-            ) : (
-              <></>
-            )}
-          </div>
-          <div>
-            {form.formState.isDirty && !tokenOutData.isLoading && tokenOutData.error && (
-              <p className="text-red-600">{tokenOutData.error}</p>
-            )}
-          </div>
+          {errors}
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
           <Collapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
           <section className="flex items-center justify-center w-full mt-5">
