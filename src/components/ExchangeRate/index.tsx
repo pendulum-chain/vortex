@@ -10,7 +10,7 @@ interface ExchangeRateProps {
 
 export const ExchangeRate: FC<ExchangeRateProps> = ({ tokenOutData, fromToken, toToken }) => {
   const exchangeRate =
-    fromToken !== undefined && toToken !== undefined && !tokenOutData.isLoading && tokenOutData.data !== undefined ? (
+    fromToken !== undefined && toToken !== undefined && !tokenOutData.isLoading && tokenOutData.data ? (
       <>{`1 ${fromToken.assetCode} = ${Number(tokenOutData.data.effectiveExchangeRate).toFixed(2)} ${
         toToken.assetCode
       }`}</>

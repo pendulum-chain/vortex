@@ -1,10 +1,11 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { FC } from 'preact/compat';
+import Big from 'big.js';
 
 const SAVE_AMOUNT_PERCENT = 0.03;
 
 interface BenefitsListProps {
-  amount: number;
+  amount: Big | undefined;
   currency: string;
 }
 
@@ -15,7 +16,7 @@ export const BenefitsList: FC<BenefitsListProps> = ({ amount, currency }) => (
       <p>
         You could save{' '}
         <span className="font-bold text-blue-700">
-          up to {Number(SAVE_AMOUNT_PERCENT * amount).toFixed(2)} {currency.toUpperCase()}
+          up to {amount ? amount.mul(SAVE_AMOUNT_PERCENT).toFixed(2) : '0.0'} {currency.toUpperCase()}
         </span>
       </p>
     </li>

@@ -1,14 +1,18 @@
+import Big from 'big.js';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 import { useState, useCallback, useMemo, useDeferredValue } from 'preact/compat';
 import { yupResolver } from '@hookform/resolvers/yup';
 
-import {TOKEN_CONFIG, TokenDetails, TokenType} from '../../constants/tokenConfig';
+import { TOKEN_CONFIG, TokenDetails, TokenType } from '../../constants/tokenConfig';
 import { storageService } from '../../services/localStorage';
 import { storageKeys } from '../../constants/localStorage';
 import { debounce } from '../../helpers/function';
-import { SwapSettings } from '../InputKeys';
 import schema, { SwapFormValues } from './schema';
 
+export interface SwapSettings {
+  from: string;
+  to: string;
+}
 
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
@@ -21,7 +25,7 @@ export const useSwapForm = () => {
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
     return {
       from: storageValues?.from ?? 'usdc',
-      to: storageValues?.to ?? '',
+      to: storageValues?.to ?? 'brl',
       taxNumber: '',
       bankAccount: '',
     };
@@ -89,7 +93,12 @@ export const useSwapForm = () => {
     defaultValue: '0',
   });
 
-  const fromAmount = Number(useDeferredValue(fromAmountString));
+  let fromAmount: Big | undefined;
+  try {
+    fromAmount = new Big(fromAmountString);
+  } catch {
+    // no action required
+  }
 
   return {
     form,

@@ -14,6 +14,7 @@ import { ExchangeRate } from '../../components/ExchangeRate';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
+import { config } from '../../config';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -51,9 +52,9 @@ export const Swap = () => {
     onToChange,
     form,
     fromAmount,
+    fromAmountString,
     fromToken,
     toToken,
-    slippage,
     from,
     to,
     reset,
@@ -68,13 +69,13 @@ export const Swap = () => {
 
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
-    api: api,
-    walletAccount,
-    fromAmount,
+    api,
     fromToken: from,
     toToken: to,
     maximumFromAmount: undefined,
-    slippage,
+    slippageBasisPoints: config.swap.slippageBasisPoints,
+    fromAmountString,
+    xcmFees: config.xcm.fees,
     form,
   });
 
@@ -145,9 +146,10 @@ export const Swap = () => {
         )}
       </div>
       <div>
-        {form.formState.isDirty && !tokenOutData.isLoading && tokenOutData.error && (
-          <p className="text-red-600">{tokenOutData.error}</p>
-        )}
+        {/*FIXME show other error*/}
+        {/*{form.formState.isDirty && !tokenOutData.isLoading && tokenOutData.error && (*/}
+        {/*  <p className="text-red-600">{tokenOutData.error}</p>*/}
+        {/*)}*/}
       </div>
     </>
   );

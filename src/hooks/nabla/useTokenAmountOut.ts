@@ -55,7 +55,6 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   form,
 }: UseTokenOutAmountProps<FormFieldValues>) {
   const { setError, clearErrors } = form;
-  const debouncedFromAmount = useDebouncedValue(fromAmountString, 800);
 
   const debouncedFromAmountString = useDebouncedValue(fromAmountString, 800);
   let debouncedAmountBigDecimal: Big | undefined;
