@@ -36,14 +36,10 @@ export async function executeSpacewalkRedeem(
   const stellarTargetKeypair = Keypair.fromPublicKey(stellarTargetAccountId);
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
 
-  console.log(`Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(targetVaultId)}`);
-
   let redeemRequestEvent;
   try {
     renderEvent(
-      `Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(
-        targetVaultId,
-      )}. Please sign the transaction`,
+      `Requesting redeem of ${amountRaw} tokens for vault ${prettyPrintVaultId(targetVaultId)}`,
       EventStatus.Waiting,
     );
     redeemRequestEvent = await vaultService.requestRedeem(accountOrPair, amountRaw, stellarTargetAccountIdRaw);

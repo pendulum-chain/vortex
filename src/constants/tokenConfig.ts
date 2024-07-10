@@ -1,3 +1,8 @@
+import BrlIcon from '../assets/coins/BRL.png';
+import UsdtIcon from '../assets/coins/USDT.png';
+import EurcIcon from '../assets/coins/EURC.png';
+import UsdcIcon from '../assets/coins/USDC.png';
+
 export interface TokenDetails {
   currencyId: any;
   isOfframp: boolean;
@@ -11,11 +16,13 @@ export interface TokenDetails {
   vaultAccountId?: string;
   minWithdrawalAmount?: string;
   assetCodeHex?: string; // Optional property
+  icon: string;
+  isPolygonChain?: boolean;
+  erc20AddressNativeChain?: string;
 }
 
-export interface TokenConfig {
-  [key: string]: TokenDetails;
-}
+export type TokenType = 'brl' | 'eurc' | 'usdc';
+export type TokenConfig = Record<TokenType, TokenDetails>;
 
 // Every asset specified in here must either be offrampable or be swapable to an offrampable asset
 export const TOKEN_CONFIG: TokenConfig = {
@@ -32,9 +39,10 @@ export const TOKEN_CONFIG: TokenConfig = {
     canSwapTo: ['usdt', 'eurc'],
     assetIssuer: 'GDVKY2GU2DRXWTBEYJJWSFXIGBZV6AZNBVVSUHEPZI54LIS6BA7DVVSP',
     vaultAccountId: '6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS',
-    minWithdrawalAmount: '1000000000000',
+    minWithdrawalAmount: '200000000000000',
     assetCodeHex: '0x42524c00',
     erc20Address: '6dZCR7KVmrcxBoUTcM3vUgpQagQAW2wg2izMrT3N4reftwW5',
+    icon: BrlIcon,
   },
   eurc: {
     tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
@@ -51,13 +59,25 @@ export const TOKEN_CONFIG: TokenConfig = {
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     erc20Address: '6fA9DRKJ12oTXfSAU7ZZGZ9gEQ92YnyRXeJzW1wXekPzeXZC',
     minWithdrawalAmount: '10000000000000',
+    icon: EurcIcon,
   },
-  usdt: {
-    assetCode: 'USDT',
-    currencyId: { XCM: 1 },
+  // We treat many of the properties of polygon token as the equivalent axl{X} one on Pendulum.
+  // we will receive
+  usdc: {
+    assetCode: 'USDC',
+    erc20AddressNativeChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
+    // erc20AddressNativeChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+    // erc20Address is that of axlUSDC on pendulum
+    // this is done to provide the user with the expected exchange rate
+    erc20Address: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',
+    // Decimals should be consistent in BOTH CHAINS
     decimals: 6,
-    canSwapTo: ['brl', 'eurc'],
+    // currency id of axlUSDC
+    currencyId: { XCM: 12 },
     isOfframp: false,
-    erc20Address: '6cRE6nw1eW8Lq452D39Jw3FeradDmUkoEvCgiRkTYxqmP6cs',
+    // whatever axlUSDC can be offramped to...
+    canSwapTo: ['eurc'],
+    icon: UsdcIcon,
+    isPolygonChain: true,
   },
-};
+} as const;
