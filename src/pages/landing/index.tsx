@@ -32,6 +32,7 @@ import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { useSquidRouterSwap, TransactionStatus } from '../../services/squidrouter';
 import { decimalToCustom } from '../../helpers/parseNumbers';
 import { TokenType } from '../../constants/tokenConfig';
+
 enum OperationStatus {
   Idle,
   Submitting,
@@ -76,6 +77,10 @@ function Landing() {
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
     setExecutionInput({ assetToOfframp, amountIn, swapOptions });
+
+    // log ephemeral pk
+    const ephemeralAccount = getEphemeralAccount().address;
+    addEvent(`Pendulum ephemeral account: ${ephemeralAccount}`, EventStatus.Waiting);
 
     const tokenConfig: TokenDetails = TOKEN_CONFIG[assetToOfframp];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
