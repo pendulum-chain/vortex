@@ -1,47 +1,57 @@
-import { SwapOptions } from '../components/InputKeys';
+import { Abi } from '@polkadot/api-contract';
+import Big from 'big.js';
+import { readMessage, ReadMessageResult, executeMessage, ExecuteMessageResult } from '@pendulum-chain/api-solang';
+
 import { EventStatus } from '../components/GenericEvent';
 import { getApiManagerInstance } from './polkadot/polkadotApi';
-import { Abi } from '@polkadot/api-contract';
 import { erc20WrapperAbi } from '../contracts/ERC20Wrapper';
 import { routerAbi } from '../contracts/Router';
 import { NABLA_ROUTER } from '../constants/constants';
-import { defaultReadLimits } from '../helpers/contracts';
-import { readMessage, ReadMessageResult, executeMessage, ExecuteMessageResult } from '@pendulum-chain/api-solang';
+import { defaultReadLimits, multiplyByPowerOfTen } from '../helpers/contracts';
 import { parseContractBalanceResponse } from '../helpers/contracts';
-import { TOKEN_CONFIG } from '../constants/tokenConfig';
+import { TOKEN_CONFIG, TokenType } from '../constants/tokenConfig';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
-import { stringDecimalToBN } from '../helpers/parseNumbers';
 import { toBigNumber } from '../helpers/parseNumbers';
+import { Keyring } from '@polkadot/api';
+import { getEphemeralAccount } from './polkadot/ephemeral';
 
 export interface PerformSwapProps {
-  swap: SwapOptions;
-  userAddress: string;
-  walletAccount: WalletAccount;
+  amountInRaw: Big;
+  assetOut: string;
+  assetIn: string;
+  minAmountOut: Big;
 }
 
 export async function performSwap(
-  { swap, userAddress, walletAccount }: PerformSwapProps,
+  { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<number> {
+): Promise<Big> {
   // event attempting swap
+  const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
+  const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
+
+  const amountIn = toBigNumber(amountInRaw, assetInDetails.decimals);
+
   renderEvent('Attempting swap', EventStatus.Waiting);
+  console.log('swap', 'Attempting swap', amountIn, assetOut, assetIn, minAmountOut);
   // get chain api, abi
   const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
   const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
   const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
   // get asset details
-  const assetInDetails = TOKEN_CONFIG[swap.assetIn];
-  const assetOutDetails = TOKEN_CONFIG[swap.assetOut];
 
-  // call the current allowance of the user
+  // get ephermal keypair and account
+  const keypairEphemeral = getEphemeralAccount();
+
+  // call the current allowance of the ephemeral
   const response: ReadMessageResult = await readMessage({
     abi: erc20ContractAbi,
     api: pendulumApiComponents.api,
     contractDeploymentAddress: assetInDetails.erc20Address!,
-    callerAddress: walletAccount.address,
+    callerAddress: keypairEphemeral.address,
     messageName: 'allowance',
-    messageArguments: [walletAccount.address, NABLA_ROUTER],
+    messageArguments: [keypairEphemeral.address, NABLA_ROUTER],
     limits: defaultReadLimits,
   });
 
@@ -52,25 +62,29 @@ export async function performSwap(
   }
 
   const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
-  const amountToSwapBig = stringDecimalToBN(swap.amountIn.toString(), assetInDetails.decimals);
-  const amountMinBig = stringDecimalToBN(swap.minAmountOut?.toString() ?? '0', assetInDetails.decimals);
+
+  // Probably no need to multiply by power of ten here since amountIn comes from the event
+  //const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals);
+  const rawAmountToSwapBig = amountInRaw;
+  const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
+
   //maybe do allowance
-  if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(amountToSwapBig)) {
+  if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(rawAmountToSwapBig)) {
     try {
       renderEvent(
-        `Please sign approval swap: ${toBigNumber(
-          amountToSwapBig,
+        `Approving tokens: ${toBigNumber(
+          rawAmountToSwapBig,
           assetInDetails.decimals,
         )} ${assetInDetails.assetCode.toUpperCase()}`,
         EventStatus.Waiting,
       );
       await approve({
         api: pendulumApiComponents.api,
-        amount: amountToSwapBig.toString(),
+        amount: rawAmountToSwapBig.toFixed(), // toString can render exponential notation
         token: assetInDetails.erc20Address!,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
-        walletAccount,
+        keypairEphemeral,
       });
     } catch (e) {
       renderEvent(`Could not approve token: ${e}`, EventStatus.Error);
@@ -79,7 +93,7 @@ export async function performSwap(
   }
   // balance before the swap
   const responseBalanceBefore = (
-    await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
+    await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
   ).toHuman() as any;
 
   const rawBalanceBefore = responseBalanceBefore?.free || '0';
@@ -87,20 +101,19 @@ export async function performSwap(
 
   // Try swap
   try {
+    //TODO amountIN has all zeroes now, need to fix the message.
     renderEvent(
-      `Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${
-        swap.initialDesired
-      } ${assetOutDetails.assetCode.toUpperCase()} `,
+      `Swapping ${amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${minAmountOut} ${assetOutDetails.assetCode.toUpperCase()} `,
       EventStatus.Waiting,
     );
     await doActualSwap({
       api: pendulumApiComponents.api,
-      amount: amountToSwapBig.toString(),
-      amountMin: amountMinBig.toString(),
+      amount: rawAmountToSwapBig.toFixed(), // toString can render exponential notation
+      amountMin: rawAmountMinBig.toFixed(), // toString can render exponential notation
       tokenIn: assetInDetails.erc20Address!,
       tokenOut: assetOutDetails.erc20Address!,
       contractAbi: routerAbiObject,
-      walletAccount,
+      keypairEphemeral,
     });
   } catch (e) {
     let errorMessage = '';
@@ -112,13 +125,13 @@ export async function performSwap(
     } else {
       errorMessage = 'Something went wrong';
     }
-    renderEvent(`Could not swap token: ${errorMessage}`, EventStatus.Error);
+    renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
     return Promise.reject('Could not swap token');
   }
 
   //verify token balance before releasing this process.
   const responseBalanceAfter = (
-    await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
+    await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
   ).toHuman() as any;
 
   const rawBalanceAfter = responseBalanceAfter?.free || '0';
@@ -126,23 +139,23 @@ export async function performSwap(
 
   const actualOfframpValue = balanceAfterBigDecimal.sub(balanceBeforeBigDecimal);
 
-  renderEvent(`Swap successful. Amount to offramp : ${actualOfframpValue}`, EventStatus.Success);
+  renderEvent(`Swap successful. Amount received: ${actualOfframpValue}`, EventStatus.Success);
 
-  return actualOfframpValue.toNumber();
+  return actualOfframpValue;
 }
 
-async function approve({ api, token, spender, amount, contractAbi, walletAccount }: any) {
+async function approve({ api, token, spender, amount, contractAbi, keypairEphemeral }: any) {
   console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
+
   const response = await executeMessage({
     abi: contractAbi,
     api,
-    callerAddress: walletAccount.address,
+    callerAddress: keypairEphemeral.address,
     contractDeploymentAddress: token,
     getSigner: () =>
       Promise.resolve({
-        type: 'signer',
-        address: walletAccount.address,
-        signer: walletAccount.signer,
+        type: 'keypair',
+        keypair: keypairEphemeral,
       }),
     messageName: 'approve',
     messageArguments: [spender, amount],
@@ -150,28 +163,28 @@ async function approve({ api, token, spender, amount, contractAbi, walletAccount
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
   });
 
-  console.log('write', 'call approve response', walletAccount.address, [spender, amount], response);
+  console.log('write', 'call approve response', keypairEphemeral.address, [spender, amount], response);
 
   if (response?.result?.type !== 'success') throw response;
   return response;
 }
 
-async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contractAbi, walletAccount }: any) {
+async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contractAbi, keypairEphemeral }: any) {
   console.log('write', `call swap ${tokenIn} for ${tokenOut} with amount ${amount}, minimum expexted ${amountMin} `);
+
   const response = await executeMessage({
     abi: contractAbi,
     api,
-    callerAddress: walletAccount.address,
+    callerAddress: keypairEphemeral.address,
     contractDeploymentAddress: NABLA_ROUTER,
     getSigner: () =>
       Promise.resolve({
-        type: 'signer',
-        address: walletAccount.address,
-        signer: walletAccount.signer,
+        type: 'keypair',
+        keypair: keypairEphemeral,
       }),
     messageName: 'swapExactTokensForTokens',
     // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
-    messageArguments: [amount, amountMin, [tokenIn, tokenOut], walletAccount.address, calcDeadline(5)],
+    messageArguments: [amount, amountMin, [tokenIn, tokenOut], keypairEphemeral.address, calcDeadline(5)],
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
   });

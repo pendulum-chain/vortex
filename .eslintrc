@@ -24,11 +24,14 @@
       "version": "detect"
     }
   },
-  "plugins": ["react", "@typescript-eslint", "jest"],
+  "plugins": ["react", "react-hooks", "@typescript-eslint", "jest"],
   "rules": {
     "react/react-in-jsx-scope": "off",
     "react-hooks/exhaustive-deps": "error",
+    "react-hooks/rules-of-hooks": "error",
     "react/prop-types": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "prefer-const": "warn",
     "@typescript-eslint/no-unused-vars": [
       "warn",
       {

@@ -1,8 +1,9 @@
+import Big from 'big.js';
+import { useState, useEffect, useRef } from 'react';
+
 import '../../../App.css';
-import React, { useState, useEffect, useRef } from 'react';
 import InputBox from '../../components/InputKeys';
 import { SwapOptions } from '../../components/InputKeys';
-
 import EventBox from '../../components/GenericEvent';
 import { GenericEvent, EventStatus } from '../../components/GenericEvent';
 import { fetchTomlValues, IAnchorSessionParams, Sep24Result, getEphemeralKeys, sep10 } from '../../services/anchor';
@@ -19,6 +20,18 @@ import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
 import { performSwap } from '../../services/nabla';
+import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
+import {
+  waitForTokenReceptionEvent,
+  getEphemeralAccount,
+  checkBalance,
+  fundEphemeralAccount,
+  cleanEphemeralAccount,
+} from '../../services/polkadot/ephemeral';
+import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
+import { useSquidRouterSwap, TransactionStatus } from '../../services/squidrouter';
+import { decimalToCustom } from '../../helpers/parseNumbers';
+import { TokenType } from '../../constants/tokenConfig';
 
 enum OperationStatus {
   Idle,
@@ -30,9 +43,16 @@ enum OperationStatus {
   Error,
 }
 
+export interface ExecutionInput {
+  assetToOfframp: TokenType;
+  amountIn: Big;
+  swapOptions: SwapOptions | undefined; // undefined means direct offramp
+}
+
 function Landing() {
   // system status
   const [status, setStatus] = useState(OperationStatus.Idle);
+  const [executionInput, setExecutionInput] = useState<ExecutionInput | undefined>(undefined);
 
   // events state and refs
   const [events, setEvents] = useState<GenericEvent[]>([]);
@@ -40,7 +60,6 @@ function Landing() {
   const [activeEventIndex, setActiveEventIndex] = useState<number>(-1);
 
   // seession and operations states
-  const [userAddress, setUserAddress] = useState<string | null>(null);
   const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
@@ -51,35 +70,22 @@ function Landing() {
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
   const [backendError, setBackendError] = useState<boolean>(false);
 
-  // Wallet states
-  // const { walletAccount, dAppName } = useGlobalState();
-  // TODO - use different wallet account
-  const walletAccount = null;
+  //Squidrouter hook
+  const [amountInNative, setAmountIn] = useState<string>('0');
+  const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
+  const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
+    // we always want swap now, but for now we hardcode the starting token
+    setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
+    setExecutionInput({ assetToOfframp, amountIn, swapOptions });
 
-  const handleOnSubmit = async (
-    userSubstrateAddress: string,
-    swapsFirst: boolean,
-    selectedAsset: string,
-    swapOptions: SwapOptions,
-    maxBalanceFrom: number,
-  ) => {
-    setUserAddress(userSubstrateAddress);
 
-    const tokenConfig: TokenDetails = TOKEN_CONFIG[selectedAsset];
+    const tokenConfig: TokenDetails = TOKEN_CONFIG[assetToOfframp];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
 
-    // perform swap if necessary
-    // if no swapping, the balance to offramp is the initial desired amount
-    // otherwise, it will be the obtained value from the swap.
-    let balanceToOfframp = swapOptions.amountIn;
-    if (swapsFirst) {
-      balanceToOfframp = await performSwap(
-        { swap: swapOptions, userAddress: userSubstrateAddress, walletAccount: walletAccount! },
-        addEvent,
-      );
-    }
-    // truncate the value to 2 decimal places
-    const balanceToOfframpTruncated = Math.trunc(balanceToOfframp * 100) / 100;
+    const amountToOfframp = swapOptions !== undefined ? swapOptions.minAmountOut : amountIn;
+    console.log(amountToOfframp);
+
+    const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(amountToOfframp.round(2, 0), 2);
 
     const token = await sep10(values, addEvent);
 
@@ -87,7 +93,7 @@ function Landing() {
       token,
       tomlValues: values,
       tokenConfig,
-      offrampAmount: balanceToOfframpTruncated.toString(),
+      offrampAmount: truncatedAmountToOfframp,
     });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
@@ -103,6 +109,54 @@ function Landing() {
       EventStatus.Waiting,
     );
     setSep24Result(result);
+
+    if (executionInput === undefined) return;
+    const { assetToOfframp, amountIn, swapOptions } = executionInput;
+    // Start the squid router process
+    executeSquidRouterSwap();
+
+     // log ephemeral pk
+     const ephemeralAccount = getEphemeralAccount().address;
+     addEvent(`Pendulum ephemeral account: ${ephemeralAccount}`, EventStatus.Waiting);
+
+    // Wait for ephemeral to receive native balance
+    // And wait for ephemeral to receive the funds of the token to be offramped
+
+    const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
+
+    console.log('Waiting to receive token: ', tokenToReceive);
+    const tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS * 1000);
+    console.log('token received', tokenTransferEvent);
+
+    // call checkBalance until it returns true
+    let ready;
+    do {
+      ready = await checkBalance();
+    } while (!ready);
+
+    if (swapOptions) {
+      const enteredAmountDecimal = new Big(result.amount);
+      //TESTING commented since we are mocking the response of the KYC
+      // if (enteredAmountDecimal.gt(swapOptions.minAmountOut)) {
+      //   addEvent(
+      //     `The amount you entered is too high. Maximum possible amount to offramp: ${swapOptions.minAmountOut.toString()}), you entered: ${
+      //       result.amount
+      //     }.`,
+      //     EventStatus.Error,
+      //   );
+      //   return;
+      // }
+
+      await performSwap(
+        {
+          amountInRaw: tokenTransferEvent.amountRaw,
+          assetOut: assetToOfframp,
+          assetIn: swapOptions.assetIn,
+          minAmountOut: swapOptions.minAmountOut,
+        },
+        addEvent,
+      );
+    }
 
     // set up the ephemeral account and operations we will later neeed
     try {
@@ -129,10 +183,11 @@ function Landing() {
   const executeRedeem = useCallback(
     async (sepResult: Sep24Result) => {
       try {
+        const ephemeralAccount = getEphemeralAccount();
         await executeSpacewalkRedeem(
           getEphemeralKeys().publicKey(),
           sepResult.amount,
-          walletAccount!,
+          ephemeralAccount,
           anchorSessionParams!.tokenConfig,
           addEvent,
         );
@@ -146,7 +201,7 @@ function Landing() {
       //this will trigger finalizeOfframp
       setStatus(OperationStatus.FinalizingOfframp);
     },
-    [walletAccount, anchorSessionParams],
+    [anchorSessionParams],
   );
 
   const finalizeOfframp = useCallback(async () => {
@@ -164,6 +219,7 @@ function Landing() {
     // and successful
     // This will not affect the user
     await cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent);
+    await cleanEphemeralAccount(executionInput?.assetToOfframp!);
   }, [stellarOperations]);
 
   const addEvent = (message: string, status: EventStatus) => {
@@ -176,6 +232,19 @@ function Landing() {
       eventsEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
+
+  // Fund the ephemeral account after the squid swap is completed
+
+  // Should we fund this after approval or after the swap is completed?
+  // Right now, the SwapCompleted variant is never set.
+  useEffect(() => {
+    console.log('Transaction status: ', transactionStatus);
+    if (transactionStatus == TransactionStatus.SpendingApproved) {
+      console.log('Funding account after squid swap is completed');
+      addEvent('Approval to Squidrouter completed', EventStatus.Success);
+      fundEphemeralAccount();
+    }
+  }, [transactionStatus, error]);
 
   useEffect(() => {
     scrollToLatestEvent();
@@ -218,15 +287,10 @@ function Landing() {
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}
       {showSep24 && (
         <div>
-          <Sep24
-            sessionParams={anchorSessionParams!}
-            onSep24Complete={handleOnSep24Completed}
-            setAnchorSessionParams={setAnchorSessionParams}
-            addEvent={addEvent}
-          />
+          <Sep24 sessionParams={anchorSessionParams!} onSep24Complete={handleOnSep24Completed} addEvent={addEvent} />
         </div>
       )}
-      <div className="eventsContainer">
+      <div className="flex flex-col items-center overflow-y-auto py-5">
         {events.map((event, index) => (
           <EventBox
             key={index}

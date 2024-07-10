@@ -10,6 +10,7 @@ module.exports = babelJest.createTransformer({
       },
     ],
     '@babel/preset-env',
+    'babel-preset-vite',
   ],
   plugins: [
     [

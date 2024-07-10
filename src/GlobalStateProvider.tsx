@@ -46,7 +46,7 @@ const GlobalStateProvider = ({ children }: { children: ComponentChildren }) => {
       getThemeName,
       dAppName,
     }),
-    [dAppName, getThemeName, tenantName, walletAccount],
+    [dAppName, getThemeName, tenantName],
   );
 
   return <GlobalStateContext.Provider value={providerValue}>{children}</GlobalStateContext.Provider>;
