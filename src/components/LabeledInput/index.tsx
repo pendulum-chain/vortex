@@ -8,6 +8,6 @@ interface LabeledInputProps {
 export const LabeledInput: FC<LabeledInputProps> = ({ label, Input }) => (
   <label>
     <span className="font-thin">{label}</span>
-    <Input />
+    {Input}
   </label>
 );

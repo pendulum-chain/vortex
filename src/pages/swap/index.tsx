@@ -111,31 +111,27 @@ export const Swap = () => {
   }, [form, fromAmount, tokenOutData]);
 
   const ReceiveNumericInput = useMemo(
-    // eslint-disable-next-line react/display-name
-    () => () =>
-      (
-        <AssetNumericInput
-          additionalText="PIX / Bank Account"
-          fromToken={toToken}
-          onClick={() => setModalType('to')}
-          registerInput={form.register('toAmount')}
-          disabled={isQuoteSubmitted || tokenOutData.isLoading}
-          readOnly={true}
-        />
-      ),
+    () => (
+      <AssetNumericInput
+        additionalText="PIX / Bank Account"
+        fromToken={toToken}
+        onClick={() => setModalType('to')}
+        registerInput={form.register('toAmount')}
+        disabled={isQuoteSubmitted || tokenOutData.isLoading}
+        readOnly={true}
+      />
+    ),
     [toToken, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
-    // eslint-disable-next-line react/display-name
-    () => () =>
-      (
-        <AssetNumericInput
-          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-          fromToken={fromToken}
-          onClick={() => setModalType('from')}
-        />
-      ),
+    () => (
+      <AssetNumericInput
+        registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+        fromToken={fromToken}
+        onClick={() => setModalType('from')}
+      />
+    ),
     [form, fromToken, setModalType],
   );
 
