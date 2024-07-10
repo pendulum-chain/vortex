@@ -20,6 +20,8 @@ interface AssetNumericInputProps {
   fromToken?: TokenDetails;
   onClick: () => void;
   additionalText?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
   registerInput: UseFormRegisterReturn<keyof SwapFormValues>;
 }
 
