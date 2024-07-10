@@ -16,15 +16,14 @@ import {
 import { executeSpacewalkRedeem } from '../../services/polkadot';
 import Sep24 from '../../components/Sep24Component';
 import { useCallback } from 'preact/compat';
-import { useGlobalState } from '../../GlobalStateProvider';
 import { fetchSigningServicePK } from '../../services/signingService';
 import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
-import { performSwap } from '../../services/nabla';
+import { nablaApprove, nablaSwap } from '../../services/nabla';
 import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
 import {
   waitForTokenReceptionEvent,
   getEphemeralAccount,
-  checkBalance,
+  checkEphemeralReady,
   fundEphemeralAccount,
   cleanEphemeralAccount,
 } from '../../services/polkadot/ephemeral';
@@ -32,14 +31,19 @@ import { stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { useSquidRouterSwap, TransactionStatus } from '../../services/squidrouter';
 import { decimalToCustom } from '../../helpers/parseNumbers';
 import { TokenType } from '../../constants/tokenConfig';
+import { storageService } from '../../services/localStorage';
+import { storageKeys } from '../../constants/localStorage';
 
 enum OperationStatus {
   Idle,
-  Submitting,
-  SettingUpStellar,
-  Redeeming,
-  FinalizingOfframp,
-  Completed,
+  BridgeExecuted, // Confirmation that the bridge (squid for now) transaction went through
+  PendulumEphemeralReady, // Confirmation that the ephemeral received both the expected tokens and the native balance
+  NablaSwapApproved, // Confirmation that the tokens where approved
+  NablaSwapPerformed, // Confirmation that the swap went through
+  StellarEphemeralReady, // Ephemeral account keypair was craeted, saved and is funded (created)
+  Redeemed, // Confirmation that the redeem tx went through
+  Offramped, // Confirmation that stellar transaction to offramp went through
+  StellarCleaned, // Confirmation that the stellar account was merged
   Error,
 }
 
@@ -50,6 +54,7 @@ export interface ExecutionInput {
 }
 
 function Landing() {
+
   // system status
   const [status, setStatus] = useState(OperationStatus.Idle);
   const [executionInput, setExecutionInput] = useState<ExecutionInput | undefined>(undefined);
@@ -64,6 +69,7 @@ function Landing() {
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
   const [sep24Result, setSep24Result] = useState<Sep24Result | null>(null);
+  const [tokenBridgedAmount, setTokenBridgedAmount] = useState<Big | null>(null);
 
   // UI states
   const [showSep24, setShowSep24] = useState<boolean>(false);
@@ -73,11 +79,30 @@ function Landing() {
   //Squidrouter hook
   const [amountInNative, setAmountIn] = useState<string>('0');
   const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
+
+  // fetch the current state of the offramp, if any.
+  const currentOfframpStatus = storageService.getParsed<OperationStatus>(storageKeys.OFFRAMP_STATUS);
+  const isRecovery = currentOfframpStatus !== undefined
+  // recovery parameters from local storage into state
+  if (isRecovery){
+    setStatus(currentOfframpStatus);
+    setExecutionInput(storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS));
+    setTokenBridgedAmount(storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT)!);
+    // TODO need to do some error handling here in case one is undefined, which should not happen but...
+    setSep24Result(storageService.getParsed<Sep24Result>(storageKeys.SEP24_RESULT)!);
+    setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
+    setStellarOperations(storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)!);
+  }
+  console.log('Current status: ', currentOfframpStatus);
+
+
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
+    
+    // Store user selected values in state an local storage
     setExecutionInput({ assetToOfframp, amountIn, swapOptions });
-
+    storageService.set(storageKeys.OFFRAMP_EXECUTION_INPUTS, executionInput);
 
     const tokenConfig: TokenDetails = TOKEN_CONFIG[assetToOfframp];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
@@ -97,7 +122,6 @@ function Landing() {
     });
     // showing (rendering) the Sep24 component will trigger the Sep24 process
     setShowSep24(true);
-    setStatus(OperationStatus.Submitting);
   };
 
   const handleOnSep24Completed = async (result: Sep24Result) => {
@@ -110,74 +134,14 @@ function Landing() {
     );
     setSep24Result(result);
 
-    if (executionInput === undefined) return;
-    const { assetToOfframp, amountIn, swapOptions } = executionInput;
     // Start the squid router process
     executeSquidRouterSwap();
+    setStatus(OperationStatus.BridgeExecuted);
 
-     // log ephemeral pk
-     const ephemeralAccount = getEphemeralAccount().address;
-     addEvent(`Pendulum ephemeral account: ${ephemeralAccount}`, EventStatus.Waiting);
+    // log ephemeral pk
+    const ephemeralAccount = getEphemeralAccount().address;
+    addEvent(`Pendulum ephemeral account: ${ephemeralAccount}`, EventStatus.Waiting);
 
-    // Wait for ephemeral to receive native balance
-    // And wait for ephemeral to receive the funds of the token to be offramped
-
-    const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
-
-    console.log('Waiting to receive token: ', tokenToReceive);
-    const tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS * 1000);
-    console.log('token received', tokenTransferEvent);
-
-    // call checkBalance until it returns true
-    let ready;
-    do {
-      ready = await checkBalance();
-    } while (!ready);
-
-    if (swapOptions) {
-      const enteredAmountDecimal = new Big(result.amount);
-      //TESTING commented since we are mocking the response of the KYC
-      // if (enteredAmountDecimal.gt(swapOptions.minAmountOut)) {
-      //   addEvent(
-      //     `The amount you entered is too high. Maximum possible amount to offramp: ${swapOptions.minAmountOut.toString()}), you entered: ${
-      //       result.amount
-      //     }.`,
-      //     EventStatus.Error,
-      //   );
-      //   return;
-      // }
-
-      await performSwap(
-        {
-          amountInRaw: tokenTransferEvent.amountRaw,
-          assetOut: assetToOfframp,
-          assetIn: swapOptions.assetIn,
-          minAmountOut: swapOptions.minAmountOut,
-        },
-        addEvent,
-      );
-    }
-
-    // set up the ephemeral account and operations we will later neeed
-    try {
-      addEvent('Settings stellar accounts', EventStatus.Waiting);
-      const operations = await setUpAccountAndOperations(
-        fundingPK!,
-        result,
-        getEphemeralKeys(),
-        anchorSessionParams!.tokenConfig,
-        addEvent,
-      );
-      setStellarOperations(operations);
-    } catch (error) {
-      addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
-      return;
-    }
-
-    addEvent('Stellar things done!', EventStatus.Waiting);
-
-    //this will trigger redeem
-    setStatus(OperationStatus.Redeeming);
   };
 
   const executeRedeem = useCallback(
@@ -199,7 +163,7 @@ function Landing() {
       addEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
 
       //this will trigger finalizeOfframp
-      setStatus(OperationStatus.FinalizingOfframp);
+      setStatus(OperationStatus.Redeemed);
     },
     [anchorSessionParams],
   );
@@ -213,13 +177,12 @@ function Landing() {
       return;
     }
 
-    addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
-
+    setStatus(OperationStatus.Offramped);
     // we may not necessarily need to show the user an error, since the offramp transaction is already submitted
     // and successful
-    // This will not affect the user
-    await cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent);
-    await cleanEphemeralAccount(executionInput?.assetToOfframp!);
+    // This will not affect the user 
+
+    addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
   }, [stellarOperations]);
 
   const addEvent = (message: string, status: EventStatus) => {
@@ -266,15 +229,113 @@ function Landing() {
   }, []);
 
   useEffect(() => {
+    if (executionInput === undefined) return;
+    const { assetToOfframp, amountIn, swapOptions } = executionInput;
     switch (status) {
-      case OperationStatus.Redeeming:
-        executeRedeem(sep24Result!).catch(console.error);
+      case OperationStatus.BridgeExecuted:
+
+        // TODO we obviusly need to change hardcoding the swap option here, for when we support 
+        // more than one asset on polygon
+        const tokenToReceive = swapOptions ? TOKEN_CONFIG.usdc.currencyId : TOKEN_CONFIG[assetToOfframp].currencyId;
+        // TODO need to double-check that minAmountOut has all the decimal places
+        const expectedBalanceRaw = swapOptions ? swapOptions.minAmountOut : amountIn;
+
+        checkEphemeralReady(tokenToReceive, expectedBalanceRaw).then((tokenBridgedAmount) => {
+          setTokenBridgedAmount(tokenBridgedAmount);
+          setStatus(OperationStatus.PendulumEphemeralReady);  
+        })
         return;
-      case OperationStatus.FinalizingOfframp:
+
+      case OperationStatus.PendulumEphemeralReady:
+        if (swapOptions) {
+          const enteredAmountDecimal = new Big(sep24Result!.amount);
+          if (enteredAmountDecimal.gte(swapOptions.minAmountOut)) {
+            addEvent(
+              `The amount you entered is too high. Maximum possible amount to offramp: ${swapOptions.minAmountOut.toString()}), you entered: ${
+                sep24Result!.amount
+              }.`,
+              EventStatus.Error,
+            );
+            return;
+          }
+          nablaApprove(
+            {
+              amountInRaw: tokenBridgedAmount!,
+              assetOut: assetToOfframp,
+              assetIn: swapOptions.assetIn,
+              minAmountOut: swapOptions.minAmountOut,
+            },
+            addEvent,
+          ).then(() => {
+            setStatus(OperationStatus.NablaSwapApproved);
+          });
+
+          return;
+        }
+
+        // if no swap options, we skip directly to stellar and redeem.
+        setStatus(OperationStatus.NablaSwapPerformed);
+        return;
+      
+      case OperationStatus.NablaSwapApproved:
+        // no need to check if swapOptions since we know it was the case because we approved  
+        nablaSwap(
+          {
+            amountInRaw: tokenBridgedAmount!,
+            assetOut: assetToOfframp,
+            assetIn: swapOptions!.assetIn,
+            minAmountOut: swapOptions!.minAmountOut,
+          },
+          addEvent,
+        ).then((actualOfframpValue) => {
+
+          setStatus(OperationStatus.NablaSwapPerformed);
+        });
+        return;
+
+      case OperationStatus.NablaSwapPerformed:
+        // set up the ephemeral account and operations we will later neeed
+        addEvent('Settings stellar accounts.', EventStatus.Waiting);
+        setUpAccountAndOperations(
+          fundingPK!,
+          sep24Result!,
+          getEphemeralKeys(),
+          anchorSessionParams!.tokenConfig,
+          addEvent,
+        ).then((operations)=>{
+
+          setStellarOperations(operations)
+          addEvent('Stellar ephemeral account ready.', EventStatus.Waiting);
+          setStatus(OperationStatus.StellarEphemeralReady);
+
+        }).catch(()=>{
+          addEvent(`Stellar setup failed ${error}`, EventStatus.Error);
+        });
+        return;
+
+      case OperationStatus.StellarEphemeralReady:
+        executeRedeem(sep24Result!);
+        return
+      case OperationStatus.Redeemed:
         finalizeOfframp().catch(console.error);
         return;
+      
+      // Offramp succesfull but first cleanup (Stellar) did not happened
+      case OperationStatus.Offramped:
+        cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent).then(()=>{
+          setStatus(OperationStatus.StellarCleaned);
+        });
+        return;
+
+      // last case, after completion we need to delete the offramp status from local storage
+      case OperationStatus.StellarCleaned:
+        cleanEphemeralAccount(executionInput?.assetToOfframp!).then(()=>{
+          storageService.remove(storageKeys.OFFRAMP_STATUS);
+        });
+        return;
+      
     }
-  }, [status, executeRedeem, finalizeOfframp, sep24Result]);
+  }, [status, executeRedeem, finalizeOfframp, sep24Result, executionInput]);
 
   return (
     <div className="App">
@@ -282,6 +343,13 @@ function Landing() {
         <div>
           <h2 className="inputBox">Service is Down</h2>
           <div className="general-service-error-message">Please try again later or reload the page.</div>
+        </div>
+      )}
+      {isRecovery && (
+        // TODO some kind of recovery UI 
+        // or we may want to show the regular "do not close this window" message
+        <div>
+          <h2 className="inputBox">Recovering Offramp... Please do not close this window....</h2>
         </div>
       )}
       {canInitiate && <InputBox onSubmit={handleOnSubmit} dAppName="prototype" />}

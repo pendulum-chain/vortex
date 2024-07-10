@@ -1,9 +1,12 @@
+import Big from 'big.js';
+
 const exists = (value?: string | null): value is string => !!value && value.length > 0;
 
 export interface Storage {
   get: (key: string, defaultValue?: string) => string | undefined;
   getParsed: <T = string>(key: string, defaultValue?: T, parses?: (text: string) => T | undefined) => T | undefined;
   getNumber: (key: string) => number | undefined;
+  getBig: (key: string) => Big | undefined;
   getBoolean: (key: string) => boolean | undefined;
   set: (key: string, value: unknown) => void;
   remove: (key: string) => void;
@@ -26,6 +29,7 @@ export const storageService: Storage = {
     }
   },
 
+  getBig: (key: string) => new Big(localStorage?.getItem(key)!),
   getNumber: (key: string) => Number(localStorage?.getItem(key)),
   getBoolean: (key: string) => Boolean(localStorage?.getItem(key)),
 
@@ -36,4 +40,5 @@ export const storageService: Storage = {
     ),
 
   remove: (key) => localStorage?.removeItem(key),
+
 };

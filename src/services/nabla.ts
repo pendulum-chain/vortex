@@ -23,10 +23,10 @@ export interface PerformSwapProps {
   minAmountOut: Big;
 }
 
-export async function performSwap(
+export async function nablaApprove(
   { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<Big> {
+): Promise<void> {
   // event attempting swap
   const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
   const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
@@ -38,7 +38,6 @@ export async function performSwap(
   // get chain api, abi
   const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
   const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
-  const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
   // get asset details
 
   // get ephermal keypair and account
@@ -66,7 +65,6 @@ export async function performSwap(
   // Probably no need to multiply by power of ten here since amountIn comes from the event
   //const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals);
   const rawAmountToSwapBig = amountInRaw;
-  const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
 
   //maybe do allowance
   if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(rawAmountToSwapBig)) {
@@ -91,6 +89,31 @@ export async function performSwap(
       return Promise.reject('Could not approve token');
     }
   }
+}
+
+export async function nablaSwap(
+  { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
+  renderEvent: (event: string, status: EventStatus) => void,
+): Promise<Big> {
+  // event attempting swap
+  const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
+  const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
+
+  const amountIn = toBigNumber(amountInRaw, assetInDetails.decimals);
+
+  renderEvent('Attempting swap', EventStatus.Waiting);
+  console.log('swap', 'Attempting swap', amountIn, assetOut, assetIn, minAmountOut);
+  // get chain api, abi
+  const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
+  const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
+  // get asset details
+
+  // get ephermal keypair and account
+  const keypairEphemeral = getEphemeralAccount();
+
+  const rawAmountToSwapBig = amountInRaw;
+  const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
+
   // balance before the swap
   const responseBalanceBefore = (
     await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
@@ -98,6 +121,7 @@ export async function performSwap(
 
   const rawBalanceBefore = responseBalanceBefore?.free || '0';
   const balanceBeforeBigDecimal = toBigNumber(rawBalanceBefore, assetOutDetails.decimals);
+
 
   // Try swap
   try {
