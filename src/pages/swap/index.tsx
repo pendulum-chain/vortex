@@ -52,7 +52,7 @@ export const Swap = () => {
   }, []);
 
   // Main process hook
-  const { canInitiate, showSep24, anchorSessionParams, handleOnSubmit, isRecovery } = useMainProcess();
+  const { canInitiate, anchorSessionParams, handleOnSubmit, isRecovery } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -95,7 +95,6 @@ export const Swap = () => {
       const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
       const isValid = Boolean(from) && Boolean(to) && Boolean(fromAmount);
 
-
       if (noErrors && isValid) {
         setIsExchangeSectionSubmittedError(false);
         setIsExchangeSectionSubmitted(true);
@@ -106,18 +105,18 @@ export const Swap = () => {
       return;
     }
 
-    console.log('starting ....')
+    console.log('starting ....');
     // Hardcoding the selection SwapOptions since at least for now this will be always the case (no direct offramping on this UI)
     // TODO we need to pass the bank account/tax id also, required for sep12 probably.
     const swapOptions: SwapOptions = {
       assetIn: from,
       minAmountOut: tokenOutData.data?.amountOut.preciseBigDecimal!,
-    }
+    };
     handleOnSubmit({
       assetToOfframp: to as TokenType,
       amountIn: new Big(fromAmount!),
-      swapOptions
-    })  
+      swapOptions,
+    });
   }
 
   useEffect(() => {

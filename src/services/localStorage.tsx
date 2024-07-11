@@ -40,5 +40,4 @@ export const storageService: Storage = {
     ),
 
   remove: (key) => localStorage?.removeItem(key),
-
 };

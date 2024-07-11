@@ -120,7 +120,6 @@ export async function nablaSwap(
   const rawBalanceBefore = responseBalanceBefore?.free || '0';
   const balanceBeforeBigDecimal = toBigNumber(rawBalanceBefore, assetOutDetails.decimals);
 
-
   // Try swap
   try {
     //TODO amountIN has all zeroes now, need to fix the message.

@@ -127,22 +127,18 @@ export const sep10 = async (
 // TODO modify according to the anchor's requirements and implementation
 // we should be able to do the whole flow on this function since we have all the
 // information we need
-export async function sep6First(
-  sessionParams: IAnchorSessionParams
-
-): Promise<void>{
-
+export async function sep6First(sessionParams: IAnchorSessionParams): Promise<void> {
   const { token, tomlValues } = sessionParams;
   const { sep6Url } = tomlValues;
 
   const sep6Params = new URLSearchParams({
     asset_code: sessionParams.tokenConfig.assetCode!,
     type: 'bank_account',
-    dest: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e' // Ntokens crashes when sending destination, complains of not having it??
+    dest: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e', // Ntokens crashes when sending destination, complains of not having it??
   });
 
   const fetchUrl = `${sep6Url}/withdraw?`;
-  const sep6Response = await fetch(fetchUrl + sep6Params , {
+  const sep6Response = await fetch(fetchUrl + sep6Params, {
     method: 'GET',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
   });
@@ -159,15 +155,12 @@ export async function sep6First(
   //return { transactionId: id };
 }
 
-export async function sep12First(
-  sessionParams: IAnchorSessionParams
-): Promise<void>{
-
+export async function sep12First(sessionParams: IAnchorSessionParams): Promise<void> {
   const { token, tomlValues } = sessionParams;
   const { sep6Url } = tomlValues;
 
   const sep12Params = new URLSearchParams({
-    account: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e'
+    account: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e',
   });
 
   const fetchUrl = `${sep6Url}/customer`;
@@ -183,7 +176,6 @@ export async function sep12First(
   }
   //>????
 }
-
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
