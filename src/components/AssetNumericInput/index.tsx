@@ -8,11 +8,21 @@ import { NumericInput } from '../NumericInput';
 
 export const ChainName = () => (
   <ConnectButton.Custom>
-    {({ chain }) => (
-      <p className="absolute text-sm text-blue-700 translate-y-1/2 bottom-1/2 left-28">
-        {chain?.name || 'Select chain'}
-      </p>
-    )}
+    {({ account, chain, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
+      const ready = mounted && authenticationStatus !== 'loading';
+      const connected =
+        ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
+
+      return (
+        <button
+          type="button"
+          className="absolute text-sm text-blue-700 translate-y-1/2 bottom-1/2 left-28"
+          onClick={connected ? openChainModal : openConnectModal}
+        >
+          {chain?.name || 'Select chain'}
+        </button>
+      );
+    }}
   </ConnectButton.Custom>
 );
 
