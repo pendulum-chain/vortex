@@ -10,10 +10,8 @@ import { NABLA_ROUTER } from '../constants/constants';
 import { defaultReadLimits, multiplyByPowerOfTen } from '../helpers/contracts';
 import { parseContractBalanceResponse } from '../helpers/contracts';
 import { TOKEN_CONFIG, TokenType } from '../constants/tokenConfig';
-import { WalletAccount } from '@talismn/connect-wallets';
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
 import { toBigNumber } from '../helpers/parseNumbers';
-import { Keyring } from '@polkadot/api';
 import { getEphemeralAccount } from './polkadot/ephemeral';
 
 export interface PerformSwapProps {

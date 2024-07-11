@@ -17,6 +17,11 @@ import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
 
+import Big from 'big.js';
+import { useMainProcess } from '../../hooks/useMainProcess';
+import { SwapOptions } from '../../types';
+import { TokenType } from '../../constants/tokenConfig';
+
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
     <ArrowDownIcon className="text-blue-700 w-7" />
@@ -46,6 +51,9 @@ export const Swap = () => {
 
     initializeApiManager().catch(console.error);
   }, []);
+
+  // Main process hook
+  const { canInitiate, showSep24, anchorSessionParams, handleOnSubmit, isRecovery } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -88,14 +96,29 @@ export const Swap = () => {
       const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
       const isValid = Boolean(from) && Boolean(to) && Boolean(fromAmount);
 
+
       if (noErrors && isValid) {
         setIsExchangeSectionSubmittedError(false);
         setIsExchangeSectionSubmitted(true);
       } else {
         setIsExchangeSectionSubmittedError(true);
       }
+
       return;
     }
+
+    console.log('starting ....')
+    // Hardcoding the selection SwapOptions since at least for now this will be always the case (no direct offramping on this UI)
+    // TODO we need to pass the bank account/tax id also, required for sep12 probably.
+    const swapOptions: SwapOptions = {
+      assetIn: from,
+      minAmountOut: tokenOutData.data?.amountOut.preciseBigDecimal!,
+    }
+    handleOnSubmit({
+      assetToOfframp: to as TokenType,
+      amountIn: new Big(fromAmount!),
+      swapOptions
+    })  
   }
 
   useEffect(() => {

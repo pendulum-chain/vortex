@@ -5,6 +5,8 @@ export interface TomlValues {
   signingKey?: string;
   webAuthEndpoint?: string;
   sep24Url?: string;
+  sep6Url?: string;
+  kycServer?: string;
 }
 
 export interface ISep24Intermediate {
@@ -59,6 +61,8 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
     signingKey: findValueInToml('SIGNING_KEY'),
     webAuthEndpoint: findValueInToml('WEB_AUTH_ENDPOINT'),
     sep24Url: findValueInToml('TRANSFER_SERVER_SEP0024'),
+    sep6Url: findValueInToml('TRANSFER_SERVER'),
+    kycServer: findValueInToml('KYC_SERVER'),
   };
 };
 
@@ -119,6 +123,67 @@ export const sep10 = async (
   );
   return token;
 };
+
+// TODO modify according to the anchor's requirements and implementation
+// we should be able to do the whole flow on this function since we have all the
+// information we need
+export async function sep6First(
+  sessionParams: IAnchorSessionParams
+
+): Promise<void>{
+
+  const { token, tomlValues } = sessionParams;
+  const { sep6Url } = tomlValues;
+
+  const sep6Params = new URLSearchParams({
+    asset_code: sessionParams.tokenConfig.assetCode!,
+    type: 'bank_account',
+    dest: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e' // Ntokens crashes when sending destination, complains of not having it??
+  });
+
+  const fetchUrl = `${sep6Url}/withdraw?`;
+  const sep6Response = await fetch(fetchUrl + sep6Params , {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
+  });
+  console.log(sep6Response);
+  if (sep6Response.status !== 200) {
+    console.log(await sep6Response.json(), sep6Response.toString());
+    throw new Error(`Failed to initiate SEP-6: ${sep6Response.statusText}`);
+  }
+
+  const { type, id } = await sep6Response.json();
+  if (type !== 'interactive_customer_info_needed') {
+    throw new Error(`Unexpected SEP-6 type: ${type}`);
+  }
+  //return { transactionId: id };
+}
+
+export async function sep12First(
+  sessionParams: IAnchorSessionParams
+): Promise<void>{
+
+  const { token, tomlValues } = sessionParams;
+  const { sep6Url } = tomlValues;
+
+  const sep12Params = new URLSearchParams({
+    account: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e'
+  });
+
+  const fetchUrl = `${sep6Url}/customer`;
+  const sep12Response = await fetch(fetchUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
+    body: sep12Params.toString(),
+  });
+  console.log(sep12Response);
+  if (sep12Response.status !== 200) {
+    console.log(await sep12Response.json(), sep12Response.toString());
+    throw new Error(`Failed to initiate SEP-6: ${sep12Response.statusText}`);
+  }
+  //>????
+}
+
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
