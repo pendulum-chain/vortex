@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { Swap } from './pages/swap';
+import '../App.css';
 
 export function App() {
   return (

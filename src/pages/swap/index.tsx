@@ -1,4 +1,3 @@
-import '../../../App.css';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useAccount } from 'wagmi';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
