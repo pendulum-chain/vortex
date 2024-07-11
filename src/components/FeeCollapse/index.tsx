@@ -10,7 +10,7 @@ interface CollapseProps {
 
 const FEES_RATE = 0.005;
 
-export const Collapse: FC<CollapseProps> = ({ amount, currency }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ amount, currency }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleIsOpen = () => setIsOpen((state) => !state);
@@ -21,16 +21,16 @@ export const Collapse: FC<CollapseProps> = ({ amount, currency }) => {
     <ChevronDownIcon className="w-8 text-blue-700" />
   );
 
-  const feesCost = FEES_RATE * Number(amount);
-  const feesCostTrimmed = feesCost.toFixed(3);
-
-  const totalReceive = Number(amount) - feesCost;
+  const totalReceive = Number(amount) * (1 - FEES_RATE);
   const totalReceiveTrimmed = totalReceive.toFixed(3);
 
+  const feesCost = Number(amount) - Number(totalReceiveTrimmed);
+  const feesCostTrimmed = feesCost.toFixed(3);
+
   return (
-    <details className="collapse border border-blue-700 transition" onClick={toggleIsOpen}>
-      <summary className="collapse-title py-2 px-4 min-h-0">
-        <div className="flex justify-between items-center">
+    <details className="transition border border-blue-700 collapse" onClick={toggleIsOpen}>
+      <summary className="min-h-0 px-4 py-2 collapse-title">
+        <div className="flex items-center justify-between">
           <p>
             <strong className="font-bold">
               {isNaN(totalReceive) ? '0.00' : totalReceiveTrimmed} {currency}

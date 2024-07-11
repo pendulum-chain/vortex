@@ -5,7 +5,7 @@ import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import { Navbar } from '../../components/Navbar';
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
-import { Collapse } from '../../components/Collapse';
+import { Collapse } from '../../components/FeeCollapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
