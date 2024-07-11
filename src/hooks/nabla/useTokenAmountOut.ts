@@ -74,7 +74,7 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
       ? multiplyByPowerOfTen(debouncedAmountBigDecimal, fromTokenDecimals).toFixed(0, 0)
       : undefined;
 
-  const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), fromTokenDetails.decimals).toFixed(0, 0);
+  const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), fromTokenDetails?.decimals).toFixed(0, 0);
   const amountIn =
     amountInOriginal !== undefined
       ? clampedDifference(BigInt(amountInOriginal), BigInt(rawXcmFees)).toString()

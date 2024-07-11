@@ -1,4 +1,3 @@
-import '../../../App.css';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useAccount } from 'wagmi';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
@@ -6,7 +5,7 @@ import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import { Navbar } from '../../components/Navbar';
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
-import { Collapse } from '../../components/Collapse';
+import { FeeCollapse } from '../../components/FeeCollapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -203,7 +202,7 @@ export const Swap = () => {
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
           {errors}
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
-          <Collapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
+          <FeeCollapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
           <section className="flex items-center justify-center w-full mt-5">
             <BenefitsList amount={fromAmount} currency={from} />
           </section>
