@@ -29,7 +29,14 @@ export const storageService: Storage = {
     }
   },
 
-  getBig: (key: string) => new Big(localStorage?.getItem(key)!),
+  getBig: (key: string) => {
+    try{
+      new Big(localStorage?.getItem(key)!)
+    } catch
+    {
+      return undefined;
+    }
+  },
   getNumber: (key: string) => Number(localStorage?.getItem(key)),
   getBoolean: (key: string) => Boolean(localStorage?.getItem(key)),
 

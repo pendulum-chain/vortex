@@ -25,64 +25,65 @@ export function useRecovery(
   setStellarOperations: (operations: StellarOperations | null) => void,
 ): RecoveryHookResult {
   const currentOfframpStatus = storageService.getParsed<OperationStatus>(storageKeys.OFFRAMP_STATUS);
+  console.log("recovered high level status: ", currentOfframpStatus);
   const isRecovery = currentOfframpStatus ? true : false;
-  let isRecoveryError = false
+  let isRecoveryError = false;
 
   useEffect(() => {
     if (!isRecovery) {
       return;
     }
+
     // currentOfframpStatus! is safe because we are checking isRecovery. By isRecovery definition, we know it is not undefined.
-    setStatus(currentOfframpStatus!);
-    setExecutionInput(storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS));
-    setTokenBridgedAmount(storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT)!);
-    // TODO need to do some error handling here in case one is undefined, which should not happen but...
-    setSepResult(storageService.getParsed<SepResult>(storageKeys.SEP_RESULT)!);
-    setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
-    setStellarOperations(storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)!);
-
-    if (
-      !currentOfframpStatus ||
-      !storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS) ||
-      !storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT) ||
-      !storageService.getParsed<SepResult>(storageKeys.SEP_RESULT) ||
-      !storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS) ||
-      !storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)
-    ) {
-      console.error('Error: One or more recovery state parameters are undefined.');
-      isRecoveryError = true;
+    // need to recover corresponding states depending on the current status
+    if (currentOfframpStatus! >= OperationStatus.Sep6Completed ){
+      setSepResult(storageService.getParsed<SepResult>(storageKeys.SEP_RESULT)!);
+      setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
     }
+    if (currentOfframpStatus! >= OperationStatus.BridgeExecuted) {
+      setExecutionInput(storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS));
+    }
+    if (currentOfframpStatus! >= OperationStatus.StellarEphemeralReady) {
+      setStellarOperations(storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)!);
+    }
+    
+    // TODO need to do some error handling here in case one is undefined, which should not happen but...
+    // something like:
+    // if (
+    //   !currentOfframpStatus ||
+    //   !storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS) ||
+    //   !storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT) ||
+    //   !storageService.getParsed<SepResult>(storageKeys.SEP_RESULT) ||
+    //   !storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS) ||
+    //   !storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)
+    // ) {
+    //   console.error('Error: One or more recovery state parameters are undefined.');
+    //   isRecoveryError = true;
+    // }
 
-    // Recover ephemerals 
+    // Recover ephemerals
     // If the bridge was executed, we expect the ephemeral to have funds, or at least use the same since it is coded on the destination
-    // payload. 
+    // payload.
     // At this point we should also have the stellar ephemeral (sep10), yet it is not strictly necessary to use the same.
     if (currentOfframpStatus! >= OperationStatus.BridgeExecuted) {
       try {
         recoverEphemeralAccount();
         restoreStellarEphemeralKeys();
-      } catch{
+      } catch {
         isRecoveryError = true;
         console.error('Error: Failed to recover ephemerals');
       }
-      
     }
 
+    setStatus(currentOfframpStatus!);
 
     console.log('Current status: ', currentOfframpStatus);
-  }, [
-    setStatus,
-    setExecutionInput,
-    setTokenBridgedAmount,
-    setSepResult,
-    setAnchorSessionParams,
-    setStellarOperations,
-  ]);
+  }, [isRecovery, setStatus, setExecutionInput, setTokenBridgedAmount, setSepResult, setAnchorSessionParams, setStellarOperations]);
 
   return {
     isRecovery,
     isRecoveryError,
-  }
+  };
 }
 
 export default useRecovery;

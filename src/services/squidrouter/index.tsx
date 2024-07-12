@@ -4,26 +4,69 @@ import { getRouteTransactionRequest } from './route';
 import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
 
+import { storageService } from '../../services/localStorage';
+import { storageKeys } from '../../constants/localStorage';
+
+type RecoveryStatus = {
+  approvalHash: `0x${string}` | undefined;
+  swapHash: `0x${string}` | undefined;
+  transactionRequest: any;
+};
+
 function useApproveSpending(
   transactionRequestTarget: string | undefined,
   fromToken: `0x${string}`,
   fromAmount: string,
+  recoveryStatus: RecoveryStatus,
 ) {
+  const [effectiveApprovalHash, setEffectiveApprovalHash] = useState(recoveryStatus.approvalHash);
+  const [requiresApproval, setRequiresReapproval] = useState(false);
+  const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
+
   const { data: hash, error, isPending, writeContract } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
+  const { isLoading: isConfirming, isSuccess: isConfirmed, status, error: txCheckError } = useWaitForTransactionReceipt({
+    hash: effectiveApprovalHash,
   });
 
-  const approveSpending = useCallback(async () => {
-    console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
+  console.log("approval status", status)
+  console.log("approval isConfirming", isConfirming)
+  console.log("approval isConfirmed", isConfirmed)  
+  console.log(" approval txCheckError", txCheckError)
 
-    writeContract({
-      abi: erc20ABI,
-      address: fromToken,
-      functionName: 'approve',
-      args: [transactionRequestTarget, fromAmount],
-    });
-  }, [fromToken, fromAmount, transactionRequestTarget, writeContract]);
+  useEffect(() => {
+    if (isInitialCheckDone) {
+      return;
+    }
+    if (!effectiveApprovalHash) {
+      setRequiresReapproval(true);
+      setIsInitialCheckDone(true);
+      return;
+    } 
+    if (status === "error" ) {
+      setRequiresReapproval(true);
+      setIsInitialCheckDone(true);
+    }
+  }, [status, effectiveApprovalHash]);
+
+  // Store the new hash when it changes
+  useEffect(() => {
+    if (hash) {
+      setEffectiveApprovalHash(hash);
+      storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, { ...recoveryStatus, approvalHash: hash });
+    }
+  }, [hash]);
+
+  const approveSpending = useCallback(async () => {
+
+      console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
+      writeContract({
+        abi: erc20ABI,
+        address: fromToken,
+        functionName: 'approve',
+        args: [transactionRequestTarget, fromAmount],
+      });
+    
+  }, [fromToken, fromAmount, transactionRequestTarget, writeContract, status]);
 
   return {
     approveSpending,
@@ -31,21 +74,54 @@ function useApproveSpending(
     isPending,
     isConfirming,
     isConfirmed,
+    requiresApproval
   };
 }
 
-function useSendSwapTransaction(transactionRequest: any) {
-  const { data: hash, isPending, error, status, sendTransaction } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: hash });
+function useSendSwapTransaction(transactionRequest: any,  recoveryStatus: RecoveryStatus) {
+  const [effectiveSwaplHash, setEffectiveSwapHash] = useState(recoveryStatus.swapHash);
+  const [requiresSwapTransaction, setRequiresSwapTransaction] = useState(false);
+  const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
+
+  const { data: hash, isPending, error, sendTransaction } = useSendTransaction();
+  const { isLoading: isConfirming, isSuccess: isConfirmed, status, error: txCheckError } = useWaitForTransactionReceipt({ hash: effectiveSwaplHash });
+
+  console.log("status", status)
+  console.log("isConfirming", isConfirming)
+  console.log("isConfirmed", isConfirmed)  
+  console.log("txCheckError", txCheckError)
+
+
+  useEffect(() => {
+    if (isInitialCheckDone) {
+      return;
+    }
+    if (!effectiveSwaplHash) {
+      setRequiresSwapTransaction(true);
+      setIsInitialCheckDone(true);
+      return;
+    } 
+    // if the previous stored transaction failed, we need to try again
+    // at this point we assume the approval was successful
+    if (status === "error" ) {
+      setRequiresSwapTransaction(true);
+      setIsInitialCheckDone(true);
+    }
+  }, [status, effectiveSwaplHash]);
+
+  // Store the new hash when it changes
+  useEffect(() => {
+    if (hash) {
+      setEffectiveSwapHash(hash);
+      storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, { ...recoveryStatus, swapHash: hash });
+    }
+  }, [hash]);
 
   const sendSwapTransaction = useCallback(async () => {
     if (!transactionRequest) {
       console.error('No transaction request found');
       return;
     }
-
-    console.log('Sending swap transaction');
-
     // Execute the swap transaction
     sendTransaction({
       to: transactionRequest.target,
@@ -55,12 +131,15 @@ function useSendSwapTransaction(transactionRequest: any) {
     });
   }, [transactionRequest, sendTransaction]);
 
+  
+
   return {
     hash,
     error,
     sendSwapTransaction,
     isConfirming,
     isConfirmed,
+    requiresSwapTransaction,
   };
 }
 
@@ -76,9 +155,19 @@ export enum TransactionStatus {
 export function useSquidRouterSwap(amount: string) {
   const { fromToken } = getSquidRouterConfig();
 
+  let recoveryStatus = storageService.getParsed<RecoveryStatus>(storageKeys.SQUIDROUTER_RECOVERY_STATE);
+
   const [requestId, setRequestId] = useState<string>('');
-  const [transactionRequest, setTransactionRequest] = useState<any>();
+  const [transactionRequest, setTransactionRequest] = useState<any>(recoveryStatus?.transactionRequest);
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus>(TransactionStatus.Idle);
+
+  if (!recoveryStatus) {
+    recoveryStatus = {
+      approvalHash: undefined,
+      swapHash: undefined,
+      transactionRequest: undefined,
+    };
+  }
 
   const accountData = useAccount();
 
@@ -87,7 +176,8 @@ export function useSquidRouterSwap(amount: string) {
     isConfirming: isApprovalConfirming,
     isConfirmed: isSpendingApproved,
     error: approveError,
-  } = useApproveSpending(transactionRequest?.target, fromToken, amount);
+    requiresApproval,
+  } = useApproveSpending(transactionRequest?.target, fromToken, amount, recoveryStatus);
 
   const {
     hash,
@@ -95,7 +185,8 @@ export function useSquidRouterSwap(amount: string) {
     isConfirmed: isSwapCompleted,
     sendSwapTransaction,
     error: swapError,
-  } = useSendSwapTransaction(transactionRequest);
+    requiresSwapTransaction,
+  } = useSendSwapTransaction(transactionRequest, recoveryStatus);
   // Update the transaction status
   useEffect(() => {
     if (isApprovalConfirming) {
@@ -119,14 +210,16 @@ export function useSquidRouterSwap(amount: string) {
 
   useEffect(() => {
     if (!transactionRequest || transactionStatus !== TransactionStatus.RouteRequested) return;
-
+    if (!requiresApproval) return;
+    
     console.log('Calling function to approve spending');
     // Approve the transactionRequest.target to spend fromAmount of fromToken
     approveSpending().catch((error) => console.error('Error approving spending:', error));
-  }, [approveSpending, transactionRequest, transactionStatus]);
+  }, [approveSpending, transactionRequest, transactionStatus, requiresApproval]);
 
   useEffect(() => {
-    if (!isSpendingApproved || transactionStatus !== TransactionStatus.SpendingApproved) return;
+    if (!isSpendingApproved || transactionStatus !== TransactionStatus.SpendingApproved ) return;
+    if (!requiresSwapTransaction) return;
 
     console.log('Transaction approved, executing swap');
     // Execute the swap transaction
@@ -158,13 +251,19 @@ export function useSquidRouterSwap(amount: string) {
     setTransactionStatus(TransactionStatus.RouteRequested);
 
     // Start by getting the transaction request for the Route
+    // if transcation request exists on store, we just set it 
+    if (recoveryStatus.transactionRequest) {
+      return;
+    }
+
     getRouteTransactionRequest(accountData.address, amount)
       .then(({ requestId, transactionRequest }) => {
         setRequestId(requestId);
         setTransactionRequest(transactionRequest);
+        storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, { ...recoveryStatus, transactionRequest });
       })
       .catch((error) => console.error('Error sending transaction request:', error));
-  }, [accountData.address, amount]);
+  }, [accountData.address, amount, recoveryStatus]);
 
   return {
     transactionStatus,

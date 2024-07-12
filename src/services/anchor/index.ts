@@ -42,14 +42,12 @@ export const getEphemeralKeys = () => {
   }
 };
 
-
 export const restoreStellarEphemeralKeys = () => {
-
   const seedPhrase = storageService.get(storageKeys.STELLAR_SEED);
   if (!seedPhrase) {
     throw new Error('Stellar seed phrase not found in local storage');
   }
-  ephemeralKeys = Keypair.fromSecret(seedPhrase)
+  ephemeralKeys = Keypair.fromSecret(seedPhrase);
 };
 
 export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues> => {
@@ -148,7 +146,7 @@ export async function sep6First(sessionParams: IAnchorSessionParams): Promise<Se
     memo: 'a memo',
     memoType: 'text',
     offrampingAccount: 'GCUHGQ6LY3L2NAB7FX2LJGUJFCG6LKAQHVIMJLZNNBMCZUQNBPJTXE6O',
-  }
+  };
 
   const sep6Params = new URLSearchParams({
     asset_code: sessionParams.tokenConfig.assetCode!,

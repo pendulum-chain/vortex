@@ -49,7 +49,7 @@ export const recoverEphemeralAccount = async () => {
   const keyring = new Keyring({ type: 'sr25519' });
   ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
   printEphemeralAccount(seedPhrase);
-}
+};
 
 export const fundEphemeralAccount = async () => {
   try {
@@ -86,7 +86,7 @@ export const cleanEphemeralAccount = async (token: TokenType) => {
 
     await apiData.api.tx.balances.transferAll(fundingAccountAddress, false).signAndSend(ephemeralKeyring);
 
-    // to be safe, storage will be cleaned anyway 
+    // to be safe, storage will be cleaned anyway
     storageService.set(storageKeys.PENDULUM_SEED, undefined);
   } catch (error) {
     console.error('Error cleaning pendulum ephemeral account', error);
