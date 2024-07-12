@@ -10,7 +10,7 @@ import {
   Account,
 } from 'stellar-sdk';
 import { HORIZON_URL, BASE_FEE } from '../../constants/constants';
-import { Sep24Result } from '../anchor';
+import { SepResult } from '../anchor';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { TokenDetails } from '../../constants/tokenConfig';
 import { Buffer } from 'buffer';
@@ -32,7 +32,7 @@ type StellarFundingSignatureResponse = {
 
 export async function setUpAccountAndOperations(
   fundingAccountPk: string,
-  sep24Result: Sep24Result,
+  sepResult: SepResult,
   ephemeralKeys: Keypair,
   tokenConfig: TokenDetails,
   renderEvent: (event: string, status: EventStatus) => void,
@@ -43,7 +43,7 @@ export async function setUpAccountAndOperations(
   const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
   const { offrampingTransaction, mergeAccountTransaction } = await createOfframpAndMergeTransaction(
     fundingAccountPk,
-    sep24Result,
+    sepResult,
     ephemeralKeys,
     ephemeralAccount,
     tokenConfig,
@@ -142,7 +142,7 @@ async function setupStellarAccount(
 
 async function createOfframpAndMergeTransaction(
   fundingAccountPk: string,
-  sep24Result: Sep24Result,
+  sepResult: SepResult,
   ephemeralKeys: Keypair,
   ephemeralAccount: Account,
   tokenConfig: TokenDetails,
@@ -150,7 +150,7 @@ async function createOfframpAndMergeTransaction(
   // We allow for more TTL since the redeem may take time
   const maxTime = Date.now() + 1000 * 60 * 30;
   const sequence = ephemeralAccount.sequenceNumber();
-  const { amount, memo, memoType, offrampingAccount } = sep24Result;
+  const { amount, memo, memoType, offrampingAccount } = sepResult;
 
   //cast the memo to corresponding type
   let transactionMemo;
@@ -217,7 +217,7 @@ async function createOfframpAndMergeTransaction(
     },
     body: JSON.stringify({
       accountId: ephemeralAccount.accountId(),
-      paymentData: sep24Result,
+      paymentData: sepResult,
       sequence,
       maxTime,
       assetCode: tokenConfig.assetCode,

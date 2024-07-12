@@ -3,10 +3,16 @@ import { storageService } from '../services/localStorage';
 import { ExecutionInput, OperationStatus } from '../types';
 import Big from 'big.js';
 import { storageKeys } from '../constants/localStorage';
-import { Sep24Result } from '../services/anchor';
+import { SepResult } from '../services/anchor';
 import { IAnchorSessionParams } from '../services/anchor';
 import { StellarOperations } from '../services/stellar';
 import { recoverEphemeralAccount } from '../services/polkadot/ephemeral';
+import { restoreStellarEphemeralKeys } from '../services/anchor';
+
+export type RecoveryHookResult = {
+  isRecovery: boolean;
+  isRecoveryError: boolean;
+};
 
 // Hook to eventually read all relevant values from the local storage
 // and load into app state.
@@ -14,23 +20,24 @@ export function useRecovery(
   setStatus: (status: OperationStatus) => void,
   setExecutionInput: (input: ExecutionInput | undefined) => void,
   setTokenBridgedAmount: (amount: Big | null) => void,
-  setSep24Result: (result: Sep24Result | null) => void,
+  setSepResult: (result: SepResult | null) => void,
   setAnchorSessionParams: (params: IAnchorSessionParams | null) => void,
   setStellarOperations: (operations: StellarOperations | null) => void,
-): boolean {
+): RecoveryHookResult {
   const currentOfframpStatus = storageService.getParsed<OperationStatus>(storageKeys.OFFRAMP_STATUS);
-  const isRecovery = currentOfframpStatus !== undefined;
+  const isRecovery = currentOfframpStatus ? true : false;
+  let isRecoveryError = false
 
   useEffect(() => {
     if (!isRecovery) {
       return;
     }
-
-    setStatus(currentOfframpStatus);
+    // currentOfframpStatus! is safe because we are checking isRecovery. By isRecovery definition, we know it is not undefined.
+    setStatus(currentOfframpStatus!);
     setExecutionInput(storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS));
     setTokenBridgedAmount(storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT)!);
     // TODO need to do some error handling here in case one is undefined, which should not happen but...
-    setSep24Result(storageService.getParsed<Sep24Result>(storageKeys.SEP24_RESULT)!);
+    setSepResult(storageService.getParsed<SepResult>(storageKeys.SEP_RESULT)!);
     setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
     setStellarOperations(storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)!);
 
@@ -38,32 +45,44 @@ export function useRecovery(
       !currentOfframpStatus ||
       !storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS) ||
       !storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT) ||
-      !storageService.getParsed<Sep24Result>(storageKeys.SEP24_RESULT) ||
+      !storageService.getParsed<SepResult>(storageKeys.SEP_RESULT) ||
       !storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS) ||
       !storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)
     ) {
-      console.error('Error: One or more recovery parameters are undefined.');
+      console.error('Error: One or more recovery state parameters are undefined.');
+      isRecoveryError = true;
     }
 
     // Recover ephemerals 
     // If the bridge was executed, we expect the ephemeral to have funds, or at least use the same since it is coded on the destination
-    // payload.
-    if (currentOfframpStatus >= OperationStatus.BridgeExecuted) {
-      recoverEphemeralAccount();
+    // payload. 
+    // At this point we should also have the stellar ephemeral (sep10), yet it is not strictly necessary to use the same.
+    if (currentOfframpStatus! >= OperationStatus.BridgeExecuted) {
+      try {
+        recoverEphemeralAccount();
+        restoreStellarEphemeralKeys();
+      } catch{
+        isRecoveryError = true;
+        console.error('Error: Failed to recover ephemerals');
+      }
+      
     }
-    // DOING recover stellar......
+
 
     console.log('Current status: ', currentOfframpStatus);
   }, [
     setStatus,
     setExecutionInput,
     setTokenBridgedAmount,
-    setSep24Result,
+    setSepResult,
     setAnchorSessionParams,
     setStellarOperations,
   ]);
 
-  return isRecovery;
+  return {
+    isRecovery,
+    isRecoveryError,
+  }
 }
 
 export default useRecovery;

@@ -1,6 +1,8 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { TokenDetails } from '../../constants/tokenConfig';
+import { storageService } from '../localStorage';
+import { storageKeys } from '../../constants/localStorage';
 export interface TomlValues {
   signingKey?: string;
   webAuthEndpoint?: string;
@@ -21,7 +23,7 @@ export interface IAnchorSessionParams {
   offrampAmount: string;
 }
 
-export interface Sep24Result {
+export interface SepResult {
   amount: string;
   memo: string;
   memoType: string;
@@ -38,6 +40,16 @@ export const getEphemeralKeys = () => {
     ephemeralKeys = Keypair.random();
     return ephemeralKeys;
   }
+};
+
+
+export const restoreStellarEphemeralKeys = () => {
+
+  const seedPhrase = storageService.get(storageKeys.STELLAR_SEED);
+  if (!seedPhrase) {
+    throw new Error('Stellar seed phrase not found in local storage');
+  }
+  ephemeralKeys = Keypair.fromSecret(seedPhrase)
 };
 
 export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues> => {
@@ -127,9 +139,16 @@ export const sep10 = async (
 // TODO modify according to the anchor's requirements and implementation
 // we should be able to do the whole flow on this function since we have all the
 // information we need
-export async function sep6First(sessionParams: IAnchorSessionParams): Promise<void> {
+export async function sep6First(sessionParams: IAnchorSessionParams): Promise<SepResult> {
   const { token, tomlValues } = sessionParams;
   const { sep6Url } = tomlValues;
+
+  return {
+    amount: '10.4',
+    memo: 'a memo',
+    memoType: 'text',
+    offrampingAccount: 'GCUHGQ6LY3L2NAB7FX2LJGUJFCG6LKAQHVIMJLZNNBMCZUQNBPJTXE6O',
+  }
 
   const sep6Params = new URLSearchParams({
     asset_code: sessionParams.tokenConfig.assetCode!,
@@ -214,7 +233,7 @@ export async function sep24First(
 export async function sep24Second(
   sep24Values: ISep24Intermediate,
   sessionParams: IAnchorSessionParams,
-): Promise<Sep24Result> {
+): Promise<SepResult> {
   const { id } = sep24Values;
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;

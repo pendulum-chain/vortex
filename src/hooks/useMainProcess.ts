@@ -7,7 +7,7 @@ import { useRecovery } from './useRecovery';
 // Configs, Types, constants
 import { IAnchorSessionParams } from '../services/anchor';
 import { StellarOperations } from '../services/stellar';
-import { Sep24Result } from '../services/anchor';
+import { SepResult } from '../services/anchor';
 import { useSquidRouterSwap } from '../services/squidrouter';
 import { OperationStatus } from '../types';
 import { ExecutionInput } from '../types';
@@ -46,7 +46,7 @@ export const useMainProcess = () => {
   const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
-  const [sep24Result, setSepResult] = useState<Sep24Result | null>(null);
+  const [sepResult, setSepResult] = useState<SepResult | null>(null);
   const [tokenBridgedAmount, setTokenBridgedAmount] = useState<Big | null>(null);
 
   // UI states
@@ -66,7 +66,7 @@ export const useMainProcess = () => {
     setActiveEventIndex((prevIndex) => prevIndex + 1);
   };
 
-  const isRecovery = useRecovery(
+  const {isRecovery, isRecoveryError} = useRecovery(
     setStatus,
     setExecutionInput,
     setTokenBridgedAmount,
@@ -136,7 +136,7 @@ export const useMainProcess = () => {
   };
 
   const executeRedeem = useCallback(
-    async (sepResult: Sep24Result) => {
+    async (sepResult: SepResult) => {
       try {
         const ephemeralAccount = getEphemeralAccount();
         await executeSpacewalkRedeem(
@@ -184,7 +184,8 @@ export const useMainProcess = () => {
       // the sep part. (since no tokens are transferred, we may consider the whole flow as one)
       case OperationStatus.Sep10Completed:
         // TODO complete when we know how to handle the sep6 flow
-        sep6First(anchorSessionParams!).then(() => {
+        sep6First(anchorSessionParams!).then((sepResult) => {
+          setSepResult(sepResult);
           setStatus(OperationStatus.Sep6Completed);
         });
         return;
@@ -208,7 +209,7 @@ export const useMainProcess = () => {
 
       case OperationStatus.PendulumEphemeralReady:
         if (swapOptions) {
-          const enteredAmountDecimal = new Big(sep24Result!.amount);
+          const enteredAmountDecimal = new Big(sepResult!.amount);
           if (enteredAmountDecimal.gte(swapOptions.minAmountOut)) {
             // Show Event? Error? Back to Swap screen from scratch?
             // This should not happen with sep6 now that user does not type
@@ -253,7 +254,7 @@ export const useMainProcess = () => {
         addEvent('Settings stellar accounts.', EventStatus.Waiting);
         setUpAccountAndOperations(
           fundingPK!,
-          sep24Result!,
+          sepResult!,
           getEphemeralKeys(),
           anchorSessionParams!.tokenConfig,
           addEvent,
@@ -269,7 +270,7 @@ export const useMainProcess = () => {
         return;
 
       case OperationStatus.StellarEphemeralReady:
-        executeRedeem(sep24Result!);
+        executeRedeem(sepResult!);
         return;
       case OperationStatus.Redeemed:
         finalizeOfframp().catch(console.error);
@@ -289,7 +290,7 @@ export const useMainProcess = () => {
         });
         return;
     }
-  }, [status, executeRedeem, finalizeOfframp, sep24Result, executionInput]);
+  }, [status, executeRedeem, finalizeOfframp, sepResult, executionInput]);
 
   return {
     canInitiate,
@@ -297,5 +298,6 @@ export const useMainProcess = () => {
     addEvent,
     handleOnSubmit,
     isRecovery,
+    isRecoveryError,
   };
 };

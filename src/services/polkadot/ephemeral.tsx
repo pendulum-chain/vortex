@@ -43,8 +43,7 @@ export const getEphemeralAccount = () => {
 export const recoverEphemeralAccount = async () => {
   const seedPhrase = storageService.get(storageKeys.PENDULUM_SEED);
   if (!seedPhrase) {
-    console.error('Seed phrase not found in local storage');
-    return;
+    throw new Error('Pendulum seed phrase not found in local storage');
   }
 
   const keyring = new Keyring({ type: 'sr25519' });

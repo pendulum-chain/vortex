@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { IAnchorSessionParams, Sep24Result } from '../services/anchor';
+import { IAnchorSessionParams, SepResult } from '../services/anchor';
 import { sep24First, sep24Second } from '../services/anchor';
 import { EventStatus } from './GenericEvent';
 import { Button } from 'react-daisyui';
 
 interface Sep24Props {
   sessionParams: IAnchorSessionParams | null;
-  onSep24Complete: (sep24Reslt: Sep24Result) => void;
+  onSep24Complete: (sep24Reslt: SepResult) => void;
   addEvent: (message: string, status: EventStatus) => void;
 }
 
