@@ -23,6 +23,7 @@ const Arrow = () => (
 );
 
 export const Swap = () => {
+  const [isSubmitButtonDisabled, setIsSubmitButtonDisabled] = useState(true);
   const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
   const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
@@ -30,11 +31,7 @@ export const Swap = () => {
 
   const [api, setApi] = useState<ApiPromise | null>(null);
 
-  const { isDisconnected, address } = useAccount();
-  const walletAccount: { address: string; source: string } = useMemo(
-    () => ({ address: address || '', source: '' }),
-    [address],
-  );
+  const { isDisconnected } = useAccount();
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -79,15 +76,21 @@ export const Swap = () => {
     form,
   });
 
+  // Check only the first part of the form (without Bank Details)
+  const isFormValidWithoutBankDetails = useMemo(() => {
+    const errors = form.formState.errors;
+    const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
+    const isValid =
+      Boolean(from) && Boolean(to) && Boolean(fromAmount) && Boolean(tokenOutData.data?.amountOut.preciseString);
+
+    return noErrors && isValid;
+  }, [form.formState.errors, from, fromAmount, to, tokenOutData.data?.amountOut.preciseString]);
+
   function onSubmit(e: Event) {
     e.preventDefault();
 
     if (!isExchangeSectionSubmitted) {
-      const errors = form.formState.errors;
-      const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
-      const isValid = Boolean(from) && Boolean(to) && Boolean(fromAmount);
-
-      if (noErrors && isValid) {
+      if (isFormValidWithoutBankDetails) {
         setIsExchangeSectionSubmittedError(false);
         setIsExchangeSectionSubmitted(true);
       } else {
@@ -110,6 +113,21 @@ export const Swap = () => {
       setIsQuoteSubmitted(false);
     }
   }, [form, fromAmount, tokenOutData]);
+
+  // Check if the Submit button should be enabled
+  useEffect(() => {
+    console.log('form.formState: ', form.formState);
+    // Validate only the first part of the form (without Bank Details)
+    if (!isExchangeSectionSubmitted && isFormValidWithoutBankDetails) {
+      setIsSubmitButtonDisabled(false);
+    }
+    // Validate the whole form (with Bank Details)
+    else if (isExchangeSectionSubmitted && form.formState.isValid) {
+      setIsSubmitButtonDisabled(false);
+    } else {
+      setIsSubmitButtonDisabled(true);
+    }
+  }, [form.formState, form.formState.isValid, isExchangeSectionSubmitted, isFormValidWithoutBankDetails]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -191,7 +209,10 @@ export const Swap = () => {
           ) : (
             <></>
           )}
-          <SwapSubmitButton text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'} />
+          <SwapSubmitButton
+            text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
+            disabled={isSubmitButtonDisabled}
+          />
         </form>
       </main>
     </>
