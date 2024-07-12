@@ -35,5 +35,12 @@ export function useGetIcon(token?: string, defaultIcon = DefaultIcon) {
   const currentChainId = useChainId();
   const currentIconMap = IconMaps[currentChainId] || IconMaps.default;
 
-  return token && Object.keys(currentIconMap).includes(token) ? currentIconMap[token] : defaultIcon;
+  const currentChainIconMapHasTokenIcon = token && Object.keys(currentIconMap).includes(token);
+  const defaultChainIconMapHasTokenIcon = token && Object.keys(IconMaps.default).includes(token);
+
+  return currentChainIconMapHasTokenIcon
+    ? currentIconMap[token]
+    : defaultChainIconMapHasTokenIcon
+    ? IconMaps.default[token]
+    : defaultIcon;
 }
