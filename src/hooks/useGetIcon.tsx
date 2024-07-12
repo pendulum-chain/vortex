@@ -6,7 +6,7 @@ import EURC from '../assets/coins/EURC.png';
 import PEN from '../assets/coins/PEN.png';
 import USDT from '../assets/coins/USDT.png';
 import USDC from '../assets/coins/USDC.png';
-import USDC_POLYGON from '../assets/coins/USDC_POLYGON.png';
+import USDC_POLYGON from '../assets/coins/USDC_POLYGON.svg';
 
 import DefaultIcon from '../assets/coins/PEN.png';
 
