@@ -1,9 +1,7 @@
-import { WalletAccount } from '@talismn/connect-wallets';
 import { Keypair } from 'stellar-sdk';
 import { Keyring } from '@polkadot/api';
 import { getApiManagerInstance } from '../polkadotApi';
 import { getVaultsForCurrency, VaultService } from '../spacewalk';
-import { executeSpacewalkRedeem } from '../index';
 
 // The secret phrase of a substrate account on Pendulum used for requesting a redeem
 const TEST_ACCOUNT_SECRET_PHRASE = process.env.TEST_ACCOUNT_SECRET_PHRASE || '';
