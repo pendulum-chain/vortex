@@ -30,6 +30,7 @@ class ApiManager {
 
     console.log(`Connecting to node ${network.wss}...`);
     this.apiData = await this.connectApi(network.wss);
+    await this.apiData.api.isReady;
     console.log(`Connected to node ${network.wss}`);
   }
 
@@ -70,8 +71,9 @@ let instance: ApiManager | undefined = undefined;
 
 export async function getApiManagerInstance(): Promise<ApiManager> {
   if (!instance) {
-    instance = new ApiManager();
-    await instance.populateApi();
+    let instancePreparing = new ApiManager();
+    await instancePreparing.populateApi();
+    instance = instancePreparing;
   }
   return instance;
 }

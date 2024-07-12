@@ -40,13 +40,16 @@ import { EventStatus, GenericEvent } from '../components/GenericEvent';
 
 export const useMainProcess = () => {
 
-  // MOCKING approval performed
-        // let recoveryStatus = {
-        //   approvalHash: '0xe2798e5c30915033e3d5aaecf2cb2704c31f0a68624013849729ac5c69f83048',
-        //   swapHash: undefined,
-        // }
+  // MOCKING states
+  // Aproval performed
+  // let recoveryStatus = {
+  //   approvalHash: '0xe2798e5c30915033e3d5aaecf2cb2704c31f0a68624013849729ac5c69f83048',
+  //   swapHash: undefined,
+  // }
 
-  // MOCKING swap performed
+  // 
+  // load polkadot api
+
   let recoveryStatus = {
     approvalHash: '0xe2798e5c30915033e3d5aaecf2cb2704c31f0a68624013849729ac5c69f83048',
     swapHash: undefined,
@@ -109,9 +112,7 @@ export const useMainProcess = () => {
   // Update app states based on squidrouter progress
   // Fund the ephemeral account after the squid swap is completed
 
-  // Should we fund this after approval or after the swap is completed?
-  // TODO Right now, the SwapCompleted variant is never set. We need to fix this and
-  // only then asign BridgeExected status and account funding
+  // We fund this after approval or after the swap is completed
   useEffect(() => {
     console.log('Transaction status: ', transactionStatus);
     if (transactionStatus == TransactionStatus.SwapCompleted) {

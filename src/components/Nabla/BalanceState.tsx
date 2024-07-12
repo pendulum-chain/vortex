@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { toBigNumber } from '../../helpers/parseNumbers';
-import { getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { parseContractBalanceResponse } from '../../helpers/contracts';
 import { ContractBalance } from '../../helpers/contracts';
