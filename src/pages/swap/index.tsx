@@ -179,7 +179,7 @@ export const Swap = () => {
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
           {errors}
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
-          <FeeCollapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
+          <FeeCollapse amount={fromAmount?.toString()} currency="$" />
           <section className="flex items-center justify-center w-full mt-5">
             <BenefitsList amount={fromAmount} currency={from} />
           </section>
