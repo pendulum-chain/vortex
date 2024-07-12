@@ -1,4 +1,5 @@
 import { u128 } from '@polkadot/types-codec';
+import Big from 'big.js';
 import BigNumber from 'big.js';
 
 // These are the decimals used for the native currency on the Amplitude network
@@ -154,3 +155,7 @@ export const prettyNumbers = (number: number, lang?: string, opts?: Intl.NumberF
 export const roundNumber = (value: number | string = 0, round = 6) => {
   return +Number(value).toFixed(round);
 };
+
+export function roundDownToSignificantDecimals(big: BigNumber, decimals: number) {
+  return big.prec(Math.max(0, big.e + 1) + decimals, 0);
+}

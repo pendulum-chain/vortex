@@ -116,7 +116,6 @@ export const Swap = () => {
 
   // Check if the Submit button should be enabled
   useEffect(() => {
-    console.log('form.formState: ', form.formState);
     // Validate only the first part of the form (without Bank Details)
     if (!isExchangeSectionSubmitted && isFormValidWithoutBankDetails) {
       setIsSubmitButtonDisabled(false);
@@ -197,7 +196,11 @@ export const Swap = () => {
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
           {errors}
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
-          <FeeCollapse amount={fromAmount?.toString()} currency="$" />
+          <FeeCollapse
+            fromAmount={fromAmount?.toString()}
+            toAmount={tokenOutData.data?.amountOut.preciseString}
+            toCurrency={toToken?.assetCode}
+          />
           <section className="flex items-center justify-center w-full mt-5">
             <BenefitsList amount={fromAmount} currency={from} />
           </section>

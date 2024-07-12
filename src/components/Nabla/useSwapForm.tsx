@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
-import { useState, useCallback, useMemo, useDeferredValue } from 'preact/compat';
+import { useState, useCallback, useMemo } from 'preact/compat';
 import { yupResolver } from '@hookform/resolvers/yup';
 
 import { TOKEN_CONFIG, TokenDetails, TokenType } from '../../constants/tokenConfig';

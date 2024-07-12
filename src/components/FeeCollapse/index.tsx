@@ -3,19 +3,28 @@ import { useState } from 'preact/hooks';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import Big from 'big.js';
+import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
+
+const FEES_RATE = 0.05; // 0.5% fee rate
+
+function calculateTotalReceive(toAmount: string): string {
+  const totalReceive = Number(toAmount) * (1 - FEES_RATE);
+  return roundDownToSignificantDecimals(new Big(totalReceive || 0), 2).toString();
+}
+
+function calculateFeesUSD(fromAmount: string): string {
+  const totalReceiveUSD = Number(fromAmount) * (1 - FEES_RATE);
+  const feesCost = Number(fromAmount) - Number(totalReceiveUSD);
+  return roundDownToSignificantDecimals(new Big(feesCost || 0), 2).toString();
+}
 
 interface CollapseProps {
-  amount?: string;
-  currency?: string;
+  fromAmount?: string;
+  toAmount?: string;
+  toCurrency?: string;
 }
 
-const FEES_RATE = 0.05;
-
-function roundDownToSignificantDecimals(big: Big, decimals: number): Big {
-  return big.prec(Math.max(0, big.e + 1) + decimals, 0);
-}
-
-export const FeeCollapse: FC<CollapseProps> = ({ amount, currency }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toCurrency }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleIsOpen = () => setIsOpen((state) => !state);
@@ -26,11 +35,8 @@ export const FeeCollapse: FC<CollapseProps> = ({ amount, currency }) => {
     <ChevronDownIcon className="w-8 text-blue-700" />
   );
 
-  const totalReceive = Number(amount) * (1 - FEES_RATE);
-  const totalReceiveTrimmed = roundDownToSignificantDecimals(new Big(totalReceive || 0), 2);
-
-  const feesCost = Number(amount) - Number(totalReceiveTrimmed);
-  const feesCostTrimmed = roundDownToSignificantDecimals(new Big(feesCost || 0), 2);
+  const totalReceive = calculateTotalReceive(toAmount || '0');
+  const feesCost = calculateFeesUSD(fromAmount || '0');
 
   return (
     <details className="transition border border-blue-700 collapse" onClick={toggleIsOpen}>
@@ -38,8 +44,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ amount, currency }) => {
         <div className="flex items-center justify-between">
           <p>
             <strong className="font-bold">
-              {isNaN(totalReceive) ? '0.00' : totalReceiveTrimmed.toString()}
-              {currency}
+              {totalReceive} {toCurrency}
             </strong>
             &nbsp;is what you will receive, after fees
           </p>
@@ -54,10 +59,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ amount, currency }) => {
           <p>Total fees</p>
           <div className="flex">
             <LocalGasStationIcon className="w-8 text-blue-700" />
-            <span>
-              {isNaN(feesCost) ? '0.00' : feesCostTrimmed.toString()}
-              {currency}
-            </span>
+            <span>${feesCost}</span>
           </div>
         </div>
       </div>
