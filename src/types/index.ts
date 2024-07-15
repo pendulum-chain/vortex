@@ -13,7 +13,8 @@ export enum OperationStatus {
   PendulumEphemeralReady, // Confirmation that the ephemeral received both the expected tokens and the native balance
   NablaSwapApproved, // Confirmation that the tokens where approved
   NablaSwapPerformed, // Confirmation that the swap went through
-  StellarEphemeralReady, // Ephemeral account keypair was craeted, saved and is funded (created)
+  StellarEphemeralFunded, // Ephemeral account was created and funded
+  StellarEphemeralReady, // Operations for transfer and cleaning were created and saved
   Redeemed, // Confirmation that the redeem tx went through
   Offramped, // Confirmation that stellar transaction to offramp went through
   StellarCleaned, // Confirmation that the stellar account was merged

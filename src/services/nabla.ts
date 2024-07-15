@@ -21,6 +21,8 @@ export interface PerformSwapProps {
   minAmountOut: Big;
 }
 
+// Since this operation reads first from chain the current approval, there is no need to 
+// save any state for potential recovery.
 export async function nablaApprove(
   { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
   renderEvent: (event: string, status: EventStatus) => void,
@@ -31,7 +33,6 @@ export async function nablaApprove(
 
   const amountIn = toBigNumber(amountInRaw, assetInDetails.decimals);
 
-  renderEvent('Attempting swap', EventStatus.Waiting);
   console.log('swap', 'Attempting swap', amountIn, assetOut, assetIn, minAmountOut);
   // get chain api, abi
   const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
@@ -99,8 +100,6 @@ export async function nablaSwap(
 
   const amountIn = toBigNumber(amountInRaw, assetInDetails.decimals);
 
-  renderEvent('Attempting swap', EventStatus.Waiting);
-  console.log('swap', 'Attempting swap', amountIn, assetOut, assetIn, minAmountOut);
   // get chain api, abi
   const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
   const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
@@ -112,13 +111,21 @@ export async function nablaSwap(
   const rawAmountToSwapBig = amountInRaw;
   const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
 
-  // balance before the swap
+  // balance before the swap. Important for recovery process. 
+  // if transaction was able to get in, but we failed on the listening 
   const responseBalanceBefore = (
     await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
   ).toHuman() as any;
 
   const rawBalanceBefore = responseBalanceBefore?.free || '0';
   const balanceBeforeBigDecimal = toBigNumber(rawBalanceBefore, assetOutDetails.decimals);
+
+  // Since this is an ephemeral account, balanceBefore being greater than the minimum amount means that the swap was successful
+  // but we missed the event. This is important for recovery process.
+  if (balanceBeforeBigDecimal.gte(rawAmountMinBig)) {
+    renderEvent(`Swap successful. Amount received: ${balanceBeforeBigDecimal}`, EventStatus.Success);
+    return balanceBeforeBigDecimal;
+  }
 
   // Try swap
   try {
@@ -157,7 +164,7 @@ export async function nablaSwap(
 
   const rawBalanceAfter = responseBalanceAfter?.free || '0';
   const balanceAfterBigDecimal = toBigNumber(rawBalanceAfter, assetOutDetails.decimals);
-
+  
   const actualOfframpValue = balanceAfterBigDecimal.sub(balanceBeforeBigDecimal);
 
   renderEvent(`Swap successful. Amount received: ${actualOfframpValue}`, EventStatus.Success);

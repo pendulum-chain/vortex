@@ -35,7 +35,9 @@ export function useRecovery(
     }
 
     // currentOfframpStatus! is safe because we are checking isRecovery. By isRecovery definition, we know it is not undefined.
-    // need to recover corresponding states depending on the current status
+
+    // Need to recover corresponding states depending on the current status
+    // TODO need to do some error handling here in case one is undefined, which should not happen but...
     if (currentOfframpStatus! >= OperationStatus.Sep6Completed ){
       setSepResult(storageService.getParsed<SepResult>(storageKeys.SEP_RESULT)!);
       setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
@@ -43,23 +45,14 @@ export function useRecovery(
     if (currentOfframpStatus! >= OperationStatus.BridgeExecuted) {
       setExecutionInput(storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS));
     }
+    if (currentOfframpStatus! >= OperationStatus.PendulumEphemeralReady) {
+      setTokenBridgedAmount(storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT)!);
+    }
+
     if (currentOfframpStatus! >= OperationStatus.StellarEphemeralReady) {
       setStellarOperations(storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)!);
     }
     
-    // TODO need to do some error handling here in case one is undefined, which should not happen but...
-    // something like:
-    // if (
-    //   !currentOfframpStatus ||
-    //   !storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS) ||
-    //   !storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT) ||
-    //   !storageService.getParsed<SepResult>(storageKeys.SEP_RESULT) ||
-    //   !storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS) ||
-    //   !storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)
-    // ) {
-    //   console.error('Error: One or more recovery state parameters are undefined.');
-    //   isRecoveryError = true;
-    // }
 
     // Recover ephemerals
     // If the bridge was executed, we expect the ephemeral to have funds, or at least use the same since it is coded on the destination
@@ -84,6 +77,12 @@ export function useRecovery(
     isRecovery,
     isRecoveryError,
   };
+}
+
+export function clearLocalStorageKeys(storageKeys: any) {
+  Object.values(storageKeys).forEach(key => {
+    storageService.remove(key as string);
+  });
 }
 
 export default useRecovery;
