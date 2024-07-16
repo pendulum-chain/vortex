@@ -38,6 +38,13 @@ export function useRecovery(
 
     // Need to recover corresponding states depending on the current status
     // TODO need to do some error handling here in case one is undefined, which should not happen but...
+    
+    // At this point we should also have the stellar ephemeral (sep10), yet it is not strictly necessary to use the same, but we 
+    // are not redoing the sep10.
+    if (currentOfframpStatus! >= OperationStatus.Sep10Completed) {
+      restoreStellarEphemeralKeys();
+    }
+
     if (currentOfframpStatus! >= OperationStatus.SepCompleted) {
       setSepResult(storageService.getParsed<SepResult>(storageKeys.SEP_RESULT)!);
       setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
@@ -56,11 +63,9 @@ export function useRecovery(
     // Recover ephemerals
     // If the bridge was executed, we expect the ephemeral to have funds, or at least use the same since it is coded on the destination
     // payload.
-    // At this point we should also have the stellar ephemeral (sep10), yet it is not strictly necessary to use the same.
     if (currentOfframpStatus! >= OperationStatus.BridgeExecuted) {
       try {
         recoverEphemeralAccount();
-        restoreStellarEphemeralKeys();
       } catch {
         isRecoveryError = true;
         console.error('Error: Failed to recover ephemerals');

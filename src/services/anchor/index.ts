@@ -38,6 +38,7 @@ export const getEphemeralKeys = () => {
     return ephemeralKeys;
   } else {
     ephemeralKeys = Keypair.random();
+    storageService.set(storageKeys.STELLAR_SEED, ephemeralKeys);
     return ephemeralKeys;
   }
 };
