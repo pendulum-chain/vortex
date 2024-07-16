@@ -248,7 +248,7 @@ function Landing() {
       return;
     }
     console.log('Transaction status: ', transactionStatus);
-    if (transactionStatus == TransactionStatus.SpendingApproved) {
+    if (transactionStatus == TransactionStatus.SwapCompleted) {
       console.log('Funding account after squid swap is completed');
       addEvent('Approval to Squidrouter completed', EventStatus.Success);
       fundEphemeralAccount();
