@@ -60,7 +60,7 @@ export const useMainProcess = () => {
   // seession and operations states
   const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
-  const [sep24IntermediateValues, setSep24IntermediateValues] = useState<ISep24Intermediate | null>(null);
+  const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
   const [sepResult, setSepResult] = useState<SepResult | null>(null);
   const [tokenBridgedAmount, setTokenBridgedAmount] = useState<Big | null>(null);
@@ -199,37 +199,23 @@ export const useMainProcess = () => {
     addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
   }, [stellarOperations]);
 
-  // Sep 24 entry point callback
-  const onExternalWindowClicked = useCallback(async () => {
-    if (anchorSessionParams) {
-      sep24First(anchorSessionParams).then((response) => {
-        console.log(`anchor interactive url: ${response.url}`)
-        window.open(`${response.url}`, '_blank');
-        setSep24IntermediateValues(response);
-      });
-    }
-
-    setExternalWindowOpened(true);
-  }, [anchorSessionParams]);
-
-  const handleSepCompletion = useCallback(async () => {
-    // at this point setSep24IntermediateValues should not be null, as well as
-    // sessionParams
-    sep24Second(sep24IntermediateValues!, anchorSessionParams!).then((response) => {
-      setSepResult(response);
-      setNextStatus(OperationStatus.SepCompleted);
-    });
-  }, [sep24IntermediateValues, anchorSessionParams]);
 
   useEffect(() => {
     if (executionInput === undefined) return;
     const { assetToOfframp, amountIn, swapOptions } = executionInput;
     switch (status) {
       case OperationStatus.Sep10Completed:
+        console.log("initiating sep process")
+
         sep24First(anchorSessionParams!).then((response) => {
-          window.open(`${response.url}`, '_blank');
-          setSep24IntermediateValues(response);
           setExternalWindowOpened(true);
+          setSep24Url(response.url);
+          console.log('sep24 url:', response.url);
+
+          sep24Second(response, anchorSessionParams!).then((response) => {
+            setSepResult(response);
+            setNextStatus(OperationStatus.SepCompleted);
+        });
         });
         return;
 
@@ -348,8 +334,7 @@ export const useMainProcess = () => {
     externalWindowOpened,
     isRecovery,
     isRecoveryError,
-    handleOnSubmit,
-    handleSepCompletion,
-    onExternalWindowClicked,
+    sep24Url,
+    handleOnSubmit
   };
 };
