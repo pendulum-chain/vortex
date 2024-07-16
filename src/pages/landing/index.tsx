@@ -72,7 +72,7 @@ function Landing() {
 
   //Squidrouter hook
   const [amountInNative, setAmountIn] = useState<string>('0');
-  const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
+  const { transactionStatus, executeSquidRouterSwap, approveError, swapError, confirmationApprovalError, confirmationSwapError } = useSquidRouterSwap(amountInNative);
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
@@ -238,13 +238,24 @@ function Landing() {
   // Should we fund this after approval or after the swap is completed?
   // Right now, the SwapCompleted variant is never set.
   useEffect(() => {
+
+    if (approveError || confirmationSwapError) {
+      addEvent('Approval to squidrouter failed, please refresh the page', EventStatus.Error);
+      return;
+    }
+    if (swapError || confirmationSwapError) {
+      addEvent('Squidrouter contract call signature failed, please refresh the page', EventStatus.Error);
+      return;
+    }
     console.log('Transaction status: ', transactionStatus);
     if (transactionStatus == TransactionStatus.SpendingApproved) {
       console.log('Funding account after squid swap is completed');
       addEvent('Approval to Squidrouter completed', EventStatus.Success);
       fundEphemeralAccount();
     }
-  }, [transactionStatus, error]);
+
+    
+  }, [transactionStatus, approveError, swapError, confirmationApprovalError, confirmationSwapError]);
 
   useEffect(() => {
     scrollToLatestEvent();

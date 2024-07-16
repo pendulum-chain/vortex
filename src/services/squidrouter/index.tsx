@@ -10,7 +10,7 @@ function useApproveSpending(
   fromAmount: string,
 ) {
   const { data: hash, error, isPending, writeContract } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isConfirmed, error: confirmationApprovalError } = useWaitForTransactionReceipt({
     hash,
   });
 
@@ -28,6 +28,7 @@ function useApproveSpending(
   return {
     approveSpending,
     error,
+    confirmationApprovalError,
     isPending,
     isConfirming,
     isConfirmed,
@@ -36,7 +37,7 @@ function useApproveSpending(
 
 function useSendSwapTransaction(transactionRequest: any) {
   const { data: hash, isPending, error, status, sendTransaction } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: hash });
+  const { isLoading: isConfirming, isSuccess: isConfirmed, error: confirmationSwapError } = useWaitForTransactionReceipt({ hash: hash });
 
   const sendSwapTransaction = useCallback(async () => {
     if (!transactionRequest) {
@@ -58,6 +59,7 @@ function useSendSwapTransaction(transactionRequest: any) {
   return {
     hash,
     error,
+    confirmationSwapError,
     sendSwapTransaction,
     isConfirming,
     isConfirmed,
@@ -87,6 +89,7 @@ export function useSquidRouterSwap(amount: string) {
     isConfirming: isApprovalConfirming,
     isConfirmed: isSpendingApproved,
     error: approveError,
+    confirmationApprovalError,
   } = useApproveSpending(transactionRequest?.target, fromToken, amount);
 
   const {
@@ -95,6 +98,7 @@ export function useSquidRouterSwap(amount: string) {
     isConfirmed: isSwapCompleted,
     sendSwapTransaction,
     error: swapError,
+    confirmationSwapError,
   } = useSendSwapTransaction(transactionRequest);
   // Update the transaction status
   useEffect(() => {
@@ -169,6 +173,9 @@ export function useSquidRouterSwap(amount: string) {
   return {
     transactionStatus,
     executeSquidRouterSwap,
-    error: approveError || swapError,
+    approveError,
+    swapError,
+    confirmationApprovalError,
+    confirmationSwapError,
   };
 }
