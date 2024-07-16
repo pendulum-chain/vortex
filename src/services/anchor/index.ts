@@ -194,10 +194,7 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
   //>????
 }
 
-export async function sep24First(
-  sessionParams: IAnchorSessionParams,
-  renderEvent: (event: string, status: EventStatus) => void,
-): Promise<ISep24Intermediate> {
+export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
@@ -215,13 +212,11 @@ export async function sep24First(
   });
   if (sep24Response.status !== 200) {
     console.log(await sep24Response.json(), sep24Params.toString());
-    renderEvent(`Failed to initiate SEP-24: ${sep24Response.statusText}, ${fetchUrl}`, EventStatus.Error);
     throw new Error(`Failed to initiate SEP-24: ${sep24Response.statusText}`);
   }
 
   const { type, url, id } = await sep24Response.json();
   if (type !== 'interactive_customer_info_needed') {
-    renderEvent(`Unexpected SEP-24 type: ${type}`, EventStatus.Error);
     throw new Error(`Unexpected SEP-24 type: ${type}`);
   }
 

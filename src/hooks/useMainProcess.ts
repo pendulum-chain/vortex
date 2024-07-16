@@ -5,7 +5,7 @@ import { storageService } from '../services/localStorage';
 import { useRecovery, clearLocalStorageKeys } from './useRecovery';
 
 // Configs, Types, constants
-import { IAnchorSessionParams } from '../services/anchor';
+import { IAnchorSessionParams, sep24First } from '../services/anchor';
 import { StellarOperations } from '../services/stellar';
 import { SepResult } from '../services/anchor';
 import { useSquidRouterSwap } from '../services/squidrouter';
@@ -27,7 +27,7 @@ import {
 } from '../services/polkadot/ephemeral';
 import { executeSpacewalkRedeem } from '../services/polkadot';
 import { setUpAccountAndOperations } from '../services/stellar';
-import { fetchTomlValues, getEphemeralKeys, sep10, sep6First } from '../services/anchor';
+import { fetchTomlValues, getEphemeralKeys, sep10, ISep24Intermediate, sep24Second } from '../services/anchor';
 import { submitOfframpTransaction, cleanupStellarEphemeral, setupStellarAccount } from '../services/stellar';
 import { fetchSigningServicePK } from '../services/signingService';
 
@@ -42,7 +42,6 @@ import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import { checkStellarBalance } from '../services/stellar/utils';
 
 export const useMainProcess = () => {
-
   // EXAMPLE mocking states
 
   // Approval already performed (scenario: service shut down after sending approval but before getting it's confirmation)
@@ -61,9 +60,11 @@ export const useMainProcess = () => {
   // seession and operations states
   const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
+  const [sep24IntermediateValues, setSep24IntermediateValues] = useState<ISep24Intermediate | null>(null);
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
   const [sepResult, setSepResult] = useState<SepResult | null>(null);
   const [tokenBridgedAmount, setTokenBridgedAmount] = useState<Big | null>(null);
+  const [externalWindowOpened, setExternalWindowOpened] = useState<boolean>(false);
 
   // UI states
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
@@ -82,7 +83,6 @@ export const useMainProcess = () => {
     setActiveEventIndex((prevIndex) => prevIndex + 1);
   };
 
-
   // Hook to trigger recovery logic. This will be triggered if the user has a previous session stored in the local storage
   // Results can be used to display on the UI the necessary information and hide the offramp box.
   const { isRecovery, isRecoveryError } = useRecovery(
@@ -98,11 +98,9 @@ export const useMainProcess = () => {
   useEffect(() => {
     const initiate = async () => {
       try {
-
         const fundingPK = await fetchSigningServicePK();
         setFundingPK(fundingPK);
         setCanInitiate(true);
-
       } catch (error) {
         setBackendError(true);
         console.error('Error fetching token', error);
@@ -153,14 +151,16 @@ export const useMainProcess = () => {
     setAnchorSessionParams(anchorSessionParams);
     storageService.set(storageKeys.ANCHOR_SESSION_PARAMS, anchorSessionParams);
 
-
     setNextStatus(OperationStatus.Sep10Completed);
   };
 
-  const setNextStatus = useCallback((nextStatus: OperationStatus) => {
-    setStatus(nextStatus);
-    storageService.set(storageKeys.OFFRAMP_STATUS, nextStatus);
-  }, [setStatus]);
+  const setNextStatus = useCallback(
+    (nextStatus: OperationStatus) => {
+      setStatus(nextStatus);
+      storageService.set(storageKeys.OFFRAMP_STATUS, nextStatus);
+    },
+    [setStatus],
+  );
 
   const executeRedeem = useCallback(
     async (sepResult: SepResult) => {
@@ -195,34 +195,51 @@ export const useMainProcess = () => {
       addEvent('Offramp transaction failed', EventStatus.Error);
       return;
     }
-
     setNextStatus(OperationStatus.Offramped);
-    // we may not necessarily need to show the user an error, since the offramp transaction is already submitted
-    // and successful
-    // This will not affect the user
 
     addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
   }, [stellarOperations]);
+
+
+  // Sep 24 entry point callback
+  const onExternalWindowClicked = useCallback(async () =>  {
+    if (anchorSessionParams) {
+      sep24First(anchorSessionParams).then((response) => {
+        window.open(`${response.url}`, '_blank');
+        setSep24IntermediateValues(response);
+      });
+    }
+
+    setExternalWindowOpened(true);
+  }, [anchorSessionParams]);
+
+  const handleSepCompletion = useCallback(async () => {
+    // at this point setSep24IntermediateValues should not be null, as well as
+    // sessionParams
+    sep24Second(sep24IntermediateValues!, anchorSessionParams!).then((response) => {
+      setSepResult(response);
+      setNextStatus(OperationStatus.SepCompleted);
+    });
+  }, [sep24IntermediateValues, anchorSessionParams]);
+
 
   useEffect(() => {
     if (executionInput === undefined) return;
     const { assetToOfframp, amountIn, swapOptions } = executionInput;
     switch (status) {
-      // TODO Split this in as many parts depending if we care or not on retaking the process at
-      // the sep part. (since no tokens are transferred, we may consider the whole flow as one)
       case OperationStatus.Sep10Completed:
-        // TODO complete when we know how to handle the sep6 flow
-        sep6First(anchorSessionParams!).then((sepResult) => {
-          setSepResult(sepResult);
-          setNextStatus(OperationStatus.Sep6Completed);
-          storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
+        sep24First(anchorSessionParams!).then((response) => {
+          window.open(`${response.url}`, '_blank');
+          setSep24IntermediateValues(response);
+          setExternalWindowOpened(true);
         });
         return;
-      case OperationStatus.Sep6Completed:
-        console.log("executing squirrouter swap....")
-        executeSquidRouterSwap();
 
+      case OperationStatus.SepCompleted:
+        console.log('executing squirrouter swap....');
+        executeSquidRouterSwap();
         return;
+
       case OperationStatus.BridgeExecuted:
         // TODO we obviusly need to change hardcoding the swap option here, for when we support
         // more than one asset on polygon
@@ -290,11 +307,7 @@ export const useMainProcess = () => {
       case OperationStatus.StellarEphemeralFunded:
         // set up the ephemeral account and operations we will later neeed
         addEvent('Settings stellar accounts.', EventStatus.Waiting);
-        setUpAccountAndOperations(
-          fundingPK!,
-          sepResult!,
-          anchorSessionParams!.tokenConfig,
-        )
+        setUpAccountAndOperations(fundingPK!, sepResult!, anchorSessionParams!.tokenConfig)
           .then((operations) => {
             setStellarOperations(operations);
             addEvent('Stellar ephemeral account ready.', EventStatus.Waiting);
@@ -313,7 +326,7 @@ export const useMainProcess = () => {
         finalizeOfframp().catch(console.error);
         return;
 
-      // Offramp succesfull but first cleanup (Stellar) did not happened. We attemp to transfer again, since we do not 
+      // Offramp succesfull but first cleanup (Stellar) did not happened. We attemp to transfer again, since we do not
       // handle errors anyway.
       case OperationStatus.Offramped:
         cleanupStellarEphemeral(stellarOperations!.mergeAccountTransaction, addEvent).finally(() => {
@@ -334,9 +347,11 @@ export const useMainProcess = () => {
   return {
     canInitiate,
     anchorSessionParams,
-    addEvent,
-    handleOnSubmit,
+    externalWindowOpened,
     isRecovery,
     isRecoveryError,
+    handleOnSubmit,
+    handleSepCompletion,
+    onExternalWindowClicked,
   };
 };

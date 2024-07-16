@@ -52,7 +52,7 @@ export const Swap = () => {
   }, []);
 
   // Main process hook
-  const { canInitiate, anchorSessionParams, handleOnSubmit, isRecovery } = useMainProcess();
+  const { canInitiate, anchorSessionParams, isRecovery, externalWindowOpened, handleOnSubmit, handleSepCompletion, onExternalWindowClicked } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -214,6 +214,9 @@ export const Swap = () => {
             <></>
           )}
           <SwapSubmitButton text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'} />
+          <div>
+
+    </div>
         </form>
       </main>
     </>

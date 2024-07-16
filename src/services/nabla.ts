@@ -21,7 +21,7 @@ export interface PerformSwapProps {
   minAmountOut: Big;
 }
 
-// Since this operation reads first from chain the current approval, there is no need to 
+// Since this operation reads first from chain the current approval, there is no need to
 // save any state for potential recovery.
 export async function nablaApprove(
   { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
@@ -111,8 +111,8 @@ export async function nablaSwap(
   const rawAmountToSwapBig = amountInRaw;
   const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
 
-  // balance before the swap. Important for recovery process. 
-  // if transaction was able to get in, but we failed on the listening 
+  // balance before the swap. Important for recovery process.
+  // if transaction was able to get in, but we failed on the listening
   const responseBalanceBefore = (
     await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
   ).toHuman() as any;
@@ -164,7 +164,7 @@ export async function nablaSwap(
 
   const rawBalanceAfter = responseBalanceAfter?.free || '0';
   const balanceAfterBigDecimal = toBigNumber(rawBalanceAfter, assetOutDetails.decimals);
-  
+
   const actualOfframpValue = balanceAfterBigDecimal.sub(balanceBeforeBigDecimal);
 
   renderEvent(`Swap successful. Amount received: ${actualOfframpValue}`, EventStatus.Success);

@@ -19,12 +19,10 @@ export async function executeSpacewalkRedeem(
   isRecovery: boolean,
   renderEvent: (event: string, status: EventStatus) => void,
 ) {
-  console.log('isRecovery', isRecovery);
-
-   // We wait for up to 5 minutes
+  // We wait for up to 5 minutes
   const maxWaitingTimeMin = 5;
   const maxWaitingTimeMs = maxWaitingTimeMin * 60 * 1000;
-  const stellarPollingTimeMs = 1*1000;
+  const stellarPollingTimeMs = 1 * 1000;
 
   const pendulumApiComponents = await new ApiManager().getApiComponents();
   // Query all available vaults for the currency
@@ -47,11 +45,11 @@ export async function executeSpacewalkRedeem(
   const stellarTargetKeypair = Keypair.fromPublicKey(stellarTargetAccountId);
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
 
-  // Recovery guard. If the operation was shut before the redeem was executed (we didn't register the event) we can  
+  // Recovery guard. If the operation was shut before the redeem was executed (we didn't register the event) we can
   // avoid sending it again.
   // We check for stellar funds.
   if (isRecovery) {
-    const someBalance = await checkStellarBalance(stellarTargetAccountId, tokenConfig.assetCode );
+    const someBalance = await checkStellarBalance(stellarTargetAccountId, tokenConfig.assetCode);
     if (someBalance.gte(amountBig)) {
       console.log(`Recovery mode: Redeem already performed.`);
       return;
@@ -66,22 +64,27 @@ export async function executeSpacewalkRedeem(
     );
     redeemRequestEvent = await vaultService.requestRedeem(accountOrPair, amountRaw, stellarTargetAccountIdRaw);
   } catch (error) {
-
     // This is a potentially recoverable error (due to redeem request done before app shut down, but not registered)
     if (isRecovery && (error as any).message.includes('AmountExceedsUserBalance')) {
       console.log(`Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.`);
       try {
-          await checkBalancePeriodically(stellarTargetAccountId, tokenConfig, amountBig, stellarPollingTimeMs, maxWaitingTimeMs);
-          console.log('Balance check completed successfully.');
-          return;
+        await checkBalancePeriodically(
+          stellarTargetAccountId,
+          tokenConfig,
+          amountBig,
+          stellarPollingTimeMs,
+          maxWaitingTimeMs,
+        );
+        console.log('Balance check completed successfully.');
+        return;
       } catch (balanceCheckError) {
-          throw new Error(`Stellar balance did not arrive on time`);
+        throw new Error(`Stellar balance did not arrive on time`);
       }
-  } else {
+    } else {
       // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
       console.log(`Failed to request redeem: ${error}`);
       throw new Error(`Failed to request redeem`);
-  }
+    }
   }
 
   console.log(
@@ -107,14 +110,20 @@ export async function executeSpacewalkRedeem(
   }
 }
 
-function checkBalancePeriodically(stellarTargetAccountId: string, tokenConfig: TokenDetails, amountDesiredBig: Big, intervalMs: number, timeoutMs: number) {
+function checkBalancePeriodically(
+  stellarTargetAccountId: string,
+  tokenConfig: TokenDetails,
+  amountDesiredBig: Big,
+  intervalMs: number,
+  timeoutMs: number,
+) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const intervalId = setInterval(async () => {
       try {
         const someBalance = await checkStellarBalance(stellarTargetAccountId, tokenConfig.assetCode);
         console.log(`Balance check: ${someBalance.toString()} / ${amountDesiredBig.toString()}`);
-        
+
         if (someBalance.gte(amountDesiredBig)) {
           clearInterval(intervalId);
           resolve(someBalance);

@@ -30,10 +30,9 @@ export const storageService: Storage = {
   },
 
   getBig: (key: string) => {
-    try{
-      new Big(localStorage?.getItem(key)!)
-    } catch
-    {
+    try {
+      new Big(localStorage?.getItem(key)!);
+    } catch {
       return undefined;
     }
   },

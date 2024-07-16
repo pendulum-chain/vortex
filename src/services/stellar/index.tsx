@@ -39,7 +39,6 @@ export async function setUpAccountAndOperations(
   sepResult: SepResult,
   tokenConfig: TokenDetails,
 ): Promise<StellarOperations> {
-
   const ephemeralKeys = getEphemeralKeys();
   const ephemeralAccountId = ephemeralKeys.publicKey();
   const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
@@ -53,21 +52,17 @@ export async function setUpAccountAndOperations(
   return { offrampingTransaction, mergeAccountTransaction };
 }
 
-export async function setupStellarAccount(
-  fundingAccountPk: string,
-  tokenConfig: TokenDetails,
-) {
+export async function setupStellarAccount(fundingAccountPk: string, tokenConfig: TokenDetails) {
   const ephemeralKeys = getEphemeralKeys();
   const ephemeralAccountId = ephemeralKeys.publicKey();
 
   // Check if the account already exists, recovery safeguard.
-  try{
+  try {
     const ephemeralAccountInitial = await horizonServer.loadAccount(ephemeralAccountId);
     if (ephemeralAccountInitial) {
-      return ephemeralAccountInitial
+      return ephemeralAccountInitial;
     }
-
-  }catch{
+  } catch {
     // The account does not exist, we need to create it. No further operation.
   }
 
@@ -136,7 +131,7 @@ export async function setupStellarAccount(
     await horizonServer.submitTransaction(createAccountTransaction);
   } catch (error: unknown) {
     const horizonError = error as { response: { data: { extras: any } } };
-    console.log(horizonError.response.data.extras)
+    console.log(horizonError.response.data.extras);
     console.error(horizonError.response.data.extras.toString());
     throw new Error('Could not submit the account creation transaction');
   }
@@ -243,7 +238,7 @@ async function createOfframpAndMergeTransaction(
   mergeAccountTransaction.addSignature(responseData.public, responseData.signature[1]);
   mergeAccountTransaction.sign(ephemeralKeys);
 
-  storageService.set(storageKeys.STELLAR_OPERATIONS, {offrampingTransaction, mergeAccountTransaction})
+  storageService.set(storageKeys.STELLAR_OPERATIONS, { offrampingTransaction, mergeAccountTransaction });
 
   return { offrampingTransaction, mergeAccountTransaction };
 }
@@ -260,14 +255,16 @@ export async function submitOfframpTransaction(
     await horizonServer.submitTransaction(offrampingTransaction);
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };
-    
-    console.log(`Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`)
+
+    console.log(
+      `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
+    );
     // check https://developers.stellar.org/docs/data/horizon/api-reference/errors/result-codes/transactions
     if (isRecovery && horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
       console.log('Recovery mode: Offramp already performed.');
       return;
     }
-    
+
     console.error(horizonError.response.data.extras);
     throw new Error('Could not submit the offramping transaction');
   }

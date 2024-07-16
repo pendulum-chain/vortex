@@ -7,8 +7,8 @@ export interface SwapOptions {
 
 export enum OperationStatus {
   Idle,
-  Sep10Completed,
-  Sep6Completed,
+  Sep10Completed, 
+  SepCompleted, // Sep6 or Sep24 completed. Ready to transfer funds.
   BridgeExecuted, // Confirmation that the bridge (squid for now) transaction went through
   PendulumEphemeralReady, // Confirmation that the ephemeral received both the expected tokens and the native balance
   NablaSwapApproved, // Confirmation that the tokens where approved

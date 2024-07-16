@@ -25,7 +25,7 @@ export function useRecovery(
   setStellarOperations: (operations: StellarOperations | null) => void,
 ): RecoveryHookResult {
   const currentOfframpStatus = storageService.getParsed<OperationStatus>(storageKeys.OFFRAMP_STATUS);
-  console.log("recovered high level status: ", currentOfframpStatus);
+  console.log('recovered high level status: ', currentOfframpStatus);
   const isRecovery = currentOfframpStatus ? true : false;
   let isRecoveryError = false;
 
@@ -38,7 +38,7 @@ export function useRecovery(
 
     // Need to recover corresponding states depending on the current status
     // TODO need to do some error handling here in case one is undefined, which should not happen but...
-    if (currentOfframpStatus! >= OperationStatus.Sep6Completed ){
+    if (currentOfframpStatus! >= OperationStatus.SepCompleted) {
       setSepResult(storageService.getParsed<SepResult>(storageKeys.SEP_RESULT)!);
       setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
     }
@@ -52,7 +52,6 @@ export function useRecovery(
     if (currentOfframpStatus! >= OperationStatus.StellarEphemeralReady) {
       setStellarOperations(storageService.getParsed<StellarOperations>(storageKeys.STELLAR_OPERATIONS)!);
     }
-    
 
     // Recover ephemerals
     // If the bridge was executed, we expect the ephemeral to have funds, or at least use the same since it is coded on the destination
@@ -71,7 +70,15 @@ export function useRecovery(
     setStatus(currentOfframpStatus!);
 
     console.log('Current status: ', currentOfframpStatus);
-  }, [isRecovery, setStatus, setExecutionInput, setTokenBridgedAmount, setSepResult, setAnchorSessionParams, setStellarOperations]);
+  }, [
+    isRecovery,
+    setStatus,
+    setExecutionInput,
+    setTokenBridgedAmount,
+    setSepResult,
+    setAnchorSessionParams,
+    setStellarOperations,
+  ]);
 
   return {
     isRecovery,
@@ -80,7 +87,7 @@ export function useRecovery(
 }
 
 export function clearLocalStorageKeys(storageKeys: any) {
-  Object.values(storageKeys).forEach(key => {
+  Object.values(storageKeys).forEach((key) => {
     storageService.remove(key as string);
   });
 }

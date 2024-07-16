@@ -1,5 +1,5 @@
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract,  } from 'wagmi';
-import { getTransaction } from '@wagmi/core'
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { getTransaction } from '@wagmi/core';
 import { wagmiConfig } from '../../wagmiConfig';
 import { useCallback, useEffect, useState } from 'preact/compat';
 import { getRouteTransactionRequest } from './route';
@@ -21,41 +21,47 @@ function useApproveSpending(
   fromAmount: string,
   recoveryStatus: RecoveryStatus,
 ) {
-
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [effectiveApprovalHash, setEffectiveApprovalHash] = useState<`0x${string}`>(`0xnothing`);
   const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
 
   const { data: hash, error, isPending, writeContract } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed, status, error: txCheckError } = useWaitForTransactionReceipt({
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    status,
+    error: txCheckError,
+  } = useWaitForTransactionReceipt({
     hash: effectiveApprovalHash,
   });
 
-  try{
+  try {
     if (!isInitialCheckDone && recoveryStatus.approvalHash) {
-      const transaction = getTransaction(wagmiConfig,{
+      const transaction = getTransaction(wagmiConfig, {
         hash: recoveryStatus.approvalHash!,
-      })
-  
-      transaction.then((res) => {
-        // we can assume it was included, then.
-        if (res.blockNumber){
-          setRequiresApproval(false);
-          setIsInitialCheckDone(true);
-          setEffectiveApprovalHash(recoveryStatus.approvalHash!);
-        }
-      }).catch((error) => {
-        console.error('Error checking transaction:', error);
-        setRequiresApproval(true);
-        setIsInitialCheckDone(true);
       });
+
+      transaction
+        .then((res) => {
+          // we can assume it was included, then.
+          if (res.blockNumber) {
+            setRequiresApproval(false);
+            setIsInitialCheckDone(true);
+            setEffectiveApprovalHash(recoveryStatus.approvalHash!);
+          }
+        })
+        .catch((error) => {
+          console.error('Error checking transaction:', error);
+          setRequiresApproval(true);
+          setIsInitialCheckDone(true);
+        });
     }
     setRequiresApproval(true);
-  }catch{
-    throw new Error("saved transaction hash is corrupted")
+  } catch {
+    throw new Error('saved transaction hash is corrupted');
   }
-   // Store the new hash when it changes
-   useEffect(() => {
+  // Store the new hash when it changes
+  useEffect(() => {
     if (hash) {
       setEffectiveApprovalHash(hash);
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, { ...recoveryStatus, approvalHash: hash });
@@ -63,15 +69,13 @@ function useApproveSpending(
   }, [hash]);
 
   const approveSpending = useCallback(async () => {
-
-      console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
-      writeContract({
-        abi: erc20ABI,
-        address: fromToken,
-        functionName: 'approve',
-        args: [transactionRequestTarget, fromAmount],
-      });
-    
+    console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
+    writeContract({
+      abi: erc20ABI,
+      address: fromToken,
+      functionName: 'approve',
+      args: [transactionRequestTarget, fromAmount],
+    });
   }, [fromToken, fromAmount, transactionRequestTarget, writeContract, status]);
 
   return {
@@ -80,46 +84,52 @@ function useApproveSpending(
     isPending,
     isConfirming,
     isConfirmed,
-    requiresApproval
+    requiresApproval,
   };
 }
 
-function useSendSwapTransaction(transactionRequest: any,  recoveryStatus: RecoveryStatus) {
+function useSendSwapTransaction(transactionRequest: any, recoveryStatus: RecoveryStatus) {
   const [effectiveSwaplHash, setEffectiveSwapHash] = useState(recoveryStatus.swapHash);
   const [requiresSwapTransaction, setRequiresSwapTransaction] = useState(false);
   const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
 
   const { data: hash, isPending, error, sendTransaction } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess: isConfirmed, status, error: txCheckError } = useWaitForTransactionReceipt({ hash: effectiveSwaplHash });
-  console.log("isConfirming", isConfirming, "isConfirmed", isConfirmed, "status", status, "txCheckError", txCheckError)
-  try{
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    status,
+    error: txCheckError,
+  } = useWaitForTransactionReceipt({ hash: effectiveSwaplHash });
+  console.log('isConfirming', isConfirming, 'isConfirmed', isConfirmed, 'status', status, 'txCheckError', txCheckError);
+  try {
     if (!isInitialCheckDone && recoveryStatus.swapHash) {
-      const transaction = getTransaction(wagmiConfig,{
+      const transaction = getTransaction(wagmiConfig, {
         hash: recoveryStatus.swapHash!,
-      })
-  
-      transaction.then((res) => {
-        // we can assume it was included, then.
-        if (res.blockNumber){
-          setRequiresSwapTransaction(false);
-          setIsInitialCheckDone(true);
-          setEffectiveSwapHash(recoveryStatus.swapHash!);
-        }
-      }).catch((error) => {
-        console.error('Error checking transaction:', error);
-        setRequiresSwapTransaction(true);
-        setIsInitialCheckDone(true);
       });
+
+      transaction
+        .then((res) => {
+          // we can assume it was included, then.
+          if (res.blockNumber) {
+            setRequiresSwapTransaction(false);
+            setIsInitialCheckDone(true);
+            setEffectiveSwapHash(recoveryStatus.swapHash!);
+          }
+        })
+        .catch((error) => {
+          console.error('Error checking transaction:', error);
+          setRequiresSwapTransaction(true);
+          setIsInitialCheckDone(true);
+        });
     }
     setRequiresSwapTransaction(true);
-  }catch{
-    throw new Error("saved transaction hash is corrupted")
+  } catch {
+    throw new Error('saved transaction hash is corrupted');
   }
-  
+
   // Store the new hash when it changes
   useEffect(() => {
     if (hash) {
-
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, { ...recoveryStatus, swapHash: hash });
     }
   }, [hash]);
@@ -137,8 +147,6 @@ function useSendSwapTransaction(transactionRequest: any,  recoveryStatus: Recove
       gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
     });
   }, [transactionRequest, sendTransaction]);
-
-  
 
   return {
     hash,
@@ -197,7 +205,7 @@ export function useSquidRouterSwap(amount: string) {
 
   // Update the transaction status
   useEffect(() => {
-    console.log("isSwapCompleted", isSwapCompleted);
+    console.log('isSwapCompleted', isSwapCompleted);
     if (isApprovalConfirming) {
       setTransactionStatus(TransactionStatus.ApproveSpending);
     }
@@ -206,7 +214,7 @@ export function useSquidRouterSwap(amount: string) {
     }
     if (isSwapConfirming) {
       setTransactionStatus(TransactionStatus.InitiateSwap);
-    }  
+    }
     if (isSwapCompleted) {
       setTransactionStatus(TransactionStatus.SwapCompleted);
     }
@@ -223,15 +231,15 @@ export function useSquidRouterSwap(amount: string) {
   useEffect(() => {
     if (!transactionRequest || transactionStatus !== TransactionStatus.RouteRequested) return;
     if (!requiresApproval) return;
-    
+
     console.log('Calling function to approve spending');
     // Approve the transactionRequest.target to spend fromAmount of fromToken
     approveSpending().catch((error) => console.error('Error approving spending:', error));
   }, [approveSpending, transactionRequest, transactionStatus, requiresApproval]);
 
   useEffect(() => {
-    if (!isSpendingApproved || transactionStatus !== TransactionStatus.SpendingApproved ) return;
-    console.log("requiresSwapTransaction", requiresSwapTransaction)
+    if (!isSpendingApproved || transactionStatus !== TransactionStatus.SpendingApproved) return;
+    console.log('requiresSwapTransaction', requiresSwapTransaction);
     if (!requiresSwapTransaction) return;
 
     console.log('Transaction approved, executing swap');
@@ -264,7 +272,7 @@ export function useSquidRouterSwap(amount: string) {
     setTransactionStatus(TransactionStatus.RouteRequested);
 
     // Start by getting the transaction request for the Route
-    // if transcation request exists on store, we just set it 
+    // if transcation request exists on store, we just set it
     if (recoveryStatus.transactionRequest) {
       return;
     }

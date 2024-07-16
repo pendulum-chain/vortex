@@ -123,7 +123,6 @@ export class VaultService {
         .signAndSend(addressOrPair, options, (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
 
-
           if (status.isFinalized) {
             console.log(
               `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`,
