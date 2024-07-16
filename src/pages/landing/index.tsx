@@ -239,7 +239,7 @@ function Landing() {
   // Right now, the SwapCompleted variant is never set.
   useEffect(() => {
     console.log('Transaction status: ', transactionStatus);
-    if (approveError || confirmationSwapError) {
+    if (approveError || confirmationApprovalError) {
       addEvent('Approval to squidrouter failed, please refresh the page', EventStatus.Error);
       return;
     }
