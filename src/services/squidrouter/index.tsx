@@ -52,7 +52,7 @@ function useSendSwapTransaction(transactionRequest: any) {
       to: transactionRequest.target,
       data: transactionRequest.data,
       value: transactionRequest.value,
-      gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
+      gas: BigInt(transactionRequest.gasLimit) * BigInt(5),
     });
   }, [transactionRequest, sendTransaction]);
 
