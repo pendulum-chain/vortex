@@ -1,9 +1,9 @@
 import { Skeleton } from '../Skeleton';
-import { Avatar, AvatarProps, Button, Input } from 'react-daisyui';
+import { Input } from 'react-daisyui';
 import { ChangeEvent, useMemo, useState } from 'preact/compat';
-import { CheckIcon } from '@heroicons/react/20/solid';
 import { TOKEN_CONFIG, TokenDetails, TokenType } from '../../constants/tokenConfig';
 import { Dialog } from '../Dialog';
+import { PoolListItem } from './PoolListItem';
 
 interface PoolSelectorModalProps extends PoolListProps {
   isLoading?: boolean;
@@ -67,13 +67,13 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
     <div className="relative">
       <Input
         bordered
-        className="sticky top-0 w-full mb-8 z-10"
+        className="sticky top-0 z-10 w-full mb-8"
         onChange={(ev: ChangeEvent<HTMLInputElement>) => setFilter(ev.currentTarget.value)}
         placeholder="Find by name or address"
       />
       <div className="flex flex-col gap-1">
-        {poolList?.map((TokenDetails) => {
-          const { assetCode } = TokenDetails;
+        {poolList?.map((tokenDetails) => {
+          const { assetCode } = tokenDetails;
           let isSelected;
           switch (selected.type) {
             case 'token':
@@ -82,33 +82,7 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
           }
 
           return (
-            <Button
-              type="button"
-              size="md"
-              color="secondary"
-              key={TokenDetails.assetCode}
-              onClick={() => onSelect(TokenDetails)}
-              className="w-full items-center justify-start gap-4 px-3 py-2 h-auto border-0 bg-blackAlpha-200 text-left hover:opacity-80 dark:bg-whiteAlpha-200"
-            >
-              <span className="relative">
-                <Avatar
-                  size={'xs' as AvatarProps['size']}
-                  letters={TokenDetails.assetCode}
-                  src={TokenDetails.icon}
-                  shape="circle"
-                  className="text-xs"
-                />
-                {isSelected && (
-                  <CheckIcon className="absolute -right-1 -top-1 w-5 h-5 p-[3px] text-white bg-green-600 rounded-full" />
-                )}
-              </span>
-              <span className="flex flex-col">
-                <span className="text-lg dark:text-white leading-5">
-                  <strong>{TokenDetails.assetCode}</strong>
-                </span>
-                <span className="text-sm text-neutral-500 leading-5">{TokenDetails.assetCode}</span>
-              </span>
-            </Button>
+            <PoolListItem key={assetCode} isSelected={isSelected} onSelect={onSelect} tokenDetails={tokenDetails} />
           );
         })}
       </div>

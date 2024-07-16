@@ -3,8 +3,9 @@ import { FC } from 'preact/compat';
 
 interface SwapSubmitButtonProps {
   text: string;
+  disabled: boolean;
 }
-export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text }) => (
+export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled }) => (
   <ConnectButton.Custom>
     {({ account, chain, openConnectModal, authenticationStatus, mounted }) => {
       const ready = mounted && authenticationStatus !== 'loading';
@@ -26,7 +27,11 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text }) => (
               );
             }
 
-            return <button className="btn rounded-xl bg-blue-700 text-white w-full mt-5">{text}</button>;
+            return (
+              <button className="btn rounded-xl bg-blue-700 text-white w-full mt-5" disabled={disabled}>
+                {text}
+              </button>
+            );
           })()}
         </div>
       );

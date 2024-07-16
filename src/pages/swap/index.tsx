@@ -15,6 +15,7 @@ import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
+import { AssetCodes } from '../../constants/tokenConfig';
 
 import Big from 'big.js';
 import { useMainProcess } from '../../hooks/useMainProcess';
@@ -28,6 +29,7 @@ const Arrow = () => (
 );
 
 export const Swap = () => {
+  const [isSubmitButtonDisabled, setIsSubmitButtonDisabled] = useState(true);
   const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
   const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
@@ -35,11 +37,7 @@ export const Swap = () => {
 
   const [api, setApi] = useState<ApiPromise | null>(null);
 
-  const { isDisconnected, address } = useAccount();
-  const walletAccount: { address: string; source: string } = useMemo(
-    () => ({ address: address || '', source: '' }),
-    [address],
-  );
+  const { isDisconnected } = useAccount();
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -52,7 +50,15 @@ export const Swap = () => {
   }, []);
 
   // Main process hook
-  const { canInitiate, anchorSessionParams, isRecovery, externalWindowOpened, handleOnSubmit, handleSepCompletion, onExternalWindowClicked } = useMainProcess();
+  const {
+    canInitiate,
+    anchorSessionParams,
+    isRecovery,
+    externalWindowOpened,
+    handleOnSubmit,
+    handleSepCompletion,
+    onExternalWindowClicked,
+  } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -87,15 +93,21 @@ export const Swap = () => {
     form,
   });
 
+  // Check only the first part of the form (without Bank Details)
+  const isFormValidWithoutBankDetails = useMemo(() => {
+    const errors = form.formState.errors;
+    const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
+    const isValid =
+      Boolean(from) && Boolean(to) && Boolean(fromAmount) && Boolean(tokenOutData.data?.amountOut.preciseString);
+
+    return noErrors && isValid;
+  }, [form.formState.errors, from, fromAmount, to, tokenOutData.data?.amountOut.preciseString]);
+
   function onSubmit(e: Event) {
     e.preventDefault();
 
     if (!isExchangeSectionSubmitted) {
-      const errors = form.formState.errors;
-      const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
-      const isValid = Boolean(from) && Boolean(to) && Boolean(fromAmount);
-
-      if (noErrors && isValid) {
+      if (isFormValidWithoutBankDetails) {
         setIsExchangeSectionSubmittedError(false);
         setIsExchangeSectionSubmitted(true);
       } else {
@@ -110,7 +122,7 @@ export const Swap = () => {
     // TODO we need to pass the bank account/tax id also, required for sep12 probably.
     const swapOptions: SwapOptions = {
       assetIn: from,
-      minAmountOut: tokenOutData.data?.amountOut.preciseBigDecimal!,
+      minAmountOut: tokenOutData.data?.amountOut.preciseBigDecimal,
     };
     handleOnSubmit({
       assetToOfframp: to as TokenType,
@@ -132,6 +144,20 @@ export const Swap = () => {
       setIsQuoteSubmitted(false);
     }
   }, [form, fromAmount, tokenOutData]);
+
+  // Check if the Submit button should be enabled
+  useEffect(() => {
+    // Validate only the first part of the form (without Bank Details)
+    if (!isExchangeSectionSubmitted && isFormValidWithoutBankDetails) {
+      setIsSubmitButtonDisabled(false);
+    }
+    // Validate the whole form (with Bank Details)
+    else if (isExchangeSectionSubmitted && form.formState.isValid) {
+      setIsSubmitButtonDisabled(false);
+    } else {
+      setIsSubmitButtonDisabled(true);
+    }
+  }, [form.formState, form.formState.isValid, isExchangeSectionSubmitted, isFormValidWithoutBankDetails]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -158,23 +184,23 @@ export const Swap = () => {
     [form, fromToken, setModalType],
   );
 
-  const errors = (
-    <>
-      <div>
-        {isExchangeSectionSubmittedError ? (
-          <p className="text-red-600">You must first enter the amount you wish to withdraw</p>
-        ) : (
-          <></>
-        )}
-      </div>
-      <div>
-        {/*FIXME show other error*/}
-        {/*{form.formState.isDirty && !tokenOutData.isLoading && tokenOutData.error && (*/}
-        {/*  <p className="text-red-600">{tokenOutData.error}</p>*/}
-        {/*)}*/}
-      </div>
-    </>
-  );
+  function getCurrentErrorMessage() {
+    if (isExchangeSectionSubmittedError) {
+      return 'You must first enter the amount you wish to withdraw.';
+    }
+
+    // Minimum amount for withdrawal in BRL is 25, maximum is 25000
+    if (toToken?.assetCode === AssetCodes.BRL && tokenOutData.data?.amountOut.preciseString) {
+      if (Number(tokenOutData.data?.amountOut.preciseString) < 25) {
+        return 'Minimum withdrawal amount is 25 BRL.';
+      }
+      if (Number(tokenOutData.data?.amountOut.preciseString) > 25000) {
+        return 'Maximum withdrawal amount is 25000 BRL.';
+      }
+    }
+
+    return tokenOutData.error;
+  }
 
   return (
     <>
@@ -199,9 +225,13 @@ export const Swap = () => {
           <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
           <Arrow />
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-          {errors}
+          <p className="text-red-600">{getCurrentErrorMessage()}</p>
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
-          <FeeCollapse amount={tokenOutData.data?.amountOut.preciseString} currency={toToken?.assetCode} />
+          <FeeCollapse
+            fromAmount={fromAmount?.toString()}
+            toAmount={tokenOutData.data?.amountOut.preciseString}
+            toCurrency={toToken?.assetCode}
+          />
           <section className="flex items-center justify-center w-full mt-5">
             <BenefitsList amount={fromAmount} currency={from} />
           </section>
@@ -213,10 +243,11 @@ export const Swap = () => {
           ) : (
             <></>
           )}
-          <SwapSubmitButton text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'} />
-          <div>
-
-    </div>
+          <SwapSubmitButton
+            text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
+            disabled={Boolean(getCurrentErrorMessage())}
+          />
+          <div></div>
         </form>
       </main>
     </>

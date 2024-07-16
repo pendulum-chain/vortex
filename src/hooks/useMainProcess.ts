@@ -200,9 +200,8 @@ export const useMainProcess = () => {
     addEvent('Offramp Submitted! Funds should be available shortly', EventStatus.Success);
   }, [stellarOperations]);
 
-
   // Sep 24 entry point callback
-  const onExternalWindowClicked = useCallback(async () =>  {
+  const onExternalWindowClicked = useCallback(async () => {
     if (anchorSessionParams) {
       sep24First(anchorSessionParams).then((response) => {
         window.open(`${response.url}`, '_blank');
@@ -221,7 +220,6 @@ export const useMainProcess = () => {
       setNextStatus(OperationStatus.SepCompleted);
     });
   }, [sep24IntermediateValues, anchorSessionParams]);
-
 
   useEffect(() => {
     if (executionInput === undefined) return;

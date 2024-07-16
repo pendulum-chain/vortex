@@ -14,11 +14,7 @@ export const ChainName = () => (
         ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
 
       return (
-        <button
-          type="button"
-          className="absolute text-sm text-blue-700 translate-y-1/2 bottom-1/2 left-28"
-          onClick={connected ? openChainModal : openConnectModal}
-        >
+        <button type="button" className="text-sm text-blue-700" onClick={connected ? openChainModal : openConnectModal}>
           {chain?.name || 'Select chain'}
         </button>
       );
@@ -45,15 +41,24 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   const memoizedAssetButton = useMemo(() => <AssetButton token={fromToken} onClick={onClick} />, [fromToken, onClick]);
 
   return (
-    <div className="relative hover:cursor-pointer">
-      {memoizedAssetButton}
-      {additionalText ? (
-        <p className="absolute text-sm text-blue-700 translate-y-1/2 bottom-1/2 left-28">{additionalText}</p>
-      ) : (
-        <ChainName />
-      )}
+    <div
+      className={
+        'flex pl-2 focus:outline-none input-ghost text-accent-content input-bordered input ' +
+        (rest.disabled ? 'opacity-50 input-disabled' : '')
+      }
+    >
+      <div className="flex items-center justify-between">
+        {memoizedAssetButton}
+        <div className="w-2"></div>
+        {additionalText ? <p className="text-sm text-blue-700">{additionalText}</p> : <ChainName />}
+      </div>
 
-      <NumericInput register={registerInput} additionalStyle="text-right text-lg" {...rest} />
+      <NumericInput
+        register={registerInput}
+        additionalStyle="text-right text-lg w-full"
+        disableStyles={true}
+        {...rest}
+      />
     </div>
   );
 };

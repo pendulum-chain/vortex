@@ -1,4 +1,5 @@
 import BigNumber from 'big.js';
+import { UseQueryResult } from '@tanstack/react-query';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
 import {
@@ -10,7 +11,6 @@ import {
 } from '../../helpers/contracts';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
-import { UseQueryResult } from '@tanstack/react-query';
 import { useDebouncedValue } from '../useDebouncedValue';
 import { TOKEN_CONFIG, TokenType } from '../../constants/tokenConfig';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
@@ -128,10 +128,12 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
           case 'error':
             return 'Something went wrong';
           case 'panic':
-            return error.errorCode === 0x11 ? 'The input amount is too large' : 'Something went wrong';
+            return error.errorCode === 0x11
+              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
+              : 'Something went wrong';
           case 'reverted':
             return error.description === 'SwapPool: EXCEEDS_MAX_COVERAGE_RATIO'
-              ? 'The input amount is too large'
+              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
               : 'Something went wrong';
           default:
             return 'Something went wrong';
@@ -150,5 +152,5 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
     }
   }, [error, pending, clearErrors, setError]);
 
-  return { isLoading: pending, enabled, data, refetch };
+  return { isLoading: pending, enabled, data, refetch, error };
 }

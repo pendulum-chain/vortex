@@ -19,9 +19,9 @@ const transformNumber = (value: any, originalValue: any) => {
 };
 
 const schema = Yup.object<SwapFormValues>().shape({
-  from: Yup.string().min(5).required(),
+  from: Yup.string().required(),
   fromAmount: Yup.string().required(),
-  to: Yup.string().min(5).required(),
+  to: Yup.string().required(),
   toAmount: Yup.string().required(),
   slippage: Yup.number().nullable().transform(transformNumber),
   deadline: Yup.number().nullable().transform(transformNumber),
