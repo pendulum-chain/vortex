@@ -239,6 +239,8 @@ function Landing() {
   // Right now, the SwapCompleted variant is never set.
   useEffect(() => {
     console.log('Transaction status: ', transactionStatus);
+    const anyError = approveError || swapError || confirmationApprovalError || confirmationSwapError;
+
     if (approveError || confirmationApprovalError) {
       addEvent('Approval to squidrouter failed, please refresh the page', EventStatus.Error);
       return;
@@ -247,14 +249,13 @@ function Landing() {
       addEvent('Squidrouter contract call signature failed, please refresh the page', EventStatus.Error);
       return;
     }
-    if (transactionStatus == TransactionStatus.SwapCompleted) {
+    if (transactionStatus == TransactionStatus.SwapCompleted && !anyError) {
       console.log('Funding account after squid swap is completed');
       addEvent('Squidrouter swap initiated', EventStatus.Success);
       fundEphemeralAccount();
     }
 
-    if (transactionStatus == TransactionStatus.SpendingApproved) {
-      console.log('Funding account after squid swap is completed');
+    if (transactionStatus == TransactionStatus.SpendingApproved && !anyError) {
       addEvent('Approval to Squidrouter completed', EventStatus.Success);
     }
 

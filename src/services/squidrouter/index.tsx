@@ -134,6 +134,7 @@ export function useSquidRouterSwap(amount: string) {
 
   useEffect(() => {
     if (!isSpendingApproved || transactionStatus !== TransactionStatus.SpendingApproved) return;
+    if (swapError || confirmationSwapError) return;
 
     console.log('Transaction approved, executing swap');
     // Execute the swap transaction
