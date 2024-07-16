@@ -21,3 +21,10 @@ div[data-rk] {
 :root:has(:is(.modal-open, .modal:target, .modal-toggle:checked + .modal, .modal[open])) {
   scrollbar-gutter: unset;
 }
+
+.input-disabled {
+  cursor: not-allowed;
+  color: rgb(229 231 235 / var(--tw-text-opacity));
+  border-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-border-opacity)));
+  background-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-bg-opacity)));
+}

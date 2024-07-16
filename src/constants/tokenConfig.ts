@@ -21,6 +21,11 @@ export interface TokenDetails {
 
 export type TokenType = 'brl' | 'usdc';
 export type TokenConfig = Record<TokenType, TokenDetails>;
+export enum AssetCodes {
+  BRL = 'BRL',
+  USDC = 'USDC',
+  USDCE = 'USDC.e',
+}
 
 // Every asset specified in here must either be offrampable or be swapable to an offrampable asset
 export const TOKEN_CONFIG: TokenConfig = {
@@ -33,8 +38,8 @@ export const TOKEN_CONFIG: TokenConfig = {
         AlphaNum4: { code: '0x42524c00', issuer: '0xeaac68d4d0e37b4c24c2536916e830735f032d0d6b2a1c8fca3bc5a25e083e3a' },
       },
     },
-    assetCode: 'BRL',
-    canSwapTo: ['usdt'],
+    assetCode: AssetCodes.BRL,
+    canSwapTo: ['usdc'],
     assetIssuer: 'GDVKY2GU2DRXWTBEYJJWSFXIGBZV6AZNBVVSUHEPZI54LIS6BA7DVVSP',
     vaultAccountId: '6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS',
     minWithdrawalAmount: '200000000000000',
@@ -45,7 +50,7 @@ export const TOKEN_CONFIG: TokenConfig = {
   // We treat many of the properties of polygon token as the equivalent axl{X} one on Pendulum.
   // we will receive
   usdc: {
-    assetCode: 'USDC',
+    assetCode: AssetCodes.USDCE,
     erc20AddressNativeChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
     // erc20AddressNativeChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
     // erc20Address is that of axlUSDC on pendulum

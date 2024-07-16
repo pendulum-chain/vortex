@@ -15,6 +15,7 @@ interface NumericInputProps {
   defaultValue?: string;
   autoFocus?: boolean;
   disabled?: boolean;
+  disableStyles?: boolean;
 }
 
 function isValidNumericInput(value: string): boolean {
@@ -51,15 +52,17 @@ export const NumericInput = ({
   defaultValue,
   autoFocus,
   disabled,
+  disableStyles = false,
 }: NumericInputProps) => (
-  <div className="flex-grow text-black font-outfit">
+  <div className={disableStyles ? 'flex-grow' : 'flex-grow text-black font-outfit'}>
     <Input
       autocomplete="off"
       autocorrect="off"
       autocapitalize="none"
       className={
-        'input-ghost w-full text-lg pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 disabled:border-gray-200 ' +
-        additionalStyle
+        disableStyles
+          ? 'border-0 bg-transparent focus:outline-none px-4 ' + additionalStyle
+          : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content ' + additionalStyle
       }
       minlength="1"
       onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}

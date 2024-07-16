@@ -15,6 +15,7 @@ import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
+import { AssetCodes } from '../../constants/tokenConfig';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -153,23 +154,23 @@ export const Swap = () => {
     [form, fromToken, setModalType],
   );
 
-  const errors = (
-    <>
-      <div>
-        {isExchangeSectionSubmittedError ? (
-          <p className="text-red-600">You must first enter the amount you wish to withdraw</p>
-        ) : (
-          <></>
-        )}
-      </div>
-      <div>
-        {/*FIXME show other error*/}
-        {/*{form.formState.isDirty && !tokenOutData.isLoading && tokenOutData.error && (*/}
-        {/*  <p className="text-red-600">{tokenOutData.error}</p>*/}
-        {/*)}*/}
-      </div>
-    </>
-  );
+  function getCurrentErrorMessage() {
+    if (isExchangeSectionSubmittedError) {
+      return 'You must first enter the amount you wish to withdraw.';
+    }
+
+    // Minimum amount for withdrawal in BRL is 25, maximum is 25000
+    if (toToken?.assetCode === AssetCodes.BRL && tokenOutData.data?.amountOut.preciseString) {
+      if (Number(tokenOutData.data?.amountOut.preciseString) < 25) {
+        return 'Minimum withdrawal amount is 25 BRL.';
+      }
+      if (Number(tokenOutData.data?.amountOut.preciseString) > 25000) {
+        return 'Maximum withdrawal amount is 25000 BRL.';
+      }
+    }
+
+    return tokenOutData.error;
+  }
 
   return (
     <>
@@ -194,7 +195,7 @@ export const Swap = () => {
           <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
           <Arrow />
           <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-          {errors}
+          <p className="text-red-600">{getCurrentErrorMessage()}</p>
           <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
           <FeeCollapse
             fromAmount={fromAmount?.toString()}
@@ -214,7 +215,7 @@ export const Swap = () => {
           )}
           <SwapSubmitButton
             text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
-            disabled={isSubmitButtonDisabled}
+            disabled={isSubmitButtonDisabled || Boolean(getCurrentErrorMessage())}
           />
         </form>
       </main>

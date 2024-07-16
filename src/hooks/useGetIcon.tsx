@@ -9,21 +9,24 @@ import USDC from '../assets/coins/USDC.png';
 import USDC_POLYGON from '../assets/coins/USDC_POLYGON.svg';
 
 import DefaultIcon from '../assets/coins/PEN.png';
+import { AssetCodes } from '../constants/tokenConfig';
 
 type IconMap = {
   [key: string]: string;
 };
 
 const icons: IconMap = {
-  BRL,
+  [AssetCodes.BRL]: BRL,
   EURC,
   PEN,
   USDT,
-  USDC,
+  [AssetCodes.USDC]: USDC,
+  [AssetCodes.USDCE]: USDC,
 };
 
 const polygonIcons: IconMap = {
-  USDC: USDC_POLYGON,
+  [AssetCodes.USDC]: USDC_POLYGON,
+  [AssetCodes.USDCE]: USDC_POLYGON,
 };
 
 const IconMaps: Record<string, IconMap> = {
@@ -35,8 +38,16 @@ export function useGetIcon(token?: string, defaultIcon = DefaultIcon) {
   const currentChainId = useChainId();
   const currentIconMap = IconMaps[currentChainId] || IconMaps.default;
 
-  const currentChainIconMapHasTokenIcon = token && Object.keys(currentIconMap).includes(token);
-  const defaultChainIconMapHasTokenIcon = token && Object.keys(IconMaps.default).includes(token);
+  if (!token) return defaultIcon;
+
+  // map(key => key.toLowerCase()) is used to make the comparison case-insensitive
+  const currentChainIconMapHasTokenIcon = Object.keys(currentIconMap)
+    .map((key) => key.toLowerCase())
+    .includes(token.toLowerCase());
+
+  const defaultChainIconMapHasTokenIcon = Object.keys(IconMaps.default)
+    .map((key) => key.toLowerCase())
+    .includes(token.toLowerCase());
 
   return currentChainIconMapHasTokenIcon
     ? currentIconMap[token]
