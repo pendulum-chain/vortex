@@ -204,6 +204,7 @@ export const useMainProcess = () => {
   const onExternalWindowClicked = useCallback(async () => {
     if (anchorSessionParams) {
       sep24First(anchorSessionParams).then((response) => {
+        console.log(`anchor interactive url: ${response.url}`)
         window.open(`${response.url}`, '_blank');
         setSep24IntermediateValues(response);
       });

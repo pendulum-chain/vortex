@@ -38,7 +38,7 @@ export const getEphemeralKeys = () => {
     return ephemeralKeys;
   } else {
     ephemeralKeys = Keypair.random();
-    storageService.set(storageKeys.STELLAR_SEED, ephemeralKeys);
+    storageService.set(storageKeys.STELLAR_SEED, ephemeralKeys.secret());
     return ephemeralKeys;
   }
 };
@@ -49,6 +49,7 @@ export const restoreStellarEphemeralKeys = () => {
     throw new Error('Stellar seed phrase not found in local storage');
   }
   ephemeralKeys = Keypair.fromSecret(seedPhrase);
+  console.log('Restored ephemeral keys', ephemeralKeys.publicKey());
 };
 
 export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues> => {
