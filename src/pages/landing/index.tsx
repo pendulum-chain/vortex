@@ -69,6 +69,7 @@ function Landing() {
   const [showSep24, setShowSep24] = useState<boolean>(false);
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
   const [backendError, setBackendError] = useState<boolean>(false);
+  const [anySwapError, setAnySwapError] = useState<boolean>(false);
 
   //Squidrouter hook
   const [amountInNative, setAmountIn] = useState<string>('0');
@@ -240,6 +241,13 @@ function Landing() {
   useEffect(() => {
     console.log('Transaction status: ', transactionStatus);
     const anyError = approveError || swapError || confirmationApprovalError || confirmationSwapError;
+    
+    // TODO we may want to make a transaction fail recoverable (i.e not to refresh completely)
+    if (anyError){
+      setAnySwapError(true);
+    }
+    if (anySwapError) return;
+
 
     if (approveError || confirmationApprovalError) {
       addEvent('Approval to squidrouter failed, please refresh the page', EventStatus.Error);
