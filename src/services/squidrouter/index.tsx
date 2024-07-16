@@ -100,7 +100,6 @@ function useSendSwapTransaction(transactionRequest: any, recoveryStatus: Recover
     status,
     error: txCheckError,
   } = useWaitForTransactionReceipt({ hash: effectiveSwaplHash });
-  console.log('isConfirming', isConfirming, 'isConfirmed', isConfirmed, 'status', status, 'txCheckError', txCheckError);
   try {
     if (!isInitialCheckDone && recoveryStatus.swapHash) {
       const transaction = getTransaction(wagmiConfig, {
@@ -205,7 +204,6 @@ export function useSquidRouterSwap(amount: string) {
 
   // Update the transaction status
   useEffect(() => {
-    console.log('isSwapCompleted', isSwapCompleted);
     if (isApprovalConfirming) {
       setTransactionStatus(TransactionStatus.ApproveSpending);
     }
@@ -232,17 +230,14 @@ export function useSquidRouterSwap(amount: string) {
     if (!transactionRequest || transactionStatus !== TransactionStatus.RouteRequested) return;
     if (!requiresApproval) return;
 
-    console.log('Calling function to approve spending');
     // Approve the transactionRequest.target to spend fromAmount of fromToken
     approveSpending().catch((error) => console.error('Error approving spending:', error));
   }, [approveSpending, transactionRequest, transactionStatus, requiresApproval]);
 
   useEffect(() => {
     if (!isSpendingApproved || transactionStatus !== TransactionStatus.SpendingApproved) return;
-    console.log('requiresSwapTransaction', requiresSwapTransaction);
     if (!requiresSwapTransaction) return;
 
-    console.log('Transaction approved, executing swap');
     // Execute the swap transaction
     sendSwapTransaction().catch((error) => console.error('Error sending swap transaction:', error));
   }, [isSpendingApproved, sendSwapTransaction, transactionStatus, requiresSwapTransaction]);
@@ -250,10 +245,9 @@ export function useSquidRouterSwap(amount: string) {
   useEffect(() => {
     if (!hash || !isSwapCompleted) return;
 
-    console.log('Transaction confirmed!');
     // Show the transaction receipt with Axelarscan link
     const axelarScanLink = 'https://axelarscan.io/gmp/' + hash;
-    console.log(`Finished! Check Axelarscan for details: ${axelarScanLink}`);
+    console.log(`Squidrouter Swap Initiated! Check Axelarscan for details: ${axelarScanLink}`);
 
     // Update transaction status until it completes
     // We don't do anything with the follow-up for now, but we might in the future

@@ -114,7 +114,6 @@ export const useMainProcess = () => {
 
   // We fund this after approval or after the swap is completed
   useEffect(() => {
-    console.log('Transaction status: ', transactionStatus);
     if (transactionStatus == TransactionStatus.SwapCompleted) {
       console.log('Funding account after squid swap is completed');
       addEvent('Approval to Squidrouter completed', EventStatus.Success);

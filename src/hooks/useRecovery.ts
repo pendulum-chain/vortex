@@ -25,7 +25,6 @@ export function useRecovery(
   setStellarOperations: (operations: StellarOperations | null) => void,
 ): RecoveryHookResult {
   const currentOfframpStatus = storageService.getParsed<OperationStatus>(storageKeys.OFFRAMP_STATUS);
-  console.log('recovered high level status: ', currentOfframpStatus);
   const isRecovery = currentOfframpStatus ? true : false;
   let isRecoveryError = false;
 
