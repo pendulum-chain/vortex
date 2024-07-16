@@ -104,11 +104,14 @@ export function useSquidRouterSwap(amount: string) {
   useEffect(() => {
     if (isApprovalConfirming) {
       setTransactionStatus(TransactionStatus.ApproveSpending);
-    } else if (isSpendingApproved) {
+    } 
+    if (isSpendingApproved) {
       setTransactionStatus(TransactionStatus.SpendingApproved);
-    } else if (isSwapConfirming) {
+    }  
+    if (isSwapConfirming) {
       setTransactionStatus(TransactionStatus.InitiateSwap);
-    } else if (isSwapCompleted) {
+    }  
+    if (isSwapCompleted) {
       setTransactionStatus(TransactionStatus.SwapCompleted);
     }
   }, [

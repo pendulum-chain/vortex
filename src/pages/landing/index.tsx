@@ -238,7 +238,7 @@ function Landing() {
   // Should we fund this after approval or after the swap is completed?
   // Right now, the SwapCompleted variant is never set.
   useEffect(() => {
-
+    console.log('Transaction status: ', transactionStatus);
     if (approveError || confirmationSwapError) {
       addEvent('Approval to squidrouter failed, please refresh the page', EventStatus.Error);
       return;
@@ -247,12 +247,17 @@ function Landing() {
       addEvent('Squidrouter contract call signature failed, please refresh the page', EventStatus.Error);
       return;
     }
-    console.log('Transaction status: ', transactionStatus);
     if (transactionStatus == TransactionStatus.SwapCompleted) {
       console.log('Funding account after squid swap is completed');
-      addEvent('Approval to Squidrouter completed', EventStatus.Success);
+      addEvent('Squidrouter swap initiated', EventStatus.Success);
       fundEphemeralAccount();
     }
+
+    if (transactionStatus == TransactionStatus.SpendingApproved) {
+      console.log('Funding account after squid swap is completed');
+      addEvent('Approval to Squidrouter completed', EventStatus.Success);
+    }
+
 
     
   }, [transactionStatus, approveError, swapError, confirmationApprovalError, confirmationSwapError]);
