@@ -54,10 +54,10 @@ export const Swap = () => {
     canInitiate,
     anchorSessionParams,
     isRecovery,
-    externalWindowOpened,
+    isRecoveryError,
+    sep24Url,
     handleOnSubmit,
-    handleSepCompletion,
-    onExternalWindowClicked,
+
   } = useMainProcess();
 
   const {

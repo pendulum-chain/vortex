@@ -64,7 +64,6 @@ export const useMainProcess = () => {
   const [stellarOperations, setStellarOperations] = useState<StellarOperations | null>(null);
   const [sepResult, setSepResult] = useState<SepResult | null>(null);
   const [tokenBridgedAmount, setTokenBridgedAmount] = useState<Big | null>(null);
-  const [externalWindowOpened, setExternalWindowOpened] = useState<boolean>(false);
 
   // UI states
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
@@ -208,7 +207,6 @@ export const useMainProcess = () => {
         console.log("initiating sep process")
 
         sep24First(anchorSessionParams!).then((response) => {
-          setExternalWindowOpened(true);
           setSep24Url(response.url);
           console.log('sep24 url:', response.url);
 
@@ -331,7 +329,6 @@ export const useMainProcess = () => {
   return {
     canInitiate,
     anchorSessionParams,
-    externalWindowOpened,
     isRecovery,
     isRecoveryError,
     sep24Url,
