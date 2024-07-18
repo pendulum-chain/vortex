@@ -8,7 +8,7 @@ import { getEphemeralAccount } from '../polkadot/ephemeral';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 
-export interface RouteParams {
+interface RouteParams {
   fromAddress: string;
   fromChain: string;
   fromToken: string;
@@ -29,7 +29,7 @@ export interface RouteParams {
   };
 }
 
-export function createRouteParams(userAddress: string, fromToken: string, amount: string): RouteParams {
+function createRouteParams(userAddress: string, fromToken: string, amount: string): RouteParams {
   const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig();
 
   // TODO this must be approval, should we use max amount?? Or is this unsafe.
@@ -99,7 +99,7 @@ export function createRouteParams(userAddress: string, fromToken: string, amount
   };
 }
 
-export async function getRouteApiPlus(params: RouteParams) {
+async function getRouteApiPlus(params: RouteParams) {
   // This is the integrator ID for the Squid API by https://v2.app.squidrouter.com/
   const { integratorId } = getSquidRouterConfig();
   const url = 'https://apiplus.squidrouter.com/v2/route';
@@ -139,6 +139,7 @@ export async function getRouteTransactionRequest(userAddress: string, fromToken:
   return {
     requestId,
     transactionRequest,
+    data: routeResult.data,
   };
 }
 

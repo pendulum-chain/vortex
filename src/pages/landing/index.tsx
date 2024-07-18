@@ -72,12 +72,11 @@ function Landing() {
 
   //Squidrouter hook
   const [amountInNative, setAmountIn] = useState<string>('0');
-  const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
+  const { transactionStatus, executeSquidRouterSwap, swapError: error } = useSquidRouterSwap(amountInNative);
   const handleOnSubmit = async ({ assetToOfframp, amountIn, swapOptions }: ExecutionInput) => {
     // we always want swap now, but for now we hardcode the starting token
     setAmountIn(decimalToCustom(amountIn, TOKEN_CONFIG.usdc.decimals).toFixed());
     setExecutionInput({ assetToOfframp, amountIn, swapOptions });
-
 
     const tokenConfig: TokenDetails = TOKEN_CONFIG[assetToOfframp];
     const values = await fetchTomlValues(tokenConfig.tomlFileUrl!);
@@ -115,9 +114,9 @@ function Landing() {
     // Start the squid router process
     executeSquidRouterSwap();
 
-     // log ephemeral pk
-     const ephemeralAccount = getEphemeralAccount().address;
-     addEvent(`Pendulum ephemeral account: ${ephemeralAccount}`, EventStatus.Waiting);
+    // log ephemeral pk
+    const ephemeralAccount = getEphemeralAccount().address;
+    addEvent(`Pendulum ephemeral account: ${ephemeralAccount}`, EventStatus.Waiting);
 
     // Wait for ephemeral to receive native balance
     // And wait for ephemeral to receive the funds of the token to be offramped

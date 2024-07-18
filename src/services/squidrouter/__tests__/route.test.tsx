@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createRouteParams, getRouteApiPlus } from '../route';
+import { getRouteTransactionRequest } from '../route';
 import { TOKEN_CONFIG } from '../../../constants/tokenConfig';
 
 // We need to add a delay to the beforeEach hook to ensure that the test does not run before the SquidRouter API is ready
@@ -7,24 +7,22 @@ beforeEach(() => {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve();
-    }, 5000);
+    }, 2000);
   });
 });
 
 describe('Squidrouter', () => {
-  describe('route', () => {
+  describe('should be able to get route for relevant USDC tokens', () => {
     function getRouteForToken(baseToken: string) {
       const userAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877';
       const amount = '1000000000';
 
-      const params = createRouteParams(userAddress, baseToken, amount);
-
-      return getRouteApiPlus(params);
+      return getRouteTransactionRequest(userAddress, baseToken, amount);
     }
 
     it('should successfully query a route for USDC', async () => {
-      const usdcAddress = TOKEN_CONFIG.usdc.erc20AddressNativeChain as string;
-      const route = await getRouteForToken(usdcAddress);
+      const tokenAddress = TOKEN_CONFIG.usdc.erc20AddressNativeChain as string;
+      const route = await getRouteForToken(tokenAddress);
 
       expect(route).toBeDefined();
       expect(route.requestId).toBeDefined();
@@ -32,8 +30,8 @@ describe('Squidrouter', () => {
     });
 
     it('should successfully query a route for USDC.e', async () => {
-      const usdcAddress = TOKEN_CONFIG.usdce.erc20AddressNativeChain as string;
-      const route = await getRouteForToken(usdcAddress);
+      const tokenAddress = TOKEN_CONFIG.usdce.erc20AddressNativeChain as string;
+      const route = await getRouteForToken(tokenAddress);
 
       expect(route).toBeDefined();
       expect(route.requestId).toBeDefined();
