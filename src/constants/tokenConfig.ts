@@ -21,7 +21,7 @@ export interface TokenDetails {
   erc20AddressNativeChain?: string;
 }
 
-export type TokenType = 'brl' | 'eurc' | 'usdc';
+export type TokenType = 'brl' | 'eurc' | 'usdc' | 'usdce';
 export type TokenConfig = Record<TokenType, TokenDetails>;
 
 // Every asset specified in here must either be offrampable or be swapable to an offrampable asset
@@ -65,8 +65,23 @@ export const TOKEN_CONFIG: TokenConfig = {
   // we will receive
   usdc: {
     assetCode: 'USDC',
+    erc20AddressNativeChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+    // erc20Address is that of axlUSDC on pendulum
+    // this is done to provide the user with the expected exchange rate
+    erc20Address: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',
+    // Decimals should be consistent in BOTH CHAINS
+    decimals: 6,
+    // currency id of axlUSDC
+    currencyId: { XCM: 12 },
+    isOfframp: false,
+    // whatever axlUSDC can be offramped to...
+    canSwapTo: ['eurc'],
+    icon: UsdcIcon,
+    isPolygonChain: true,
+  },
+  usdce: {
+    assetCode: 'USDC.e',
     erc20AddressNativeChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
-    // erc20AddressNativeChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
     // erc20Address is that of axlUSDC on pendulum
     // this is done to provide the user with the expected exchange rate
     erc20Address: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',

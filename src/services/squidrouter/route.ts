@@ -8,7 +8,7 @@ import { getEphemeralAccount } from '../polkadot/ephemeral';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 
-interface RouteParams {
+export interface RouteParams {
   fromAddress: string;
   fromChain: string;
   fromToken: string;
@@ -29,8 +29,8 @@ interface RouteParams {
   };
 }
 
-function createRouteParams(userAddress: string, amount: string): RouteParams {
-  const { fromToken, fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig();
+export function createRouteParams(userAddress: string, fromToken: string, amount: string): RouteParams {
+  const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig();
 
   // TODO this must be approval, should we use max amount?? Or is this unsafe.
   const approvalErc20 = encodeFunctionData({
@@ -99,33 +99,7 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
   };
 }
 
-async function getRoute(params: RouteParams) {
-  const { integratorId } = getSquidRouterConfig();
-
-  try {
-    const result = await axios.post(
-      'https://apiplus.squidrouter.com/v2/route',
-
-      params,
-      {
-        headers: {
-          'x-integrator-id': integratorId,
-          'Content-Type': 'application/json',
-        },
-      },
-    );
-    const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
-    return { data: result.data, requestId: requestId };
-  } catch (error) {
-    if (error) {
-      console.error('API error:', (error as any).response.data);
-    }
-    console.error('Error with parameters:', params);
-    throw error;
-  }
-}
-
-async function getRouteApiPlus(params: RouteParams) {
+export async function getRouteApiPlus(params: RouteParams) {
   // This is the integrator ID for the Squid API by https://v2.app.squidrouter.com/
   const { integratorId } = getSquidRouterConfig();
   const url = 'https://apiplus.squidrouter.com/v2/route';
@@ -149,8 +123,8 @@ async function getRouteApiPlus(params: RouteParams) {
   }
 }
 
-export async function getRouteTransactionRequest(userAddress: string, amount: string) {
-  const routeParams = createRouteParams(userAddress, amount);
+export async function getRouteTransactionRequest(userAddress: string, fromToken: string, amount: string) {
+  const routeParams = createRouteParams(userAddress, fromToken, amount);
 
   // Get the swap route using Squid API
   const routeResult = await getRouteApiPlus(routeParams);

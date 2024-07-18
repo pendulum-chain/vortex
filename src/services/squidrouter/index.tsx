@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'preact/compat';
 import { getRouteTransactionRequest } from './route';
 import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
+import { TOKEN_CONFIG } from '../../constants/tokenConfig';
 
 function useApproveSpending(
   transactionRequestTarget: string | undefined,
@@ -10,7 +11,11 @@ function useApproveSpending(
   fromAmount: string,
 ) {
   const { data: hash, error, isPending, writeContract } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    error: confirmationApprovalError,
+  } = useWaitForTransactionReceipt({
     hash,
   });
 
@@ -28,6 +33,7 @@ function useApproveSpending(
   return {
     approveSpending,
     error,
+    confirmationApprovalError,
     isPending,
     isConfirming,
     isConfirmed,
@@ -36,7 +42,11 @@ function useApproveSpending(
 
 function useSendSwapTransaction(transactionRequest: any) {
   const { data: hash, isPending, error, status, sendTransaction } = useSendTransaction();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: hash });
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    error: confirmationSwapError,
+  } = useWaitForTransactionReceipt({ hash: hash });
 
   const sendSwapTransaction = useCallback(async () => {
     if (!transactionRequest) {
@@ -58,6 +68,7 @@ function useSendSwapTransaction(transactionRequest: any) {
   return {
     hash,
     error,
+    confirmationSwapError,
     sendSwapTransaction,
     isConfirming,
     isConfirmed,
@@ -87,6 +98,7 @@ export function useSquidRouterSwap(amount: string) {
     isConfirming: isApprovalConfirming,
     isConfirmed: isSpendingApproved,
     error: approveError,
+    confirmationApprovalError,
   } = useApproveSpending(transactionRequest?.target, fromToken, amount);
 
   const {
@@ -95,16 +107,20 @@ export function useSquidRouterSwap(amount: string) {
     isConfirmed: isSwapCompleted,
     sendSwapTransaction,
     error: swapError,
+    confirmationSwapError,
   } = useSendSwapTransaction(transactionRequest);
   // Update the transaction status
   useEffect(() => {
     if (isApprovalConfirming) {
       setTransactionStatus(TransactionStatus.ApproveSpending);
-    } else if (isSpendingApproved) {
+    }
+    if (isSpendingApproved) {
       setTransactionStatus(TransactionStatus.SpendingApproved);
-    } else if (isSwapConfirming) {
+    }
+    if (isSwapConfirming) {
       setTransactionStatus(TransactionStatus.InitiateSwap);
-    } else if (isSwapCompleted) {
+    }
+    if (isSwapCompleted) {
       setTransactionStatus(TransactionStatus.SwapCompleted);
     }
   }, [
@@ -158,7 +174,8 @@ export function useSquidRouterSwap(amount: string) {
     setTransactionStatus(TransactionStatus.RouteRequested);
 
     // Start by getting the transaction request for the Route
-    getRouteTransactionRequest(accountData.address, amount)
+    // FIXME use the address based on the selected token
+    getRouteTransactionRequest(accountData.address, TOKEN_CONFIG.usdc.erc20AddressNativeChain as string, amount)
       .then(({ requestId, transactionRequest }) => {
         setRequestId(requestId);
         setTransactionRequest(transactionRequest);
@@ -169,6 +186,9 @@ export function useSquidRouterSwap(amount: string) {
   return {
     transactionStatus,
     executeSquidRouterSwap,
-    error: approveError || swapError,
+    approveError,
+    swapError,
+    confirmationApprovalError,
+    confirmationSwapError,
   };
 }
