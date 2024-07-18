@@ -30,6 +30,14 @@ export interface SepResult {
   offrampingAccount: string;
 }
 
+interface Sep24Transaction {
+  status: string;
+  amount_in: string;
+  withdraw_memo: string;
+  withdraw_memo_type: string;
+  withdraw_anchor_account: string;
+}
+
 const exists = (value?: string | null): value is string => !!value && value?.length > 0;
 let ephemeralKeys: Keypair | null;
 
@@ -48,6 +56,8 @@ export const restoreStellarEphemeralKeys = () => {
   if (!seedPhrase) {
     throw new Error('Stellar seed phrase not found in local storage');
   }
+
+  console.log('seedPhrase: ', seedPhrase);
   ephemeralKeys = Keypair.fromSecret(seedPhrase);
   console.log('Restored ephemeral keys', ephemeralKeys.publicKey());
 };
@@ -196,11 +206,12 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
   //>????
 }
 
-export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
+export async function sep24First(sessionParams?: IAnchorSessionParams): Promise<ISep24Intermediate> {
+  if (!sessionParams) return Promise.reject('No session params');
+
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  // at this stage, assetCode should be defined, if the config is consistent.
   const sep24Params = new URLSearchParams({
     asset_code: sessionParams.tokenConfig.assetCode!,
     amount: sessionParams.offrampAmount,
@@ -225,34 +236,56 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
   return { url, id };
 }
 
+export async function fetchSep24TransactionStatus(
+  sep24Url: string,
+  id: string,
+  token: string,
+): Promise<Sep24Transaction> {
+  const idParam = new URLSearchParams({ id });
+  const response = await fetch(`${sep24Url}/transaction?${idParam.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (response.status !== 200) {
+    throw new Error(`Failed to fetch SEP-24 status: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.transaction;
+}
+
 export async function sep24Second(
   sep24Values: ISep24Intermediate,
-  sessionParams: IAnchorSessionParams,
+  sessionParams?: IAnchorSessionParams,
 ): Promise<SepResult> {
+  if (!sessionParams) return Promise.reject('No session params');
+
   const { id } = sep24Values;
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  let status;
-  do {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    const idParam = new URLSearchParams({ id });
-    const statusResponse = await fetch(`${sep24Url}/transaction?${idParam.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  if (!sep24Url) return Promise.reject('No sep24Url');
 
-    if (statusResponse.status !== 200) {
-      throw new Error(`Failed to fetch SEP-24 status: ${statusResponse.statusText}`);
-    }
-
-    const { transaction } = await statusResponse.json();
-    status = transaction;
-  } while (status.status !== 'pending_user_transfer_start');
-
-  return {
-    amount: status.amount_in,
-    memo: status.withdraw_memo,
-    memoType: status.withdraw_memo_type,
-    offrampingAccount: status.withdraw_anchor_account,
-  };
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(async () => {
+      console.log('interval is being fired');
+      try {
+        const status = await fetchSep24TransactionStatus(sep24Url, id, token);
+        if (status.status === 'pending_user_transfer_start') {
+          clearInterval(interval);
+          resolve({
+            amount: status.amount_in,
+            memo: status.withdraw_memo,
+            memoType: status.withdraw_memo_type,
+            offrampingAccount: status.withdraw_anchor_account,
+          });
+        }
+      } catch (error: unknown) {
+        clearInterval(interval);
+        if (error instanceof Error) {
+          reject(new Error(`Failed to fetch SEP-24 status: ${error.message}`));
+        }
+      }
+    }, 1000);
+  });
 }

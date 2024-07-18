@@ -11,14 +11,14 @@ export const AssetButton: FC<AssetButtonProps> = ({ token, onClick }) => {
 
   return (
     <button
-      className="hover:bg-blue-200 rounded-full min-h-none h-8 flex items-center mt-0.5 border border-blue-700 px-2 py-1 pr-3"
+      className="flex items-center h-8 px-2 py-1 border border-blue-700 rounded-full hover:bg-blue-200 min-h-none"
       onClick={onClick}
       type="button"
     >
-      <span className="h-full p-px mr-1 rounded-full">
+      <span className="h-full p-px rounded-full sm:mr-1">
         {token && <img src={icon} alt={token.assetCode} className="w-auto h-full" />}
       </span>
-      <strong className="font-bold text-black">{token?.assetCode || 'Select'}</strong>
+      <strong className="hidden font-bold text-black sm:block">{token?.assetCode || 'Select'}</strong>
     </button>
   );
 };

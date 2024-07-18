@@ -37,8 +37,8 @@ export function useRecovery(
 
     // Need to recover corresponding states depending on the current status
     // TODO need to do some error handling here in case one is undefined, which should not happen but...
-    
-    // At this point we should also have the stellar ephemeral (sep10), yet it is not strictly necessary to use the same, but we 
+
+    // At this point we should also have the stellar ephemeral (sep10), yet it is not strictly necessary to use the same, but we
     // are not redoing the sep10.
     if (currentOfframpStatus! >= OperationStatus.Sep10Completed) {
       restoreStellarEphemeralKeys();

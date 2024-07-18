@@ -1,4 +1,4 @@
-import React from 'react';
+import { forwardRef } from 'preact/compat';
 
 export enum EventStatus {
   Success = 'success',
@@ -16,12 +16,9 @@ interface EventBoxProps {
   className: string;
 }
 
-const EventBox = React.forwardRef<HTMLDivElement, EventBoxProps>(({ event, className }, ref) => {
+const EventBox = forwardRef<HTMLDivElement, EventBoxProps>(({ event, className }, ref) => {
   return (
-    <div
-      ref={ref}
-      className={`mx-10 md:mx-20 my-auto md:p-5 p-1 md:w-2/5 w-4/5 box-border eventBox ${className} ${event.status}`}
-    >
+    <div ref={ref} className={`break-words ${className} ${event.status}`}>
       {event.value}
     </div>
   );
