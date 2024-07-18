@@ -1,5 +1,6 @@
-import { StateUpdater, useCallback, useMemo } from 'preact/compat';
+import { StateUpdater, useCallback, useMemo, useState } from 'preact/compat';
 import Big from 'big.js';
+import _ from 'lodash';
 
 import { IAnchorSessionParams, sep24First, sep24Second, SepResult } from '../../services/anchor';
 import { nablaApprove, nablaSwap } from '../../services/nabla';
@@ -64,6 +65,22 @@ export const useSEPHandlers = (dependencies: IUseHandlersDependencies) => {
     finalizeOfframp,
     stellarOperations,
   } = dependencies;
+
+  const [activeOperation, setActiveOperation] = useState<OperationStatus | null>(null);
+
+  // We don't want to run multiple operations at the same time
+  const runOperation = useCallback(
+    async (operation: OperationStatus, handler: () => void | Promise<void>) => {
+      if (activeOperation === operation) {
+        console.warn(`Operation ${operation} is already active.`);
+        return;
+      }
+
+      setActiveOperation(operation);
+      return await handler();
+    },
+    [activeOperation],
+  );
 
   const handleSep10Completed = useCallback(async () => {
     console.log('initiating sep process');
@@ -172,27 +189,38 @@ export const useSEPHandlers = (dependencies: IUseHandlersDependencies) => {
     clearLocalStorageKeys(storageKeys);
   }, [executionInput]);
 
+  const createHandlerMap = useCallback(
+    (handlers: Record<OperationStatus, () => void | Promise<void>>) => {
+      const wrappedHandlers = _.mapValues(handlers, (handler, status) => {
+        return () => runOperation(status as OperationStatus, handler);
+      }) as Record<OperationStatus, () => void | Promise<void>>;
+
+      return wrappedHandlers;
+    },
+    [runOperation],
+  );
+
   const handlerMap: Record<OperationStatus, () => void | Promise<void>> = useMemo(
-    () => ({
-      [OperationStatus.Sep10Completed]: handleSep10Completed,
-      [OperationStatus.SepCompleted]: handleSepCompleted,
-      [OperationStatus.BridgeExecuted]: handleBridgeExecuted,
-      [OperationStatus.PendulumEphemeralReady]: handlePendulumEphemeralReady,
-      [OperationStatus.NablaSwapApproved]: handleNablaSwapApproved,
-      [OperationStatus.NablaSwapPerformed]: handleNablaSwapPerformed,
-      [OperationStatus.StellarEphemeralFunded]: handleStellarEphemeralFunded,
-      [OperationStatus.StellarEphemeralReady]: handleStellarEphemeralReady,
-      [OperationStatus.Redeemed]: handleRedeemed,
-      [OperationStatus.Offramped]: handleOfframped,
-      [OperationStatus.StellarCleaned]: handleStellarCleaned,
-      [OperationStatus.Error]: async () => {
-        return Promise.reject('Error');
-      },
-      [OperationStatus.Idle]: async () => {
-        return;
-      },
-    }),
+    () =>
+      createHandlerMap({
+        [OperationStatus.Sep10Completed]: handleSep10Completed,
+        [OperationStatus.SepCompleted]: handleSepCompleted,
+        [OperationStatus.BridgeExecuted]: handleBridgeExecuted,
+        [OperationStatus.PendulumEphemeralReady]: handlePendulumEphemeralReady,
+        [OperationStatus.NablaSwapApproved]: handleNablaSwapApproved,
+        [OperationStatus.NablaSwapPerformed]: handleNablaSwapPerformed,
+        [OperationStatus.StellarEphemeralFunded]: handleStellarEphemeralFunded,
+        [OperationStatus.StellarEphemeralReady]: handleStellarEphemeralReady,
+        [OperationStatus.Redeemed]: handleRedeemed,
+        [OperationStatus.Offramped]: handleOfframped,
+        [OperationStatus.StellarCleaned]: handleStellarCleaned,
+        [OperationStatus.Error]: async () => Promise.reject('Error'),
+        [OperationStatus.Idle]: async () => {
+          return;
+        },
+      }),
     [
+      createHandlerMap,
       handleBridgeExecuted,
       handleNablaSwapApproved,
       handleNablaSwapPerformed,
@@ -206,5 +234,6 @@ export const useSEPHandlers = (dependencies: IUseHandlersDependencies) => {
       handleStellarEphemeralReady,
     ],
   );
+
   return handlerMap;
 };

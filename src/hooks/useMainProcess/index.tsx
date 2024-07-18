@@ -48,7 +48,7 @@ export const useMainProcess = () => {
   // ⭐️ Initial states
   const [status, setStatus] = useState(OperationStatus.Idle);
   const [executionInput, setExecutionInput] = useState<ExecutionInput | undefined>(undefined);
-  // seession and operations states
+  // Session and operations states
   const [fundingPK, setFundingPK] = useState<string | null>(null);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | null>(null);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
@@ -58,7 +58,7 @@ export const useMainProcess = () => {
   // UI states
   const [canInitiate, setCanInitiate] = useState<boolean>(false);
   const [_, setBackendError] = useState<boolean>(false);
-  //Squidrouter hook
+  // Squidrouter hook
   const [amountInNative, setAmountIn] = useState<string>('0');
   const { transactionStatus, executeSquidRouterSwap, error } = useSquidRouterSwap(amountInNative);
   // TODO we probably don't want this events anymore. Maybe display the name only in the UI?
@@ -211,7 +211,7 @@ export const useMainProcess = () => {
       console.log('Executing handler for status:', status);
       handler();
     }
-  }, [status]);
+  }, [handlerMap, status]);
 
   return {
     canInitiate,

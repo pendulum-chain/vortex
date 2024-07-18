@@ -57,7 +57,6 @@ export const restoreStellarEphemeralKeys = () => {
     throw new Error('Stellar seed phrase not found in local storage');
   }
 
-  console.log('seedPhrase: ', seedPhrase);
   ephemeralKeys = Keypair.fromSecret(seedPhrase);
   console.log('Restored ephemeral keys', ephemeralKeys.publicKey());
 };

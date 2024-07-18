@@ -66,7 +66,7 @@ function useApproveSpending(
       setEffectiveApprovalHash(hash);
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, { ...recoveryStatus, approvalHash: hash });
     }
-  }, [hash]);
+  }, [hash, recoveryStatus]);
 
   const approveSpending = useCallback(async () => {
     console.log('Asking for approval of', transactionRequestTarget, fromToken, fromAmount);
@@ -76,7 +76,7 @@ function useApproveSpending(
       functionName: 'approve',
       args: [transactionRequestTarget, fromAmount],
     });
-  }, [fromToken, fromAmount, transactionRequestTarget, writeContract, status]);
+  }, [fromToken, fromAmount, transactionRequestTarget, writeContract]);
 
   return {
     approveSpending,
@@ -131,7 +131,7 @@ function useSendSwapTransaction(transactionRequest: any, recoveryStatus: Recover
     if (hash) {
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, { ...recoveryStatus, swapHash: hash });
     }
-  }, [hash]);
+  }, [hash, recoveryStatus]);
 
   const sendSwapTransaction = useCallback(async () => {
     if (!transactionRequest) {
