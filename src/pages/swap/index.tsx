@@ -16,7 +16,6 @@ import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
 import { AssetCodes } from '../../constants/tokenConfig';
 import { BaseLayout } from '../../layouts';
-import { Title } from '../../components/Title';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
