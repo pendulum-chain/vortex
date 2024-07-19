@@ -1,8 +1,21 @@
+import { useEffect } from 'preact/hooks';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 
+const handleTabClose = (event: Event) => {
+  event.preventDefault();
+};
+
 export const ProgressPage = () => {
+  useEffect(() => {
+    window.addEventListener('beforeunload', handleTabClose);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleTabClose);
+    };
+  }, []);
+
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mt-12">
