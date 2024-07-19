@@ -41,16 +41,15 @@ export function useRecovery(
     // At this point we should also have the stellar ephemeral (sep10), yet it is not strictly necessary to use the same, but we
     // are not redoing the sep10.
     if (currentOfframpStatus! >= OperationStatus.Sep10Completed) {
+      setExecutionInput(storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS));
       restoreStellarEphemeralKeys();
+      setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
     }
 
     if (currentOfframpStatus! >= OperationStatus.SepCompleted) {
       setSepResult(storageService.getParsed<SepResult>(storageKeys.SEP_RESULT)!);
-      setAnchorSessionParams(storageService.getParsed<IAnchorSessionParams>(storageKeys.ANCHOR_SESSION_PARAMS)!);
     }
-    if (currentOfframpStatus! >= OperationStatus.BridgeExecuted) {
-      setExecutionInput(storageService.getParsed<ExecutionInput>(storageKeys.OFFRAMP_EXECUTION_INPUTS));
-    }
+
     if (currentOfframpStatus! >= OperationStatus.PendulumEphemeralReady) {
       setTokenBridgedAmount(storageService.getBig(storageKeys.TOKEN_BRIDGED_AMOUNT)!);
     }

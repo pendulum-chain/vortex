@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
 
-import { Navbar } from '../../components/Navbar';
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
 import { FeeCollapse } from '../../components/FeeCollapse';
@@ -20,6 +19,7 @@ import { SwapOptions } from '../../types';
 import { TokenType } from '../../constants/tokenConfig';
 import Sep24 from '../../components/Sep24Component';
 import EventBox from '../../components/GenericEvent';
+import { BaseLayout } from '../../layouts';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -27,7 +27,7 @@ const Arrow = () => (
   </div>
 );
 
-export const Swap = () => {
+export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
 
@@ -135,60 +135,62 @@ export const Swap = () => {
     return tokenOutData.error;
   }
 
-  return (
-    <>
-      <PoolSelectorModal
-        open={!!modalType}
-        mode={{ type: modalType, swap: true }}
-        onSelect={modalType === 'from' ? onFromChange : onToChange}
-        selected={{
-          type: 'token',
-          tokenAddress: modalType ? (modalType === 'from' ? fromToken?.assetCode : toToken?.assetCode) : undefined,
-        }}
-        onClose={() => setModalType(undefined)}
-        isLoading={false}
-      />
-      <Navbar />
-      <main className="flex items-center justify-center mt-12" ref={formRef}>
-        <form
-          className="shadow-custom px-4 py-8 rounded-lg mb-12 mx-4 md:mx-8 md:mx-auto w-full md:w-2/3 lg:w-3/5 xl:w-1/2 max-w-2xl transition-[height] duration-1000"
-          onSubmit={onSubmit}
-        >
-          <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-          <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
-          <Arrow />
-          <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-          <p className="text-red-600">{getCurrentErrorMessage()}</p>
-          <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
-          <FeeCollapse
-            fromAmount={fromAmount?.toString()}
-            toAmount={tokenOutData.data?.amountOut.preciseString}
-            toCurrency={toToken?.assetCode}
-          />
-          <section className="flex items-center justify-center w-full mt-5">
-            <BenefitsList amount={fromAmount} currency={from} />
-          </section>
-
-          {sep24Url ? (
-            <Sep24 {...{ sep24Url }} />
-          ) : (
-            <SwapSubmitButton
-              text="Continue"
-              disabled={!fromAmount?.toNumber() || tokenOutData.isLoading || Boolean(getCurrentErrorMessage())}
-            />
-          )}
-
-          {events.length ? (
-            <div className="w-full px-4 py-2 mx-4 mt-8 rounded-lg shadow-custom md:mx-8 md:mx-auto ">
-              {events.map((event, index) => (
-                <EventBox key={index} event={event} className={index === activeEventIndex ? 'active' : ''} />
-              ))}
-            </div>
-          ) : (
-            <></>
-          )}
-        </form>
-      </main>
-    </>
+  const modals = (
+    <PoolSelectorModal
+      open={!!modalType}
+      mode={{ type: modalType, swap: true }}
+      onSelect={modalType === 'from' ? onFromChange : onToChange}
+      selected={{
+        type: 'token',
+        tokenAddress: modalType ? (modalType === 'from' ? fromToken?.assetCode : toToken?.assetCode) : undefined,
+      }}
+      onClose={() => setModalType(undefined)}
+      isLoading={false}
+    />
   );
+
+  const main = (
+    <main ref={formRef}>
+      <form
+        className="shadow-custom px-4 py-8 rounded-lg mb-12 mx-4 md:mx-8 md:mx-auto w-full md:w-2/3 lg:w-3/5 xl:w-1/2 max-w-2xl transition-[height] duration-1000"
+        onSubmit={onSubmit}
+      >
+        <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
+        <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
+        <Arrow />
+        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
+        <p className="text-red-600">{getCurrentErrorMessage()}</p>
+        <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
+        <FeeCollapse
+          fromAmount={fromAmount?.toString()}
+          toAmount={tokenOutData.data?.amountOut.preciseString}
+          toCurrency={toToken?.assetCode}
+        />
+        <section className="flex items-center justify-center w-full mt-5">
+          <BenefitsList amount={fromAmount} currency={from} />
+        </section>
+
+        {sep24Url ? (
+          <Sep24 {...{ sep24Url }} />
+        ) : (
+          <SwapSubmitButton
+            text="Continue"
+            disabled={!fromAmount?.toNumber() || tokenOutData.isLoading || Boolean(getCurrentErrorMessage())}
+          />
+        )}
+
+        {events.length ? (
+          <div className="w-full px-4 py-2 mx-4 mt-8 rounded-lg shadow-custom md:mx-8 md:mx-auto ">
+            {events.map((event, index) => (
+              <EventBox key={index} event={event} className={index === activeEventIndex ? 'active' : ''} />
+            ))}
+          </div>
+        ) : (
+          <></>
+        )}
+      </form>
+    </main>
+  );
+
+  return <BaseLayout modals={modals} main={main} />;
 };
