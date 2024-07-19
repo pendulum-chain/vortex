@@ -28,3 +28,27 @@ div[data-rk] {
   border-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-border-opacity)));
   background-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-bg-opacity)));
 }
+
+.fadein-button-animation::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition-duration: 0.5s;
+  transition-timing-function: ease-out;
+  transition-property: transform;
+  background-color: #24a1de;
+}
+
+.border-telegram {
+  border-color: #24a1de;
+}
+
+.fadein-button-animation:hover::before {
+  transform: scaleX(1);
+}
