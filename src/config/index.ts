@@ -25,7 +25,7 @@ export const config = {
   defaultPage: '/pendulum/dashboard',
   googleCredentials: {
     email: import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: import.meta.env.VITE_GOOGLE_PRIVATE_KEY,
+    key: import.meta.env.VITE_GOOGLE_PRIVATE_KEY?.split(String.raw`\n`).join('\n'),
     sheetId: import.meta.env.VITE_GOOGLE_SPREADSHEET_ID,
   },
   tenants: {
