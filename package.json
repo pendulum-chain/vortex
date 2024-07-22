@@ -52,6 +52,8 @@
     "bn.js": "^5.2.1",
     "buffer": "^6.0.3",
     "daisyui": "^4.11.1",
+    "google-auth-library": "^9.11.0",
+    "google-spreadsheet": "^4.1.2",
     "postcss": "^8.4.38",
     "preact": "^10.12.1",
     "react-daisyui": "^5.0.0",
