@@ -11,11 +11,7 @@ const SCOPES = [
   // 'https://www.googleapis.com/auth/drive.file',
 ];
 
-export async function initGoogleSpreadsheet(
-  sheetId: string,
-  googleCredentials: GoogleCredentials,
-  headerValues?: string[],
-) {
+export async function initGoogleSpreadsheet(sheetId: string, googleCredentials: GoogleCredentials) {
   // Initialize auth - see https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication
   if (!googleCredentials.email || !googleCredentials.key) {
     throw new Error('Missing some google credentials');
@@ -37,6 +33,10 @@ export async function initGoogleSpreadsheet(
     throw error;
   }
 
+  return doc;
+}
+
+export async function getOrCreateSheet(doc: GoogleSpreadsheet, headerValues: string[]) {
   let sheet = doc.sheetsByIndex[0];
   // Check if doc doesn't have header already
   if (headerValues) {

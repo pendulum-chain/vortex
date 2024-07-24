@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { initGoogleSpreadsheet, appendData } from '../spreadsheet';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { initGoogleSpreadsheet, appendData, getOrCreateSheet } from '../spreadsheet';
 import { config } from '../../../config';
 
 type TestRowData = {
@@ -8,6 +8,25 @@ type TestRowData = {
 };
 
 describe('initGoogleSpreadsheet', () => {
+  beforeAll(async () => {
+    // Delete all sheets in the spreadsheet
+    // This is to ensure that the test starts with a clean slate
+    const doc = await initGoogleSpreadsheet(config.googleCredentials.sheetId, config.googleCredentials);
+
+    let counter = 0;
+    for (const sheet of doc.sheetsByIndex) {
+      // Delete all sheets except the first one
+      if (counter === 0) {
+        // Clear rows in the first sheet
+        await sheet.clearRows();
+        counter++;
+        continue;
+      }
+
+      await sheet.delete();
+    }
+  });
+
   it('should throw error if google credentials are missing', async () => {
     const credentials = { email: '', key: '' };
 
@@ -19,7 +38,9 @@ describe('initGoogleSpreadsheet', () => {
     const credentials = config.googleCredentials;
     const sheetId = config.googleCredentials.sheetId;
 
-    const sheet = await initGoogleSpreadsheet(sheetId, credentials, ['name', 'age']);
+    const doc = await initGoogleSpreadsheet(sheetId, credentials);
+    expect(doc).toBeDefined();
+    const sheet = await getOrCreateSheet(doc, ['name', 'age']);
     const rows = await sheet.getRows();
     expect(rows.length).toBe(0);
   });
@@ -28,7 +49,9 @@ describe('initGoogleSpreadsheet', () => {
     const credentials = config.googleCredentials;
     const sheetId = config.googleCredentials.sheetId;
 
-    const sheet = await initGoogleSpreadsheet(sheetId, credentials, ['name', 'age']);
+    const doc = await initGoogleSpreadsheet(sheetId, credentials);
+    expect(doc).toBeDefined();
+    const sheet = await getOrCreateSheet(doc, ['name', 'age']);
     await appendData(sheet, { name: 'John', age: '25' });
 
     const rows = await sheet.getRows<TestRowData>();
@@ -41,11 +64,16 @@ describe('initGoogleSpreadsheet', () => {
     const credentials = config.googleCredentials;
     const sheetId = config.googleCredentials.sheetId;
 
-    const sheet = await initGoogleSpreadsheet(sheetId, credentials, ['name', 'age']);
-    await appendData(sheet, { name: 'John', age: '25' });
+    const doc = await initGoogleSpreadsheet(sheetId, credentials);
+    expect(doc).toBeDefined();
+    const oldSheet = await getOrCreateSheet(doc, ['name', 'age']);
+    await appendData(oldSheet, { name: 'John', age: '25' });
 
-    const newSheet = await initGoogleSpreadsheet(sheetId, credentials, ['name', 'age', 'city']);
-    const rows = await newSheet.getRows();
-    expect(rows.length).toBe(1);
+    const newSheet = await getOrCreateSheet(doc, ['name', 'age', 'something']);
+
+    const oldSheetRows = await oldSheet.getRows<TestRowData>();
+    expect(oldSheetRows.length).toBe(1);
+    const newSheetRows = await newSheet.getRows();
+    expect(newSheetRows.length).toBe(0);
   });
 });
