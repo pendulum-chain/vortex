@@ -99,6 +99,8 @@ export const SwapPage = () => {
   function onSubmit(e: Event) {
     e.preventDefault();
 
+    if (isSubmitButtonDisabled) return;
+
     if (!isExchangeSectionSubmitted) {
       if (isFormValidWithoutBankDetails) {
         setIsExchangeSectionSubmittedError(false);
@@ -272,7 +274,7 @@ export const SwapPage = () => {
         )}
         <SwapSubmitButton
           text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
-          disabled={Boolean(getCurrentErrorMessage())}
+          disabled={isSubmitButtonDisabled || Boolean(getCurrentErrorMessage())}
         />
       </form>
     </main>

@@ -62,7 +62,7 @@ async function isEphemeralFunded(state: OfframpingState) {
   const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
 
-  const { data: balance } = await apiData.api.query.system.account(ephemeralKeypair.address);
+  const { data: balance } = (await apiData.api.query.system.account(ephemeralKeypair.address)) as any;
 
   // check if balance is higher than minimum required, then we consider the account ready
   return Big(balance.free.toString()).gte(fundingAmountRaw);
