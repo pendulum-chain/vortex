@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useAccount } from 'wagmi';
+import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 
-import { Navbar } from '../../components/Navbar';
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
 import { FeeCollapse } from '../../components/FeeCollapse';
@@ -16,10 +16,10 @@ import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
+import { BaseLayout } from '../../layouts';
 
 import { useMainProcess } from '../../hooks/useMainProcess';
 import { SwapOptions } from '../../types';
-import Big from 'big.js';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 
 const Arrow = () => (
@@ -28,7 +28,7 @@ const Arrow = () => (
   </div>
 );
 
-export function Swap() {
+export const SwapPage = () => {
   const [isSubmitButtonDisabled, setIsSubmitButtonDisabled] = useState(true);
   const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
   const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
@@ -231,51 +231,52 @@ export function Swap() {
           assetSymbol: value.stellarAsset.code.string,
         }));
 
-  return (
-    <>
-      <PoolSelectorModal
-        open={!!modalType}
-        onSelect={modalType === 'from' ? onFromChange : onToChange}
-        definitions={definitions as any}
-        selected={modalType === 'from' ? from : to}
-        onClose={() => setModalType(undefined)}
-        isLoading={false}
-      />
-      <Navbar />
-      <main className="flex items-center justify-center mt-12" ref={formRef}>
-        <form
-          className="shadow-custom px-4 py-8 rounded-lg mb-12 mx-4 md:mx-8 md:mx-auto w-full md:w-2/3 lg:w-3/5 xl:w-1/2 max-w-2xl transition-[height] duration-1000"
-          onSubmit={onSubmit}
-        >
-          <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-          <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
-          <Arrow />
-          <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-          <p className="text-red-600">{getCurrentErrorMessage()}</p>
-          <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
-          <FeeCollapse
-            fromAmount={fromAmount?.toString()}
-            toAmount={tokenOutData.data?.amountOut.preciseString}
-            toCurrency={to}
-          />
-          <section className="flex items-center justify-center w-full mt-5">
-            <BenefitsList amount={fromAmount} currency={from} />
-          </section>
-          {isExchangeSectionSubmitted ? (
-            <BankDetails
-              registerBankAccount={form.register('bankAccount')}
-              registerTaxNumber={form.register('taxNumber')}
-            />
-          ) : (
-            <></>
-          )}
-          <SwapSubmitButton
-            text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
-            disabled={Boolean(getCurrentErrorMessage())}
-          />
-          <div></div>
-        </form>
-      </main>
-    </>
+  const modals = (
+    <PoolSelectorModal
+      open={!!modalType}
+      onSelect={modalType === 'from' ? onFromChange : onToChange}
+      definitions={definitions as any}
+      selected={modalType === 'from' ? from : to}
+      onClose={() => setModalType(undefined)}
+      isLoading={false}
+    />
   );
-}
+
+  const main = (
+    <main ref={formRef}>
+      <form
+        className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-8 md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        onSubmit={onSubmit}
+      >
+        <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
+        <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
+        <Arrow />
+        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
+        <p className="text-red-600">{getCurrentErrorMessage()}</p>
+        <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
+        <FeeCollapse
+          fromAmount={fromAmount?.toString()}
+          toAmount={tokenOutData.data?.amountOut.preciseString}
+          toCurrency={to}
+        />
+        <section className="flex items-center justify-center w-full mt-5">
+          <BenefitsList amount={fromAmount} currency={from} />
+        </section>
+        {isExchangeSectionSubmitted ? (
+          <BankDetails
+            registerBankAccount={form.register('bankAccount')}
+            registerTaxNumber={form.register('taxNumber')}
+          />
+        ) : (
+          <></>
+        )}
+        <SwapSubmitButton
+          text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
+          disabled={Boolean(getCurrentErrorMessage())}
+        />
+      </form>
+    </main>
+  );
+
+  return <BaseLayout modals={modals} main={main} />;
+};
