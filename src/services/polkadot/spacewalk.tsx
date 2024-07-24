@@ -76,10 +76,13 @@ export async function getVaultsForCurrency(api: ApiPromise, currencySymbol: stri
   const vaults = vaultEntries.map(([key, value]) => value.unwrap());
 
   const vaultsForCurrency = vaults.filter((vault) => {
+    // toString returns the hex string
+    // toHuman returns the hex string if the string has length < 4, otherwise the readable string
     return (
       vault.id.currencies.wrapped.isStellar &&
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
-      vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toHuman() === currencySymbol
+      (vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === currencySymbol ||
+        vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toHuman() === currencySymbol)
     );
   });
 

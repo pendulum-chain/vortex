@@ -6,6 +6,8 @@ export enum EventStatus {
   Waiting = 'waiting',
 }
 
+export type RenderEventHandler = (event: string, status: EventStatus) => void;
+
 export interface GenericEvent {
   value: string;
   status: EventStatus;

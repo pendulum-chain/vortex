@@ -7,7 +7,7 @@ interface IPendingEvent {
 }
 
 export class EventListener {
-  static eventListeners = new Map();
+  static eventListeners = new Map<ApiPromise, EventListener>();
 
   pendingIssueEvents: IPendingEvent[] = [];
   pendingRedeemEvents: IPendingEvent[] = [];
@@ -24,7 +24,7 @@ export class EventListener {
       const newListener = new EventListener(api);
       this.eventListeners.set(api, newListener);
     }
-    return this.eventListeners.get(api);
+    return this.eventListeners.get(api)!;
   }
 
   async initEventSubscriber() {

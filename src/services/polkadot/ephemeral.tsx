@@ -1,193 +1,154 @@
 import { Keyring } from '@polkadot/api';
-import { KeyringPair } from '@polkadot/keyring/types';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { getApiManagerInstance } from './polkadotApi';
-import { parseTokenDepositEvent, TokenTransferEvent } from './eventParsers';
-import { compareObjects } from './eventParsers';
-import { getAddressForFormat } from '../../helpers/addressFormatter';
-import { decimalToNative } from '../../helpers/parseNumbers';
-import { TokenType } from '../../constants/tokenConfig';
-import { TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { TRANSFER_WAITING_TIME_SECONDS } from '../../constants/constants';
+import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import Big from 'big.js';
-import { storageService } from '../localStorage';
-import { storageKeys } from '../../constants/localStorage';
+import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+import { waitForEvmTransaction } from '../evmTransactions';
+import { multiplyByPowerOfTen } from '../../helpers/contracts';
 
-let ephemeralAccountKeypair: KeyringPair | null = null;
-const FUNDING_AMOUNT = decimalToNative(0.1).toNumber(); // 0.1 PEN
+const FUNDING_AMOUNT_UNITS = '0.1';
+
 // TODO: replace
 const SEED_PHRASE = 'hood protect select grace number hurt lottery property stomach grit bamboo field';
 
-// print the public key using the correct ss58 format
-async function printEphemeralAccount(seedPhrase: string) {
-  const { apiData } = await getApiManagerInstance();
-  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData?.ss58Format });
-  ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
-  console.log('Ephemeral account seedphrase: ', seedPhrase);
-  console.log('Ephemeral account created:', ephemeralAccountKeypair.address);
+export async function pendulumFundEphemeral(
+  state: OfframpingState,
+  { wagmiConfig }: ExecutionContext,
+): Promise<OfframpingState> {
+  const { squidRouterSwapHash, pendulumEphemeralSeed } = state;
+  if (squidRouterSwapHash === undefined) {
+    throw new Error('No squid router swap hash found');
+  }
+
+  await waitForEvmTransaction(squidRouterSwapHash, wagmiConfig);
+
+  const isAlreadyFunded = await isEphemeralFunded(state);
+
+  if (!isAlreadyFunded) {
+    const pendulumApiComponents = await getApiManagerInstance();
+    const apiData = pendulumApiComponents.apiData!;
+
+    const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+    const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+    const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
+
+    const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
+    const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
+
+    await apiData.api.tx.balances
+      .transfer(ephemeralKeypair.address, fundingAmountRaw)
+      .signAndSend(fundingAccountKeypair);
+
+    await waitForPendulumEphemeralFunding(state);
+  }
+
+  await waitForInputTokenToArrive(state);
+
+  return {
+    ...state,
+    phase: 'stellarCreateEphemeral',
+  };
 }
 
-export const getEphemeralAccount = () => {
-  if (!ephemeralAccountKeypair) {
-    const seedPhrase = mnemonicGenerate();
-    const keyring = new Keyring({ type: 'sr25519' });
-    ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
-    printEphemeralAccount(seedPhrase);
+async function isEphemeralFunded(state: OfframpingState) {
+  const { pendulumEphemeralSeed } = state;
+  const pendulumApiComponents = await getApiManagerInstance();
+  const apiData = pendulumApiComponents.apiData!;
 
-    // store the seed phrase in local storage
-    storageService.set(storageKeys.PENDULUM_SEED, seedPhrase);
+  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
+  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
+
+  const { data: balance } = await apiData.api.query.system.account(ephemeralKeypair.address);
+
+  // check if balance is higher than minimum required, then we consider the account ready
+  return Big(balance.free.toString()).gte(fundingAmountRaw);
+}
+
+async function waitForPendulumEphemeralFunding(state: OfframpingState) {
+  while (true) {
+    const isFunded = await isEphemeralFunded(state);
+    if (isFunded) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  return ephemeralAccountKeypair;
-};
+}
 
-export const recoverEphemeralAccount = async () => {
-  const seedPhrase = storageService.get(storageKeys.PENDULUM_SEED);
-  if (!seedPhrase) {
-    throw new Error('Pendulum seed phrase not found in local storage');
+async function waitForInputTokenToArrive(state: OfframpingState) {
+  while (true) {
+    const isFunded = await didInputTokenArriveOnPendulum(state);
+    if (isFunded) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
+}
 
-  const keyring = new Keyring({ type: 'sr25519' });
-  ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
-  printEphemeralAccount(seedPhrase);
-};
+export async function createPendulumEphemeralSeed() {
+  const seedPhrase = mnemonicGenerate();
 
-export const fundEphemeralAccount = async () => {
+  const pendulumApiComponents = await getApiManagerInstance();
+  const apiData = pendulumApiComponents.apiData!;
+  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+
+  const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
+  console.log('Ephemeral account seedphrase: ', seedPhrase);
+  console.log('Ephemeral account created:', ephemeralAccountKeypair.address);
+
+  return seedPhrase;
+}
+
+export async function pendulumCleanup(state: OfframpingState): Promise<OfframpingState> {
   try {
+    const { pendulumEphemeralSeed, inputTokenType, outputTokenType } = state;
+    const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+    const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+
     const pendulumApiComponents = await getApiManagerInstance();
-    const apiData = pendulumApiComponents.apiData!;
+    const { api, ss58Format } = pendulumApiComponents.apiData!;
 
-    const ephemeralAddress = getEphemeralAccount().address;
-
-    const keyring = new Keyring({ type: 'sr25519' });
-    const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
-
-    await apiData.api.tx.balances.transfer(ephemeralAddress, FUNDING_AMOUNT).signAndSend(fundingAccountKeypair);
-  } catch (error) {
-    console.error('Error funding account', error);
-  }
-};
-
-export const cleanEphemeralAccount = async (token: TokenType) => {
-  try {
-    const pendulumApiComponents = await getApiManagerInstance();
-    const apiData = pendulumApiComponents.apiData!;
-
-    const ephemeralKeyring = getEphemeralAccount();
-
-    const keyring = new Keyring({ type: 'sr25519' });
-    const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
-    const fundingAccountAddress = getAddressForFormat(fundingAccountKeypair.address, apiData.ss58Format);
+    const keyring = new Keyring({ type: 'sr25519', ss58Format });
+    const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+    const fundingAccountAddress = keyring.addFromUri(SEED_PHRASE).address;
 
     // probably will never be exactly '0', but to be safe
     // TODO: if the value is too small, do we really want to transfer token dust and spend fees?
-    await apiData.api.tx.tokens
-      .transferAll(fundingAccountAddress, TOKEN_CONFIG[token].currencyId, false)
-      .signAndSend(ephemeralKeyring);
+    const inputCurrencyId = inputToken.axelarEquivalent.pendulumCurrencyId;
+    const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
 
-    await apiData.api.tx.balances.transferAll(fundingAccountAddress, false).signAndSend(ephemeralKeyring);
-
-    // to be safe, storage will be cleaned anyway
-    storageService.set(storageKeys.PENDULUM_SEED, undefined);
+    await api.tx.utility
+      .batchAll([
+        api.tx.tokens.transferAll(fundingAccountAddress, inputCurrencyId, false),
+        api.tx.tokens.transferAll(fundingAccountAddress, outputCurrencyId, false),
+        api.tx.balances.transferAll(fundingAccountAddress, false),
+      ])
+      .signAndSend(ephemeralKeypair);
   } catch (error) {
     console.error('Error cleaning pendulum ephemeral account', error);
   }
-};
 
-// function to check balance of account, native token
-export async function checkBalance(): Promise<boolean> {
-  const pendulumApiComponents = await getApiManagerInstance();
-  if (!ephemeralAccountKeypair) {
-    return false;
-  }
-  const { data: balance } = await pendulumApiComponents.apiData!.api.query.system.account(
-    ephemeralAccountKeypair?.address,
-  );
-
-  // check if balance is higher than minimum required, then we consider the account ready
-  return balance.free.toNumber() >= FUNDING_AMOUNT;
+  return { ...state, phase: 'stellarOfframp' };
 }
 
-export async function checkEphemeralReady(tokenToReceive: TokenType, expectedBalanceRaw: Big): Promise<Big> {
+async function didInputTokenArriveOnPendulum({
+  inputAmount,
+  pendulumEphemeralSeed,
+  inputTokenType,
+}: OfframpingState): Promise<boolean> {
   const pendulumApiComponents = await getApiManagerInstance();
-  const apiData = pendulumApiComponents.apiData!;
+  const { api, ss58Format } = pendulumApiComponents.apiData!;
 
-  const ephemeralKeyring = getEphemeralAccount();
-  const ephemeralAddress = getAddressForFormat(ephemeralKeyring.address, apiData.ss58Format);
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
 
-  // since this could be triggered after a recovery, we first
-  // check if the tokens are actually there. Otherwise the event will never be triggered
-  const response = (
-    await apiData.api.query.tokens.accounts(ephemeralAddress, TOKEN_CONFIG[tokenToReceive].currencyId)
-  ).toHuman() as any;
-  const rawBalanceString = response?.free || '0';
-  const rawBalance = new Big(rawBalanceString.toString()) as Big;
+  const balanceResponse = (await api.query.tokens.accounts(
+    ephemeralKeypair.address,
+    inputToken.axelarEquivalent.pendulumCurrencyId,
+  )) as any;
+  const inputBalanceRaw = Big(balanceResponse?.free?.toString() ?? '0');
 
-  if (rawBalance.gte(expectedBalanceRaw)) {
-    console.log('Token already received, continuing...');
-    return rawBalance;
-  }
-
-  // This is the normal path, where we wait for the token to be received
-  console.log('Waiting to receive token: ', tokenToReceive);
-  const tokenTransferEvent = await waitForTokenReceptionEvent(tokenToReceive, TRANSFER_WAITING_TIME_SECONDS * 1000);
-  console.log('token received', tokenTransferEvent);
-
-  // check if the token received is the expected amount
-  if (tokenTransferEvent.amountRaw.lt(expectedBalanceRaw)) {
-    throw new Error('Expected token balance received on ephemeral too low');
-  }
-
-  // call checkBalance until it returns true. Funding operation.
-  let ready;
-  do {
-    ready = await checkBalance();
-  } while (!ready);
-
-  return tokenTransferEvent.amountRaw;
-}
-
-export async function waitForTokenReceptionEvent(
-  expectedCurrencyId: any,
-  maxWaitingTimeMs: number,
-): Promise<TokenTransferEvent> {
-  const pendulumApiComponents = await getApiManagerInstance();
-  const ephemeralAddress = getEphemeralAccount().address;
-  const apiData = pendulumApiComponents.apiData!;
-
-  const filter = (event: any) => {
-    if (event.event.section === 'tokens' && event.event.method === 'Deposited') {
-      console.log('Deposit Event:', event);
-      const eventParsed = parseTokenDepositEvent(event);
-      if (eventParsed.to != getAddressForFormat(ephemeralAddress, apiData.ss58Format)) {
-        return null;
-      }
-      if (compareObjects(eventParsed.currencyId, expectedCurrencyId)) {
-        return eventParsed;
-      }
-    }
-    return null;
-  };
-
-  return new Promise((resolve, reject) => {
-    let unsubscribeFromEventsPromise: Promise<() => void> | null = null;
-    const timeout = setTimeout(() => {
-      if (unsubscribeFromEventsPromise) {
-        unsubscribeFromEventsPromise.then((unsubscribe) => unsubscribe());
-      }
-      reject(new Error(`Max waiting time exceeded for token reception`));
-    }, maxWaitingTimeMs);
-
-    unsubscribeFromEventsPromise = apiData.api.query.system.events((events) => {
-      events.forEach((event) => {
-        const eventParsed = filter(event);
-        if (eventParsed) {
-          if (unsubscribeFromEventsPromise) {
-            unsubscribeFromEventsPromise.then((unsubscribe) => unsubscribe());
-          }
-          clearTimeout(timeout);
-          resolve(eventParsed);
-        }
-      });
-    });
-  });
+  return inputBalanceRaw.gte(Big(inputAmount.raw));
 }

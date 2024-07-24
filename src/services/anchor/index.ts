@@ -1,9 +1,8 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
-import { TokenDetails } from '../../constants/tokenConfig';
-import { storageService } from '../localStorage';
-import { storageKeys } from '../../constants/localStorage';
-export interface TomlValues {
+import { OutputTokenDetails } from '../../constants/tokenConfig';
+
+interface TomlValues {
   signingKey?: string;
   webAuthEndpoint?: string;
   sep24Url?: string;
@@ -11,15 +10,15 @@ export interface TomlValues {
   kycServer?: string;
 }
 
-export interface ISep24Intermediate {
+interface ISep24Intermediate {
   url: string;
   id: string;
 }
 
-export interface IAnchorSessionParams {
+interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
-  tokenConfig: TokenDetails;
+  tokenConfig: OutputTokenDetails;
   offrampAmount: string;
 }
 
@@ -30,27 +29,12 @@ export interface SepResult {
   offrampingAccount: string;
 }
 
+export function createStellarEphemeralSecret() {
+  const ephemeralKeys = Keypair.random();
+  return ephemeralKeys.secret();
+}
+
 const exists = (value?: string | null): value is string => !!value && value?.length > 0;
-let ephemeralKeys: Keypair | null;
-
-export const getEphemeralKeys = () => {
-  if (ephemeralKeys) {
-    return ephemeralKeys;
-  } else {
-    ephemeralKeys = Keypair.random();
-    storageService.set(storageKeys.STELLAR_SEED, ephemeralKeys.secret());
-    return ephemeralKeys;
-  }
-};
-
-export const restoreStellarEphemeralKeys = () => {
-  const seedPhrase = storageService.get(storageKeys.STELLAR_SEED);
-  if (!seedPhrase) {
-    throw new Error('Stellar seed phrase not found in local storage');
-  }
-  ephemeralKeys = Keypair.fromSecret(seedPhrase);
-  console.log('Restored ephemeral keys', ephemeralKeys.publicKey());
-};
 
 export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues> => {
   const response = await fetch(TOML_FILE_URL);
@@ -80,6 +64,7 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 
 export const sep10 = async (
   tomlValues: TomlValues,
+  stellarEphemeralSecret: string,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -88,7 +73,7 @@ export const sep10 = async (
     throw new Error('Missing values in TOML file');
   }
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
-  const ephemeralKeys = getEphemeralKeys();
+  const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
   const urlParams = new URLSearchParams({
     account: accountId,
@@ -139,6 +124,7 @@ export const sep10 = async (
 // TODO modify according to the anchor's requirements and implementation
 // we should be able to do the whole flow on this function since we have all the
 // information we need
+/*
 export async function sep6First(sessionParams: IAnchorSessionParams): Promise<SepResult> {
   const { token, tomlValues } = sessionParams;
   const { sep6Url } = tomlValues;
@@ -172,8 +158,9 @@ export async function sep6First(sessionParams: IAnchorSessionParams): Promise<Se
     throw new Error(`Unexpected SEP-6 type: ${type}`);
   }
   //return { transactionId: id };
-}
+}*/
 
+/*
 export async function sep12First(sessionParams: IAnchorSessionParams): Promise<void> {
   const { token, tomlValues } = sessionParams;
   const { sep6Url } = tomlValues;
@@ -194,7 +181,7 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
     throw new Error(`Failed to initiate SEP-6: ${sep12Response.statusText}`);
   }
   //>????
-}
+}*/
 
 export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
   const { token, tomlValues } = sessionParams;
@@ -202,7 +189,7 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
 
   // at this stage, assetCode should be defined, if the config is consistent.
   const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.assetCode!,
+    asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
     amount: sessionParams.offrampAmount,
   });
 

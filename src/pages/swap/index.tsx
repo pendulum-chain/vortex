@@ -15,12 +15,12 @@ import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
-import { AssetCodes } from '../../constants/tokenConfig';
+import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 
-import Big from 'big.js';
 import { useMainProcess } from '../../hooks/useMainProcess';
 import { SwapOptions } from '../../types';
-import { TokenType } from '../../constants/tokenConfig';
+import Big from 'big.js';
+import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -28,7 +28,7 @@ const Arrow = () => (
   </div>
 );
 
-export const Swap = () => {
+export function Swap() {
   const [isSubmitButtonDisabled, setIsSubmitButtonDisabled] = useState(true);
   const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
   const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
@@ -50,15 +50,7 @@ export const Swap = () => {
   }, []);
 
   // Main process hook
-  const {
-    canInitiate,
-    anchorSessionParams,
-    isRecovery,
-    isRecoveryError,
-    sep24Url,
-    handleOnSubmit,
-
-  } = useMainProcess();
+  const { handleOnSubmit } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -67,12 +59,13 @@ export const Swap = () => {
     form,
     fromAmount,
     fromAmountString,
-    fromToken,
-    toToken,
     from,
     to,
     reset,
   } = useSwapForm();
+
+  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
+  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
 
   useEffect(() => {
     if (form.formState.isDirty && isExchangeSectionSubmitted && isDisconnected) {
@@ -84,8 +77,8 @@ export const Swap = () => {
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
     api,
-    fromToken: from,
-    toToken: to,
+    inputTokenType: from,
+    outputTokenType: to,
     maximumFromAmount: undefined,
     slippageBasisPoints: config.swap.slippageBasisPoints,
     fromAmountString,
@@ -117,6 +110,17 @@ export const Swap = () => {
       return;
     }
 
+    if (fromAmount === undefined) {
+      console.log('Input amount is undefined');
+      return;
+    }
+
+    const minimumOutputAmount = tokenOutData.data?.amountOut;
+    if (minimumOutputAmount === undefined) {
+      console.log('Output amount is undefined');
+      return;
+    }
+
     console.log('starting ....');
     // Hardcoding the selection SwapOptions since at least for now this will be always the case (no direct offramping on this UI)
     // TODO we need to pass the bank account/tax id also, required for sep12 probably.
@@ -125,9 +129,10 @@ export const Swap = () => {
       minAmountOut: tokenOutData.data?.amountOut.preciseBigDecimal,
     };
     handleOnSubmit({
-      assetToOfframp: to as TokenType,
-      amountIn: new Big(fromAmount!),
-      swapOptions,
+      inputTokenType: from as InputTokenType,
+      outputTokenType: to as OutputTokenType,
+      amountInUnits: fromAmountString,
+      minAmountOutUnits: minimumOutputAmount.preciseString,
     });
   }
 
@@ -163,7 +168,8 @@ export const Swap = () => {
     () => (
       <AssetNumericInput
         additionalText="PIX / Bank Account"
-        fromToken={toToken}
+        tokenType={to}
+        tokenSymbol={toToken?.stellarAsset.code.string}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
@@ -177,7 +183,8 @@ export const Swap = () => {
     () => (
       <AssetNumericInput
         registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-        fromToken={fromToken}
+        tokenType={from}
+        tokenSymbol={fromToken?.assetSymbol}
         onClick={() => setModalType('from')}
       />
     ),
@@ -189,29 +196,48 @@ export const Swap = () => {
       return 'You must first enter the amount you wish to withdraw.';
     }
 
-    // Minimum amount for withdrawal in BRL is 25, maximum is 25000
-    if (toToken?.assetCode === AssetCodes.BRL && tokenOutData.data?.amountOut.preciseString) {
-      if (Number(tokenOutData.data?.amountOut.preciseString) < 25) {
-        return 'Minimum withdrawal amount is 25 BRL.';
+    const amountOut = tokenOutData.data?.amountOut;
+
+    if (amountOut !== undefined && toToken !== undefined) {
+      const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
+      const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
+
+      if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
+        const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
+        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+          toToken.stellarAsset.code.string
+        }.`;
       }
-      if (Number(tokenOutData.data?.amountOut.preciseString) > 25000) {
-        return 'Maximum withdrawal amount is 25000 BRL.';
+
+      if (minAmountRaw.gt(Big(amountOut.rawBalance))) {
+        const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
+        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
+          toToken.stellarAsset.code.string
+        }.`;
       }
     }
 
     return tokenOutData.error;
   }
 
+  const definitions =
+    modalType === 'from'
+      ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
+          type: key as InputTokenType,
+          assetSymbol: value.assetSymbol,
+        }))
+      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
+          type: key as OutputTokenType,
+          assetSymbol: value.stellarAsset.code.string,
+        }));
+
   return (
     <>
       <PoolSelectorModal
         open={!!modalType}
-        mode={{ type: modalType, swap: true }}
         onSelect={modalType === 'from' ? onFromChange : onToChange}
-        selected={{
-          type: 'token',
-          tokenAddress: modalType ? (modalType === 'from' ? fromToken?.assetCode : toToken?.assetCode) : undefined,
-        }}
+        definitions={definitions as any}
+        selected={modalType === 'from' ? from : to}
         onClose={() => setModalType(undefined)}
         isLoading={false}
       />
@@ -230,7 +256,7 @@ export const Swap = () => {
           <FeeCollapse
             fromAmount={fromAmount?.toString()}
             toAmount={tokenOutData.data?.amountOut.preciseString}
-            toCurrency={toToken?.assetCode}
+            toCurrency={to}
           />
           <section className="flex items-center justify-center w-full mt-5">
             <BenefitsList amount={fromAmount} currency={from} />
@@ -252,4 +278,4 @@ export const Swap = () => {
       </main>
     </>
   );
-};
+}

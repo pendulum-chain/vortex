@@ -1,4 +1,4 @@
-import { TokenType } from '../constants/tokenConfig';
+import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
 
 export interface SwapOptions {
   assetIn: string;
@@ -22,7 +22,8 @@ export enum OperationStatus {
 }
 
 export interface ExecutionInput {
-  assetToOfframp: TokenType;
-  amountIn: Big;
-  swapOptions: SwapOptions | undefined; // undefined means direct offramp
+  inputTokenType: InputTokenType;
+  outputTokenType: OutputTokenType;
+  amountInUnits: string;
+  minAmountOutUnits: string;
 }

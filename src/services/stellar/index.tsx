@@ -12,16 +12,14 @@ import {
 import { HORIZON_URL, BASE_FEE } from '../../constants/constants';
 import { SepResult } from '../anchor';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
-import { TokenDetails } from '../../constants/tokenConfig';
+import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { Buffer } from 'buffer';
-import { getEphemeralKeys } from '../anchor';
-
-import { storageService } from '../localStorage';
-import { storageKeys } from '../../constants/localStorage';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 import { EventStatus } from '../../components/GenericEvent';
+import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+import { fetchSigningServiceAccountId } from '../signingService';
 
 export interface StellarOperations {
   offrampingTransaction: Transaction;
@@ -34,37 +32,64 @@ type StellarFundingSignatureResponse = {
   sequence: string;
 };
 
+export async function stellarCreateEphemeral(state: OfframpingState): Promise<OfframpingState> {
+  const fundingAccountId = await fetchSigningServiceAccountId();
+  const ephemeralAccountExists = await isEphemeralCreated(state);
+
+  if (!ephemeralAccountExists) {
+    await setupStellarAccount(fundingAccountId, state.stellarEphemeralSecret, state.outputTokenType);
+
+    while (true) {
+      if (await isEphemeralCreated(state)) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  return {
+    ...state,
+    phase: 'nablaApprove',
+  };
+}
+
+async function isEphemeralCreated({ stellarEphemeralSecret }: OfframpingState): Promise<boolean> {
+  const ephemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
+  const ephemeralAccountId = ephemeralKeypair.publicKey();
+
+  try {
+    await horizonServer.loadAccount(ephemeralAccountId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function setUpAccountAndOperations(
-  fundingAccountPk: string,
+  fundingAccountId: string,
+  ephemeralKeypair: Keypair,
   sepResult: SepResult,
-  tokenConfig: TokenDetails,
+  outputTokenType: OutputTokenType,
 ): Promise<StellarOperations> {
-  const ephemeralKeys = getEphemeralKeys();
-  const ephemeralAccountId = ephemeralKeys.publicKey();
-  const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
+  const ephemeralAccount = await horizonServer.loadAccount(ephemeralKeypair.publicKey());
   const { offrampingTransaction, mergeAccountTransaction } = await createOfframpAndMergeTransaction(
-    fundingAccountPk,
+    fundingAccountId,
     sepResult,
-    ephemeralKeys,
+    ephemeralKeypair,
     ephemeralAccount,
-    tokenConfig,
+    OUTPUT_TOKEN_CONFIG[outputTokenType],
   );
   return { offrampingTransaction, mergeAccountTransaction };
 }
 
-export async function setupStellarAccount(fundingAccountPk: string, tokenConfig: TokenDetails) {
-  const ephemeralKeys = getEphemeralKeys();
-  const ephemeralAccountId = ephemeralKeys.publicKey();
-
-  // Check if the account already exists, recovery safeguard.
-  try {
-    const ephemeralAccountInitial = await horizonServer.loadAccount(ephemeralAccountId);
-    if (ephemeralAccountInitial) {
-      return ephemeralAccountInitial;
-    }
-  } catch {
-    // The account does not exist, we need to create it. No further operation.
-  }
+async function setupStellarAccount(
+  fundingAccountId: string,
+  ephemeralSecret: string,
+  outputTokenType: OutputTokenType,
+) {
+  const ephemeralKeypair = Keypair.fromSecret(ephemeralSecret);
+  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const ephemeralAccountId = ephemeralKeypair.publicKey();
 
   // To make the transaction deterministic, we need to set absoulte timebounds
   // We set the max time to 10 minutes from now
@@ -75,7 +100,7 @@ export async function setupStellarAccount(fundingAccountPk: string, tokenConfig:
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetCode: tokenConfig.assetCode }),
+    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetCode: outputTokenType }),
   });
 
   if (!response.ok) {
@@ -86,7 +111,7 @@ export async function setupStellarAccount(fundingAccountPk: string, tokenConfig:
   // The funding account with sequene as per received from the server
   // This will be valid as long as teh funding account does not make
   // a transaction in the meantime
-  const fundingAccount = new Account(fundingAccountPk, responseData.sequence);
+  const fundingAccount = new Account(fundingAccountId, responseData.sequence);
 
   // add a setOption oeration in order to make this a 2-of-2 multisig account where the
   // funding account is a cosigner
@@ -105,7 +130,7 @@ export async function setupStellarAccount(fundingAccountPk: string, tokenConfig:
       .addOperation(
         Operation.setOptions({
           source: ephemeralAccountId,
-          signer: { ed25519PublicKey: fundingAccountPk, weight: 1 },
+          signer: { ed25519PublicKey: fundingAccountId, weight: 1 },
           lowThreshold: 2,
           medThreshold: 2,
           highThreshold: 2,
@@ -114,7 +139,7 @@ export async function setupStellarAccount(fundingAccountPk: string, tokenConfig:
       .addOperation(
         Operation.changeTrust({
           source: ephemeralAccountId,
-          asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+          asset: new Asset(outputToken.stellarAsset.code.string, outputToken.stellarAsset.issuer.stellarEncoding),
         }),
       )
       .setTimebounds(0, maxTime)
@@ -124,8 +149,8 @@ export async function setupStellarAccount(fundingAccountPk: string, tokenConfig:
     throw new Error('Could not create the account creation transaction');
   }
 
-  createAccountTransaction.addSignature(fundingAccountPk, responseData.signature[0]);
-  createAccountTransaction.sign(ephemeralKeys);
+  createAccountTransaction.addSignature(fundingAccountId, responseData.signature[0]);
+  createAccountTransaction.sign(ephemeralKeypair);
 
   try {
     await horizonServer.submitTransaction(createAccountTransaction);
@@ -135,18 +160,14 @@ export async function setupStellarAccount(fundingAccountPk: string, tokenConfig:
     console.error(horizonError.response.data.extras.toString());
     throw new Error('Could not submit the account creation transaction');
   }
-
-  const ephemeralAccount = await horizonServer.loadAccount(ephemeralAccountId);
-
-  return ephemeralAccount;
 }
 
 async function createOfframpAndMergeTransaction(
-  fundingAccountPk: string,
+  fundingAccountId: string,
   sepResult: SepResult,
   ephemeralKeys: Keypair,
   ephemeralAccount: Account,
-  tokenConfig: TokenDetails,
+  { stellarAsset: { code, issuer } }: OutputTokenDetails,
 ) {
   // We allow for more TTL since the redeem may take time
   const maxTime = Date.now() + 1000 * 60 * 30;
@@ -168,6 +189,8 @@ async function createOfframpAndMergeTransaction(
       throw new Error(`Unexpected offramp memo type: ${memoType}`);
   }
 
+  const stellarAsset = new Asset(code.string, issuer.stellarEncoding);
+
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added
   const offrampingTransaction = new TransactionBuilder(ephemeralAccount, {
@@ -177,7 +200,7 @@ async function createOfframpAndMergeTransaction(
     .addOperation(
       Operation.payment({
         amount,
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: stellarAsset,
         destination: offrampingAccount,
       }),
     )
@@ -193,13 +216,13 @@ async function createOfframpAndMergeTransaction(
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: stellarAsset,
         limit: '0',
       }),
     )
     .addOperation(
       Operation.accountMerge({
-        destination: fundingAccountPk,
+        destination: fundingAccountId,
       }),
     )
     .setTimebounds(0, maxTime)
@@ -221,7 +244,7 @@ async function createOfframpAndMergeTransaction(
       paymentData: sepResult,
       sequence,
       maxTime,
-      assetCode: tokenConfig.assetCode,
+      assetCode: code,
     }),
   });
 
@@ -238,20 +261,15 @@ async function createOfframpAndMergeTransaction(
   mergeAccountTransaction.addSignature(responseData.public, responseData.signature[1]);
   mergeAccountTransaction.sign(ephemeralKeys);
 
-  storageService.set(storageKeys.STELLAR_OPERATIONS, { offrampingTransaction, mergeAccountTransaction });
-
   return { offrampingTransaction, mergeAccountTransaction };
 }
 
 // Recovery behaviour: If the offramp transaction was already submitted, we will get a sequence error.
 // if we are on recovery mode we can ignore this error.
 // Alternative improvement: check the balance of the destination (offramp) account to see if the funds arrived.
-export async function submitOfframpTransaction(
-  offrampingTransaction: Transaction,
-  isRecovery: boolean,
-  renderEvent: (event: string, status: EventStatus) => void,
-) {
+export async function stellarOfframp(state: OfframpingState): Promise<OfframpingState | undefined> {
   try {
+    const offrampingTransaction = new Transaction(state.stellarOfframpingTransaction, NETWORK_PASSPHRASE);
     await horizonServer.submitTransaction(offrampingTransaction);
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };
@@ -260,7 +278,7 @@ export async function submitOfframpTransaction(
       `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
     );
     // check https://developers.stellar.org/docs/data/horizon/api-reference/errors/result-codes/transactions
-    if (isRecovery && horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
+    if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
       console.log('Recovery mode: Offramp already performed.');
       return;
     }
@@ -270,11 +288,12 @@ export async function submitOfframpTransaction(
   }
 }
 
-export async function cleanupStellarEphemeral(
-  mergeAccountTransaction: Transaction,
-  renderEvent: (event: string, status: EventStatus) => void,
-) {
+export async function stellarCleanup(
+  state: OfframpingState,
+  { renderEvent }: ExecutionContext,
+): Promise<OfframpingState | undefined> {
   try {
+    const mergeAccountTransaction = new Transaction(state.stellarCleanupTransaction, NETWORK_PASSPHRASE);
     await horizonServer.submitTransaction(mergeAccountTransaction);
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };
@@ -287,4 +306,6 @@ export async function cleanupStellarEphemeral(
     console.error(horizonError.response.data.extras);
     throw new Error('Could not submit the cleanup transaction');
   }
+
+  return undefined;
 }

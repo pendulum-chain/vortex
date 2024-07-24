@@ -7,169 +7,154 @@ import { getApiManagerInstance } from './polkadot/polkadotApi';
 import { erc20WrapperAbi } from '../contracts/ERC20Wrapper';
 import { routerAbi } from '../contracts/Router';
 import { NABLA_ROUTER } from '../constants/constants';
-import { defaultReadLimits, multiplyByPowerOfTen } from '../helpers/contracts';
+import { defaultReadLimits, multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { parseContractBalanceResponse } from '../helpers/contracts';
-import { TOKEN_CONFIG, TokenType } from '../constants/tokenConfig';
+import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG, getPendulumCurrencyId } from '../constants/tokenConfig';
 import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
-import { toBigNumber } from '../helpers/parseNumbers';
-import { getEphemeralAccount } from './polkadot/ephemeral';
-
-export interface PerformSwapProps {
-  amountInRaw: Big;
-  assetOut: string;
-  assetIn: string;
-  minAmountOut: Big;
-}
+import { ExecutionContext, OfframpingState } from './offrampingFlow';
+import { Keyring } from '@polkadot/api';
 
 // Since this operation reads first from chain the current approval, there is no need to
 // save any state for potential recovery.
 export async function nablaApprove(
-  { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
-  renderEvent: (event: string, status: EventStatus) => void,
-): Promise<void> {
+  state: OfframpingState,
+  { renderEvent }: ExecutionContext,
+): Promise<OfframpingState> {
+  const { inputTokenType, inputAmount, pendulumEphemeralSeed } = state;
+
   // event attempting swap
-  const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
-  const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
 
-  const amountIn = toBigNumber(amountInRaw, assetInDetails.decimals);
-
-  console.log('swap', 'Attempting swap', amountIn, assetOut, assetIn, minAmountOut);
+  console.log('swap', 'Attempting swap', inputAmount.raw, inputTokenType);
   // get chain api, abi
-  const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
-  const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
+  const { ss58Format, api } = (await getApiManagerInstance()).apiData!;
+  const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
   // get asset details
 
   // get ephermal keypair and account
-  const keypairEphemeral = getEphemeralAccount();
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
 
   // call the current allowance of the ephemeral
   const response: ReadMessageResult = await readMessage({
     abi: erc20ContractAbi,
-    api: pendulumApiComponents.api,
-    contractDeploymentAddress: assetInDetails.erc20Address!,
-    callerAddress: keypairEphemeral.address,
+    api: api,
+    contractDeploymentAddress: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+    callerAddress: ephemeralKeypair.address,
     messageName: 'allowance',
-    messageArguments: [keypairEphemeral.address, NABLA_ROUTER],
+    messageArguments: [ephemeralKeypair.address, NABLA_ROUTER],
     limits: defaultReadLimits,
   });
 
   if (response.type !== 'success') {
     const message = 'Could not load token allowance';
     renderEvent(message, EventStatus.Error);
-    return Promise.reject(message);
+    throw new Error(message);
   }
 
-  const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
-
-  // Probably no need to multiply by power of ten here since amountIn comes from the event
-  //const rawAmountToSwapBig = multiplyByPowerOfTen(amountIn, assetInDetails.decimals);
-  const rawAmountToSwapBig = amountInRaw;
+  const currentAllowance = parseContractBalanceResponse(inputToken.decimals, response.value);
 
   //maybe do allowance
-  if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(rawAmountToSwapBig)) {
+  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmount.raw))) {
     try {
       renderEvent(
-        `Approving tokens: ${toBigNumber(
-          rawAmountToSwapBig,
-          assetInDetails.decimals,
-        )} ${assetInDetails.assetCode.toUpperCase()}`,
+        `Approving tokens: ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
         EventStatus.Waiting,
       );
       await approve({
-        api: pendulumApiComponents.api,
-        amount: rawAmountToSwapBig.toFixed(), // toString can render exponential notation
-        token: assetInDetails.erc20Address!,
+        api: api,
+        amount: inputAmount.raw,
+        token: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
-        keypairEphemeral,
+        keypairEphemeral: ephemeralKeypair,
       });
     } catch (e) {
       renderEvent(`Could not approve token: ${e}`, EventStatus.Error);
       return Promise.reject('Could not approve token');
     }
   }
+
+  return {
+    ...state,
+    phase: 'nablaSwap',
+  };
 }
 
-export async function nablaSwap(
-  { amountInRaw, assetOut, assetIn, minAmountOut }: PerformSwapProps,
-  renderEvent: (event: string, status: EventStatus) => void,
-): Promise<Big> {
-  // event attempting swap
-  const assetInDetails = TOKEN_CONFIG[assetIn as TokenType];
-  const assetOutDetails = TOKEN_CONFIG[assetOut as TokenType];
+export async function nablaSwap(state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> {
+  const { inputTokenType, outputTokenType, inputAmount, outputAmount, pendulumEphemeralSeed } = state;
 
-  const amountIn = toBigNumber(amountInRaw, assetInDetails.decimals);
+  // event attempting swap
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   // get chain api, abi
-  const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
-  const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
+  const { ss58Format, api } = (await getApiManagerInstance()).apiData!;
+  const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
   // get asset details
 
   // get ephermal keypair and account
-  const keypairEphemeral = getEphemeralAccount();
-
-  const rawAmountToSwapBig = amountInRaw;
-  const rawAmountMinBig = multiplyByPowerOfTen(minAmountOut, assetOutDetails.decimals);
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
 
   // balance before the swap. Important for recovery process.
   // if transaction was able to get in, but we failed on the listening
-  const responseBalanceBefore = (
-    await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
-  ).toHuman() as any;
-
-  const rawBalanceBefore = responseBalanceBefore?.free || '0';
-  const balanceBeforeBigDecimal = toBigNumber(rawBalanceBefore, assetOutDetails.decimals);
+  const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
+  const responseBalanceBefore = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
+  const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
 
   // Since this is an ephemeral account, balanceBefore being greater than the minimum amount means that the swap was successful
   // but we missed the event. This is important for recovery process.
-  if (balanceBeforeBigDecimal.gte(rawAmountMinBig)) {
-    renderEvent(`Swap successful. Amount received: ${balanceBeforeBigDecimal}`, EventStatus.Success);
-    return balanceBeforeBigDecimal;
-  }
+  if (rawBalanceBefore.lt(Big(outputAmount.raw))) {
+    // Try swap
+    try {
+      //TODO amountIN has all zeroes now, need to fix the message.
+      renderEvent(
+        `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+        EventStatus.Waiting,
+      );
 
-  // Try swap
-  try {
-    //TODO amountIN has all zeroes now, need to fix the message.
-    renderEvent(
-      `Swapping ${amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${minAmountOut} ${assetOutDetails.assetCode.toUpperCase()} `,
-      EventStatus.Waiting,
-    );
-    await doActualSwap({
-      api: pendulumApiComponents.api,
-      amount: rawAmountToSwapBig.toFixed(), // toString can render exponential notation
-      amountMin: rawAmountMinBig.toFixed(), // toString can render exponential notation
-      tokenIn: assetInDetails.erc20Address!,
-      tokenOut: assetOutDetails.erc20Address!,
-      contractAbi: routerAbiObject,
-      keypairEphemeral,
-    });
-  } catch (e) {
-    let errorMessage = '';
-    const result = (e as ExecuteMessageResult).result;
-    if (result.type === 'reverted') {
-      errorMessage = result.description;
-    } else if (result.type === 'error') {
-      errorMessage = result.error;
-    } else {
-      errorMessage = 'Something went wrong';
+      await doActualSwap({
+        api: api,
+        amount: inputAmount.raw, // toString can render exponential notation
+        amountMin: outputAmount.raw, // toString can render exponential notation
+        tokenIn: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+        tokenOut: outputToken.erc20WrapperAddress,
+        contractAbi: routerAbiObject,
+        keypairEphemeral: ephemeralKeypair,
+      });
+    } catch (e) {
+      let errorMessage = '';
+      const result = (e as ExecuteMessageResult).result;
+      if (result.type === 'reverted') {
+        errorMessage = result.description;
+      } else if (result.type === 'error') {
+        errorMessage = result.error;
+      } else {
+        errorMessage = 'Something went wrong';
+      }
+      renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
+      return Promise.reject('Could not swap token');
     }
-    renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
-    return Promise.reject('Could not swap token');
+
+    //verify token balance before releasing this process.
+    const responseBalanceAfter = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
+    const rawBalanceAfter = Big(responseBalanceAfter?.free?.toString() ?? '0');
+
+    const actualOfframpValueRaw = rawBalanceAfter.sub(rawBalanceBefore);
+
+    const actualOfframpValue = multiplyByPowerOfTen(actualOfframpValueRaw, -outputToken.decimals);
+
+    renderEvent(
+      `Swap successful. Amount received: ${stringifyBigWithSignificantDecimals(actualOfframpValue, 2)}`,
+      EventStatus.Success,
+    );
   }
 
-  //verify token balance before releasing this process.
-  const responseBalanceAfter = (
-    await pendulumApiComponents.api.query.tokens.accounts(keypairEphemeral.address, assetOutDetails.currencyId)
-  ).toHuman() as any;
-
-  const rawBalanceAfter = responseBalanceAfter?.free || '0';
-  const balanceAfterBigDecimal = toBigNumber(rawBalanceAfter, assetOutDetails.decimals);
-
-  const actualOfframpValue = balanceAfterBigDecimal.sub(balanceBeforeBigDecimal);
-
-  renderEvent(`Swap successful. Amount received: ${actualOfframpValue}`, EventStatus.Success);
-
-  return actualOfframpValue;
+  return {
+    ...state,
+    phase: 'executeSpacewalkRedeem',
+  };
 }
 
 async function approve({ api, token, spender, amount, contractAbi, keypairEphemeral }: any) {
