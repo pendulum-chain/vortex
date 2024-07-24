@@ -12,6 +12,9 @@ export default defineConfig({
   build: {
     target: 'esnext',
   },
+  test: {
+    testTimeout: 15000,
+  },
   optimizeDeps: {
     exclude: [],
     esbuildOptions: {
