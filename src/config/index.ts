@@ -23,10 +23,14 @@ export const config = {
   isDev: env === 'development',
   maybeSignerServiceUrl,
   defaultPage: '/pendulum/dashboard',
-  googleCredentials: {
-    email: import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: import.meta.env.VITE_GOOGLE_PRIVATE_KEY?.split(String.raw`\n`).join('\n'),
+  spreadsheet: {
+    googleCredentials: {
+      email: import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      key: import.meta.env.VITE_GOOGLE_PRIVATE_KEY?.split(String.raw`\n`).join('\n'),
+    },
     sheetId: import.meta.env.VITE_GOOGLE_SPREADSHEET_ID,
+    // Only used in unit tests
+    testSheetId: import.meta.env.VITE_GOOGLE_TEST_SPREADSHEET_ID,
   },
   tenants: {
     [TenantName.Amplitude]: {

@@ -7,11 +7,27 @@ type TestRowData = {
   age: string;
 };
 
+const TEST_SHEET_ID = config.spreadsheet.testSheetId;
+const TEST_GOOGLE_CREDENTIALS = config.spreadsheet.googleCredentials;
+
+function getTestCredentials() {
+  return {
+    credentials: TEST_GOOGLE_CREDENTIALS,
+    sheetId: TEST_SHEET_ID,
+  };
+}
+
 describe('initGoogleSpreadsheet', () => {
   beforeAll(async () => {
+    const { sheetId, credentials } = getTestCredentials();
+    if (!credentials.email || !credentials.key || !sheetId) {
+      console.log('Missing google credentials or sheetId. Skipping setup in beforeAll()...');
+      return;
+    }
+
     // Delete all sheets in the spreadsheet
     // This is to ensure that the test starts with a clean slate
-    const doc = await initGoogleSpreadsheet(config.googleCredentials.sheetId, config.googleCredentials);
+    const doc = await initGoogleSpreadsheet(TEST_SHEET_ID, TEST_GOOGLE_CREDENTIALS);
 
     let counter = 0;
     for (const sheet of doc.sheetsByIndex) {
@@ -35,8 +51,11 @@ describe('initGoogleSpreadsheet', () => {
   });
 
   it("should create suitable sheet if it doesn't exist", async () => {
-    const credentials = config.googleCredentials;
-    const sheetId = config.googleCredentials.sheetId;
+    const { credentials, sheetId } = getTestCredentials();
+    if (!credentials.email || !credentials.key || !sheetId) {
+      console.log('Missing google credentials or sheetId. Skipping test...');
+      return;
+    }
 
     const doc = await initGoogleSpreadsheet(sheetId, credentials);
     expect(doc).toBeDefined();
@@ -46,8 +65,11 @@ describe('initGoogleSpreadsheet', () => {
   });
 
   it('should add rows to existing file', async () => {
-    const credentials = config.googleCredentials;
-    const sheetId = config.googleCredentials.sheetId;
+    const { credentials, sheetId } = getTestCredentials();
+    if (!credentials.email || !credentials.key || !sheetId) {
+      console.log('Missing google credentials or sheetId. Skipping test...');
+      return;
+    }
 
     const doc = await initGoogleSpreadsheet(sheetId, credentials);
     expect(doc).toBeDefined();
@@ -61,8 +83,11 @@ describe('initGoogleSpreadsheet', () => {
   });
 
   it("should create a new sheet if the first row doesn't match the header values", async () => {
-    const credentials = config.googleCredentials;
-    const sheetId = config.googleCredentials.sheetId;
+    const { credentials, sheetId } = getTestCredentials();
+    if (!credentials.email || !credentials.key || !sheetId) {
+      console.log('Missing google credentials or sheetId. Skipping test...');
+      return;
+    }
 
     const doc = await initGoogleSpreadsheet(sheetId, credentials);
     expect(doc).toBeDefined();
