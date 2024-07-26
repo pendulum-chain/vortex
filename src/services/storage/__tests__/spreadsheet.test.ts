@@ -7,13 +7,10 @@ type TestRowData = {
   age: string;
 };
 
-const TEST_SHEET_ID = config.spreadsheet.testSheetId;
-const TEST_GOOGLE_CREDENTIALS = config.spreadsheet.googleCredentials;
-
 function getTestCredentials() {
   return {
-    credentials: TEST_GOOGLE_CREDENTIALS,
-    sheetId: TEST_SHEET_ID,
+    sheetId: config.spreadsheet.testSheetId,
+    credentials: config.spreadsheet.googleCredentials,
   };
 }
 
@@ -27,7 +24,7 @@ describe('initGoogleSpreadsheet', () => {
 
     // Delete all sheets in the spreadsheet
     // This is to ensure that the test starts with a clean slate
-    const doc = await initGoogleSpreadsheet(TEST_SHEET_ID, TEST_GOOGLE_CREDENTIALS);
+    const doc = await initGoogleSpreadsheet(sheetId, credentials);
 
     let counter = 0;
     for (const sheet of doc.sheetsByIndex) {
