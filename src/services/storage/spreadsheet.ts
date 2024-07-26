@@ -6,10 +6,7 @@ interface GoogleCredentials {
   key: string;
 }
 
-const SCOPES = [
-  'https://www.googleapis.com/auth/spreadsheets',
-  // 'https://www.googleapis.com/auth/drive.file',
-];
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
 export async function initGoogleSpreadsheet(sheetId: string, googleCredentials: GoogleCredentials) {
   // Initialize auth - see https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication

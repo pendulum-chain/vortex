@@ -15,7 +15,7 @@ describe('initGoogleSpreadsheet', () => {
 
     let counter = 0;
     for (const sheet of doc.sheetsByIndex) {
-      // Delete all sheets except the first one
+      // Delete all sheets except the first one as this would throw an error
       if (counter === 0) {
         // Clear rows in the first sheet
         await sheet.clearRows();
@@ -34,7 +34,7 @@ describe('initGoogleSpreadsheet', () => {
     await expect(result).rejects.toThrow('Missing some google credentials');
   });
 
-  it("should create file if it doesn't exist", async () => {
+  it("should create suitable sheet if it doesn't exist", async () => {
     const credentials = config.googleCredentials;
     const sheetId = config.googleCredentials.sheetId;
 
