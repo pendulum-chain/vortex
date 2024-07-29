@@ -5529,7 +5529,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:*, @types/react@npm:^18.0.28":
+"@types/react@npm:*":
   version: 18.2.5
   resolution: "@types/react@npm:18.2.5"
   dependencies:
@@ -14001,7 +14001,6 @@ __metadata:
     "@types/bn.js": "npm:^5"
     "@types/jest": "npm:^29.4.0"
     "@types/node": "npm:^18.14.1"
-    "@types/react": "npm:^18.0.28"
     "@types/testing-library__jest-dom": "npm:^5.14.5"
     "@typescript-eslint/eslint-plugin": "npm:^5.53.0"
     "@typescript-eslint/parser": "npm:^5.53.0"
@@ -14026,7 +14025,6 @@ __metadata:
     postcss: "npm:^8.4.38"
     preact: "npm:^10.12.1"
     prettier: "npm:^2.8.4"
-    react: "npm:^18.2.0"
     react-daisyui: "npm:^5.0.0"
     react-dom: "npm:^18.2.0"
     react-hook-form: "npm:^7.51.5"

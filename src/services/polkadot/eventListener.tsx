@@ -20,11 +20,12 @@ export class EventListener {
   }
 
   static getEventListener(api: ApiPromise) {
-    if (!this.eventListeners.has(api)) {
-      const newListener = new EventListener(api);
-      this.eventListeners.set(api, newListener);
-    }
-    return this.eventListeners.get(api)!;
+    const eventListener = this.eventListeners.get(api);
+    if (eventListener) return eventListener;
+
+    const newListener = new EventListener(api);
+    this.eventListeners.set(api, newListener);
+    return newListener;
   }
 
   async initEventSubscriber() {

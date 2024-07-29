@@ -30,8 +30,8 @@ export async function executeSpacewalkRedeem(
   const stellarTargetAccountId = stellarEphemeralKeypair.publicKey();
 
   // We wait for up to 10 minutes
-  const maxWaitingTimeMin = 10;
-  const maxWaitingTimeMs = maxWaitingTimeMin * 60 * 1000;
+  const maxWaitingTimeMinutes = 10;
+  const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
   const stellarPollingTimeMs = 1 * 1000;
 
   // One of these two values must exist
@@ -53,8 +53,7 @@ export async function executeSpacewalkRedeem(
   // avoid sending it again.
   // We check for stellar funds.
   const someBalance = await checkStellarBalance(stellarTargetAccountId, outputToken.stellarAsset.code.string);
-  if (someBalance.gte(amountRawBig)) {
-    console.log(`Recovery mode: Redeem already performed.`);
+  if (someBalance.lt(amountRawBig)) {
     let redeemRequestEvent;
 
     try {
@@ -74,7 +73,7 @@ export async function executeSpacewalkRedeem(
       const eventListener = EventListener.getEventListener(pendulumApiComponents.api);
 
       renderEvent(
-        `Redeem request passed, waiting up to ${maxWaitingTimeMin} minutes for redeem execution event...`,
+        `Redeem request passed, waiting up to ${maxWaitingTimeMinutes} minutes for redeem execution event...`,
         EventStatus.Waiting,
       );
 
