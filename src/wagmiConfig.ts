@@ -2,7 +2,7 @@ import { connectorsForWallets, getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { injectedWallet, safeWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
 import { polygon } from 'wagmi/chains';
 import { createConfig, http } from 'wagmi';
-import { createClient } from 'viem';
+import { config } from './config';
 
 const connectors = connectorsForWallets(
   [
@@ -17,21 +17,18 @@ const connectors = connectorsForWallets(
   },
 );
 
-const defaultConfig = getDefaultConfig({
-  appName: 'Vortex',
-  projectId: '495a5f574d57e27fd65caa26d9ea4f10',
-  chains: [polygon],
-  ssr: false, // If your dApp uses server side rendering (SSR)
-});
+// If we have an Alchemy API key, we can use it to fetch data from Polygon, otherwise use the default endpoint
+const transports = config.alchemyApiKey
+  ? {
+      [polygon.id]: http(`https://polygon-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
+    }
+  : {
+      [polygon.id]: http(''),
+    };
 
 export const wagmiConfig = createConfig({
-  client({ chain }) {
-    return createClient({
-      chain,
-      transport: http(),
-    });
-  },
-  chains: defaultConfig.chains,
+  chains: [polygon],
   connectors,
   ssr: false,
+  transports,
 });

@@ -1,68 +1,41 @@
-import { Skeleton } from '../Skeleton';
 import { Input } from 'react-daisyui';
-import { ChangeEvent, useMemo, useState } from 'preact/compat';
-import { TOKEN_CONFIG, TokenDetails, TokenType } from '../../constants/tokenConfig';
+import { ChangeEvent, useState } from 'preact/compat';
+import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { Dialog } from '../Dialog';
+import { Skeleton } from '../Skeleton';
 import { PoolListItem } from './PoolListItem';
 
-interface PoolSelectorModalProps extends PoolListProps {
+interface PoolSelectorModalProps<T extends InputTokenType | OutputTokenType> extends PoolListProps<T> {
   isLoading?: boolean;
   onClose: () => void;
   open: boolean;
 }
 
-export interface SelectorMode {
-  type: 'from' | 'to' | undefined;
-  swap: boolean;
+interface PoolListProps<T extends InputTokenType | OutputTokenType> {
+  definitions: { assetSymbol: string; type: T }[];
+  onSelect: (tokenType: InputTokenType | OutputTokenType) => void;
+  selected: InputTokenType | OutputTokenType | undefined;
 }
 
-interface PoolListProps {
-  mode: SelectorMode;
-  onSelect: (pool: TokenDetails) => void;
-  selected:
-    | { type: 'token'; tokenAddress: string | undefined }
-    | { type: 'backstopPool' }
-    | { type: 'swapPool'; poolAddress: string };
-}
-
-export function PoolSelectorModal({ selected, isLoading, onSelect, onClose, open, mode }: PoolSelectorModalProps) {
+export function PoolSelectorModal<T extends InputTokenType | OutputTokenType>({
+  selected,
+  isLoading,
+  definitions,
+  onSelect,
+  onClose,
+  open,
+}: PoolSelectorModalProps<T>) {
   const content = isLoading ? (
     <Skeleton className="w-full h-10 mb-2" />
   ) : (
-    <PoolList mode={mode} onSelect={onSelect} selected={selected} />
+    <PoolList definitions={definitions} onSelect={onSelect} selected={selected} />
   );
 
   return <Dialog visible={open} onClose={onClose} headerText="Select a token" content={content} />;
 }
 
-function PoolList({ onSelect, selected, mode }: PoolListProps) {
+function PoolList<T extends InputTokenType | OutputTokenType>({ onSelect, definitions, selected }: PoolListProps<T>) {
   const [_, setFilter] = useState<string>();
-
-  const poolList = useMemo(() => {
-    const poolList: TokenDetails[] = [];
-    (Object.keys(TOKEN_CONFIG) as TokenType[]).forEach((token) => {
-      // special case rules
-      // do not allow non-offramp tokens in the to field,
-      if (mode.type === 'to' && mode.swap && !TOKEN_CONFIG[token].isOfframp) return;
-
-      // only allow USDC asset code from otherChain property
-      if (
-        mode.type === 'from' &&
-        mode.swap &&
-        TOKEN_CONFIG[token].assetCode !== 'USDC' &&
-        TOKEN_CONFIG[token].isPolygonChain !== true
-      )
-        return;
-
-      // Do not allow non offrampable tokens in the from field if no swap
-      if (mode.type === 'from' && !mode.swap && !TOKEN_CONFIG[token].isOfframp) return;
-
-      poolList.push(TOKEN_CONFIG[token]);
-    });
-
-    return poolList;
-  }, [mode]);
-
   return (
     <div className="relative">
       <Input
@@ -72,19 +45,15 @@ function PoolList({ onSelect, selected, mode }: PoolListProps) {
         placeholder="Find by name or address"
       />
       <div className="flex flex-col gap-1">
-        {poolList?.map((tokenDetails) => {
-          const { assetCode } = tokenDetails;
-          let isSelected;
-          switch (selected.type) {
-            case 'token':
-              isSelected = selected.tokenAddress === assetCode;
-              break;
-          }
-
-          return (
-            <PoolListItem key={assetCode} isSelected={isSelected} onSelect={onSelect} tokenDetails={tokenDetails} />
-          );
-        })}
+        {definitions.map(({ assetSymbol, type }) => (
+          <PoolListItem
+            key={type}
+            isSelected={selected === assetSymbol}
+            onSelect={onSelect}
+            tokenType={type}
+            tokenSymbol={assetSymbol}
+          />
+        ))}
       </div>
     </div>
   );

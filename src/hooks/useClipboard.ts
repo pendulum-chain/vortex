@@ -7,7 +7,7 @@ export function useClipboard() {
         try {
           await navigator.clipboard.writeText(value);
         } catch (error) {
-          // handle
+          console.error('Failed to copy: ', error);
         }
       },
     }),

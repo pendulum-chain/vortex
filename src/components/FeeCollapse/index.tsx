@@ -4,6 +4,7 @@ import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import Big from 'big.js';
 import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
+import { OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 
 const FEES_RATE = 0.05; // 0.5% fee rate
 
@@ -21,13 +22,15 @@ function calculateFeesUSD(fromAmount: string): string {
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: string;
-  toCurrency?: string;
+  toCurrency?: OutputTokenType;
 }
 
 export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toCurrency }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleIsOpen = () => setIsOpen((state) => !state);
+
+  const outputToken = toCurrency ? OUTPUT_TOKEN_CONFIG[toCurrency] : undefined;
 
   const chevron = isOpen ? (
     <ChevronUpIcon className="w-8 text-blue-700" />
@@ -44,7 +47,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toCurrenc
         <div className="flex items-center justify-between">
           <p>
             <strong className="font-bold">
-              {totalReceive} {toCurrency}
+              {totalReceive} {outputToken?.stellarAsset.code.string}
             </strong>
             &nbsp;is what you will receive, after fees
           </p>

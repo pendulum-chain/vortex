@@ -35,11 +35,6 @@ export const decimalToCustom = (value: BigNumber | number | string, decimals: nu
   return bigIntValue.mul(multiplier);
 };
 
-// Same as above, but handle a string decimal
-export const stringDecimalToNative = (value: string) => {
-  return decimalToNative(stringDecimalToBN(value, ChainDecimals));
-};
-
 export const decimalToStellarNative = (value: BigNumber | number | string) => {
   let bigIntValue;
   try {
@@ -49,37 +44,6 @@ export const decimalToStellarNative = (value: BigNumber | number | string) => {
   }
   const multiplier = new BigNumber(10).pow(StellarDecimals);
   return bigIntValue.mul(multiplier);
-};
-
-// Same as above, but handle a string decimal
-export const stringDecimalToStellarNative = (value: string) => {
-  return stringDecimalToBN(value, StellarDecimals);
-};
-
-// Convert a string decimal to a BigNumber
-export const stringDecimalToBN = (value: string, chainDecimals: number) => {
-  let [whole, decimal] = value.split('.');
-  decimal = decimal || '0';
-
-  //TODO this may not be needed now that we go back to big.js
-  // pad the decimal part
-  while (decimal.length < chainDecimals) {
-    decimal += '0';
-  }
-
-  // truncate the decimal part to max chain length digits
-  // and concatenate the whole and decimal parts
-  decimal = decimal.substring(0, chainDecimals);
-  const fullIntegerValue = whole + decimal;
-
-  let bigIntValue;
-  try {
-    bigIntValue = new BigNumber(fullIntegerValue);
-  } catch (error) {
-    console.error('Error converting to BigNumber:', error);
-    bigIntValue = new BigNumber(0);
-  }
-  return bigIntValue;
 };
 
 export const fixedPointToDecimal = (value: BigNumber | number | string) => {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useAccount } from 'wagmi';
+import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 
 import { LabeledInput } from '../../components/LabeledInput';
@@ -14,8 +15,12 @@ import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
-import { AssetCodes } from '../../constants/tokenConfig';
+import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { BaseLayout } from '../../layouts';
+
+import { useMainProcess } from '../../hooks/useMainProcess';
+import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
+import { ProgressPage } from '../progress';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -44,6 +49,9 @@ export const SwapPage = () => {
     initializeApiManager().catch(console.error);
   }, []);
 
+  // Main process hook
+  const { handleOnSubmit, sep24Url, offrampingPhase } = useMainProcess();
+
   const {
     tokensModal: [modalType, setModalType],
     onFromChange,
@@ -51,12 +59,13 @@ export const SwapPage = () => {
     form,
     fromAmount,
     fromAmountString,
-    fromToken,
-    toToken,
     from,
     to,
     reset,
   } = useSwapForm();
+
+  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
+  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
 
   useEffect(() => {
     if (form.formState.isDirty && isExchangeSectionSubmitted && isDisconnected) {
@@ -68,14 +77,17 @@ export const SwapPage = () => {
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
     api,
-    fromToken: from,
-    toToken: to,
+    inputTokenType: from,
+    outputTokenType: to,
     maximumFromAmount: undefined,
     slippageBasisPoints: config.swap.slippageBasisPoints,
     fromAmountString,
     xcmFees: config.xcm.fees,
     form,
   });
+
+  const inputAmountIsStable =
+    tokenOutData.actualAmountInRaw !== undefined && BigInt(tokenOutData.actualAmountInRaw) > 0n;
 
   // Check only the first part of the form (without Bank Details)
   const isFormValidWithoutBankDetails = useMemo(() => {
@@ -90,6 +102,8 @@ export const SwapPage = () => {
   function onSubmit(e: Event) {
     e.preventDefault();
 
+    if (isSubmitButtonDisabled || !inputAmountIsStable || tokenOutData.actualAmountInRaw === undefined) return;
+
     if (!isExchangeSectionSubmitted) {
       if (isFormValidWithoutBankDetails) {
         setIsExchangeSectionSubmittedError(false);
@@ -97,8 +111,30 @@ export const SwapPage = () => {
       } else {
         setIsExchangeSectionSubmittedError(true);
       }
+
       return;
     }
+
+    if (fromAmount === undefined) {
+      console.log('Input amount is undefined');
+      return;
+    }
+
+    const minimumOutputAmount = tokenOutData.data?.amountOut;
+    if (minimumOutputAmount === undefined) {
+      console.log('Output amount is undefined');
+      return;
+    }
+
+    console.log('starting ....');
+
+    handleOnSubmit({
+      inputTokenType: from as InputTokenType,
+      outputTokenType: to as OutputTokenType,
+      amountInUnits: fromAmountString,
+      nablaAmountInRaw: tokenOutData.actualAmountInRaw,
+      minAmountOutUnits: minimumOutputAmount.preciseString,
+    });
   }
 
   useEffect(() => {
@@ -108,12 +144,15 @@ export const SwapPage = () => {
   }, [isExchangeSectionSubmitted]);
 
   useEffect(() => {
-    const toAmount = Number(tokenOutData.data?.amountOut.preciseString);
-    form.setValue('toAmount', isNaN(toAmount) ? '' : toAmount.toFixed(2));
-    if (toAmount) {
+    if (tokenOutData.data) {
+      const toAmount = tokenOutData.data.amountOut.preciseBigDecimal.round(2, 0);
+      form.setValue('toAmount', stringifyBigWithSignificantDecimals(toAmount, 2));
+
       setIsQuoteSubmitted(false);
+    } else {
+      form.setValue('toAmount', '');
     }
-  }, [form, fromAmount, tokenOutData]);
+  }, [form, tokenOutData.data]);
 
   // Check if the Submit button should be enabled
   useEffect(() => {
@@ -122,7 +161,7 @@ export const SwapPage = () => {
       setIsSubmitButtonDisabled(false);
     }
     // Validate the whole form (with Bank Details)
-    else if (isExchangeSectionSubmitted && form.formState.isValid) {
+    else if (isExchangeSectionSubmitted /*&& form.formState.isValid*/) {
       setIsSubmitButtonDisabled(false);
     } else {
       setIsSubmitButtonDisabled(true);
@@ -133,25 +172,27 @@ export const SwapPage = () => {
     () => (
       <AssetNumericInput
         additionalText="PIX / Bank Account"
-        fromToken={toToken}
+        tokenType={to}
+        tokenSymbol={toToken?.stellarAsset.code.string}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
         readOnly={true}
       />
     ),
-    [toToken, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [to, toToken?.stellarAsset.code.string, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
     () => (
       <AssetNumericInput
         registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-        fromToken={fromToken}
+        tokenType={from}
+        tokenSymbol={fromToken?.assetSymbol}
         onClick={() => setModalType('from')}
       />
     ),
-    [form, fromToken, setModalType],
+    [form, from, fromToken?.assetSymbol, setModalType],
   );
 
   function getCurrentErrorMessage() {
@@ -159,37 +200,62 @@ export const SwapPage = () => {
       return 'You must first enter the amount you wish to withdraw.';
     }
 
-    // Minimum amount for withdrawal in BRL is 25, maximum is 25000
-    if (toToken?.assetCode === AssetCodes.BRL && tokenOutData.data?.amountOut.preciseString) {
-      if (Number(tokenOutData.data?.amountOut.preciseString) < 25) {
-        return 'Minimum withdrawal amount is 25 BRL.';
+    const amountOut = tokenOutData.data?.amountOut;
+
+    if (amountOut !== undefined && toToken !== undefined) {
+      const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
+      const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
+
+      if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
+        const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
+        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+          toToken.stellarAsset.code.string
+        }.`;
       }
-      if (Number(tokenOutData.data?.amountOut.preciseString) > 25000) {
-        return 'Maximum withdrawal amount is 25000 BRL.';
+
+      if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
+        const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
+        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
+          toToken.stellarAsset.code.string
+        }.`;
       }
     }
 
     return tokenOutData.error;
   }
 
+  const definitions =
+    modalType === 'from'
+      ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
+          type: key as InputTokenType,
+          assetSymbol: value.assetSymbol,
+        }))
+      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
+          type: key as OutputTokenType,
+          assetSymbol: value.stellarAsset.code.string,
+        }));
+
   const modals = (
     <PoolSelectorModal
       open={!!modalType}
-      mode={{ type: modalType, swap: true }}
       onSelect={modalType === 'from' ? onFromChange : onToChange}
-      selected={{
-        type: 'token',
-        tokenAddress: modalType ? (modalType === 'from' ? fromToken?.assetCode : toToken?.assetCode) : undefined,
-      }}
+      definitions={definitions as any}
+      selected={modalType === 'from' ? from : to}
       onClose={() => setModalType(undefined)}
       isLoading={false}
     />
   );
 
+  console.log('IssubmitButtonDisabled: ', isSubmitButtonDisabled);
+
+  if (offrampingPhase !== undefined) {
+    return <ProgressPage />;
+  }
+
   const main = (
     <main ref={formRef}>
       <form
-        className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-8 md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSubmit}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
@@ -201,7 +267,7 @@ export const SwapPage = () => {
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
-          toCurrency={toToken?.assetCode}
+          toCurrency={to}
         />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
@@ -214,10 +280,21 @@ export const SwapPage = () => {
         ) : (
           <></>
         )}
-        <SwapSubmitButton
-          text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
-          disabled={isSubmitButtonDisabled || Boolean(getCurrentErrorMessage())}
-        />
+        {sep24Url !== undefined ? (
+          <a
+            href={sep24Url}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+          >
+            Start Offramping
+          </a>
+        ) : (
+          <SwapSubmitButton
+            text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
+            disabled={isSubmitButtonDisabled || Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+          />
+        )}
       </form>
     </main>
   );

@@ -1,13 +1,13 @@
-import { FC } from 'preact/compat';
-import { TokenDetails } from '../../../constants/tokenConfig';
+import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
 import { useGetIcon } from '../../../hooks/useGetIcon';
 
 interface AssetButtonProps {
-  token?: TokenDetails;
+  tokenType?: InputTokenType | OutputTokenType;
+  tokenSymbol?: string;
   onClick: () => void;
 }
-export const AssetButton: FC<AssetButtonProps> = ({ token, onClick }) => {
-  const icon = useGetIcon(token?.assetCode);
+export function AssetButton({ tokenType, tokenSymbol, onClick }: AssetButtonProps) {
+  const icon = useGetIcon(tokenType);
 
   return (
     <button
@@ -16,9 +16,9 @@ export const AssetButton: FC<AssetButtonProps> = ({ token, onClick }) => {
       type="button"
     >
       <span className="h-full p-px mr-1 rounded-full">
-        {token && <img src={icon} alt={token.assetCode} className="w-auto h-full" />}
+        {tokenType && <img src={icon} alt={tokenType} className="w-auto h-full" />}
       </span>
-      <strong className="font-bold text-black">{token?.assetCode || 'Select'}</strong>
+      <strong className="font-bold text-black">{tokenSymbol || 'Select'}</strong>
     </button>
   );
-};
+}
