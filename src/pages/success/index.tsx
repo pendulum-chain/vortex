@@ -1,10 +1,10 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
-import Telegram from '../../assets/telegram.svg';
-import { TextInput } from '../../components/TextInput';
 import { BaseLayout } from '../../layouts';
 import { Box } from '../../components/Box';
 import { useNavigate } from 'react-router-dom';
 import { TransactionInfo } from '../../components/TransactionInfo';
+import { EmailForm } from '../../components/EmailForm';
+import { TelegramButton } from '../../components/buttons/TelegramButton';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">
@@ -29,17 +29,8 @@ export const SuccessPage = () => {
         <p className="text-center text-gray-400">
           If your transaction is not completed after 60 minutes please contact support on:
         </p>
-        <button className="transition hover:scale-105 overflow-hidden relative fadein-button-animation flex my-6  border-telegram rounded-xl py-1.5 px-3 border">
-          <img src={Telegram} alt="Telegram" className="w-6 h-6" />
-          <p className="ml-1 text-black">Telegram</p>
-        </button>
-        <p className="font-light text-center text-blue-700">
-          To receive further assistance and information about our app,
-        </p>
-        <p className="font-light text-center text-blue-700">please provide your email address below:</p>
-        <div className="w-full mt-2">
-          <TextInput type="email" placeholder="example@mail.com" />
-        </div>
+        <TelegramButton />
+        <EmailForm />
         <button
           className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
           onClick={() => {
