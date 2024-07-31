@@ -276,7 +276,7 @@ export async function stellarOfframp(state: OfframpingState): Promise<Offramping
       `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
     );
     // check https://developers.stellar.org/docs/data/horizon/api-reference/errors/result-codes/transactions
-    if (horizonError.response.data.extras.result_codes.transaction !== 'tx_bad_seq') {
+    if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
       console.log('Recovery mode: Offramp already performed.');
     } else {
       console.error(horizonError.response.data.extras);

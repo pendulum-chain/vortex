@@ -163,8 +163,10 @@ export async function constructInitialState({
 export async function advanceOfframpingState(context: ExecutionContext): Promise<OfframpingState | undefined> {
   const state = storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
 
-  console.log('No offramping in process');
-  if (state === undefined) return undefined;
+  if (state === undefined) {
+    console.log('No offramping in process');
+    return undefined;
+  }
   console.log('Advance offramping state in phase', state.phase);
 
   let newState: OfframpingState | undefined;

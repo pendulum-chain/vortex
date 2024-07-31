@@ -14026,7 +14026,6 @@ __metadata:
     preact: "npm:^10.12.1"
     prettier: "npm:^2.8.4"
     react-daisyui: "npm:^5.0.0"
-    react-dom: "npm:^18.2.0"
     react-hook-form: "npm:^7.51.5"
     react-native-compat: "npm:^1.0.0"
     react-router-dom: "npm:^6.8.1"
