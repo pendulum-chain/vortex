@@ -2,11 +2,10 @@ import { Keypair } from 'stellar-sdk';
 import { ApiManager } from './polkadotApi';
 import { getVaultsForCurrency, VaultService } from './spacewalk';
 import { prettyPrintVaultId } from './spacewalk';
-import { stringDecimalToStellarNative } from '../../helpers/parseNumbers';
 import { EventListener } from './eventListener';
 import { EventStatus } from '../../components/GenericEvent';
 import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails } from '../../constants/tokenConfig';
-import { checkStellarBalance } from '../stellar/utils';
+import { getStellarBalanceUnits } from '../stellar/utils';
 import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { Keyring } from '@polkadot/api';
@@ -16,7 +15,6 @@ export async function executeSpacewalkRedeem(
   { renderEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const { outputAmount, stellarEphemeralSecret, pendulumEphemeralSeed, outputTokenType } = state;
-  const amountStringRaw = outputAmount.raw;
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   const pendulumApiComponents = await new ApiManager().getApiComponents();
@@ -35,16 +33,18 @@ export async function executeSpacewalkRedeem(
   const stellarPollingTimeMs = 1 * 1000;
 
   // One of these two values must exist
-  const vaultsForCurrency = await getVaultsForCurrency(api, outputToken.stellarAsset.code.hex);
+  const vaultsForCurrency = await getVaultsForCurrency(
+    api,
+    outputToken.stellarAsset.code.hex,
+    outputToken.stellarAsset.issuer.hex,
+  );
   if (vaultsForCurrency.length === 0) {
     throw new Error(`No vaults found for currency ${outputToken.stellarAsset.code.string}`);
   }
   const targetVaultId = vaultsForCurrency[0].id;
   const vaultService = new VaultService(targetVaultId, pendulumApiComponents);
 
-  // We currently charge 0 fees for redeem requests on Spacewalk so the amount is the same as the requested amount
-  const amountUnits = stringDecimalToStellarNative(amountStringRaw).toString();
-  const amountRawBig = new Big(amountStringRaw);
+  const amountUnitsBig = new Big(outputAmount.units);
   // Generate raw public key for target
   const stellarTargetKeypair = Keypair.fromPublicKey(stellarTargetAccountId);
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
@@ -52,16 +52,20 @@ export async function executeSpacewalkRedeem(
   // Recovery guard. If the operation was shut before the redeem was executed (we didn't register the event) we can
   // avoid sending it again.
   // We check for stellar funds.
-  const someBalance = await checkStellarBalance(stellarTargetAccountId, outputToken.stellarAsset.code.string);
-  if (someBalance.lt(amountRawBig)) {
+  const someBalanceUnits = await getStellarBalanceUnits(stellarTargetAccountId, outputToken.stellarAsset.code.string);
+  if (someBalanceUnits.lt(amountUnitsBig)) {
     let redeemRequestEvent;
 
     try {
       renderEvent(
-        `Requesting redeem of ${amountUnits} tokens for vault ${prettyPrintVaultId(targetVaultId)}`,
+        `Requesting redeem of ${outputAmount.units} tokens for vault ${prettyPrintVaultId(targetVaultId)}`,
         EventStatus.Waiting,
       );
-      redeemRequestEvent = await vaultService.requestRedeem(ephemeralKeypair, amountUnits, stellarTargetAccountIdRaw);
+      redeemRequestEvent = await vaultService.requestRedeem(
+        ephemeralKeypair,
+        outputAmount.raw,
+        stellarTargetAccountIdRaw,
+      );
 
       console.log(
         `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(
@@ -94,7 +98,7 @@ export async function executeSpacewalkRedeem(
           await checkBalancePeriodically(
             stellarTargetAccountId,
             outputToken,
-            amountRawBig,
+            amountUnitsBig,
             stellarPollingTimeMs,
             maxWaitingTimeMs,
           );
@@ -117,7 +121,7 @@ export async function executeSpacewalkRedeem(
 function checkBalancePeriodically(
   stellarTargetAccountId: string,
   outputToken: OutputTokenDetails,
-  amountDesiredBig: Big,
+  amountDesiredUnitsBig: Big,
   intervalMs: number,
   timeoutMs: number,
 ) {
@@ -125,12 +129,15 @@ function checkBalancePeriodically(
     const startTime = Date.now();
     const intervalId = setInterval(async () => {
       try {
-        const someBalance = await checkStellarBalance(stellarTargetAccountId, outputToken.stellarAsset.code.string);
-        console.log(`Balance check: ${someBalance.toString()} / ${amountDesiredBig.toString()}`);
+        const someBalanceUnits = await getStellarBalanceUnits(
+          stellarTargetAccountId,
+          outputToken.stellarAsset.code.string,
+        );
+        console.log(`Balance check: ${someBalanceUnits.toString()} / ${amountDesiredUnitsBig.toString()}`);
 
-        if (someBalance.gte(amountDesiredBig)) {
+        if (someBalanceUnits.gte(amountDesiredUnitsBig)) {
           clearInterval(intervalId);
-          resolve(someBalance);
+          resolve(someBalanceUnits);
         } else if (Date.now() - startTime > timeoutMs) {
           clearInterval(intervalId);
           reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));

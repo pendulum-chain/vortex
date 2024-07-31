@@ -16,6 +16,7 @@ export async function pendulumFundEphemeral(
   state: OfframpingState,
   { wagmiConfig }: ExecutionContext,
 ): Promise<OfframpingState> {
+  console.log('Pendulum funding ephemeral account');
   const { squidRouterSwapHash, pendulumEphemeralSeed } = state;
   if (squidRouterSwapHash === undefined) {
     throw new Error('No squid router swap hash found');
@@ -47,7 +48,7 @@ export async function pendulumFundEphemeral(
 
   return {
     ...state,
-    phase: 'stellarCreateEphemeral',
+    phase: 'nablaApprove',
   };
 }
 
@@ -78,9 +79,13 @@ async function waitForPendulumEphemeralFunding(state: OfframpingState) {
 }
 
 async function waitForInputTokenToArrive(state: OfframpingState) {
+  console.log('Waiting for input token to arrive on pendulum');
   while (true) {
     const isFunded = await didInputTokenArriveOnPendulum(state);
-    if (isFunded) return;
+    if (isFunded) {
+      console.log('Input token arrived on pendulum');
+      return;
+    }
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
@@ -133,7 +138,7 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
 }
 
 async function didInputTokenArriveOnPendulum({
-  inputAmount,
+  inputAmountNabla,
   pendulumEphemeralSeed,
   inputTokenType,
 }: OfframpingState): Promise<boolean> {
@@ -150,5 +155,5 @@ async function didInputTokenArriveOnPendulum({
   )) as any;
   const inputBalanceRaw = Big(balanceResponse?.free?.toString() ?? '0');
 
-  return inputBalanceRaw.gte(Big(inputAmount.raw));
+  return inputBalanceRaw.gte(Big(inputAmountNabla.raw));
 }

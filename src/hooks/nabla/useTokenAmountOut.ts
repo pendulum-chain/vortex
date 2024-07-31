@@ -158,5 +158,8 @@ export function useTokenOutAmount({
     }
   }, [error, pending, clearErrors, setError]);
 
-  return { isLoading: pending, enabled, data, refetch, error };
+  const isInputStable = debouncedFromAmountString === fromAmountString;
+  const actualAmountInRaw = isInputStable && amountIn !== undefined ? amountIn : undefined;
+
+  return { isLoading: pending, enabled, data, refetch, error, actualAmountInRaw };
 }

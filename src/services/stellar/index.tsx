@@ -32,28 +32,26 @@ type StellarFundingSignatureResponse = {
   sequence: string;
 };
 
-export async function stellarCreateEphemeral(state: OfframpingState): Promise<OfframpingState> {
+export async function stellarCreateEphemeral(
+  stellarEphemeralSecret: string,
+  outputTokenType: OutputTokenType,
+): Promise<void> {
   const fundingAccountId = await fetchSigningServiceAccountId();
-  const ephemeralAccountExists = await isEphemeralCreated(state);
+  const ephemeralAccountExists = await isEphemeralCreated(stellarEphemeralSecret);
 
   if (!ephemeralAccountExists) {
-    await setupStellarAccount(fundingAccountId, state.stellarEphemeralSecret, state.outputTokenType);
+    await setupStellarAccount(fundingAccountId, stellarEphemeralSecret, outputTokenType);
 
     while (true) {
-      if (await isEphemeralCreated(state)) {
+      if (await isEphemeralCreated(stellarEphemeralSecret)) {
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
-
-  return {
-    ...state,
-    phase: 'nablaApprove',
-  };
 }
 
-async function isEphemeralCreated({ stellarEphemeralSecret }: OfframpingState): Promise<boolean> {
+async function isEphemeralCreated(stellarEphemeralSecret: string): Promise<boolean> {
   const ephemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
   const ephemeralAccountId = ephemeralKeypair.publicKey();
 
@@ -100,7 +98,7 @@ async function setupStellarAccount(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetCode: outputTokenType }),
+    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetCode: outputToken.stellarAsset.code.string }),
   });
 
   if (!response.ok) {
@@ -244,7 +242,7 @@ async function createOfframpAndMergeTransaction(
       paymentData: sepResult,
       sequence,
       maxTime,
-      assetCode: code,
+      assetCode: code.string,
     }),
   });
 
@@ -267,7 +265,7 @@ async function createOfframpAndMergeTransaction(
 // Recovery behaviour: If the offramp transaction was already submitted, we will get a sequence error.
 // if we are on recovery mode we can ignore this error.
 // Alternative improvement: check the balance of the destination (offramp) account to see if the funds arrived.
-export async function stellarOfframp(state: OfframpingState): Promise<OfframpingState | undefined> {
+export async function stellarOfframp(state: OfframpingState): Promise<OfframpingState> {
   try {
     const offrampingTransaction = new Transaction(state.stellarOfframpingTransaction, NETWORK_PASSPHRASE);
     await horizonServer.submitTransaction(offrampingTransaction);
@@ -278,14 +276,15 @@ export async function stellarOfframp(state: OfframpingState): Promise<Offramping
       `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
     );
     // check https://developers.stellar.org/docs/data/horizon/api-reference/errors/result-codes/transactions
-    if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
+    if (horizonError.response.data.extras.result_codes.transaction !== 'tx_bad_seq') {
       console.log('Recovery mode: Offramp already performed.');
-      return;
+    } else {
+      console.error(horizonError.response.data.extras);
+      throw new Error('Could not submit the offramping transaction');
     }
-
-    console.error(horizonError.response.data.extras);
-    throw new Error('Could not submit the offramping transaction');
   }
+
+  return { ...state, phase: 'stellarCleanup' };
 }
 
 export async function stellarCleanup(

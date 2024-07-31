@@ -1,6 +1,8 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
+import { fetchSigningServiceAccountId } from '../signingService';
+import { config } from '../../config';
 
 interface TomlValues {
   signingKey?: string;
@@ -184,6 +186,10 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
 }*/
 
 export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
+  if (config.test.mockSep24) {
+    return { url: 'https://www.example.com', id: '1234' };
+  }
+
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
@@ -219,6 +225,15 @@ export async function sep24Second(
   const { id } = sep24Values;
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
+
+  if (config.test.mockSep24) {
+    return {
+      amount: sessionParams.offrampAmount,
+      memo: 'MYK1722323689',
+      memoType: 'text',
+      offrampingAccount: await fetchSigningServiceAccountId(),
+    };
+  }
 
   let status;
   do {

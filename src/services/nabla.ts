@@ -20,12 +20,12 @@ export async function nablaApprove(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
-  const { inputTokenType, inputAmount, pendulumEphemeralSeed } = state;
+  const { inputTokenType, inputAmountNabla, pendulumEphemeralSeed } = state;
 
   // event attempting swap
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
 
-  console.log('swap', 'Attempting swap', inputAmount.raw, inputTokenType);
+  console.log('swap', 'Attempting swap', inputAmountNabla.units, inputTokenType);
   // get chain api, abi
   const { ss58Format, api } = (await getApiManagerInstance()).apiData!;
   const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
@@ -55,15 +55,15 @@ export async function nablaApprove(
   const currentAllowance = parseContractBalanceResponse(inputToken.decimals, response.value);
 
   //maybe do allowance
-  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmount.raw))) {
+  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmountNabla.raw))) {
     try {
       renderEvent(
-        `Approving tokens: ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
+        `Approving tokens: ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
         EventStatus.Waiting,
       );
       await approve({
         api: api,
-        amount: inputAmount.raw,
+        amount: inputAmountNabla.raw,
         token: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
@@ -82,7 +82,7 @@ export async function nablaApprove(
 }
 
 export async function nablaSwap(state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> {
-  const { inputTokenType, outputTokenType, inputAmount, outputAmount, pendulumEphemeralSeed } = state;
+  const { inputTokenType, outputTokenType, inputAmountNabla, outputAmount, pendulumEphemeralSeed } = state;
 
   // event attempting swap
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
@@ -108,15 +108,14 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
   if (rawBalanceBefore.lt(Big(outputAmount.raw))) {
     // Try swap
     try {
-      //TODO amountIN has all zeroes now, need to fix the message.
       renderEvent(
-        `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+        `Swapping ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
         EventStatus.Waiting,
       );
 
       await doActualSwap({
         api: api,
-        amount: inputAmount.raw, // toString can render exponential notation
+        amount: inputAmountNabla.raw, // toString can render exponential notation
         amountMin: outputAmount.raw, // toString can render exponential notation
         tokenIn: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
         tokenOut: outputToken.erc20WrapperAddress,

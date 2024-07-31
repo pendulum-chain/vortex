@@ -16,7 +16,6 @@ import { storageService } from './storage/local';
 export type OfframpingPhase =
   | 'squidRouter'
   | 'pendulumFundEphemeral'
-  | 'stellarCreateEphemeral'
   | 'nablaApprove'
   | 'nablaSwap'
   | 'executeSpacewalkRedeem'
@@ -32,6 +31,10 @@ export interface OfframpingState {
   outputTokenType: OutputTokenType;
 
   inputAmount: {
+    units: string;
+    raw: string;
+  };
+  inputAmountNabla: {
     units: string;
     raw: string;
   };
@@ -70,7 +73,6 @@ export type StateTransitionFunction = (
 const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunction> = {
   squidRouter,
   pendulumFundEphemeral,
-  stellarCreateEphemeral,
   nablaApprove,
   nablaSwap,
   executeSpacewalkRedeem,
@@ -90,6 +92,7 @@ export interface InitiateStateArguments {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
+  nablaAmountInRaw: string;
   amountOut: string;
   sepResult: SepResult;
 }
@@ -98,6 +101,7 @@ export async function constructInitialState({
   inputTokenType,
   outputTokenType,
   amountIn,
+  nablaAmountInRaw,
   amountOut,
   sepResult,
 }: InitiateStateArguments) {
@@ -110,9 +114,13 @@ export async function constructInitialState({
   const inputAmountBig = Big(amountIn);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals).toFixed();
 
-  const outputAmountBig = Big(amountOut);
+  const inputAmountNablaRawBig = Big(nablaAmountInRaw);
+  const inputAmountNablaUnits = multiplyByPowerOfTen(inputAmountNablaRawBig, -inputTokenDecimals).toFixed();
+
+  const outputAmountBig = Big(amountOut).round(2, 0);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmountBig, outputTokenDecimals).toFixed();
 
+  await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
   const stellarFundingAccountId = await fetchSigningServiceAccountId();
   const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
   const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
@@ -131,8 +139,12 @@ export async function constructInitialState({
       units: amountIn,
       raw: inputAmountRaw,
     },
+    inputAmountNabla: {
+      units: inputAmountNablaUnits,
+      raw: nablaAmountInRaw,
+    },
     outputAmount: {
-      units: amountOut,
+      units: outputAmountBig.toFixed(2, 0),
       raw: outputAmountRaw,
     },
     phase: 'squidRouter',
@@ -151,7 +163,9 @@ export async function constructInitialState({
 export async function advanceOfframpingState(context: ExecutionContext): Promise<OfframpingState | undefined> {
   const state = storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
 
+  console.log('No offramping in process');
   if (state === undefined) return undefined;
+  console.log('Advance offramping state in phase', state.phase);
 
   let newState: OfframpingState | undefined;
   try {
@@ -172,6 +186,7 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
     storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
   }
 
+  console.log('Done advancing offramping state and advance to', newState?.phase ?? 'completed');
   return newState;
 }
 

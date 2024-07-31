@@ -28,6 +28,7 @@ export const useMainProcess = () => {
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
   const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | undefined>(undefined);
+  const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const wagmiConfig = useConfig();
 
   const [events, setEvents] = useState<GenericEvent[]>([]);
@@ -39,7 +40,7 @@ export const useMainProcess = () => {
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
-    ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
+    ({ inputTokenType, outputTokenType, amountInUnits, nablaAmountInRaw, minAmountOutUnits }: ExecutionInput) => {
       if (offrampingStarted || offrampingPhase !== undefined) return;
 
       (async () => {
@@ -62,13 +63,17 @@ export const useMainProcess = () => {
         };
         const firstSep24Response = await sep24First(anchorSessionParams);
         console.log('sep24 url:', firstSep24Response.url);
+        setSep24Url(firstSep24Response.url);
 
         const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
+
+        console.log('secondSep24Response', secondSep24Response);
 
         const initialState = await constructInitialState({
           inputTokenType,
           outputTokenType,
           amountIn: amountInUnits,
+          nablaAmountInRaw,
           amountOut: minAmountOutUnits,
           sepResult: secondSep24Response,
         });
@@ -80,8 +85,6 @@ export const useMainProcess = () => {
   );
 
   useEffect(() => {
-    if (offrampingPhase === undefined) return;
-
     (async () => {
       const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig });
       setOfframpingPhase(nextState?.phase);
@@ -90,5 +93,7 @@ export const useMainProcess = () => {
 
   return {
     handleOnSubmit,
+    sep24Url,
+    offrampingPhase,
   };
 };

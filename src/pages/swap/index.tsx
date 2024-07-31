@@ -19,8 +19,8 @@ import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenTyp
 import { BaseLayout } from '../../layouts';
 
 import { useMainProcess } from '../../hooks/useMainProcess';
-import { SwapOptions } from '../../types';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
+import { ProgressPage } from '../progress';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -50,7 +50,7 @@ export const SwapPage = () => {
   }, []);
 
   // Main process hook
-  const { handleOnSubmit } = useMainProcess();
+  const { handleOnSubmit, sep24Url, offrampingPhase } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -86,6 +86,9 @@ export const SwapPage = () => {
     form,
   });
 
+  const inputAmountIsStable =
+    tokenOutData.actualAmountInRaw !== undefined && BigInt(tokenOutData.actualAmountInRaw) > 0n;
+
   // Check only the first part of the form (without Bank Details)
   const isFormValidWithoutBankDetails = useMemo(() => {
     const errors = form.formState.errors;
@@ -99,7 +102,7 @@ export const SwapPage = () => {
   function onSubmit(e: Event) {
     e.preventDefault();
 
-    if (isSubmitButtonDisabled) return;
+    if (isSubmitButtonDisabled || !inputAmountIsStable || tokenOutData.actualAmountInRaw === undefined) return;
 
     if (!isExchangeSectionSubmitted) {
       if (isFormValidWithoutBankDetails) {
@@ -124,16 +127,12 @@ export const SwapPage = () => {
     }
 
     console.log('starting ....');
-    // Hardcoding the selection SwapOptions since at least for now this will be always the case (no direct offramping on this UI)
-    // TODO we need to pass the bank account/tax id also, required for sep12 probably.
-    const swapOptions: SwapOptions = {
-      assetIn: from,
-      minAmountOut: tokenOutData.data?.amountOut.preciseBigDecimal,
-    };
+
     handleOnSubmit({
       inputTokenType: from as InputTokenType,
       outputTokenType: to as OutputTokenType,
       amountInUnits: fromAmountString,
+      nablaAmountInRaw: tokenOutData.actualAmountInRaw,
       minAmountOutUnits: minimumOutputAmount.preciseString,
     });
   }
@@ -145,12 +144,15 @@ export const SwapPage = () => {
   }, [isExchangeSectionSubmitted]);
 
   useEffect(() => {
-    const toAmount = Number(tokenOutData.data?.amountOut.preciseString);
-    form.setValue('toAmount', isNaN(toAmount) ? '' : toAmount.toFixed(2));
-    if (toAmount) {
+    if (tokenOutData.data) {
+      const toAmount = tokenOutData.data.amountOut.preciseBigDecimal.round(2, 0);
+      form.setValue('toAmount', stringifyBigWithSignificantDecimals(toAmount, 2));
+
       setIsQuoteSubmitted(false);
+    } else {
+      form.setValue('toAmount', '');
     }
-  }, [form, fromAmount, tokenOutData]);
+  }, [form, tokenOutData.data]);
 
   // Check if the Submit button should be enabled
   useEffect(() => {
@@ -159,7 +161,7 @@ export const SwapPage = () => {
       setIsSubmitButtonDisabled(false);
     }
     // Validate the whole form (with Bank Details)
-    else if (isExchangeSectionSubmitted && form.formState.isValid) {
+    else if (isExchangeSectionSubmitted /*&& form.formState.isValid*/) {
       setIsSubmitButtonDisabled(false);
     } else {
       setIsSubmitButtonDisabled(true);
@@ -211,7 +213,7 @@ export const SwapPage = () => {
         }.`;
       }
 
-      if (minAmountRaw.gt(Big(amountOut.rawBalance))) {
+      if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
         const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.stellarAsset.code.string
@@ -244,10 +246,16 @@ export const SwapPage = () => {
     />
   );
 
+  console.log('IssubmitButtonDisabled: ', isSubmitButtonDisabled);
+
+  if (offrampingPhase !== undefined) {
+    return <ProgressPage />;
+  }
+
   const main = (
     <main ref={formRef}>
       <form
-        className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-8 md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSubmit}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
@@ -272,10 +280,16 @@ export const SwapPage = () => {
         ) : (
           <></>
         )}
-        <SwapSubmitButton
-          text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
-          disabled={isSubmitButtonDisabled || Boolean(getCurrentErrorMessage())}
-        />
+        {sep24Url !== undefined ? (
+          <a href={sep24Url} target="_blank" className="btn rounded-xl bg-blue-700 text-white w-full mt-5">
+            Start Offramping
+          </a>
+        ) : (
+          <SwapSubmitButton
+            text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
+            disabled={isSubmitButtonDisabled || Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+          />
+        )}
       </form>
     </main>
   );
