@@ -1,9 +1,8 @@
-import { WalletAccount } from '@talismn/connect-wallets';
 import { Keypair } from 'stellar-sdk';
 import { Keyring } from '@polkadot/api';
 import { getApiManagerInstance } from '../polkadotApi';
 import { getVaultsForCurrency, VaultService } from '../spacewalk';
-import { executeSpacewalkRedeem } from '../index';
+import { OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../../constants/tokenConfig';
 
 // The secret phrase of a substrate account on Pendulum used for requesting a redeem
 const TEST_ACCOUNT_SECRET_PHRASE = process.env.TEST_ACCOUNT_SECRET_PHRASE || '';
@@ -32,7 +31,12 @@ async function setupTest() {
   const apiComponents = await apiManager.getApiComponents();
   const api = apiComponents.api;
 
-  const vaultsForCurrency = await getVaultsForCurrency(api, TEST_CURRENCY_SYMBOL);
+  const testToken = OUTPUT_TOKEN_CONFIG[TEST_CURRENCY_SYMBOL.toLowerCase() as OutputTokenType];
+  const vaultsForCurrency = await getVaultsForCurrency(
+    api,
+    testToken.stellarAsset.code.hex,
+    testToken.stellarAsset.issuer.hex,
+  );
   if (vaultsForCurrency.length === 0) {
     console.log(`No vaults found for currency ${TEST_CURRENCY_SYMBOL}`);
     return;

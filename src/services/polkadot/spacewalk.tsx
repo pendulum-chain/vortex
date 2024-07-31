@@ -71,15 +71,18 @@ function prettyPrintAssetInfo(assetInfo: any) {
   return assetInfo.code;
 }
 
-export async function getVaultsForCurrency(api: ApiPromise, currencySymbol: string) {
+export async function getVaultsForCurrency(api: ApiPromise, assetCodeHex: string, assetIssuerHex: string) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([key, value]) => value.unwrap());
 
   const vaultsForCurrency = vaults.filter((vault) => {
+    // toString returns the hex string
+    // toHuman returns the hex string if the string has length < 4, otherwise the readable string
     return (
       vault.id.currencies.wrapped.isStellar &&
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
-      vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toHuman() === currencySymbol
+      vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
+      vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex
     );
   });
 
@@ -101,7 +104,7 @@ export class VaultService {
     this.apiComponents = apiComponents;
   }
 
-  async requestRedeem(accountOrPair: WalletAccount | KeyringPair, amount: string, stellarPkBytesBuffer: Buffer) {
+  async requestRedeem(accountOrPair: WalletAccount | KeyringPair, amountRaw: string, stellarPkBytesBuffer: Buffer) {
     const keyring = new Keyring({ type: 'sr25519' });
     keyring.setSS58Format(this.apiComponents!.ss58Format);
 
@@ -119,14 +122,15 @@ export class VaultService {
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
 
     return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
-      this.apiComponents!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
-        //Should we specify the nonce or is the wallet taking care of this?
+      this.apiComponents!.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!)
         .signAndSend(addressOrPair, options, (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
 
           if (status.isFinalized) {
             console.log(
-              `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`,
+              `Requested redeem of ${amountRaw} for vault ${prettyPrintVaultId(this.vaultId)} with status ${
+                status.type
+              }`,
             );
 
             // Try to find a 'system.ExtrinsicFailed' event

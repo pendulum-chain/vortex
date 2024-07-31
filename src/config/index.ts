@@ -11,7 +11,7 @@ type TenantConfig = Record<
   }
 >;
 
-export type Environment = 'development' | 'staging' | 'production';
+type Environment = 'development' | 'staging' | 'production';
 const nodeEnv = process.env.NODE_ENV as Environment;
 const maybeSignerServiceUrl = import.meta.env.VITE_SIGNING_SERVICE_URL;
 const alchemyApiKey = import.meta.env.VITE_ALCHEMY_API_KEY;
@@ -59,5 +59,9 @@ export const config = {
   walletConnect: {
     url: 'wss://relay.walletconnect.com',
     projectId: '299fda67fbf3b60a31ba8695524534cd',
+  },
+  test: {
+    mockSep24: false,
+    overwriteMinimumTransferAmount: false,
   },
 };

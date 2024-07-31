@@ -1487,26 +1487,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@chainsafe/metamask-polkadot-adapter@npm:^0.6.0":
-  version: 0.6.0
-  resolution: "@chainsafe/metamask-polkadot-adapter@npm:0.6.0"
-  dependencies:
-    "@polkadot/api": "npm:^10.9.1"
-    "@polkadot/extension-inject": "npm:^0.46.5"
-    "@polkadot/types-augment": "npm:^10.9.1"
-  checksum: 32635c3a6ead8adfa7b8f99bbfa6548bc7f0632f13bb1c6f2e7833e6d1e0761df1944fcfcf10c3648a5e2dde3cd00a0f3e355ca68e1626eca817dc3e3d6a941e
-  languageName: node
-  linkType: hard
-
-"@chainsafe/metamask-polkadot-types@npm:^0.7.0":
-  version: 0.7.0
-  resolution: "@chainsafe/metamask-polkadot-types@npm:0.7.0"
-  dependencies:
-    "@polkadot/api": "npm:^10.9.1"
-  checksum: 50078a332d1e4776b7eaacc193180d6c715f2b35c6e49f3e9bf526018383b1d67044839e3f6d074ca27b3081593cc98a01546f0676d535f2c378d5a1344296f1
-  languageName: node
-  linkType: hard
-
 "@coinbase/wallet-sdk@npm:4.0.3":
   version: 4.0.3
   resolution: "@coinbase/wallet-sdk@npm:4.0.3"
@@ -3407,7 +3387,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/api@npm:10.13.1, @polkadot/api@npm:^10.12.4, @polkadot/api@npm:^10.13.1, @polkadot/api@npm:^10.9.1":
+"@polkadot/api@npm:10.13.1, @polkadot/api@npm:^10.13.1":
   version: 10.13.1
   resolution: "@polkadot/api@npm:10.13.1"
   dependencies:
@@ -3529,24 +3509,6 @@ __metadata:
   peerDependencies:
     "@polkadot/api": "*"
   checksum: 18bf202b4e1a8b07c62c477be3477ffa4acbb04f4a39e3236feb22026c2e9323bd1e72e0d463f892d47e6d78373d3ec86cf40ee20c1bfcb0d738d2acde173fa0
-  languageName: node
-  linkType: hard
-
-"@polkadot/extension-inject@npm:^0.46.5":
-  version: 0.46.9
-  resolution: "@polkadot/extension-inject@npm:0.46.9"
-  dependencies:
-    "@polkadot/api": "npm:^10.12.4"
-    "@polkadot/rpc-provider": "npm:^10.12.4"
-    "@polkadot/types": "npm:^10.12.4"
-    "@polkadot/util": "npm:^12.6.2"
-    "@polkadot/util-crypto": "npm:^12.6.2"
-    "@polkadot/x-global": "npm:^12.6.2"
-    tslib: "npm:^2.6.2"
-  peerDependencies:
-    "@polkadot/api": "*"
-    "@polkadot/util": "*"
-  checksum: f5750d9ce6a4350714185808e3b3404e76d073e7591d2716a514633933cc1e2a275a84a5e98bd8d765f1ce372e1ef5205c6306a56679fa46d9be175232e05cd4
   languageName: node
   linkType: hard
 
@@ -3706,7 +3668,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/rpc-provider@npm:10.13.1, @polkadot/rpc-provider@npm:^10.12.4, @polkadot/rpc-provider@npm:^10.13.1":
+"@polkadot/rpc-provider@npm:10.13.1, @polkadot/rpc-provider@npm:^10.13.1":
   version: 10.13.1
   resolution: "@polkadot/rpc-provider@npm:10.13.1"
   dependencies:
@@ -3778,7 +3740,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/types-augment@npm:10.13.1, @polkadot/types-augment@npm:^10.9.1":
+"@polkadot/types-augment@npm:10.13.1":
   version: 10.13.1
   resolution: "@polkadot/types-augment@npm:10.13.1"
   dependencies:
@@ -3952,7 +3914,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/types@npm:10.13.1, @polkadot/types@npm:^10.12.4, @polkadot/types@npm:^10.13.1":
+"@polkadot/types@npm:10.13.1, @polkadot/types@npm:^10.13.1":
   version: 10.13.1
   resolution: "@polkadot/types@npm:10.13.1"
   dependencies:
@@ -5235,6 +5197,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@testing-library/user-event@npm:^14.5.2":
+  version: 14.5.2
+  resolution: "@testing-library/user-event@npm:14.5.2"
+  peerDependencies:
+    "@testing-library/dom": ">=7.21.4"
+  checksum: 49821459d81c6bc435d97128d6386ca24f1e4b3ba8e46cb5a96fe3643efa6e002d88c1b02b7f2ec58da593e805c59b78d7fdf0db565c1f02ba782f63ee984040
+  languageName: node
+  linkType: hard
+
 "@tootallnate/once@npm:2":
   version: 2.0.0
   resolution: "@tootallnate/once@npm:2.0.0"
@@ -5520,7 +5491,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:*, @types/react@npm:^18.0.28":
+"@types/react@npm:*":
   version: 18.2.5
   resolution: "@types/react@npm:18.2.5"
   dependencies:
@@ -10032,6 +10003,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"framer-motion@npm:^11.2.14":
+  version: 11.2.14
+  resolution: "framer-motion@npm:11.2.14"
+  dependencies:
+    tslib: "npm:^2.4.0"
+  peerDependencies:
+    "@emotion/is-prop-valid": "*"
+    react: ^18.0.0
+    react-dom: ^18.0.0
+  peerDependenciesMeta:
+    "@emotion/is-prop-valid":
+      optional: true
+    react:
+      optional: true
+    react-dom:
+      optional: true
+  checksum: 741ad03761780fe6103c02f39bc86addba6900a4f395f94b06361285adc7bcb1c6bc21eb88b791a1ce303b4ededb29c5c262e9d86e3afd27915dedc3673a0842
+  languageName: node
+  linkType: hard
+
 "fresh@npm:0.5.2":
   version: 0.5.2
   resolution: "fresh@npm:0.5.2"
@@ -13930,8 +13921,6 @@ __metadata:
     "@babel/plugin-proposal-class-properties": "npm:^7.18.6"
     "@babel/preset-env": "npm:^7.20.2"
     "@babel/preset-typescript": "npm:^7.18.6"
-    "@chainsafe/metamask-polkadot-adapter": "npm:^0.6.0"
-    "@chainsafe/metamask-polkadot-types": "npm:^0.7.0"
     "@emotion/react": "npm:^11.11.1"
     "@emotion/styled": "npm:^11.11.0"
     "@fontsource/roboto": "npm:^5.0.8"
@@ -13967,11 +13956,11 @@ __metadata:
     "@testing-library/jest-dom": "npm:^5.16.5"
     "@testing-library/preact": "npm:^3.2.3"
     "@testing-library/preact-hooks": "npm:^1.1.0"
+    "@testing-library/user-event": "npm:^14.5.2"
     "@types/big.js": "npm:^6"
     "@types/bn.js": "npm:^5"
     "@types/jest": "npm:^29.4.0"
     "@types/node": "npm:^18.14.1"
-    "@types/react": "npm:^18.0.28"
     "@types/testing-library__jest-dom": "npm:^5.14.5"
     "@typescript-eslint/eslint-plugin": "npm:^5.53.0"
     "@typescript-eslint/parser": "npm:^5.53.0"
@@ -13988,6 +13977,7 @@ __metadata:
     eslint-plugin-jest: "npm:^27.2.1"
     eslint-plugin-react: "npm:^7.32.2"
     eslint-plugin-react-hooks: "npm:^4.6.0"
+    framer-motion: "npm:^11.2.14"
     husky: "npm:>=6"
     jest: "npm:^29.4.3"
     jest-environment-jsdom: "npm:^29.4.3"
@@ -16869,7 +16859,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.0.0":
+"tslib@npm:^2.0.0, tslib@npm:^2.4.0":
   version: 2.6.3
   resolution: "tslib@npm:2.6.3"
   checksum: 52109bb681f8133a2e58142f11a50e05476de4f075ca906d13b596ae5f7f12d30c482feb0bff167ae01cfc84c5803e575a307d47938999246f5a49d174fc558c
