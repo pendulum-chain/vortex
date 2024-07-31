@@ -1,7 +1,7 @@
 import { FC, useMemo } from 'preact/compat';
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { TokenDetails } from '../../constants/tokenConfig';
+import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { AssetButton } from '../buttons/AssetButton';
 import { SwapFormValues } from '../Nabla/schema';
 import { NumericInput } from '../NumericInput';
@@ -23,7 +23,8 @@ export const ChainName = () => (
 );
 
 interface AssetNumericInputProps {
-  fromToken?: TokenDetails;
+  tokenType?: InputTokenType | OutputTokenType;
+  tokenSymbol?: string;
   onClick: () => void;
   additionalText?: string;
   disabled?: boolean;
@@ -33,12 +34,16 @@ interface AssetNumericInputProps {
 
 export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   additionalText,
-  fromToken,
+  tokenType,
+  tokenSymbol,
   onClick,
   registerInput,
   ...rest
 }) => {
-  const memoizedAssetButton = useMemo(() => <AssetButton token={fromToken} onClick={onClick} />, [fromToken, onClick]);
+  const memoizedAssetButton = useMemo(
+    () => <AssetButton tokenType={tokenType} tokenSymbol={tokenSymbol} onClick={onClick} />,
+    [tokenType, onClick],
+  );
 
   return (
     <div

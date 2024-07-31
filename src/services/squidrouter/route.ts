@@ -4,14 +4,15 @@ import { squidReceiverABI } from '../../contracts/SquidReceiver';
 import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
 import encodePayload from './payload';
-import { getEphemeralAccount } from '../polkadot/ephemeral';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
+import { InputTokenDetails } from '../../constants/tokenConfig';
 
 interface RouteParams {
   fromAddress: string;
   fromChain: string;
   fromToken: string;
+  inputToken: InputTokenDetails;
   fromAmount: string;
   toChain: string;
   toToken: string;
@@ -29,8 +30,14 @@ interface RouteParams {
   };
 }
 
-function createRouteParams(userAddress: string, amount: string): RouteParams {
-  const { fromToken, fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig();
+function createRouteParams(
+  userAddress: string,
+  amount: string,
+  ephemeralAccountAddress: string,
+  inputToken: InputTokenDetails,
+): RouteParams {
+  const { fromToken, fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } =
+    getSquidRouterConfig(inputToken);
 
   // TODO this must be approval, should we use max amount?? Or is this unsafe.
   const approvalErc20 = encodeFunctionData({
@@ -39,8 +46,7 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
     args: [receivingContractAddress, 1000000000],
   });
 
-  const ephemeralAccount = getEphemeralAccount();
-  const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccount.address));
+  const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccountAddress));
 
   const payload = encodePayload(ephemeralAccountHex);
 
@@ -55,6 +61,7 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
     fromChain: fromChainId,
     fromToken: fromToken,
     fromAmount: amount,
+    inputToken,
     toChain: toChainId,
     toToken: axlUSDC_MOONBEAM,
     toAddress: userAddress,
@@ -99,35 +106,9 @@ function createRouteParams(userAddress: string, amount: string): RouteParams {
   };
 }
 
-async function getRoute(params: RouteParams) {
-  const { integratorId } = getSquidRouterConfig();
-
-  try {
-    const result = await axios.post(
-      'https://apiplus.squidrouter.com/v2/route',
-
-      params,
-      {
-        headers: {
-          'x-integrator-id': integratorId,
-          'Content-Type': 'application/json',
-        },
-      },
-    );
-    const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
-    return { data: result.data, requestId: requestId };
-  } catch (error) {
-    if (error) {
-      console.error('API error:', (error as any).response.data);
-    }
-    console.error('Error with parameters:', params);
-    throw error;
-  }
-}
-
 async function getRouteApiPlus(params: RouteParams) {
   // This is the integrator ID for the Squid API by https://v2.app.squidrouter.com/
-  const { integratorId } = getSquidRouterConfig();
+  const { integratorId } = getSquidRouterConfig(params.inputToken);
   const url = 'https://apiplus.squidrouter.com/v2/route';
 
   try {
@@ -149,8 +130,13 @@ async function getRouteApiPlus(params: RouteParams) {
   }
 }
 
-export async function getRouteTransactionRequest(userAddress: string, amount: string) {
-  const routeParams = createRouteParams(userAddress, amount);
+export async function getRouteTransactionRequest(
+  userAddress: string,
+  amount: string,
+  ephemeralAccountAddress: string,
+  inputToken: InputTokenDetails,
+) {
+  const routeParams = createRouteParams(userAddress, amount, ephemeralAccountAddress, inputToken);
 
   // Get the swap route using Squid API
   const routeResult = await getRouteApiPlus(routeParams);
@@ -174,71 +160,4 @@ interface StatusParams {
   requestId: string;
   fromChainId: string;
   toChainId: string;
-}
-
-// Function to get the status of the transaction using Squid API
-async function getStatus(params: StatusParams) {
-  const { integratorId } = getSquidRouterConfig();
-
-  try {
-    const result = await axios.get('https://v2.api.squidrouter.com/v2/status', {
-      params: {
-        transactionId: params.transactionId,
-        requestId: params.requestId,
-        fromChainId: params.fromChainId,
-        toChainId: params.toChainId,
-      },
-      headers: {
-        'x-integrator-id': integratorId,
-      },
-    });
-    return result.data;
-  } catch (error) {
-    if (error) {
-      console.error('API error:', (error as any).response.data);
-    }
-    console.error('Error with parameters:', params);
-    throw error;
-  }
-}
-
-// Function to periodically check the transaction status until it completes
-export async function updateTransactionStatus(txHash: string, requestId: string) {
-  const { fromChainId, toChainId } = getSquidRouterConfig();
-
-  const getStatusParams = {
-    transactionId: txHash,
-    requestId: requestId,
-    fromChainId: fromChainId,
-    toChainId: toChainId,
-  };
-
-  let status;
-  const completedStatuses = ['success', 'partial_success', 'needs_gas', 'not_found'];
-  const maxRetries = 15; // Maximum number of retries for status check
-  let retryCount = 0;
-
-  do {
-    try {
-      status = await getStatus(getStatusParams);
-      console.log(`Route status: ${status.squidTransactionStatus}`);
-    } catch (error) {
-      if ((error as any).response && (error as any).response.status === 404) {
-        retryCount++;
-        if (retryCount >= maxRetries) {
-          console.error('Max retries reached. Transaction not found.');
-          break;
-        }
-        console.log('Transaction not found. Retrying...');
-        await new Promise((resolve) => setTimeout(resolve, 20000));
-        continue;
-      } else {
-        throw error;
-      }
-    }
-
-    if (!completedStatuses.includes(status.squidTransactionStatus)) {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-  } while (!completedStatuses.includes(status.squidTransactionStatus));
 }

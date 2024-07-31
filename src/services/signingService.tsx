@@ -5,7 +5,7 @@ interface SigningServiceStatus {
   public: string;
 }
 
-export const fetchSigningServicePK = async (): Promise<string> => {
+export const fetchSigningServiceAccountId = async (): Promise<string> => {
   try {
     const serviceResponse: SigningServiceStatus = await (await fetch(`${SIGNING_SERVICE_URL}/v1/status`)).json();
 

@@ -1,18 +1,18 @@
-import { TokenDetails } from '../../constants/tokenConfig';
+import { InputTokenDetails, OutputTokenDetails } from '../../constants/tokenConfig';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { FC } from 'preact/compat';
 
 interface ExchangeRateProps {
-  fromToken?: TokenDetails;
-  toToken?: TokenDetails;
+  fromToken?: InputTokenDetails;
+  toToken?: OutputTokenDetails;
   tokenOutData: UseTokenOutAmountResult;
 }
 
 export const ExchangeRate: FC<ExchangeRateProps> = ({ tokenOutData, fromToken, toToken }) => {
   const exchangeRate =
     fromToken !== undefined && toToken !== undefined && !tokenOutData.isLoading && tokenOutData.data ? (
-      <>{`1 ${fromToken.assetCode} = ${Number(tokenOutData.data.effectiveExchangeRate).toFixed(2)} ${
-        toToken.assetCode
+      <>{`1 ${fromToken.assetSymbol} = ${Number(tokenOutData.data.effectiveExchangeRate).toFixed(2)} ${
+        toToken.stellarAsset.code.string
       }`}</>
     ) : (
       `-`
