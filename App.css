@@ -52,3 +52,18 @@ div[data-rk] {
 .fadein-button-animation:hover::before {
   transform: scaleX(1);
 }
+
+.click-animation:active:hover,
+.click-animation:active:focus {
+  animation: button-pop 0.2s ease-out;
+  transform: scale(var(1, 0.97));
+}
+
+@keyframes click {
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
