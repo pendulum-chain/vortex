@@ -6,9 +6,9 @@ import { NumericInput } from '.';
 
 const mockRegister: UseFormRegisterReturn = {
   name: 'testInput',
-  onChange: jest.fn(),
-  onBlur: jest.fn(),
-  ref: jest.fn(),
+  onChange: vi.fn(),
+  onBlur: vi.fn(),
+  ref: vi.fn(),
 };
 
 describe('NumericInput Component', () => {
@@ -101,6 +101,7 @@ describe('NumericInput Component', () => {
   });
 
   it('should not allow more decimals than default maxDecimals', async () => {
+    // const { getByPlaceholderText } = render(<NumericInput register={mockRegister} />);
     const { getByPlaceholderText } = render(<NumericInput register={mockRegister} />);
     const inputElement = getByPlaceholderText('0.0') as HTMLInputElement;
 

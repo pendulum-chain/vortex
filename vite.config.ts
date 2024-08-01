@@ -12,6 +12,12 @@ export default defineConfig({
   build: {
     target: 'esnext',
   },
+  // @ts-ignore
+  test: {
+    globals: true,
+    setupFiles: ['./src/setupTests.ts'],
+    environment: 'happy-dom',
+  },
   optimizeDeps: {
     exclude: [],
     esbuildOptions: {
