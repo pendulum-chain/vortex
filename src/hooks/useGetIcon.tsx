@@ -16,11 +16,12 @@ type IconMap = Partial<Record<InputTokenType | OutputTokenType, string>>;
 const icons: IconMap = {
   brl: BRL,
   eurc: EURC,
-  usdc: USDC,
+  usdce: USDC,
 };
 
 const polygonIcons: IconMap = {
   usdc: USDC_POLYGON,
+  usdce: USDC_POLYGON,
 };
 
 const IconMaps: Record<string, IconMap> = {
