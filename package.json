@@ -17,8 +17,6 @@
     "postinstall": "husky install"
   },
   "dependencies": {
-    "@chainsafe/metamask-polkadot-adapter": "^0.6.0",
-    "@chainsafe/metamask-polkadot-types": "^0.7.0",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@fontsource/roboto": "^5.0.8",
@@ -52,6 +50,7 @@
     "bn.js": "^5.2.1",
     "buffer": "^6.0.3",
     "daisyui": "^4.11.1",
+    "framer-motion": "^11.2.14",
     "postcss": "^8.4.38",
     "preact": "^10.12.1",
     "react-daisyui": "^5.0.0",
@@ -80,10 +79,10 @@
     "@preact/preset-vite": "^2.5.0",
     "@testing-library/preact": "^3.2.3",
     "@testing-library/preact-hooks": "^1.1.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/big.js": "^6",
     "@types/bn.js": "^5",
     "@types/node": "^18.14.1",
-    "@types/react": "^18.0.28",
     "@typescript-eslint/eslint-plugin": "^5.53.0",
     "@typescript-eslint/parser": "^5.53.0",
     "babel-preset-vite": "^1.1.3",

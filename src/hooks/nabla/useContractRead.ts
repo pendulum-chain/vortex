@@ -12,9 +12,9 @@ import { ApiPromise } from '../../services/polkadot/polkadotApi';
 const isDevelopment = config.isDev;
 const ALICE = '6mfqoTMHrMeVMyKwjqomUjVomPMJ4AjdCm1VReFtk7Be8wqr';
 
-export type MessageCallErrorResult = ReadMessageResult & { type: 'error' | 'panic' | 'reverted' };
+type MessageCallErrorResult = ReadMessageResult & { type: 'error' | 'panic' | 'reverted' };
 
-export type UseContractReadProps<ReturnType> = {
+type UseContractReadProps<ReturnType> = {
   abi: Dict;
   address: string | undefined;
   method: string;
@@ -25,7 +25,7 @@ export type UseContractReadProps<ReturnType> = {
   queryOptions: QueryOptions<ReturnType | null, string>;
 };
 
-export type UseContractReadResult<ReturnType> = UseQueryResult<ReturnType | null, string>;
+type UseContractReadResult<ReturnType> = UseQueryResult<ReturnType | null, string>;
 
 export function useContractRead<ReturnType>(
   key: QueryKey,

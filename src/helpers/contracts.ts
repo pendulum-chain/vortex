@@ -4,6 +4,7 @@ import { Limits } from '@pendulum-chain/api-solang';
 import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
 import type { ApiPromise } from '@polkadot/api';
 import { ContractOptions } from '@polkadot/api-contract/types';
+import { roundDownToSignificantDecimals } from './parseNumbers';
 
 const BIG_0 = new BigNumber('0');
 
@@ -84,10 +85,6 @@ export function parseContractBalanceResponse(
     },
     approximateNumber: preciseBigDecimal.toNumber(),
   };
-}
-
-function roundDownToSignificantDecimals(big: BigNumber, decimals: number) {
-  return big.prec(Math.max(0, big.e + 1) + decimals, 0);
 }
 
 export function stringifyBigWithSignificantDecimals(big: BigNumber, decimals: number) {
