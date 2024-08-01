@@ -109,7 +109,6 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
   try {
     const { pendulumEphemeralSeed, inputTokenType, outputTokenType } = state;
     const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
-    const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
     const pendulumApiComponents = await getApiManagerInstance();
     const { api, ss58Format } = pendulumApiComponents.apiData!;
@@ -153,6 +152,8 @@ async function didInputTokenArriveOnPendulum({
     ephemeralKeypair.address,
     inputToken.axelarEquivalent.pendulumCurrencyId,
   )) as any;
+
+  console.log('Balance response', balanceResponse.toString(), inputAmountNabla);
   const inputBalanceRaw = Big(balanceResponse?.free?.toString() ?? '0');
 
   return inputBalanceRaw.gte(Big(inputAmountNabla.raw));

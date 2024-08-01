@@ -15,7 +15,7 @@ export const ProgressPage = () => {
     window.addEventListener('beforeunload', handleTabClose);
 
     setTimeout(() => {
-      navigate('/success');
+      //navigate('/success');
     }, 3000);
 
     return () => {

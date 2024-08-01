@@ -53,6 +53,7 @@ export const config = {
   } satisfies TenantConfig,
   xcm: { fees: '0.016' },
   swap: {
+    axelarSlippageBasisPoints: 10, // allow for some extra buffer due to USDC -> axlUSDC risk
     slippageBasisPoints: 30,
     deadline: 30,
   },

@@ -23,7 +23,11 @@ export type OfframpingPhase =
   | 'stellarOfframp'
   | 'stellarCleanup';
 
+export type FinalOfframpingPhase = 'success' | 'failure';
+
 export interface OfframpingState {
+  sep24Id: string;
+
   pendulumEphemeralSeed: string;
   stellarEphemeralSecret: string;
 
@@ -43,7 +47,7 @@ export interface OfframpingState {
     raw: string;
   };
 
-  phase: OfframpingPhase;
+  phase: OfframpingPhase | FinalOfframpingPhase;
 
   // phase squidRouter
   squidRouterApproveHash?: `0x${string}`;
@@ -89,6 +93,7 @@ export interface ExecutionContext {
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 
 export interface InitiateStateArguments {
+  sep24Id: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
@@ -98,6 +103,7 @@ export interface InitiateStateArguments {
 }
 
 export async function constructInitialState({
+  sep24Id,
   inputTokenType,
   outputTokenType,
   amountIn,
@@ -131,6 +137,7 @@ export async function constructInitialState({
   );
 
   const initialState: OfframpingState = {
+    sep24Id,
     pendulumEphemeralSeed,
     stellarEphemeralSecret,
     inputTokenType,
@@ -160,18 +167,35 @@ export async function constructInitialState({
   return initialState;
 }
 
+export async function clearOfframpingState() {
+  storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+}
+
+export function readCurrentState() {
+  return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+}
+
 export async function advanceOfframpingState(context: ExecutionContext): Promise<OfframpingState | undefined> {
-  const state = storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+  const state = readCurrentState();
 
   if (state === undefined) {
     console.log('No offramping in process');
     return undefined;
   }
-  console.log('Advance offramping state in phase', state.phase);
+
+  const { phase } = state;
+  const phaseIsFinal = phase === 'success' || phase === 'failure';
+
+  if (phaseIsFinal) {
+    console.log('Offramping is already in a final phase:', phase);
+    return state;
+  }
+
+  console.log('Advance offramping state in phase', phase);
 
   let newState: OfframpingState | undefined;
   try {
-    newState = await STATE_ADVANCEMENT_HANDLERS[state.phase](state, context);
+    newState = await STATE_ADVANCEMENT_HANDLERS[phase](state, context);
   } catch (error) {
     if ((error as any)?.message === 'Wallet not connected') {
       // TODO: transmit error to caller
@@ -179,7 +203,7 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
       return state;
     }
     console.error('Unrecoverable error advancing offramping state', error);
-    return undefined;
+    newState = { ...state, phase: 'failure' };
   }
 
   if (newState !== undefined) {
@@ -190,8 +214,4 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
 
   console.log('Done advancing offramping state and advance to', newState?.phase ?? 'completed');
   return newState;
-}
-
-export function isOfframpOngoing(): boolean {
-  return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY) !== undefined;
 }
