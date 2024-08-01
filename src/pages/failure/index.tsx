@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { TransactionInfo } from '../../components/TransactionInfo';
 import { Box } from '../../components/Box';
@@ -12,18 +11,19 @@ const Cross = () => (
   </div>
 );
 
-export const FailurePage = () => {
-  const navigate = useNavigate();
-  const transaction = {
-    id: '2137',
-  };
+interface FailurePageProps {
+  finishOfframping: () => void;
+  transactionId: string | undefined;
+}
 
+export const FailurePage = ({ finishOfframping, transactionId }: FailurePageProps) => {
+  console.log('Failure page');
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12">
         <Cross />
         <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Withdrawal unsuccessful</h1>
-        <TransactionInfo transactionId={transaction.id} />
+        {transactionId && <TransactionInfo transactionId={transactionId} />}
         <p className="mt-6 text-center">
           Unfortunately, your withdrawal request could not be processed. Please try again.
         </p>
@@ -31,12 +31,7 @@ export const FailurePage = () => {
         <p className="text-center text-gray-400">If you continue to experience issues, contact support on:</p>
         <TelegramButton />
         <EmailForm />
-        <button
-          className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-          onClick={() => {
-            navigate('/');
-          }}
-        >
+        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
           Try again
         </button>
       </Box>

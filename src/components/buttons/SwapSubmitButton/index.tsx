@@ -1,6 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { FC } from 'preact/compat';
-import { Link } from 'react-router-dom';
 
 interface SwapSubmitButtonProps {
   text: string;
@@ -29,12 +28,9 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled }) 
             }
 
             return (
-              <Link to="/progress" className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" disabled={disabled}>
+              <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" disabled={disabled}>
                 {text}
-              </Link>
-              // <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" disabled={disabled}>
-              //   {text}
-              // </button>
+              </button>
             );
           })()}
         </div>

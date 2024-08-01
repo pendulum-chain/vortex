@@ -9,7 +9,15 @@ import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
 import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { useConfig } from 'wagmi';
-import { OfframpingPhase, advanceOfframpingState, constructInitialState } from '../services/offrampingFlow';
+import {
+  FinalOfframpingPhase,
+  OfframpingPhase,
+  OfframpingState,
+  advanceOfframpingState,
+  clearOfframpingState,
+  constructInitialState,
+  readCurrentState,
+} from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 
@@ -27,11 +35,22 @@ export const useMainProcess = () => {
   // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
-  const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | undefined>(undefined);
+  const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
+  const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
   const wagmiConfig = useConfig();
 
   const [events, setEvents] = useState<GenericEvent[]>([]);
+
+  const updateHookStateFromState = (state: OfframpingState | undefined) => {
+    setOfframpingPhase(state?.phase);
+    setSep24Id(state?.sep24Id);
+  };
+
+  useEffect(() => {
+    const state = readCurrentState();
+    updateHookStateFromState(state);
+  }, []);
 
   const addEvent = (message: string, status: EventStatus) => {
     console.log('Add event', message, status);
@@ -44,50 +63,64 @@ export const useMainProcess = () => {
       if (offrampingStarted || offrampingPhase !== undefined) return;
 
       (async () => {
-        const stellarEphemeralSecret = createStellarEphemeralSecret();
-
-        const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
-        const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
-
-        const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(Big(minAmountOutUnits), 2);
-
-        const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
-
         setOfframpingStarted(true);
 
-        const anchorSessionParams = {
-          token: sep10Token,
-          tomlValues: tomlValues,
-          tokenConfig: outputToken,
-          offrampAmount: truncatedAmountToOfframp,
-        };
-        const firstSep24Response = await sep24First(anchorSessionParams);
-        console.log('sep24 url:', firstSep24Response.url);
-        setSep24Url(firstSep24Response.url);
+        try {
+          const stellarEphemeralSecret = createStellarEphemeralSecret();
 
-        const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
+          const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+          const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-        console.log('secondSep24Response', secondSep24Response);
+          const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(Big(minAmountOutUnits), 2);
 
-        const initialState = await constructInitialState({
-          inputTokenType,
-          outputTokenType,
-          amountIn: amountInUnits,
-          nablaAmountInRaw,
-          amountOut: minAmountOutUnits,
-          sepResult: secondSep24Response,
-        });
+          const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
 
-        setOfframpingPhase(initialState?.phase);
+          const anchorSessionParams = {
+            token: sep10Token,
+            tomlValues: tomlValues,
+            tokenConfig: outputToken,
+            offrampAmount: truncatedAmountToOfframp,
+          };
+          const firstSep24Response = await sep24First(anchorSessionParams);
+          console.log('sep24 url:', firstSep24Response.url);
+          setSep24Url(firstSep24Response.url);
+
+          const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
+
+          console.log('secondSep24Response', secondSep24Response);
+
+          const initialState = await constructInitialState({
+            sep24Id: firstSep24Response.id,
+            inputTokenType,
+            outputTokenType,
+            amountIn: amountInUnits,
+            nablaAmountInRaw,
+            amountOut: minAmountOutUnits,
+            sepResult: secondSep24Response,
+          });
+
+          updateHookStateFromState(initialState);
+        } catch (error) {
+          console.error('Some error occurred initializing the offramping process', error);
+          setOfframpingStarted(false);
+        }
       })();
     },
     [],
   );
 
+  const finishOfframping = useCallback(() => {
+    (async () => {
+      await clearOfframpingState();
+      setOfframpingStarted(false);
+      updateHookStateFromState(undefined);
+    })();
+  }, []);
+
   useEffect(() => {
     (async () => {
       const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig });
-      setOfframpingPhase(nextState?.phase);
+      updateHookStateFromState(nextState);
     })();
   }, [offrampingPhase]);
 
@@ -95,5 +128,8 @@ export const useMainProcess = () => {
     handleOnSubmit,
     sep24Url,
     offrampingPhase,
+    offrampingStarted,
+    sep24Id,
+    finishOfframping,
   };
 };
