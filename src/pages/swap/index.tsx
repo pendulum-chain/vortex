@@ -180,7 +180,7 @@ export const SwapPage = () => {
         readOnly={true}
       />
     ),
-    [toToken, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [to, toToken?.stellarAsset.code.string, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
@@ -192,7 +192,7 @@ export const SwapPage = () => {
         onClick={() => setModalType('from')}
       />
     ),
-    [form, fromToken, setModalType],
+    [form, from, fromToken?.assetSymbol, setModalType],
   );
 
   function getCurrentErrorMessage() {
@@ -281,7 +281,12 @@ export const SwapPage = () => {
           <></>
         )}
         {sep24Url !== undefined ? (
-          <a href={sep24Url} target="_blank" className="btn rounded-xl bg-blue-700 text-white w-full mt-5">
+          <a
+            href={sep24Url}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+          >
             Start Offramping
           </a>
         ) : (

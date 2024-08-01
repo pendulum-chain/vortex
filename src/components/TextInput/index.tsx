@@ -9,6 +9,7 @@ interface NumericInputProps {
   disabled?: boolean;
   error?: boolean;
   placeholder?: string;
+  type?: string;
 }
 
 export const TextInput = ({
@@ -19,6 +20,7 @@ export const TextInput = ({
   disabled,
   error,
   placeholder,
+  type,
 }: NumericInputProps) => (
   <div className="flex-grow text-black font-outfit">
     <Input
@@ -26,7 +28,7 @@ export const TextInput = ({
         'input-ghost w-full text-lg font-outfit pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
         additionalStyle
       }
-      type="text"
+      type={type || 'text'}
       autoComplete="off"
       autoCorrect="off"
       autoCapitalize="off"

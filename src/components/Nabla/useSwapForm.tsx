@@ -57,7 +57,7 @@ export const useSwapForm = () => {
 
       setTokenModal(undefined);
     },
-    [form, setValue, setTokenModal],
+    [getValues, setValue, setTokenModal],
   );
 
   const onToChange = useCallback(

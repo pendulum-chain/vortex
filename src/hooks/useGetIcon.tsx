@@ -3,11 +3,8 @@ import { polygon } from 'wagmi/chains';
 
 import BRL from '../assets/coins/BRL.png';
 import EURC from '../assets/coins/EURC.png';
-import PEN from '../assets/coins/PEN.png';
-import USDT from '../assets/coins/USDT.png';
 import USDC from '../assets/coins/USDC.png';
 import USDC_POLYGON from '../assets/coins/USDC_POLYGON.svg';
-
 import DefaultIcon from '../assets/coins/PEN.png';
 import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
 
@@ -28,11 +25,24 @@ const IconMaps: Record<string, IconMap> = {
   default: icons,
 };
 
-export function useGetIcon(tokenType?: InputTokenType | OutputTokenType) {
+export function useGetIcon(token?: 'usdc' | OutputTokenType, defaultIcon = DefaultIcon) {
   const currentChainId = useChainId();
-  const currentIconMap = IconMaps[currentChainId] ?? IconMaps.default;
+  const currentIconMap = IconMaps[currentChainId] || IconMaps.default;
 
-  if (!tokenType) return DefaultIcon;
+  if (!token) return defaultIcon;
 
-  return currentIconMap[tokenType] ?? IconMaps.default[tokenType] ?? DefaultIcon;
+  // map(key => key.toLowerCase()) is used to make the comparison case-insensitive
+  const currentChainIconMapHasTokenIcon = Object.keys(currentIconMap)
+    .map((key) => key.toLowerCase())
+    .includes(token.toLowerCase());
+
+  const defaultChainIconMapHasTokenIcon = Object.keys(IconMaps.default)
+    .map((key) => key.toLowerCase())
+    .includes(token.toLowerCase());
+
+  return currentChainIconMapHasTokenIcon
+    ? currentIconMap[token]
+    : defaultChainIconMapHasTokenIcon
+    ? IconMaps.default[token]
+    : defaultIcon;
 }

@@ -1,4 +1,3 @@
-import { FC } from 'preact/compat';
 import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
 import { useGetIcon } from '../../../hooks/useGetIcon';
 

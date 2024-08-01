@@ -42,7 +42,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
 }) => {
   const memoizedAssetButton = useMemo(
     () => <AssetButton tokenType={tokenType} tokenSymbol={tokenSymbol} onClick={onClick} />,
-    [tokenType, onClick],
+    [tokenType, tokenSymbol, onClick],
   );
 
   return (
