@@ -1,6 +1,13 @@
 import { Abi } from '@polkadot/api-contract';
 import Big from 'big.js';
-import { readMessage, ReadMessageResult, executeMessage, ExecuteMessageResult } from '@pendulum-chain/api-solang';
+import {
+  readMessage,
+  ReadMessageResult,
+  executeMessage,
+  ExecuteMessageResult,
+  createExecuteMessageExtrinsic,
+  signExtrinsic,
+} from '@pendulum-chain/api-solang';
 
 import { EventStatus } from '../components/GenericEvent';
 import { getApiManagerInstance } from './polkadot/polkadotApi';
@@ -82,7 +89,14 @@ export async function nablaApprove(
 }
 
 export async function nablaSwap(state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> {
-  const { inputTokenType, outputTokenType, inputAmountNabla, outputAmount, pendulumEphemeralSeed } = state;
+  const { inputTokenType, outputTokenType, inputAmountNabla, outputAmount, pendulumEphemeralSeed, transactions } =
+    state;
+
+  if (transactions === undefined) {
+    console.error('Missing transactions for nablaSwap');
+    return { ...state, phase: 'failure' };
+  }
+  const { nablaSwapTransaction, nablaApproveTransaction } = transactions;
 
   // event attempting swap
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
@@ -179,6 +193,37 @@ async function approve({ api, token, spender, amount, contractAbi, keypairEpheme
 
   if (response?.result?.type !== 'success') throw response;
   return response;
+}
+
+export async function createAndSignSwapExtrinsic({
+  api,
+  tokenIn,
+  tokenOut,
+  amount,
+  amountMin,
+  contractAbi,
+  keypairEphemeral,
+}: any) {
+  const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
+    abi: contractAbi,
+    api,
+    callerAddress: keypairEphemeral.address,
+    contractDeploymentAddress: NABLA_ROUTER,
+    messageName: 'swapExactTokensForTokens',
+    // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
+    messageArguments: [amount, amountMin, [tokenIn, tokenOut], keypairEphemeral.address, calcDeadline(5)],
+    limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
+    gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+  });
+
+  if (execution.type === 'onlyRpc') {
+    return undefined;
+  }
+
+  const signer = keypairEphemeral;
+  const { extrinsic } = execution;
+
+  const signedExtrinsic = signExtrinsic(extrinsic, signer);
 }
 
 async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contractAbi, keypairEphemeral }: any) {
