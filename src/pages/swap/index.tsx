@@ -13,6 +13,7 @@ import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
+import { DialogBox } from '../../components/DialogBox';
 import { BankDetails } from './sections/BankDetails';
 import { config } from '../../config';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
@@ -263,6 +264,7 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
+      <DialogBox />
       <form
         className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSubmit}
