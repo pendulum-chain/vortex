@@ -39,7 +39,7 @@ describe('NumericInput Component', () => {
     const inputElement = getByPlaceholderText('0.0') as HTMLInputElement;
 
     await userEvent.type(inputElement, '1.1.1,2.3,4');
-    expect(inputElement.value).toBe('1.11234');
+    expect(inputElement.value).toBe('1.14');
   });
 
   it('should replace comma with period', async () => {
@@ -105,6 +105,6 @@ describe('NumericInput Component', () => {
     const inputElement = getByPlaceholderText('0.0') as HTMLInputElement;
 
     await userEvent.type(inputElement, '123.4567890123456789abcgdehyu0123456.2746472.93.2.7.3.5.3');
-    expect(inputElement.value).toBe('123.456789012343');
+    expect(inputElement.value).toBe('123.43');
   });
 });

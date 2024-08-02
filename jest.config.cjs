@@ -9,7 +9,7 @@ module.exports = {
     '^react-dom$': 'preact/compat',
     '^react/jsx-runtime$': 'preact/jsx-runtime',
     '\\.(css|less|sass|scss)$': '<rootDir>/config/styleMock.js',
-    '\\.(gif|ttf|eot|svg)$': '<rootDir>/config/fileMock.js',
+    '\\.(gif|ttf|eot|svg|png)$': '<rootDir>/config/fileMock.js',
   },
   transform: {
     '^.+\\.(js|jsx|ts|tsx|mjs|cjs)$': '<rootDir>/config/babel.jest.cjs',
