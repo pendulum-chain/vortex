@@ -14,10 +14,6 @@ export const ProgressPage = () => {
   useEffect(() => {
     window.addEventListener('beforeunload', handleTabClose);
 
-    setTimeout(() => {
-      //navigate('/success');
-    }, 3000);
-
     return () => {
       window.removeEventListener('beforeunload', handleTabClose);
     };
