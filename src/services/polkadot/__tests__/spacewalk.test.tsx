@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { Keypair } from 'stellar-sdk';
 import { Keyring } from '@polkadot/api';
 import { getApiManagerInstance } from '../polkadotApi';
