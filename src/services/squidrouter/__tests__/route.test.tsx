@@ -14,6 +14,7 @@ beforeEach(() => {
 describe('Squidrouter', () => {
   describe('should be able to get route for relevant USDC tokens', () => {
     function getRouteForToken(inputToken: InputTokenDetails) {
+      // These addresses don't really matter
       const userAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877';
       const ephemeralAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877';
       const amount = '1000000000';
