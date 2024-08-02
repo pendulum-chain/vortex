@@ -1,7 +1,7 @@
 name: ci
 on:
   pull_request:
-    branches: [main, staging, develop]
+    branches: [main, staging, develop, polygon-prototype-staging]
     
   workflow_dispatch:
 

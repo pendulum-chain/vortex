@@ -1,4 +1,5 @@
 import { useEffect } from 'preact/hooks';
+import { useNavigate } from 'react-router-dom';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
@@ -8,13 +9,15 @@ const handleTabClose = (event: Event) => {
 };
 
 export const ProgressPage = () => {
+  const navigate = useNavigate();
+
   useEffect(() => {
     window.addEventListener('beforeunload', handleTabClose);
 
     return () => {
       window.removeEventListener('beforeunload', handleTabClose);
     };
-  }, []);
+  }, [navigate]);
 
   const main = (
     <main>

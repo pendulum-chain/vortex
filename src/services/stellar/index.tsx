@@ -306,5 +306,8 @@ export async function stellarCleanup(
     throw new Error('Could not submit the cleanup transaction');
   }
 
-  return undefined;
+  return {
+    ...state,
+    phase: 'success',
+  };
 }

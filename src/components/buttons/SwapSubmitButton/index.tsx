@@ -20,7 +20,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled }) 
                 <button
                   onClick={openConnectModal}
                   type="button"
-                  className="btn rounded-xl bg-blue-700 text-white w-full mt-5"
+                  className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
                 >
                   Connect Wallet
                 </button>
@@ -28,7 +28,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled }) 
             }
 
             return (
-              <button className="btn rounded-xl bg-blue-700 text-white w-full mt-5" disabled={disabled}>
+              <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" disabled={disabled}>
                 {text}
               </button>
             );
