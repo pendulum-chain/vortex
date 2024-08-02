@@ -28,6 +28,7 @@ type UseTokenOutAmountProps = {
   maximumFromAmount: BigNumber | undefined;
   xcmFees: string;
   slippageBasisPoints: number;
+  axelarSlippageBasisPoints: number;
   form: UseFormReturn<SwapFormValues>;
 };
 
@@ -53,6 +54,7 @@ export function useTokenOutAmount({
   maximumFromAmount,
   xcmFees,
   slippageBasisPoints,
+  axelarSlippageBasisPoints,
   form,
 }: UseTokenOutAmountProps) {
   const { setError, clearErrors } = form;
@@ -70,15 +72,20 @@ export function useTokenOutAmount({
 
   const fromTokenDecimals = inputToken?.decimals;
 
-  const amountInOriginal =
+  const amountInRawOriginal =
     fromTokenDecimals !== undefined && debouncedAmountBigDecimal !== undefined
       ? multiplyByPowerOfTen(debouncedAmountBigDecimal, fromTokenDecimals).toFixed(0, 0)
       : undefined;
 
+  const reducedAmountInRaw =
+    amountInRawOriginal !== undefined
+      ? (BigInt(amountInRawOriginal) * BigInt(10000 - axelarSlippageBasisPoints)) / 10000n
+      : undefined;
+
   const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), inputToken?.decimals).toFixed(0, 0);
   const amountIn =
-    amountInOriginal !== undefined
-      ? clampedDifference(BigInt(amountInOriginal), BigInt(rawXcmFees)).toString()
+    reducedAmountInRaw !== undefined
+      ? clampedDifference(BigInt(reducedAmountInRaw), BigInt(rawXcmFees)).toString()
       : undefined;
 
   const enabled =

@@ -1,7 +1,6 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { BaseLayout } from '../../layouts';
 import { Box } from '../../components/Box';
-import { useNavigate } from 'react-router-dom';
 import { TransactionInfo } from '../../components/TransactionInfo';
 import { EmailForm } from '../../components/EmailForm';
 import { TelegramButton } from '../../components/buttons/TelegramButton';
@@ -12,18 +11,18 @@ const Checkmark = () => (
   </div>
 );
 
-export const SuccessPage = () => {
-  const navigate = useNavigate();
-  const transaction = {
-    id: '2137',
-  };
+interface SuccessPageProps {
+  finishOfframping: () => void;
+  transactionId: string | undefined;
+}
 
+export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProps) => {
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12 ">
         <Checkmark />
         <h1 className="mt-6 text-2xl font-bold text-center text-blue-700">Request made successfully</h1>
-        <TransactionInfo transactionId={transaction.id} />
+        {transactionId && <TransactionInfo transactionId={transactionId} />}
         <p className="mt-6 text-center">Normal processing times are between 5 and 10 minutes.</p>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         <p className="text-center text-gray-400">
@@ -31,12 +30,7 @@ export const SuccessPage = () => {
         </p>
         <TelegramButton />
         <EmailForm />
-        <button
-          className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-          onClick={() => {
-            navigate('/failure');
-          }}
-        >
+        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
           Return Home
         </button>
       </Box>

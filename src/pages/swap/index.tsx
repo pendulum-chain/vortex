@@ -21,6 +21,8 @@ import { BaseLayout } from '../../layouts';
 import { useMainProcess } from '../../hooks/useMainProcess';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { ProgressPage } from '../progress';
+import { SuccessPage } from '../success';
+import { FailurePage } from '../failure';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -50,7 +52,7 @@ export const SwapPage = () => {
   }, []);
 
   // Main process hook
-  const { handleOnSubmit, sep24Url, offrampingPhase } = useMainProcess();
+  const { handleOnSubmit, finishOfframping, offrampingStarted, sep24Url, sep24Id, offrampingPhase } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -81,6 +83,7 @@ export const SwapPage = () => {
     outputTokenType: to,
     maximumFromAmount: undefined,
     slippageBasisPoints: config.swap.slippageBasisPoints,
+    axelarSlippageBasisPoints: config.swap.axelarSlippageBasisPoints,
     fromAmountString,
     xcmFees: config.xcm.fees,
     form,
@@ -246,9 +249,15 @@ export const SwapPage = () => {
     />
   );
 
-  console.log('IssubmitButtonDisabled: ', isSubmitButtonDisabled);
+  if (offrampingPhase === 'success') {
+    return <SuccessPage finishOfframping={finishOfframping} transactionId={sep24Id} />;
+  }
 
-  if (offrampingPhase !== undefined) {
+  if (offrampingPhase === 'failure') {
+    return <FailurePage finishOfframping={finishOfframping} transactionId={sep24Id} />;
+  }
+
+  if (offrampingPhase !== undefined || offrampingStarted) {
     return <ProgressPage />;
   }
 
