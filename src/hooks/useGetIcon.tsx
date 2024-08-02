@@ -26,7 +26,7 @@ const IconMaps: Record<string, IconMap> = {
   default: icons,
 };
 
-export function useGetIcon(token?: 'usdc' | OutputTokenType, defaultIcon = DefaultIcon) {
+export function useGetIcon(token?: InputTokenType | OutputTokenType, defaultIcon = DefaultIcon) {
   const currentChainId = useChainId();
   const currentIconMap = IconMaps[currentChainId] || IconMaps.default;
 
