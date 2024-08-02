@@ -1,5 +1,6 @@
 import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
+import { config } from '../../config';
 
 interface GoogleCredentials {
   email: string;
@@ -60,3 +61,23 @@ export async function getOrCreateSheet(doc: GoogleSpreadsheet, headerValues: str
 export async function appendData(sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>) {
   await sheet.addRow(data);
 }
+
+const HEADER_VALUES = [
+  'timestamp',
+  'polygonAddress',
+  'stellarEphemeralPublicKey',
+  'pendulumEphemeralPublicKey',
+  'nablaApprovalTx',
+  'nablaSwapTx',
+  'spacewalkRedeemTx',
+  'stellarOfframpTx',
+  'stellarCleanupTx',
+];
+// Create a global instance of the Google Spreadsheet that can be used across the application
+export const GlobalSpreadsheet = initGoogleSpreadsheet(config.spreadsheet.sheetId, config.spreadsheet.googleCredentials)
+  .then((doc) => {
+    return getOrCreateSheet(doc, HEADER_VALUES);
+  })
+  .catch((error) => {
+    console.error('Error initializing Global Spreadsheet:', error);
+  });
