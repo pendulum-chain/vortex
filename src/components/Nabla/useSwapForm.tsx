@@ -1,14 +1,18 @@
-import { useState, useCallback, useMemo } from 'react';
 import Big from 'big.js';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
+import { useState, useCallback, useMemo } from 'preact/compat';
 import { yupResolver } from '@hookform/resolvers/yup';
 
-import { TOKEN_CONFIG, TokenDetails, TokenType } from '../../constants/tokenConfig';
-import schema, { SwapFormValues } from './schema';
-import { storageService } from '../../services/localStorage';
+import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { storageKeys } from '../../constants/localStorage';
 import { debounce } from '../../helpers/function';
-import { SwapSettings } from '../InputKeys';
+import schema, { SwapFormValues } from './schema';
+import { storageService } from '../../services/storage/local';
+
+interface SwapSettings {
+  from: string;
+  to: string;
+}
 
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
@@ -20,8 +24,10 @@ export const useSwapForm = () => {
   const initialState = useMemo(() => {
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
     return {
-      from: storageValues?.from ?? 'usdc',
-      to: storageValues?.to ?? '',
+      from: (storageValues?.from ?? 'usdc') as InputTokenType,
+      to: (storageValues?.to ?? 'brl') as OutputTokenType,
+      taxNumber: '',
+      bankAccount: '',
     };
   }, []);
 
@@ -34,25 +40,20 @@ export const useSwapForm = () => {
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
-  const fromToken = from ? TOKEN_CONFIG[from as TokenType] : undefined;
-  const toToken = to ? TOKEN_CONFIG[to as TokenType] : undefined;
+  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
+  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
 
   const onFromChange = useCallback(
-    (a: TokenDetails) => {
+    (tokenKey: string) => {
       const prev = getValues();
-      const tokenKey = Object.keys(TOKEN_CONFIG).find(
-        (key) => TOKEN_CONFIG[key as TokenType]!.assetCode === a.assetCode,
-      );
-      if (!tokenKey) return;
 
       const updated = {
         from: tokenKey,
-        to: prev?.to === tokenKey ? prev?.from : prev?.to,
+        to: prev?.to,
       };
 
-      if (updated.to && prev?.to === tokenKey) setValue('to', updated.to);
       setStorageForSwapSettings(updated);
-      setValue('from', tokenKey);
+      setValue('from', tokenKey as InputTokenType);
 
       setTokenModal(undefined);
     },
@@ -60,21 +61,17 @@ export const useSwapForm = () => {
   );
 
   const onToChange = useCallback(
-    (a: TokenDetails) => {
+    (tokenKey: string) => {
       const prev = getValues();
-      const tokenKey = Object.keys(TOKEN_CONFIG).find(
-        (key) => TOKEN_CONFIG[key as TokenType]!.assetCode === a.assetCode,
-      );
       if (!tokenKey) return;
 
       const updated = {
         to: tokenKey,
-        from: prev?.from === tokenKey ? prev?.to : prev?.from,
+        from: prev?.from,
       };
 
-      if (updated.from && prev?.from !== updated.from) setValue('from', updated.from);
       setStorageForSwapSettings(updated);
-      setValue('to', tokenKey);
+      setValue('to', tokenKey as OutputTokenType);
 
       setTokenModal(undefined);
     },
@@ -105,5 +102,6 @@ export const useSwapForm = () => {
     fromAmountString,
     fromToken,
     toToken,
+    reset: form.reset,
   };
 };

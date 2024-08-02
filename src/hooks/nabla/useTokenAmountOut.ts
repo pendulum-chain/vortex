@@ -1,4 +1,5 @@
 import BigNumber from 'big.js';
+import { UseQueryResult } from '@tanstack/react-query';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
 import {
@@ -10,24 +11,25 @@ import {
 } from '../../helpers/contracts';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
-import { UseQueryResult } from '@tanstack/react-query';
 import { useDebouncedValue } from '../useDebouncedValue';
-import { TOKEN_CONFIG, TokenType } from '../../constants/tokenConfig';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
-import { FieldValues, UseFormReturn } from 'react-hook-form';
+import { UseFormReturn } from 'react-hook-form';
 import { useEffect } from 'preact/hooks';
 import Big from 'big.js';
+import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
+import { SwapFormValues } from '../../components/Nabla/schema';
 
-export type UseTokenOutAmountProps<FormFieldValues extends FieldValues> = {
+type UseTokenOutAmountProps = {
   wantsSwap: boolean;
   api: ApiPromise | null;
   fromAmountString: string;
-  fromToken: string;
-  toToken: string;
+  inputTokenType: InputTokenType;
+  outputTokenType: OutputTokenType;
   maximumFromAmount: BigNumber | undefined;
   xcmFees: string;
   slippageBasisPoints: number;
-  form: UseFormReturn<FormFieldValues>;
+  axelarSlippageBasisPoints: number;
+  form: UseFormReturn<SwapFormValues>;
 };
 
 export interface UseTokenOutAmountResult {
@@ -37,23 +39,24 @@ export interface UseTokenOutAmountResult {
   refetch?: UseQueryResult<TokenOutData | null, string>['refetch'];
 }
 
-export interface TokenOutData {
+interface TokenOutData {
   amountOut: ContractBalance;
   swapFee: ContractBalance;
   effectiveExchangeRate: string;
 }
 
-export function useTokenOutAmount<FormFieldValues extends FieldValues>({
+export function useTokenOutAmount({
   wantsSwap,
   api,
   fromAmountString,
-  fromToken,
-  toToken,
+  inputTokenType,
+  outputTokenType,
   maximumFromAmount,
   xcmFees,
   slippageBasisPoints,
+  axelarSlippageBasisPoints,
   form,
-}: UseTokenOutAmountProps<FormFieldValues>) {
+}: UseTokenOutAmountProps) {
   const { setError, clearErrors } = form;
 
   const debouncedFromAmountString = useDebouncedValue(fromAmountString, 800);
@@ -64,55 +67,65 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
     // no action required
   }
 
-  const fromTokenDetails = TOKEN_CONFIG[fromToken as TokenType];
-  const toTokenDetails = TOKEN_CONFIG[toToken as TokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
-  const fromTokenDecimals = fromTokenDetails?.decimals;
+  const fromTokenDecimals = inputToken?.decimals;
 
-  const amountInOriginal =
+  const amountInRawOriginal =
     fromTokenDecimals !== undefined && debouncedAmountBigDecimal !== undefined
       ? multiplyByPowerOfTen(debouncedAmountBigDecimal, fromTokenDecimals).toFixed(0, 0)
       : undefined;
 
-  const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), fromTokenDetails.decimals).toFixed(0, 0);
+  const reducedAmountInRaw =
+    amountInRawOriginal !== undefined
+      ? (BigInt(amountInRawOriginal) * BigInt(10000 - axelarSlippageBasisPoints)) / 10000n
+      : undefined;
+
+  const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), inputToken?.decimals).toFixed(0, 0);
   const amountIn =
-    amountInOriginal !== undefined
-      ? clampedDifference(BigInt(amountInOriginal), BigInt(rawXcmFees)).toString()
+    reducedAmountInRaw !== undefined
+      ? clampedDifference(BigInt(reducedAmountInRaw), BigInt(rawXcmFees)).toString()
       : undefined;
 
   const enabled =
     api !== undefined &&
     wantsSwap &&
-    fromTokenDetails !== undefined &&
-    toTokenDetails !== undefined &&
+    inputToken !== undefined &&
+    outputToken !== undefined &&
     debouncedAmountBigDecimal !== undefined &&
     debouncedAmountBigDecimal.gt(new BigNumber(0)) &&
     (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
 
   const { isLoading, fetchStatus, data, error, refetch } = useContractRead<TokenOutData | null>(
-    [cacheKeys.tokenOutAmount, fromTokenDetails?.erc20Address, toTokenDetails?.erc20Address, amountIn],
+    [
+      cacheKeys.tokenOutAmount,
+      inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+      outputToken.erc20WrapperAddress,
+      amountIn,
+    ],
     api,
     undefined, // Does not matter since noWalletAddressRequired is true
     {
       abi: routerAbi,
       address: NABLA_ROUTER,
       method: 'getAmountOut',
-      args: [amountIn, [fromTokenDetails?.erc20Address, toTokenDetails?.erc20Address]],
+      args: [amountIn, [inputToken.axelarEquivalent.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
       noWalletAddressRequired: true,
       queryOptions: {
         ...activeOptions['30s'],
         enabled,
       },
       parseSuccessOutput: (data) => {
-        if (toTokenDetails === undefined || fromTokenDetails === undefined || debouncedAmountBigDecimal === undefined) {
+        if (outputToken === undefined || inputToken === undefined || debouncedAmountBigDecimal === undefined) {
           return null;
         }
 
         const bigIntResponse = data[0]?.toBigInt();
         const reducedResponse = (bigIntResponse * BigInt(10000 - slippageBasisPoints)) / 10000n;
 
-        const amountOut = parseContractBalanceResponse(toTokenDetails.decimals, reducedResponse);
-        const swapFee = parseContractBalanceResponse(toTokenDetails.decimals, data[1]);
+        const amountOut = parseContractBalanceResponse(outputToken.decimals, reducedResponse);
+        const swapFee = parseContractBalanceResponse(outputToken.decimals, data[1]);
 
         return {
           amountOut,
@@ -128,10 +141,12 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
           case 'error':
             return 'Something went wrong';
           case 'panic':
-            return error.errorCode === 0x11 ? 'The input amount is too large' : 'Something went wrong';
+            return error.errorCode === 0x11
+              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
+              : 'Something went wrong';
           case 'reverted':
             return error.description === 'SwapPool: EXCEEDS_MAX_COVERAGE_RATIO'
-              ? 'The input amount is too large'
+              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
               : 'Something went wrong';
           default:
             return 'Something went wrong';
@@ -150,5 +165,8 @@ export function useTokenOutAmount<FormFieldValues extends FieldValues>({
     }
   }, [error, pending, clearErrors, setError]);
 
-  return { isLoading: pending, enabled, data, refetch };
+  const isInputStable = debouncedFromAmountString === fromAmountString;
+  const actualAmountInRaw = isInputStable && amountIn !== undefined ? amountIn : undefined;
+
+  return { isLoading: pending, enabled, data, refetch, error, actualAmountInRaw };
 }
