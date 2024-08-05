@@ -106,8 +106,8 @@ function createRouteParams(
   };
 }
 
-async function getRouteApiPlus(params: RouteParams) {
-  // This is the integrator ID for the Squid API by https://v2.app.squidrouter.com/
+async function getRoute(params: RouteParams) {
+  // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
   const { integratorId } = getSquidRouterConfig(params.inputToken);
   const url = 'https://apiplus.squidrouter.com/v2/route';
 
@@ -139,7 +139,7 @@ export async function getRouteTransactionRequest(
   const routeParams = createRouteParams(userAddress, amount, ephemeralAccountAddress, inputToken);
 
   // Get the swap route using Squid API
-  const routeResult = await getRouteApiPlus(routeParams);
+  const routeResult = await getRoute(routeParams);
   const route = routeResult.data.route;
   const requestId = routeResult.requestId;
 
@@ -151,6 +151,7 @@ export async function getRouteTransactionRequest(
   return {
     requestId,
     transactionRequest,
+    data: routeResult.data,
   };
 }
 

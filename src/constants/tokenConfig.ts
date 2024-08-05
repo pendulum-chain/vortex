@@ -14,7 +14,7 @@ export interface InputTokenDetails {
   icon: string;
 }
 
-export type InputTokenType = 'usdc';
+export type InputTokenType = 'usdc' | 'usdce';
 
 export interface OutputTokenDetails {
   tomlFileUrl: string;
@@ -37,6 +37,17 @@ export interface OutputTokenDetails {
 }
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
+    assetSymbol: 'USDC',
+    erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+    axelarEquivalent: {
+      pendulumErc20WrapperAddress: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',
+      pendulumCurrencyId: { XCM: 12 },
+      pendulumAssetSymbol: 'USDC.axl',
+    },
+    decimals: 6,
+    icon: UsdcIcon,
+  },
+  usdce: {
     assetSymbol: 'USDC.e',
     erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
     axelarEquivalent: {

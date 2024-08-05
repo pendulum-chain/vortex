@@ -13,11 +13,12 @@ type IconMap = Partial<Record<InputTokenType | OutputTokenType, string>>;
 const icons: IconMap = {
   brl: BRL,
   eurc: EURC,
-  usdc: USDC,
+  usdce: USDC,
 };
 
 const polygonIcons: IconMap = {
   usdc: USDC_POLYGON,
+  usdce: USDC_POLYGON,
 };
 
 const IconMaps: Record<string, IconMap> = {
@@ -25,7 +26,7 @@ const IconMaps: Record<string, IconMap> = {
   default: icons,
 };
 
-export function useGetIcon(token?: 'usdc' | OutputTokenType, defaultIcon = DefaultIcon) {
+export function useGetIcon(token?: InputTokenType | OutputTokenType, defaultIcon = DefaultIcon) {
   const currentChainId = useChainId();
   const currentIconMap = IconMaps[currentChainId] || IconMaps.default;
 
