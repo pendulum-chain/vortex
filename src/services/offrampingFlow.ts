@@ -1,18 +1,16 @@
 import { Config } from 'wagmi';
+import { storageService } from './storage/local';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
 import { createPendulumEphemeralSeed, pendulumCleanup, pendulumFundEphemeral } from './polkadot/ephemeral';
-import { SepResult, createStellarEphemeralSecret } from './anchor';
+import { createStellarEphemeralSecret, SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
-import { setUpAccountAndOperations, stellarCleanup, stellarCreateEphemeral, stellarOfframp } from './stellar';
+import { stellarCleanup, stellarOfframp } from './stellar';
 import { nablaApprove, nablaSwap } from './nabla';
 import { RenderEventHandler } from '../components/GenericEvent';
 import { executeSpacewalkRedeem } from './polkadot';
-import { fetchSigningServiceAccountId } from './signingService';
-import { Keypair } from 'stellar-sdk';
-import { storageService } from './storage/local';
-import { appendData, GlobalSpreadsheet } from './storage/spreadsheet';
+import { prepareTransactions } from './signedTransactions';
 
 export type OfframpingPhase =
   | 'prepareTransactions'
@@ -110,63 +108,6 @@ export interface InitiateStateArguments {
   sepResult: SepResult;
 }
 
-async function prepareTransactions(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
-  if (state.transactions !== undefined) {
-    console.error('Transactions already prepared');
-    return state;
-  }
-
-  const { stellarEphemeralSecret, outputTokenType, sepResult } = state;
-
-  await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
-  const stellarFundingAccountId = await fetchSigningServiceAccountId();
-  const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
-  const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
-    stellarFundingAccountId,
-    stellarEphemeralKeypair,
-    sepResult,
-    outputTokenType,
-  );
-
-  // TODO
-  const spacewalkRedeemTransaction = undefined;
-  const nablaApproveTransaction = undefined;
-  const nablaSwapTransaction = undefined;
-
-  const transactions = {
-    stellarOfframpingTransaction: offrampingTransaction.toEnvelope().toXDR().toString('base64'),
-    stellarCleanupTransaction: mergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
-    spacewalkRedeemTransaction,
-    nablaSwapTransaction,
-    nablaApproveTransaction,
-  };
-
-  // Try dumping transactions to spreadsheet
-  try {
-    const sheet = await GlobalSpreadsheet;
-    if (sheet) {
-      const data = {
-        timestamp: new Date().toISOString(),
-        polygonAddress: sepResult.offrampingAccount,
-        stellarEphemeralPublicKey: stellarEphemeralKeypair.publicKey(),
-        pendulumEphemeralPublicKey: state.pendulumEphemeralSeed,
-        nablaApprovalTx: nablaApproveTransaction,
-        nablaSwapTx: nablaSwapTransaction,
-        spacewalkRedeemTx: spacewalkRedeemTransaction,
-        stellarOfframpTx: transactions.stellarOfframpingTransaction,
-        stellarCleanupTx: transactions.stellarCleanupTransaction,
-      };
-
-      await appendData(sheet, data);
-    }
-  } catch (error) {
-    console.error('Error appending data to spreadsheet:', error);
-  }
-
-  const newState = { ...state, transactions, phase: 'squidRouter' };
-  return newState;
-}
-
 export async function constructInitialState({
   sep24Id,
   inputTokenType,
@@ -209,7 +150,7 @@ export async function constructInitialState({
       units: outputAmountBig.toFixed(2, 0),
       raw: outputAmountRaw,
     },
-    phase: 'squidRouter',
+    phase: 'prepareTransactions',
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
