@@ -3016,9 +3016,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@pendulum-chain/api-solang@npm:^0.5.1":
-  version: 0.5.1
-  resolution: "@pendulum-chain/api-solang@npm:0.5.1"
+"@pendulum-chain/api-solang@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "@pendulum-chain/api-solang@npm:0.6.0"
   peerDependencies:
     "@polkadot/api": ^10.0
     "@polkadot/api-contract": ^10.12.1
@@ -3027,7 +3027,7 @@ __metadata:
     "@polkadot/types-codec": ^10.0
     "@polkadot/util": "*"
     "@polkadot/util-crypto": "*"
-  checksum: 5dcc48c50d83637f42a250ab1ae9b30007221ca29cac78fcb520ca2977d9c706cd0d5272ad9716755adceab2d0b122aaca174d52518a3fd15e774bc7775add83
+  checksum: 1c52568d798bfd250348be223999ccf06dadb1e6f7fc6911370da82440b142451a465c818de070de1076c7962c2c3ffd004c3eb703b80ff53f1641515923a2ef
   languageName: node
   linkType: hard
 
@@ -13385,7 +13385,7 @@ __metadata:
     "@mui/icons-material": "npm:^5.14.19"
     "@mui/material": "npm:^5.14.20"
     "@pendulum-chain/api": "npm:^0.3.1"
-    "@pendulum-chain/api-solang": "npm:^0.5.1"
+    "@pendulum-chain/api-solang": "npm:^0.6.0"
     "@pendulum-chain/types": "npm:^0.2.3"
     "@polkadot/api": "npm:^9.9.1"
     "@polkadot/api-base": "npm:^9.9.1"
