@@ -36,23 +36,22 @@ export async function initGoogleSpreadsheet(sheetId: string, googleCredentials: 
 
 export async function getOrCreateSheet(doc: GoogleSpreadsheet, headerValues: string[]) {
   let sheet = doc.sheetsByIndex[0];
-  // Check if doc doesn't have header already
-  if (headerValues) {
-    const rowCount = sheet.rowCount;
-    // Check if the first row is our header values
-    if (rowCount > 0) {
-      const rows = await sheet.getRows({ limit: 1 });
-      if (rows.length > 0) {
-        const firstRow = rows[0];
-        const firstRowValues = Object.values(firstRow);
-        if (firstRowValues.join(',') !== headerValues.join(',')) {
-          // Create a new sheet with the header values
-          sheet = await doc.addSheet({ headerValues });
-        }
-      }
-    } else {
-      await sheet.setHeaderRow(headerValues);
+  try {
+    await sheet.loadHeaderRow();
+    const sheetHeaders = sheet.headerValues;
+
+    // Compare the header values to the expected header values
+    if (
+      sheetHeaders.length !== headerValues.length &&
+      sheetHeaders.every((value, index) => value === headerValues[index])
+    ) {
+      // Create a new sheet if the headers don't match
+      console.log('Creating new sheet');
+      sheet = await doc.addSheet({ headerValues });
     }
+  } catch (error) {
+    // Assume the error is due to the sheet not having any rows
+    await sheet.setHeaderRow(headerValues);
   }
 
   return sheet;
@@ -61,23 +60,3 @@ export async function getOrCreateSheet(doc: GoogleSpreadsheet, headerValues: str
 export async function appendData(sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>) {
   await sheet.addRow(data);
 }
-
-const HEADER_VALUES = [
-  'timestamp',
-  'polygonAddress',
-  'stellarEphemeralPublicKey',
-  'pendulumEphemeralPublicKey',
-  'nablaApprovalTx',
-  'nablaSwapTx',
-  'spacewalkRedeemTx',
-  'stellarOfframpTx',
-  'stellarCleanupTx',
-];
-// Create a global instance of the Google Spreadsheet that can be used across the application
-export const GlobalSpreadsheet = initGoogleSpreadsheet(config.spreadsheet.sheetId, config.spreadsheet.googleCredentials)
-  .then((doc) => {
-    return getOrCreateSheet(doc, HEADER_VALUES);
-  })
-  .catch((error) => {
-    console.error('Error initializing Global Spreadsheet:', error);
-  });
