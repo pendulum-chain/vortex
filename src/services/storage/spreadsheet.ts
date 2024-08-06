@@ -1,6 +1,5 @@
 import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
-import { config } from '../../config';
 
 interface GoogleCredentials {
   email: string;

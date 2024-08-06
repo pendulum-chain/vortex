@@ -1,4 +1,4 @@
-import { Horizon, Keypair } from 'stellar-sdk';
+import { Horizon } from 'stellar-sdk';
 import { HORIZON_URL } from '../../constants/constants';
 import Big from 'big.js';
 

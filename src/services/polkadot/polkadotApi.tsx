@@ -73,7 +73,7 @@ let instance: ApiManager | undefined = undefined;
 
 export async function getApiManagerInstance(): Promise<ApiManager> {
   if (!instance) {
-    let instancePreparing = new ApiManager();
+    const instancePreparing = new ApiManager();
     await instancePreparing.populateApi();
     instance = instancePreparing;
   }

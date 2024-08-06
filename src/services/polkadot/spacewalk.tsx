@@ -109,7 +109,7 @@ export class VaultService {
     accountOrPair: WalletAccount | KeyringPair,
     amountRaw: string,
     stellarPkBytesBuffer: Buffer,
-    nonce: number = -1,
+    nonce = -1,
   ) {
     const keyring = new Keyring({ type: 'sr25519' });
     keyring.setSS58Format(this.apiComponents!.ss58Format);

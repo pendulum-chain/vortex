@@ -106,7 +106,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [],
+    [offrampingPhase, offrampingStarted],
   );
 
   const finishOfframping = useCallback(() => {
@@ -122,7 +122,7 @@ export const useMainProcess = () => {
       const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig });
       updateHookStateFromState(nextState);
     })();
-  }, [offrampingPhase]);
+  }, [offrampingPhase, wagmiConfig]);
 
   return {
     handleOnSubmit,
