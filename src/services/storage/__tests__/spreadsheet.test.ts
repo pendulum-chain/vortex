@@ -89,13 +89,18 @@ describe('initGoogleSpreadsheet', () => {
     const doc = await initGoogleSpreadsheet(sheetId, credentials);
     expect(doc).toBeDefined();
     const oldSheet = await getOrCreateSheet(doc, ['name', 'age']);
+    const otherSheet = await getOrCreateSheet(doc, ['name', 'age', 'something']);
+    let oldSheetRows = await oldSheet.getRows<TestRowData>();
+
+    // Keep track of the old sheet row count
+    const oldSheetRowCountStart = oldSheetRows.length;
+    // Add data to the old sheet
     await appendData(oldSheet, { name: 'John', age: '25' });
 
-    const newSheet = await getOrCreateSheet(doc, ['name', 'age', 'something']);
-
-    const oldSheetRows = await oldSheet.getRows<TestRowData>();
-    expect(oldSheetRows.length).toBe(1);
-    const newSheetRows = await newSheet.getRows();
+    // Expect the old sheet to have one extra row and the new sheet to have no rows
+    oldSheetRows = await oldSheet.getRows<TestRowData>();
+    expect(oldSheetRows.length).toBe(oldSheetRowCountStart + 1);
+    const newSheetRows = await otherSheet.getRows();
     expect(newSheetRows.length).toBe(0);
   });
 });
