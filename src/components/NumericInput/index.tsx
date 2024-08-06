@@ -1,5 +1,6 @@
 import { Input } from 'react-daisyui';
 import { UseFormRegisterReturn } from 'react-hook-form';
+import { useEventsContext } from '../../contexts/events';
 
 export function exceedsMaxDecimals(value: unknown, maxDecimals: number) {
   if (value === undefined || value === null) return true;
@@ -53,31 +54,38 @@ export const NumericInput = ({
   autoFocus,
   disabled,
   disableStyles = false,
-}: NumericInputProps) => (
-  <div className={disableStyles ? 'flex-grow' : 'flex-grow text-black font-outfit'}>
-    <Input
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="none"
-      className={
-        disableStyles
-          ? 'border-0 bg-transparent focus:outline-none px-4 ' + additionalStyle
-          : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content ' + additionalStyle
-      }
-      minlength="1"
-      onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}
-      onInput={handleOnInput}
-      pattern="^[0-9]*[.,]?[0-9]*$"
-      placeholder="0.0"
-      readOnly={readOnly}
-      spellcheck="false"
-      step="any"
-      type="text"
-      inputmode="decimal"
-      value={defaultValue}
-      autoFocus={autoFocus}
-      disabled={disabled}
-      {...register}
-    />
-  </div>
-);
+}: NumericInputProps) => {
+  const { trackEvent } = useEventsContext();
+
+  return (
+    <div className={disableStyles ? 'flex-grow' : 'flex-grow text-black font-outfit'}>
+      <Input
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="none"
+        className={
+          disableStyles
+            ? 'border-0 bg-transparent focus:outline-none px-4 ' + additionalStyle
+            : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content ' + additionalStyle
+        }
+        minlength="1"
+        onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}
+        onInput={(e: KeyboardEvent) => {
+          trackEvent('click');
+          handleOnInput(e);
+        }}
+        pattern="^[0-9]*[.,]?[0-9]*$"
+        placeholder="0.0"
+        readOnly={readOnly}
+        spellcheck="false"
+        step="any"
+        type="text"
+        inputmode="decimal"
+        value={defaultValue}
+        autoFocus={autoFocus}
+        disabled={disabled}
+        {...register}
+      />
+    </div>
+  );
+};
