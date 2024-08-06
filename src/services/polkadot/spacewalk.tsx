@@ -10,6 +10,7 @@ import { WalletAccount } from '@talismn/connect-wallets';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { SpacewalkPrimitivesCurrencyId } from '@pendulum-chain/types/interfaces';
+import { SubmittableExtrinsic } from '@polkadot/api/types';
 
 export function extractAssetFromWrapped(wrapped: SpacewalkPrimitivesCurrencyId) {
   if (!wrapped.isStellar) {
@@ -104,7 +105,12 @@ export class VaultService {
     this.apiComponents = apiComponents;
   }
 
-  async requestRedeem(accountOrPair: WalletAccount | KeyringPair, amountRaw: string, stellarPkBytesBuffer: Buffer) {
+  async createRequestRedeemExtrinsic(
+    accountOrPair: WalletAccount | KeyringPair,
+    amountRaw: string,
+    stellarPkBytesBuffer: Buffer,
+    nonce: number = -1,
+  ) {
     const keyring = new Keyring({ type: 'sr25519' });
     keyring.setSS58Format(this.apiComponents!.ss58Format);
 
@@ -113,25 +119,28 @@ export class VaultService {
     const address = isWalletAccount(accountOrPair)
       ? accountOrPair.address
       : keyring.encodeAddress(accountOrPair.publicKey);
-    const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any } : {};
-
-    const release = await this.apiComponents!.mutex.lock(address);
-    const nonce = await this.apiComponents!.api.rpc.system.accountNextIndex(address);
-    console.log(`Nonce for ${getAddressForFormat(address, this.apiComponents!.ss58Format)} is ${nonce.toString()}`);
+    const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any, nonce } : { nonce };
 
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
 
-    return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
-      this.apiComponents!.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!)
-        .signAndSend(addressOrPair, options, (submissionResult: ISubmittableResult) => {
+    return this.apiComponents!.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!).signAsync(
+      addressOrPair,
+      options,
+    );
+  }
+
+  async submitRedeem(
+    senderAddress: string,
+    extrinsic: SubmittableExtrinsic<'promise'>,
+  ): Promise<SpacewalkRedeemRequestEvent> {
+    const release = await this.apiComponents!.mutex.lock(senderAddress);
+    return new Promise((resolve, reject) => {
+      extrinsic
+        .send((submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
 
           if (status.isFinalized) {
-            console.log(
-              `Requested redeem of ${amountRaw} for vault ${prettyPrintVaultId(this.vaultId)} with status ${
-                status.type
-              }`,
-            );
+            console.log(`Requested redeem for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`);
 
             // Try to find a 'system.ExtrinsicFailed' event
             const systemExtrinsicFailedEvent = events.find((record) => {
@@ -151,11 +160,11 @@ export class VaultService {
             const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
               .filter((event) => {
-                return event.redeemer === getAddressForFormat(accountOrPair.address, this.apiComponents!.ss58Format);
+                return event.redeemer === getAddressForFormat(senderAddress, this.apiComponents!.ss58Format);
               });
 
             if (event.length == 0) {
-              reject(new Error(`No redeem event found for account ${accountOrPair.address}`));
+              reject(new Error(`No redeem event found for account ${senderAddress}`));
             }
             //we should only find one event corresponding to the issue request
             if (event.length != 1) {
@@ -167,8 +176,8 @@ export class VaultService {
         .catch((error) => {
           reject(new Error(`Failed to request redeem: ${error}`));
         })
-        .finally(() => release()),
-    );
+        .finally(() => release());
+    });
   }
 
   // We first check if dispatchError is of type "module",
