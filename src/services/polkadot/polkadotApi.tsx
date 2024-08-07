@@ -4,7 +4,6 @@ const NETWORK = 'Pendulum';
 
 export interface ApiComponents {
   api: ApiPromise;
-  mutex: Mutex;
   ss58Format: number;
   decimals: number;
 }
@@ -18,13 +17,12 @@ class ApiManager {
       provider: wsProvider,
       noInitWarn: true,
     });
-    const mutex = new Mutex();
 
     const chainProperties = api.registry.getChainProperties();
     const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
     const decimals = Number(chainProperties?.get('tokenDecimals')?.toHuman()[0]) ?? 12;
 
-    return { api, mutex, ss58Format, decimals };
+    return { api, ss58Format, decimals };
   }
 
   async populateApi() {
@@ -42,30 +40,6 @@ class ApiManager {
     }
     // will always be populated
     return this.apiData!;
-  }
-}
-
-class Mutex {
-  locks = new Map();
-
-  async lock(accountId: string) {
-    let resolveLock: (value: unknown) => void;
-
-    const lockPromise = new Promise((resolve) => {
-      resolveLock = resolve;
-    });
-
-    const prevLock = this.locks.get(accountId) || Promise.resolve();
-    this.locks.set(
-      accountId,
-      prevLock.then(() => lockPromise),
-    );
-
-    await prevLock;
-
-    return () => {
-      resolveLock(undefined);
-    };
   }
 }
 

@@ -133,7 +133,6 @@ export class VaultService {
     senderAddress: string,
     extrinsic: SubmittableExtrinsic<'promise'>,
   ): Promise<SpacewalkRedeemRequestEvent> {
-    const release = await this.apiComponents!.mutex.lock(senderAddress);
     return new Promise((resolve, reject) => {
       extrinsic
         .send((submissionResult: ISubmittableResult) => {
@@ -175,8 +174,7 @@ export class VaultService {
         })
         .catch((error) => {
           reject(new Error(`Failed to request redeem: ${error}`));
-        })
-        .finally(() => release());
+        });
     });
   }
 
