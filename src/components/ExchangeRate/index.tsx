@@ -1,6 +1,6 @@
+import { FC } from 'preact/compat';
 import { InputTokenDetails, OutputTokenDetails } from '../../constants/tokenConfig';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
-import { FC } from 'preact/compat';
 
 interface ExchangeRateProps {
   fromToken?: InputTokenDetails;
