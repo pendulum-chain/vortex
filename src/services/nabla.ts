@@ -276,6 +276,15 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   const { api, ss58Format } = (await getApiManagerInstance()).apiData!;
 
+  // get ephemeral keypair and account
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+  // balance before the swap. Important for recovery process.
+  // if transaction was able to get in, but we failed on the listening
+  const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
+  const responseBalanceBefore = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
+  const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
+
   try {
     renderEvent(
       `Swapping ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
@@ -302,17 +311,6 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
     renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
     return Promise.reject('Could not swap token');
   }
-
-  // get ephemeral keypair and account
-  const keyring = new Keyring({ type: 'sr25519', ss58Format });
-  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-
-  // balance before the swap. Important for recovery process.
-  // if transaction was able to get in, but we failed on the listening
-  const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
-  const responseBalanceBefore = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
-  const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
-
   //verify token balance before releasing this process.
   const responseBalanceAfter = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
   const rawBalanceAfter = Big(responseBalanceAfter?.free?.toString() ?? '0');
