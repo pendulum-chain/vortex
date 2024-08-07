@@ -1,7 +1,8 @@
 import { createContext } from 'preact';
-import { PropsWithChildren, useCallback, useContext, useState } from 'preact/compat';
-
-export type TrackingEventType = 'click' | 'impression' | 'view';
+import { PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from 'preact/compat';
+import { useAccount } from 'wagmi';
+import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { OfframpingState } from '../services/offrampingFlow';
 
 declare global {
   interface Window {
@@ -9,42 +10,83 @@ declare global {
   }
 }
 
-interface EventDefinition {
-  name: string;
-  label: string;
-}
-const eventDefinitions: Record<TrackingEventType, EventDefinition> = {
-  click: { name: 'click', label: 'Click' },
-  impression: { name: 'impression', label: 'Impression' },
-  view: { name: 'view', label: 'View' },
-};
+const UNIQUE_EVENT_TYPES = ['amount_type', 'click_details', 'click_support'];
 
-function trackUniqueEvent(event: TrackingEventType) {
-  const { name, label } = eventDefinitions[event];
-  window.dataLayer.push({
-    event: name,
-    label: label,
-  });
+export interface AmountTypeEvent {
+  event: `amount_type`;
 }
+
+export interface ClickDetailsEvent {
+  event: 'click_details';
+}
+
+export interface WalletConnectEvent {
+  event: 'wallet_connect';
+  wallet_action: 'connect' | 'disconnect' | 'change';
+}
+
+export interface TransactionEvent {
+  event: 'transaction_confirmation' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+  from_asset: string;
+  to_asset: string;
+  from_amount: string;
+  to_amount: string;
+}
+
+export interface ClickSupportEvent {
+  event: 'click_support';
+  transaction_status: 'success' | 'failure';
+}
+
+export type TrackableEvent =
+  | AmountTypeEvent
+  | ClickDetailsEvent
+  | WalletConnectEvent
+  | TransactionEvent
+  | ClickSupportEvent;
+
+type EventType = TrackableEvent['event'];
 
 type UseEventsContext = ReturnType<typeof useEvents>;
 const useEvents = () => {
-  const [triggeredEvents, setTriggeredEvents] = useState<Set<TrackingEventType>>(new Set());
+  const [_, setTrackedEventTypes] = useState<Set<EventType>>(new Set());
+
+  const previousAddress = useRef<`0x${string}` | undefined>(undefined);
+  const { address } = useAccount();
 
   const trackEvent = useCallback(
-    (event: TrackingEventType) => {
-      setTriggeredEvents((events) => {
-        if (!events.has(event)) {
-          trackUniqueEvent(event);
+    (event: TrackableEvent) => {
+      setTrackedEventTypes((trackedEventTypes) => {
+        if (UNIQUE_EVENT_TYPES.includes(event.event)) {
+          if (trackedEventTypes.has(event.event)) {
+            return trackedEventTypes;
+          } else {
+            trackedEventTypes = new Set(trackedEventTypes);
+            trackedEventTypes.add(event.event);
+          }
         }
+        console.log('Push data layer', event);
 
-        const newSet = new Set(events);
-        newSet.add(event);
-        return newSet;
+        window.dataLayer.push(event);
+
+        return trackedEventTypes;
       });
     },
-    [setTriggeredEvents],
+    [setTrackedEventTypes],
   );
+
+  useEffect(() => {
+    const wasConnected = previousAddress.current !== undefined;
+    const isConnected = address !== undefined;
+
+    if (!isConnected) {
+      trackEvent({ event: 'wallet_connect', wallet_action: 'disconnect' });
+    } else {
+      trackEvent({ event: 'wallet_connect', wallet_action: wasConnected ? 'change' : 'connect' });
+    }
+
+    previousAddress.current = address;
+  }, [address]);
 
   return {
     trackEvent,
@@ -66,4 +108,14 @@ export function EventsProvider({ children }: PropsWithChildren) {
   const useEventsResult = useEvents();
 
   return <Context.Provider value={useEventsResult}>{children}</Context.Provider>;
+}
+
+export function createTransactionEvent(type: TransactionEvent['event'], state: OfframpingState) {
+  return {
+    event: type,
+    from_asset: INPUT_TOKEN_CONFIG[state.inputTokenType].assetSymbol,
+    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType].stellarAsset.code.string,
+    from_amount: state.inputAmount.units,
+    to_amount: state.outputAmount.units,
+  };
 }

@@ -71,7 +71,7 @@ export const NumericInput = ({
         minlength="1"
         onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}
         onInput={(e: KeyboardEvent) => {
-          trackEvent('click');
+          trackEvent({ event: 'amount_type' });
           handleOnInput(e);
         }}
         pattern="^[0-9]*[.,]?[0-9]*$"

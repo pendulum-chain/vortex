@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
 import { ExecutionInput } from '../types';
-import { OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
@@ -20,6 +20,7 @@ import {
 } from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
+import { createTransactionEvent, useEventsContext } from '../contexts/events';
 
 export const useMainProcess = () => {
   // EXAMPLE mocking states
@@ -39,12 +40,19 @@ export const useMainProcess = () => {
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
   const wagmiConfig = useConfig();
+  const { trackEvent } = useEventsContext();
 
   const [events, setEvents] = useState<GenericEvent[]>([]);
 
   const updateHookStateFromState = (state: OfframpingState | undefined) => {
     setOfframpingPhase(state?.phase);
     setSep24Id(state?.sep24Id);
+
+    if (state?.phase === 'success') {
+      trackEvent(createTransactionEvent('transaction_success', state));
+    } else if (state?.phase === 'failure') {
+      trackEvent(createTransactionEvent('transaction_failure', state));
+    }
   };
 
   useEffect(() => {
@@ -64,6 +72,13 @@ export const useMainProcess = () => {
 
       (async () => {
         setOfframpingStarted(true);
+        trackEvent({
+          event: 'transaction_confirmation',
+          from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
+          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
+          from_amount: amountInUnits,
+          to_amount: Big(minAmountOutUnits).round(2, 0).toFixed(2, 0),
+        });
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
@@ -98,6 +113,8 @@ export const useMainProcess = () => {
             amountOut: minAmountOutUnits,
             sepResult: secondSep24Response,
           });
+
+          trackEvent(createTransactionEvent('kyc_completed', initialState));
 
           updateHookStateFromState(initialState);
         } catch (error) {
