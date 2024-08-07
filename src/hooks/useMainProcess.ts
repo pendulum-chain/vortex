@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'preact/compat';
 
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
@@ -21,6 +21,8 @@ import {
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 
+export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
+
 export const useMainProcess = () => {
   // EXAMPLE mocking states
 
@@ -38,9 +40,12 @@ export const useMainProcess = () => {
   const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
+
+  const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
+
   const wagmiConfig = useConfig();
 
-  const [events, setEvents] = useState<GenericEvent[]>([]);
+  const [, setEvents] = useState<GenericEvent[]>([]);
 
   const updateHookStateFromState = (state: OfframpingState | undefined) => {
     setOfframpingPhase(state?.phase);
@@ -106,7 +111,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [],
+    [offrampingPhase, offrampingStarted],
   );
 
   const finishOfframping = useCallback(() => {
@@ -119,10 +124,10 @@ export const useMainProcess = () => {
 
   useEffect(() => {
     (async () => {
-      const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig });
+      const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig, setSigningPhase });
       updateHookStateFromState(nextState);
     })();
-  }, [offrampingPhase]);
+  }, [offrampingPhase, wagmiConfig]);
 
   return {
     handleOnSubmit,
@@ -131,5 +136,6 @@ export const useMainProcess = () => {
     offrampingStarted,
     sep24Id,
     finishOfframping,
+    signingPhase,
   };
 };

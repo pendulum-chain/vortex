@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { useAccount } from 'wagmi';
 import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 
@@ -13,8 +12,7 @@ import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
-import { DialogBox } from '../../components/DialogBox';
-import { BankDetails } from './sections/BankDetails';
+import { SigningBox } from '../../components/SigningBox';
 import { config } from '../../config';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { BaseLayout } from '../../layouts';
@@ -32,15 +30,10 @@ const Arrow = () => (
 );
 
 export const SwapPage = () => {
-  const [isSubmitButtonDisabled, setIsSubmitButtonDisabled] = useState(true);
-  const [isExchangeSectionSubmitted, setIsExchangeSectionSubmitted] = useState(false);
-  const [isExchangeSectionSubmittedError, setIsExchangeSectionSubmittedError] = useState(false);
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const [api, setApi] = useState<ApiPromise | null>(null);
-
-  const { isDisconnected } = useAccount();
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -53,7 +46,8 @@ export const SwapPage = () => {
   }, []);
 
   // Main process hook
-  const { handleOnSubmit, finishOfframping, offrampingStarted, sep24Url, sep24Id, offrampingPhase } = useMainProcess();
+  const { handleOnSubmit, finishOfframping, offrampingStarted, sep24Url, sep24Id, offrampingPhase, signingPhase } =
+    useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -64,18 +58,10 @@ export const SwapPage = () => {
     fromAmountString,
     from,
     to,
-    reset,
   } = useSwapForm();
 
   const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
   const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
-
-  useEffect(() => {
-    if (form.formState.isDirty && isExchangeSectionSubmitted && isDisconnected) {
-      setIsExchangeSectionSubmitted(false);
-      reset();
-    }
-  }, [form.formState.isDirty, isDisconnected, isExchangeSectionSubmitted, reset]);
 
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
@@ -93,31 +79,10 @@ export const SwapPage = () => {
   const inputAmountIsStable =
     tokenOutData.actualAmountInRaw !== undefined && BigInt(tokenOutData.actualAmountInRaw) > 0n;
 
-  // Check only the first part of the form (without Bank Details)
-  const isFormValidWithoutBankDetails = useMemo(() => {
-    const errors = form.formState.errors;
-    const noErrors = !errors.from && !errors.to && !errors.fromAmount && !errors.toAmount;
-    const isValid =
-      Boolean(from) && Boolean(to) && Boolean(fromAmount) && Boolean(tokenOutData.data?.amountOut.preciseString);
-
-    return noErrors && isValid;
-  }, [form.formState.errors, from, fromAmount, to, tokenOutData.data?.amountOut.preciseString]);
-
   function onSubmit(e: Event) {
     e.preventDefault();
 
-    if (isSubmitButtonDisabled || !inputAmountIsStable || tokenOutData.actualAmountInRaw === undefined) return;
-
-    if (!isExchangeSectionSubmitted) {
-      if (isFormValidWithoutBankDetails) {
-        setIsExchangeSectionSubmittedError(false);
-        setIsExchangeSectionSubmitted(true);
-      } else {
-        setIsExchangeSectionSubmittedError(true);
-      }
-
-      return;
-    }
+    if (!inputAmountIsStable || tokenOutData.actualAmountInRaw === undefined) return;
 
     if (fromAmount === undefined) {
       console.log('Input amount is undefined');
@@ -142,12 +107,6 @@ export const SwapPage = () => {
   }
 
   useEffect(() => {
-    if (isExchangeSectionSubmitted) {
-      formRef.current && formRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
-  }, [isExchangeSectionSubmitted]);
-
-  useEffect(() => {
     if (tokenOutData.data) {
       const toAmount = tokenOutData.data.amountOut.preciseBigDecimal.round(2, 0);
       form.setValue('toAmount', stringifyBigWithSignificantDecimals(toAmount, 2));
@@ -157,20 +116,6 @@ export const SwapPage = () => {
       form.setValue('toAmount', '');
     }
   }, [form, tokenOutData.data]);
-
-  // Check if the Submit button should be enabled
-  useEffect(() => {
-    // Validate only the first part of the form (without Bank Details)
-    if (!isExchangeSectionSubmitted && isFormValidWithoutBankDetails) {
-      setIsSubmitButtonDisabled(false);
-    }
-    // Validate the whole form (with Bank Details)
-    else if (isExchangeSectionSubmitted /*&& form.formState.isValid*/) {
-      setIsSubmitButtonDisabled(false);
-    } else {
-      setIsSubmitButtonDisabled(true);
-    }
-  }, [form.formState, form.formState.isValid, isExchangeSectionSubmitted, isFormValidWithoutBankDetails]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -200,10 +145,6 @@ export const SwapPage = () => {
   );
 
   function getCurrentErrorMessage() {
-    if (isExchangeSectionSubmittedError) {
-      return 'You must first enter the amount you wish to withdraw.';
-    }
-
     const amountOut = tokenOutData.data?.amountOut;
 
     if (amountOut !== undefined && toToken !== undefined) {
@@ -243,7 +184,7 @@ export const SwapPage = () => {
     <PoolSelectorModal
       open={!!modalType}
       onSelect={modalType === 'from' ? onFromChange : onToChange}
-      definitions={definitions as any}
+      definitions={definitions}
       selected={modalType === 'from' ? from : to}
       onClose={() => setModalType(undefined)}
       isLoading={false}
@@ -258,12 +199,13 @@ export const SwapPage = () => {
     return <FailurePage finishOfframping={finishOfframping} transactionId={sep24Id} />;
   }
 
-  if (offrampingPhase !== undefined || offrampingStarted) {
+  if ((offrampingPhase !== undefined || offrampingStarted) && signingPhase === 'finished') {
     return <ProgressPage />;
   }
 
   const main = (
     <main ref={formRef}>
+      <SigningBox step={signingPhase} />
       <form
         className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSubmit}
@@ -282,14 +224,6 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-        {isExchangeSectionSubmitted ? (
-          <BankDetails
-            registerBankAccount={form.register('bankAccount')}
-            registerTaxNumber={form.register('taxNumber')}
-          />
-        ) : (
-          <></>
-        )}
         {sep24Url !== undefined ? (
           <a
             href={sep24Url}
@@ -300,10 +234,7 @@ export const SwapPage = () => {
             Start Offramping
           </a>
         ) : (
-          <SwapSubmitButton
-            text={isExchangeSectionSubmitted ? 'Confirm' : 'Continue'}
-            disabled={isSubmitButtonDisabled || Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-          />
+          <SwapSubmitButton text="Confirm" disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable} />
         )}
       </form>
     </main>

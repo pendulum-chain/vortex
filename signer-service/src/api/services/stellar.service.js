@@ -6,7 +6,6 @@ const {
   Networks,
   Asset,
   Memo,
-  Transaction,
   Account,
 } = require('stellar-sdk');
 const { HORIZON_URL, BASE_FEE } = require('../../constants/constants');
@@ -31,7 +30,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
   const fundingSequence = fundingAccount.sequence;
   // add a setOption oeration in order to make this a 2-of-2 multisig account where the
   // funding account is a cosigner
-  let createAccountTransaction = new TransactionBuilder(fundingAccount, {
+  const createAccountTransaction = new TransactionBuilder(fundingAccount, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
