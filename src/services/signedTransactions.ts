@@ -7,9 +7,8 @@ import { Keypair } from 'stellar-sdk';
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { getApiManagerInstance } from './polkadot/polkadotApi';
 import { getAccount } from '@wagmi/core';
-import { appendData, getOrCreateSheet, initGoogleSpreadsheet } from './storage/spreadsheet';
-import { config } from '../config';
 import { ExecutionContext, OfframpingState } from './offrampingFlow';
+import { storeDataInBackend } from './storage/remote';
 
 export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
   return extrinsic.toHex();
@@ -18,19 +17,6 @@ export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
 export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPromise) {
   return api.tx(encodedExtrinsic);
 }
-
-// These are the headers for the Google Spreadsheet
-const SHEET_HEADER_VALUES = [
-  'timestamp',
-  'polygonAddress',
-  'stellarEphemeralPublicKey',
-  'pendulumEphemeralPublicKey',
-  'nablaApprovalTx',
-  'nablaSwapTx',
-  'spacewalkRedeemTx',
-  'stellarOfframpTx',
-  'stellarCleanupTx',
-];
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are stored in the state and the phase is updated to 'squidRouter'.
@@ -77,32 +63,22 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   const polygonAccount = getAccount(context.wagmiConfig);
   const polygonAddress = polygonAccount.address;
 
-  // Try dumping transactions to spreadsheet
+  // Try to store the data in the backend
   try {
-    const sheet = await initGoogleSpreadsheet(config.spreadsheet.sheetId, config.spreadsheet.googleCredentials).then(
-      (doc) => {
-        return getOrCreateSheet(doc, SHEET_HEADER_VALUES);
-      },
-    );
-
-    if (sheet) {
-      const data = {
-        timestamp: new Date().toISOString(),
-        polygonAddress: polygonAddress || '',
-        stellarEphemeralPublicKey,
-        pendulumEphemeralPublicKey,
-        nablaApprovalTx: transactions.nablaApproveTransaction,
-        nablaSwapTx: transactions.nablaSwapTransaction,
-        spacewalkRedeemTx: transactions.spacewalkRedeemTransaction,
-        stellarOfframpTx: transactions.stellarOfframpingTransaction,
-        stellarCleanupTx: transactions.stellarCleanupTransaction,
-      };
-
-      console.log('Appending data to sheet', data);
-      await appendData(sheet, data);
-    }
+    const data = {
+      timestamp: new Date().toISOString(),
+      polygonAddress: polygonAddress || '',
+      stellarEphemeralPublicKey,
+      pendulumEphemeralPublicKey,
+      nablaApprovalTx: transactions.nablaApproveTransaction,
+      nablaSwapTx: transactions.nablaSwapTransaction,
+      spacewalkRedeemTx: transactions.spacewalkRedeemTransaction,
+      stellarOfframpTx: transactions.stellarOfframpingTransaction,
+      stellarCleanupTx: transactions.stellarCleanupTransaction,
+    };
+    await storeDataInBackend(data);
   } catch (error) {
-    console.error('Error appending data to spreadsheet:', error);
+    console.error('Error storing data', error);
   }
 
   return { ...state, transactions, phase: 'squidRouter' };

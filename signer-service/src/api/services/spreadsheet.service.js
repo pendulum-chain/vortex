@@ -1,14 +1,10 @@
-import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
-import { JWT } from 'google-auth-library';
-
-interface GoogleCredentials {
-  email: string;
-  key: string;
-}
+const { GoogleSpreadsheet } = require('google-spreadsheet');
+const { JWT } = require('google-auth-library');
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
-export async function initGoogleSpreadsheet(sheetId: string, googleCredentials: GoogleCredentials) {
+// googleCredentials: { email: string, key: string },
+exports.initGoogleSpreadsheet = async (sheetId, googleCredentials) => {
   // Initialize auth - see https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication
   if (!googleCredentials.email || !googleCredentials.key) {
     throw new Error('Missing some google credentials');
@@ -31,9 +27,10 @@ export async function initGoogleSpreadsheet(sheetId: string, googleCredentials: 
   }
 
   return doc;
-}
+};
 
-export async function getOrCreateSheet(doc: GoogleSpreadsheet, headerValues: string[]) {
+// doc: GoogleSpreadsheet, headerValues: string[]
+exports.getOrCreateSheet = async (doc, headerValues) => {
   let sheet = doc.sheetsByIndex[0];
   try {
     await sheet.loadHeaderRow();
@@ -54,8 +51,9 @@ export async function getOrCreateSheet(doc: GoogleSpreadsheet, headerValues: str
   }
 
   return sheet;
-}
+};
 
-export async function appendData(sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>) {
+// sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>
+exports.appendData = async (sheet, data) => {
   await sheet.addRow(data);
-}
+};

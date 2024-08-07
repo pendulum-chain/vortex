@@ -14,4 +14,13 @@ module.exports = {
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 15,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   logs: process.env.NODE_ENV === 'production' ? 'combined' : 'dev',
+  spreadsheet: {
+    googleCredentials: {
+      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY?.split(String.raw`\n`).join('\n'),
+    },
+    sheetId: process.env.GOOGLE_SPREADSHEET_ID,
+    // Only used in unit tests
+    testSheetId: process.env.GOOGLE_TEST_SPREADSHEET_ID,
+  },
 };

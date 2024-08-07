@@ -1,3 +1,5 @@
+const { SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
+
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
   if (!accountId || !maxTime) {
@@ -30,4 +32,17 @@ const validateChangeOpInput = (req, res, next) => {
   next();
 };
 
-module.exports = { validateChangeOpInput, validateCreationInput };
+const validateStorageInput = (req, res, next) => {
+  const data = req.body;
+  // Check if the data contains values for all the headers
+  if (!SHEET_HEADER_VALUES.every((header) => data[header])) {
+    const missingItems = SHEET_HEADER_VALUES.filter((header) => !data[header]);
+    let errorMessage = 'Data does not match schema. Missing items: ' + missingItems.join(', ');
+    console.error(errorMessage);
+    return res.status(400).json({ error: errorMessage });
+  }
+
+  next();
+};
+
+module.exports = { validateChangeOpInput, validateCreationInput, validateStorageInput };
