@@ -167,8 +167,8 @@ async function createOfframpAndMergeTransaction(
   ephemeralAccount: Account,
   { stellarAsset: { code, issuer } }: OutputTokenDetails,
 ) {
-  // We allow for more TTL since the redeem may take time
-  const maxTime = Date.now() + 1000 * 60 * 30;
+  // We allow for a TLL of up to two weeks so we are able to recover it in case of failure
+  const maxTime = Date.now() + 1000 * 60 * 60 * 24 * 14;
   const sequence = ephemeralAccount.sequenceNumber();
   const { amount, memo, memoType, offrampingAccount } = sepResult;
 
