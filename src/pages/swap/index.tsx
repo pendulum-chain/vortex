@@ -174,7 +174,7 @@ export const SwapPage = () => {
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
-        additionalText="PIX / Bank Account"
+        additionalText="IBAN"
         tokenType={to}
         tokenSymbol={toToken?.stellarAsset.code.string}
         onClick={() => setModalType('to')}

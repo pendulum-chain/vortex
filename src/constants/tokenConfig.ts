@@ -1,4 +1,3 @@
-import BrlIcon from '../assets/coins/BRL.png';
 import UsdcIcon from '../assets/coins/USDC.png';
 import EurcIcon from '../assets/coins/EURC.png';
 
@@ -7,7 +6,7 @@ export interface InputTokenDetails {
   erc20AddressSourceChain: `0x${string}`;
   axelarEquivalent: {
     pendulumErc20WrapperAddress: string;
-    pendulumCurrencyId: any;
+    pendulumCurrencyId: { XCM: number };
     pendulumAssetSymbol: string;
   };
   decimals: number;
@@ -60,27 +59,8 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   },
 };
 
-export type OutputTokenType = 'brl' | 'eurc';
+export type OutputTokenType = 'eurc';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
-  brl: {
-    tomlFileUrl: 'https://ntokens.com/.well-known/stellar.toml',
-    decimals: 12,
-    stellarAsset: {
-      code: {
-        hex: '0x42524c00',
-        string: 'BRL',
-      },
-      issuer: {
-        hex: '0xeaac68d4d0e37b4c24c2536916e830735f032d0d6b2a1c8fca3bc5a25e083e3a',
-        stellarEncoding: 'GDVKY2GU2DRXWTBEYJJWSFXIGBZV6AZNBVVSUHEPZI54LIS6BA7DVVSP',
-      },
-    },
-    vaultAccountId: '6g7fKQQZ9VfbBTQSaKBcATV4psApFra5EDwKLARFZCCVnSWS',
-    minWithdrawalAmountRaw: '200000000000000',
-    maxWithdrawalAmountRaw: '10000000000000000',
-    erc20WrapperAddress: '6dZCR7KVmrcxBoUTcM3vUgpQagQAW2wg2izMrT3N4reftwW5',
-    icon: BrlIcon,
-  },
   eurc: {
     tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
     decimals: 12,
@@ -102,7 +82,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
   },
 };
 
-export function getPendulumCurrencyId(outputTokenType: OutputTokenType): any {
+export function getPendulumCurrencyId(outputTokenType: OutputTokenType) {
   const { stellarAsset } = OUTPUT_TOKEN_CONFIG[outputTokenType];
   return {
     Stellar: {
