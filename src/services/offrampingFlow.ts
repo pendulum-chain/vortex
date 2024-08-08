@@ -89,7 +89,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunctio
 export interface ExecutionContext {
   wagmiConfig: Config;
   renderEvent: RenderEventHandler;
-  setSigningPhase?: (n: SigningPhase) => void;
+  setSigningPhase: (n: SigningPhase) => void;
 }
 
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';

@@ -234,7 +234,15 @@ export const SwapPage = () => {
             Start Offramping
           </a>
         ) : (
-          <SwapSubmitButton text="Confirm" disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable} />
+          <SwapSubmitButton
+            text="Confirm"
+            disabled={
+              offrampingPhase !== undefined ||
+              offrampingStarted ||
+              Boolean(getCurrentErrorMessage()) ||
+              !inputAmountIsStable
+            }
+          />
         )}
       </form>
     </main>

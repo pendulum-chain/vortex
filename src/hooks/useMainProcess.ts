@@ -48,6 +48,9 @@ export const useMainProcess = () => {
   const [, setEvents] = useState<GenericEvent[]>([]);
 
   const updateHookStateFromState = (state: OfframpingState | undefined) => {
+    if (state?.phase === 'success' || state?.phase === 'failure') {
+      setSigningPhase(undefined);
+    }
     setOfframpingPhase(state?.phase);
     setSep24Id(state?.sep24Id);
   };
