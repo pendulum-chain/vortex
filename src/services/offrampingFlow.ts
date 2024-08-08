@@ -10,6 +10,9 @@ import { stellarCleanup, stellarOfframp } from './stellar';
 import { nablaApprove, nablaSwap } from './nabla';
 import { RenderEventHandler } from '../components/GenericEvent';
 import { executeSpacewalkRedeem } from './polkadot';
+import { fetchSigningServiceAccountId } from './signingService';
+import { Keypair } from 'stellar-sdk';
+import { SigningPhase } from '../hooks/useMainProcess';
 import { prepareTransactions } from './signedTransactions';
 
 export type OfframpingPhase =
@@ -94,6 +97,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunctio
 export interface ExecutionContext {
   wagmiConfig: Config;
   renderEvent: RenderEventHandler;
+  setSigningPhase: (n: SigningPhase) => void;
 }
 
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
@@ -193,8 +197,8 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
   let newState: OfframpingState | undefined;
   try {
     newState = await STATE_ADVANCEMENT_HANDLERS[phase](state, context);
-  } catch (error) {
-    if ((error as any)?.message === 'Wallet not connected') {
+  } catch (error: unknown) {
+    if ((error as Error)?.message === 'Wallet not connected') {
       // TODO: transmit error to caller
       console.error('Wallet not connected. Try to connect wallet');
       return state;

@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'preact/compat';
 
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
 import { ExecutionInput } from '../types';
-import { OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
@@ -20,6 +20,9 @@ import {
 } from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
+import { createTransactionEvent, useEventsContext } from '../contexts/events';
+
+export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
 export const useMainProcess = () => {
   // EXAMPLE mocking states
@@ -38,13 +41,26 @@ export const useMainProcess = () => {
   const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
-  const wagmiConfig = useConfig();
 
-  const [events, setEvents] = useState<GenericEvent[]>([]);
+  const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
+
+  const wagmiConfig = useConfig();
+  const { trackEvent } = useEventsContext();
+
+  const [, setEvents] = useState<GenericEvent[]>([]);
 
   const updateHookStateFromState = (state: OfframpingState | undefined) => {
+    if (state?.phase === 'success' || state?.phase === 'failure') {
+      setSigningPhase(undefined);
+    }
     setOfframpingPhase(state?.phase);
     setSep24Id(state?.sep24Id);
+
+    if (state?.phase === 'success') {
+      trackEvent(createTransactionEvent('transaction_success', state));
+    } else if (state?.phase === 'failure') {
+      trackEvent(createTransactionEvent('transaction_failure', state));
+    }
   };
 
   useEffect(() => {
@@ -64,6 +80,13 @@ export const useMainProcess = () => {
 
       (async () => {
         setOfframpingStarted(true);
+        trackEvent({
+          event: 'transaction_confirmation',
+          from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
+          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
+          from_amount: amountInUnits,
+          to_amount: Big(minAmountOutUnits).round(2, 0).toFixed(2, 0),
+        });
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
@@ -99,6 +122,8 @@ export const useMainProcess = () => {
             sepResult: secondSep24Response,
           });
 
+          trackEvent(createTransactionEvent('kyc_completed', initialState));
+
           updateHookStateFromState(initialState);
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
@@ -119,7 +144,7 @@ export const useMainProcess = () => {
 
   useEffect(() => {
     (async () => {
-      const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig });
+      const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig, setSigningPhase });
       updateHookStateFromState(nextState);
     })();
   }, [offrampingPhase, wagmiConfig]);
@@ -131,5 +156,6 @@ export const useMainProcess = () => {
     offrampingStarted,
     sep24Id,
     finishOfframping,
+    signingPhase,
   };
 };
