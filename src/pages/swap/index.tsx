@@ -22,6 +22,7 @@ import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../..
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
+import { createPendulumEphemeralSeed } from '../../services/polkadot/ephemeral';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -37,6 +38,7 @@ export const SwapPage = () => {
 
   useEffect(() => {
     const initializeApiManager = async () => {
+      await createPendulumEphemeralSeed();
       const manager = await getApiManagerInstance();
       const { api } = await manager.getApiComponents();
       setApi(api);
