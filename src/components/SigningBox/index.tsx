@@ -24,8 +24,6 @@ interface SigningBoxProps {
 }
 
 export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
-  console.log('SigningBox', step);
-
   if (!step) return <></>;
   if (step !== 'started' && step !== 'approved' && step !== 'signed') return <></>;
 
