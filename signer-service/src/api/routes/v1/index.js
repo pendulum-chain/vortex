@@ -1,6 +1,6 @@
 const express = require('express');
-const httpStatus = require('http-status');
 const stellarRoutes = require('./stellar.route');
+const storageRoutes = require('./storage.route');
 
 const router = express.Router({ mergeParams: true });
 const { sendStatusWithPk } = require('../../controllers/stellar.controller');
@@ -20,5 +20,10 @@ router.get('/status', sendStatusWithPk);
  * POST v1/stellar
  */
 router.use('/stellar', stellarRoutes);
+
+/**
+ * POST v1/storage
+ */
+router.use('/storage', storageRoutes);
 
 module.exports = router;

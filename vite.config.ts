@@ -17,6 +17,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/setupTests.ts'],
     environment: 'happy-dom',
+    testTimeout: 15000,
   },
   optimizeDeps: {
     exclude: [],

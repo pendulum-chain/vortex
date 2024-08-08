@@ -1,20 +1,22 @@
 import { Config } from 'wagmi';
+import { storageService } from './storage/local';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
 import { createPendulumEphemeralSeed, pendulumCleanup, pendulumFundEphemeral } from './polkadot/ephemeral';
-import { SepResult, createStellarEphemeralSecret } from './anchor';
+import { createStellarEphemeralSecret, SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
-import { setUpAccountAndOperations, stellarCleanup, stellarCreateEphemeral, stellarOfframp } from './stellar';
+import { stellarCleanup, stellarOfframp } from './stellar';
 import { nablaApprove, nablaSwap } from './nabla';
 import { RenderEventHandler } from '../components/GenericEvent';
 import { executeSpacewalkRedeem } from './polkadot';
 import { fetchSigningServiceAccountId } from './signingService';
 import { Keypair } from 'stellar-sdk';
-import { storageService } from './storage/local';
 import { SigningPhase } from '../hooks/useMainProcess';
+import { prepareTransactions } from './signedTransactions';
 
 export type OfframpingPhase =
+  | 'prepareTransactions'
   | 'squidRouter'
   | 'pendulumFundEphemeral'
   | 'nablaApprove'
@@ -63,11 +65,16 @@ export interface OfframpingState {
   // executeSpacewalk
   executeSpacewalkNonce: number;
 
-  // stellarOfframp
-  stellarOfframpingTransaction: string;
+  sepResult: SepResult;
 
-  // stellarCleanup
-  stellarCleanupTransaction: string;
+  // All signed transactions, if available
+  transactions?: {
+    stellarOfframpingTransaction: string;
+    stellarCleanupTransaction: string;
+    spacewalkRedeemTransaction: string;
+    nablaApproveTransaction: string;
+    nablaSwapTransaction: string;
+  };
 }
 
 export type StateTransitionFunction = (
@@ -76,6 +83,7 @@ export type StateTransitionFunction = (
 ) => Promise<OfframpingState | undefined>;
 
 const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunction> = {
+  prepareTransactions,
   squidRouter,
   pendulumFundEphemeral,
   nablaApprove,
@@ -128,16 +136,6 @@ export async function constructInitialState({
   const outputAmountBig = Big(amountOut).round(2, 0);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmountBig, outputTokenDecimals).toFixed();
 
-  await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
-  const stellarFundingAccountId = await fetchSigningServiceAccountId();
-  const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
-  const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
-    stellarFundingAccountId,
-    stellarEphemeralKeypair,
-    sepResult,
-    outputTokenType,
-  );
-
   const initialState: OfframpingState = {
     sep24Id,
     pendulumEphemeralSeed,
@@ -156,13 +154,14 @@ export async function constructInitialState({
       units: outputAmountBig.toFixed(2, 0),
       raw: outputAmountRaw,
     },
-    phase: 'squidRouter',
+    phase: 'prepareTransactions',
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
 
-    stellarOfframpingTransaction: offrampingTransaction.toEnvelope().toXDR().toString('base64'),
-    stellarCleanupTransaction: mergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
+    sepResult,
+
+    transactions: undefined,
   };
 
   storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);

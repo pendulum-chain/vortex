@@ -1,4 +1,4 @@
-import { connectorsForWallets, getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { connectorsForWallets } from '@rainbow-me/rainbowkit';
 import { injectedWallet, safeWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
 import { polygon } from 'wagmi/chains';
 import { createConfig, http } from 'wagmi';
