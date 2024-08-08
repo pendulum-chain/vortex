@@ -20,7 +20,5 @@ module.exports = {
       key: process.env.GOOGLE_PRIVATE_KEY?.split(String.raw`\n`).join('\n'),
     },
     sheetId: process.env.GOOGLE_SPREADSHEET_ID,
-    // Only used in unit tests
-    testSheetId: process.env.GOOGLE_TEST_SPREADSHEET_ID,
   },
 };

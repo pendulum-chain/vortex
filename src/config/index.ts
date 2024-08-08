@@ -25,15 +25,6 @@ export const config = {
   maybeSignerServiceUrl,
   alchemyApiKey,
   defaultPage: '/pendulum/dashboard',
-  spreadsheet: {
-    googleCredentials: {
-      email: import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: import.meta.env.VITE_GOOGLE_PRIVATE_KEY?.split(String.raw`\n`).join('\n'),
-    },
-    sheetId: import.meta.env.VITE_GOOGLE_SPREADSHEET_ID,
-    // Only used in unit tests
-    testSheetId: import.meta.env.VITE_GOOGLE_TEST_SPREADSHEET_ID,
-  },
   tenants: {
     [TenantName.Amplitude]: {
       name: 'Amplitude',
@@ -71,7 +62,7 @@ export const config = {
     projectId: '299fda67fbf3b60a31ba8695524534cd',
   },
   test: {
-    mockSep24: false,
+    mockSep24: true,
     overwriteMinimumTransferAmount: false,
   },
 };
