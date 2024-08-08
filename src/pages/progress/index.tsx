@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useNavigate } from 'react-router-dom';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { Box } from '../../components/Box';
@@ -10,14 +10,26 @@ const handleTabClose = (event: Event) => {
 
 export const ProgressPage = () => {
   const navigate = useNavigate();
+  const [isTimeout, setIsTimeout] = useState(false);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsTimeout(true);
+    }, 15 * 60 * 1000);
+
     window.addEventListener('beforeunload', handleTabClose);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('beforeunload', handleTabClose);
     };
-  }, [navigate]);
+  }, []);
+
+  useEffect(() => {
+    if (isTimeout) {
+      navigate('/failure');
+    }
+  }, [isTimeout, navigate]);
 
   const main = (
     <main>
