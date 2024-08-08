@@ -5,6 +5,7 @@ import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import Big from 'big.js';
 import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
 import { OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
+import { useEventsContext } from '../../contexts/events';
 
 const FEES_RATE = 0.05; // 0.5% fee rate
 
@@ -27,8 +28,12 @@ interface CollapseProps {
 
 export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toCurrency }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { trackEvent } = useEventsContext();
 
-  const toggleIsOpen = () => setIsOpen((state) => !state);
+  const toggleIsOpen = () => {
+    trackEvent({ event: 'click_details' });
+    setIsOpen((state) => !state);
+  };
 
   const outputToken = toCurrency ? OUTPUT_TOKEN_CONFIG[toCurrency] : undefined;
 
