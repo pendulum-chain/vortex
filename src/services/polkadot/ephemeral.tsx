@@ -5,9 +5,7 @@ import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/token
 import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { waitForEvmTransaction } from '../evmTransactions';
-import { multiplyByPowerOfTen } from '../../helpers/contracts';
-
-const FUNDING_AMOUNT_UNITS = '0.1';
+import axios from 'axios';
 
 // TODO: replace
 const SEED_PHRASE = 'hood protect select grace number hurt lottery property stomach grit bamboo field';
@@ -24,58 +22,28 @@ export async function pendulumFundEphemeral(
 
   await waitForEvmTransaction(squidRouterSwapHash, wagmiConfig);
 
-  const isAlreadyFunded = await isEphemeralFunded(state);
-
-  if (!isAlreadyFunded) {
+  try {
     const pendulumApiComponents = await getApiManagerInstance();
     const apiData = pendulumApiComponents.apiData!;
-
     const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
     const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-    const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
+    const response = await axios.post('/api/v1/fundEphemeral',{ ephemeralAddress: ephemeralKeypair.address });
 
-    const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
-    const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
+    if (response.data.status === 'success') {
+      await waitForInputTokenToArrive(state);
 
-    await apiData.api.tx.balances
-      .transfer(ephemeralKeypair.address, fundingAmountRaw)
-      .signAndSend(fundingAccountKeypair);
-
-    await waitForPendulumEphemeralFunding(state);
+      return {
+        ...state,
+        phase: 'nablaApprove',
+      };
+    } else {
+      throw new Error('Funding timed out or failed');
+    }
+  } catch (error) {
+    console.error('Error funding ephemeral account:', error);
   }
 
-  await waitForInputTokenToArrive(state);
-
-  return {
-    ...state,
-    phase: 'nablaApprove',
-  };
-}
-
-async function isEphemeralFunded(state: OfframpingState) {
-  const { pendulumEphemeralSeed } = state;
-  const pendulumApiComponents = await getApiManagerInstance();
-  const apiData = pendulumApiComponents.apiData!;
-
-  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
-  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-
-  const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
-  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
-
-  const { data: balance } = await apiData.api.query.system.account(ephemeralKeypair.address);
-
-  // check if balance is higher than minimum required, then we consider the account ready
-  return Big(balance.free.toString()).gte(fundingAmountRaw);
-}
-
-async function waitForPendulumEphemeralFunding(state: OfframpingState) {
-  while (true) {
-    const isFunded = await isEphemeralFunded(state);
-    if (isFunded) return;
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
+  return { ...state, phase: 'failure' };
 }
 
 async function waitForInputTokenToArrive(state: OfframpingState) {
