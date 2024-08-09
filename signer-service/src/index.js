@@ -18,7 +18,7 @@ if (!FUNDING_SECRET) {
 
 // stop the application if the Pendulum funding seed is not set
 if (!PENDULUM_FUNDING_SEED) {
-  logger.error('PENDULUM_FUNDING_SECRET not set in the environment variables');
+  logger.error('PENDULUM_FUNDING_SEED not set in the environment variables');
   process.exit(1);
 }
 
