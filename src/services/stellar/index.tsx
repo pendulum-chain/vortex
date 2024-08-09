@@ -167,8 +167,8 @@ async function createOfframpAndMergeTransaction(
   ephemeralAccount: Account,
   { stellarAsset: { code, issuer } }: OutputTokenDetails,
 ) {
-  // We allow for more TTL since the redeem may take time
-  const maxTime = Date.now() + 1000 * 60 * 30;
+  // We allow for a TLL of up to two weeks so we are able to recover it in case of failure
+  const maxTime = Date.now() + 1000 * 60 * 60 * 24 * 14;
   const sequence = ephemeralAccount.sequenceNumber();
   const { amount, memo, memoType, offrampingAccount } = sepResult;
 
@@ -227,7 +227,7 @@ async function createOfframpAndMergeTransaction(
     .build();
 
   // Fetch the signatures from the server
-  // Under this endpoint, it will return first first the signature of the offramp payment
+  // Under this endpoint, it will return first the signature of the offramp payment
   // with information provided, then the signature of the merge account operation
 
   // We also provide the ephemeral account's sequence number. This is more controlled
@@ -266,8 +266,12 @@ async function createOfframpAndMergeTransaction(
 // if we are on recovery mode we can ignore this error.
 // Alternative improvement: check the balance of the destination (offramp) account to see if the funds arrived.
 export async function stellarOfframp(state: OfframpingState): Promise<OfframpingState> {
+  if (state.transactions === undefined) {
+    throw new Error('Transactions not prepared');
+  }
+
   try {
-    const offrampingTransaction = new Transaction(state.stellarOfframpingTransaction, NETWORK_PASSPHRASE);
+    const offrampingTransaction = new Transaction(state.transactions.stellarOfframpingTransaction, NETWORK_PASSPHRASE);
     await horizonServer.submitTransaction(offrampingTransaction);
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };
@@ -290,9 +294,13 @@ export async function stellarOfframp(state: OfframpingState): Promise<Offramping
 export async function stellarCleanup(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
-): Promise<OfframpingState | undefined> {
+): Promise<OfframpingState> {
+  if (state.transactions === undefined) {
+    throw new Error('Transactions not prepared');
+  }
+
   try {
-    const mergeAccountTransaction = new Transaction(state.stellarCleanupTransaction, NETWORK_PASSPHRASE);
+    const mergeAccountTransaction = new Transaction(state.transactions.stellarCleanupTransaction, NETWORK_PASSPHRASE);
     await horizonServer.submitTransaction(mergeAccountTransaction);
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };

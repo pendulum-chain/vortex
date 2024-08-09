@@ -13,6 +13,7 @@ interface ProgressPageProps {
 }
 
 export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase }) => {
+  // After 15 minutes of waiting, we want to redirect user to the failure page.
   useEffect(() => {
     const timer = setTimeout(() => {
       setOfframpingPhase('failure');

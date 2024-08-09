@@ -1,14 +1,17 @@
 import { writeContract, sendTransaction, getAccount } from '@wagmi/core';
-
-import { ExecutionContext, OfframpingState } from '../offrampingFlow';
-import erc20ABI from '../../contracts/ERC20';
-import { INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { getRouteTransactionRequest } from './route';
-import { waitForEvmTransaction } from '../evmTransactions';
 import { Keyring } from '@polkadot/api';
-import { getApiManagerInstance } from '../polkadot/polkadotApi';
 
-export async function squidRouter(state: OfframpingState, { wagmiConfig }: ExecutionContext): Promise<OfframpingState> {
+import { INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import erc20ABI from '../../contracts/ERC20';
+import { getApiManagerInstance } from '../polkadot/polkadotApi';
+import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+import { waitForEvmTransaction } from '../evmTransactions';
+import { getRouteTransactionRequest } from './route';
+
+export async function squidRouter(
+  state: OfframpingState,
+  { wagmiConfig, setSigningPhase }: ExecutionContext,
+): Promise<OfframpingState> {
   const inputToken = INPUT_TOKEN_CONFIG[state.inputTokenType];
   const fromTokenErc20Address = inputToken.erc20AddressSourceChain;
 
@@ -32,12 +35,16 @@ export async function squidRouter(state: OfframpingState, { wagmiConfig }: Execu
 
   console.log('Asking for approval of', transactionRequest?.target, fromTokenErc20Address, state.inputAmount.units);
 
+  setSigningPhase?.('started');
+
   const approvalHash = await writeContract(wagmiConfig, {
     abi: erc20ABI,
     address: fromTokenErc20Address,
     functionName: 'approve',
     args: [transactionRequest?.target, state.inputAmount.raw],
   });
+
+  setSigningPhase?.('approved');
 
   await waitForEvmTransaction(approvalHash, wagmiConfig);
 
@@ -48,8 +55,12 @@ export async function squidRouter(state: OfframpingState, { wagmiConfig }: Execu
     gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
   });
 
+  setSigningPhase?.('signed');
+
   const axelarScanLink = 'https://axelarscan.io/gmp/' + swapHash;
   console.log(`Squidrouter Swap Initiated! Check Axelarscan for details: ${axelarScanLink}`);
+
+  setSigningPhase?.('finished');
 
   return {
     ...state,

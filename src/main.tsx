@@ -14,6 +14,7 @@ import { App } from './app';
 import defaultTheme from './theme';
 import { GlobalState, GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
 import { wagmiConfig } from './wagmiConfig';
+import { EventsProvider } from './contexts/events';
 
 const queryClient = new QueryClient();
 
@@ -24,14 +25,16 @@ render(
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>
             <RainbowKitProvider>
-              <GlobalStateProvider>
-                <GlobalStateContext.Consumer>
-                  {(globalState) => {
-                    const { tenantRPC, getThemeName = () => undefined } = globalState as GlobalState;
-                    return <App />;
-                  }}
-                </GlobalStateContext.Consumer>
-              </GlobalStateProvider>
+              <EventsProvider>
+                <GlobalStateProvider>
+                  <GlobalStateContext.Consumer>
+                    {(globalState) => {
+                      const { tenantRPC, getThemeName = () => undefined } = globalState as GlobalState;
+                      return <App />;
+                    }}
+                  </GlobalStateContext.Consumer>
+                </GlobalStateProvider>
+              </EventsProvider>
             </RainbowKitProvider>
           </QueryClientProvider>
         </WagmiProvider>

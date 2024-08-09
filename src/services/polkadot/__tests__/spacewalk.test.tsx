@@ -77,8 +77,10 @@ describe('VaultService', () => {
         const amount = await api.query.redeem.redeemMinimumTransferAmount();
         const amountString = amount.toString();
 
-        const redeem = vaultService.requestRedeem(keypair, amountString, stellarPkBytes);
-        expect(redeem).toBeInstanceOf(Promise);
+        const redeemRequest = await vaultService.createRequestRedeemExtrinsic(keypair, amountString, stellarPkBytes);
+        expect(redeemRequest).toBeInstanceOf(Promise);
+
+        const redeem = await vaultService.submitRedeem(keypair.address, redeemRequest);
 
         const redeemRequestEvent = await redeem;
         expect(redeemRequestEvent).toBeDefined();

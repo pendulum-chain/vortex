@@ -1,13 +1,13 @@
-import Big from 'big.js';
-import { Resolver, useForm, useWatch } from 'react-hook-form';
-import { useState, useCallback, useMemo } from 'preact/compat';
 import { yupResolver } from '@hookform/resolvers/yup';
+import Big from 'big.js';
+import { useCallback, useMemo, useState } from 'preact/compat';
+import { Resolver, useForm, useWatch } from 'react-hook-form';
 
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { storageKeys } from '../../constants/localStorage';
+import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
-import schema, { SwapFormValues } from './schema';
 import { storageService } from '../../services/storage/local';
+import schema, { SwapFormValues } from './schema';
 
 interface SwapSettings {
   from: string;
