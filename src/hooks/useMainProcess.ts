@@ -150,6 +150,7 @@ export const useMainProcess = () => {
   }, [offrampingPhase, wagmiConfig]);
 
   return {
+    setOfframpingPhase,
     handleOnSubmit,
     sep24Url,
     offrampingPhase,

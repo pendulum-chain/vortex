@@ -1,5 +1,6 @@
-import { useEffect } from 'preact/hooks';
+import { FC, StateUpdater, useEffect } from 'preact/compat';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
+import { FinalOfframpingPhase, OfframpingPhase } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 
@@ -7,14 +8,24 @@ const handleTabClose = (event: Event) => {
   event.preventDefault();
 };
 
-export const ProgressPage = () => {
+interface ProgressPageProps {
+  setOfframpingPhase: StateUpdater<OfframpingPhase | FinalOfframpingPhase | undefined>;
+}
+
+export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase }) => {
+  // After 15 minutes of waiting, we want to redirect user to the failure page.
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setOfframpingPhase('failure');
+    }, 15 * 60 * 1000);
+
     window.addEventListener('beforeunload', handleTabClose);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('beforeunload', handleTabClose);
     };
-  }, []);
+  }, [setOfframpingPhase]);
 
   const main = (
     <main>

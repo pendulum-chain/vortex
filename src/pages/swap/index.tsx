@@ -46,8 +46,16 @@ export const SwapPage = () => {
   }, []);
 
   // Main process hook
-  const { handleOnSubmit, finishOfframping, offrampingStarted, sep24Url, sep24Id, offrampingPhase, signingPhase } =
-    useMainProcess();
+  const {
+    handleOnSubmit,
+    finishOfframping,
+    offrampingStarted,
+    sep24Url,
+    sep24Id,
+    offrampingPhase,
+    setOfframpingPhase,
+    signingPhase,
+  } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -120,7 +128,7 @@ export const SwapPage = () => {
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
-        additionalText="PIX / Bank Account"
+        additionalText="IBAN"
         tokenType={to}
         tokenSymbol={toToken?.stellarAsset.code.string}
         onClick={() => setModalType('to')}
@@ -200,7 +208,7 @@ export const SwapPage = () => {
   }
 
   if ((offrampingPhase !== undefined || offrampingStarted) && signingPhase === 'finished') {
-    return <ProgressPage />;
+    return <ProgressPage setOfframpingPhase={setOfframpingPhase} />;
   }
 
   const main = (

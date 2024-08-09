@@ -1,7 +1,6 @@
 import { useChainId } from 'wagmi';
 import { polygon } from 'wagmi/chains';
 
-import BRL from '../assets/coins/BRL.png';
 import EURC from '../assets/coins/EURC.png';
 import USDC from '../assets/coins/USDC.png';
 import USDC_POLYGON from '../assets/coins/USDC_POLYGON.svg';
@@ -11,7 +10,6 @@ import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
 type IconMap = Partial<Record<InputTokenType | OutputTokenType, string>>;
 
 const icons: IconMap = {
-  brl: BRL,
   eurc: EURC,
   usdce: USDC,
 };

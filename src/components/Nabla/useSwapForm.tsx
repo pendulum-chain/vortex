@@ -25,7 +25,7 @@ export const useSwapForm = () => {
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
     return {
       from: (storageValues?.from ?? 'usdc') as InputTokenType,
-      to: (storageValues?.to ?? 'brl') as OutputTokenType,
+      to: (storageValues?.to ?? 'eurc') as OutputTokenType,
       taxNumber: '',
       bankAccount: '',
     };
