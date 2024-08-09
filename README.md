@@ -45,7 +45,7 @@ matter what URL the browser requests.
 default to either:
 
 - http://localhost:3000 (if in development mode)
-- https://prototype-signer-service.pendulumchain.tech (if in production mode)
+- https://prototype-signer-service-polygon.pendulumchain.tech (if in production mode)
 
 ## Fixing type issues
 
