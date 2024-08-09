@@ -52,7 +52,15 @@ export const SwapPage = () => {
   }, []);
 
   // Main process hook
-  const { handleOnSubmit, finishOfframping, offrampingStarted, sep24Url, sep24Id, offrampingPhase } = useMainProcess();
+  const {
+    handleOnSubmit,
+    finishOfframping,
+    offrampingStarted,
+    sep24Url,
+    sep24Id,
+    offrampingPhase,
+    setOfframpingPhase,
+  } = useMainProcess();
 
   const {
     tokensModal: [modalType, setModalType],
@@ -258,7 +266,7 @@ export const SwapPage = () => {
   }
 
   if (offrampingPhase !== undefined || offrampingStarted) {
-    return <ProgressPage />;
+    return <ProgressPage setOfframpingPhase={setOfframpingPhase} />;
   }
 
   const main = (

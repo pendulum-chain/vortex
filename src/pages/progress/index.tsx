@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'preact/hooks';
-import { useNavigate } from 'react-router-dom';
+import { FC, StateUpdater, useEffect } from 'preact/compat';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
+import { FinalOfframpingPhase, OfframpingPhase } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 
@@ -8,13 +8,14 @@ const handleTabClose = (event: Event) => {
   event.preventDefault();
 };
 
-export const ProgressPage = () => {
-  const navigate = useNavigate();
-  const [isTimeout, setIsTimeout] = useState(false);
+interface ProgressPageProps {
+  setOfframpingPhase: StateUpdater<OfframpingPhase | FinalOfframpingPhase | undefined>;
+}
 
+export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsTimeout(true);
+      setOfframpingPhase('failure');
     }, 15 * 60 * 1000);
 
     window.addEventListener('beforeunload', handleTabClose);
@@ -23,13 +24,7 @@ export const ProgressPage = () => {
       clearTimeout(timer);
       window.removeEventListener('beforeunload', handleTabClose);
     };
-  }, []);
-
-  useEffect(() => {
-    if (isTimeout) {
-      navigate('/failure');
-    }
-  }, [isTimeout, navigate]);
+  }, [setOfframpingPhase]);
 
   const main = (
     <main>
