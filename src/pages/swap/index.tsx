@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
+import { useAccount } from 'wagmi';
+import Big from 'big.js';
 
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
@@ -17,11 +18,12 @@ import { config } from '../../config';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { BaseLayout } from '../../layouts';
 
-import { useMainProcess } from '../../hooks/useMainProcess';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
+import { useMainProcess } from '../../hooks/useMainProcess';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
+import { useUSDCBalance } from '../../hooks/useUSDCBalance';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -32,8 +34,9 @@ const Arrow = () => (
 export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
-
   const [api, setApi] = useState<ApiPromise | null>(null);
+
+  const { isDisconnected } = useAccount();
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -70,6 +73,8 @@ export const SwapPage = () => {
 
   const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
   const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
+
+  const userUSDCBalance = useUSDCBalance({ fromToken });
 
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
@@ -153,6 +158,15 @@ export const SwapPage = () => {
   );
 
   function getCurrentErrorMessage() {
+    // Do not show any error if the user is disconnected
+    if (isDisconnected) return;
+
+    if (typeof userUSDCBalance === 'string') {
+      if (Big(userUSDCBalance).lt(fromAmount ?? 0)) {
+        return `Insufficient balance. Your balance is ${userUSDCBalance} ${fromToken?.assetSymbol}.`;
+      }
+    }
+
     const amountOut = tokenOutData.data?.amountOut;
 
     if (amountOut !== undefined && toToken !== undefined) {
