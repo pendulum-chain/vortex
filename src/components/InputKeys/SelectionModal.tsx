@@ -1,6 +1,6 @@
 import { Input } from 'react-daisyui';
 import { ChangeEvent, useState } from 'preact/compat';
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
+import { Fiat, InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { Dialog } from '../Dialog';
 import { Skeleton } from '../Skeleton';
 import { PoolListItem } from './PoolListItem';
@@ -12,7 +12,7 @@ interface PoolSelectorModalProps<T extends InputTokenType | OutputTokenType> ext
 }
 
 interface PoolListProps<T extends InputTokenType | OutputTokenType> {
-  definitions: { assetSymbol: string; type: T }[];
+  definitions: { assetSymbol: string; type: T; fiat?: Fiat }[];
   onSelect: (tokenType: InputTokenType | OutputTokenType) => void;
   selected: InputTokenType | OutputTokenType | undefined;
 }
@@ -45,12 +45,13 @@ function PoolList<T extends InputTokenType | OutputTokenType>({ onSelect, defini
         placeholder="Find by name or address"
       />
       <div className="flex flex-col gap-1">
-        {definitions.map(({ assetSymbol, type }) => (
+        {definitions.map(({ fiat, assetSymbol, type }) => (
           <PoolListItem
             key={type}
             isSelected={selected === assetSymbol}
             onSelect={onSelect}
             tokenType={type}
+            fiat={fiat}
             tokenSymbol={assetSymbol}
           />
         ))}
