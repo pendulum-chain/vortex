@@ -23,10 +23,10 @@ function calculateFeesUSD(fromAmount: string): string {
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: string;
-  toCurrency?: OutputTokenType;
+  toTokenSymbol?: string;
 }
 
-export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toCurrency }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toTokenSymbol }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { trackEvent } = useEventsContext();
 
@@ -34,8 +34,6 @@ export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toCurrenc
     trackEvent({ event: 'click_details' });
     setIsOpen((state) => !state);
   };
-
-  const outputToken = toCurrency ? OUTPUT_TOKEN_CONFIG[toCurrency] : undefined;
 
   const chevron = isOpen ? (
     <ChevronUpIcon className="w-8 text-blue-700" />
@@ -52,7 +50,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toCurrenc
         <div className="flex items-center justify-between">
           <p>
             <strong className="font-bold">
-              {totalReceive} {outputToken?.stellarAsset.code.string}
+              {totalReceive} {toTokenSymbol}
             </strong>
             &nbsp;is what you will receive, after fees
           </p>

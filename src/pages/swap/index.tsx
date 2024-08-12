@@ -26,6 +26,8 @@ import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
 
+const SHOW_RECEIVED_CURRENCY_IN_FIAT = true;
+
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
     <ArrowDownIcon className="text-blue-700 w-7" />
@@ -135,15 +137,24 @@ export const SwapPage = () => {
     () => (
       <AssetNumericInput
         additionalText="IBAN"
-        tokenType={to}
-        tokenSymbol={toToken?.stellarAsset.code.string}
+        tokenType={SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken?.fiat?.symbol : to}
+        tokenSymbol={SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken?.fiat?.string : toToken?.stellarAsset.code.string}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
         readOnly={true}
       />
     ),
-    [to, toToken?.stellarAsset.code.string, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [
+      toToken?.fiat?.symbol,
+      toToken?.fiat?.string,
+      toToken?.stellarAsset.code.string,
+      to,
+      form,
+      isQuoteSubmitted,
+      tokenOutData.isLoading,
+      setModalType,
+    ],
   );
 
   const WidthrawNumericInput = useMemo(
@@ -180,14 +191,14 @@ export const SwapPage = () => {
       if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
         const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
         return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          toToken.stellarAsset.code.string
+          SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken.fiat?.string : toToken.stellarAsset.code.string
         }.`;
       }
 
       if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
         const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-          toToken.stellarAsset.code.string
+          SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken.fiat?.string : toToken.stellarAsset.code.string
         }.`;
       }
     }
@@ -200,10 +211,12 @@ export const SwapPage = () => {
       ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
+          fiat: undefined,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as OutputTokenType,
           assetSymbol: value.stellarAsset.code.string,
+          fiat: SHOW_RECEIVED_CURRENCY_IN_FIAT ? value.fiat : undefined,
         }));
 
   const modals = (
@@ -213,7 +226,6 @@ export const SwapPage = () => {
       definitions={definitions}
       selected={modalType === 'from' ? from : to}
       onClose={() => setModalType(undefined)}
-      isLoading={false}
     />
   );
 
@@ -241,11 +253,17 @@ export const SwapPage = () => {
         <Arrow />
         <LabeledInput label="You receive" Input={ReceiveNumericInput} />
         <p className="text-red-600">{getCurrentErrorMessage()}</p>
-        <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
+        <ExchangeRate
+          {...{
+            tokenOutData,
+            fromToken,
+            toTokenSymbol: SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken?.fiat?.string : toToken?.stellarAsset.code.string,
+          }}
+        />
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
-          toCurrency={to}
+          toTokenSymbol={toToken?.fiat?.string || toToken?.stellarAsset.code.string}
         />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />

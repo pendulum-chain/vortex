@@ -1,6 +1,3 @@
-import UsdcIcon from '../assets/coins/USDC.png';
-import EurcIcon from '../assets/coins/EURC.png';
-
 export interface InputTokenDetails {
   assetSymbol: string;
   erc20AddressSourceChain: `0x${string}`;
@@ -10,14 +7,19 @@ export interface InputTokenDetails {
     pendulumAssetSymbol: string;
   };
   decimals: number;
-  icon: string;
 }
 
 export type InputTokenType = 'usdc' | 'usdce';
 
+export interface Fiat {
+  symbol: 'eur';
+  string: 'EUR';
+}
+
 export interface OutputTokenDetails {
   tomlFileUrl: string;
   decimals: number;
+  fiat?: Fiat;
   stellarAsset: {
     code: {
       hex: string;
@@ -32,7 +34,6 @@ export interface OutputTokenDetails {
   minWithdrawalAmountRaw: string;
   maxWithdrawalAmountRaw: string;
   erc20WrapperAddress: string;
-  icon: string;
 }
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
@@ -44,7 +45,6 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
       pendulumAssetSymbol: 'USDC.axl',
     },
     decimals: 6,
-    icon: UsdcIcon,
   },
   usdce: {
     assetSymbol: 'USDC.e',
@@ -55,7 +55,6 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
       pendulumAssetSymbol: 'USDC.axl',
     },
     decimals: 6,
-    icon: UsdcIcon,
   },
 };
 
@@ -64,6 +63,10 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
   eurc: {
     tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
     decimals: 12,
+    fiat: {
+      symbol: 'eur',
+      string: 'EUR',
+    },
     stellarAsset: {
       code: {
         hex: '0x45555243',
@@ -78,7 +81,6 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     erc20WrapperAddress: '6fA9DRKJ12oTXfSAU7ZZGZ9gEQ92YnyRXeJzW1wXekPzeXZC',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
-    icon: EurcIcon,
   },
 };
 

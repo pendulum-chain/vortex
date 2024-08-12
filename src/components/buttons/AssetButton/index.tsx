@@ -2,7 +2,7 @@ import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig'
 import { useGetIcon } from '../../../hooks/useGetIcon';
 
 interface AssetButtonProps {
-  tokenType?: InputTokenType | OutputTokenType;
+  tokenType?: InputTokenType | OutputTokenType | 'eur';
   tokenSymbol?: string;
   onClick: () => void;
 }

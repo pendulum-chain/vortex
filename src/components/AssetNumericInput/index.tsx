@@ -23,7 +23,7 @@ export const ChainName = () => (
 );
 
 interface AssetNumericInputProps {
-  tokenType?: InputTokenType | OutputTokenType;
+  tokenType?: InputTokenType | OutputTokenType | 'eur';
   tokenSymbol?: string;
   onClick: () => void;
   additionalText?: string;
