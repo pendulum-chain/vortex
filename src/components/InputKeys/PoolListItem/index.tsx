@@ -1,13 +1,14 @@
 import { Avatar, AvatarProps, Button } from 'react-daisyui';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useGetIcon } from '../../../hooks/useGetIcon';
-import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
+import { Fiat, InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
 
 interface PoolListItemProps<T extends InputTokenType | OutputTokenType> {
   tokenType: T;
   tokenSymbol: string;
   isSelected?: boolean;
   onSelect: (tokenType: T) => void;
+  fiat?: Fiat;
 }
 
 export function PoolListItem<T extends InputTokenType | OutputTokenType>({
@@ -15,8 +16,11 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
   tokenSymbol,
   isSelected,
   onSelect,
+  fiat,
 }: PoolListItemProps<T>) {
-  const tokenIcon = useGetIcon(tokenType);
+  const formattedTokenType = fiat ? fiat.symbol : tokenType;
+  const formattedTokenSymbol = fiat ? fiat.string : tokenSymbol;
+  const tokenIcon = useGetIcon(formattedTokenType);
 
   return (
     <Button
@@ -35,9 +39,9 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
       </span>
       <span className="flex flex-col">
         <span className="text-lg leading-5 dark:text-white">
-          <strong>{tokenSymbol}</strong>
+          <strong>{formattedTokenSymbol}</strong>
         </span>
-        <span className="text-sm leading-5 text-neutral-500">{tokenSymbol}</span>
+        <span className="text-sm leading-5 text-neutral-500">{formattedTokenSymbol}</span>
       </span>
     </Button>
   );
