@@ -76,7 +76,7 @@ export const useMainProcess = () => {
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
-    ({ inputTokenType, outputTokenType, amountInUnits, nablaAmountInRaw, minAmountOutUnits }: ExecutionInput) => {
+    ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
       if (offrampingStarted || offrampingPhase !== undefined) return;
 
       (async () => {
@@ -118,7 +118,6 @@ export const useMainProcess = () => {
             inputTokenType,
             outputTokenType,
             amountIn: amountInUnits,
-            nablaAmountInRaw,
             amountOut: minAmountOutUnits,
             sepResult: secondSep24Response,
           });

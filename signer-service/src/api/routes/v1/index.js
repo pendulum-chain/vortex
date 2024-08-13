@@ -40,9 +40,6 @@ router.use('/pendulum', pendulumRoutes);
  */
 router.use('/storage', storageRoutes);
 
-/**
- * POST v1/storage
- */
 router.use('/subsidize', subsidizeRoutes);
 
 module.exports = router;

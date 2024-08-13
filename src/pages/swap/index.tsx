@@ -84,20 +84,17 @@ export const SwapPage = () => {
     inputTokenType: from,
     outputTokenType: to,
     maximumFromAmount: undefined,
-    slippageBasisPoints: config.swap.slippageBasisPoints,
-    axelarSlippageBasisPoints: config.swap.axelarSlippageBasisPoints,
     fromAmountString,
-    xcmFees: config.xcm.fees,
     form,
   });
 
   const inputAmountIsStable =
-    tokenOutData.actualAmountInRaw !== undefined && BigInt(tokenOutData.actualAmountInRaw) > 0n;
+    tokenOutData.stableAmountInUnits !== undefined && Big(tokenOutData.stableAmountInUnits).gt(Big(0));
 
   function onSubmit(e: Event) {
     e.preventDefault();
 
-    if (!inputAmountIsStable || tokenOutData.actualAmountInRaw === undefined) return;
+    if (!inputAmountIsStable) return;
 
     if (fromAmount === undefined) {
       console.log('Input amount is undefined');
@@ -116,7 +113,6 @@ export const SwapPage = () => {
       inputTokenType: from as InputTokenType,
       outputTokenType: to as OutputTokenType,
       amountInUnits: fromAmountString,
-      nablaAmountInRaw: tokenOutData.actualAmountInRaw,
       minAmountOutUnits: minimumOutputAmount.preciseString,
     });
   }

@@ -26,9 +26,6 @@ type UseTokenOutAmountProps = {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   maximumFromAmount: BigNumber | undefined;
-  xcmFees: string;
-  slippageBasisPoints: number;
-  axelarSlippageBasisPoints: number;
   form: UseFormReturn<SwapFormValues>;
 };
 
@@ -52,9 +49,6 @@ export function useTokenOutAmount({
   inputTokenType,
   outputTokenType,
   maximumFromAmount,
-  xcmFees,
-  slippageBasisPoints,
-  axelarSlippageBasisPoints,
   form,
 }: UseTokenOutAmountProps) {
   const { setError, clearErrors } = form;
@@ -72,20 +66,9 @@ export function useTokenOutAmount({
 
   const fromTokenDecimals = inputToken?.decimals;
 
-  const amountInRawOriginal =
+  const amountIn =
     fromTokenDecimals !== undefined && debouncedAmountBigDecimal !== undefined
       ? multiplyByPowerOfTen(debouncedAmountBigDecimal, fromTokenDecimals).toFixed(0, 0)
-      : undefined;
-
-  const reducedAmountInRaw =
-    amountInRawOriginal !== undefined
-      ? (BigInt(amountInRawOriginal) * BigInt(10000 - axelarSlippageBasisPoints)) / 10000n
-      : undefined;
-
-  const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), inputToken?.decimals).toFixed(0, 0);
-  const amountIn =
-    reducedAmountInRaw !== undefined
-      ? clampedDifference(BigInt(reducedAmountInRaw), BigInt(rawXcmFees)).toString()
       : undefined;
 
   const enabled =
@@ -121,10 +104,7 @@ export function useTokenOutAmount({
           return null;
         }
 
-        const bigIntResponse = data[0]?.toBigInt();
-        const reducedResponse = (bigIntResponse * BigInt(10000 - slippageBasisPoints)) / 10000n;
-
-        const amountOut = parseContractBalanceResponse(outputToken.decimals, reducedResponse);
+        const amountOut = parseContractBalanceResponse(outputToken.decimals, data[0]);
         const swapFee = parseContractBalanceResponse(outputToken.decimals, data[1]);
 
         return {
@@ -166,7 +146,7 @@ export function useTokenOutAmount({
   }, [error, pending, clearErrors, setError]);
 
   const isInputStable = debouncedFromAmountString === fromAmountString;
-  const actualAmountInRaw = isInputStable && amountIn !== undefined ? amountIn : undefined;
+  const stableAmountInUnits = isInputStable ? debouncedFromAmountString : undefined;
 
-  return { isLoading: pending, enabled, data, refetch, error, actualAmountInRaw };
+  return { isLoading: pending, enabled, data, refetch, error, stableAmountInUnits };
 }

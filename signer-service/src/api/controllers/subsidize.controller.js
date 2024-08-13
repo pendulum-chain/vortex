@@ -1,34 +1,69 @@
-const { Horizon, Keypair } = require('stellar-sdk');
-const { HORIZON_URL } = require('../../constants/constants');
-const FUNDING_SECRET = process.env.FUNDING_SECRET;
+const { Keypair } = require('stellar-sdk');
+const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api');
+const Big = require('big.js');
 
-const { buildCreationStellarTx, buildPaymentAndMergeTx } = require('../services/stellar.service');
+const { PENDULUM_WSS, PENDULUM_FUNDING_SEED } = require('../../constants/constants');
 
-const horizonServer = new Horizon.Server(HORIZON_URL);
-// Derive funding pk
-const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
+const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 
-exports.subsidizePreSwap = async (req, res, next) => {
+const TOKEN_TO_SWAP = 'usdc.axl';
+
+exports.subsidizePreSwap = async (req, res) => {
   try {
-    const wsProvider = new WsProvider(websocketUrl);
+    const { pendulumCurrencyId, maximumSubsidyAmountRaw } = TOKEN_CONFIG[TOKEN_TO_SWAP];
+
+    const { address, amountRaw } = req.body;
+
+    if (Big(amountRaw).gt(Big(maximumSubsidyAmountRaw))) {
+      throw new Error('Amount exceeds maximum subsidy amount');
+    }
+
+    const keyring = new Keyring({ type: 'sr25519' });
+    const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED);
+
+    const wsProvider = new WsProvider(PENDULUM_WSS);
     const api = await ApiPromise.create({ provider: wsProvider });
+    await api.isReady;
+
+    await api.tx.tokens.transfer(address, pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
+
+    return res.status(200).json({ message: 'Subsidy transferred successfully' });
   } catch (error) {
-    console.error('Server error:', error);
+    console.error('Error in subsidizePreSwap::', error);
     return res.status(500).json({ error: 'Server error', details: error.message });
   }
 };
 
-exports.subsidizePostSwap = async (req, res, next) => {
+exports.subsidizePostSwap = async (req, res) => {
   try {
-    let { signature, sequence } = await buildCreationStellarTx(
-      FUNDING_SECRET,
-      req.body.accountId,
-      req.body.maxTime,
-      req.body.assetCode,
-    );
-    return res.json({ signature, sequence, public: FUNDING_PUBLIC_KEY });
+    const { address, amountRaw, token } = req.body;
+    console.log('Post swap');
+
+    const { assetCode, assetIssuer, maximumSubsidyAmountRaw } = TOKEN_CONFIG[token];
+
+    if (Big(amountRaw).gt(Big(maximumSubsidyAmountRaw))) {
+      throw new Error('Amount exceeds maximum subsidy amount');
+    }
+
+    const assetIssuerHex = `0x${Keypair.fromPublicKey(assetIssuer).rawPublicKey().toString('hex')}`;
+    const pendulumCurrencyId = {
+      Stellar: {
+        AlphaNum4: { code: assetCode.padEnd(4, '\0'), issuer: assetIssuerHex },
+      },
+    };
+
+    const keyring = new Keyring({ type: 'sr25519' });
+    const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED);
+
+    const wsProvider = new WsProvider(PENDULUM_WSS);
+    const api = await ApiPromise.create({ provider: wsProvider });
+    await api.isReady;
+
+    await api.tx.tokens.transfer(address, pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
+
+    return res.status(200).json({ message: 'Subsidy transferred successfully' });
   } catch (error) {
-    console.error('Error in createStellarTransaction:', error);
-    return res.status(500).json({ error: 'Failed to create transaction', details: error.message });
+    console.error('Error in subsidizePreSwap::', error);
+    return res.status(500).json({ error: 'Server error', details: error.message });
   }
 };

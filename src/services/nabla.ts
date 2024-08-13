@@ -64,17 +64,12 @@ export async function prepareNablaApproveTransaction(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<Extrinsic> {
-  const { inputTokenType, inputAmountNabla, pendulumEphemeralSeed, nablaApproveNonce } = state;
+  const { inputTokenType, inputAmount, pendulumEphemeralSeed, nablaApproveNonce } = state;
 
   // event attempting swap
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
 
-  console.log(
-    'swap',
-    'Preparing the signed extrinsic for the approval of swap',
-    inputAmountNabla.units,
-    inputTokenType,
-  );
+  console.log('swap', 'Preparing the signed extrinsic for the approval of swap', inputAmount.units, inputTokenType);
   // get chain api, abi
   const { ss58Format, api } = (await getApiManagerInstance()).apiData!;
   const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
@@ -104,15 +99,15 @@ export async function prepareNablaApproveTransaction(
   const currentAllowance = parseContractBalanceResponse(inputToken.decimals, response.value);
 
   //maybe do allowance
-  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmountNabla.raw))) {
+  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmount.raw))) {
     try {
       renderEvent(
-        `Approving tokens: ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
+        `Approving tokens: ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
         EventStatus.Waiting,
       );
       return createAndSignApproveExtrinsic({
         api: api,
-        amount: inputAmountNabla.raw,
+        amount: inputAmount.raw,
         token: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
@@ -134,7 +129,7 @@ export async function nablaApprove(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
-  const { transactions, inputAmountNabla, inputTokenType } = state;
+  const { transactions, inputAmount, inputTokenType } = state;
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
 
   if (!transactions) {
@@ -144,7 +139,7 @@ export async function nablaApprove(
 
   try {
     renderEvent(
-      `Approving tokens: ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
+      `Approving tokens: ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
       EventStatus.Waiting,
     );
 
@@ -213,8 +208,7 @@ export async function prepareNablaSwapTransaction(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<Extrinsic> {
-  const { inputTokenType, outputTokenType, inputAmountNabla, outputAmount, pendulumEphemeralSeed, nablaSwapNonce } =
-    state;
+  const { inputTokenType, outputTokenType, inputAmount, outputAmount, pendulumEphemeralSeed, nablaSwapNonce } = state;
 
   // event attempting swap
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
@@ -241,13 +235,13 @@ export async function prepareNablaSwapTransaction(
     // Try swap
     try {
       renderEvent(
-        `Swapping ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+        `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
         EventStatus.Waiting,
       );
 
       return createAndSignSwapExtrinsic({
         api: api,
-        amount: inputAmountNabla.raw, // toString can render exponential notation
+        amount: inputAmount.raw, // toString can render exponential notation
         amountMin: outputAmount.raw, // toString can render exponential notation
         tokenIn: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
         tokenOut: outputToken.erc20WrapperAddress,
@@ -264,8 +258,7 @@ export async function prepareNablaSwapTransaction(
 }
 
 export async function nablaSwap(state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> {
-  const { transactions, inputAmountNabla, inputTokenType, outputAmount, outputTokenType, pendulumEphemeralSeed } =
-    state;
+  const { transactions, inputAmount, inputTokenType, outputAmount, outputTokenType, pendulumEphemeralSeed } = state;
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
@@ -287,7 +280,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   try {
     renderEvent(
-      `Swapping ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+      `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
       EventStatus.Waiting,
     );
 
@@ -327,7 +320,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   return {
     ...state,
-    phase: 'executeSpacewalkRedeem',
+    phase: 'subsidizePostSwap',
   };
 }
 

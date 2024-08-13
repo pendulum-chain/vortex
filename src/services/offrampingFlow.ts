@@ -2,7 +2,13 @@ import { Config } from 'wagmi';
 import { storageService } from './storage/local';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
-import { createPendulumEphemeralSeed, pendulumCleanup, pendulumFundEphemeral } from './polkadot/ephemeral';
+import {
+  createPendulumEphemeralSeed,
+  pendulumCleanup,
+  pendulumFundEphemeral,
+  subsidizePostSwap,
+  subsidizePreSwap,
+} from './polkadot/ephemeral';
 import { createStellarEphemeralSecret, SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
@@ -10,8 +16,6 @@ import { stellarCleanup, stellarOfframp } from './stellar';
 import { nablaApprove, nablaSwap } from './nabla';
 import { RenderEventHandler } from '../components/GenericEvent';
 import { executeSpacewalkRedeem } from './polkadot';
-import { fetchSigningServiceAccountId } from './signingService';
-import { Keypair } from 'stellar-sdk';
 import { SigningPhase } from '../hooks/useMainProcess';
 import { prepareTransactions } from './signedTransactions';
 
@@ -19,8 +23,10 @@ export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
   | 'pendulumFundEphemeral'
+  | 'subsidizePreSwap'
   | 'nablaApprove'
   | 'nablaSwap'
+  | 'subsidizePostSwap'
   | 'executeSpacewalkRedeem'
   | 'pendulumCleanup'
   | 'stellarOfframp'
@@ -38,10 +44,6 @@ export interface OfframpingState {
   outputTokenType: OutputTokenType;
 
   inputAmount: {
-    units: string;
-    raw: string;
-  };
-  inputAmountNabla: {
     units: string;
     raw: string;
   };
@@ -86,8 +88,10 @@ const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunctio
   prepareTransactions,
   squidRouter,
   pendulumFundEphemeral,
+  subsidizePreSwap,
   nablaApprove,
   nablaSwap,
+  subsidizePostSwap,
   executeSpacewalkRedeem,
   pendulumCleanup,
   stellarOfframp,
@@ -107,7 +111,6 @@ export interface InitiateStateArguments {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
-  nablaAmountInRaw: string;
   amountOut: string;
   sepResult: SepResult;
 }
@@ -117,7 +120,6 @@ export async function constructInitialState({
   inputTokenType,
   outputTokenType,
   amountIn,
-  nablaAmountInRaw,
   amountOut,
   sepResult,
 }: InitiateStateArguments) {
@@ -129,9 +131,6 @@ export async function constructInitialState({
 
   const inputAmountBig = Big(amountIn);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals).toFixed();
-
-  const inputAmountNablaRawBig = Big(nablaAmountInRaw);
-  const inputAmountNablaUnits = multiplyByPowerOfTen(inputAmountNablaRawBig, -inputTokenDecimals).toFixed();
 
   const outputAmountBig = Big(amountOut).round(2, 0);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmountBig, outputTokenDecimals).toFixed();
@@ -145,10 +144,6 @@ export async function constructInitialState({
     inputAmount: {
       units: amountIn,
       raw: inputAmountRaw,
-    },
-    inputAmountNabla: {
-      units: inputAmountNablaUnits,
-      raw: nablaAmountInRaw,
     },
     outputAmount: {
       units: outputAmountBig.toFixed(2, 0),

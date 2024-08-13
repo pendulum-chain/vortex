@@ -8,8 +8,26 @@ import { waitForEvmTransaction } from '../evmTransactions';
 import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import axios from 'axios';
 import { fetchSigningServiceAccountId } from '../signingService';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
+
+async function getEphemeralAddress({ pendulumEphemeralSeed }: OfframpingState) {
+  const pendulumApiComponents = await getApiManagerInstance();
+  const apiData = pendulumApiComponents.apiData!;
+  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+  return ephemeralKeypair.address;
+}
+
+async function waitUntil(test: () => Promise<boolean>) {
+  while (true) {
+    if (await test()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
 
 export async function pendulumFundEphemeral(
   state: OfframpingState,
@@ -26,25 +44,25 @@ export async function pendulumFundEphemeral(
   const isAlreadyFunded = await isEphemeralFunded(state);
 
   if (!isAlreadyFunded) {
-    const pendulumApiComponents = await getApiManagerInstance();
-    const apiData = pendulumApiComponents.apiData!;
-
-    const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
-    const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-    const response = await axios.post('/api/v1/fundEphemeral', { ephemeralAddress: ephemeralKeypair.address });
+    const ephemeralAddress = await getEphemeralAddress(state);
+    const response = await axios.post('/api/v1/fundEphemeral', { ephemeralAddress });
 
     if (response.data.status !== 'success') {
+      console.error('Error funding ephemeral account: funding timed out or failed');
       return { ...state, phase: 'failure' };
     }
 
-    await waitForPendulumEphemeralFunding(state);
+    await waitUntil(isEphemeralFunded.bind(null, state));
   }
 
-  await waitForInputTokenToArrive(state);
+  await waitUntil(async () => {
+    const inputBalanceRaw = await getRawInputBalance(state);
+    return inputBalanceRaw.gt(Big(0));
+  });
 
   return {
     ...state,
-    phase: 'nablaApprove',
+    phase: 'subsidizePreSwap',
   };
 }
 
@@ -65,28 +83,6 @@ async function isEphemeralFunded(state: OfframpingState) {
   return Big(balance.free.toString()).gte(fundingAmountRaw);
 }
 
-async function waitForPendulumEphemeralFunding(state: OfframpingState) {
-  while (true) {
-    const isFunded = await isEphemeralFunded(state);
-    if (isFunded) return;
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-}
-
-async function waitForInputTokenToArrive(state: OfframpingState) {
-  console.log('Waiting for input token to arrive on pendulum');
-  while (true) {
-    const isFunded = await didInputTokenArriveOnPendulum(state);
-    if (isFunded) {
-      console.log('Input token arrived on pendulum');
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-}
-
 export async function createPendulumEphemeralSeed() {
   const seedPhrase = mnemonicGenerate();
 
@@ -95,6 +91,7 @@ export async function createPendulumEphemeralSeed() {
   const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
 
   const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
+
   console.log('Ephemeral account seedphrase: ', seedPhrase);
   console.log('Ephemeral account created:', ephemeralAccountKeypair.address);
 
@@ -133,25 +130,106 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
   return { ...state, phase: 'stellarOfframp' };
 }
 
-async function didInputTokenArriveOnPendulum({
-  inputAmountNabla,
-  pendulumEphemeralSeed,
-  inputTokenType,
-}: OfframpingState): Promise<boolean> {
+async function getRawInputBalance(state: OfframpingState): Promise<Big> {
   const pendulumApiComponents = await getApiManagerInstance();
-  const { api, ss58Format } = pendulumApiComponents.apiData!;
+  const { api } = pendulumApiComponents.apiData!;
 
-  const keyring = new Keyring({ type: 'sr25519', ss58Format });
-  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[state.inputTokenType];
 
   const balanceResponse = (await api.query.tokens.accounts(
-    ephemeralKeypair.address,
+    await getEphemeralAddress(state),
     inputToken.axelarEquivalent.pendulumCurrencyId,
   )) as any;
 
-  console.log('Balance response', balanceResponse.toString(), inputAmountNabla);
   const inputBalanceRaw = Big(balanceResponse?.free?.toString() ?? '0');
 
-  return inputBalanceRaw.gte(Big(inputAmountNabla.raw));
+  return inputBalanceRaw;
+}
+
+async function getRawOutputBalance(state: OfframpingState): Promise<Big> {
+  const pendulumApiComponents = await getApiManagerInstance();
+  const { api } = pendulumApiComponents.apiData!;
+
+  const pendulumCurrencyId = getPendulumCurrencyId(state.outputTokenType);
+
+  const balanceResponse = (await api.query.tokens.accounts(
+    await getEphemeralAddress(state),
+    pendulumCurrencyId,
+  )) as any;
+
+  const outputBalanceRaw = Big(balanceResponse?.free?.toString() ?? '0');
+
+  return outputBalanceRaw;
+}
+
+export async function subsidizePreSwap(state: OfframpingState): Promise<OfframpingState> {
+  const currentBalance = await getRawInputBalance(state);
+  if (currentBalance.eq(Big(0))) {
+    throw new Error('Invalid phase: input token did not arrive yet on pendulum');
+  }
+
+  const requiredAmount = Big(state.inputAmount.raw).sub(currentBalance);
+  if (requiredAmount.gt(Big(0))) {
+    console.log('Subsidizing pre-swap with', requiredAmount.toString());
+
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/subsidize/preswap`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ address: await getEphemeralAddress(state), amountRaw: requiredAmount.toFixed(0, 0) }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error while subsidizing pre-swap: ${response.statusText}`);
+    }
+
+    await waitUntil(async () => {
+      const currentBalance = await getRawInputBalance(state);
+      return currentBalance.gt(Big(state.inputAmount.raw));
+    });
+  }
+
+  return {
+    ...state,
+    phase: 'nablaApprove',
+  };
+}
+
+export async function subsidizePostSwap(state: OfframpingState): Promise<OfframpingState> {
+  const currentBalance = await getRawOutputBalance(state);
+  if (currentBalance.eq(Big(0))) {
+    throw new Error('Invalid phase: output token has not been swapped yet');
+  }
+
+  const requiredAmount = Big(state.outputAmount.raw).sub(currentBalance);
+  if (requiredAmount.gt(Big(0))) {
+    console.log('Subsidizing post-swap with', requiredAmount.toString());
+
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/subsidize/postswap`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        address: await getEphemeralAddress(state),
+        amountRaw: requiredAmount.toFixed(0, 0),
+        token: state.outputTokenType,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error while subsidizing post-swap: ${response.statusText}`);
+    }
+
+    await waitUntil(async () => {
+      const currentBalance = await getRawOutputBalance(state);
+      return currentBalance.gt(Big(state.outputAmount.raw));
+    });
+  }
+
+  return {
+    ...state,
+    phase: 'executeSpacewalkRedeem',
+  };
 }
