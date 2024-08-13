@@ -45,4 +45,42 @@ const validateStorageInput = (req, res, next) => {
   next();
 };
 
-module.exports = { validateChangeOpInput, validateCreationInput, validateStorageInput };
+const validatePreSwapSubsidizationInput = (req, res, next) => {
+  const { amount, address } = req.body;
+
+  if (amount === undefined) {
+    return res.status(400).json({ error: 'Missing "amount" parameter' });
+  }
+
+  if (typeof amount !== 'string') {
+    return res.status(400).json({ error: '"amount" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+};
+
+const validatePostSwapSubsidizationInput = (req, res, next) => {
+  const { amount, address, token } = req.body;
+
+  if (amount === undefined) {
+    return res.status(400).json({ error: 'Missing "amount" parameter' });
+  }
+
+  if (typeof amount !== 'string') {
+    return res.status(400).json({ error: '"amount" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+};
+
+module.exports = {
+  validateChangeOpInput,
+  validateCreationInput,
+  validatePreSwapSubsidizationInput,
+  validatePostSwapSubsidizationInput,
+  validateStorageInput,
+};

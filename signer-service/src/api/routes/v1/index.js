@@ -1,7 +1,9 @@
 const express = require('express');
+
 const stellarRoutes = require('./stellar.route');
 const pendulumRoutes = require('./pendulum.route');
 const storageRoutes = require('./storage.route');
+const subsidizeRoutes = require('./subsidize.route');
 
 const router = express.Router({ mergeParams: true });
 const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../services/stellar.service');
@@ -37,5 +39,10 @@ router.use('/pendulum', pendulumRoutes);
  * POST v1/storage
  */
 router.use('/storage', storageRoutes);
+
+/**
+ * POST v1/storage
+ */
+router.use('/subsidize', subsidizeRoutes);
 
 module.exports = router;
