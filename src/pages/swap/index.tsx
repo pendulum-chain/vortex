@@ -24,6 +24,7 @@ import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useUSDCBalance } from '../../hooks/useUSDCBalance';
+import { UserBalance } from '../../components/UserBalance';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -147,14 +148,17 @@ export const SwapPage = () => {
 
   const WidthrawNumericInput = useMemo(
     () => (
-      <AssetNumericInput
-        registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-        tokenType={from}
-        tokenSymbol={fromToken?.assetSymbol}
-        onClick={() => setModalType('from')}
-      />
+      <>
+        <UserBalance token={fromToken} />
+        <AssetNumericInput
+          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+          tokenType={from}
+          tokenSymbol={fromToken?.assetSymbol}
+          onClick={() => setModalType('from')}
+        />
+      </>
     ),
-    [form, from, fromToken?.assetSymbol, setModalType],
+    [form, from, fromToken, setModalType],
   );
 
   function getCurrentErrorMessage() {
