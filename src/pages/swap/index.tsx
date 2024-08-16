@@ -22,6 +22,7 @@ import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../..
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
+import { TermsAndConditions } from '../../components/TermsAndConditions';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -189,14 +190,17 @@ export const SwapPage = () => {
         }));
 
   const modals = (
-    <PoolSelectorModal
-      open={!!modalType}
-      onSelect={modalType === 'from' ? onFromChange : onToChange}
-      definitions={definitions}
-      selected={modalType === 'from' ? from : to}
-      onClose={() => setModalType(undefined)}
-      isLoading={false}
-    />
+    <>
+      <TermsAndConditions />
+      <PoolSelectorModal
+        open={!!modalType}
+        onSelect={modalType === 'from' ? onFromChange : onToChange}
+        definitions={definitions}
+        selected={modalType === 'from' ? from : to}
+        onClose={() => setModalType(undefined)}
+        isLoading={false}
+      />
+    </>
   );
 
   if (offrampingPhase === 'success') {
