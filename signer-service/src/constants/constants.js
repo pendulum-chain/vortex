@@ -1,7 +1,7 @@
 const HORIZON_URL = 'https://horizon.stellar.org';
 //const HORIZON_URL = 'https://horizon-testnet.stellar.org';
 const BASE_FEE = '1000000';
-const PENDULUM_WSS = 'wss://pendulum-node.pendulumchain.org';
+const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 const NETWORK = 'Pendulum';
 const FUNDING_AMOUNT_UNITS = '0.1';
 

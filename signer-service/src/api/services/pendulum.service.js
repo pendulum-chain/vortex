@@ -28,31 +28,31 @@ async function createPolkadotApi() {
     return { api, decimals, ss58Format };
 }
 
-function getFundingData() {
-    const keyring = new Keyring({ type: 'sr25519', ss58Format: ss58Format });
+function getFundingData(ss58Format, decimals) {
+    const keyring = new Keyring({ type: 'sr25519', ss58Format });
     const fundingAccountKeypair = keyring.addFromUri(pendulumFundingSeed);
     const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
-    const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
+    const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
     return { fundingAccountKeypair, fundingAmountRaw };
 }
 
 exports.fundEphemeralAccount = async (ephemeralAddress) => {
     const apiData = await createPolkadotApi();
-    const fundingData = getFundingData();
+    const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
 
     await apiData.api.tx.balances
-        .transfer(ephemeralAddress, fundingData.fundingAmountRaw)
-        .signAndSend(fundingData.fundingAccountKeypair);
+        .transfer(ephemeralAddress, fundingAmountRaw)
+        .signAndSend(fundingAccountKeypair);
 }
 
-exports.sendStatusWithPk = async (req, res, next) => {
+exports.sendStatusWithPk = async () => {
     const apiData = await createPolkadotApi();
-    const fundingData = getFundingData();
-    const { data: balance } = await apiData.api.query.system.account(fundingData.fundingAccountKeypair.address);
+    const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
+    const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
 
-    if (Big(balance.free.toString()).gte(fundingData.fundingAmountRaw)) {
-        return { status: true, public: fundingData.fundingAccountKeypair.address };
+    if (Big(balance.free.toString()).gte(fundingAmountRaw)) {
+        return { status: true, public: fundingAccountKeypair.address };
     }
-    return { status: false, public: fundingData.fundingAccountKeypair.address };
+    return { status: false, public: fundingAccountKeypair.address };
 }
