@@ -4,7 +4,7 @@ const pendulumRoutes = require('./pendulum.route');
 const storageRoutes = require('./storage.route');
 
 const router = express.Router({ mergeParams: true });
-const { isAccountFunded: sendStellarStatusWithPk } = require('../../services/stellar.service');
+const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../services/stellar.service');
 const { sendStatusWithPk: sendPendulumStatusWithPk} = require('../../services/pendulum.service');
 
 async function sendStatusWithPk(req, res, next) {
