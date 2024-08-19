@@ -5,7 +5,7 @@ const storageRoutes = require('./storage.route');
 
 const router = express.Router({ mergeParams: true });
 const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../services/stellar.service');
-const { sendStatusWithPk: sendPendulumStatusWithPk} = require('../../services/pendulum.service');
+const { sendStatusWithPk: sendPendulumStatusWithPk } = require('../../services/pendulum.service');
 
 async function sendStatusWithPk(req, res, next) {
   const stellar = await sendStellarStatusWithPk();
@@ -13,7 +13,7 @@ async function sendStatusWithPk(req, res, next) {
 
   res.json({
     stellar,
-    pendulum
+    pendulum,
   });
 }
 /**

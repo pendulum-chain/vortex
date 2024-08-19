@@ -1,7 +1,5 @@
 const express = require('express');
-const {
-  fundEphemeralAccountController,
-} = require('../../controllers/pendulum.controller');
+const { fundEphemeralAccountController } = require('../../controllers/pendulum.controller');
 
 const router = express.Router();
 

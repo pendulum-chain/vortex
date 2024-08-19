@@ -29,11 +29,10 @@ export async function pendulumFundEphemeral(
     const pendulumApiComponents = await getApiManagerInstance();
     const apiData = pendulumApiComponents.apiData!;
 
-    
     const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
     const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-    const response = await axios.post('/api/v1/fundEphemeral',{ ephemeralAddress: ephemeralKeypair.address });
-  
+    const response = await axios.post('/api/v1/fundEphemeral', { ephemeralAddress: ephemeralKeypair.address });
+
     if (response.data.status !== 'success') {
       return { ...state, phase: 'failure' };
     }
