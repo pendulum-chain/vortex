@@ -1,4 +1,4 @@
-const { fundEphemeralAccount, sendStatusWithPk } = require('../services/pendulum.service');
+const { fundEphemeralAccount, sendStatusWithPk: isAccountFunded } = require('../services/pendulum.service');
 const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS } = require('../../constants/constants');
 
 exports.fundEphemeralAccountController = async (req, res) => {
@@ -25,10 +25,10 @@ exports.sendStatusWithPk = async (req, res, next) => {
     try {
       const result = await sendStatusWithPk();
       if (!result.status) {
-        res.json({ status: false, public: result.public });
+        return res.json({ status: false, public: result.public });
       }
   
-      res.json({ status: true, public: result.public });
+      return res.json({ status: true, public: result.public });
     } catch (error) {
       console.error('Server error:', error);
       return res.status(500).json({ error: 'Server error', details: error.message });

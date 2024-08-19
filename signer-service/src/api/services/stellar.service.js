@@ -136,4 +136,23 @@ async function buildPaymentAndMergeTx(
   };
 }
 
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx };
+async function sendStatusWithPk() {
+  try {
+    // ensure the funding account exists
+    const horizonServer = new Horizon.Server(HORIZON_URL);
+    let account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
+    let stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
+
+    // ensure we have at the very least 2.5 XLM in the account
+    if (Number(stellarBalance.balance) < 2.5) {
+      return { status: false, public: FUNDING_PUBLIC_KEY };
+    }
+
+    return { status: true, public: FUNDING_PUBLIC_KEY };
+  } catch (error) {
+    console.error("Couldn't load Stellar account: ", error);
+    return { status: false, public: FUNDING_PUBLIC_KEY };
+  }
+}
+
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, isAccountFunded: sendStatusWithPk};

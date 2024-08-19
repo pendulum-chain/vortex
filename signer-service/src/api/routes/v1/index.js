@@ -4,15 +4,12 @@ const pendulumRoutes = require('./pendulum.route');
 const storageRoutes = require('./storage.route');
 
 const router = express.Router({ mergeParams: true });
-const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../controllers/stellar.controller');
-const { sendStatusWithPk: sendPendulumStatusWithPk} = require('../../controllers/pendulum.controller');
+const { isAccountFunded: sendStellarStatusWithPk } = require('../../services/stellar.service');
+const { sendStatusWithPk: sendPendulumStatusWithPk} = require('../../services/pendulum.service');
 
-function sendStatusWithPk(req, res, next) {
-  const stellar = sendStellarStatusWithPk();
-  const pendulum = sendPendulumStatusWithPk();
-
-  console.log(stellar);
-  console.log(pendulum);
+async function sendStatusWithPk(req, res, next) {
+  const stellar = await sendStellarStatusWithPk();
+  const pendulum = await sendPendulumStatusWithPk();
 
   res.json({
     stellar,
