@@ -35,7 +35,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
 
   // Fund Stellar ephemeral only after all other transactions are prepared
   await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
-  const stellarFundingAccountId = await fetchSigningServiceAccountId();
+  const stellarFundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
   const stellarEphemeralPublicKey = stellarEphemeralKeypair.publicKey();
   const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(

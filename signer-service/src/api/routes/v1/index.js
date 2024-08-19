@@ -4,8 +4,21 @@ const pendulumRoutes = require('./pendulum.route');
 const storageRoutes = require('./storage.route');
 
 const router = express.Router({ mergeParams: true });
-const { sendStatusWithPk } = require('../../controllers/stellar.controller');
+const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../controllers/stellar.controller');
+const { sendStatusWithPk: sendPendulumStatusWithPk} = require('../../controllers/pendulum.controller');
 
+function sendStatusWithPk(req, res, next) {
+  const stellar = sendStellarStatusWithPk();
+  const pendulum = sendPendulumStatusWithPk();
+
+  console.log(stellar);
+  console.log(pendulum);
+
+  res.json({
+    stellar,
+    pendulum
+  });
+}
 /**
  * GET v1/status
  */

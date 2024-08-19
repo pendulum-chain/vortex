@@ -5,10 +5,11 @@ import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/token
 import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { waitForEvmTransaction } from '../evmTransactions';
+import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import axios from 'axios';
+import { fetchSigningServiceAccountId } from '../signingService';
 
-// TODO: replace
-const SEED_PHRASE = 'hood protect select grace number hurt lottery property stomach grit bamboo field';
+const FUNDING_AMOUNT_UNITS = '0.1';
 
 export async function pendulumFundEphemeral(
   state: OfframpingState,
@@ -22,28 +23,56 @@ export async function pendulumFundEphemeral(
 
   await waitForEvmTransaction(squidRouterSwapHash, wagmiConfig);
 
-  try {
+  const isAlreadyFunded = await isEphemeralFunded(state);
+
+  if (!isAlreadyFunded) {
     const pendulumApiComponents = await getApiManagerInstance();
     const apiData = pendulumApiComponents.apiData!;
+
+    
     const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
     const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
     const response = await axios.post('/api/v1/fundEphemeral',{ ephemeralAddress: ephemeralKeypair.address });
-
-    if (response.data.status === 'success') {
-      await waitForInputTokenToArrive(state);
-
-      return {
-        ...state,
-        phase: 'nablaApprove',
-      };
-    } else {
-      throw new Error('Funding timed out or failed');
+  
+    if (response.data.status !== 'success') {
+      return { ...state, phase: 'failure' };
     }
-  } catch (error) {
-    console.error('Error funding ephemeral account:', error);
+
+    await waitForPendulumEphemeralFunding(state);
   }
 
-  return { ...state, phase: 'failure' };
+  await waitForInputTokenToArrive(state);
+
+  return {
+    ...state,
+    phase: 'nablaApprove',
+  };
+}
+
+async function isEphemeralFunded(state: OfframpingState) {
+  const { pendulumEphemeralSeed } = state;
+  const pendulumApiComponents = await getApiManagerInstance();
+  const apiData = pendulumApiComponents.apiData!;
+
+  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
+  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
+
+  const { data: balance } = await apiData.api.query.system.account(ephemeralKeypair.address);
+
+  // check if balance is higher than minimum required, then we consider the account ready
+  return Big(balance.free.toString()).gte(fundingAmountRaw);
+}
+
+async function waitForPendulumEphemeralFunding(state: OfframpingState) {
+  while (true) {
+    const isFunded = await isEphemeralFunded(state);
+    if (isFunded) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 }
 
 async function waitForInputTokenToArrive(state: OfframpingState) {
@@ -83,7 +112,8 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
 
     const keyring = new Keyring({ type: 'sr25519', ss58Format });
     const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-    const fundingAccountAddress = keyring.addFromUri(SEED_PHRASE).address;
+
+    const fundingAccountAddress = (await fetchSigningServiceAccountId()).pendulum.public;
 
     // probably will never be exactly '0', but to be safe
     // TODO: if the value is too small, do we really want to transfer token dust and spend fees?
