@@ -155,4 +155,4 @@ async function sendStatusWithPk() {
   }
 }
 
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, isAccountFunded: sendStatusWithPk};
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk};
