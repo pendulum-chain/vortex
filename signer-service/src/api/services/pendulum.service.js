@@ -1,11 +1,10 @@
 const { Keyring } = require('@polkadot/api');
+const { ApiPromise, WsProvider } = require("@polkadot/api");
 const Big = require('big.js');
-const { getApiManagerInstance } = require('../../config/polkadotApi');
-const { FUNDING_AMOUNT_UNITS } = require('../../constants/constants');
+const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS } = require('../../constants/constants');
 require('dotenv').config();
 
 const pendulumFundingSeed = process.env.PENDULUM_FUNDING_SEED;
-const TIMEOUT_MINUTES = 10;
 
 function multiplyByPowerOfTen(bigDecimal, power) {
     const newBigDecimal = new Big(bigDecimal);
@@ -15,45 +14,45 @@ function multiplyByPowerOfTen(bigDecimal, power) {
     return newBigDecimal;
 }
 
-async function isEphemeralFunded(ephemeralAddress) {
-  const pendulumApiComponents = await getApiManagerInstance();
-  const apiData = pendulumApiComponents.apiData;
+async function createPolkadotApi() {
+    const wsProvider = new WsProvider(PENDULUM_WSS);
+    const api = await ApiPromise.create({
+    provider: wsProvider,
+    });
+    await api.isReady;
+    
+    const chainProperties = api.registry.getChainProperties();
+    const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
+    const decimals = Number(chainProperties?.get('tokenDecimals')?.toHuman()[0]) ?? 12;
 
-  const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
-  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
-
-  const { data: balance } = await apiData.api.query.system.account(ephemeralAddress);
-  return Big(balance.free.toString()).gte(fundingAmountRaw);
+    return { api, decimals, ss58Format };
 }
 
-exports.fundEphemeralAccount = async (ephemeralAddress) => {
-  const isAlreadyFunded = await isEphemeralFunded();
-
-  if (!isAlreadyFunded) {
-    const pendulumApiComponents = await getApiManagerInstance();
-    const apiData = pendulumApiComponents.apiData;
-
-    const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+function getFundingData() {
+    const keyring = new Keyring({ type: 'sr25519', ss58Format: ss58Format });
     const fundingAccountKeypair = keyring.addFromUri(pendulumFundingSeed);
-
     const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
     const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
 
+    return { fundingAccountKeypair, fundingAmountRaw };
+}
+
+exports.fundEphemeralAccount = async (ephemeralAddress) => {
+    const apiData = await createPolkadotApi();
+    const fundingData = getFundingData();
+
     await apiData.api.tx.balances
-      .transfer(ephemeralAddress, fundingAmountRaw)
-      .signAndSend(fundingAccountKeypair);
+        .transfer(ephemeralAddress, fundingData.fundingAmountRaw)
+        .signAndSend(fundingData.fundingAccountKeypair);
+}
 
-    const startTime = Date.now();
-    const timeout = TIMEOUT_MINUTES * 60 * 1000;
+exports.sendStatusWithPk = async (req, res, next) => {
+    const apiData = await createPolkadotApi();
+    const fundingData = getFundingData();
+    const { data: balance } = await apiData.api.query.system.account(fundingData.fundingAccountKeypair.address);
 
-    while (Date.now() - startTime < timeout) {
-      if (await isEphemeralFunded(ephemeralAddress)) {
-        return true;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (Big(balance.free.toString()).gte(fundingData.fundingAmountRaw)) {
+        return { status: true, public: fundingData.fundingAccountKeypair.address };
     }
-    return false;
-  }
-
-  return true;
+    return { status: false, public: fundingData.fundingAccountKeypair.address };
 }
