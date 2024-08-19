@@ -1,13 +1,4 @@
-const {
-  Horizon,
-  Keypair,
-  TransactionBuilder,
-  Operation,
-  Networks,
-  Asset,
-  Memo,
-  Account,
-} = require('stellar-sdk');
+const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
 const { HORIZON_URL, BASE_FEE } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
@@ -155,4 +146,4 @@ async function sendStatusWithPk() {
   }
 }
 
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk};
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };
