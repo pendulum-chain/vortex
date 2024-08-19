@@ -3,7 +3,7 @@ require('dotenv').config();
 const { Keypair } = require('stellar-sdk');
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
 
-const { buildCreationStellarTx, buildPaymentAndMergeTx, isAccountFunded } = require('../services/stellar.service');
+const { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk } = require('../services/stellar.service');
 
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();

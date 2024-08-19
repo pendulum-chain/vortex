@@ -1,5 +1,4 @@
-const { fundEphemeralAccount, sendStatusWithPk: isAccountFunded } = require('../services/pendulum.service');
-const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS } = require('../../constants/constants');
+const { fundEphemeralAccount, sendStatusWithPk } = require('../services/pendulum.service');
 
 exports.fundEphemeralAccountController = async (req, res) => {
     const { ephemeralAddress } = req.body;
