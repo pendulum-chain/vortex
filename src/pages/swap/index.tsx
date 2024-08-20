@@ -226,7 +226,7 @@ export const SwapPage = () => {
     const showMainScreenAnyway =
       offrampingPhase === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingPhase);
     if (!showMainScreenAnyway) {
-      return <ProgressPage setOfframpingPhase={setOfframpingPhase} />;
+      return <ProgressPage setOfframpingPhase={setOfframpingPhase} offrampingPhase={offrampingPhase} />;
     }
   }
 
