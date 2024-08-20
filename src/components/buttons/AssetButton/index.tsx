@@ -1,13 +1,12 @@
-import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
-import { useGetIcon } from '../../../hooks/useGetIcon';
+import { AssetIconType, useGetIcon } from '../../../hooks/useGetIcon';
 
 interface AssetButtonProps {
-  tokenType?: InputTokenType | OutputTokenType | 'eur';
-  tokenSymbol?: string;
+  assetIcon: AssetIconType;
+  tokenSymbol: string;
   onClick: () => void;
 }
-export function AssetButton({ tokenType, tokenSymbol, onClick }: AssetButtonProps) {
-  const icon = useGetIcon(tokenType);
+export function AssetButton({ assetIcon, tokenSymbol, onClick }: AssetButtonProps) {
+  const icon = useGetIcon(assetIcon);
 
   return (
     <button
@@ -16,9 +15,9 @@ export function AssetButton({ tokenType, tokenSymbol, onClick }: AssetButtonProp
       type="button"
     >
       <span className="h-full p-px mr-1 rounded-full">
-        {tokenType && <img src={icon} alt={tokenType} className="w-auto h-full" />}
+        <img src={icon} alt={assetIcon} className="w-auto h-full" />
       </span>
-      <strong className="font-bold text-black">{tokenSymbol || 'Select'}</strong>
+      <strong className="font-bold text-black">{tokenSymbol}</strong>
     </button>
   );
 }

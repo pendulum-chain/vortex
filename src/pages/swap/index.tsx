@@ -26,8 +26,6 @@ import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
 
-const SHOW_RECEIVED_CURRENCY_IN_FIAT = true;
-
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
     <ArrowDownIcon className="text-blue-700 w-7" />
@@ -136,40 +134,27 @@ export const SwapPage = () => {
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
-        additionalText="IBAN"
-        tokenType={SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken?.fiat?.symbol : to}
-        tokenSymbol={SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken?.fiat?.string : toToken?.stellarAsset.code.string}
+        assetIcon={toToken.fiat.assetIcon}
+        tokenSymbol={toToken.fiat.symbol}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
         readOnly={true}
       />
     ),
-    [
-      toToken?.fiat?.symbol,
-      toToken?.fiat?.string,
-      toToken?.stellarAsset.code.string,
-      to,
-      form,
-      isQuoteSubmitted,
-      tokenOutData.isLoading,
-      setModalType,
-    ],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, to, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
     () => (
-      <>
-        <AssetNumericInput
-          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-          tokenType={from}
-          tokenSymbol={fromToken?.assetSymbol}
-          onClick={() => setModalType('from')}
-        />
-        <UserBalance token={fromToken} />
-      </>
+      <AssetNumericInput
+        registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+        tokenSymbol={fromToken.assetSymbol}
+        assetIcon={fromToken.polygonAssetIcon}
+        onClick={() => setModalType('from')}
+      />
     ),
-    [form, from, fromToken, setModalType],
+    [form, fromToken.polygonAssetIcon, fromToken.polygonAssetIcon, setModalType],
   );
 
   function getCurrentErrorMessage() {
@@ -184,21 +169,21 @@ export const SwapPage = () => {
 
     const amountOut = tokenOutData.data?.amountOut;
 
-    if (amountOut !== undefined && toToken !== undefined) {
+    if (amountOut !== undefined) {
       const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
       const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
 
       if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
         const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
         return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken.fiat?.string : toToken.stellarAsset.code.string
+          toToken.fiat.symbol
         }.`;
       }
 
       if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
         const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-          SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken.fiat?.string : toToken.stellarAsset.code.string
+          toToken.fiat.symbol
         }.`;
       }
     }
@@ -211,12 +196,12 @@ export const SwapPage = () => {
       ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
-          fiat: undefined,
+          assetIcon: value.polygonAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as OutputTokenType,
-          assetSymbol: value.stellarAsset.code.string,
-          fiat: SHOW_RECEIVED_CURRENCY_IN_FIAT ? value.fiat : undefined,
+          assetSymbol: value.fiat.symbol,
+          assetIcon: value.fiat.assetIcon,
         }));
 
   const modals = (
@@ -257,13 +242,13 @@ export const SwapPage = () => {
           {...{
             tokenOutData,
             fromToken,
-            toTokenSymbol: SHOW_RECEIVED_CURRENCY_IN_FIAT ? toToken?.fiat?.string : toToken?.stellarAsset.code.string,
+            toTokenSymbol: toToken.fiat.symbol,
           }}
         />
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
-          toTokenSymbol={toToken?.fiat?.string || toToken?.stellarAsset.code.string}
+          toTokenSymbol={toToken.fiat.symbol}
         />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />

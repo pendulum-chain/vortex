@@ -4,6 +4,7 @@ import { Fiat, InputTokenType, OutputTokenType } from '../../constants/tokenConf
 import { Dialog } from '../Dialog';
 import { Skeleton } from '../Skeleton';
 import { PoolListItem } from './PoolListItem';
+import { AssetIconType } from '../../hooks/useGetIcon';
 
 interface PoolSelectorModalProps<T extends InputTokenType | OutputTokenType> extends PoolListProps<T> {
   isLoading?: boolean;
@@ -12,9 +13,9 @@ interface PoolSelectorModalProps<T extends InputTokenType | OutputTokenType> ext
 }
 
 interface PoolListProps<T extends InputTokenType | OutputTokenType> {
-  definitions: { assetSymbol: string; type: T; fiat?: Fiat }[];
+  definitions: { assetSymbol: string; type: T; assetIcon: AssetIconType }[];
   onSelect: (tokenType: InputTokenType | OutputTokenType) => void;
-  selected: InputTokenType | OutputTokenType | undefined;
+  selected: InputTokenType | OutputTokenType;
 }
 
 export function PoolSelectorModal<T extends InputTokenType | OutputTokenType>({
@@ -45,14 +46,14 @@ function PoolList<T extends InputTokenType | OutputTokenType>({ onSelect, defini
         placeholder="Find by name or address"
       />
       <div className="flex flex-col gap-1">
-        {definitions.map(({ fiat, assetSymbol, type }) => (
+        {definitions.map(({ assetIcon, assetSymbol, type }) => (
           <PoolListItem
             key={type}
-            isSelected={selected === assetSymbol}
+            isSelected={selected === type}
             onSelect={onSelect}
             tokenType={type}
-            fiat={fiat}
             tokenSymbol={assetSymbol}
+            assetIcon={assetIcon}
           />
         ))}
       </div>

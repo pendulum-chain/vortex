@@ -1,3 +1,5 @@
+import { AssetIconType } from '../hooks/useGetIcon';
+
 export interface InputTokenDetails {
   assetSymbol: string;
   erc20AddressSourceChain: `0x${string}`;
@@ -6,20 +8,21 @@ export interface InputTokenDetails {
     pendulumCurrencyId: { XCM: number };
     pendulumAssetSymbol: string;
   };
+  polygonAssetIcon: AssetIconType;
   decimals: number;
 }
 
 export type InputTokenType = 'usdc' | 'usdce';
 
 export interface Fiat {
-  symbol: 'eur';
-  string: 'EUR';
+  assetIcon: AssetIconType;
+  symbol: string;
 }
 
 export interface OutputTokenDetails {
   tomlFileUrl: string;
   decimals: number;
-  fiat?: Fiat;
+  fiat: Fiat;
   stellarAsset: {
     code: {
       hex: string;
@@ -44,6 +47,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
+    polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
   },
   usdce: {
@@ -54,6 +58,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
+    polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
   },
 };
@@ -64,8 +69,8 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
     decimals: 12,
     fiat: {
-      symbol: 'eur',
-      string: 'EUR',
+      assetIcon: 'eur',
+      symbol: 'EUR',
     },
     stellarAsset: {
       code: {

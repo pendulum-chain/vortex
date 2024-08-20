@@ -23,7 +23,7 @@ function calculateFeesUSD(fromAmount: string): string {
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: string;
-  toTokenSymbol?: string;
+  toTokenSymbol: string;
 }
 
 export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toTokenSymbol }) => {
