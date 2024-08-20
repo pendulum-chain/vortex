@@ -21,6 +21,7 @@ import {
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { set } from 'react-hook-form';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -149,6 +150,8 @@ export const useMainProcess = () => {
     })();
   }, [offrampingPhase, wagmiConfig]);
 
+  const resetSep24Url = () => setSep24Url(undefined);
+
   return {
     setOfframpingPhase,
     handleOnSubmit,
@@ -157,6 +160,7 @@ export const useMainProcess = () => {
     offrampingStarted,
     sep24Id,
     finishOfframping,
+    resetSep24Url,
     signingPhase,
   };
 };

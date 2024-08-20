@@ -54,6 +54,7 @@ export const SwapPage = () => {
     sep24Id,
     offrampingPhase,
     setOfframpingPhase,
+    resetSep24Url,
     signingPhase,
   } = useMainProcess();
 
@@ -238,18 +239,15 @@ export const SwapPage = () => {
             target="_blank"
             rel="noreferrer"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+            onClick={resetSep24Url}
           >
             Start Offramping
           </a>
         ) : (
           <SwapSubmitButton
-            text="Confirm"
-            disabled={
-              offrampingPhase !== undefined ||
-              offrampingStarted ||
-              Boolean(getCurrentErrorMessage()) ||
-              !inputAmountIsStable
-            }
+            text={offrampingStarted ? 'Offramping in Progress' : 'Confirm'}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+            pending={offrampingStarted || offrampingPhase !== undefined}
           />
         )}
       </form>
