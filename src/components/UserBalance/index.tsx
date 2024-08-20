@@ -1,18 +1,23 @@
 import { InputTokenDetails } from '../../constants/tokenConfig';
-import { useUSDCBalance } from '../../hooks/useUSDCBalance';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 
 interface UserBalanceProps {
-  token?: InputTokenDetails;
+  token: InputTokenDetails;
 }
 
 export const UserBalance = ({ token }: UserBalanceProps) => {
-  const usdBalance = useUSDCBalance({ fromToken: token });
-
-  if (!token) return <></>;
+  const inputTokenBalance = useInputTokenBalance({ fromToken: token });
 
   return (
-    <p className="mb-2">
-      Available: <span className="bold">{usdBalance}</span> {token.assetSymbol}
+    <p className="mt-1 text-right">
+      Available:{' '}
+      {inputTokenBalance === undefined ? (
+        'N/A'
+      ) : (
+        <>
+          <span className="bold">{inputTokenBalance}</span> {token.assetSymbol}
+        </>
+      )}
     </p>
   );
 };

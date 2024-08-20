@@ -23,7 +23,7 @@ import { useMainProcess } from '../../hooks/useMainProcess';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
-import { useUSDCBalance } from '../../hooks/useUSDCBalance';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
 
 const Arrow = () => (
@@ -72,10 +72,10 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
-  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
+  const fromToken = INPUT_TOKEN_CONFIG[from];
+  const toToken = OUTPUT_TOKEN_CONFIG[to];
 
-  const userUSDCBalance = useUSDCBalance({ fromToken });
+  const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
@@ -149,13 +149,13 @@ export const SwapPage = () => {
   const WidthrawNumericInput = useMemo(
     () => (
       <>
-        <UserBalance token={fromToken} />
         <AssetNumericInput
           registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
           tokenType={from}
           tokenSymbol={fromToken?.assetSymbol}
           onClick={() => setModalType('from')}
         />
+        <UserBalance token={fromToken} />
       </>
     ),
     [form, from, fromToken, setModalType],
@@ -165,9 +165,9 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    if (typeof userUSDCBalance === 'string') {
-      if (Big(userUSDCBalance).lt(fromAmount ?? 0)) {
-        return `Insufficient balance. Your balance is ${userUSDCBalance} ${fromToken?.assetSymbol}.`;
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
 
