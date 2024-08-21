@@ -142,20 +142,24 @@ export const SwapPage = () => {
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
         readOnly={true}
       />
+      
     ),
     [toToken.fiat.symbol, toToken.fiat.assetIcon, to, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
     () => (
-      <AssetNumericInput
-        registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-        tokenSymbol={fromToken.assetSymbol}
-        assetIcon={fromToken.polygonAssetIcon}
-        onClick={() => setModalType('from')}
-      />
+      <>
+        <AssetNumericInput
+          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+          tokenType={from}
+          tokenSymbol={fromToken?.assetSymbol}
+          onClick={() => setModalType('from')}
+        />
+        <UserBalance token={fromToken} />
+      </>
     ),
-    [form, fromToken.polygonAssetIcon, fromToken.polygonAssetIcon, setModalType],
+    [form, fromToken.assetSymbol, fromToken.polygonAssetIcon, fromToken.polygonAssetIcon, setModalType],
   );
 
   function getCurrentErrorMessage() {
