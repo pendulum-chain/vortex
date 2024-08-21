@@ -21,7 +21,7 @@
       "react": ["./node_modules/preact/compat/"],
       "react-dom": ["./node_modules/preact/compat/"]
     },
-    "types": ["node", "jest", "@testing-library/jest-dom"]
+    "types": ["node", "vitest/globals"]
   },
   "include": [
     "src",

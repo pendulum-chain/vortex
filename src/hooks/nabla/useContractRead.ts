@@ -12,9 +12,9 @@ import { ApiPromise } from '../../services/polkadot/polkadotApi';
 const isDevelopment = config.isDev;
 const ALICE = '6mfqoTMHrMeVMyKwjqomUjVomPMJ4AjdCm1VReFtk7Be8wqr';
 
-export type MessageCallErrorResult = ReadMessageResult & { type: 'error' | 'panic' | 'reverted' };
+type MessageCallErrorResult = ReadMessageResult & { type: 'error' | 'panic' | 'reverted' };
 
-export type UseContractReadProps<ReturnType> = {
+type UseContractReadProps<ReturnType> = {
   abi: Dict;
   address: string | undefined;
   method: string;
@@ -22,15 +22,15 @@ export type UseContractReadProps<ReturnType> = {
   noWalletAddressRequired?: boolean;
   parseSuccessOutput: (successResult: any) => ReturnType;
   parseError: string | ((errorResult: MessageCallErrorResult) => string);
-  queryOptions: QueryOptions<ReturnType | undefined, string>;
+  queryOptions: QueryOptions<ReturnType | null, string>;
 };
 
-export type UseContractReadResult<ReturnType> = UseQueryResult<ReturnType | undefined, string>;
+type UseContractReadResult<ReturnType> = UseQueryResult<ReturnType | null, string>;
 
 export function useContractRead<ReturnType>(
   key: QueryKey,
-  api: ApiPromise,
-  walletAddress: string,
+  api: ApiPromise | null,
+  walletAddress: string | undefined,
   {
     abi,
     address,
@@ -53,7 +53,7 @@ export function useContractRead<ReturnType>(
 
   const queryKey = enabled ? key : emptyCacheKey;
   const queryFn = async () => {
-    if (!enabled) return;
+    if (!enabled) return null;
     const limits = defaultReadLimits;
 
     if (isDevelopment) {
@@ -86,7 +86,7 @@ export function useContractRead<ReturnType>(
     return parseSuccessOutput(response.value);
   };
 
-  const query = useQuery<ReturnType | undefined, string>({ ...queryOptions, queryKey, queryFn, enabled, retry: false });
+  const query = useQuery<ReturnType | null, string>({ ...queryOptions, queryKey, queryFn, enabled, retry: false });
 
   return query;
 }
