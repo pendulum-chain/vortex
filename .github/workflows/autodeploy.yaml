@@ -3,7 +3,7 @@ run-name: Gitlab Pipeline Executor
 on:
   push:
     branches:
-      - polygon-prototype-staging
+      - polygon-prototype
 jobs:
   Execute-Gitlab-Pipeline:
     runs-on: ubuntu-latest
@@ -13,4 +13,4 @@ jobs:
       - name: Triggers Gitlab Pipeline
         run: |
           ls ${{ github.workspace }}
-          curl -X POST -F token=${{ secrets.GITLAB_TRIGGER }} -F "ref=development" -F "variables[PRODUCTION]=N" -F "variables[STAGING]=N" -F "variables[PRODPOL]=N" -F "variables[STAGPOL]=Y" https://gitlab.com/api/v4/projects/${{ secrets.PROJECT_ID }}/trigger/pipeline
+          curl -X POST -F token=${{ secrets.GITLAB_TRIGGER }} -F "ref=development" -F "variables[PRODUCTION]=N" -F "variables[STAGING]=N" -F "variables[PRODPOL]=Y" -F "variables[STAGPOL]=N" https://gitlab.com/api/v4/projects/${{ secrets.PROJECT_ID }}/trigger/pipeline
