@@ -23,11 +23,8 @@ exports.fundEphemeralAccountController = async (req, res) => {
 exports.sendStatusWithPk = async (req, res, next) => {
   try {
     const result = await sendStatusWithPk();
-    if (!result.status) {
-      return res.json({ status: false, public: result.public });
-    }
 
-    return res.json({ status: true, public: result.public });
+    return res.json(result);
   } catch (error) {
     console.error('Server error:', error);
     return res.status(500).json({ error: 'Server error', details: error.message });

@@ -38,10 +38,17 @@ function getFundingData(ss58Format, decimals) {
 }
 
 exports.fundEphemeralAccount = async (ephemeralAddress) => {
-  const apiData = await createPolkadotApi();
-  const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
+  try {
+    const apiData = await createPolkadotApi();
+    const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
 
-  await apiData.api.tx.balances.transfer(ephemeralAddress, fundingAmountRaw).signAndSend(fundingAccountKeypair);
+    await apiData.api.tx.balances.transfer(ephemeralAddress, fundingAmountRaw).signAndSend(fundingAccountKeypair);
+
+    return true;
+  } catch (error) {
+    console.error('Error during funding:', error);
+    return false;
+  }
 };
 
 exports.sendStatusWithPk = async () => {
