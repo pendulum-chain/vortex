@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
+import { useAccount } from 'wagmi';
+import Big from 'big.js';
 
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
@@ -17,11 +18,13 @@ import { config } from '../../config';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { BaseLayout } from '../../layouts';
 
-import { useMainProcess } from '../../hooks/useMainProcess';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
+import { useMainProcess } from '../../hooks/useMainProcess';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { UserBalance } from '../../components/UserBalance';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -32,8 +35,9 @@ const Arrow = () => (
 export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
-
   const [api, setApi] = useState<ApiPromise | null>(null);
+
+  const { isDisconnected } = useAccount();
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -68,8 +72,10 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
-  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
+  const fromToken = INPUT_TOKEN_CONFIG[from];
+  const toToken = OUTPUT_TOKEN_CONFIG[to];
+
+  const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
@@ -142,17 +148,29 @@ export const SwapPage = () => {
 
   const WidthrawNumericInput = useMemo(
     () => (
-      <AssetNumericInput
-        registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-        tokenType={from}
-        tokenSymbol={fromToken?.assetSymbol}
-        onClick={() => setModalType('from')}
-      />
+      <>
+        <AssetNumericInput
+          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+          tokenType={from}
+          tokenSymbol={fromToken?.assetSymbol}
+          onClick={() => setModalType('from')}
+        />
+        <UserBalance token={fromToken} />
+      </>
     ),
-    [form, from, fromToken?.assetSymbol, setModalType],
+    [form, from, fromToken, setModalType],
   );
 
   function getCurrentErrorMessage() {
+    // Do not show any error if the user is disconnected
+    if (isDisconnected) return;
+
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+      }
+    }
+
     const amountOut = tokenOutData.data?.amountOut;
 
     if (amountOut !== undefined && toToken !== undefined) {

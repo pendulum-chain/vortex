@@ -15,7 +15,7 @@ export const ChainName = () => (
 
       return (
         <button type="button" className="text-sm text-blue-700" onClick={connected ? openChainModal : openConnectModal}>
-          {chain?.name || 'Select chain'}
+          {chain?.name || ''}
         </button>
       );
     }}

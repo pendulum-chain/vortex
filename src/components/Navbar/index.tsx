@@ -7,9 +7,9 @@ import { useState } from 'preact/hooks';
 import { FC } from 'preact/compat';
 
 const links = [
-  { title: 'About', href: '/about' },
-  { title: 'Ecosystem', href: '/ecosystem' },
-  { title: 'Help', href: '/help' },
+  { title: 'Offramp', href: '/' },
+  { title: 'How it works', href: 'https://www.vortexfinance.co/#lowest-code' },
+  { title: 'Community', href: 'https://www.vortexfinance.co/#call-to-action' },
 ];
 
 interface MobileMenuProps {
@@ -79,6 +79,8 @@ const Links = () => (
       <li key={link.title} className="mb-9 md:mb-0">
         <a
           href={link.href}
+          target={link.href.startsWith('https') ? '_blank' : ''}
+          rel={link.href.startsWith('https') ? 'noreferrer' : ''}
           className="px-4 text-xl font-thin text-white md:text-md lg:px-7 hover:text-amber-500 hover:underline"
         >
           {link.title}
@@ -94,7 +96,9 @@ export const Navbar = () => {
   return (
     <header className="flex items-center justify-between px-4 py-4 bg-blue-950 md:py-7 md:px-10">
       <div className="flex">
-        <img src={whiteLogo} alt="Vortex Logo" className="mr-6 max-w-26 max-h-6 md:max-w-52 md:max-h-12" />
+        <a href="https://www.vortexfinance.co/" target="_blank" rel="noreferrer">
+          <img src={whiteLogo} alt="Vortex Logo" className="mr-6 max-w-26 max-h-6 md:max-w-52 md:max-h-12" />
+        </a>
         <nav className="hidden m-auto md:block">
           <Links />
         </nav>
