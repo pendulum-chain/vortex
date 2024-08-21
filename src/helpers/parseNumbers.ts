@@ -1,5 +1,4 @@
 import { u128 } from '@polkadot/types-codec';
-import Big from 'big.js';
 import BigNumber from 'big.js';
 
 // These are the decimals used for the native currency on the Amplitude network
@@ -35,6 +34,11 @@ export const decimalToCustom = (value: BigNumber | number | string, decimals: nu
   return bigIntValue.mul(multiplier);
 };
 
+// Same as above, but handle a string decimal
+export const stringDecimalToNative = (value: string) => {
+  return decimalToNative(stringDecimalToBN(value, ChainDecimals));
+};
+
 export const decimalToStellarNative = (value: BigNumber | number | string) => {
   let bigIntValue;
   try {
@@ -44,6 +48,37 @@ export const decimalToStellarNative = (value: BigNumber | number | string) => {
   }
   const multiplier = new BigNumber(10).pow(StellarDecimals);
   return bigIntValue.mul(multiplier);
+};
+
+// Same as above, but handle a string decimal
+export const stringDecimalToStellarNative = (value: string) => {
+  return stringDecimalToBN(value, StellarDecimals);
+};
+
+// Convert a string decimal to a BigNumber
+export const stringDecimalToBN = (value: string, chainDecimals: number) => {
+  let [whole, decimal] = value.split('.');
+  decimal = decimal || '0';
+
+  //TODO this may not be needed now that we go back to big.js
+  // pad the decimal part
+  while (decimal.length < chainDecimals) {
+    decimal += '0';
+  }
+
+  // truncate the decimal part to max chain length digits
+  // and concatenate the whole and decimal parts
+  decimal = decimal.substring(0, chainDecimals);
+  const fullIntegerValue = whole + decimal;
+
+  let bigIntValue;
+  try {
+    bigIntValue = new BigNumber(fullIntegerValue);
+  } catch (error) {
+    console.error('Error converting to BigNumber:', error);
+    bigIntValue = new BigNumber(0);
+  }
+  return bigIntValue;
 };
 
 export const fixedPointToDecimal = (value: BigNumber | number | string) => {
@@ -119,7 +154,3 @@ export const prettyNumbers = (number: number, lang?: string, opts?: Intl.NumberF
 export const roundNumber = (value: number | string = 0, round = 6) => {
   return +Number(value).toFixed(round);
 };
-
-export function roundDownToSignificantDecimals(big: BigNumber, decimals: number) {
-  return big.prec(Math.max(0, big.e + 1) + decimals, 0);
-}

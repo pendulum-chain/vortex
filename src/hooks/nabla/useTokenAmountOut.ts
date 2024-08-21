@@ -1,139 +1,155 @@
 import BigNumber from 'big.js';
-import Big from 'big.js';
-import { UseQueryResult } from '@tanstack/react-query';
-import { UseFormReturn } from 'react-hook-form';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
-import {
-  ContractBalance,
-  clampedDifference,
-  multiplyByPowerOfTen,
-  parseContractBalanceResponse,
-  stringifyBigWithSignificantDecimals,
-} from '../../helpers/contracts';
+import { ContractBalance, parseContractBalanceResponse } from '../../helpers/contracts';
+import { decimalToCustom, toBigNumber } from '../../helpers/parseNumbers';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
+import { UseQueryResult } from '@tanstack/react-query';
+import { TokenDetails } from '../../constants/tokenConfig';
 import { useDebouncedValue } from '../useDebouncedValue';
+import { TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { WalletAccount } from '@talismn/connect-wallets';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
+import { FieldValues, UseFormReturn } from 'react-hook-form';
 import { useEffect } from 'preact/hooks';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
-import { SwapFormValues } from '../../components/Nabla/schema';
 
-type UseTokenOutAmountProps = {
+export type UseTokenOutAmountProps<FormFieldValues extends FieldValues> = {
   wantsSwap: boolean;
   api: ApiPromise | null;
-  fromAmountString: string;
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
+  walletAccount: WalletAccount | undefined;
+  fromAmount: number | null;
+  fromToken: string;
+  toToken: string;
   maximumFromAmount: BigNumber | undefined;
-  xcmFees: string;
-  slippageBasisPoints: number;
-  axelarSlippageBasisPoints: number;
-  form: UseFormReturn<SwapFormValues>;
+  slippage: number;
+  form: UseFormReturn<FormFieldValues>;
 };
 
 export interface UseTokenOutAmountResult {
   isLoading: boolean;
   enabled: boolean;
-  data: TokenOutData | undefined | null;
-  refetch?: UseQueryResult<TokenOutData | null, string>['refetch'];
+  data: TokenOutData | undefined;
+  error: string | null;
+  refetch?: UseQueryResult<TokenOutData | undefined, string>['refetch'];
 }
-
-interface TokenOutData {
+export interface TokenOutData {
   amountOut: ContractBalance;
   swapFee: ContractBalance;
   effectiveExchangeRate: string;
+  minAmountOut: string;
 }
 
-export function useTokenOutAmount({
+export function useTokenOutAmount<FormFieldValues extends FieldValues>({
   wantsSwap,
   api,
-  fromAmountString,
-  inputTokenType,
-  outputTokenType,
+  walletAccount,
+  fromAmount,
+  fromToken,
+  toToken,
   maximumFromAmount,
-  xcmFees,
-  slippageBasisPoints,
-  axelarSlippageBasisPoints,
+  slippage,
   form,
-}: UseTokenOutAmountProps) {
+}: UseTokenOutAmountProps<FormFieldValues>) {
   const { setError, clearErrors } = form;
 
-  const debouncedFromAmountString = useDebouncedValue(fromAmountString, 800);
-  let debouncedAmountBigDecimal: Big | undefined;
-  try {
-    debouncedAmountBigDecimal = new Big(debouncedFromAmountString);
-  } catch {
-    // no action required
+  // Handle different errors either from form or parameters needed for the swap
+  const inputHasErrors = form.formState.errors.fromAmount?.message !== undefined;
+  if (inputHasErrors) {
+    console.log('errors', form.formState.errors.fromAmount?.message);
+    return {
+      isLoading: false,
+      enabled: false,
+      data: undefined,
+      error: form.formState.errors.fromAmount?.message ?? 'The specified swap cannot be performed at the moment',
+      refetch: undefined,
+    };
   }
 
-  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  if (!walletAccount) {
+    return { isLoading: false, enabled: false, data: undefined, error: 'Wallet not connected', refetch: undefined };
+  }
 
-  const fromTokenDecimals = inputToken?.decimals;
+  if (fromToken === '' || toToken === '' || fromAmount === null || api === null || !wantsSwap) {
+    return {
+      isLoading: false,
+      enabled: false,
+      data: undefined,
+      error: 'Required parameters are missing',
+      refetch: undefined,
+    };
+  }
 
-  const amountInRawOriginal =
-    fromTokenDecimals !== undefined && debouncedAmountBigDecimal !== undefined
-      ? multiplyByPowerOfTen(debouncedAmountBigDecimal, fromTokenDecimals).toFixed(0, 0)
-      : undefined;
+  const fromTokenDetails: TokenDetails = TOKEN_CONFIG[fromToken];
+  const toTokenDetails: TokenDetails = TOKEN_CONFIG[toToken];
 
-  const reducedAmountInRaw =
-    amountInRawOriginal !== undefined
-      ? (BigInt(amountInRawOriginal) * BigInt(10000 - axelarSlippageBasisPoints)) / 10000n
-      : undefined;
+  const debouncedFromAmount = useDebouncedValue(fromAmount, 800);
+  const debouncedAmountBigDecimal = decimalToCustom(debouncedFromAmount.toString(), fromTokenDetails.decimals);
 
-  const rawXcmFees = multiplyByPowerOfTen(BigNumber(xcmFees), inputToken?.decimals).toFixed(0, 0);
-  const amountIn =
-    reducedAmountInRaw !== undefined
-      ? clampedDifference(BigInt(reducedAmountInRaw), BigInt(rawXcmFees)).toString()
-      : undefined;
+  // Even though we check for errors, due to possible delay in value update we need to check that the value is not
+  // less than 1, or larger than e+20, since BigNumber.toString() will return scientific notation.
+  // this is no error, but temporary empty return until the value gets properly updated.
+  if (
+    debouncedAmountBigDecimal === undefined ||
+    debouncedAmountBigDecimal.lt(new BigNumber(1)) ||
+    debouncedAmountBigDecimal.e > 20
+  ) {
+    return { isLoading: false, enabled: false, data: undefined, error: '', refetch: undefined };
+  }
 
   const enabled =
-    api !== undefined &&
-    wantsSwap &&
-    inputToken !== undefined &&
-    outputToken !== undefined &&
+    fromToken !== undefined &&
+    toToken !== undefined &&
     debouncedAmountBigDecimal !== undefined &&
     debouncedAmountBigDecimal.gt(new BigNumber(0)) &&
     (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
 
-  const { isLoading, fetchStatus, data, error, refetch } = useContractRead<TokenOutData | null>(
-    [
-      cacheKeys.tokenOutAmount,
-      inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
-      outputToken.erc20WrapperAddress,
-      amountIn,
-    ],
+  const amountIn = debouncedAmountBigDecimal?.toString();
+
+  const { isLoading, fetchStatus, data, error, refetch } = useContractRead<TokenOutData | undefined>(
+    [cacheKeys.tokenOutAmount, fromTokenDetails.erc20Address, toTokenDetails.erc20Address, amountIn],
     api,
-    undefined, // Does not matter since noWalletAddressRequired is true
+    walletAccount.address,
     {
       abi: routerAbi,
       address: NABLA_ROUTER,
       method: 'getAmountOut',
-      args: [amountIn, [inputToken.axelarEquivalent.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
+      args: [amountIn, [fromTokenDetails.erc20Address, toTokenDetails.erc20Address]],
       noWalletAddressRequired: true,
       queryOptions: {
         ...activeOptions['30s'],
         enabled,
       },
       parseSuccessOutput: (data) => {
-        if (outputToken === undefined || inputToken === undefined || debouncedAmountBigDecimal === undefined) {
-          return null;
+        if (toToken === undefined || fromToken === undefined || debouncedAmountBigDecimal === undefined) {
+          return undefined;
+        }
+        const amountOut = parseContractBalanceResponse(toTokenDetails.decimals, data[0]);
+        const swapFee = parseContractBalanceResponse(toTokenDetails.decimals, data[1]);
+
+        //
+        const decimalDifference = fromTokenDetails.decimals - toTokenDetails.decimals;
+        let effectiveExchangeRate;
+        if (decimalDifference > 0) {
+          const decimalDiffCorrection = new BigNumber(10).pow(decimalDifference);
+          effectiveExchangeRate = amountOut.rawBalance
+            .div(debouncedAmountBigDecimal)
+            .mul(decimalDiffCorrection)
+            .toString();
+        } else {
+          const decimalDiffCorrection = new BigNumber(10).pow(-decimalDifference);
+          effectiveExchangeRate = amountOut.rawBalance
+            .div(debouncedAmountBigDecimal.mul(decimalDiffCorrection))
+            .toString();
         }
 
-        const bigIntResponse = data[0]?.toBigInt();
-        const reducedResponse = (bigIntResponse * BigInt(10000 - slippageBasisPoints)) / 10000n;
-
-        const amountOut = parseContractBalanceResponse(outputToken.decimals, reducedResponse);
-        const swapFee = parseContractBalanceResponse(outputToken.decimals, data[1]);
+        const minAmountOut = amountOut.approximateNumber * (1 - slippage / 100);
 
         return {
           amountOut,
-          effectiveExchangeRate: stringifyBigWithSignificantDecimals(
-            amountOut.preciseBigDecimal.div(debouncedAmountBigDecimal),
-            4,
-          ),
+          effectiveExchangeRate,
           swapFee,
+          minAmountOut: minAmountOut.toString(),
         };
       },
       parseError: (error) => {
@@ -141,12 +157,10 @@ export function useTokenOutAmount({
           case 'error':
             return 'Something went wrong';
           case 'panic':
-            return error.errorCode === 0x11
-              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
-              : 'Something went wrong';
+            return error.errorCode === 0x11 ? 'The input amount is too large' : 'Something went wrong';
           case 'reverted':
             return error.description === 'SwapPool: EXCEEDS_MAX_COVERAGE_RATIO'
-              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
+              ? 'The input amount is too large'
               : 'Something went wrong';
           default:
             return 'Something went wrong';
@@ -155,7 +169,7 @@ export function useTokenOutAmount({
     },
   );
 
-  const pending = (isLoading && fetchStatus !== 'idle') || debouncedFromAmountString !== fromAmountString;
+  const pending = (isLoading && fetchStatus !== 'idle') || debouncedFromAmount !== fromAmount;
   useEffect(() => {
     if (pending) return;
     if (error === null) {
@@ -165,8 +179,5 @@ export function useTokenOutAmount({
     }
   }, [error, pending, clearErrors, setError]);
 
-  const isInputStable = debouncedFromAmountString === fromAmountString;
-  const actualAmountInRaw = isInputStable && amountIn !== undefined ? amountIn : undefined;
-
-  return { isLoading: pending, enabled, data, refetch, error, actualAmountInRaw };
+  return { isLoading: pending, enabled, data, error, refetch };
 }

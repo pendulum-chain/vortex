@@ -1,21 +1,16 @@
-import { Horizon } from 'stellar-sdk';
+import { Horizon, Keypair } from 'stellar-sdk';
 import { HORIZON_URL } from '../../constants/constants';
-import Big from 'big.js';
 
-export const getStellarBalanceUnits = async (publicKey: string, assetCode: string): Promise<Big> => {
+export const checkStellarAccount = async (secret: string): Promise<boolean> => {
   try {
     const server = new Horizon.Server(HORIZON_URL);
-    const account = await server.loadAccount(publicKey);
-    let balanceUnits = '0';
-    account.balances.forEach((balance) => {
-      if (balance.asset_type === 'credit_alphanum4' && balance.asset_code === assetCode) {
-        balanceUnits = balance.balance;
-      }
-    });
+    const keypair = Keypair.fromSecret(secret);
 
-    return new Big(balanceUnits);
+    //loading the account should be enough check if the account exists
+    const account = await server.loadAccount(keypair.publicKey());
+    return true;
   } catch (error) {
-    console.log(error);
-    throw new Error('Error Reading Stellar Balance');
+    console.error('Stellar Account Error:', error);
+    return false;
   }
 };

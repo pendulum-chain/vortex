@@ -53,7 +53,7 @@ module.exports = {
       // Undefined colors will be chosen by daisyUI automatically.
       {
         pendulum: {
-          primary: '#0F4DC0',
+          primary: '#907EA0',
           'primary-content': '#fff',
           secondary: '#F4F5F6',
           'secondary-content': '#58667E',

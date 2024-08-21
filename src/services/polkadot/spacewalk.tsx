@@ -10,7 +10,6 @@ import { WalletAccount } from '@talismn/connect-wallets';
 import { getAddressForFormat } from '../../helpers/addressFormatter';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { SpacewalkPrimitivesCurrencyId } from '@pendulum-chain/types/interfaces';
-import { SubmittableExtrinsic } from '@polkadot/api/types';
 
 export function extractAssetFromWrapped(wrapped: SpacewalkPrimitivesCurrencyId) {
   if (!wrapped.isStellar) {
@@ -72,18 +71,15 @@ function prettyPrintAssetInfo(assetInfo: any) {
   return assetInfo.code;
 }
 
-export async function getVaultsForCurrency(api: ApiPromise, assetCodeHex: string, assetIssuerHex: string) {
+export async function getVaultsForCurrency(api: ApiPromise, currencySymbol: string) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([key, value]) => value.unwrap());
 
   const vaultsForCurrency = vaults.filter((vault) => {
-    // toString returns the hex string
-    // toHuman returns the hex string if the string has length < 4, otherwise the readable string
     return (
       vault.id.currencies.wrapped.isStellar &&
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
-      vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
-      vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex
+      vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toHuman() === currencySymbol
     );
   });
 
@@ -105,12 +101,7 @@ export class VaultService {
     this.apiComponents = apiComponents;
   }
 
-  async createRequestRedeemExtrinsic(
-    accountOrPair: WalletAccount | KeyringPair,
-    amountRaw: string,
-    stellarPkBytesBuffer: Buffer,
-    nonce = -1,
-  ) {
+  async requestRedeem(accountOrPair: WalletAccount | KeyringPair, amount: string, stellarPkBytesBuffer: Buffer) {
     const keyring = new Keyring({ type: 'sr25519' });
     keyring.setSS58Format(this.apiComponents!.ss58Format);
 
@@ -119,27 +110,24 @@ export class VaultService {
     const address = isWalletAccount(accountOrPair)
       ? accountOrPair.address
       : keyring.encodeAddress(accountOrPair.publicKey);
-    const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any, nonce } : { nonce };
+    const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any } : {};
+
+    const release = await this.apiComponents!.mutex.lock(address);
+    const nonce = await this.apiComponents!.api.rpc.system.accountNextIndex(address);
+    console.log(`Nonce for ${getAddressForFormat(address, this.apiComponents!.ss58Format)} is ${nonce.toString()}`);
 
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
 
-    return this.apiComponents!.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!).signAsync(
-      addressOrPair,
-      options,
-    );
-  }
-
-  async submitRedeem(
-    senderAddress: string,
-    extrinsic: SubmittableExtrinsic<'promise'>,
-  ): Promise<SpacewalkRedeemRequestEvent> {
-    return new Promise((resolve, reject) => {
-      extrinsic
-        .send((submissionResult: ISubmittableResult) => {
+    return new Promise<SpacewalkRedeemRequestEvent>((resolve, reject) =>
+      this.apiComponents!.api.tx.redeem.requestRedeem(amount, stellarPkBytes, this.vaultId!)
+        //Should we specify the nonce or is the wallet taking care of this?
+        .signAndSend(addressOrPair, options, (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
 
           if (status.isFinalized) {
-            console.log(`Requested redeem for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`);
+            console.log(
+              `Requested redeem of ${amount} for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`,
+            );
 
             // Try to find a 'system.ExtrinsicFailed' event
             const systemExtrinsicFailedEvent = events.find((record) => {
@@ -159,11 +147,11 @@ export class VaultService {
             const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
               .filter((event) => {
-                return event.redeemer === getAddressForFormat(senderAddress, this.apiComponents!.ss58Format);
+                return event.redeemer === getAddressForFormat(accountOrPair.address, this.apiComponents!.ss58Format);
               });
 
             if (event.length == 0) {
-              reject(new Error(`No redeem event found for account ${senderAddress}`));
+              reject(new Error(`No redeem event found for account ${accountOrPair.address}`));
             }
             //we should only find one event corresponding to the issue request
             if (event.length != 1) {
@@ -174,8 +162,9 @@ export class VaultService {
         })
         .catch((error) => {
           reject(new Error(`Failed to request redeem: ${error}`));
-        });
-    });
+        })
+        .finally(() => release()),
+    );
   }
 
   // We first check if dispatchError is of type "module",

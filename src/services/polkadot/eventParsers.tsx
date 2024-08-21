@@ -1,9 +1,6 @@
 import { stellarHexToPublic, hexToString } from './convert';
-import Big from 'big.js';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
-
-export type TokenTransferEvent = ReturnType<typeof parseTokenDepositEvent>;
 
 export function parseEventRedeemRequest(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
@@ -77,43 +74,4 @@ function extractStellarAssetInfo(data: any) {
   } else {
     throw new Error('Invalid Stellar type');
   }
-}
-
-export function parseTokenDepositEvent(event: any) {
-  const rawEventData = JSON.parse(event.event.data.toString());
-  const mappedData = {
-    currencyId: rawEventData[0],
-    to: rawEventData[1].toString() as string,
-    amountRaw: new Big(rawEventData[2].toString()) as Big,
-  };
-  return mappedData;
-}
-
-// Both functions used to compare betweem CurrencyId's
-// where {XCM: x} == {xcm: x}
-function normalizeObjectKeys(obj: any) {
-  return Object.keys(obj).reduce((acc: any, key) => {
-    acc[key.toLowerCase()] = obj[key];
-    return acc;
-  }, {});
-}
-
-export function compareObjects(obj1: any, obj2: any) {
-  const normalizedObj1 = normalizeObjectKeys(obj1);
-  const normalizedObj2 = normalizeObjectKeys(obj2);
-
-  const keys1 = Object.keys(normalizedObj1);
-  const keys2 = Object.keys(normalizedObj2);
-
-  if (keys1.length !== keys2.length) {
-    return false;
-  }
-
-  for (const key of keys1) {
-    if (normalizedObj1[key] !== normalizedObj2[key]) {
-      return false;
-    }
-  }
-
-  return true;
 }

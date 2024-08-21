@@ -16,7 +16,7 @@ export const cacheKeys = {
   nablaInstance: 'nablaInstance',
 };
 
-type QueryOptions = Partial<
+export type QueryOptions = Partial<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Omit<UseQueryOptions<any, any, any, any>, 'queryKey' | 'queryFn'>
 >;

@@ -1,15 +1,12 @@
 import * as Yup from 'yup';
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 
 export type SwapFormValues = {
-  from: InputTokenType;
+  from: string;
   fromAmount: string;
-  to: OutputTokenType;
+  to: string;
   toAmount: string;
   slippage: number | undefined;
   deadline: number;
-  bankAccount: string;
-  taxNumber: string;
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -20,14 +17,12 @@ const transformNumber = (value: any, originalValue: any) => {
 };
 
 const schema = Yup.object<SwapFormValues>().shape({
-  from: Yup.string().required(),
+  from: Yup.string().min(5).required(),
   fromAmount: Yup.string().required(),
-  to: Yup.string().required(),
+  to: Yup.string().min(5).required(),
   toAmount: Yup.string().required(),
   slippage: Yup.number().nullable().transform(transformNumber),
   deadline: Yup.number().nullable().transform(transformNumber),
-  bankAccount: Yup.string().required(),
-  taxNumber: Yup.string().required(),
 });
 
 export default schema;

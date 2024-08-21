@@ -4,7 +4,6 @@ import { Limits } from '@pendulum-chain/api-solang';
 import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
 import type { ApiPromise } from '@polkadot/api';
 import { ContractOptions } from '@polkadot/api-contract/types';
-import { roundDownToSignificantDecimals } from './parseNumbers';
 
 const BIG_0 = new BigNumber('0');
 
@@ -32,10 +31,10 @@ export const defaultWriteLimits: Limits = {
 };
 
 export const createWriteOptions = (api: ApiPromise, opts?: ContractOptions) => ({
-  gas: {
-    refTime: '130000000000',
-    proofSize: '1300000',
-  },
+  gasLimit: api.createType('WeightV2', {
+    refTime: '18000000000',
+    proofSize: '1750000',
+  }),
   storageDepositLimit: null,
   ...opts,
 });
@@ -52,20 +51,19 @@ export interface ContractBalance {
   approximateNumber: number;
 }
 
-export function parseContractBalanceResponse(decimals: number, balanceResponse: INumber | bigint): ContractBalance;
+export function parseContractBalanceResponse(decimals: number, balanceResponse: INumber): ContractBalance;
 
 export function parseContractBalanceResponse(
   decimals: number | undefined,
-  balanceResponse: INumber | bigint | undefined,
+  balanceResponse: INumber | undefined,
 ): ContractBalance | undefined;
 
 export function parseContractBalanceResponse(
   decimals: number | undefined,
-  balanceResponse: INumber | bigint | undefined,
+  balanceResponse: INumber | undefined,
 ): ContractBalance | undefined {
-  if (balanceResponse === undefined || decimals === undefined) return undefined;
-
-  const rawBalanceBigInt = typeof balanceResponse === 'bigint' ? balanceResponse : balanceResponse.toBigInt();
+  const rawBalanceBigInt = balanceResponse?.toBigInt();
+  if (rawBalanceBigInt === undefined || decimals === undefined) return undefined;
 
   const rawBalanceString = rawBalanceBigInt.toString();
   const preciseBigDecimal = multiplyByPowerOfTen(new BigNumber(rawBalanceString), -decimals);
@@ -87,6 +85,10 @@ export function parseContractBalanceResponse(
   };
 }
 
+function roundDownToSignificantDecimals(big: BigNumber, decimals: number) {
+  return big.prec(Math.max(0, big.e + 1) + decimals, 0);
+}
+
 export function stringifyBigWithSignificantDecimals(big: BigNumber, decimals: number) {
   const rounded = roundDownToSignificantDecimals(big, decimals);
 
@@ -100,15 +102,10 @@ export function stringifyBigWithSignificantDecimals(big: BigNumber, decimals: nu
   return rounded.toFixed(significantDecimals, 0);
 }
 
-export function multiplyByPowerOfTen(bigDecimal: BigNumber, power: number) {
+function multiplyByPowerOfTen(bigDecimal: BigNumber, power: number) {
   const newBigDecimal = new BigNumber(bigDecimal);
   if (newBigDecimal.c[0] === 0) return newBigDecimal;
 
   newBigDecimal.e += power;
   return newBigDecimal;
-}
-
-// difference of two bigints, clamp to 0
-export function clampedDifference(a: bigint, b: bigint) {
-  return a > b ? a - b : 0;
 }
