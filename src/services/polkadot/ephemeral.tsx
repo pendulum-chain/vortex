@@ -6,10 +6,11 @@ import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { waitForEvmTransaction } from '../evmTransactions';
 import { multiplyByPowerOfTen } from '../../helpers/contracts';
-import axios from 'axios';
-import { fetchSigningServiceAccountId } from '../signingService';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
+
+// TODO: replace
+const SEED_PHRASE = 'hood protect select grace number hurt lottery property stomach grit bamboo field';
 
 export async function pendulumFundEphemeral(
   state: OfframpingState,
@@ -31,11 +32,14 @@ export async function pendulumFundEphemeral(
 
     const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
     const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-    const response = await axios.post('/api/v1/fundEphemeral', { ephemeralAddress: ephemeralKeypair.address });
+    const fundingAccountKeypair = keyring.addFromUri(SEED_PHRASE);
 
-    if (response.data.status !== 'success') {
-      return { ...state, phase: 'failure' };
-    }
+    const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
+    const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
+
+    await apiData.api.tx.balances
+      .transfer(ephemeralKeypair.address, fundingAmountRaw)
+      .signAndSend(fundingAccountKeypair);
 
     await waitForPendulumEphemeralFunding(state);
   }
@@ -111,8 +115,7 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
 
     const keyring = new Keyring({ type: 'sr25519', ss58Format });
     const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-
-    const fundingAccountAddress = (await fetchSigningServiceAccountId()).pendulum.public;
+    const fundingAccountAddress = keyring.addFromUri(SEED_PHRASE).address;
 
     // probably will never be exactly '0', but to be safe
     // TODO: if the value is too small, do we really want to transfer token dust and spend fees?

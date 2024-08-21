@@ -36,7 +36,7 @@ export async function stellarCreateEphemeral(
   stellarEphemeralSecret: string,
   outputTokenType: OutputTokenType,
 ): Promise<void> {
-  const fundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
+  const fundingAccountId = await fetchSigningServiceAccountId();
   const ephemeralAccountExists = await isEphemeralCreated(stellarEphemeralSecret);
 
   if (!ephemeralAccountExists) {
