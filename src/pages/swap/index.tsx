@@ -152,14 +152,14 @@ export const SwapPage = () => {
       <>
         <AssetNumericInput
           registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-          tokenType={from}
-          tokenSymbol={fromToken?.assetSymbol}
+          tokenSymbol={fromToken.assetSymbol}
+          assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
         />
         <UserBalance token={fromToken} />
       </>
     ),
-    [form, fromToken.assetSymbol, fromToken.polygonAssetIcon, fromToken.polygonAssetIcon, setModalType],
+    [form, fromToken, setModalType],
   );
 
   function getCurrentErrorMessage() {
