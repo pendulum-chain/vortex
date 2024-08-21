@@ -1,14 +1,4 @@
-const {
-  Horizon,
-  Keypair,
-  TransactionBuilder,
-  Operation,
-  Networks,
-  Asset,
-  Memo,
-  Transaction,
-  Account,
-} = require('stellar-sdk');
+const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
 const { HORIZON_URL, BASE_FEE } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
@@ -31,7 +21,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
   const fundingSequence = fundingAccount.sequence;
   // add a setOption oeration in order to make this a 2-of-2 multisig account where the
   // funding account is a cosigner
-  let createAccountTransaction = new TransactionBuilder(fundingAccount, {
+  const createAccountTransaction = new TransactionBuilder(fundingAccount, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
@@ -137,4 +127,23 @@ async function buildPaymentAndMergeTx(
   };
 }
 
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx };
+async function sendStatusWithPk() {
+  try {
+    // ensure the funding account exists
+    const horizonServer = new Horizon.Server(HORIZON_URL);
+    let account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
+    let stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
+
+    // ensure we have at the very least 2.5 XLM in the account
+    if (Number(stellarBalance.balance) < 2.5) {
+      return { status: false, public: FUNDING_PUBLIC_KEY };
+    }
+
+    return { status: true, public: FUNDING_PUBLIC_KEY };
+  } catch (error) {
+    console.error("Couldn't load Stellar account: ", error);
+    return { status: false, public: FUNDING_PUBLIC_KEY };
+  }
+}
+
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };

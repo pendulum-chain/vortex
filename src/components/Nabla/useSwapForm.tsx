@@ -1,18 +1,21 @@
-import { useState, useCallback, useMemo } from 'react';
-
-import { TOKEN_CONFIG, TokenDetails } from '../../constants/tokenConfig';
-
-import { Resolver, useForm, useWatch } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { SwapFormValues } from './schema';
-import schema from './schema';
-import { storageService } from '../../services/localStorage';
-import { getValidDeadline, getValidSlippage } from '../../helpers/transaction';
+import Big from 'big.js';
+import { useCallback, useMemo, useState } from 'preact/compat';
+import { Resolver, useForm, useWatch } from 'react-hook-form';
+
 import { storageKeys } from '../../constants/localStorage';
-import { config } from '../../config';
+import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
-import { SwapSettings } from '../InputKeys';
+import { storageService } from '../../services/storage/local';
+import schema, { SwapFormValues } from './schema';
+
+interface SwapSettings {
+  from: string;
+  to: string;
+}
+
 const storageSet = debounce(storageService.set, 1000);
+const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
 export const useSwapForm = () => {
   const tokensModal = useState<undefined | 'from' | 'to'>();
@@ -20,11 +23,15 @@ export const useSwapForm = () => {
 
   const initialState = useMemo(() => {
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
+
+    const storedFromTokenIsValid = INPUT_TOKEN_CONFIG[storageValues?.from as InputTokenType] !== undefined;
+    const storedToTokenIsValid = OUTPUT_TOKEN_CONFIG[storageValues?.to as OutputTokenType] !== undefined;
+
     return {
-      from: storageValues?.from ?? '',
-      to: storageValues?.to ?? '',
-      slippage: getValidSlippage(storageValues?.slippage),
-      deadline: getValidDeadline(storageValues?.deadline ?? 0),
+      from: (storedFromTokenIsValid ? storageValues?.from : 'usdc') as InputTokenType,
+      to: (storedToTokenIsValid ? storageValues?.to : 'eurc') as OutputTokenType,
+      taxNumber: '',
+      bankAccount: '',
     };
   }, []);
 
@@ -37,62 +44,42 @@ export const useSwapForm = () => {
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
-  const fromToken = from ? TOKEN_CONFIG[from] : undefined;
-  const toToken = to ? TOKEN_CONFIG[to] : undefined;
-
-  const updateStorage = useCallback(
-    (newValues: Partial<SwapSettings>) => {
-      const prev = form.getValues();
-      const updated = {
-        slippage: prev.slippage || config.swap.defaults.slippage,
-        deadline: prev.deadline || config.swap.defaults.deadline,
-        ...newValues,
-      };
-      storageSet(storageKeys.SWAP_SETTINGS, updated);
-      return updated;
-    },
-    [form],
-  );
+  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
+  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
 
   const onFromChange = useCallback(
-    (a: TokenDetails) => {
-      const f = a.assetCode;
-      const prev = form.getValues();
-      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails]) => {
-        return tokenDetails.assetCode === f;
-      })[0][0];
+    (tokenKey: string) => {
+      const prev = getValues();
 
       const updated = {
         from: tokenKey,
-        to: prev?.to === tokenKey ? prev?.from : prev?.to,
+        to: prev?.to,
       };
 
-      if (updated.to && prev?.to === tokenKey) setValue('to', updated.to);
-      updateStorage(updated);
-      form.setValue('from', updated.from);
+      setStorageForSwapSettings(updated);
+      setValue('from', tokenKey as InputTokenType);
 
       setTokenModal(undefined);
     },
-    [form, form.getValues, setTokenModal, form.setValue, updateStorage],
+    [getValues, setValue, setTokenModal],
   );
 
   const onToChange = useCallback(
-    (a: TokenDetails) => {
-      const f = a.assetCode;
-      const prev = form.getValues();
-      const tokenKey = Object.entries(TOKEN_CONFIG).filter(([key, tokenDetails]) => {
-        return tokenDetails.assetCode === f;
-      })[0][0];
+    (tokenKey: string) => {
+      const prev = getValues();
+      if (!tokenKey) return;
+
       const updated = {
         to: tokenKey,
-        from: prev?.from === tokenKey ? prev?.to : prev?.from,
+        from: prev?.from,
       };
-      updateStorage(updated);
-      if (updated.from && prev?.from !== updated.from) form.setValue('from', updated.from);
-      form.setValue('to', updated.to);
+
+      setStorageForSwapSettings(updated);
+      setValue('to', tokenKey as OutputTokenType);
+
       setTokenModal(undefined);
     },
-    [form, setTokenModal, updateStorage],
+    [getValues, setTokenModal, setValue],
   );
 
   const fromAmountString = useWatch({
@@ -101,17 +88,12 @@ export const useSwapForm = () => {
     defaultValue: '0',
   });
 
-  const slippage = getValidSlippage(
-    Number(
-      useWatch({
-        control,
-        name: 'slippage',
-        defaultValue: config.swap.defaults.slippage,
-      }),
-    ),
-  );
-
-  const fromAmount = Number(fromAmountString);
+  let fromAmount: Big | undefined;
+  try {
+    fromAmount = new Big(fromAmountString);
+  } catch {
+    // no action required
+  }
 
   return {
     form,
@@ -120,10 +102,10 @@ export const useSwapForm = () => {
     tokensModal,
     onFromChange,
     onToChange,
-    updateStorage,
     fromAmount,
+    fromAmountString,
     fromToken,
     toToken,
-    slippage,
+    reset: form.reset,
   };
 };

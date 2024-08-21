@@ -1,408 +1,69 @@
-:root {
-  --border-light: #eff2f5;
-  --nice-light: #907ea0;
-  --clear-light: #ffffff;
-  --footer-links-light: #58667e;
-  --nav-arrow-light: var(--clear-light);
-  --nice-dark: #09c63e;
-  --footer-links-dark: #616875;
-  --nav-arrow-dark: hsla(271, 25%, 19%, 1);
-  --darkner: #1c1c1c;
-  --dark-light: #202020;
-
-  /* From daisyUI theme variables*/
-  --text-primary: var(--bc);
-  --text-secondary: var(--nc);
-  --table-background: #1c1c1c;
-}
-
-[data-theme='amplitude'] {
-  --primary: #4ee59a;
-  --border: var(--border-dark);
-  --nice: var(--nice-dark);
-  --footer-links: var(--footer-links-dark);
-  --card-border: #434343;
-  --table-text: #bbbbbb;
-  --table-text-header: #fff;
-  --table-background: #1c1c1c;
-  --table-border: #242424;
-  --modal-title: var(--clear-light);
-  --portfolio-bg: var(--dark-light);
-  --portfolio-border: rgba(229, 229, 229, 0.03);
-  --selected-nav-item: hsla(158, 100%, 47%, 0.08);
-  --subtitle-collator-box: #fff;
-  --text-primary-disabled: rgba(88, 102, 126, 0.4);
-  --tag-background: rgba(78, 229, 154, 0.16); /* --primary 16% */
-  --network-bg: #252733;
-  --scroll-track: rgba(0, 0, 0, 0.5);
-  --scroll-bg: rgba(255, 255, 255, 0.3);
-}
-
-[data-theme='pendulum'] {
-  --primary: #907ea0;
-  --border: var(--border-light);
-  --nice: var(--nice-dark);
-  --footer-links: var(--footer-links-light);
-  --card-border: #dfe0eb;
-  --table-text: #252733;
-  --table-text-header: #9fa2b4;
-  --table-background: #fff;
-  --table-border: #dfe0eb;
-  --modal-title: var(--darkner);
-  --portfolio-bg: var(--clear-light);
-  --portfolio-border: #e5e5e5;
-  --subtitle-collator-box: #828282;
-  --selected-nav-item: hsla(272, 15%, 56%, 0.1);
-  --text-primary-disabled: rgba(88, 102, 126, 0.4);
-  --tag-background: rgba(144, 126, 160, 0.16); /* --primary 16% */
-  --network-bg: hsla(0, 0%, 0%, 0.04);
-  --scroll-track: rgba(0, 0, 0, 0.12);
-  --scroll-bg: rgba(0, 0, 0, 0.25);
-}
-
-::-webkit-scrollbar {
-  position: relative;
-  width: 10px;
-  height: 10px;
-  background-color: transparent;
-  z-index: 9999999;
-}
-::-webkit-scrollbar-track {
-  -webkit-box-shadow: inset 0 0 6px var(--scroll-track);
-  background-color: transparent;
-}
-::-webkit-scrollbar-thumb {
-  border-radius: 5px;
-  -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
-  background-color: var(--scroll-bg);
-}
-
 html,
 body {
   margin: 0;
   padding: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  overflow-x: hidden;
-
-  /* Important to make sure the WalletConnect dialog is shown on top of the others */
-  --wcm-z-index: 1000;
+  font-family: 'Red Hat Display', sans-serif;
 }
 
-#app {
-  width: 100%;
-  min-width: 1800px;
-  box-sizing: border-box;
+#app,
+div[data-rk] {
+  min-height: 100vh;
 }
 
-.card {
-  width: 100%;
-  max-width: 640px;
-  background-color: #e5e5e5;
-  border: 1px solid #d1d5db;
-  border-radius: 0.75rem;
-  box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.card.card-bordered {
-  border: 1px solid var(--card-border);
-}
-
-.card-body {
-  padding: 1.25rem;
-}
-
-.inputBox {
-  width: 40%;
-  margin: 20px auto;
-  padding: 20px;
-  border: 1px solid #ccc;
-  box-shadow: 0 0 10px #ccc;
-  transition: all 0.5s ease-in-out;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.inputBox.active {
-  width: 35%;
-  margin-top: 5px;
-}
-
-.eventsContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  overflow-y: scroll;
-  max-height: 70vh;
-}
-
-input {
-  margin: 10px;
-  padding: 10px;
-}
-
-.eventBox {
-  margin: 20px auto;
-  width: 30%;
-  padding: 20px;
-  border: 1px solid #ccc;
-  box-shadow: 0 0 10px #ccc;
-  transition: all 0.5s ease-in-out;
-  color: #333;
-  word-wrap: break-word;
-  text-align: center;
-}
-
-.eventBox.waiting {
-  background-color: #ffffff;
-  border-color: #ccc;
-}
-
-.eventBox.active.waiting {
-  /*animation: rotateShadowBlue 5s linear infinite;*/
-  border-color: #ffffff;
-}
-
-.eventBox.success {
-  background-color: #d4edda;
-  border-color: #c3e6cb;
-}
-
-.eventBox.active {
-  transform: scale(1.3);
-  background-color: #f0f0f0;
-}
-
-.eventBox.error {
-  margin: 20px auto;
-  width: 30%;
-  padding: 20px;
-  border: 1px solid #ccc;
-  box-shadow: 0 0 10px #ccc;
-  transition: all 0.5s ease-in-out;
-  color: red;
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-  color: red;
-}
-
-.iframe-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-top: 50px;
+.shadow-custom {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-*,
-*:before,
-*:after {
-  box-sizing: border-box;
+:root:has(:is(.modal-open, .modal:target, .modal-toggle:checked + .modal, .modal[open])) {
+  scrollbar-gutter: unset;
 }
 
-body,
-input,
-textarea,
-select {
-  font-family: 'Nunito Sans', sans-serif;
+.input-disabled {
+  cursor: not-allowed;
+  color: rgb(229 231 235 / var(--tw-text-opacity));
+  border-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-border-opacity)));
+  background-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-bg-opacity)));
 }
 
-.font-outfit {
-  font-family: 'Outfit', sans-serif;
+.fadein-button-animation::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition-duration: 0.5s;
+  transition-timing-function: ease-out;
+  transition-property: transform;
+  background-color: #24a1de;
 }
 
-strong {
-  font-weight: 700;
+.border-telegram {
+  border-color: #24a1de;
 }
 
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+.fadein-button-animation:hover::before {
+  transform: scaleX(1);
 }
 
-/* Firefox */
-input[type='number'] {
-  --moz-appearance: textfield;
+.click-animation:active:hover,
+.click-animation:active:focus {
+  animation: button-pop 0.2s ease-out;
+  transform: scale(var(1, 0.97));
 }
 
-/* utility classes */
-.center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-/* theme override */
-.card {
-  border-radius: 0.75rem;
-}
-.card.card-bordered {
-  border: 1px solid var(--card-border);
-}
-
-.btn,
-.input {
-  line-height: 1.5;
-}
-
-.input-ghost:focus {
-  color: inherit;
-}
-
-.collapse-title,
-:where(.collapse > input[type='checkbox']) {
-  min-height: 0;
-  height: 100%;
-}
-.modal.modal-top {
-  align-items: flex-start;
-}
-.input-ghost:disabled,
-.input-ghost {
-  background-color: transparent;
-  outline: none;
-  border: 0;
-}
-
-.btn-disabled,
-.btn-disabled:hover,
-.btn[disabled],
-.btn[disabled]:hover {
-  --tw-bg-opacity: 1;
-  --tw-text-opacity: 1;
-  background-color: hsl(var(--s));
-  opacity: 0.3;
-}
-
-w3m-modal {
-  position: relative;
-  z-index: 1000;
-}
-
-@keyframes bounce-x {
-  0%,
-  100% {
-    transform: translateX(0%);
-    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
-  }
+@keyframes click {
   50% {
-    transform: translateX(25%);
-    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    transform: scale(1.25);
   }
-}
-
-.animate-bounce-x {
-  animation: bounce-x 1s infinite;
-}
-
-.badge {
-  height: 25px;
-  white-space: nowrap;
-}
-
-@layer components {
-  .badge-secondary-content {
-    @apply bg-secondary-content;
+  100% {
+    transform: scale(1);
   }
-}
-
-.description {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-.icons {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.icon {
-  width: 30px;
-  height: 30px;
-}
-
-.arrow {
-  width: 50px;
-  margin: 0 10px;
-}
-
-.wallet-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px;
-  background-color: #f0f0f0;
-  border: 1px solid #dcdcdc;
-}
-
-.wallet-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.wallet-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 10px;
-}
-
-.wallet-address {
-  font-size: 14px;
-}
-
-.disconnect-btn {
-  background-color: #ff4d4f;
-  color: white;
-}
-
-.connect-btn {
-  min-height: 2.1rem;
-  height: auto;
-  padding: 0.5rem 1rem;
-}
-
-.modal-select {
-  max-height: 600px;
-}
-
-/* Fix wallet select modal to allow for scrolling */
-#react-portal-modal-container main {
-  overflow-y: auto;
-}
-
-#react-portal-modal-container > div > div {
-  max-height: 90vh;
-}
-
-.offramp-started {
-  font-size: 1.2rem;
-  color: rgb(0, 0, 0);
-  margin-top: 20px;
-}
-
-.general-service-error-message {
-  position: fixed;
-  top: 20%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 20px;
-  background-color: rgb(154, 63, 63);
-  color: white;
-  font-size: 16px;
-  margin-top: 3%;
-  border-radius: 8px;
-  z-index: 1000;
 }

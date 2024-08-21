@@ -1,42 +1,42 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
-import { TokenDetails } from '../../constants/tokenConfig';
-export interface TomlValues {
+import { OutputTokenDetails } from '../../constants/tokenConfig';
+import { fetchSigningServiceAccountId } from '../signingService';
+import { config } from '../../config';
+
+interface TomlValues {
   signingKey?: string;
   webAuthEndpoint?: string;
   sep24Url?: string;
+  sep6Url?: string;
+  kycServer?: string;
 }
 
-export interface ISep24Intermediate {
+interface ISep24Intermediate {
   url: string;
   id: string;
 }
 
-export interface IAnchorSessionParams {
+interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
-  tokenConfig: TokenDetails;
+  tokenConfig: OutputTokenDetails;
   offrampAmount: string;
 }
 
-export interface Sep24Result {
+export interface SepResult {
   amount: string;
   memo: string;
   memoType: string;
   offrampingAccount: string;
 }
 
-const exists = (value?: string | null): value is string => !!value && value?.length > 0;
-let ephemeralKeys: Keypair | null;
+export function createStellarEphemeralSecret() {
+  const ephemeralKeys = Keypair.random();
+  return ephemeralKeys.secret();
+}
 
-export const getEphemeralKeys = () => {
-  if (ephemeralKeys) {
-    return ephemeralKeys;
-  } else {
-    ephemeralKeys = Keypair.random();
-    return ephemeralKeys;
-  }
-};
+const exists = (value?: string | null): value is string => !!value && value?.length > 0;
 
 export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues> => {
   const response = await fetch(TOML_FILE_URL);
@@ -59,11 +59,14 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
     signingKey: findValueInToml('SIGNING_KEY'),
     webAuthEndpoint: findValueInToml('WEB_AUTH_ENDPOINT'),
     sep24Url: findValueInToml('TRANSFER_SERVER_SEP0024'),
+    sep6Url: findValueInToml('TRANSFER_SERVER'),
+    kycServer: findValueInToml('KYC_SERVER'),
   };
 };
 
 export const sep10 = async (
   tomlValues: TomlValues,
+  stellarEphemeralSecret: string,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -72,7 +75,7 @@ export const sep10 = async (
     throw new Error('Missing values in TOML file');
   }
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
-  const ephemeralKeys = getEphemeralKeys();
+  const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
   const urlParams = new URLSearchParams({
     account: accountId,
@@ -120,16 +123,79 @@ export const sep10 = async (
   return token;
 };
 
-export async function sep24First(
-  sessionParams: IAnchorSessionParams,
-  renderEvent: (event: string, status: EventStatus) => void,
-): Promise<ISep24Intermediate> {
+// TODO modify according to the anchor's requirements and implementation
+// we should be able to do the whole flow on this function since we have all the
+// information we need
+/*
+export async function sep6First(sessionParams: IAnchorSessionParams): Promise<SepResult> {
+  const { token, tomlValues } = sessionParams;
+  const { sep6Url } = tomlValues;
+
+  return {
+    amount: '10.4',
+    memo: 'a memo',
+    memoType: 'text',
+    offrampingAccount: 'GCUHGQ6LY3L2NAB7FX2LJGUJFCG6LKAQHVIMJLZNNBMCZUQNBPJTXE6O',
+  };
+
+  const sep6Params = new URLSearchParams({
+    asset_code: sessionParams.tokenConfig.assetCode!,
+    type: 'bank_account',
+    dest: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e', // Ntokens crashes when sending destination, complains of not having it??
+  });
+
+  const fetchUrl = `${sep6Url}/withdraw?`;
+  const sep6Response = await fetch(fetchUrl + sep6Params, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
+  });
+  console.log(sep6Response);
+  if (sep6Response.status !== 200) {
+    console.log(await sep6Response.json(), sep6Response.toString());
+    throw new Error(`Failed to initiate SEP-6: ${sep6Response.statusText}`);
+  }
+
+  const { type, id } = await sep6Response.json();
+  if (type !== 'interactive_customer_info_needed') {
+    throw new Error(`Unexpected SEP-6 type: ${type}`);
+  }
+  //return { transactionId: id };
+}*/
+
+/*
+export async function sep12First(sessionParams: IAnchorSessionParams): Promise<void> {
+  const { token, tomlValues } = sessionParams;
+  const { sep6Url } = tomlValues;
+
+  const sep12Params = new URLSearchParams({
+    account: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e',
+  });
+
+  const fetchUrl = `${sep6Url}/customer`;
+  const sep12Response = await fetch(fetchUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
+    body: sep12Params.toString(),
+  });
+  console.log(sep12Response);
+  if (sep12Response.status !== 200) {
+    console.log(await sep12Response.json(), sep12Response.toString());
+    throw new Error(`Failed to initiate SEP-6: ${sep12Response.statusText}`);
+  }
+  //>????
+}*/
+
+export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
+  if (config.test.mockSep24) {
+    return { url: 'https://www.example.com', id: '1234' };
+  }
+
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
   // at this stage, assetCode should be defined, if the config is consistent.
   const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.assetCode!,
+    asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
     amount: sessionParams.offrampAmount,
   });
 
@@ -140,13 +206,12 @@ export async function sep24First(
     body: sep24Params.toString(),
   });
   if (sep24Response.status !== 200) {
-    renderEvent(`Failed to initiate SEP-24: ${sep24Response.statusText}, ${fetchUrl}`, EventStatus.Error);
+    console.log(await sep24Response.json(), sep24Params.toString());
     throw new Error(`Failed to initiate SEP-24: ${sep24Response.statusText}`);
   }
 
   const { type, url, id } = await sep24Response.json();
   if (type !== 'interactive_customer_info_needed') {
-    renderEvent(`Unexpected SEP-24 type: ${type}`, EventStatus.Error);
     throw new Error(`Unexpected SEP-24 type: ${type}`);
   }
 
@@ -156,24 +221,21 @@ export async function sep24First(
 export async function sep24Second(
   sep24Values: ISep24Intermediate,
   sessionParams: IAnchorSessionParams,
-  renderEvent: (event: string, status: EventStatus) => void,
-): Promise<Sep24Result> {
+): Promise<SepResult> {
   const { id } = sep24Values;
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  // Mock, testing
-  // await new Promise((resolve) => setTimeout(resolve, 1000));
-  // return {
-  //   amount: "10.3",
-  //   memo: "todo",
-  //   memoType: "text",
-  //   offrampingAccount: "GADBL6LKYBPNGXBKNONXTFVIRMQIXHH2ZW67SVA2R7XM6VBXMD2O6DIS",
-  // };
-  // end mock testing
+  if (config.test.mockSep24) {
+    return {
+      amount: sessionParams.offrampAmount,
+      memo: 'MYK1722323689',
+      memoType: 'text',
+      offrampingAccount: (await fetchSigningServiceAccountId()).stellar.public,
+    };
+  }
 
   let status;
-  let transaction: any;
   do {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const idParam = new URLSearchParams({ id });

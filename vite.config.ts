@@ -1,16 +1,23 @@
 import preact from '@preact/preset-vite';
 import { defineConfig } from 'vite';
 
-import { polyfillNode } from 'esbuild-plugin-polyfill-node';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [preact()],
+  plugins: [preact(), nodePolyfills()],
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' },
   },
   build: {
     target: 'esnext',
+  },
+  // @ts-ignore
+  test: {
+    globals: true,
+    setupFiles: ['./src/setupTests.ts'],
+    environment: 'happy-dom',
+    testTimeout: 15000,
   },
   optimizeDeps: {
     exclude: [],
@@ -23,11 +30,7 @@ export default defineConfig({
       supported: {
         bigint: true,
       },
-      plugins: [
-        // Enable esbuild polyfill plugins. We use the default settings.
-        // see https://github.com/cyco130/esbuild-plugin-polyfill-node?tab=readme-ov-file#options
-        polyfillNode({}),
-      ],
+      plugins: [],
     },
   },
 });

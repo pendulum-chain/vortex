@@ -1,183 +1,334 @@
-import { SwapOptions } from '../components/InputKeys';
+import { Abi } from '@polkadot/api-contract';
+import Big from 'big.js';
+import {
+  createExecuteMessageExtrinsic,
+  ExecuteMessageResult,
+  Extrinsic,
+  readMessage,
+  ReadMessageResult,
+  submitExtrinsic,
+} from '@pendulum-chain/api-solang';
+
 import { EventStatus } from '../components/GenericEvent';
 import { getApiManagerInstance } from './polkadot/polkadotApi';
-import { Abi } from '@polkadot/api-contract';
 import { erc20WrapperAbi } from '../contracts/ERC20Wrapper';
 import { routerAbi } from '../contracts/Router';
 import { NABLA_ROUTER } from '../constants/constants';
-import { defaultReadLimits } from '../helpers/contracts';
-import { readMessage, ReadMessageResult, executeMessage, ExecuteMessageResult } from '@pendulum-chain/api-solang';
-import { parseContractBalanceResponse } from '../helpers/contracts';
-import { TOKEN_CONFIG } from '../constants/tokenConfig';
-import { WalletAccount } from '@talismn/connect-wallets';
-import { defaultWriteLimits, createWriteOptions } from '../helpers/contracts';
-import { stringDecimalToBN } from '../helpers/parseNumbers';
-import { toBigNumber } from '../helpers/parseNumbers';
+import {
+  createWriteOptions,
+  defaultReadLimits,
+  defaultWriteLimits,
+  multiplyByPowerOfTen,
+  parseContractBalanceResponse,
+  stringifyBigWithSignificantDecimals,
+} from '../helpers/contracts';
+import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { ExecutionContext, OfframpingState } from './offrampingFlow';
+import { Keyring } from '@polkadot/api';
+import { decodeSubmittableExtrinsic } from './signedTransactions';
 
-export interface PerformSwapProps {
-  swap: SwapOptions;
-  userAddress: string;
-  walletAccount: WalletAccount;
-}
-
-export async function performSwap(
-  { swap, userAddress, walletAccount }: PerformSwapProps,
-  renderEvent: (event: string, status: EventStatus) => void,
-): Promise<number> {
-  // event attempting swap
-  renderEvent('Attempting swap', EventStatus.Waiting);
-  // get chain api, abi
-  const pendulumApiComponents = (await getApiManagerInstance()).apiData!;
-  const erc20ContractAbi = new Abi(erc20WrapperAbi, pendulumApiComponents.api.registry.getChainProperties());
-  const routerAbiObject = new Abi(routerAbi, pendulumApiComponents.api.registry.getChainProperties());
-  // get asset details
-  const assetInDetails = TOKEN_CONFIG[swap.assetIn];
-  const assetOutDetails = TOKEN_CONFIG[swap.assetOut];
-
-  // call the current allowance of the user
-  const response: ReadMessageResult = await readMessage({
-    abi: erc20ContractAbi,
-    api: pendulumApiComponents.api,
-    contractDeploymentAddress: assetInDetails.erc20Address!,
-    callerAddress: walletAccount.address,
-    messageName: 'allowance',
-    messageArguments: [walletAccount.address, NABLA_ROUTER],
-    limits: defaultReadLimits,
-  });
-
-  if (response.type !== 'success') {
-    const message = 'Could not load token allowance';
-    renderEvent(message, EventStatus.Error);
-    return Promise.reject(message);
-  }
-
-  const currentAllowance = parseContractBalanceResponse(assetInDetails.decimals, response.value);
-  const amountToSwapBig = stringDecimalToBN(swap.amountIn.toString(), assetInDetails.decimals);
-  const amountMinBig = stringDecimalToBN(swap.minAmountOut?.toString() ?? '0', assetInDetails.decimals);
-  //maybe do allowance
-  if (currentAllowance !== undefined && currentAllowance.rawBalance.lt(amountToSwapBig)) {
-    try {
-      renderEvent(
-        `Please sign approval swap: ${toBigNumber(
-          amountToSwapBig,
-          assetInDetails.decimals,
-        )} ${assetInDetails.assetCode.toUpperCase()}`,
-        EventStatus.Waiting,
-      );
-      await approve({
-        api: pendulumApiComponents.api,
-        amount: amountToSwapBig.toString(),
-        token: assetInDetails.erc20Address!,
-        spender: NABLA_ROUTER,
-        contractAbi: erc20ContractAbi,
-        walletAccount,
-      });
-    } catch (e) {
-      renderEvent(`Could not approve token: ${e}`, EventStatus.Error);
-      return Promise.reject('Could not approve token');
-    }
-  }
-  // balance before the swap
-  const responseBalanceBefore = (
-    await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
-  ).toHuman() as any;
-
-  const rawBalanceBefore = responseBalanceBefore?.free || '0';
-  const balanceBeforeBigDecimal = toBigNumber(rawBalanceBefore, assetOutDetails.decimals);
-
-  // Try swap
-  try {
-    renderEvent(
-      `Please sign transaction to swap ${swap.amountIn} ${assetInDetails.assetCode.toUpperCase()} to ${
-        swap.initialDesired
-      } ${assetOutDetails.assetCode.toUpperCase()} `,
-      EventStatus.Waiting,
-    );
-    await doActualSwap({
-      api: pendulumApiComponents.api,
-      amount: amountToSwapBig.toString(),
-      amountMin: amountMinBig.toString(),
-      tokenIn: assetInDetails.erc20Address!,
-      tokenOut: assetOutDetails.erc20Address!,
-      contractAbi: routerAbiObject,
-      walletAccount,
-    });
-  } catch (e) {
-    let errorMessage = '';
-    const result = (e as ExecuteMessageResult).result;
-    if (result.type === 'reverted') {
-      errorMessage = result.description;
-    } else if (result.type === 'error') {
-      errorMessage = result.error;
-    } else {
-      errorMessage = 'Something went wrong';
-    }
-    renderEvent(`Could not swap token: ${errorMessage}`, EventStatus.Error);
-    return Promise.reject('Could not swap token');
-  }
-
-  //verify token balance before releasing this process.
-  const responseBalanceAfter = (
-    await pendulumApiComponents.api.query.tokens.accounts(userAddress, assetOutDetails.currencyId)
-  ).toHuman() as any;
-
-  const rawBalanceAfter = responseBalanceAfter?.free || '0';
-  const balanceAfterBigDecimal = toBigNumber(rawBalanceAfter, assetOutDetails.decimals);
-
-  const actualOfframpValue = balanceAfterBigDecimal.sub(balanceBeforeBigDecimal);
-
-  renderEvent(`Swap successful. Amount to offramp : ${actualOfframpValue}`, EventStatus.Success);
-
-  return actualOfframpValue.toNumber();
-}
-
-async function approve({ api, token, spender, amount, contractAbi, walletAccount }: any) {
+async function createAndSignApproveExtrinsic({
+  api,
+  token,
+  spender,
+  amount,
+  contractAbi,
+  keypairEphemeral,
+  nonce = -1,
+}: any) {
   console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
-  const response = await executeMessage({
+
+  const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
     abi: contractAbi,
     api,
-    callerAddress: walletAccount.address,
+    callerAddress: keypairEphemeral.address,
     contractDeploymentAddress: token,
-    getSigner: () =>
-      Promise.resolve({
-        type: 'signer',
-        address: walletAccount.address,
-        signer: walletAccount.signer,
-      }),
     messageName: 'approve',
     messageArguments: [spender, amount],
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
   });
 
-  console.log('write', 'call approve response', walletAccount.address, [spender, amount], response);
+  console.log('result', readMessageResult);
 
-  if (response?.result?.type !== 'success') throw response;
-  return response;
+  if (execution.type === 'onlyRpc') {
+    throw Error("Couldn't create approve extrinsic. Can't execute only-RPC");
+  }
+
+  const { extrinsic } = execution;
+
+  return extrinsic.signAsync(keypairEphemeral, { nonce });
 }
 
-async function doActualSwap({ api, tokenIn, tokenOut, amount, amountMin, contractAbi, walletAccount }: any) {
-  console.log('write', `call swap ${tokenIn} for ${tokenOut} with amount ${amount}, minimum expexted ${amountMin} `);
-  const response = await executeMessage({
-    abi: contractAbi,
-    api,
-    callerAddress: walletAccount.address,
-    contractDeploymentAddress: NABLA_ROUTER,
-    getSigner: () =>
-      Promise.resolve({
-        type: 'signer',
-        address: walletAccount.address,
-        signer: walletAccount.signer,
-      }),
-    messageName: 'swapExactTokensForTokens',
-    // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
-    messageArguments: [amount, amountMin, [tokenIn, tokenOut], walletAccount.address, calcDeadline(5)],
-    limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
-    gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+export async function prepareNablaApproveTransaction(
+  state: OfframpingState,
+  { renderEvent }: ExecutionContext,
+): Promise<Extrinsic> {
+  const { inputTokenType, inputAmountNabla, pendulumEphemeralSeed, nablaApproveNonce } = state;
+
+  // event attempting swap
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+
+  console.log(
+    'swap',
+    'Preparing the signed extrinsic for the approval of swap',
+    inputAmountNabla.units,
+    inputTokenType,
+  );
+  // get chain api, abi
+  const { ss58Format, api } = (await getApiManagerInstance()).apiData!;
+  const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
+  // get asset details
+
+  // get ephemeral keypair and account
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  // call the current allowance of the ephemeral
+  const response: ReadMessageResult = await readMessage({
+    abi: erc20ContractAbi,
+    api: api,
+    contractDeploymentAddress: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+    callerAddress: ephemeralKeypair.address,
+    messageName: 'allowance',
+    messageArguments: [ephemeralKeypair.address, NABLA_ROUTER],
+    limits: defaultReadLimits,
   });
 
-  if (response?.result?.type !== 'success') throw response;
-  return response;
+  if (response.type !== 'success') {
+    const message = 'Could not load token allowance';
+    renderEvent(message, EventStatus.Error);
+    throw new Error(message);
+  }
+
+  const currentAllowance = parseContractBalanceResponse(inputToken.decimals, response.value);
+
+  //maybe do allowance
+  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmountNabla.raw))) {
+    try {
+      renderEvent(
+        `Approving tokens: ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
+        EventStatus.Waiting,
+      );
+      return createAndSignApproveExtrinsic({
+        api: api,
+        amount: inputAmountNabla.raw,
+        token: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+        spender: NABLA_ROUTER,
+        contractAbi: erc20ContractAbi,
+        keypairEphemeral: ephemeralKeypair,
+        nonce: nablaApproveNonce,
+      });
+    } catch (e) {
+      renderEvent(`Could not approve token: ${e}`, EventStatus.Error);
+      return Promise.reject('Could not approve token');
+    }
+  }
+
+  throw Error("Couldn't create approve extrinsic");
+}
+
+// Since this operation reads first from chain the current approval, there is no need to
+// save any state for potential recovery.
+export async function nablaApprove(
+  state: OfframpingState,
+  { renderEvent }: ExecutionContext,
+): Promise<OfframpingState> {
+  const { transactions, inputAmountNabla, inputTokenType } = state;
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+
+  if (!transactions) {
+    console.error('Missing transactions for nablaApprove');
+    return { ...state, phase: 'failure' };
+  }
+
+  try {
+    renderEvent(
+      `Approving tokens: ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
+      EventStatus.Waiting,
+    );
+
+    const { api } = (await getApiManagerInstance()).apiData!;
+
+    const approvalExtrinsic = decodeSubmittableExtrinsic(transactions.nablaApproveTransaction, api);
+
+    const result = await submitExtrinsic(approvalExtrinsic);
+
+    if (result.status.type === 'error') {
+      renderEvent(`Could not approve token: ${result.status.error.toString()}`, EventStatus.Error);
+      return Promise.reject('Could not approve token');
+    }
+  } catch (e) {
+    let errorMessage = '';
+    const result = (e as ExecuteMessageResult).result;
+    if (result?.type === 'reverted') {
+      errorMessage = result.description;
+    } else if (result?.type === 'error') {
+      errorMessage = result.error;
+    } else {
+      errorMessage = 'Something went wrong';
+    }
+    renderEvent(`Could not approve the required amount of token: ${errorMessage}`, EventStatus.Error);
+    return Promise.reject('Could not approve token');
+  }
+
+  return {
+    ...state,
+    phase: 'nablaSwap',
+  };
+}
+
+export async function createAndSignSwapExtrinsic({
+  api,
+  tokenIn,
+  tokenOut,
+  amount,
+  amountMin,
+  contractAbi,
+  keypairEphemeral,
+  nonce = -1,
+}: any) {
+  const { execution } = await createExecuteMessageExtrinsic({
+    abi: contractAbi,
+    api,
+    callerAddress: keypairEphemeral.address,
+    contractDeploymentAddress: NABLA_ROUTER,
+    messageName: 'swapExactTokensForTokens',
+    // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
+    messageArguments: [amount, amountMin, [tokenIn, tokenOut], keypairEphemeral.address, calcDeadline(5)],
+    limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
+    gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+    skipDryRunning: true, // We have to skip this because it will not work before the approval transaction executed
+  });
+
+  if (execution.type === 'onlyRpc') {
+    throw Error("Couldn't create swap extrinsic. Can't execute only-RPC");
+  }
+
+  const { extrinsic } = execution;
+  return extrinsic.signAsync(keypairEphemeral, { nonce });
+}
+
+export async function prepareNablaSwapTransaction(
+  state: OfframpingState,
+  { renderEvent }: ExecutionContext,
+): Promise<Extrinsic> {
+  const { inputTokenType, outputTokenType, inputAmountNabla, outputAmount, pendulumEphemeralSeed, nablaSwapNonce } =
+    state;
+
+  // event attempting swap
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+
+  // get chain api, abi
+  const { ss58Format, api } = (await getApiManagerInstance()).apiData!;
+  const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
+  // get asset details
+
+  // get ephemeral keypair and account
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  // balance before the swap. Important for recovery process.
+  // if transaction was able to get in, but we failed on the listening
+  const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
+  const responseBalanceBefore = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
+  const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
+
+  // Since this is an ephemeral account, balanceBefore being greater than the minimum amount means that the swap was successful
+  // but we missed the event. This is important for recovery process.
+  if (rawBalanceBefore.lt(Big(outputAmount.raw))) {
+    // Try swap
+    try {
+      renderEvent(
+        `Swapping ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+        EventStatus.Waiting,
+      );
+
+      return createAndSignSwapExtrinsic({
+        api: api,
+        amount: inputAmountNabla.raw, // toString can render exponential notation
+        amountMin: outputAmount.raw, // toString can render exponential notation
+        tokenIn: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+        tokenOut: outputToken.erc20WrapperAddress,
+        contractAbi: routerAbiObject,
+        keypairEphemeral: ephemeralKeypair,
+        nonce: nablaSwapNonce,
+      });
+    } catch (e) {
+      return Promise.reject('Could not create swap transaction' + e?.toString());
+    }
+  }
+
+  throw Error("Couldn't create swap extrinsic");
+}
+
+export async function nablaSwap(state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> {
+  const { transactions, inputAmountNabla, inputTokenType, outputAmount, outputTokenType, pendulumEphemeralSeed } =
+    state;
+  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+
+  if (transactions === undefined) {
+    console.error('Missing transactions for nablaSwap');
+    return { ...state, phase: 'failure' };
+  }
+
+  const { api, ss58Format } = (await getApiManagerInstance()).apiData!;
+
+  // get ephemeral keypair and account
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+  // balance before the swap. Important for recovery process.
+  // if transaction was able to get in, but we failed on the listening
+  const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
+  const responseBalanceBefore = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
+  const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
+
+  try {
+    renderEvent(
+      `Swapping ${inputAmountNabla.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+      EventStatus.Waiting,
+    );
+
+    const swapExtrinsic = decodeSubmittableExtrinsic(transactions.nablaSwapTransaction, api);
+    const result = await submitExtrinsic(swapExtrinsic);
+
+    if (result.status.type === 'error') {
+      renderEvent(`Could not swap token: ${result.status.error.toString()}`, EventStatus.Error);
+      return Promise.reject('Could not swap token');
+    }
+  } catch (e) {
+    let errorMessage = '';
+    const result = (e as ExecuteMessageResult).result;
+    if (result?.type === 'reverted') {
+      errorMessage = result.description;
+    } else if (result?.type === 'error') {
+      errorMessage = result.error;
+    } else {
+      errorMessage = 'Something went wrong';
+    }
+    renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
+    return Promise.reject('Could not swap token');
+  }
+  //verify token balance before releasing this process.
+  const responseBalanceAfter = (await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId)) as any;
+  const rawBalanceAfter = Big(responseBalanceAfter?.free?.toString() ?? '0');
+
+  const actualOfframpValueRaw = rawBalanceAfter.sub(rawBalanceBefore);
+  const actualOfframpValue = multiplyByPowerOfTen(actualOfframpValueRaw, -outputToken.decimals);
+
+  renderEvent(
+    `Swap successful. Amount received: ${stringifyBigWithSignificantDecimals(actualOfframpValue, 2)}`,
+    EventStatus.Success,
+  );
+
+  console.log('Swap successful');
+
+  return {
+    ...state,
+    phase: 'executeSpacewalkRedeem',
+  };
 }
 
 const calcDeadline = (min: number) => `${Math.floor(Date.now() / 1000) + min * 60}`;
