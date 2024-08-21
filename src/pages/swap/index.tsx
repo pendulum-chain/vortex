@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
+import { useAccount } from 'wagmi';
+import Big from 'big.js';
 
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
@@ -17,11 +18,13 @@ import { config } from '../../config';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { BaseLayout } from '../../layouts';
 
-import { useMainProcess } from '../../hooks/useMainProcess';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
+import { useMainProcess } from '../../hooks/useMainProcess';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { UserBalance } from '../../components/UserBalance';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -32,8 +35,9 @@ const Arrow = () => (
 export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
-
   const [api, setApi] = useState<ApiPromise | null>(null);
+
+  const { isDisconnected } = useAccount();
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -54,6 +58,7 @@ export const SwapPage = () => {
     sep24Id,
     offrampingPhase,
     setOfframpingPhase,
+    resetSep24Url,
     signingPhase,
   } = useMainProcess();
 
@@ -68,8 +73,10 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
-  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
+  const fromToken = INPUT_TOKEN_CONFIG[from];
+  const toToken = OUTPUT_TOKEN_CONFIG[to];
+
+  const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
   const tokenOutData = useTokenOutAmount({
     wantsSwap: true,
@@ -128,48 +135,56 @@ export const SwapPage = () => {
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
-        additionalText="IBAN"
-        tokenType={to}
-        tokenSymbol={toToken?.stellarAsset.code.string}
+        assetIcon={toToken.fiat.assetIcon}
+        tokenSymbol={toToken.fiat.symbol}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
         readOnly={true}
       />
     ),
-    [to, toToken?.stellarAsset.code.string, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, to, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
     () => (
       <AssetNumericInput
         registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
-        tokenType={from}
-        tokenSymbol={fromToken?.assetSymbol}
+        tokenSymbol={fromToken.assetSymbol}
+        assetIcon={fromToken.polygonAssetIcon}
         onClick={() => setModalType('from')}
       />
     ),
-    [form, from, fromToken?.assetSymbol, setModalType],
+    [form, fromToken.polygonAssetIcon, fromToken.polygonAssetIcon, setModalType],
   );
 
   function getCurrentErrorMessage() {
+    // Do not show any error if the user is disconnected
+    if (isDisconnected) return;
+
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+      }
+    }
+
     const amountOut = tokenOutData.data?.amountOut;
 
-    if (amountOut !== undefined && toToken !== undefined) {
+    if (amountOut !== undefined) {
       const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
       const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
 
       if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
         const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
         return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          toToken.stellarAsset.code.string
+          toToken.fiat.symbol
         }.`;
       }
 
       if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
         const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-          toToken.stellarAsset.code.string
+          toToken.fiat.symbol
         }.`;
       }
     }
@@ -182,10 +197,12 @@ export const SwapPage = () => {
       ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
+          assetIcon: value.polygonAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as OutputTokenType,
-          assetSymbol: value.stellarAsset.code.string,
+          assetSymbol: value.fiat.symbol,
+          assetIcon: value.fiat.assetIcon,
         }));
 
   const modals = (
@@ -195,7 +212,6 @@ export const SwapPage = () => {
       definitions={definitions}
       selected={modalType === 'from' ? from : to}
       onClose={() => setModalType(undefined)}
-      isLoading={false}
     />
   );
 
@@ -223,11 +239,17 @@ export const SwapPage = () => {
         <Arrow />
         <LabeledInput label="You receive" Input={ReceiveNumericInput} />
         <p className="text-red-600">{getCurrentErrorMessage()}</p>
-        <ExchangeRate {...{ tokenOutData, fromToken, toToken }} />
+        <ExchangeRate
+          {...{
+            tokenOutData,
+            fromToken,
+            toTokenSymbol: toToken.fiat.symbol,
+          }}
+        />
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
-          toCurrency={to}
+          toTokenSymbol={toToken.fiat.symbol}
         />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
@@ -238,18 +260,15 @@ export const SwapPage = () => {
             target="_blank"
             rel="noreferrer"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+            onClick={resetSep24Url}
           >
             Start Offramping
           </a>
         ) : (
           <SwapSubmitButton
-            text="Confirm"
-            disabled={
-              offrampingPhase !== undefined ||
-              offrampingStarted ||
-              Boolean(getCurrentErrorMessage()) ||
-              !inputAmountIsStable
-            }
+            text={offrampingStarted ? 'Offramping in Progress' : 'Confirm'}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+            pending={offrampingStarted || offrampingPhase !== undefined}
           />
         )}
       </form>
