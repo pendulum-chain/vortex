@@ -142,7 +142,6 @@ export const SwapPage = () => {
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
         readOnly={true}
       />
-      
     ),
     [toToken.fiat.symbol, toToken.fiat.assetIcon, to, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );

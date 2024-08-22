@@ -1,27 +1,18 @@
 require('dotenv').config();
 
-const { Horizon, Keypair } = require('stellar-sdk');
-const { HORIZON_URL } = require('../../constants/constants');
+const { Keypair } = require('stellar-sdk');
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
 
-const { buildCreationStellarTx, buildPaymentAndMergeTx } = require('../services/stellar.service');
+const { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk } = require('../services/stellar.service');
 
-const horizonServer = new Horizon.Server(HORIZON_URL);
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 
 exports.sendStatusWithPk = async (req, res, next) => {
   try {
-    //ensure the fundign account exists
-    let account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
-    let stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
+    const result = await sendStatusWithPk();
 
-    // ensure we have at the very least 2.5 XLM in the account
-    if (Number(stellarBalance.balance) < 2.5) {
-      return res.json({ status: false, public: FUNDING_PUBLIC_KEY });
-    }
-
-    return res.json({ status: true, public: FUNDING_PUBLIC_KEY });
+    return res.json(result);
   } catch (error) {
     console.error('Server error:', error);
     return res.status(500).json({ error: 'Server error', details: error.message });
