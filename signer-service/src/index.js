@@ -8,7 +8,9 @@ const app = require('./config/express');
 require('dotenv').config();
 
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
-const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
+const PENDULUM_FUNDING_SEED =
+  process.env.PENDULUM_FUNDING_SEED ||
+  'hood protect select grace number hurt lottery property stomach grit bamboo field';
 
 // stop the application if the funding secret key is not set
 if (!FUNDING_SECRET) {
