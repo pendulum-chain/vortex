@@ -1,6 +1,6 @@
 import { Avatar, AvatarProps, Button } from 'react-daisyui';
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { useGetIcon } from '../../../hooks/useGetIcon';
+import { AssetIconType, useGetIcon } from '../../../hooks/useGetIcon';
 import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
 
 interface PoolListItemProps<T extends InputTokenType | OutputTokenType> {
@@ -8,6 +8,7 @@ interface PoolListItemProps<T extends InputTokenType | OutputTokenType> {
   tokenSymbol: string;
   isSelected?: boolean;
   onSelect: (tokenType: T) => void;
+  assetIcon: AssetIconType;
 }
 
 export function PoolListItem<T extends InputTokenType | OutputTokenType>({
@@ -15,8 +16,9 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
   tokenSymbol,
   isSelected,
   onSelect,
+  assetIcon,
 }: PoolListItemProps<T>) {
-  const tokenIcon = useGetIcon(tokenType);
+  const tokenIcon = useGetIcon(assetIcon);
 
   return (
     <Button

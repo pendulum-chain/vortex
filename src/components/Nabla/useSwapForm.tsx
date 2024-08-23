@@ -23,9 +23,13 @@ export const useSwapForm = () => {
 
   const initialState = useMemo(() => {
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
+
+    const storedFromTokenIsValid = INPUT_TOKEN_CONFIG[storageValues?.from as InputTokenType] !== undefined;
+    const storedToTokenIsValid = OUTPUT_TOKEN_CONFIG[storageValues?.to as OutputTokenType] !== undefined;
+
     return {
-      from: (storageValues?.from ?? 'usdc') as InputTokenType,
-      to: (storageValues?.to ?? 'eurc') as OutputTokenType,
+      from: (storedFromTokenIsValid ? storageValues?.from : 'usdc') as InputTokenType,
+      to: (storedToTokenIsValid ? storageValues?.to : 'eurc') as OutputTokenType,
       taxNumber: '',
       bankAccount: '',
     };

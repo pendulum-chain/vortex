@@ -1,5 +1,4 @@
-import UsdcIcon from '../assets/coins/USDC.png';
-import EurcIcon from '../assets/coins/EURC.png';
+import { AssetIconType } from '../hooks/useGetIcon';
 
 export interface InputTokenDetails {
   assetSymbol: string;
@@ -9,15 +8,21 @@ export interface InputTokenDetails {
     pendulumCurrencyId: { XCM: number };
     pendulumAssetSymbol: string;
   };
+  polygonAssetIcon: AssetIconType;
   decimals: number;
-  icon: string;
 }
 
 export type InputTokenType = 'usdc' | 'usdce';
 
+export interface Fiat {
+  assetIcon: AssetIconType;
+  symbol: string;
+}
+
 export interface OutputTokenDetails {
   tomlFileUrl: string;
   decimals: number;
+  fiat: Fiat;
   stellarAsset: {
     code: {
       hex: string;
@@ -32,7 +37,6 @@ export interface OutputTokenDetails {
   minWithdrawalAmountRaw: string;
   maxWithdrawalAmountRaw: string;
   erc20WrapperAddress: string;
-  icon: string;
 }
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
@@ -43,8 +47,8 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
+    polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
-    icon: UsdcIcon,
   },
   usdce: {
     assetSymbol: 'USDC.e',
@@ -54,8 +58,8 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
+    polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
-    icon: UsdcIcon,
   },
 };
 
@@ -64,6 +68,10 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
   eurc: {
     tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
     decimals: 12,
+    fiat: {
+      assetIcon: 'eur',
+      symbol: 'EUR',
+    },
     stellarAsset: {
       code: {
         hex: '0x45555243',
@@ -78,7 +86,6 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     erc20WrapperAddress: '6fA9DRKJ12oTXfSAU7ZZGZ9gEQ92YnyRXeJzW1wXekPzeXZC',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
-    icon: EurcIcon,
   },
 };
 
