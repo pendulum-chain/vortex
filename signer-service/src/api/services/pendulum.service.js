@@ -1,10 +1,10 @@
 const { Keyring } = require('@polkadot/api');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 const Big = require('big.js');
-const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS, PENDULUM_FUNDING_SEED } = require('../../constants/constants');
+const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS } = require('../../constants/constants');
 require('dotenv').config();
 
-const pendulumFundingSeed = PENDULUM_FUNDING_SEED;
+const pendulumFundingSeed = process.env.PENDULUM_FUNDING_SEED;
 
 function multiplyByPowerOfTen(bigDecimal, power) {
   const newBigDecimal = new Big(bigDecimal);
