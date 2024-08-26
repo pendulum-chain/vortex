@@ -25,6 +25,5 @@ export interface ExecutionInput {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountInUnits: string;
-  nablaAmountInRaw: string;
   minAmountOutUnits: string;
 }

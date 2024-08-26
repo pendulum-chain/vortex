@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Keypair } from 'stellar-sdk';
 import { ApiComponents, ApiManager } from './polkadotApi';
 import { getVaultsForCurrency, prettyPrintVaultId, VaultService } from './spacewalk';

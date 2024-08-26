@@ -4,7 +4,6 @@ import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import Big from 'big.js';
 import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
-import { OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 
 const FEES_RATE = 0.05; // 0.5% fee rate
