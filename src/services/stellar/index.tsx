@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Horizon,
   Keypair,
@@ -42,6 +43,7 @@ export async function stellarCreateEphemeral(
   if (!ephemeralAccountExists) {
     await setupStellarAccount(fundingAccountId, stellarEphemeralSecret, outputTokenType);
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       if (await isEphemeralCreated(stellarEphemeralSecret)) {
         break;

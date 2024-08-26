@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { stellarHexToPublic, hexToString } from './convert';
 import Big from 'big.js';
 

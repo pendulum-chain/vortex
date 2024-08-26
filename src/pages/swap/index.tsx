@@ -139,7 +139,7 @@ export const SwapPage = () => {
         readOnly={true}
       />
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, to, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
   const WidthrawNumericInput = useMemo(
@@ -222,8 +222,12 @@ export const SwapPage = () => {
     return <FailurePage finishOfframping={finishOfframping} transactionId={sep24Id} />;
   }
 
-  if ((offrampingPhase !== undefined || offrampingStarted) && signingPhase === 'finished') {
-    return <ProgressPage setOfframpingPhase={setOfframpingPhase} />;
+  if (offrampingPhase !== undefined || offrampingStarted) {
+    const showMainScreenAnyway =
+      offrampingPhase === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingPhase);
+    if (!showMainScreenAnyway) {
+      return <ProgressPage setOfframpingPhase={setOfframpingPhase} />;
+    }
   }
 
   const main = (

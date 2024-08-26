@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Abi } from '@polkadot/api-contract';
 import Big from 'big.js';
 import {
@@ -24,8 +25,10 @@ import {
 } from '../helpers/contracts';
 import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { ExecutionContext, OfframpingState } from './offrampingFlow';
-import { Keyring } from '@polkadot/api';
+import { ApiPromise, Keyring } from '@polkadot/api';
 import { decodeSubmittableExtrinsic } from './signedTransactions';
+import { config } from '../config';
+import { KeyringPair } from '@polkadot/keyring/types';
 
 async function createAndSignApproveExtrinsic({
   api,
@@ -173,6 +176,17 @@ export async function nablaApprove(
   };
 }
 
+interface CreateAndSignSwapExtrinsicOptions {
+  api: ApiPromise;
+  tokenIn: string;
+  tokenOut: string;
+  amount: string;
+  amountMin: string;
+  contractAbi: Abi;
+  keypairEphemeral: KeyringPair;
+  nonce?: number;
+}
+
 export async function createAndSignSwapExtrinsic({
   api,
   tokenIn,
@@ -182,7 +196,7 @@ export async function createAndSignSwapExtrinsic({
   contractAbi,
   keypairEphemeral,
   nonce = -1,
-}: any) {
+}: CreateAndSignSwapExtrinsicOptions) {
   const { execution } = await createExecuteMessageExtrinsic({
     abi: contractAbi,
     api,
@@ -190,7 +204,13 @@ export async function createAndSignSwapExtrinsic({
     contractDeploymentAddress: NABLA_ROUTER,
     messageName: 'swapExactTokensForTokens',
     // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
-    messageArguments: [amount, amountMin, [tokenIn, tokenOut], keypairEphemeral.address, calcDeadline(5)],
+    messageArguments: [
+      amount,
+      amountMin,
+      [tokenIn, tokenOut],
+      keypairEphemeral.address,
+      calcDeadline(config.swap.deadlineMinutes),
+    ],
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
     skipDryRunning: true, // We have to skip this because it will not work before the approval transaction executed

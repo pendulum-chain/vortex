@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { getApiManagerInstance } from './polkadotApi';
@@ -21,6 +22,7 @@ async function getEphemeralAddress({ pendulumEphemeralSeed }: OfframpingState) {
 }
 
 async function waitUntil(test: () => Promise<boolean>) {
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (await test()) {
       return true;
@@ -34,7 +36,7 @@ export async function pendulumFundEphemeral(
   { wagmiConfig }: ExecutionContext,
 ): Promise<OfframpingState> {
   console.log('Pendulum funding ephemeral account');
-  const { squidRouterSwapHash, pendulumEphemeralSeed } = state;
+  const { squidRouterSwapHash } = state;
   if (squidRouterSwapHash === undefined) {
     throw new Error('No squid router swap hash found');
   }
@@ -45,7 +47,7 @@ export async function pendulumFundEphemeral(
 
   if (!isAlreadyFunded) {
     const ephemeralAddress = await getEphemeralAddress(state);
-    const response = await axios.post('/api/v1/fundEphemeral', { ephemeralAddress });
+    const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, { ephemeralAddress });
 
     if (response.data.status !== 'success') {
       console.error('Error funding ephemeral account: funding timed out or failed');
@@ -78,6 +80,7 @@ async function isEphemeralFunded(state: OfframpingState) {
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, apiData.decimals).toFixed();
 
   const { data: balance } = await apiData.api.query.system.account(ephemeralKeypair.address);
+  console.log('Funding amount', balance, balance.free.toString());
 
   // check if balance is higher than minimum required, then we consider the account ready
   return Big(balance.free.toString()).gte(fundingAmountRaw);
@@ -186,7 +189,7 @@ export async function subsidizePreSwap(state: OfframpingState): Promise<Offrampi
 
     await waitUntil(async () => {
       const currentBalance = await getRawInputBalance(state);
-      return currentBalance.gt(Big(state.inputAmount.raw));
+      return currentBalance.gte(Big(state.inputAmount.raw));
     });
   }
 
@@ -224,7 +227,7 @@ export async function subsidizePostSwap(state: OfframpingState): Promise<Offramp
 
     await waitUntil(async () => {
       const currentBalance = await getRawOutputBalance(state);
-      return currentBalance.gt(Big(state.outputAmount.raw));
+      return currentBalance.gte(Big(state.outputAmount.raw));
     });
   }
 

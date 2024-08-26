@@ -6,7 +6,6 @@ import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
 import {
   ContractBalance,
-  clampedDifference,
   multiplyByPowerOfTen,
   parseContractBalanceResponse,
   stringifyBigWithSignificantDecimals,

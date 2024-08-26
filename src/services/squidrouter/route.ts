@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
 import { squidReceiverABI } from '../../contracts/SquidReceiver';
@@ -153,12 +154,4 @@ export async function getRouteTransactionRequest(
     transactionRequest,
     data: routeResult.data,
   };
-}
-
-// Function to get the optimal route for the swap using Squid API
-interface StatusParams {
-  transactionId: string;
-  requestId: string;
-  fromChainId: string;
-  toChainId: string;
 }

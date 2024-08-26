@@ -13,6 +13,7 @@ exports.subsidizePreSwap = async (req, res) => {
     const { pendulumCurrencyId, maximumSubsidyAmountRaw } = TOKEN_CONFIG[TOKEN_TO_SWAP];
 
     const { address, amountRaw } = req.body;
+    console.log('Subsidize pre swap', address, amountRaw);
 
     if (Big(amountRaw).gt(Big(maximumSubsidyAmountRaw))) {
       throw new Error('Amount exceeds maximum subsidy amount');
@@ -37,7 +38,7 @@ exports.subsidizePreSwap = async (req, res) => {
 exports.subsidizePostSwap = async (req, res) => {
   try {
     const { address, amountRaw, token } = req.body;
-    console.log('Post swap');
+    console.log('Subsidize post swap', address, amountRaw, token);
 
     const { assetCode, assetIssuer, maximumSubsidyAmountRaw } = TOKEN_CONFIG[token];
 

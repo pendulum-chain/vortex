@@ -52,7 +52,7 @@ export const config = {
     },
   } satisfies TenantConfig,
   swap: {
-    deadline: 30,
+    deadlineMinutes: 60 * 24 * 7, // 1 week
   },
   walletConnect: {
     url: 'wss://relay.walletconnect.com',
