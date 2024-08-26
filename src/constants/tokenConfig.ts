@@ -37,6 +37,7 @@ export interface OutputTokenDetails {
   minWithdrawalAmountRaw: string;
   maxWithdrawalAmountRaw: string;
   erc20WrapperAddress: string;
+  offrampFeesBasisPoints: number;
 }
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
@@ -86,6 +87,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     erc20WrapperAddress: '6fA9DRKJ12oTXfSAU7ZZGZ9gEQ92YnyRXeJzW1wXekPzeXZC',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
+    offrampFeesBasisPoints: 125,
   },
 };
 
