@@ -632,6 +632,7 @@ __metadata:
     "@polkadot/api": "npm:^10.3.4"
     apidoc: "npm:^0.28.1"
     bcryptjs: "npm:2.4.3"
+    big.js: "npm:^6.2.1"
     bluebird: "npm:^3.5.0"
     body-parser: "npm:^1.17.0"
     chai: "npm:^4.1.0"
@@ -2265,6 +2266,13 @@ __metadata:
   version: 2.4.3
   resolution: "bcryptjs@npm:2.4.3"
   checksum: f6798e57eacfe86960d31af9b8fbc15dc73281c42cfb2a294e2d737e0e9bb7e402dbd39ac68b114867b234fd841ae689dbac031cc6af822b9e72099f52157a8c
+  languageName: node
+  linkType: hard
+
+"big.js@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "big.js@npm:6.2.1"
+  checksum: 1d4b621451de712cab20464a26f22b2eee5e7daf0ee88c49dfbfa76061ec37cff2257751e8c3fc183c231bcffac2f006e33af930d8f49b03c758890080b76ada
   languageName: node
   linkType: hard
 
