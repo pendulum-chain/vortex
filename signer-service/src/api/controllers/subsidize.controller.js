@@ -1,15 +1,12 @@
 const { Keypair } = require('stellar-sdk');
 const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api');
 const Big = require('big.js');
-require('dotenv').config();
 
-const { PENDULUM_WSS } = require('../../constants/constants');
+const { PENDULUM_WSS, PENDULUM_FUNDING_SEED } = require('../../constants/constants');
 
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 
 const TOKEN_TO_SWAP = 'usdc.axl';
-
-const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
 
 exports.subsidizePreSwap = async (req, res) => {
   try {

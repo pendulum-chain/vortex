@@ -1,8 +1,7 @@
 const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
-const { HORIZON_URL, BASE_FEE } = require('../../constants/constants');
+const { HORIZON_URL, BASE_FEE, FUNDING_SECRET} = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
-const FUNDING_SECRET = process.env.FUNDING_SECRET;
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
