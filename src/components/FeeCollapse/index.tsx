@@ -4,13 +4,16 @@ import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import Big from 'big.js';
 import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
+import { OutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 
 const FEES_RATE = 0.05; // 0.5% fee rate
 
-function calculateTotalReceive(toAmount: string): string {
-  const totalReceive = Number(toAmount) * (1 - FEES_RATE);
-  return roundDownToSignificantDecimals(new Big(totalReceive || 0), 2).toString();
+function calculateTotalReceive(toAmount: string, outputToken: OutputTokenDetails): string {
+  const feeBasisPoints = outputToken.offrampFeesBasisPoints;
+  const fees = Big(toAmount).mul(feeBasisPoints).div(10000).round(2, 1);
+  const totalReceive = Big(toAmount).minus(fees).toFixed(2, 0);
+  return totalReceive;
 }
 
 function calculateFeesUSD(fromAmount: string): string {
@@ -22,12 +25,13 @@ function calculateFeesUSD(fromAmount: string): string {
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: string;
-  toTokenSymbol: string;
+  toToken: OutputTokenDetails;
 }
 
-export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toTokenSymbol }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toToken }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { trackEvent } = useEventsContext();
+  const toTokenSymbol = toToken.fiat.symbol;
 
   const toggleIsOpen = () => {
     trackEvent({ event: 'click_details' });
@@ -40,7 +44,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toTokenSy
     <ChevronDownIcon className="w-8 text-blue-700" />
   );
 
-  const totalReceive = calculateTotalReceive(toAmount || '0');
+  const totalReceive = calculateTotalReceive(toAmount || '0', toToken);
   const feesCost = calculateFeesUSD(fromAmount || '0');
 
   return (

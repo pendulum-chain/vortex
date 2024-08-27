@@ -252,7 +252,7 @@ export const SwapPage = () => {
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
-          toTokenSymbol={toToken.fiat.symbol}
+          toToken={toToken}
         />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
