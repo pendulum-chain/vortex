@@ -1,4 +1,5 @@
 const { SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
+const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -45,4 +46,55 @@ const validateStorageInput = (req, res, next) => {
   next();
 };
 
-module.exports = { validateChangeOpInput, validateCreationInput, validateStorageInput };
+const validatePreSwapSubsidizationInput = (req, res, next) => {
+  const { amountRaw, address } = req.body;
+
+  if (amountRaw === undefined) {
+    return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+  }
+
+  if (typeof amountRaw !== 'string') {
+    return res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+
+  next();
+};
+
+const validatePostSwapSubsidizationInput = (req, res, next) => {
+  const { amountRaw, address, token } = req.body;
+
+  if (amountRaw === undefined) {
+    return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+  }
+
+  if (typeof amountRaw !== 'string') {
+    return res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+
+  if (token === undefined) {
+    return res.status(400).json({ error: 'Missing "token" parameter' });
+  }
+
+  const tokenConfig = TOKEN_CONFIG[token];
+  if (tokenConfig === undefined || tokenConfig.assetCode === undefined || tokenConfig.assetIssuer === undefined) {
+    return res.status(400).json({ error: 'Invalid "token" parameter' });
+  }
+
+  next();
+};
+
+module.exports = {
+  validateChangeOpInput,
+  validateCreationInput,
+  validatePreSwapSubsidizationInput,
+  validatePostSwapSubsidizationInput,
+  validateStorageInput,
+};

@@ -1,4 +1,3 @@
-import { formatUnits } from 'viem';
 import { useAccount, useReadContract } from 'wagmi';
 
 import erc20ABI from '../contracts/ERC20';

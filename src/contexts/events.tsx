@@ -6,6 +6,7 @@ import { OfframpingState } from '../services/offrampingFlow';
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     dataLayer: Record<string, any>[];
   }
 }
@@ -86,7 +87,7 @@ const useEvents = () => {
     }
 
     previousAddress.current = address;
-  }, [address]);
+  }, [address, trackEvent]);
 
   return {
     trackEvent,

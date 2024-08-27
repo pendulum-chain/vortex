@@ -1,4 +1,4 @@
-import { INPUT_TOKEN_CONFIG, InputTokenDetails } from '../../constants/tokenConfig';
+import { InputTokenDetails } from '../../constants/tokenConfig';
 
 interface Config {
   fromChainId: string;

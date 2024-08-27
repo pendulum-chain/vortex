@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/compat
 import { storageService } from '../services/storage/local';
 import { Storage } from '../services/storage/types';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const debounce = <T extends any[]>(func: (...args: T) => any, timeout = 300) => {
   let timer: NodeJS.Timeout | undefined;
   return (...args: T) => {

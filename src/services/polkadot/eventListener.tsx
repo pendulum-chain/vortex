@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ApiPromise } from '@polkadot/api';
 import { parseEventRedeemExecution } from './eventParsers';
 
