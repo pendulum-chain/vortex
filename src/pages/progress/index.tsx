@@ -31,37 +31,37 @@ export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase, offram
   let phaseMessage: string | undefined;
   switch (offrampingPhase) {
     case 'prepareTransactions':
-      phaseMessage = '1/11: Prepare transactions';
+      phaseMessage = '1/11: Preparing transactions';
       break;
     case 'squidRouter':
-      phaseMessage = '2/11: Axelar bridge';
+      phaseMessage = '2/11: Bridging assets via Axelar';
       break;
     case 'pendulumFundEphemeral':
-      phaseMessage = '3/11: Create Pendulum ephemeral account';
+      phaseMessage = '3/11: Creating Pendulum ephemeral account';
       break;
     case 'subsidizePreSwap':
-      phaseMessage = '4/11: Compensate swap risk';
+      phaseMessage = '4/11: Compensating swap risk';
       break;
     case 'nablaApprove':
-      phaseMessage = '5/11: Forex AMM approval';
+      phaseMessage = '5/11: Approving Forex AMM';
       break;
     case 'nablaSwap':
-      phaseMessage = '6/11: Forex AMM swap';
+      phaseMessage = '6/11: Swapping on Forex AMM';
       break;
     case 'subsidizePostSwap':
-      phaseMessage = '7/11: Compensate swap risk';
+      phaseMessage = '7/11: Compensating swap risk';
       break;
     case 'executeSpacewalkRedeem':
-      phaseMessage = '8/11: Spacewalk bridge';
+      phaseMessage = '8/11: Bridging assets via Spacewalk';
       break;
     case 'pendulumCleanup':
-      phaseMessage = '9/11: Cleanup Pendulum ephemeral account';
+      phaseMessage = '9/11: Cleaning up Pendulum ephemeral account';
       break;
     case 'stellarOfframp':
-      phaseMessage = '10/11: Stellar Offramp';
+      phaseMessage = '10/11: Offramping on Stellar';
       break;
     case 'stellarCleanup':
-      phaseMessage = '11/11: Cleanup Stellar ephemeral account';
+      phaseMessage = '11/11: Cleaning up Stellar ephemeral account';
       break;
   }
 
