@@ -4,6 +4,20 @@ import { FinalOfframpingPhase, OfframpingPhase } from '../../services/offramping
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 
+const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
+  prepareTransactions: '1/11: Preparing transactions',
+  squidRouter: '2/11: Bridging assets via Axelar',
+  pendulumFundEphemeral: '3/11: Creating Pendulum ephemeral account',
+  subsidizePreSwap: '4/11: Compensating swap risk',
+  nablaApprove: '5/11: Approving Forex AMM',
+  nablaSwap: '6/11: Swapping on Forex AMM',
+  subsidizePostSwap: '7/11: Compensating swap risk',
+  executeSpacewalkRedeem: '8/11: Bridging assets via Spacewalk',
+  pendulumCleanup: '9/11: Cleaning up Pendulum ephemeral account',
+  stellarOfframp: '10/11: Offramping on Stellar',
+  stellarCleanup: '11/11: Cleaning up Stellar ephemeral account',
+};
+
 const handleTabClose = (event: Event) => {
   event.preventDefault();
 };
@@ -28,42 +42,10 @@ export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase, offram
     };
   }, [setOfframpingPhase]);
 
-  let phaseMessage: string | undefined;
-  switch (offrampingPhase) {
-    case 'prepareTransactions':
-      phaseMessage = '1/11: Preparing transactions';
-      break;
-    case 'squidRouter':
-      phaseMessage = '2/11: Bridging assets via Axelar';
-      break;
-    case 'pendulumFundEphemeral':
-      phaseMessage = '3/11: Creating Pendulum ephemeral account';
-      break;
-    case 'subsidizePreSwap':
-      phaseMessage = '4/11: Compensating swap risk';
-      break;
-    case 'nablaApprove':
-      phaseMessage = '5/11: Approving Forex AMM';
-      break;
-    case 'nablaSwap':
-      phaseMessage = '6/11: Swapping on Forex AMM';
-      break;
-    case 'subsidizePostSwap':
-      phaseMessage = '7/11: Compensating swap risk';
-      break;
-    case 'executeSpacewalkRedeem':
-      phaseMessage = '8/11: Bridging assets via Spacewalk';
-      break;
-    case 'pendulumCleanup':
-      phaseMessage = '9/11: Cleaning up Pendulum ephemeral account';
-      break;
-    case 'stellarOfframp':
-      phaseMessage = '10/11: Offramping on Stellar';
-      break;
-    case 'stellarCleanup':
-      phaseMessage = '11/11: Cleaning up Stellar ephemeral account';
-      break;
-  }
+  const phaseMessage =
+    offrampingPhase === undefined || offrampingPhase === 'failure' || offrampingPhase === 'success'
+      ? undefined
+      : OFFRAMPING_PHASE_MESSAGES[offrampingPhase];
 
   const main = (
     <main>
