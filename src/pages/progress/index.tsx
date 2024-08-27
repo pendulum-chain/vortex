@@ -39,18 +39,18 @@ export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase, offram
     case 'pendulumFundEphemeral':
       phaseMessage = '3/11: Create Pendulum ephemeral account';
       break;
-    //case 'subsidizePreSwap':
-    //  phaseMessage = '4/11: Compensate swap risk';
-    //  break;
+    case 'subsidizePreSwap':
+      phaseMessage = '4/11: Compensate swap risk';
+      break;
     case 'nablaApprove':
       phaseMessage = '5/11: Forex AMM approval';
       break;
     case 'nablaSwap':
       phaseMessage = '6/11: Forex AMM swap';
       break;
-    //case 'subsidizePostSwap':
-    //  phaseMessage = '7/11: Compensate swap risk';
-    //  break;
+    case 'subsidizePostSwap':
+      phaseMessage = '7/11: Compensate swap risk';
+      break;
     case 'executeSpacewalkRedeem':
       phaseMessage = '8/11: Spacewalk bridge';
       break;
