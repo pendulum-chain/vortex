@@ -35,7 +35,7 @@ export const TextInput = ({
       spellCheck="false"
       placeholder={placeholder}
       error={error}
-      pattern="^(0x[a-fA-F0-9]{40})$"
+      pattern={type === 'email' ? undefined : '^(0x[a-fA-F0-9]{40})$'}
       readOnly={readOnly}
       disabled={disabled}
       autoFocus={autoFocus}
