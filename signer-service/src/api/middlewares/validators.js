@@ -1,4 +1,5 @@
 const { SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
+const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -32,12 +33,12 @@ const validateChangeOpInput = (req, res, next) => {
   next();
 };
 
-const validateStorageInput = (req, res, next) => {
+const validateInputHeaderValues = (requiredHeaders) => (req, res, next) => {
   const data = req.body;
-  // Check if the data contains values for all the headers
-  if (!SHEET_HEADER_VALUES.every((header) => data[header])) {
-    const missingItems = SHEET_HEADER_VALUES.filter((header) => !data[header]);
-    let errorMessage = 'Data does not match schema. Missing items: ' + missingItems.join(', ');
+
+  if (!requiredHeaders.every((header) => data[header])) {
+    const missingItems = requiredHeaders.filter((header) => !data[header]);
+    const errorMessage = 'Data does not match schema. Missing items: ' + missingItems.join(', ');
     console.error(errorMessage);
     return res.status(400).json({ error: errorMessage });
   }
@@ -45,4 +46,7 @@ const validateStorageInput = (req, res, next) => {
   next();
 };
 
-module.exports = { validateChangeOpInput, validateCreationInput, validateStorageInput };
+const validateStorageInput = validateInputHeaderValues(SHEET_HEADER_VALUES);
+const validateEmailInput = validateInputHeaderValues(EMAIL_SHEET_HEADER_VALUES);
+
+module.exports = { validateChangeOpInput, validateCreationInput, validateStorageInput, validateEmailInput };
