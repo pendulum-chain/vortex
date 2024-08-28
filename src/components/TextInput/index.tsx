@@ -1,6 +1,19 @@
 import { Input } from 'react-daisyui';
 import { UseFormRegisterReturn } from 'react-hook-form';
 
+const patterns: Record<string, string> = {
+  email: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
+  default: '^(0x[a-fA-F0-9]{40})$',
+};
+
+function getPattern(textInputType?: string) {
+  if (textInputType && patterns[textInputType]) {
+    return patterns[textInputType];
+  }
+
+  return patterns.default;
+}
+
 interface NumericInputProps {
   register: UseFormRegisterReturn;
   readOnly?: boolean;
@@ -35,7 +48,7 @@ export const TextInput = ({
       spellCheck="false"
       placeholder={placeholder}
       error={error}
-      pattern={type === 'email' ? undefined : '^(0x[a-fA-F0-9]{40})$'}
+      pattern={getPattern(type)}
       readOnly={readOnly}
       disabled={disabled}
       autoFocus={autoFocus}
