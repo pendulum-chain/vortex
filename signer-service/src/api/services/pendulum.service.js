@@ -1,10 +1,10 @@
 const { Keyring } = require('@polkadot/api');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 const Big = require('big.js');
-const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS, PENDULUM_FUNDING_SEED } = require('../../constants/constants');
+const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS } = require('../../constants/constants');
 require('dotenv').config();
 
-const pendulumFundingSeed = PENDULUM_FUNDING_SEED;
+const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
 
 function multiplyByPowerOfTen(bigDecimal, power) {
   const newBigDecimal = new Big(bigDecimal);
@@ -30,7 +30,7 @@ async function createPolkadotApi() {
 
 function getFundingData(ss58Format, decimals) {
   const keyring = new Keyring({ type: 'sr25519', ss58Format });
-  const fundingAccountKeypair = keyring.addFromUri(pendulumFundingSeed);
+  const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED);
   const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 

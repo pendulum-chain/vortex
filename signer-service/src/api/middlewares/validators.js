@@ -1,3 +1,4 @@
+const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 const { SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 
@@ -49,4 +50,56 @@ const validateInputHeaderValues = (requiredHeaders) => (req, res, next) => {
 const validateStorageInput = validateInputHeaderValues(SHEET_HEADER_VALUES);
 const validateEmailInput = validateInputHeaderValues(EMAIL_SHEET_HEADER_VALUES);
 
-module.exports = { validateChangeOpInput, validateCreationInput, validateStorageInput, validateEmailInput };
+const validatePreSwapSubsidizationInput = (req, res, next) => {
+  const { amountRaw, address } = req.body;
+
+  if (amountRaw === undefined) {
+    return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+  }
+
+  if (typeof amountRaw !== 'string') {
+    return res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+
+  next();
+};
+
+const validatePostSwapSubsidizationInput = (req, res, next) => {
+  const { amountRaw, address, token } = req.body;
+
+  if (amountRaw === undefined) {
+    return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+  }
+
+  if (typeof amountRaw !== 'string') {
+    return res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+
+  if (token === undefined) {
+    return res.status(400).json({ error: 'Missing "token" parameter' });
+  }
+
+  const tokenConfig = TOKEN_CONFIG[token];
+  if (tokenConfig === undefined || tokenConfig.assetCode === undefined || tokenConfig.assetIssuer === undefined) {
+    return res.status(400).json({ error: 'Invalid "token" parameter' });
+  }
+
+  next();
+};
+
+module.exports = {
+  validateChangeOpInput,
+  validateCreationInput,
+  validatePreSwapSubsidizationInput,
+  validatePostSwapSubsidizationInput,
+  validateStorageInput,
+  validateEmailInput,
+};

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { Asset } from 'stellar-sdk';
 import { stellarHexToPublic } from './convert';
@@ -74,7 +75,7 @@ function prettyPrintAssetInfo(assetInfo: any) {
 
 export async function getVaultsForCurrency(api: ApiPromise, assetCodeHex: string, assetIssuerHex: string) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
-  const vaults = vaultEntries.map(([key, value]) => value.unwrap());
+  const vaults = vaultEntries.map(([_, value]) => value.unwrap());
 
   const vaultsForCurrency = vaults.filter((vault) => {
     // toString returns the hex string
@@ -116,9 +117,6 @@ export class VaultService {
 
     // We distinguish between a WalletAccount and a KeyringPair because we need to handle the signer differently
     const addressOrPair = isWalletAccount(accountOrPair) ? accountOrPair.address : accountOrPair;
-    const address = isWalletAccount(accountOrPair)
-      ? accountOrPair.address
-      : keyring.encodeAddress(accountOrPair.publicKey);
     const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any, nonce } : { nonce };
 
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
@@ -183,7 +181,7 @@ export class VaultService {
   handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
     if (dispatchError?.isModule) {
       const decoded = this.apiComponents!.api.registry.findMetaError(dispatchError.asModule);
-      const { docs, name, section, method } = decoded;
+      const { name, section, method } = decoded;
 
       return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
     } else if (systemExtrinsicFailedEvent) {
@@ -194,7 +192,7 @@ export class VaultService {
 
       const {
         phase,
-        event: { data, method, section },
+        event: { method, section },
       } = systemExtrinsicFailedEvent;
       console.log(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
 

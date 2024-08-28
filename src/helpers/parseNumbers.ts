@@ -1,5 +1,4 @@
 import { u128 } from '@polkadot/types-codec';
-import Big from 'big.js';
 import BigNumber from 'big.js';
 
 // These are the decimals used for the native currency on the Amplitude network
