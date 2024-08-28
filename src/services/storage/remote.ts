@@ -25,6 +25,4 @@ export async function storeDataInBackend(data: Data) {
   if (!response.ok) {
     throw new Error(`Error while sending data to storage endpoint`);
   }
-
-  console.log('Data stored successfully');
 }
