@@ -28,7 +28,9 @@ export const ConnectWallet = () => (
                   type="button"
                   className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                 >
-                  Connect Wallet
+                  <p className="flex">
+                    Connect <span className="hidden lg:block lg:ml-1">Wallet</span>
+                  </p>
                   <PlayCircleIcon className="w-5" />
                 </button>
               );
