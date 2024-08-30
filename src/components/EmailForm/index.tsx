@@ -3,11 +3,6 @@ import { useForm } from 'react-hook-form';
 import { storeUserEmailInBackend } from '../../services/storage/storeUserEmailInBackend';
 import { TextInput } from '../../components/TextInput';
 
-async function saveUserEmail(email: string) {
-  return await storeUserEmailInBackend({ email });
-}
-
-// Implement tanstack query
 export const EmailForm = () => {
   const { register, handleSubmit } = useForm();
 
@@ -17,14 +12,14 @@ export const EmailForm = () => {
     isSuccess,
     isError,
   } = useMutation({
-    mutationFn: saveUserEmail,
+    mutationFn: storeUserEmailInBackend,
   });
 
   const onSubmit = handleSubmit((data) => {
-    saveUserEmailMutation(data.email);
+    saveUserEmailMutation({ email: data.email });
   });
 
-  function getFormButtonSection() {
+  const FormButtonSection = () => {
     if (isSuccess) {
       return (
         <div className="flex items-center justify-center mt-2 text-white btn-success btn">Successfully saved!</div>
@@ -52,7 +47,7 @@ export const EmailForm = () => {
         )}
       </>
     );
-  }
+  };
 
   return (
     <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? 'request-error-message' : undefined}>
@@ -60,7 +55,7 @@ export const EmailForm = () => {
         To receive further assistance and information about our app,
       </p>
       <p className="font-light text-center text-blue-700">please provide your email address below:</p>
-      {getFormButtonSection()}
+      <FormButtonSection />
     </form>
   );
 };
