@@ -3,6 +3,7 @@ const express = require('express');
 const stellarRoutes = require('./stellar.route');
 const pendulumRoutes = require('./pendulum.route');
 const storageRoutes = require('./storage.route');
+const emailRoutes = require('./email.route');
 const subsidizeRoutes = require('./subsidize.route');
 
 const router = express.Router({ mergeParams: true });
@@ -33,6 +34,11 @@ router.get('/status', sendStatusWithPk);
  * POST v1/stellar
  */
 router.use('/stellar', stellarRoutes);
+
+
+/**
+ * POST v1/pendulum
+ */
 router.use('/pendulum', pendulumRoutes);
 
 /**
@@ -40,6 +46,15 @@ router.use('/pendulum', pendulumRoutes);
  */
 router.use('/storage', storageRoutes);
 
+/**
+ * POST v1/email
+ */
+router.use('/email', emailRoutes);
+
+
+/**
+ * POST v1/subsidize
+ */
 router.use('/subsidize', subsidizeRoutes);
 
 module.exports = router;

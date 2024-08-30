@@ -1,7 +1,7 @@
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 // These are the headers for the Google Spreadsheet
-type Data = {
+interface DumpData {
   timestamp: string;
   polygonAddress: string;
   stellarEphemeralPublicKey: string;
@@ -11,10 +11,15 @@ type Data = {
   spacewalkRedeemTx: string;
   stellarOfframpTx: string;
   stellarCleanupTx: string;
-};
+}
 
-export async function storeDataInBackend(data: Data) {
-  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/storage/create`, {
+interface EmailData {
+  email: string;
+  transactionId: string;
+}
+
+async function sendRequestToBackend(endpoint: string, data: EmailData | DumpData) {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -23,8 +28,19 @@ export async function storeDataInBackend(data: Data) {
   });
 
   if (!response.ok) {
-    throw new Error(`Error while sending data to storage endpoint`);
+    throw new Error(`Error while sending data to ${endpoint}`);
   }
 
-  console.log('Data stored successfully');
+  return await response.json();
+}
+
+export async function storeDataInBackend(data: DumpData) {
+  const endpoint = `${SIGNING_SERVICE_URL}/v1/storage/create`;
+  return await sendRequestToBackend(endpoint, data);
+}
+
+export async function storeUserEmailInBackend(data: EmailData) {
+  const endpoint = `${SIGNING_SERVICE_URL}/v1/email/create`;
+  const payload = { ...data, timestamp: new Date().toISOString() };
+  return await sendRequestToBackend(endpoint, payload);
 }
