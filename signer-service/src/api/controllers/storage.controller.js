@@ -2,7 +2,7 @@ const { spreadsheet } = require('../../config/vars');
 const { storeDataInGoogleSpreadsheet } = require('./googleSpreadsheet.controller');
 
 // These are the headers for the Google Spreadsheet
-const SHEET_HEADER_VALUES = [
+const DUMP_SHEET_HEADER_VALUES = [
   'timestamp',
   'polygonAddress',
   'stellarEphemeralPublicKey',
@@ -14,7 +14,7 @@ const SHEET_HEADER_VALUES = [
   'stellarCleanupTx',
 ];
 
-exports.SHEET_HEADER_VALUES = SHEET_HEADER_VALUES;
+exports.DUMP_SHEET_HEADER_VALUES = DUMP_SHEET_HEADER_VALUES;
 
-exports.storeData = async (req, res) => storeDataInGoogleSpreadsheet(req, res, spreadsheet.storageSheetId, SHEET_HEADER_VALUES)
+exports.storeData = async (req, res) => storeDataInGoogleSpreadsheet(req, res, spreadsheet.storageSheetId, DUMP_SHEET_HEADER_VALUES)
 
