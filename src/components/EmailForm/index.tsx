@@ -1,9 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { storeUserEmailInBackend } from '../../services/storage/storeUserEmailInBackend';
+import { storeUserEmailInBackend } from '../../services/storage/remote';
 import { TextInput } from '../../components/TextInput';
 
-export const EmailForm = () => {
+interface EmailFormProps {
+  transactionId?: string;
+}
+
+export const EmailForm = ({ transactionId }: EmailFormProps) => {
   const { register, handleSubmit } = useForm();
 
   const {
@@ -16,7 +20,12 @@ export const EmailForm = () => {
   });
 
   const onSubmit = handleSubmit((data) => {
-    saveUserEmailMutation({ email: data.email });
+    if (!transactionId) {
+      console.error('Transaction ID is missing');
+      return;
+    }
+
+    saveUserEmailMutation({ email: data.email, transactionId });
   });
 
   const FormButtonSection = () => {
