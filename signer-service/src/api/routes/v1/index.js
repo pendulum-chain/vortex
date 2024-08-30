@@ -34,14 +34,27 @@ router.get('/status', sendStatusWithPk);
  * POST v1/stellar
  */
 router.use('/stellar', stellarRoutes);
+
+
+/**
+ * POST v1/pendulum
+ */
 router.use('/pendulum', pendulumRoutes);
 
 /**
  * POST v1/storage
  */
 router.use('/storage', storageRoutes);
+
+/**
+ * POST v1/email
+ */
 router.use('/email', emailRoutes);
 
+
+/**
+ * POST v1/subsidize
+ */
 router.use('/subsidize', subsidizeRoutes);
 
 module.exports = router;

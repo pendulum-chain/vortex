@@ -1,5 +1,5 @@
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
-const { SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
+const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 
 const validateCreationInput = (req, res, next) => {
@@ -47,7 +47,7 @@ const validateInputHeaderValues = (requiredHeaders) => (req, res, next) => {
   next();
 };
 
-const validateStorageInput = validateInputHeaderValues(SHEET_HEADER_VALUES);
+const validateStorageInput = validateInputHeaderValues(DUMP_SHEET_HEADER_VALUES);
 const validateEmailInput = validateInputHeaderValues(EMAIL_SHEET_HEADER_VALUES);
 
 const validatePreSwapSubsidizationInput = (req, res, next) => {
