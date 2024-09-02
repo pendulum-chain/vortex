@@ -22,8 +22,8 @@ const IframeComponent: React.FC<IframeProps> = ({
   <div className="max-w-lg w-full">
     <div className="text-center">
       <h1 className="text-2xl font-bold text-blue-700 mb-4">{title}</h1>
-      <h2 className="text-lg mb-4">{subtitle}</h2>
-      <div className="relative pb-[102%]"> 
+      <h2 className="text-md mb-4">{subtitle}</h2>
+      <div className="relative pb-[150%] md:w-[535px] md:h-[550px]"> 
         <iframe
           src={src}
           style={{ border: 'none' }}
