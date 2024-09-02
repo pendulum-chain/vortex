@@ -113,7 +113,6 @@ export const useMainProcess = () => {
           const firstSep24Response = await sep24First(anchorSessionParams);
           console.log('sep24 url:', firstSep24Response.url);
           setSep24Url(firstSep24Response.url);
-
           const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
 
           console.log('secondSep24Response', secondSep24Response);
@@ -132,7 +131,7 @@ export const useMainProcess = () => {
           updateHookStateFromState(initialState);
 
         } catch (error) {
-          const initialStateFailure = await constructInitialState({
+          let initialStateFailure = await constructInitialState({
             sep24Id: 'null',
             inputTokenType,
             outputTokenType,
@@ -145,6 +144,7 @@ export const useMainProcess = () => {
               offrampingAccount: '0',
             },
           });
+          initialStateFailure.phase = 'failure';
           storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialStateFailure);
           setOfframpingPhase('failure');
 
