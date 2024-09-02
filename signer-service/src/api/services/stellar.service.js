@@ -5,7 +5,7 @@ const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tok
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.TESTNET;
+const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetCode) {
   const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);

@@ -37,6 +37,7 @@ export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
+  const [isIframVisible, setIframVisible] = useState(false);
 
   const { isDisconnected } = useAccount();
 
@@ -59,7 +60,6 @@ export const SwapPage = () => {
     sep24Id,
     offrampingPhase,
     setOfframpingPhase,
-    resetSep24Url,
     signingPhase,
   } = useMainProcess();
 
@@ -232,7 +232,7 @@ export const SwapPage = () => {
     const showMainScreenAnyway =
       offrampingPhase === undefined;
 
-    if (sep24Url && showMainScreenAnyway){
+    if (sep24Url && isIframVisible && showMainScreenAnyway ){
       return (
           <IframeComponent
             src={sep24Url}

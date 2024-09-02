@@ -157,6 +157,7 @@ export const useMainProcess = () => {
 
   const finishOfframping = useCallback(() => {
     (async () => {
+      setSep24Url(undefined);
       await clearOfframpingState();
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
@@ -170,7 +171,6 @@ export const useMainProcess = () => {
     })();
   }, [offrampingPhase, updateHookStateFromState, wagmiConfig]);
 
-  const resetSep24Url = () => setSep24Url(undefined);
 
   return {
     setOfframpingPhase,
@@ -180,7 +180,6 @@ export const useMainProcess = () => {
     offrampingStarted,
     sep24Id,
     finishOfframping,
-    resetSep24Url,
     signingPhase,
   };
 };

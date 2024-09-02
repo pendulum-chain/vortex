@@ -29,28 +29,38 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
 
   const { stellarEphemeralSecret, pendulumEphemeralSeed, outputTokenType, sepResult } = state;
 
-  const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
-  const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
-  const nablaSwapTransaction = await prepareNablaSwapTransaction(state, context);
+  // TESTING - TODO: Remove commented
+  // const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
+  // const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
+  // const nablaSwapTransaction = await prepareNablaSwapTransaction(state, context);
 
-  // Fund Stellar ephemeral only after all other transactions are prepared
-  await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
-  const stellarFundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
+  // // Fund Stellar ephemeral only after all other transactions are prepared
+  // await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
+  // const stellarFundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
   const stellarEphemeralPublicKey = stellarEphemeralKeypair.publicKey();
-  const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
-    stellarFundingAccountId,
-    stellarEphemeralKeypair,
-    sepResult,
-    outputTokenType,
-  );
+  // const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
+  //   stellarFundingAccountId,
+  //   stellarEphemeralKeypair,
+  //   sepResult,
+  //   outputTokenType,
+  // );
 
+  // const transactions = {
+  //   stellarOfframpingTransaction: offrampingTransaction.toEnvelope().toXDR().toString('base64'),
+  //   stellarCleanupTransaction: mergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
+  //   spacewalkRedeemTransaction: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
+  //   nablaSwapTransaction: encodeSubmittableExtrinsic(nablaSwapTransaction),
+  //   nablaApproveTransaction: encodeSubmittableExtrinsic(nablaApproveTransaction),
+  // };
+
+  // mock all 
   const transactions = {
-    stellarOfframpingTransaction: offrampingTransaction.toEnvelope().toXDR().toString('base64'),
-    stellarCleanupTransaction: mergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
-    spacewalkRedeemTransaction: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
-    nablaSwapTransaction: encodeSubmittableExtrinsic(nablaSwapTransaction),
-    nablaApproveTransaction: encodeSubmittableExtrinsic(nablaApproveTransaction),
+    stellarOfframpingTransaction: 'stellarOfframpingTransaction',
+    stellarCleanupTransaction: 'stellarCleanupTransaction',
+    spacewalkRedeemTransaction: 'spacewalkRedeemTransaction',
+    nablaSwapTransaction: 'nablaSwapTransaction',
+    nablaApproveTransaction: 'nablaApproveTransaction',
   };
 
   const apiManager = await getApiManagerInstance();
