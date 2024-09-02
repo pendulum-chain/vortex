@@ -104,7 +104,7 @@ export interface ExecutionContext {
   setSigningPhase: (n: SigningPhase) => void;
 }
 
-const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
+export const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 
 export interface InitiateStateArguments {
   sep24Id: string;

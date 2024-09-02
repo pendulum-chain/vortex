@@ -25,6 +25,7 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+import IframeComponent from '../../components/Iframe';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -61,6 +62,10 @@ export const SwapPage = () => {
     resetSep24Url,
     signingPhase,
   } = useMainProcess();
+
+  const handleSubmitButtonClick = () => {
+    setIframVisible(true);
+  }
 
   const {
     tokensModal: [modalType, setModalType],
@@ -161,11 +166,12 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
+    // TESTING - TODO: Remove comment
+    // if (typeof userInputTokenBalance === 'string') {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+    //   }
+    // }
 
     const amountOut = tokenOutData.data?.amountOut;
 
@@ -224,57 +230,66 @@ export const SwapPage = () => {
 
   if (offrampingPhase !== undefined || offrampingStarted) {
     const showMainScreenAnyway =
-      offrampingPhase === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingPhase);
+      offrampingPhase === undefined;
+
+    if (sep24Url && showMainScreenAnyway){
+      return (
+          <IframeComponent
+            src={sep24Url}
+            title="Verify Your Identity to Start Offramping"
+            subtitle="Please follow the steps below to complete the identity verification."
+          />
+        );
+    }
     if (!showMainScreenAnyway) {
-      return <ProgressPage setOfframpingPhase={setOfframpingPhase} offrampingPhase={offrampingPhase} />;
+      return <ProgressPage setOfframpingPhase={setOfframpingPhase} offrampingPhase={offrampingPhase} signingPhase={signingPhase} />;
     }
   }
 
   const main = (
     <main ref={formRef}>
-      <SigningBox step={signingPhase} />
-      <form
-        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
-        onSubmit={onSubmit}
-      >
-        <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
-        <Arrow />
-        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600">{getCurrentErrorMessage()}</p>
-        <ExchangeRate
-          {...{
-            tokenOutData,
-            fromToken,
-            toTokenSymbol: toToken.fiat.symbol,
-          }}
-        />
-        <FeeCollapse
-          fromAmount={fromAmount?.toString()}
-          toAmount={tokenOutData.data?.amountOut.preciseString}
-          toToken={toToken}
-        />
-        <section className="flex items-center justify-center w-full mt-5">
-          <BenefitsList amount={fromAmount} currency={from} />
-        </section>
-        {sep24Url !== undefined ? (
-          <a
-            href={sep24Url}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-            onClick={resetSep24Url}
+          <form
+            className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+            onSubmit={onSubmit}
           >
-            Start Offramping
-          </a>
-        ) : (
-          <SwapSubmitButton
-            text={offrampingStarted ? 'Offramping in Progress' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-            pending={offrampingStarted || offrampingPhase !== undefined}
-          />
-        )}
-      </form>
+            <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
+            <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
+            <Arrow />
+            <LabeledInput label="You receive" Input={ReceiveNumericInput} />
+            <p className="text-red-600">{getCurrentErrorMessage()}</p>
+            <ExchangeRate
+              {...{
+                tokenOutData,
+                fromToken,
+                toTokenSymbol: toToken.fiat.symbol,
+              }}
+            />
+            <FeeCollapse
+              fromAmount={fromAmount?.toString()}
+              toAmount={tokenOutData.data?.amountOut.preciseString}
+              toToken={toToken}
+            />
+            <section className="flex items-center justify-center w-full mt-5">
+              <BenefitsList amount={fromAmount} currency={from} />
+            </section>
+            {sep24Url !== undefined ? (
+              <button
+                href={sep24Url}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+                onClick={handleSubmitButtonClick}
+              >
+                Start Offramping
+              </button>
+            ) : (
+              <SwapSubmitButton
+                text={offrampingStarted ? 'Offramping in Progress' : 'Confirm'}
+                disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+                pending={offrampingStarted || offrampingPhase !== undefined}
+              />
+            )}
+          </form>
     </main>
   );
 

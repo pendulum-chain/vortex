@@ -186,9 +186,9 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
 }*/
 
 export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
-  if (config.test.mockSep24) {
-    return { url: 'https://www.example.com', id: '1234' };
-  }
+  // if (config.test.mockSep24) {
+  //   return { url: 'https://www.example.com', id: '1234' };
+  // }
 
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
@@ -227,11 +227,13 @@ export async function sep24Second(
   const { sep24Url } = tomlValues;
 
   if (config.test.mockSep24) {
+    // sleep 5 seconds
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     return {
       amount: sessionParams.offrampAmount,
       memo: 'MYK1722323689',
       memoType: 'text',
-      offrampingAccount: (await fetchSigningServiceAccountId()).stellar.public,
+      offrampingAccount: "GSAPDFASJFPASFOKNASOFKNAS",
     };
   }
 

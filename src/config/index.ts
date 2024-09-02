@@ -59,7 +59,7 @@ export const config = {
     projectId: '299fda67fbf3b60a31ba8695524534cd',
   },
   test: {
-    mockSep24: false,
+    mockSep24: true,
     overwriteMinimumTransferAmount: false,
   },
 };

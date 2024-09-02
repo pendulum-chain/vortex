@@ -21,6 +21,8 @@ import {
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { storageService } from '../services/storage/local';
+import { OFFRAMPING_STATE_LOCAL_STORAGE_KEY } from '../services/offrampingFlow';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -90,6 +92,7 @@ export const useMainProcess = () => {
           from_amount: amountInUnits,
           to_amount: Big(minAmountOutUnits).round(2, 0).toFixed(2, 0),
         });
+        
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
@@ -127,13 +130,29 @@ export const useMainProcess = () => {
           trackEvent(createTransactionEvent('kyc_completed', initialState));
 
           updateHookStateFromState(initialState);
+
         } catch (error) {
+          const initialStateFailure = await constructInitialState({
+            sep24Id: 'null',
+            inputTokenType,
+            outputTokenType,
+            amountIn: amountInUnits,
+            amountOut: minAmountOutUnits,
+            sepResult: {
+              amount: '0',
+              memo: '0',
+              memoType: '0',
+              offrampingAccount: '0',
+            },
+          });
+          storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialStateFailure);
+          setOfframpingPhase('failure');
+
           console.error('Some error occurred initializing the offramping process', error);
-          setOfframpingStarted(false);
         }
       })();
     },
-    [offrampingPhase, offrampingStarted, trackEvent, updateHookStateFromState],
+    [offrampingPhase, offrampingStarted, trackEvent, updateHookStateFromState, setOfframpingPhase],
   );
 
   const finishOfframping = useCallback(() => {

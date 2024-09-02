@@ -3,6 +3,8 @@ import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { FinalOfframpingPhase, OfframpingPhase } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
+import { SigningBox } from '../../components/SigningBox';
+import { SigningPhase } from '../../hooks/useMainProcess'
 
 const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
   prepareTransactions: '1/11: Preparing transactions',
@@ -25,9 +27,10 @@ const handleTabClose = (event: Event) => {
 interface ProgressPageProps {
   setOfframpingPhase: StateUpdater<OfframpingPhase | FinalOfframpingPhase | undefined>;
   offrampingPhase: OfframpingPhase | FinalOfframpingPhase | undefined;
+  signingPhase: SigningPhase | undefined;
 }
 
-export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase, offrampingPhase }) => {
+export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase, offrampingPhase, signingPhase }) => {
   // After 15 minutes of waiting, we want to redirect user to the failure page.
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -49,6 +52,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase, offram
 
   const main = (
     <main>
+      <SigningBox step={signingPhase} />
       <Box className="flex flex-col items-center justify-center mt-12">
         <div className="flex flex-col items-center justify-center">
           <ExclamationCircleIcon className="text-red-500 w-36" />
