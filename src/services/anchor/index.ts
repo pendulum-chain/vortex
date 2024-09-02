@@ -228,7 +228,7 @@ export async function sep24Second(
 
   if (config.test.mockSep24) {
     // sleep 10 seconds, mock user completion of KYC
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await new Promise((resolve) => setTimeout(resolve, 10000000000));
     return {
       amount: sessionParams.offrampAmount,
       memo: 'MYK1722323689',
