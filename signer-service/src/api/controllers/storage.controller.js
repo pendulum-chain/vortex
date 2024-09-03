@@ -12,6 +12,10 @@ const DUMP_SHEET_HEADER_VALUES = [
   'spacewalkRedeemTx',
   'stellarOfframpTx',
   'stellarCleanupTx',
+  'inputAmount',
+  'inputTokenType',
+  'outputAmount',
+  'outputTokenType',
 ];
 
 exports.DUMP_SHEET_HEADER_VALUES = DUMP_SHEET_HEADER_VALUES;
