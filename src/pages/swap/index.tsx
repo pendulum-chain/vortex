@@ -63,10 +63,6 @@ export const SwapPage = () => {
     signingPhase,
   } = useMainProcess();
 
-  const handleSubmitButtonClick = () => {
-    setIframVisible(true);
-  }
-
   const {
     tokensModal: [modalType, setModalType],
     onFromChange,
@@ -232,7 +228,7 @@ export const SwapPage = () => {
     const showMainScreenAnyway =
       offrampingPhase === undefined;
 
-    if (sep24Url && isIframVisible && showMainScreenAnyway ){
+    if (sep24Url && showMainScreenAnyway ){
       return (
           <IframeComponent
             src={sep24Url}
@@ -272,23 +268,11 @@ export const SwapPage = () => {
             <section className="flex items-center justify-center w-full mt-5">
               <BenefitsList amount={fromAmount} currency={from} />
             </section>
-            {sep24Url !== undefined ? (
-              <button
-                href={sep24Url}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-                onClick={handleSubmitButtonClick}
-              >
-                Start Offramping
-              </button>
-            ) : (
               <SwapSubmitButton
-                text={offrampingStarted ? 'Offramping in Progress' : 'Confirm'}
+                text={offrampingStarted ? 'Offramping in Progress' : 'Start Offramping'}
                 disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
                 pending={offrampingStarted || offrampingPhase !== undefined}
               />
-            )}
           </form>
     </main>
   );
