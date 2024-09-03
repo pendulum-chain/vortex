@@ -86,7 +86,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
       stellarOfframpTx: transactions.stellarOfframpingTransaction,
       stellarCleanupTx: transactions.stellarCleanupTransaction,
     };
-    await storeDataInBackend(data);
+    //await storeDataInBackend(data);
   } catch (error) {
     console.error('Error storing data', error);
   }
