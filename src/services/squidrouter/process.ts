@@ -54,7 +54,7 @@ export async function squidRouter(
   await waitForEvmTransaction(approvalHash, wagmiConfig);
 
   const swapHash = await sendTransaction(wagmiConfig, {
-    to: transactionRequest.target,
+    to: transactionRequest.targetAddress,
     data: transactionRequest.data,
     value: transactionRequest.value,
     gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
