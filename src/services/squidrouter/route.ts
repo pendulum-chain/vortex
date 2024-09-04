@@ -18,9 +18,10 @@ interface RouteParams {
   toChain: string;
   toToken: string;
   toAddress: string;
-  slippageConfig: {
-    autoMode: number;
-  };
+  slippage: number;
+  // slippageConfig: {
+  //   autoMode: number;
+  // };
   enableExpress: boolean;
   postHook: {
     chainType: string;
@@ -66,9 +67,10 @@ function createRouteParams(
     toChain: toChainId,
     toToken: axlUSDC_MOONBEAM,
     toAddress: userAddress,
-    slippageConfig: {
-      autoMode: 1,
-    },
+    slippage: 1,
+    // slippageConfig: {
+    //   autoMode: 1,
+    // },
     enableExpress: true,
     postHook: {
       chainType: 'evm',
@@ -110,7 +112,8 @@ function createRouteParams(
 async function getRouteOld(params: RouteParams) {
   const integratorId = 'pendulum-2d38434b-db9e-49ec-b455-383a874e4b69'; // old integrator ID
   try {
-    const result = await axios.post('https://v2.api.squidrouter.com/v2/route', params, {
+    const result = await axios.get('https://api.squidrouter.com/v1/route', {
+      params,
       headers: {
         'x-integrator-id': integratorId,
         'Content-Type': 'application/json',
