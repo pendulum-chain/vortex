@@ -96,7 +96,7 @@ function createRouteParams(
             tokenAddress: axlUSDC_MOONBEAM,
             inputPos: '1',
           },
-          estimatedGas: '700000',
+          estimatedGas: '1400000',
           chainType: 'evm',
         },
       ],
