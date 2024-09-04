@@ -112,8 +112,10 @@ function createRouteParams(
 async function getRouteOld(params: RouteParams) {
   const integratorId = 'pendulum-2d38434b-db9e-49ec-b455-383a874e4b69'; // old integrator ID
   try {
+    // Filter out the inputToken from the params object
+    const { inputToken, ...paramsWithoutInputToken } = params;
     const result = await axios.get('https://api.squidrouter.com/v1/route', {
-      params,
+      params: paramsWithoutInputToken,
       headers: {
         'x-integrator-id': integratorId,
         'Content-Type': 'application/json',

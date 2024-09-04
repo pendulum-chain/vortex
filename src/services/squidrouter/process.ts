@@ -33,7 +33,12 @@ export async function squidRouter(
     inputToken,
   );
 
-  console.log('Asking for approval of', transactionRequest?.target, fromTokenErc20Address, state.inputAmount.units);
+  console.log(
+    'Asking for approval of',
+    transactionRequest?.targetAddress,
+    fromTokenErc20Address,
+    state.inputAmount.units,
+  );
 
   setSigningPhase?.('started');
 
@@ -41,7 +46,7 @@ export async function squidRouter(
     abi: erc20ABI,
     address: fromTokenErc20Address,
     functionName: 'approve',
-    args: [transactionRequest?.target, state.inputAmount.raw],
+    args: [transactionRequest?.targetAddress, state.inputAmount.raw],
   });
 
   setSigningPhase?.('approved');
