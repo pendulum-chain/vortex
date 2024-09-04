@@ -107,6 +107,26 @@ function createRouteParams(
   };
 }
 
+async function getRouteOld(params: RouteParams) {
+  const integratorId = 'pendulum-2d38434b-db9e-49ec-b455-383a874e4b69'; // old integrator ID
+  try {
+    const result = await axios.post('https://v2.api.squidrouter.com/v2/route', params, {
+      headers: {
+        'x-integrator-id': integratorId,
+        'Content-Type': 'application/json',
+      },
+    });
+    const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
+    return { data: result.data, requestId: requestId };
+  } catch (error) {
+    if (error) {
+      console.error('API error:', (error as any).response.data);
+    }
+    console.error('Error with parameters:', params);
+    throw error;
+  }
+}
+
 async function getRoute(params: RouteParams) {
   // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
   const { integratorId } = getSquidRouterConfig(params.inputToken);
@@ -140,7 +160,7 @@ export async function getRouteTransactionRequest(
   const routeParams = createRouteParams(userAddress, amount, ephemeralAccountAddress, inputToken);
 
   // Get the swap route using Squid API
-  const routeResult = await getRoute(routeParams);
+  const routeResult = await getRouteOld(routeParams);
   const route = routeResult.data.route;
   const requestId = routeResult.requestId;
 
