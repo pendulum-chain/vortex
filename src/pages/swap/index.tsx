@@ -232,7 +232,7 @@ export const SwapPage = () => {
       return (
           <IframeComponent
             src={sep24Url}
-            title="Verify Your Identity to Start Offramping"
+            title="Verify Your Identity"
             subtitle="Please follow the steps below to complete the identity verification."
           />
         );
