@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./IERC20.sol";
 import "./XTokens.sol";
 
 contract ReceiveCrossChainXToken {
@@ -13,48 +13,40 @@ contract ReceiveCrossChainXToken {
     event ReceiveBalance(uint256 balance);
     event MultiassetCall(Xtokens.Multilocation asset, uint256 amount, Xtokens.Multilocation destination, uint64 weight);
 
-    struct XCMData {
-        bytes payload;
-        uint256 amount;
-    }
-
-    mapping(bytes32 => XCMData) public xcmDataMapping;
+    mapping(bytes32 => bool) public xcmDataMapping;
 
     function initXCM(
+        bytes32 hash,
+        uint256 amount
+    ) public {
+        require(amount > 0, "Amount cannot be zero");
+        require(!xcmDataMapping[hash], "Hash already used");
+        
+        xcmDataMapping[hash] = true;
+
+        transferApprovedTokensToSelf(amount);
+        emit ReceiveBalance(amount);
+    }
+
+    function executeXCM(
         bytes32 id,
         uint256 amount,
         bytes calldata payload
     ) public {
-        require(amount > 0, "Amount cannot be zero");
-        require(xcmDataMapping[id].amount == 0, "ID already used");
-        
-        xcmDataMapping[id] = XCMData({
-            payload: payload,
-            amount: amount
-        });
-
-        transferApprovedTokensToSelf(amount);
-    }
-
-    function executeXCM(
-        bytes32 id 
-    ) public {
-        XCMData memory xcmData = xcmDataMapping[id];
-        require(xcmData.amount > 0, "XCM data not found for this ID");
+        bytes32 hash = keccak256(abi.encodePacked(id, amount, payload));
+        require(xcmDataMapping[hash], "Hash invalid");
 
         (
             Xtokens.Multilocation memory asset, 
             Xtokens.Multilocation memory destination,
             uint64 weight
-        ) = abi.decode(xcmData.payload, (Xtokens.Multilocation, Xtokens.Multilocation, uint64));
+        ) = abi.decode(payload, (Xtokens.Multilocation, Xtokens.Multilocation, uint64));
 
-        emit ReceiveBalance(axlUSDC.balanceOf(address(this)));
+        xt.transfer(axlUSDCAddress, amount, destination, weight);
 
-        xt.transfer(axlUSDCAddress, xcmData.amount, destination, weight);
+        emit MultiassetCall(asset, amount, destination, weight);
 
-        emit MultiassetCall(asset, xcmData.amount, destination, weight);
-
-        delete xcmDataMapping[id];
+        delete xcmDataMapping[hash];
     }
 
     function transferApprovedTokensToSelf(uint256 amount) internal {

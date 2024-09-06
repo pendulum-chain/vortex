@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
-import { squidReceiverABI } from '../../contracts/SquidReceiver';
+import squidReceiverABI from '../../../mooncontracts/splitReceiverABI2.json';
 import erc20ABI from '../../contracts/ERC20';
 import { getSquidRouterConfig } from './config';
 import encodePayload from './payload';
@@ -51,10 +51,20 @@ function createRouteParams(
 
   const payload = encodePayload(ephemeralAccountHex);
 
+  // TODO: create the keccak256 hash of
+  // Solidity packed encoding of
+  // (id, amount, payload)
+  let randomMockHash = `0x`;
+  for (let i = 0; i < 32; i++) {
+    randomMockHash += Math.floor(Math.random() * 16)
+      .toString(16)
+      .padStart(2, '0');
+  }
+
   const executeXCMEncodedData = encodeFunctionData({
     abi: squidReceiverABI,
-    functionName: 'executeXCM',
-    args: [payload, '0'],
+    functionName: 'initXCM',
+    args: [randomMockHash, '0'],
   });
 
   return {
@@ -94,6 +104,10 @@ function createRouteParams(
           callData: executeXCMEncodedData,
           payload: {
             tokenAddress: axlUSDC_MOONBEAM,
+            // this indexes the 256 bit word position of the
+            // "amount" parameter in the encoded arguments to the call executeXCMEncodedData
+            // i.e., a "1" means that the bits 256-511 are the position of "amount"
+            // in the encoded argument list
             inputPos: '1',
           },
           estimatedGas: '700000',
