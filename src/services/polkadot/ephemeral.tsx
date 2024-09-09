@@ -10,6 +10,8 @@ import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import axios from 'axios';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { isHashRegistered } from '../moonbeam';
+import { waitUntil } from '../../helpers/function';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
 
@@ -19,16 +21,6 @@ async function getEphemeralAddress({ pendulumEphemeralSeed }: OfframpingState) {
   const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
   const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
   return ephemeralKeypair.address;
-}
-
-async function waitUntil(test: () => Promise<boolean>) {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    if (await test()) {
-      return true;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
 }
 
 export async function pendulumFundEphemeral(
@@ -57,14 +49,11 @@ export async function pendulumFundEphemeral(
     await waitUntil(isEphemeralFunded.bind(null, state));
   }
 
-  await waitUntil(async () => {
-    const inputBalanceRaw = await getRawInputBalance(state);
-    return inputBalanceRaw.gt(Big(0));
-  });
+  await waitUntil(isHashRegistered.bind(null, state.squidRouterReceiverHash));
 
   return {
     ...state,
-    phase: 'subsidizePreSwap',
+    phase: 'executeXCM',
   };
 }
 
@@ -98,7 +87,7 @@ export async function createPendulumEphemeralSeed() {
   console.log('Ephemeral account seedphrase: ', seedPhrase);
   console.log('Ephemeral account created:', ephemeralAccountKeypair.address);
 
-  return seedPhrase;
+  return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
 export async function pendulumCleanup(state: OfframpingState): Promise<OfframpingState> {
@@ -133,7 +122,7 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
   return { ...state, phase: 'stellarOfframp' };
 }
 
-async function getRawInputBalance(state: OfframpingState): Promise<Big> {
+export async function getRawInputBalance(state: OfframpingState): Promise<Big> {
   const pendulumApiComponents = await getApiManagerInstance();
   const { api } = pendulumApiComponents.apiData!;
 

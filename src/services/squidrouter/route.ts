@@ -1,12 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
-import squidReceiverABI from '../../../mooncontracts/splitReceiverABI2.json';
+import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 import erc20ABI from '../../contracts/ERC20';
-import { getSquidRouterConfig } from './config';
-import encodePayload from './payload';
-import { u8aToHex } from '@polkadot/util';
-import { decodeAddress } from '@polkadot/util-crypto';
+import { squidRouterConfig } from './config';
 import { InputTokenDetails } from '../../constants/tokenConfig';
 
 interface RouteParams {
@@ -34,11 +31,12 @@ interface RouteParams {
 function createRouteParams(
   userAddress: string,
   amount: string,
-  ephemeralAccountAddress: string,
+  squidRouterReceiverHash: `0x${string}`,
   inputToken: InputTokenDetails,
 ): RouteParams {
-  const { fromToken, fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } =
-    getSquidRouterConfig(inputToken);
+  const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = squidRouterConfig;
+
+  const fromToken = inputToken.erc20AddressSourceChain as `0x${string}`;
 
   // TODO this must be approval, should we use max amount?? Or is this unsafe.
   const approvalErc20 = encodeFunctionData({
@@ -47,24 +45,10 @@ function createRouteParams(
     args: [receivingContractAddress, 1000000000],
   });
 
-  const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccountAddress));
-
-  const payload = encodePayload(ephemeralAccountHex);
-
-  // TODO: create the keccak256 hash of
-  // Solidity packed encoding of
-  // (id, amount, payload)
-  let randomMockHash = `0x`;
-  for (let i = 0; i < 32; i++) {
-    randomMockHash += Math.floor(Math.random() * 16)
-      .toString(16)
-      .padStart(2, '0');
-  }
-
   const executeXCMEncodedData = encodeFunctionData({
     abi: squidReceiverABI,
     functionName: 'initXCM',
-    args: [randomMockHash, '0'],
+    args: [squidRouterReceiverHash, '0'],
   });
 
   return {
@@ -123,7 +107,7 @@ function createRouteParams(
 
 async function getRoute(params: RouteParams) {
   // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
-  const { integratorId } = getSquidRouterConfig(params.inputToken);
+  const { integratorId } = squidRouterConfig;
   const url = 'https://apiplus.squidrouter.com/v2/route';
 
   try {
@@ -148,10 +132,10 @@ async function getRoute(params: RouteParams) {
 export async function getRouteTransactionRequest(
   userAddress: string,
   amount: string,
-  ephemeralAccountAddress: string,
+  squidRouterReceiverHash: `0x${string}`,
   inputToken: InputTokenDetails,
 ) {
-  const routeParams = createRouteParams(userAddress, amount, ephemeralAccountAddress, inputToken);
+  const routeParams = createRouteParams(userAddress, amount, squidRouterReceiverHash, inputToken);
 
   // Get the swap route using Squid API
   const routeResult = await getRoute(routeParams);

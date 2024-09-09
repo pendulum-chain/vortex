@@ -11,3 +11,13 @@ export const debounce = <T extends any[]>(func: (...args: T) => any, timeout = 3
     }, timeout);
   };
 };
+
+export async function waitUntil(test: () => Promise<boolean>) {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (await test()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}

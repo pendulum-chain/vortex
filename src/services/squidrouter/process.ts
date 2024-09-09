@@ -1,9 +1,7 @@
 import { writeContract, sendTransaction, getAccount } from '@wagmi/core';
-import { Keyring } from '@polkadot/api';
 
 import { INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import erc20ABI from '../../contracts/ERC20';
-import { getApiManagerInstance } from '../polkadot/polkadotApi';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { waitForEvmTransaction } from '../evmTransactions';
 import { getRouteTransactionRequest } from './route';
@@ -20,16 +18,10 @@ export async function squidRouter(
     throw new Error('Wallet not connected');
   }
 
-  const pendulumApiComponents = await getApiManagerInstance();
-  const apiData = pendulumApiComponents.apiData!;
-
-  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
-  const ephemeralKeypair = keyring.addFromUri(state.pendulumEphemeralSeed);
-
   const { transactionRequest } = await getRouteTransactionRequest(
     accountData.address,
     state.inputAmount.raw,
-    ephemeralKeypair.address,
+    state.squidRouterReceiverHash,
     inputToken,
   );
 

@@ -5,6 +5,11 @@
         "internalType": "bytes32",
         "name": "id",
         "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "payload",
+        "type": "bytes"
       }
     ],
     "name": "executeXCM",
@@ -16,18 +21,13 @@
     "inputs": [
       {
         "internalType": "bytes32",
-        "name": "id",
+        "name": "hash",
         "type": "bytes32"
       },
       {
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
-      },
-      {
-        "internalType": "bytes",
-        "name": "payload",
-        "type": "bytes"
       }
     ],
     "name": "initXCM",
@@ -39,22 +39,10 @@
     "anonymous": false,
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "uint8",
-            "name": "parents",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes[]",
-            "name": "interior",
-            "type": "bytes[]"
-          }
-        ],
         "indexed": false,
-        "internalType": "struct Xtokens.Multilocation",
+        "internalType": "address",
         "name": "asset",
-        "type": "tuple"
+        "type": "address"
       },
       {
         "indexed": false,
@@ -127,13 +115,8 @@
     "name": "xcmDataMapping",
     "outputs": [
       {
-        "internalType": "bytes",
-        "name": "payload",
-        "type": "bytes"
-      },
-      {
         "internalType": "uint256",
-        "name": "amount",
+        "name": "",
         "type": "uint256"
       }
     ],

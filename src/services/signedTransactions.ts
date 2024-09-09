@@ -27,7 +27,17 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
     return state;
   }
 
-  const { stellarEphemeralSecret, pendulumEphemeralSeed, outputTokenType, sepResult, inputAmount, outputAmount, inputTokenType } = state;
+  const {
+    stellarEphemeralSecret,
+    pendulumEphemeralSeed,
+    outputTokenType,
+    sepResult,
+    inputAmount,
+    outputAmount,
+    inputTokenType,
+    squidRouterReceiverId,
+    squidRouterReceiverHash,
+  } = state;
 
   const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
   const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
@@ -79,6 +89,8 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
       inputTokenType,
       outputAmount: outputAmount.raw.toString(),
       outputTokenType,
+      squidRouterReceiverId,
+      squidRouterReceiverHash,
     };
     await storeDataInBackend(data);
   } catch (error) {

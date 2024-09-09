@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./IERC20.sol";
 import "./XTokens.sol";
 
 contract ReceiveCrossChainXToken {
@@ -11,50 +11,43 @@ contract ReceiveCrossChainXToken {
     Xtokens constant xt = Xtokens(0x0000000000000000000000000000000000000804);
 
     event ReceiveBalance(uint256 balance);
-    event MultiassetCall(Xtokens.Multilocation asset, uint256 amount, Xtokens.Multilocation destination, uint64 weight);
+    event MultiassetCall(address asset, uint256 amount, Xtokens.Multilocation destination, uint64 weight);
 
-    struct XCMData {
-        bytes payload;
-        uint256 amount;
-    }
+    mapping(bytes32 => uint256) public xcmDataMapping;
 
-    mapping(bytes32 => XCMData) public xcmDataMapping;
 
     function initXCM(
-        bytes32 id,
-        uint256 amount,
-        bytes calldata payload
+        bytes32 hash,
+        uint256 amount
     ) public {
         require(amount > 0, "Amount cannot be zero");
-        require(xcmDataMapping[id].amount == 0, "ID already used");
+        require(xcmDataMapping[hash] == 0, "Hash already used");
         
-        xcmDataMapping[id] = XCMData({
-            payload: payload,
-            amount: amount
-        });
+        xcmDataMapping[hash] = amount;
 
         transferApprovedTokensToSelf(amount);
+        emit ReceiveBalance(amount);
     }
 
     function executeXCM(
-        bytes32 id 
+        bytes32 id,
+        bytes calldata payload
     ) public {
-        XCMData memory xcmData = xcmDataMapping[id];
-        require(xcmData.amount > 0, "XCM data not found for this ID");
+        bytes32 hash = sha256(abi.encodePacked(id, payload));
+        require(xcmDataMapping[hash] > 0, "Hash invalid");
 
         (
-            Xtokens.Multilocation memory asset, 
             Xtokens.Multilocation memory destination,
             uint64 weight
-        ) = abi.decode(xcmData.payload, (Xtokens.Multilocation, Xtokens.Multilocation, uint64));
+        ) = abi.decode(payload, (Xtokens.Multilocation, uint64));
 
-        emit ReceiveBalance(axlUSDC.balanceOf(address(this)));
+        uint256 amount = xcmDataMapping[hash];
 
-        xt.transfer(axlUSDCAddress, xcmData.amount, destination, weight);
+        xt.transfer(axlUSDCAddress, amount, destination, weight);
 
-        emit MultiassetCall(asset, xcmData.amount, destination, weight);
+        emit MultiassetCall(axlUSDCAddress, amount, destination, weight);
 
-        delete xcmDataMapping[id];
+        delete xcmDataMapping[hash];
     }
 
     function transferApprovedTokensToSelf(uint256 amount) internal {

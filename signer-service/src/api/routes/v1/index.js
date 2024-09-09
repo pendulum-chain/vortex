@@ -1,6 +1,7 @@
 const express = require('express');
 
 const stellarRoutes = require('./stellar.route');
+const moonbeamRoutes = require('./moonbeam.route');
 const pendulumRoutes = require('./pendulum.route');
 const storageRoutes = require('./storage.route');
 const emailRoutes = require('./email.route');
@@ -35,6 +36,10 @@ router.get('/status', sendStatusWithPk);
  */
 router.use('/stellar', stellarRoutes);
 
+/**
+ * POST v1/moonbeam
+ */
+router.use('/moonbeam', moonbeamRoutes);
 
 /**
  * POST v1/pendulum
@@ -50,7 +55,6 @@ router.use('/storage', storageRoutes);
  * POST v1/email
  */
 router.use('/email', emailRoutes);
-
 
 /**
  * POST v1/subsidize

@@ -5,17 +5,18 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 
 const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
-  prepareTransactions: '1/11: Preparing transactions',
-  squidRouter: '2/11: Bridging assets via Axelar',
-  pendulumFundEphemeral: '3/11: Creating Pendulum ephemeral account',
-  subsidizePreSwap: '4/11: Compensating swap risk',
-  nablaApprove: '5/11: Approving Forex AMM',
-  nablaSwap: '6/11: Swapping on Forex AMM',
-  subsidizePostSwap: '7/11: Compensating swap risk',
-  executeSpacewalkRedeem: '8/11: Bridging assets via Spacewalk',
-  pendulumCleanup: '9/11: Cleaning up Pendulum ephemeral account',
-  stellarOfframp: '10/11: Offramping on Stellar',
-  stellarCleanup: '11/11: Cleaning up Stellar ephemeral account',
+  prepareTransactions: '1/12: Preparing transactions',
+  squidRouter: '2/12: Bridging assets via Axelar',
+  pendulumFundEphemeral: '3/12: Creating Pendulum ephemeral account',
+  executeXCM: '4/12: Bridging assets via XCM',
+  subsidizePreSwap: '5/12: Compensating swap risk',
+  nablaApprove: '6/12: Approving Forex AMM',
+  nablaSwap: '7/12: Swapping on Forex AMM',
+  subsidizePostSwap: '8/12: Compensating swap risk',
+  executeSpacewalkRedeem: '9/12: Bridging assets via Spacewalk',
+  pendulumCleanup: '10/12: Cleaning up Pendulum ephemeral account',
+  stellarOfframp: '11/12: Offramping on Stellar',
+  stellarCleanup: '12/12: Cleaning up Stellar ephemeral account',
 };
 
 const handleTabClose = (event: Event) => {
