@@ -69,7 +69,7 @@ export const SummaryCard : FC<SummaryCardProps> = ({
               <span className="text-xs md:text-lg mr-1"> {roundDownToSignificantDecimals(toAmount, 2).toString()} </span>
               <div className="flex items-center">
                 <img src={assetOutIcon} className="w-3 md:w-5 h-3 md:h-5" />
-                <span className="ml-1 text-xs">{assetOutSymbol}</span>
+                <span className="ml-1 text-xs md:text-lg">{assetOutSymbol}</span>
               </div>
             </div>
           </div>
@@ -90,7 +90,7 @@ export const SummaryCard : FC<SummaryCardProps> = ({
             <div className="flex items-center w-full">
               <span className="text-xs md:text-lg mr-1">{offrampFees}</span>
               <img src={assetOutIcon}  className="w-3 md:w-5 h-3 md:h-5" />
-              <span className="ml-1 text-xs">{assetOutSymbol}</span>
+              <span className="ml-1 text-xs md:text-lg">{assetOutSymbol}</span>
             </div>
           </div>
         </div>
