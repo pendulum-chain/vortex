@@ -52,6 +52,7 @@ export async function executeXCM(state: OfframpingState): Promise<OfframpingStat
 export async function isHashRegistered(hash: `0x${string}`): Promise<boolean> {
   const result = (await readContract(moonbeamConfig, {
     abi: squidReceiverABI,
+    chainId: moonbeam.id,
     address: squidRouterConfig.receivingContractAddress,
     functionName: 'xcmDataMapping',
     args: [hash],
