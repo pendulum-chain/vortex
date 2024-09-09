@@ -1,15 +1,15 @@
 import React, { useState, useEffect }  from 'react';
 import { BaseLayout } from '../../layouts';
-import { SummaryCard } from '../../components/SummaryCard';
+import { SummaryCard, SummaryCardProps } from '../../components/SummaryCard';
 
-interface IframeProps {
+export interface IframeProps extends SummaryCardProps {
   src: string;             
   title: string;      
   subtitle: string;   
 }
 
-const IframeComponent: React.FC<IframeProps> = ({
-  src, title, subtitle
+export const IframeComponent: React.FC<IframeProps> = ({
+  src, title, subtitle, assetIn, assetOut, fromAmount, toAmount
 }) => {
   const [cachedSrc, setCachedSrc] = useState<string | null>(null);
 
@@ -25,9 +25,16 @@ const IframeComponent: React.FC<IframeProps> = ({
         <h1 className="text-2xl font-bold text-blue-700 mb-4 mt-4">{title}</h1>
       </div>
       <div className="flex justify-center items-center w-full">
-          <SummaryCard />
+          <SummaryCard {...{
+                assetIn,
+                assetOut,
+                fromAmount,
+                toAmount,
+              }} />
       </div>
-      <h2 className="text-md mb-4">{subtitle}</h2>
+      <div className="text-center">
+        <h2 className="text-md mb-4 mt-4">{subtitle}</h2>  
+      </div>
     </div>
     <div className="flex justify-center items-center relative w-full pb-[150%] md:pb-0 md:w-[535px] md:h-[500px]">
       <iframe
@@ -42,4 +49,3 @@ const IframeComponent: React.FC<IframeProps> = ({
   return <BaseLayout main={main} />;
 };
 
-export default IframeComponent;

@@ -9,7 +9,7 @@ import { useEventsContext } from '../../contexts/events';
 
 const FEES_RATE = 0.05; // 0.5% fee rate
 
-function calculateTotalReceive(toAmount: string, outputToken: OutputTokenDetails): string {
+export function calculateTotalReceive(toAmount: string, outputToken: OutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
   const fees = Big(toAmount).mul(feeBasisPoints).div(10000).round(2, 1);
   const totalReceive = Big(toAmount).minus(fees).toFixed(2, 0);

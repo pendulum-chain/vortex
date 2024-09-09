@@ -25,7 +25,7 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
-import IframeComponent from '../../components/Iframe';
+import { IframeComponent, IframeProps} from '../../components/Iframe';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -228,12 +228,16 @@ export const SwapPage = () => {
     const showMainScreenAnyway =
       offrampingPhase === undefined;
 
-    if (sep24Url && showMainScreenAnyway ){
+    if (sep24Url && showMainScreenAnyway && fromAmount && tokenOutData.data?.amountOut.preciseBigDecimal){
       return (
           <IframeComponent
             src={sep24Url}
             title="Verify Your Identity"
             subtitle="Please follow the steps below to complete the identity verification."
+            assetIn={from}
+            assetOut={to}
+            fromAmount={fromAmount}
+            toAmount={tokenOutData.data?.amountOut.preciseBigDecimal}
           />
         );
     }
