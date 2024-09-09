@@ -18,5 +18,5 @@ export const ExchangeRate: FC<ExchangeRateProps> = ({ tokenOutData, fromToken, t
       `-`
     );
 
-  return <p className="my-5 font-thin text-center">{exchangeRate}</p>;
+  return <span className="text-center">{exchangeRate}</span>;
 };
