@@ -16,9 +16,11 @@ const DUMP_SHEET_HEADER_VALUES = [
   'inputTokenType',
   'outputAmount',
   'outputTokenType',
+  'squidRouterReceiverId',
+  'squidRouterReceiverHash',
 ];
 
 exports.DUMP_SHEET_HEADER_VALUES = DUMP_SHEET_HEADER_VALUES;
 
-exports.storeData = async (req, res) => storeDataInGoogleSpreadsheet(req, res, spreadsheet.storageSheetId, DUMP_SHEET_HEADER_VALUES)
-
+exports.storeData = async (req, res) =>
+  storeDataInGoogleSpreadsheet(req, res, spreadsheet.storageSheetId, DUMP_SHEET_HEADER_VALUES);

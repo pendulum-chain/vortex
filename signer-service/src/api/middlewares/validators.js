@@ -34,12 +34,12 @@ const validateChangeOpInput = (req, res, next) => {
   next();
 };
 
-const validateInputHeaderValues = (requiredHeaders) => (req, res, next) => {
+const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) => {
   const data = req.body;
 
-  if (!requiredHeaders.every((header) => data[header])) {
-    const missingItems = requiredHeaders.filter((header) => !data[header]);
-    const errorMessage = 'Data does not match schema. Missing items: ' + missingItems.join(', ');
+  if (!requiredRequestBodyKeys.every((key) => data[key])) {
+    const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
+    const errorMessage = 'Request body data does not match schema. Missing items: ' + missingItems.join(', ');
     console.error(errorMessage);
     return res.status(400).json({ error: errorMessage });
   }
@@ -47,8 +47,9 @@ const validateInputHeaderValues = (requiredHeaders) => (req, res, next) => {
   next();
 };
 
-const validateStorageInput = validateInputHeaderValues(DUMP_SHEET_HEADER_VALUES);
-const validateEmailInput = validateInputHeaderValues(EMAIL_SHEET_HEADER_VALUES);
+const validateStorageInput = validateRequestBodyValues(DUMP_SHEET_HEADER_VALUES);
+const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
+const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
 
 const validatePreSwapSubsidizationInput = (req, res, next) => {
   const { amountRaw, address } = req.body;
@@ -102,4 +103,5 @@ module.exports = {
   validatePostSwapSubsidizationInput,
   validateStorageInput,
   validateEmailInput,
+  validateExecuteXCM,
 };

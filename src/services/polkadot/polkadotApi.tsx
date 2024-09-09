@@ -1,6 +1,8 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { PENDULUM_WSS } from '../../constants/constants';
+
 const NETWORK = 'Pendulum';
+const AUTO_RECONNECT_DELAY_MS = 1000;
 
 export interface ApiComponents {
   api: ApiPromise;
@@ -12,7 +14,7 @@ class ApiManager {
   apiData: ApiComponents | undefined = undefined;
 
   async connectApi(socketUrl: string) {
-    const wsProvider = new WsProvider(socketUrl);
+    const wsProvider = new WsProvider(socketUrl, AUTO_RECONNECT_DELAY_MS);
     const api = await ApiPromise.create({
       provider: wsProvider,
       noInitWarn: true,

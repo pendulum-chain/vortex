@@ -11,6 +11,12 @@ interface DumpData {
   spacewalkRedeemTx: string;
   stellarOfframpTx: string;
   stellarCleanupTx: string;
+  inputAmount: string;
+  inputTokenType: string;
+  outputAmount: string;
+  outputTokenType: string;
+  squidRouterReceiverId: string;
+  squidRouterReceiverHash: string;
 }
 
 interface EmailData {
