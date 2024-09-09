@@ -38,14 +38,13 @@ function createRouteParams(
 
   const fromToken = inputToken.erc20AddressSourceChain as `0x${string}`;
 
-  // TODO this must be approval, should we use max amount?? Or is this unsafe.
   const approvalErc20 = encodeFunctionData({
     abi: erc20ABI,
     functionName: 'approve',
-    args: [receivingContractAddress, 1000000000],
+    args: [receivingContractAddress, '0'],
   });
 
-  const executeXCMEncodedData = encodeFunctionData({
+  const initXCMEncodedData = encodeFunctionData({
     abi: squidReceiverABI,
     functionName: 'initXCM',
     args: [squidRouterReceiverHash, '0'],
@@ -69,7 +68,7 @@ function createRouteParams(
       calls: [
         // approval call.
         {
-          callType: 0,
+          callType: 1,
           target: axlUSDC_MOONBEAM,
           value: '0', // this will be replaced by the full native balance of the multicall after the swap
           callData: approvalErc20,
@@ -85,7 +84,7 @@ function createRouteParams(
           callType: 1, // SquidCallType.FULL_TOKEN_BALANCE
           target: receivingContractAddress,
           value: '0',
-          callData: executeXCMEncodedData,
+          callData: initXCMEncodedData,
           payload: {
             tokenAddress: axlUSDC_MOONBEAM,
             // this indexes the 256 bit word position of the

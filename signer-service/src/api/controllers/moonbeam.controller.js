@@ -10,14 +10,6 @@ const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KE
 exports.executeXcmControlller = async (req, res) => {
   const { id, payload } = req.body;
 
-  if (!id) {
-    return res.status(400).send({ error: 'Request parameters "id" missing' });
-  }
-
-  if (!payload) {
-    return res.status(400).send({ error: 'Request parameters "payload" missing' });
-  }
-
   try {
     const walletClient = createWalletClient({
       account: moonbeamExecutorAccount,
@@ -36,11 +28,17 @@ exports.executeXcmControlller = async (req, res) => {
       args: [id, payload],
     });
 
-    const hash = await walletClient.sendTransaction({
-      to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
-      value: 0n,
-      data,
-    });
+    let hash;
+    try {
+      hash = await walletClient.sendTransaction({
+        to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+        value: 0n,
+        data,
+      });
+    } catch (error) {
+      console.error('Error executing XCM:', error);
+      res.status(400).send({ error: 'Invalid transaction' });
+    }
 
     await publicClient.waitForTransactionReceipt({ hash });
 

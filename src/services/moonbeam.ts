@@ -10,7 +10,7 @@ import { getApiManagerInstance } from './polkadot/polkadotApi';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import squidReceiverABI from '../../mooncontracts/splitReceiverABI.json';
 import { squidRouterConfig } from './squidrouter/config';
-import { waitUntil } from '../helpers/function';
+import { waitUntilTrue } from '../helpers/function';
 import Big from 'big.js';
 import { getRawInputBalance } from './polkadot/ephemeral';
 
@@ -41,10 +41,10 @@ export async function executeXCM(state: OfframpingState): Promise<OfframpingStat
     throw new Error(`Error while executing XCM: ${response.statusText}`);
   }
 
-  await waitUntil(async () => {
+  await waitUntilTrue(async () => {
     const inputBalanceRaw = await getRawInputBalance(state);
     return inputBalanceRaw.gt(Big(0));
-  });
+  }, 5000);
 
   return { ...state, phase: 'subsidizePreSwap' };
 }
