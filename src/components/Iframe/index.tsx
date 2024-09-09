@@ -36,7 +36,7 @@ export const IframeComponent: React.FC<IframeProps> = ({
         <h2 className="text-md mb-4 mt-4">{subtitle}</h2>  
       </div>
     </div>
-    <div className="flex justify-center items-center relative w-full pb-[150%] md:pb-0 md:w-[535px] md:h-[500px]">
+    <div className="flex justify-center items-center relative w-full h-[50vh] md:w-[535px] ">
       <iframe
         src={src}
         style={{ border: 'none' }}
