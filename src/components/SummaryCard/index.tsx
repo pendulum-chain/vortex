@@ -53,7 +53,7 @@ export const SummaryCard : FC<SummaryCardProps> = ({
             <div className="flex justify-between items-center w-full">
               <span className="text-xl font-medium text-blue-800"> {receiveAmount} </span>
               <div className="flex items-center mr-2">
-                <img src={assetOutSymbol}  className="w-6 h-6" />
+                <img src={assetOutIcon}  className="w-6 h-6" />
                 <span className="ml-1 text-blue-800">{assetOutSymbol}</span>
               </div>
             </div>
@@ -63,34 +63,34 @@ export const SummaryCard : FC<SummaryCardProps> = ({
         <div className="grid grid-cols-10 gap-4">
           <div className="col-span-3 p-1 h-auto flex flex-col justify-between space-y-0 rounded bg-blue-100 bg-opacity-50">
             <div className="place-self-start">
-              <span className="text-sm font-thin">Your quote</span>
+              <span className="text-xs font-thin">Your quote</span>
             </div>
             <div className="flex items-center w-full">
-              <span className="text-sm md:text-lg mr-1"> {roundDownToSignificantDecimals(toAmount, 2).toString()} </span>
+              <span className="text-xs md:text-lg mr-1"> {roundDownToSignificantDecimals(toAmount, 2).toString()} </span>
               <div className="flex items-center">
-                <img src={assetOutIcon} className="w-4 md:w-5 h-4 md:h-5" />
-                <span className="ml-1">{assetOutSymbol}</span>
+                <img src={assetOutIcon} className="w-3 md:w-5 h-3 md:h-5" />
+                <span className="ml-1 text-xs">{assetOutSymbol}</span>
               </div>
             </div>
           </div>
           
           <div className="col-span-4 p-1 h-auto flex flex-col justify-between space-y-0">
             <div className="place-self-start">
-              <span className="text-sm font-thin">Exchange rate</span>
+              <span className="text-xs font-thin">Exchange rate</span>
             </div>
             <div className="flex justify-between items-center w-full">
-              <span className="text-sm md:text-lg">1 {assetInSymbol} ≈ {approximateExchangeRate} {assetOutSymbol}</span>
+              <span className="text-xs md:text-lg">1 {assetInSymbol} ≈ {approximateExchangeRate} {assetOutSymbol}</span>
             </div>
           </div>
 
           <div className="col-span-3 p-1 h-auto flex flex-col justify-between space-y-0">
             <div className="place-self-start">
-              <span className="text-sm font-thin">Offramp fees</span>
+              <span className="text-xs font-thin">Offramp fees</span>
             </div>
             <div className="flex items-center w-full">
-              <span className="text-sm md:text-lg mr-1">{offrampFees}</span>
-              <img src={assetOutIcon}  className="w-4 md:w-5 h-4 md:h-5" />
-              <span className="ml-1">{assetOutSymbol}</span>
+              <span className="text-xs md:text-lg mr-1">{offrampFees}</span>
+              <img src={assetOutIcon}  className="w-3 md:w-5 h-3 md:h-5" />
+              <span className="ml-1 text-xs">{assetOutSymbol}</span>
             </div>
           </div>
         </div>
