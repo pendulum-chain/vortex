@@ -3,7 +3,7 @@ const { moonbeam } = require('viem/chains');
 const { privateKeyToAccount } = require('viem/accounts');
 
 const { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } = require('../../constants/constants');
-const splitReceiverABI = require('../../../../mooncontracts/splitReceiverABI.json');
+const splitReceiverABI = require('../../contracts/splitReceiverABI.json');
 
 exports.executeXcmController = async (req, res) => {
   const { id, payload } = req.body;
