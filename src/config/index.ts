@@ -62,4 +62,5 @@ export const config = {
     mockSep24: false,
     overwriteMinimumTransferAmount: false,
   },
+  telegramUrl: 'https://t.me/+Lq-sxfXBNIQ5YzRl',
 };
