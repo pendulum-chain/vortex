@@ -1,5 +1,5 @@
 const { spreadsheet } = require('../../config/vars');
-const { storeDataInGoogleSpreadsheet } = require('./googleSpreadsheet.controller');
+const { storeDataInGoogleSpreadsheet } = require('./googleSpreadSheet.controller');
 
 // These are the headers for the Google Spreadsheet
 const DUMP_SHEET_HEADER_VALUES = [
