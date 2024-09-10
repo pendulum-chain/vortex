@@ -5,7 +5,7 @@ import Big from 'big.js';
 
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
-import { FeeCollapse } from '../../components/FeeCollapse';
+import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -120,7 +120,9 @@ export const SwapPage = () => {
   useEffect(() => {
     if (tokenOutData.data) {
       const toAmount = tokenOutData.data.amountOut.preciseBigDecimal.round(2, 0);
-      form.setValue('toAmount', stringifyBigWithSignificantDecimals(toAmount, 2));
+      // Calculate the final amount after the offramp fees
+      const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
+      form.setValue('toAmount', totalReceive);
 
       setIsQuoteSubmitted(false);
     } else {
@@ -142,7 +144,7 @@ export const SwapPage = () => {
     [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
-  const WidthrawNumericInput = useMemo(
+  const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
@@ -238,21 +240,23 @@ export const SwapPage = () => {
         onSubmit={onSubmit}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
+        <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600">{getCurrentErrorMessage()}</p>
-        <ExchangeRate
-          {...{
-            tokenOutData,
-            fromToken,
-            toTokenSymbol: toToken.fiat.symbol,
-          }}
-        />
+        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
           toToken={toToken}
+          exchangeRate={
+            <ExchangeRate
+              {...{
+                tokenOutData,
+                fromToken,
+                toTokenSymbol: toToken.fiat.symbol,
+              }}
+            />
+          }
         />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
