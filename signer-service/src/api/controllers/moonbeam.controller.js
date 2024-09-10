@@ -5,10 +5,9 @@ const { privateKeyToAccount } = require('viem/accounts');
 const { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } = require('../../constants/constants');
 const splitReceiverABI = require('../../../../mooncontracts/splitReceiverABI.json');
 
-const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY);
-
-exports.executeXcmControlller = async (req, res) => {
+exports.executeXcmController = async (req, res) => {
   const { id, payload } = req.body;
+  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY);
 
   try {
     const walletClient = createWalletClient({
