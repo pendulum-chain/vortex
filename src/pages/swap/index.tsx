@@ -5,7 +5,7 @@ import Big from 'big.js';
 
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
-import { FeeCollapse } from '../../components/FeeCollapse';
+import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -84,20 +84,17 @@ export const SwapPage = () => {
     inputTokenType: from,
     outputTokenType: to,
     maximumFromAmount: undefined,
-    slippageBasisPoints: config.swap.slippageBasisPoints,
-    axelarSlippageBasisPoints: config.swap.axelarSlippageBasisPoints,
     fromAmountString,
-    xcmFees: config.xcm.fees,
     form,
   });
 
   const inputAmountIsStable =
-    tokenOutData.actualAmountInRaw !== undefined && BigInt(tokenOutData.actualAmountInRaw) > 0n;
+    tokenOutData.stableAmountInUnits !== undefined && Big(tokenOutData.stableAmountInUnits).gt(Big(0));
 
   function onSubmit(e: Event) {
     e.preventDefault();
 
-    if (!inputAmountIsStable || tokenOutData.actualAmountInRaw === undefined) return;
+    if (!inputAmountIsStable) return;
 
     if (fromAmount === undefined) {
       console.log('Input amount is undefined');
@@ -116,7 +113,6 @@ export const SwapPage = () => {
       inputTokenType: from as InputTokenType,
       outputTokenType: to as OutputTokenType,
       amountInUnits: fromAmountString,
-      nablaAmountInRaw: tokenOutData.actualAmountInRaw,
       minAmountOutUnits: minimumOutputAmount.preciseString,
     });
   }
@@ -124,7 +120,9 @@ export const SwapPage = () => {
   useEffect(() => {
     if (tokenOutData.data) {
       const toAmount = tokenOutData.data.amountOut.preciseBigDecimal.round(2, 0);
-      form.setValue('toAmount', stringifyBigWithSignificantDecimals(toAmount, 2));
+      // Calculate the final amount after the offramp fees
+      const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
+      form.setValue('toAmount', totalReceive);
 
       setIsQuoteSubmitted(false);
     } else {
@@ -142,12 +140,11 @@ export const SwapPage = () => {
         disabled={isQuoteSubmitted || tokenOutData.isLoading}
         readOnly={true}
       />
-      
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, to, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
-  const WidthrawNumericInput = useMemo(
+  const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
@@ -227,33 +224,39 @@ export const SwapPage = () => {
     return <FailurePage finishOfframping={finishOfframping} transactionId={sep24Id} />;
   }
 
-  if ((offrampingPhase !== undefined || offrampingStarted) && signingPhase === 'finished') {
-    return <ProgressPage setOfframpingPhase={setOfframpingPhase} />;
+  if (offrampingPhase !== undefined || offrampingStarted) {
+    const showMainScreenAnyway =
+      offrampingPhase === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingPhase);
+    if (!showMainScreenAnyway) {
+      return <ProgressPage setOfframpingPhase={setOfframpingPhase} offrampingPhase={offrampingPhase} />;
+    }
   }
 
   const main = (
     <main ref={formRef}>
       <SigningBox step={signingPhase} />
       <form
-        className="w-full max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSubmit}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
+        <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600">{getCurrentErrorMessage()}</p>
-        <ExchangeRate
-          {...{
-            tokenOutData,
-            fromToken,
-            toTokenSymbol: toToken.fiat.symbol,
-          }}
-        />
+        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
-          toTokenSymbol={toToken.fiat.symbol}
+          toToken={toToken}
+          exchangeRate={
+            <ExchangeRate
+              {...{
+                tokenOutData,
+                fromToken,
+                toTokenSymbol: toToken.fiat.symbol,
+              }}
+            />
+          }
         />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />

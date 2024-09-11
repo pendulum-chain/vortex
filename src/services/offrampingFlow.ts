@@ -1,8 +1,17 @@
 import { Config } from 'wagmi';
+import { u8aToHex } from '@polkadot/util';
+import { decodeAddress } from '@polkadot/util-crypto';
+
 import { storageService } from './storage/local';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
-import { createPendulumEphemeralSeed, pendulumCleanup, pendulumFundEphemeral } from './polkadot/ephemeral';
+import {
+  createPendulumEphemeralSeed,
+  pendulumCleanup,
+  pendulumFundEphemeral,
+  subsidizePostSwap,
+  subsidizePreSwap,
+} from './polkadot/ephemeral';
 import { createStellarEphemeralSecret, SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
@@ -10,17 +19,21 @@ import { stellarCleanup, stellarOfframp } from './stellar';
 import { nablaApprove, nablaSwap } from './nabla';
 import { RenderEventHandler } from '../components/GenericEvent';
 import { executeSpacewalkRedeem } from './polkadot';
-import { fetchSigningServiceAccountId } from './signingService';
-import { Keypair } from 'stellar-sdk';
 import { SigningPhase } from '../hooks/useMainProcess';
 import { prepareTransactions } from './signedTransactions';
+import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
+import encodePayload from './squidrouter/payload';
+import { executeXCM } from './moonbeam';
 
 export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
   | 'pendulumFundEphemeral'
+  | 'executeXCM'
+  | 'subsidizePreSwap'
   | 'nablaApprove'
   | 'nablaSwap'
+  | 'subsidizePostSwap'
   | 'executeSpacewalkRedeem'
   | 'pendulumCleanup'
   | 'stellarOfframp'
@@ -41,10 +54,6 @@ export interface OfframpingState {
     units: string;
     raw: string;
   };
-  inputAmountNabla: {
-    units: string;
-    raw: string;
-  };
   outputAmount: {
     units: string;
     raw: string;
@@ -53,6 +62,8 @@ export interface OfframpingState {
   phase: OfframpingPhase | FinalOfframpingPhase;
 
   // phase squidRouter
+  squidRouterReceiverId: `0x${string}`;
+  squidRouterReceiverHash: `0x${string}`;
   squidRouterApproveHash?: `0x${string}`;
   squidRouterSwapHash?: `0x${string}`;
 
@@ -86,8 +97,11 @@ const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunctio
   prepareTransactions,
   squidRouter,
   pendulumFundEphemeral,
+  executeXCM,
+  subsidizePreSwap,
   nablaApprove,
   nablaSwap,
+  subsidizePostSwap,
   executeSpacewalkRedeem,
   pendulumCleanup,
   stellarOfframp,
@@ -107,7 +121,6 @@ export interface InitiateStateArguments {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
-  nablaAmountInRaw: string;
   amountOut: string;
   sepResult: SepResult;
 }
@@ -117,11 +130,10 @@ export async function constructInitialState({
   inputTokenType,
   outputTokenType,
   amountIn,
-  nablaAmountInRaw,
   amountOut,
   sepResult,
 }: InitiateStateArguments) {
-  const pendulumEphemeralSeed = await createPendulumEphemeralSeed();
+  const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
   const stellarEphemeralSecret = createStellarEphemeralSecret();
 
   const inputTokenDecimals = INPUT_TOKEN_CONFIG[inputTokenType].decimals;
@@ -130,11 +142,13 @@ export async function constructInitialState({
   const inputAmountBig = Big(amountIn);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals).toFixed();
 
-  const inputAmountNablaRawBig = Big(nablaAmountInRaw);
-  const inputAmountNablaUnits = multiplyByPowerOfTen(inputAmountNablaRawBig, -inputTokenDecimals).toFixed();
-
   const outputAmountBig = Big(amountOut).round(2, 0);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmountBig, outputTokenDecimals).toFixed();
+
+  const squidRouterReceiverId = createRandomString(32);
+  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
+  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
 
   const initialState: OfframpingState = {
     sep24Id,
@@ -146,15 +160,13 @@ export async function constructInitialState({
       units: amountIn,
       raw: inputAmountRaw,
     },
-    inputAmountNabla: {
-      units: inputAmountNablaUnits,
-      raw: nablaAmountInRaw,
-    },
     outputAmount: {
       units: outputAmountBig.toFixed(2, 0),
       raw: outputAmountRaw,
     },
     phase: 'prepareTransactions',
+    squidRouterReceiverId,
+    squidRouterReceiverHash,
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,

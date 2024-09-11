@@ -19,6 +19,7 @@ module.exports = {
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       key: process.env.GOOGLE_PRIVATE_KEY?.split(String.raw`\n`).join('\n'),
     },
-    sheetId: process.env.GOOGLE_SPREADSHEET_ID,
+    storageSheetId: process.env.GOOGLE_SPREADSHEET_ID,
+    emailSheetId: process.env.GOOGLE_EMAIL_SPREADSHEET_ID,
   },
 };

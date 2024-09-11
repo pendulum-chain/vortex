@@ -1,4 +1,6 @@
-const { SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
+const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
+const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -32,12 +34,12 @@ const validateChangeOpInput = (req, res, next) => {
   next();
 };
 
-const validateStorageInput = (req, res, next) => {
+const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) => {
   const data = req.body;
-  // Check if the data contains values for all the headers
-  if (!SHEET_HEADER_VALUES.every((header) => data[header])) {
-    const missingItems = SHEET_HEADER_VALUES.filter((header) => !data[header]);
-    let errorMessage = 'Data does not match schema. Missing items: ' + missingItems.join(', ');
+
+  if (!requiredRequestBodyKeys.every((key) => data[key])) {
+    const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
+    const errorMessage = 'Request body data does not match schema. Missing items: ' + missingItems.join(', ');
     console.error(errorMessage);
     return res.status(400).json({ error: errorMessage });
   }
@@ -45,4 +47,61 @@ const validateStorageInput = (req, res, next) => {
   next();
 };
 
-module.exports = { validateChangeOpInput, validateCreationInput, validateStorageInput };
+const validateStorageInput = validateRequestBodyValues(DUMP_SHEET_HEADER_VALUES);
+const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
+const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
+
+const validatePreSwapSubsidizationInput = (req, res, next) => {
+  const { amountRaw, address } = req.body;
+
+  if (amountRaw === undefined) {
+    return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+  }
+
+  if (typeof amountRaw !== 'string') {
+    return res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+
+  next();
+};
+
+const validatePostSwapSubsidizationInput = (req, res, next) => {
+  const { amountRaw, address, token } = req.body;
+
+  if (amountRaw === undefined) {
+    return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+  }
+
+  if (typeof amountRaw !== 'string') {
+    return res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+  }
+
+  if (address === undefined) {
+    return res.status(400).json({ error: 'Missing "address" parameter' });
+  }
+
+  if (token === undefined) {
+    return res.status(400).json({ error: 'Missing "token" parameter' });
+  }
+
+  const tokenConfig = TOKEN_CONFIG[token];
+  if (tokenConfig === undefined || tokenConfig.assetCode === undefined || tokenConfig.assetIssuer === undefined) {
+    return res.status(400).json({ error: 'Invalid "token" parameter' });
+  }
+
+  next();
+};
+
+module.exports = {
+  validateChangeOpInput,
+  validateCreationInput,
+  validatePreSwapSubsidizationInput,
+  validatePostSwapSubsidizationInput,
+  validateStorageInput,
+  validateEmailInput,
+  validateExecuteXCM,
+};

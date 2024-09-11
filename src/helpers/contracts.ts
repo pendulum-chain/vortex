@@ -107,8 +107,3 @@ export function multiplyByPowerOfTen(bigDecimal: BigNumber, power: number) {
   newBigDecimal.e += power;
   return newBigDecimal;
 }
-
-// difference of two bigints, clamp to 0
-export function clampedDifference(a: bigint, b: bigint) {
-  return a > b ? a - b : 0;
-}

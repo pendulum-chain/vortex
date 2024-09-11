@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Horizon,
   Keypair,
@@ -36,12 +37,13 @@ export async function stellarCreateEphemeral(
   stellarEphemeralSecret: string,
   outputTokenType: OutputTokenType,
 ): Promise<void> {
-  const fundingAccountId = await fetchSigningServiceAccountId();
+  const fundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const ephemeralAccountExists = await isEphemeralCreated(stellarEphemeralSecret);
 
   if (!ephemeralAccountExists) {
     await setupStellarAccount(fundingAccountId, stellarEphemeralSecret, outputTokenType);
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       if (await isEphemeralCreated(stellarEphemeralSecret)) {
         break;

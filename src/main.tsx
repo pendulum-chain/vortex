@@ -12,7 +12,7 @@ import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './app';
 import defaultTheme from './theme';
-import { GlobalState, GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
+import { GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
 import { wagmiConfig } from './wagmiConfig';
 import { EventsProvider } from './contexts/events';
 
@@ -28,8 +28,7 @@ render(
               <EventsProvider>
                 <GlobalStateProvider>
                   <GlobalStateContext.Consumer>
-                    {(globalState) => {
-                      const { tenantRPC, getThemeName = () => undefined } = globalState as GlobalState;
+                    {() => {
                       return <App />;
                     }}
                   </GlobalStateContext.Consumer>

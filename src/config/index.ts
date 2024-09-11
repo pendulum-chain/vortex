@@ -51,11 +51,8 @@ export const config = {
       explorer: 'https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-foucoco.pendulumchain.tech#/explorer/query',
     },
   } satisfies TenantConfig,
-  xcm: { fees: '0.016' },
   swap: {
-    axelarSlippageBasisPoints: 10, // allow for some extra buffer due to USDC -> axlUSDC risk
-    slippageBasisPoints: 30,
-    deadline: 30,
+    deadlineMinutes: 60 * 24 * 7, // 1 week
   },
   walletConnect: {
     url: 'wss://relay.walletconnect.com',
@@ -65,4 +62,5 @@ export const config = {
     mockSep24: false,
     overwriteMinimumTransferAmount: false,
   },
+  telegramUrl: 'https://t.me/+Lq-sxfXBNIQ5YzRl',
 };
