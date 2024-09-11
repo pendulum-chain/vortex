@@ -11,7 +11,13 @@ declare global {
   }
 }
 
-const UNIQUE_EVENT_TYPES = ['amount_type', 'click_details', 'click_support'];
+const UNIQUE_EVENT_TYPES = ['amount_type',
+                            'click_details',
+                            'click_support' , 
+                            'transaction_confirmation' , 
+                            'kyc_completed' , 
+                            'transaction_success', 
+                            'transaction_failure'];
 
 export interface AmountTypeEvent {
   event: `amount_type`;
@@ -53,7 +59,8 @@ const useEvents = () => {
   const [_, setTrackedEventTypes] = useState<Set<EventType>>(new Set());
 
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
-  const { address } = useAccount();
+  const firstLoad = useRef<boolean>(true);
+  const { address, isConnecting, status } = useAccount();
 
   const trackEvent = useCallback(
     (event: TrackableEvent) => {
@@ -76,7 +83,27 @@ const useEvents = () => {
     [setTrackedEventTypes],
   );
 
+  const resetUniqueEvents = useCallback(() => {
+    setTrackedEventTypes(new Set());
+  }, [setTrackedEventTypes]);
+
+
+
+
   useEffect(() => {
+
+    console.log("status", status)
+
+     if (firstLoad.current && status == "connecting") {
+      console.log("first load")
+      return;
+    }
+
+    if (firstLoad.current && status !== "connecting") {
+      firstLoad.current = false;
+    }
+
+
     const wasConnected = previousAddress.current !== undefined;
     const isConnected = address !== undefined;
 
@@ -87,10 +114,11 @@ const useEvents = () => {
     }
 
     previousAddress.current = address;
-  }, [address, trackEvent]);
+  }, [address, trackEvent, status]);
 
   return {
     trackEvent,
+    resetUniqueEvents
   };
 };
 
