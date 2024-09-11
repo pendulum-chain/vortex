@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const { Keypair } = require('stellar-sdk');
-const { FUNDING_SECRET} = require('../../constants/constants');
+const { FUNDING_SECRET } = require('../../constants/constants');
 
 const { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk } = require('../services/stellar.service');
 

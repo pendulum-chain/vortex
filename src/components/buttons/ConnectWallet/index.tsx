@@ -4,7 +4,6 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useEventsContext } from '../../../contexts/events';
 
 export const ConnectWallet = () => (
-
   <ConnectButton.Custom>
     {({ account, chain, openAccountModal, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
       const { handleUserClickWallet } = useEventsContext();
@@ -27,7 +26,7 @@ export const ConnectWallet = () => (
             if (!connected) {
               return (
                 <button
-                  onClick={()=>{
+                  onClick={() => {
                     openConnectModal();
                     handleUserClickWallet();
                   }}
@@ -45,7 +44,7 @@ export const ConnectWallet = () => (
             if (chain.unsupported) {
               return (
                 <button
-                  onClick={()=>{
+                  onClick={() => {
                     openChainModal();
                     handleUserClickWallet();
                   }}
@@ -61,7 +60,7 @@ export const ConnectWallet = () => (
             return (
               <>
                 <button
-                  onClick={()=>{
+                  onClick={() => {
                     openAccountModal();
                     handleUserClickWallet();
                   }}

@@ -3,14 +3,15 @@ require('dotenv').config();
 const { spreadsheet } = require('../../config/vars');
 const { initGoogleSpreadsheet, getOrCreateSheet, appendData } = require('../services/spreadsheet.service');
 
-
 exports.storeDataInGoogleSpreadsheet = async (req, res, spreadsheetId, sheetHeaderValues) => {
   try {
     // We expect the data to be an object that matches our schema
     const data = req.body;
 
     // Try dumping transactions to spreadsheet
-    const sheet = await initGoogleSpreadsheet(spreadsheetId, spreadsheet.googleCredentials).then((doc) => getOrCreateSheet(doc, sheetHeaderValues));
+    const sheet = await initGoogleSpreadsheet(spreadsheetId, spreadsheet.googleCredentials).then((doc) =>
+      getOrCreateSheet(doc, sheetHeaderValues),
+    );
 
     if (sheet) {
       console.log('Appending data to sheet');
