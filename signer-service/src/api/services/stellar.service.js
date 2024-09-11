@@ -1,17 +1,7 @@
-const {
-  Horizon,
-  Keypair,
-  TransactionBuilder,
-  Operation,
-  Networks,
-  Asset,
-  Memo,
-  Account,
-} = require('stellar-sdk');
-const { HORIZON_URL, BASE_FEE } = require('../../constants/constants');
+const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
+const { HORIZON_URL, BASE_FEE, FUNDING_SECRET} = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
-const FUNDING_SECRET = process.env.FUNDING_SECRET;
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -136,4 +126,23 @@ async function buildPaymentAndMergeTx(
   };
 }
 
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx };
+async function sendStatusWithPk() {
+  try {
+    // ensure the funding account exists
+    const horizonServer = new Horizon.Server(HORIZON_URL);
+    let account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
+    let stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
+
+    // ensure we have at the very least 2.5 XLM in the account
+    if (Number(stellarBalance.balance) < 2.5) {
+      return { status: false, public: FUNDING_PUBLIC_KEY };
+    }
+
+    return { status: true, public: FUNDING_PUBLIC_KEY };
+  } catch (error) {
+    console.error("Couldn't load Stellar account: ", error);
+    return { status: false, public: FUNDING_PUBLIC_KEY };
+  }
+}
+
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };

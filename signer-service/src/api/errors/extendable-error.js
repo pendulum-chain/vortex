@@ -9,7 +9,7 @@ class ExtendableError extends Error {
     this.errors = errors;
     this.status = status;
     this.isPublic = isPublic;
-    this.isOperational = true; // This is required since bluebird 4 doesn't append it anymore.
+    this.isOperational = true;
     this.stack = stack;
     // Error.captureStackTrace(this, this.constructor.name);
   }

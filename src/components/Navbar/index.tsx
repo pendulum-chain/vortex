@@ -81,7 +81,7 @@ const Links = () => (
           href={link.href}
           target={link.href.startsWith('https') ? '_blank' : ''}
           rel={link.href.startsWith('https') ? 'noreferrer' : ''}
-          className="px-4 text-xl font-thin text-white md:text-md lg:px-7 hover:text-amber-500 hover:underline"
+          className="px-3 text-lg font-thin text-white lg:px-4 lg:text-xl lg:px-7 hover:text-amber-500 hover:underline"
         >
           {link.title}
         </a>

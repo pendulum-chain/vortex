@@ -21,7 +21,6 @@ import {
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
-import { set } from 'react-hook-form';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -50,24 +49,27 @@ export const useMainProcess = () => {
 
   const [, setEvents] = useState<GenericEvent[]>([]);
 
-  const updateHookStateFromState = (state: OfframpingState | undefined) => {
-    if (state?.phase === 'success' || state?.phase === 'failure') {
-      setSigningPhase(undefined);
-    }
-    setOfframpingPhase(state?.phase);
-    setSep24Id(state?.sep24Id);
+  const updateHookStateFromState = useCallback(
+    (state: OfframpingState | undefined) => {
+      if (state?.phase === 'success' || state?.phase === 'failure') {
+        setSigningPhase(undefined);
+      }
+      setOfframpingPhase(state?.phase);
+      setSep24Id(state?.sep24Id);
 
-    if (state?.phase === 'success') {
-      trackEvent(createTransactionEvent('transaction_success', state));
-    } else if (state?.phase === 'failure') {
-      trackEvent(createTransactionEvent('transaction_failure', state));
-    }
-  };
+      if (state?.phase === 'success') {
+        trackEvent(createTransactionEvent('transaction_success', state));
+      } else if (state?.phase === 'failure') {
+        trackEvent(createTransactionEvent('transaction_failure', state));
+      }
+    },
+    [trackEvent],
+  );
 
   useEffect(() => {
     const state = readCurrentState();
     updateHookStateFromState(state);
-  }, []);
+  }, [updateHookStateFromState]);
 
   const addEvent = (message: string, status: EventStatus) => {
     console.log('Add event', message, status);
@@ -76,7 +78,7 @@ export const useMainProcess = () => {
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
-    ({ inputTokenType, outputTokenType, amountInUnits, nablaAmountInRaw, minAmountOutUnits }: ExecutionInput) => {
+    ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
       if (offrampingStarted || offrampingPhase !== undefined) return;
 
       (async () => {
@@ -118,7 +120,6 @@ export const useMainProcess = () => {
             inputTokenType,
             outputTokenType,
             amountIn: amountInUnits,
-            nablaAmountInRaw,
             amountOut: minAmountOutUnits,
             sepResult: secondSep24Response,
           });
@@ -132,7 +133,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingPhase, offrampingStarted],
+    [offrampingPhase, offrampingStarted, trackEvent, updateHookStateFromState],
   );
 
   const finishOfframping = useCallback(() => {
@@ -141,14 +142,14 @@ export const useMainProcess = () => {
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
     })();
-  }, []);
+  }, [updateHookStateFromState]);
 
   useEffect(() => {
     (async () => {
       const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig, setSigningPhase });
       updateHookStateFromState(nextState);
     })();
-  }, [offrampingPhase, wagmiConfig]);
+  }, [offrampingPhase, updateHookStateFromState, wagmiConfig]);
 
   const resetSep24Url = () => setSep24Url(undefined);
 

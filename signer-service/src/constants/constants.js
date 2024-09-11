@@ -1,5 +1,24 @@
 const HORIZON_URL = 'https://horizon.stellar.org';
-//const HORIZON_URL = 'https://horizon-testnet.stellar.org';
 const BASE_FEE = '1000000';
+const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
+const NETWORK = 'Pendulum';
+const FUNDING_AMOUNT_UNITS = '0.1';
+const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = '0x0004446021fe650c15fb0b2e046b39130e3bfe36';
 
-module.exports = { BASE_FEE, HORIZON_URL };
+require('dotenv').config();
+
+const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
+const FUNDING_SECRET = process.env.FUNDING_SECRET;
+const MOONBEAM_EXECUTOR_PRIVATE_KEY = process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY;
+
+module.exports = {
+  BASE_FEE,
+  HORIZON_URL,
+  PENDULUM_WSS,
+  NETWORK,
+  FUNDING_AMOUNT_UNITS,
+  PENDULUM_FUNDING_SEED,
+  FUNDING_SECRET,
+  MOONBEAM_EXECUTOR_PRIVATE_KEY,
+  MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+};

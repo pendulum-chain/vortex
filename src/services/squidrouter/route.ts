@@ -1,11 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
-import { squidReceiverABI } from '../../contracts/SquidReceiver';
+import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 import erc20ABI from '../../contracts/ERC20';
-import { getSquidRouterConfig } from './config';
-import encodePayload from './payload';
-import { u8aToHex } from '@polkadot/util';
-import { decodeAddress } from '@polkadot/util-crypto';
+import { squidRouterConfig } from './config';
 import { InputTokenDetails } from '../../constants/tokenConfig';
 
 interface RouteParams {
@@ -33,27 +31,23 @@ interface RouteParams {
 function createRouteParams(
   userAddress: string,
   amount: string,
-  ephemeralAccountAddress: string,
+  squidRouterReceiverHash: `0x${string}`,
   inputToken: InputTokenDetails,
 ): RouteParams {
-  const { fromToken, fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } =
-    getSquidRouterConfig(inputToken);
+  const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = squidRouterConfig;
 
-  // TODO this must be approval, should we use max amount?? Or is this unsafe.
+  const fromToken = inputToken.erc20AddressSourceChain as `0x${string}`;
+
   const approvalErc20 = encodeFunctionData({
     abi: erc20ABI,
     functionName: 'approve',
-    args: [receivingContractAddress, 1000000000],
+    args: [receivingContractAddress, '0'],
   });
 
-  const ephemeralAccountHex = u8aToHex(decodeAddress(ephemeralAccountAddress));
-
-  const payload = encodePayload(ephemeralAccountHex);
-
-  const executeXCMEncodedData = encodeFunctionData({
+  const initXCMEncodedData = encodeFunctionData({
     abi: squidReceiverABI,
-    functionName: 'executeXCM',
-    args: [payload, '0'],
+    functionName: 'initXCM',
+    args: [squidRouterReceiverHash, '0'],
   });
 
   return {
@@ -74,7 +68,7 @@ function createRouteParams(
       calls: [
         // approval call.
         {
-          callType: 0,
+          callType: 1,
           target: axlUSDC_MOONBEAM,
           value: '0', // this will be replaced by the full native balance of the multicall after the swap
           callData: approvalErc20,
@@ -90,9 +84,13 @@ function createRouteParams(
           callType: 1, // SquidCallType.FULL_TOKEN_BALANCE
           target: receivingContractAddress,
           value: '0',
-          callData: executeXCMEncodedData,
+          callData: initXCMEncodedData,
           payload: {
             tokenAddress: axlUSDC_MOONBEAM,
+            // this indexes the 256 bit word position of the
+            // "amount" parameter in the encoded arguments to the call executeXCMEncodedData
+            // i.e., a "1" means that the bits 256-511 are the position of "amount"
+            // in the encoded argument list
             inputPos: '1',
           },
           estimatedGas: '700000',
@@ -108,7 +106,7 @@ function createRouteParams(
 
 async function getRoute(params: RouteParams) {
   // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
-  const { integratorId } = getSquidRouterConfig(params.inputToken);
+  const { integratorId } = squidRouterConfig;
   const url = 'https://apiplus.squidrouter.com/v2/route';
 
   try {
@@ -133,10 +131,10 @@ async function getRoute(params: RouteParams) {
 export async function getRouteTransactionRequest(
   userAddress: string,
   amount: string,
-  ephemeralAccountAddress: string,
+  squidRouterReceiverHash: `0x${string}`,
   inputToken: InputTokenDetails,
 ) {
-  const routeParams = createRouteParams(userAddress, amount, ephemeralAccountAddress, inputToken);
+  const routeParams = createRouteParams(userAddress, amount, squidRouterReceiverHash, inputToken);
 
   // Get the swap route using Squid API
   const routeResult = await getRoute(routeParams);
@@ -153,12 +151,4 @@ export async function getRouteTransactionRequest(
     transactionRequest,
     data: routeResult.data,
   };
-}
-
-// Function to get the optimal route for the swap using Squid API
-interface StatusParams {
-  transactionId: string;
-  requestId: string;
-  fromChainId: string;
-  toChainId: string;
 }

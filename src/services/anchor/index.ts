@@ -231,7 +231,7 @@ export async function sep24Second(
       amount: sessionParams.offrampAmount,
       memo: 'MYK1722323689',
       memoType: 'text',
-      offrampingAccount: await fetchSigningServiceAccountId(),
+      offrampingAccount: (await fetchSigningServiceAccountId()).stellar.public,
     };
   }
 
