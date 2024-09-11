@@ -1,10 +1,13 @@
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useEventsContext } from '../../../contexts/events';
 
 export const ConnectWallet = () => (
+
   <ConnectButton.Custom>
     {({ account, chain, openAccountModal, openChainModal, openConnectModal, authenticationStatus, mounted }) => {
+      const { handleUserClickWallet } = useEventsContext();
       const ready = mounted && authenticationStatus !== 'loading';
       const connected =
         ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
@@ -24,7 +27,10 @@ export const ConnectWallet = () => (
             if (!connected) {
               return (
                 <button
-                  onClick={openConnectModal}
+                  onClick={()=>{
+                    openConnectModal();
+                    handleUserClickWallet();
+                  }}
                   type="button"
                   className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                 >
@@ -39,7 +45,10 @@ export const ConnectWallet = () => (
             if (chain.unsupported) {
               return (
                 <button
-                  onClick={openChainModal}
+                  onClick={()=>{
+                    openChainModal();
+                    handleUserClickWallet();
+                  }}
                   type="button"
                   className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                 >
@@ -52,7 +61,10 @@ export const ConnectWallet = () => (
             return (
               <>
                 <button
-                  onClick={openAccountModal}
+                  onClick={()=>{
+                    openAccountModal();
+                    handleUserClickWallet();
+                  }}
                   type="button"
                   className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                 >

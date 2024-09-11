@@ -59,8 +59,8 @@ const useEvents = () => {
   const [_, setTrackedEventTypes] = useState<Set<EventType>>(new Set());
 
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
-  const firstLoad = useRef<boolean>(true);
-  const { address, isConnecting, status } = useAccount();
+  const [userClicked, setUserClicked] = useState(false);
+  const { address, status } = useAccount();
 
   const trackEvent = useCallback(
     (event: TrackableEvent) => {
@@ -88,37 +88,33 @@ const useEvents = () => {
   }, [setTrackedEventTypes]);
 
 
-
-
   useEffect(() => {
-
-    console.log("status", status)
-
-     if (firstLoad.current && status == "connecting") {
-      console.log("first load")
-      return;
-    }
-
-    if (firstLoad.current && status !== "connecting") {
-      firstLoad.current = false;
-    }
-
 
     const wasConnected = previousAddress.current !== undefined;
     const isConnected = address !== undefined;
 
+    previousAddress.current = address;
+
+    if (!userClicked) {return}
+    
     if (!isConnected) {
       trackEvent({ event: 'wallet_connect', wallet_action: 'disconnect' });
     } else {
       trackEvent({ event: 'wallet_connect', wallet_action: wasConnected ? 'change' : 'connect' });
     }
+    
+    setUserClicked(false); 
+    // Important NOT to add userClicked to the dependencies array, otherwise logic will not work.
+  }, [address, trackEvent]);  
 
-    previousAddress.current = address;
-  }, [address, trackEvent, status]);
+  const handleUserClickWallet = () => {
+    setUserClicked(true);  
+  };
 
   return {
     trackEvent,
-    resetUniqueEvents
+    resetUniqueEvents,
+    handleUserClickWallet
   };
 };
 
