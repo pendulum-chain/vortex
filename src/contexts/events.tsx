@@ -11,7 +11,15 @@ declare global {
   }
 }
 
-const UNIQUE_EVENT_TYPES = ['amount_type', 'click_details', 'click_support'];
+const UNIQUE_EVENT_TYPES = [
+  'amount_type',
+  'click_details',
+  'click_support',
+  'transaction_confirmation',
+  'kyc_completed',
+  'transaction_success',
+  'transaction_failure',
+];
 
 export interface AmountTypeEvent {
   event: `amount_type`;
@@ -53,6 +61,7 @@ const useEvents = () => {
   const [_, setTrackedEventTypes] = useState<Set<EventType>>(new Set());
 
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
+  const userClickedState = useRef<boolean>(false);
   const { address } = useAccount();
 
   const trackEvent = useCallback(
@@ -76,9 +85,19 @@ const useEvents = () => {
     [setTrackedEventTypes],
   );
 
+  const resetUniqueEvents = useCallback(() => {
+    setTrackedEventTypes(new Set());
+  }, [setTrackedEventTypes]);
+
   useEffect(() => {
     const wasConnected = previousAddress.current !== undefined;
     const isConnected = address !== undefined;
+
+    previousAddress.current = address;
+
+    if (!userClickedState.current) {
+      return;
+    }
 
     if (!isConnected) {
       trackEvent({ event: 'wallet_connect', wallet_action: 'disconnect' });
@@ -86,11 +105,18 @@ const useEvents = () => {
       trackEvent({ event: 'wallet_connect', wallet_action: wasConnected ? 'change' : 'connect' });
     }
 
-    previousAddress.current = address;
-  }, [address, trackEvent]);
+    userClickedState.current = false;
+    // Important NOT to add userClicked to the dependencies array, otherwise logic will not work.
+  }, [address, trackEvent, userClickedState]);
+
+  const handleUserClickWallet = () => {
+    userClickedState.current = true;
+  };
 
   return {
     trackEvent,
+    resetUniqueEvents,
+    handleUserClickWallet,
   };
 };
 

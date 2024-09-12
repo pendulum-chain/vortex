@@ -45,7 +45,7 @@ export const useMainProcess = () => {
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const wagmiConfig = useConfig();
-  const { trackEvent } = useEventsContext();
+  const { trackEvent, resetUniqueEvents } = useEventsContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
 
@@ -139,10 +139,11 @@ export const useMainProcess = () => {
   const finishOfframping = useCallback(() => {
     (async () => {
       await clearOfframpingState();
+      resetUniqueEvents();
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
     })();
-  }, [updateHookStateFromState]);
+  }, [updateHookStateFromState, resetUniqueEvents]);
 
   useEffect(() => {
     (async () => {
