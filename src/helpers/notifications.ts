@@ -11,7 +11,7 @@ type ToastSettings = {
 
 const ToastProperties: Record<ToastMessage, ToastSettings> = {
   [ToastMessage.AMOUNT_MISMATCH]: {
-    message: 'Mismatching offramp amounts detected. Please retry starting the offramp.',
+    message: 'Mismatching offramp amounts detected. Please restart the offramp process.',
     options: {
       toastId: ToastMessage.AMOUNT_MISMATCH,
       type: 'error',
