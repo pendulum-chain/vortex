@@ -1,26 +1,25 @@
-import { useState, useEffect, useCallback } from 'preact/compat';
+import { useCallback, useEffect, useState } from 'preact/compat';
 
 // Configs, Types, constants
-import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
+import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First, sep24Second } from '../services/anchor';
 import { ExecutionInput } from '../types';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
-
-import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
 import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { useConfig } from 'wagmi';
 import {
-  FinalOfframpingPhase,
-  OfframpingPhase,
-  OfframpingState,
   advanceOfframpingState,
   clearOfframpingState,
   constructInitialState,
+  FinalOfframpingPhase,
+  OfframpingPhase,
+  OfframpingState,
   readCurrentState,
 } from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { showToast, ToastMessage } from '../helpers/notifications';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -114,6 +113,16 @@ export const useMainProcess = () => {
           const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
 
           console.log('secondSep24Response', secondSep24Response);
+
+          // Check if the amount entered in the KYC UI matches the one we expect
+          if (!Big(secondSep24Response.amount).eq(truncatedAmountToOfframp)) {
+            setOfframpingStarted(false);
+            console.error(
+              "The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.",
+            );
+            showToast(ToastMessage.AMOUNT_MISMATCH);
+            return;
+          }
 
           const initialState = await constructInitialState({
             sep24Id: firstSep24Response.id,
