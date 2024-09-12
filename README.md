@@ -38,11 +38,13 @@ matter what URL the browser requests.
 
 ## Env Variables
 
-`VITE_SIGNING_SERVICE_URL`: Optional variable to point to a specific signing backend service URL. If undefined, it will
-default to either:
-
-- http://localhost:3000 (if in development mode)
-- https://prototype-signer-service-polygon.pendulumchain.tech (if in production mode)
+- `VITE_SIGNING_SERVICE_URL`: Optional variable to point to a specific signing backend service URL. If undefined, it
+  will
+  default to either:
+    - http://localhost:3000 (if in development mode)
+    - https://prototype-signer-service-polygon.pendulumchain.tech (if in production mode)
+- `VITE_ALCHEMY_API_KEY`: Optional variable to set the Alchemy API key for the custom RPC provider. If undefined, it
+  will use dhe default endpoint.
 
 ## Fixing type issues
 
