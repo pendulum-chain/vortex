@@ -67,7 +67,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
 export type OutputTokenType = 'eurc';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
-    tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
+    tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
     decimals: 12,
     fiat: {
       assetIcon: 'eur',
