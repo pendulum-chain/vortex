@@ -128,7 +128,7 @@ export const SwapPage = () => {
     } else {
       form.setValue('toAmount', '');
     }
-  }, [form, tokenOutData.data]);
+  }, [form, tokenOutData.data, toToken]);
 
   const ReceiveNumericInput = useMemo(
     () => (

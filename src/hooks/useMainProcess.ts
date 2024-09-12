@@ -143,7 +143,7 @@ export const useMainProcess = () => {
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
     })();
-  }, [updateHookStateFromState]);
+  }, [updateHookStateFromState, resetUniqueEvents]);
 
   useEffect(() => {
     (async () => {
