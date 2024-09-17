@@ -116,8 +116,7 @@ export const useMainProcess = () => {
           setSep24Url({ url: firstSep24Response.url, counterResolveFn: resolveFn });
           console.log('sep24 url:', firstSep24Response.url);
 
-          let counterSolved = false;
-          while (!counterSolved) {
+          while (true) {
             // wait 20 seconds
             const timeoutPromise = new Promise((resolve) => {
               setTimeout(() => resolve('timeout'), 20000);
