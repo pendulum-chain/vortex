@@ -17,7 +17,7 @@ interface ISep24Intermediate {
   id: string;
 }
 
-interface IAnchorSessionParams {
+export interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
   tokenConfig: OutputTokenDetails;

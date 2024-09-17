@@ -39,7 +39,10 @@ export const useMainProcess = () => {
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
   const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
-  const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
+  const [sep24Url, setSep24Url] = useState<{ url: string | undefined; counterResolveFn: () => void }>({
+    url: undefined,
+    counterResolveFn: () => {},
+  });
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
@@ -107,9 +110,30 @@ export const useMainProcess = () => {
             tokenConfig: outputToken,
             offrampAmount: truncatedAmountToOfframp,
           };
+
           const firstSep24Response = await sep24First(anchorSessionParams);
+          let { promise: counterPromise, resolveFn } = createCounterResolver();
+          setSep24Url({ url: firstSep24Response.url, counterResolveFn: resolveFn });
           console.log('sep24 url:', firstSep24Response.url);
-          setSep24Url(firstSep24Response.url);
+
+          let counterSolved = false;
+          while (!counterSolved) {
+            // wait 20 seconds
+            const timeoutPromise = new Promise((resolve) => {
+              setTimeout(() => resolve('timeout'), 20000);
+            });
+
+            // wrap promises to identify which one was resolved
+            const wrappedCounterPromise = counterPromise.then(() => 'counter');
+            let completed = await Promise.race([timeoutPromise, wrappedCounterPromise]);
+            if (completed === 'counter') {
+              break;
+            }
+
+            const firstSep24Response = await sep24First(anchorSessionParams);
+            console.log('refreshing sep24 url:', firstSep24Response.url);
+            setSep24Url({ url: firstSep24Response.url, counterResolveFn: resolveFn });
+          }
 
           const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
 
@@ -152,7 +176,7 @@ export const useMainProcess = () => {
     })();
   }, [offrampingPhase, updateHookStateFromState, wagmiConfig]);
 
-  const resetSep24Url = () => setSep24Url(undefined);
+  const resetSep24Url = () => setSep24Url({ url: undefined, counterResolveFn: () => {} });
 
   return {
     setOfframpingPhase,
@@ -165,4 +189,16 @@ export const useMainProcess = () => {
     resetSep24Url,
     signingPhase,
   };
+};
+
+const createCounterResolver = () => {
+  let resolveFn: () => void;
+
+  const promise = new Promise<void>((resolve) => {
+    resolveFn = () => {
+      resolve();
+    };
+  });
+
+  return { promise, resolveFn: resolveFn! };
 };

@@ -163,11 +163,11 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
+    // if (typeof userInputTokenBalance === 'string') {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+    //   }
+    // }
 
     const amountOut = tokenOutData.data?.amountOut;
 
@@ -261,13 +261,16 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-        {sep24Url !== undefined ? (
+        {sep24Url.url !== undefined ? (
           <a
-            href={sep24Url}
+            href={sep24Url.url}
             target="_blank"
             rel="noreferrer"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-            onClick={resetSep24Url}
+            onClick={() => {
+              resetSep24Url();
+              sep24Url.counterResolveFn();
+            }}
           >
             Start Offramping
           </a>
