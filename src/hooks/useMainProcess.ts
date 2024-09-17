@@ -107,16 +107,8 @@ export const useMainProcess = () => {
             tokenConfig: outputToken,
             offrampAmount: truncatedAmountToOfframp,
           };
-          let firstSep24Response = await sep24First(anchorSessionParams);
+          const firstSep24Response = await sep24First(anchorSessionParams);
           console.log('sep24 url:', firstSep24Response.url);
-
-          // Check if the URL returns 403, if it does we do sep24First again
-          while ((await checkUrlResponse(firstSep24Response.url)) == false) {
-            console.log('URL returned 403, retrying sep24First');
-            firstSep24Response = await sep24First(anchorSessionParams);
-            console.log('sep24 url re-fetched:', firstSep24Response.url);
-          }
-
           setSep24Url(firstSep24Response.url);
 
           const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
@@ -174,13 +166,3 @@ export const useMainProcess = () => {
     signingPhase,
   };
 };
-
-async function checkUrlResponse(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(url);
-    return response.status !== 403;
-  } catch (error) {
-    console.error('Error during fetch:', error);
-    return false;
-  }
-}
