@@ -111,7 +111,7 @@ export const useMainProcess = () => {
             offrampAmount: truncatedAmountToOfframp,
           };
 
-          const firstSep24Response = await sep24First(anchorSessionParams);
+          let firstSep24Response = await sep24First(anchorSessionParams);
           let { promise: counterPromise, resolveFn } = createCounterResolver();
           setSep24Url({ url: firstSep24Response.url, counterResolveFn: resolveFn });
           console.log('sep24 url:', firstSep24Response.url);
@@ -130,7 +130,7 @@ export const useMainProcess = () => {
               break;
             }
 
-            const firstSep24Response = await sep24First(anchorSessionParams);
+            firstSep24Response = await sep24First(anchorSessionParams);
             console.log('refreshing sep24 url:', firstSep24Response.url);
             setSep24Url({ url: firstSep24Response.url, counterResolveFn: resolveFn });
           }
