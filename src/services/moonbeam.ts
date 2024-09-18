@@ -40,9 +40,10 @@ export async function executeXCM(state: OfframpingState): Promise<OfframpingStat
   if (!response.ok) {
     throw new Error(`Error while executing XCM: ${response.statusText}`);
   }
-  const hash = (await response.json()).hash;
 
+  let hash;
   try {
+    hash = (await response.json()).hash;
     await waitForTransactionReceipt(moonbeamConfig, hash);
   } catch (error) {
     throw new Error(`Error while executing XCM: Could not fetch transaction receipt for hash : ${hash}`);
