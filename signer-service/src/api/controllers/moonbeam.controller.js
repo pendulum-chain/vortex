@@ -14,8 +14,20 @@ exports.executeXcmController = async (req, res) => {
   const cacheKey = `${id}_${JSON.stringify(payload)}`;
 
   if (transactionCache[cacheKey]) {
-    return res.send({ hash: transactionCache[cacheKey] });
+    try {
+      let hash = await transactionCache[cacheKey];
+      return res.send({ hash });
+    } catch (error) {
+      return res.status(400).send({ error: 'Invalid transaction' });
+    }
   }
+
+  let resolveWithHash;
+  let rejectWithError;
+  transactionCache[cacheKey] = new Promise((resolve, reject) => {
+    resolveWithHash = resolve;
+    rejectWithError = reject;
+  });
 
   try {
     const walletClient = createWalletClient({
@@ -46,14 +58,19 @@ exports.executeXcmController = async (req, res) => {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
-      transactionCache[cacheKey] = hash;
+      resolveWithHash(hash);
     } catch (error) {
       console.error('Error executing XCM:', error);
-      res.status(400).send({ error: 'Invalid transaction' });
+      rejectWithError(error);
+
+      return res.status(400).send({ error: 'Invalid transaction' });
     }
 
     res.send({ hash });
   } catch (error) {
+    if (rejectWithError) {
+      rejectWithError(error);
+    }
     console.error('Error executing XCM:', error);
     res.status(500).send({ error: 'Internal Server Error' });
   }
