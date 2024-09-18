@@ -1,7 +1,7 @@
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { Keyring } from '@polkadot/api';
-import { http, createConfig, readContract } from '@wagmi/core';
+import { http, createConfig, readContract, waitForTransactionReceipt } from '@wagmi/core';
 import { moonbeam } from '@wagmi/core/chains';
 
 import { OfframpingState } from './offrampingFlow';
@@ -39,6 +39,13 @@ export async function executeXCM(state: OfframpingState): Promise<OfframpingStat
 
   if (!response.ok) {
     throw new Error(`Error while executing XCM: ${response.statusText}`);
+  }
+  const hash = (await response.json()).hash;
+
+  try {
+    await waitForTransactionReceipt(moonbeamConfig, hash);
+  } catch (error) {
+    throw new Error(`Error while executing XCM: Could not fetch transaction receipt for hash : ${hash}`);
   }
 
   await waitUntilTrue(async () => {
