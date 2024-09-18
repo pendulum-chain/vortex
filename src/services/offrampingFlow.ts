@@ -222,6 +222,7 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
     const tenMinutesMs = 10 * 60 * 1000;
     if (Date.now() < state.createdAt + tenMinutesMs) {
       console.error('Possible transient error within 10 minutes. Reloading page.', error);
+      await new Promise((resolve) => setTimeout(resolve, 30000));
       window.location.href = window.location.href;
       return { ...state, phase };
     }
