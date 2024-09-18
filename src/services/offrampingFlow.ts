@@ -78,6 +78,9 @@ export interface OfframpingState {
 
   sepResult: SepResult;
 
+  // Initiating state timestamp
+  createdAt: number;
+
   // All signed transactions, if available
   transactions?: {
     stellarOfframpingTransaction: string;
@@ -170,7 +173,7 @@ export async function constructInitialState({
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
-
+    createdAt: Date.now(),
     sepResult,
 
     transactions: undefined,
@@ -215,6 +218,14 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
       console.error('Wallet not connected. Try to connect wallet');
       return state;
     }
+
+    const tenMinutesMs = 10 * 60 * 1000;
+    if (Date.now() < state.createdAt + tenMinutesMs) {
+      console.error('Possible transient error within 10 minutes. Reloading page.', error);
+      window.location.href = window.location.href;
+      return { ...state, phase };
+    }
+
     console.error('Unrecoverable error advancing offramping state', error);
     newState = { ...state, phase: 'failure' };
   }

@@ -284,7 +284,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   if (transactions === undefined) {
     console.error('Missing transactions for nablaSwap');
-    return { ...state, phase: 'failure' };
+    throw new Error('Missing transactions for nablaSwap');
   }
 
   const { api, ss58Format } = (await getApiManagerInstance()).apiData!;

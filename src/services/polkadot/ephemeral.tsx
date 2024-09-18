@@ -43,7 +43,7 @@ export async function pendulumFundEphemeral(
 
     if (response.data.status !== 'success') {
       console.error('Error funding ephemeral account: funding timed out or failed');
-      return { ...state, phase: 'failure' };
+      throw new Error('Error funding ephemeral account: funding timed out or failed');
     }
 
     await waitUntilTrue(isEphemeralFunded.bind(null, state));
