@@ -47,10 +47,10 @@ exports.executeXcmController = async (req, res) => {
       args: [id, payload],
     });
 
-    const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
     let hash;
     try {
+      const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
       hash = await walletClient.sendTransaction({
         to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
         value: 0n,
@@ -62,11 +62,14 @@ exports.executeXcmController = async (req, res) => {
     } catch (error) {
       console.error('Error executing XCM:', error);
       rejectWithError(error);
-
-      return res.status(400).send({ error: 'Invalid transaction' });
     }
 
-    res.send({ hash });
+    try {
+      hash = await transactionCache[cacheKey];
+      return res.send({ hash });
+    } catch (error) {
+      return res.status(400).send({ error: 'Invalid transaction' });
+    }
   } catch (error) {
     if (rejectWithError) {
       rejectWithError(error);
