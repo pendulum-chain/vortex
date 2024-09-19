@@ -42,7 +42,7 @@ export type OfframpingPhase =
 export type FinalOfframpingPhase = 'success' | 'failure';
 
 export interface OfframpingState {
-  sep24Id: string;
+  sep24Id?: string;
 
   pendulumEphemeralSeed: string;
   stellarEphemeralSecret: string;
@@ -76,7 +76,7 @@ export interface OfframpingState {
   // executeSpacewalk
   executeSpacewalkNonce: number;
 
-  sepResult: SepResult;
+  sepResult?: SepResult;
 
   // All signed transactions, if available
   transactions?: {
@@ -118,6 +118,7 @@ const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 
 export interface InitiateStateArguments {
   sep24Id: string;
+  stellarEphemeralSecret: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
@@ -127,6 +128,7 @@ export interface InitiateStateArguments {
 
 export async function constructInitialState({
   sep24Id,
+  stellarEphemeralSecret,
   inputTokenType,
   outputTokenType,
   amountIn,
@@ -134,7 +136,6 @@ export async function constructInitialState({
   sepResult,
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
-  const stellarEphemeralSecret = createStellarEphemeralSecret();
 
   const inputTokenDecimals = INPUT_TOKEN_CONFIG[inputTokenType].decimals;
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
@@ -151,7 +152,6 @@ export async function constructInitialState({
   const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
 
   const initialState: OfframpingState = {
-    sep24Id,
     pendulumEphemeralSeed,
     stellarEphemeralSecret,
     inputTokenType,
@@ -170,8 +170,6 @@ export async function constructInitialState({
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
-
-    sepResult,
 
     transactions: undefined,
   };

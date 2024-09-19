@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from 'preact/compat';
 
 // Configs, Types, constants
-import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
 import { ExecutionInput } from '../types';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 
-import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
+import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First, sep24Second } from '../services/anchor';
 // Utils
-import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { useConfig } from 'wagmi';
 import {
   FinalOfframpingPhase,
@@ -21,6 +19,7 @@ import {
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -39,11 +38,10 @@ export const useMainProcess = () => {
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
   const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
-  const [sep24Url, setSep24Url] = useState<{ url: string | undefined; counterResolveFn: () => void }>({
-    url: undefined,
-    counterResolveFn: () => {},
-  });
+  const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
+  const [sep24UpdateInterval, setSep24UpdateInterval] = useState<number | undefined>(undefined);
+  console.log('sep24Url', sep24Url, 'sep24Id', sep24Id, 'sep24UpdateInterval', sep24UpdateInterval);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
@@ -96,14 +94,10 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
-
           const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(Big(minAmountOutUnits), 2);
-
           const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
-
           const anchorSessionParams = {
             token: sep10Token,
             tomlValues: tomlValues,
@@ -111,45 +105,35 @@ export const useMainProcess = () => {
             offrampAmount: truncatedAmountToOfframp,
           };
 
-          let firstSep24Response = await sep24First(anchorSessionParams);
-          let { promise: counterPromise, resolveFn } = createCounterResolver();
-          setSep24Url({ url: firstSep24Response.url, counterResolveFn: resolveFn });
-          console.log('sep24 url:', firstSep24Response.url);
+          const finishInitialState = async () => {
+            const firstSep24Response = await sep24First(anchorSessionParams);
+            setSep24Url(firstSep24Response.url);
+            console.log('sep24 url:', firstSep24Response.url);
 
-          while (true) {
-            // wait 20 seconds
-            const timeoutPromise = new Promise((resolve) => {
-              setTimeout(() => resolve('timeout'), 20000);
+            const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
+
+            const initialState = await constructInitialState({
+              sep24Id: firstSep24Response.id,
+              stellarEphemeralSecret,
+              inputTokenType,
+              outputTokenType,
+              amountIn: amountInUnits,
+              amountOut: minAmountOutUnits,
+              sepResult: secondSep24Response,
             });
 
-            // wrap promises to identify which one was resolved
-            const wrappedCounterPromise = counterPromise.then(() => 'counter');
-            let completed = await Promise.race([timeoutPromise, wrappedCounterPromise]);
-            if (completed === 'counter') {
-              break;
-            }
+            trackEvent(createTransactionEvent('kyc_completed', initialState));
 
-            firstSep24Response = await sep24First(anchorSessionParams);
-            console.log('refreshing sep24 url:', firstSep24Response.url);
-            setSep24Url({ url: firstSep24Response.url, counterResolveFn: resolveFn });
-          }
+            updateHookStateFromState(initialState);
+          };
 
-          const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
+          const interval = setInterval(() => {
+            finishInitialState().then(() => clearInterval(interval));
+          }, 20000);
 
-          console.log('secondSep24Response', secondSep24Response);
-
-          const initialState = await constructInitialState({
-            sep24Id: firstSep24Response.id,
-            inputTokenType,
-            outputTokenType,
-            amountIn: amountInUnits,
-            amountOut: minAmountOutUnits,
-            sepResult: secondSep24Response,
+          finishInitialState().catch((error) => {
+            console.error('Error in finishInitiateState', error);
           });
-
-          trackEvent(createTransactionEvent('kyc_completed', initialState));
-
-          updateHookStateFromState(initialState);
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);
@@ -175,8 +159,6 @@ export const useMainProcess = () => {
     })();
   }, [offrampingPhase, updateHookStateFromState, wagmiConfig]);
 
-  const resetSep24Url = () => setSep24Url({ url: undefined, counterResolveFn: () => {} });
-
   return {
     setOfframpingPhase,
     handleOnSubmit,
@@ -185,19 +167,6 @@ export const useMainProcess = () => {
     offrampingStarted,
     sep24Id,
     finishOfframping,
-    resetSep24Url,
     signingPhase,
   };
-};
-
-const createCounterResolver = () => {
-  let resolveFn: () => void;
-
-  const promise = new Promise<void>((resolve) => {
-    resolveFn = () => {
-      resolve();
-    };
-  });
-
-  return { promise, resolveFn: resolveFn! };
 };

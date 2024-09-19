@@ -58,7 +58,6 @@ export const SwapPage = () => {
     sep24Id,
     offrampingPhase,
     setOfframpingPhase,
-    resetSep24Url,
     signingPhase,
   } = useMainProcess();
 
@@ -261,15 +260,14 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-        {sep24Url.url !== undefined ? (
+        {sep24Url !== undefined ? (
           <a
-            href={sep24Url.url}
+            href={sep24Url}
             target="_blank"
             rel="noreferrer"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={() => {
-              resetSep24Url();
-              sep24Url.counterResolveFn();
+              // resetSep24Url();
             }}
           >
             Start Offramping
