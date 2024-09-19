@@ -42,7 +42,6 @@ function handleOnInput(e: Event, maxDecimals: number): void {
     target.value = '0';
   }
 
-  console.log(target.value);
   target.value = target.value.replace(/,/g, '.');
   if (exceedsMaxDecimals(target.value, maxDecimals)) {
     target.value = target.value.slice(0, -1);
