@@ -50,7 +50,7 @@ export const useMainProcess = () => {
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
-      if (state?.phase === 'success' || state?.isFailure === true) {
+      if (state === undefined || state.phase === 'success' || state.failure !== undefined) {
         setSigningPhase(undefined);
       }
       setOfframpingState(state);
@@ -58,7 +58,7 @@ export const useMainProcess = () => {
 
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
-      } else if (state?.isFailure === true) {
+      } else if (state?.failure !== undefined) {
         trackEvent(createTransactionEvent('transaction_failure', state));
       }
     },

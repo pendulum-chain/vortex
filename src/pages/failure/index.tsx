@@ -4,6 +4,7 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
 import { TelegramButton } from '../../components/buttons/TelegramButton';
+import { FailureType } from '../../services/offrampingFlow';
 
 const Cross = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-red-500 rounded-full">
@@ -15,9 +16,10 @@ interface FailurePageProps {
   finishOfframping: () => void;
   continueFailedFlow: () => void;
   transactionId: string | undefined;
+  failure: FailureType;
 }
 
-export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId }: FailurePageProps) => {
+export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId, failure }: FailurePageProps) => {
   console.log('Failure page');
   const main = (
     <main>
@@ -25,14 +27,24 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
         <Cross />
         <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Withdrawal unsuccessful</h1>
         {transactionId && <TransactionInfo transactionId={transactionId} />}
-        <p className="mt-6 text-center">
-          Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary
-          problem such as bad internet connection.
-        </p>
-        <p>Either try to continue or start over.</p>
-        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
-          Continue
-        </button>
+        {failure === 'recoverable' ? (
+          <>
+            <p className="mt-6 text-center">
+              Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary
+              problem such as bad internet connection.
+            </p>
+            <p>Either try to continue or start over.</p>
+          </>
+        ) : (
+          <p className="mt-6 text-center">
+            Unfortunately, your withdrawal request could not be processed. Please try again.
+          </p>
+        )}
+        {failure === 'recoverable' && (
+          <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
+            Continue
+          </button>
+        )}
         <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
           Start over
         </button>
