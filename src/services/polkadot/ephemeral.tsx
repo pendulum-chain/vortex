@@ -23,6 +23,22 @@ async function getEphemeralAddress({ pendulumEphemeralSeed }: OfframpingState) {
   return ephemeralKeypair.address;
 }
 
+export async function getEphemeralNonce({ pendulumEphemeralSeed }: OfframpingState): Promise<number | undefined> {
+  const pendulumApiComponents = await getApiManagerInstance();
+  const apiData = pendulumApiComponents.apiData!;
+
+  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  try {
+    const accountData = await apiData.api.query.system.account(ephemeralKeypair.address);
+    return accountData.nonce.toNumber();
+  } catch (error) {
+    console.error(`Can't request nonce of ephemeral account ${ephemeralKeypair.address}`);
+    return undefined;
+  }
+}
+
 export async function pendulumFundEphemeral(
   state: OfframpingState,
   { wagmiConfig }: ExecutionContext,

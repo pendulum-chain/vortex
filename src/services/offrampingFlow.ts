@@ -25,6 +25,8 @@ import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
 import { executeXCM } from './moonbeam';
 
+const minutesInMs = (minutes: number) => minutes * 60 * 1000;
+
 export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
@@ -39,7 +41,7 @@ export type OfframpingPhase =
   | 'stellarOfframp'
   | 'stellarCleanup';
 
-export type FinalOfframpingPhase = 'success' | 'failure';
+export type FinalOfframpingPhase = 'success';
 
 export interface OfframpingState {
   sep24Id: string;
@@ -61,11 +63,16 @@ export interface OfframpingState {
 
   phase: OfframpingPhase | FinalOfframpingPhase;
 
+  isFailure?: boolean;
+
   // phase squidRouter
   squidRouterReceiverId: `0x${string}`;
   squidRouterReceiverHash: `0x${string}`;
   squidRouterApproveHash?: `0x${string}`;
   squidRouterSwapHash?: `0x${string}`;
+
+  // phase executeXCM
+  moonbeamXcmTransactionHash?: `0x${string}`;
 
   // nablaApprove
   nablaApproveNonce: number;
@@ -80,6 +87,7 @@ export interface OfframpingState {
 
   // Initiating state timestamp
   createdAt: number;
+  failureTimeoutAt: number;
 
   // All signed transactions, if available
   transactions?: {
@@ -153,6 +161,7 @@ export async function constructInitialState({
   const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
   const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
 
+  const now = Date.now();
   const initialState: OfframpingState = {
     sep24Id,
     pendulumEphemeralSeed,
@@ -173,7 +182,8 @@ export async function constructInitialState({
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
-    createdAt: Date.now(),
+    createdAt: now,
+    failureTimeoutAt: now + minutesInMs(10),
     sepResult,
 
     transactions: undefined,
@@ -187,20 +197,43 @@ export async function clearOfframpingState() {
   storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
 }
 
-export function readCurrentState() {
-  return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
-}
-
-export async function advanceOfframpingState(context: ExecutionContext): Promise<OfframpingState | undefined> {
-  const state = readCurrentState();
-
+export function recoverFromFailure(state: OfframpingState | undefined) {
   if (state === undefined) {
     console.log('No offramping in process');
     return undefined;
   }
 
-  const { phase } = state;
-  const phaseIsFinal = phase === 'success' || phase === 'failure';
+  if (state.isFailure !== true) {
+    console.log('Current state is not a failure.');
+    return state;
+  }
+
+  const newState = {
+    ...state,
+    isFailure: undefined,
+    failureTimeoutAt: Date.now() + minutesInMs(5),
+  };
+  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
+
+  console.log('Recovered from failure');
+  return newState;
+}
+
+export function readCurrentState() {
+  return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+}
+
+export async function advanceOfframpingState(
+  state: OfframpingState | undefined,
+  context: ExecutionContext,
+): Promise<OfframpingState | undefined> {
+  if (state === undefined) {
+    console.log('No offramping in process');
+    return undefined;
+  }
+
+  const { phase, isFailure } = state;
+  const phaseIsFinal = phase === 'success' || isFailure === true;
 
   if (phaseIsFinal) {
     console.log('Offramping is already in a final phase:', phase);
@@ -219,16 +252,15 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
       return state;
     }
 
-    const tenMinutesMs = 10 * 60 * 1000;
-    if (Date.now() < state.createdAt + tenMinutesMs) {
+    if (Date.now() < state.failureTimeoutAt) {
       console.error('Possible transient error within 10 minutes. Reloading page in 30 seconds.', error);
       await new Promise((resolve) => setTimeout(resolve, 30000));
-      window.location.href = window.location.href;
-      return { ...state, phase };
+      window.location.reload();
+      return state;
     }
 
     console.error('Unrecoverable error advancing offramping state', error);
-    newState = { ...state, phase: 'failure' };
+    newState = { ...state, isFailure: true };
   }
 
   if (newState !== undefined) {

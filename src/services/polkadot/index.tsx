@@ -73,7 +73,7 @@ export async function executeSpacewalkRedeem(
 
   if (!transactions) {
     console.error('Transactions not prepared, cannot execute Spacewalk redeem');
-    return { ...state, phase: 'failure' };
+    return { ...state, isFailure: true };
   }
   let redeemRequestEvent;
 
