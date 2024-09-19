@@ -30,18 +30,42 @@ function alreadyHasDecimal(e: KeyboardEvent) {
   return decimalChars.some((char) => e.key === char && e.target && (e.target as HTMLInputElement).value.includes('.'));
 }
 
-function handleOnInput(e: KeyboardEvent): void {
+function handleOnInput(e: Event, maxDecimals: number): void {
   const target = e.target as HTMLInputElement;
+  let originalValue = target.value;
+
+  if (target.value === '') {
+    target.value = '0';
+  }
+
+  if (target.value === '.') {
+    target.value = '0';
+  }
+
+  console.log(target.value);
   target.value = target.value.replace(/,/g, '.');
+  if (exceedsMaxDecimals(target.value, maxDecimals)) {
+    target.value = target.value.slice(0, -1);
+  }
+  if (Number(target.value) >= 1) {
+    target.value = target.value.replace(/^0+/, '');
+  }
+  if (Number(target.value) < 1 && target.value[0] !== '0') {
+    target.value = '0' + target.value;
+  }
+
+  // replace more than 1 zero at the beginning
+  target.value = target.value.replace(/^0+/, '0');
+
+  if (originalValue !== target.value) {
+    const newEvent = new Event('input', { bubbles: true, cancelable: true });
+    target.dispatchEvent(newEvent);
+  }
 }
 
-function handleOnKeyPress(e: KeyboardEvent, maxDecimals: number): void {
+function handleOnKeyPress(e: KeyboardEvent): void {
   if (!isValidNumericInput(e.key) || alreadyHasDecimal(e)) {
     e.preventDefault();
-  }
-  const target = e.target as HTMLInputElement;
-  if (exceedsMaxDecimals(target.value, maxDecimals - 1)) {
-    target.value = target.value.slice(0, -1);
   }
 }
 
@@ -69,10 +93,10 @@ export const NumericInput = ({
             : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content ' + additionalStyle
         }
         minlength="1"
-        onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e, maxDecimals)}
-        onInput={(e: KeyboardEvent) => {
+        onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e)}
+        onInput={(e: Event) => {
           trackEvent({ event: 'amount_type' });
-          handleOnInput(e);
+          handleOnInput(e, maxDecimals);
         }}
         pattern="^[0-9]*[.,]?[0-9]*$"
         placeholder="0.0"
