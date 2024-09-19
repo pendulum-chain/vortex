@@ -12,6 +12,7 @@ import { getAddressForFormat } from '../../helpers/addressFormatter';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { SpacewalkPrimitivesCurrencyId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api/types';
+import { SignerOptions } from '@polkadot/api-base/types';
 
 export function extractAssetFromWrapped(wrapped: SpacewalkPrimitivesCurrencyId) {
   if (!wrapped.isStellar) {
@@ -117,7 +118,10 @@ export class VaultService {
 
     // We distinguish between a WalletAccount and a KeyringPair because we need to handle the signer differently
     const addressOrPair = isWalletAccount(accountOrPair) ? accountOrPair.address : accountOrPair;
-    const options = isWalletAccount(accountOrPair) ? { signer: accountOrPair.signer as any, nonce } : { nonce };
+    const options: Partial<SignerOptions> = isWalletAccount(accountOrPair)
+      ? { signer: accountOrPair.signer as any, nonce }
+      : { nonce };
+    options.era = 0;
 
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
 

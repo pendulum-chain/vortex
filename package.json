@@ -105,6 +105,6 @@
     "yarn": ">=1.22.19"
   },
   "lint-staged": {
-    "*.--write": "prettier --write"
+    "*": "prettier --write"
   }
 }
