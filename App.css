@@ -67,3 +67,16 @@ div[data-rk] {
     transform: scale(1);
   }
 }
+
+@layer components {
+  .step-vortex::before {
+    @apply bg-blue-700 !important;
+    width: 2px !important;
+  }
+  .step-vortex::after {
+    @apply text-blue-700 !important;
+  }
+  .step-primary.step-vortex::after {
+    @apply text-white !important;
+  }
+}
