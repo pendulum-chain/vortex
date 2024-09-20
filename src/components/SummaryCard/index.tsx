@@ -4,7 +4,8 @@ import { InputTokenType, OutputTokenType, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFI
 import Big from 'big.js';
 import { calculateTotalReceive } from '../FeeCollapse';
 import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
-
+import { UpperSummaryCard } from './UpperSummaryCard';
+import { LowerSummaryCard } from './LowerSummaryCard';
 export interface SummaryCardProps {
   assetIn: InputTokenType;
   assetOut: OutputTokenType;
@@ -34,65 +35,42 @@ export const SummaryCard : FC<SummaryCardProps> = ({
 
       <div className="bg-white p-4 rounded-lg shadow-lg w-full">
         <div className="grid grid-cols-2 gap-4 mb-2">
-          <div className="border rounded p-1 h-auto flex flex-col justify-between space-y-0">
-            <div className="place-self-start">
-              <span className="text-sm font-thin">You withdraw</span>
-            </div>
-            <div className="flex justify-between items-center w-full">
-              <span className="text-xl font-medium text-blue-800"> {roundDownToSignificantDecimals(fromAmount, 2).toString()} </span>
-              <div className="flex items-center mr-2">
-                <img src={assetInIcon} className="w-6 h-6" />
-                <span className="ml-1 text-blue-800">{assetInSymbol}</span>
-              </div>
-            </div>
-          </div>
-          <div className="border rounded p-1 h-auto flex flex-col justify-between space-y-0">
-            <div className="place-self-start">
-              <span className="text-sm font-thin ">You receive</span> 
-            </div>
-            <div className="flex justify-between items-center w-full">
-              <span className="text-xl font-medium text-blue-800"> {receiveAmount} </span>
-              <div className="flex items-center mr-2">
-                <img src={assetOutIcon}  className="w-6 h-6" />
-                <span className="ml-1 text-blue-800">{assetOutSymbol}</span>
-              </div>
-            </div>
-          </div>
+          <UpperSummaryCard
+          label="You withdraw"
+          amount={roundDownToSignificantDecimals(fromAmount, 2).toString()}
+          icon={assetInIcon}
+          symbol={assetInSymbol}
+          />
+          <UpperSummaryCard
+            label="You receive"
+            amount={receiveAmount}
+            icon={assetOutIcon}
+            symbol={assetOutSymbol}
+          />
         </div>
 
         <div className="grid grid-cols-10 gap-4">
-          <div className="col-span-3 p-1 h-auto flex flex-col justify-between space-y-0 rounded bg-blue-100 bg-opacity-50">
-            <div className="place-self-start">
-              <span className="text-xs font-thin">Your quote</span>
-            </div>
-            <div className="flex items-center w-full">
-              <span className="text-xs md:text-lg mr-1"> {roundDownToSignificantDecimals(toAmount, 2).toString()} </span>
-              <div className="flex items-center">
-                <img src={assetOutIcon} className="w-3 md:w-5 h-3 md:h-5" />
-                <span className="ml-1 text-xs md:text-lg">{assetOutSymbol}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="col-span-4 p-1 h-auto flex flex-col justify-between space-y-0">
-            <div className="place-self-start">
-              <span className="text-xs font-thin">Exchange rate</span>
-            </div>
-            <div className="flex justify-between items-center w-full">
-              <span className="text-xs md:text-lg">1 {assetInSymbol} ≈ {approximateExchangeRate} {assetOutSymbol}</span>
-            </div>
-          </div>
-
-          <div className="col-span-3 p-1 h-auto flex flex-col justify-between space-y-0">
-            <div className="place-self-start">
-              <span className="text-xs font-thin">Offramp fees</span>
-            </div>
-            <div className="flex items-center w-full">
-              <span className="text-xs md:text-lg mr-1">{offrampFees}</span>
-              <img src={assetOutIcon}  className="w-3 md:w-5 h-3 md:h-5" />
-              <span className="ml-1 text-xs md:text-lg">{assetOutSymbol}</span>
-            </div>
-          </div>
+            <LowerSummaryCard
+            label="Your quote"
+            amount={roundDownToSignificantDecimals(toAmount, 2).toString()}
+            icon={assetOutIcon}
+            symbol={assetOutSymbol}
+            colSpan={3}
+          />
+          <LowerSummaryCard
+            label="Exchange rate"
+            amount={`1 ${assetInSymbol} ≈ ${approximateExchangeRate} ${assetOutSymbol}`}
+            icon={null} 
+            symbol={null}
+            colSpan={4}
+          />
+          <LowerSummaryCard
+            label="Offramp fees"
+            amount={offrampFees}
+            icon={assetOutIcon}
+            symbol={assetOutSymbol}
+            colSpan={3}
+          />
         </div>
       </div>
     );
