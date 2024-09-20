@@ -38,28 +38,34 @@ export const SummaryCard: FC<SummaryCardProps> = ({ assetIn, assetOut, fromAmoun
       </div>
 
       <div className="grid grid-cols-10 gap-4">
-        <LowerSummaryCard
-          label="Your quote"
-          amount={roundDownToSignificantDecimals(toAmount, 2).toString()}
-          icon={assetOutIcon}
-          symbol={assetOutSymbol}
-          colSpan={3}
-          remarked={true}
-        />
-        <LowerSummaryCard
-          label="Exchange rate"
-          amount={`1 ${assetInSymbol} ≈ ${approximateExchangeRate} ${assetOutSymbol}`}
-          icon={null}
-          symbol={null}
-          colSpan={4}
-        />
-        <LowerSummaryCard
-          label="Offramp fees"
-          amount={offrampFees}
-          icon={assetOutIcon}
-          symbol={assetOutSymbol}
-          colSpan={3}
-        />
+        <div className="col-span-3">
+          <LowerSummaryCard
+            label="Your quote"
+            amount={roundDownToSignificantDecimals(toAmount, 2).toString()}
+            icon={assetOutIcon}
+            symbol={assetOutSymbol}
+            colSpan={3}
+            remarked={true}
+          />
+        </div>
+        <div className="col-span-4">
+          <LowerSummaryCard
+            label="Exchange rate"
+            amount={`1 ${assetInSymbol} ≈ ${approximateExchangeRate} ${assetOutSymbol}`}
+            icon={null}
+            symbol={null}
+            colSpan={4}
+          />
+        </div>
+        <div className="col-span-3">
+          <LowerSummaryCard
+            label="Offramp fees"
+            amount={offrampFees}
+            icon={assetOutIcon}
+            symbol={assetOutSymbol}
+            colSpan={3}
+          />
+        </div>
       </div>
     </div>
   );

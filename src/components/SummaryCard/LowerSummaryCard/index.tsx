@@ -9,7 +9,7 @@ interface LowerSummaryCardProps {
 
 export const LowerSummaryCard = ({ label, amount, icon, symbol, colSpan, remarked }: LowerSummaryCardProps) => (
   <div
-    className={`col-span-${colSpan} p-1 h-auto flex flex-col justify-between space-y-0 rounded ${
+    className={` p-1 h-auto flex flex-col justify-between space-y-0 rounded ${
       remarked ? 'bg-blue-100 bg-opacity-50' : ''
     }`}
   >
