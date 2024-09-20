@@ -29,23 +29,35 @@ export async function squidRouter(
 
   setSigningPhase?.('started');
 
-  const approvalHash = await writeContract(wagmiConfig, {
-    abi: erc20ABI,
-    address: fromTokenErc20Address,
-    functionName: 'approve',
-    args: [transactionRequest?.target, state.inputAmount.raw],
-  });
+  let approvalHash;
+  try {
+    approvalHash = await writeContract(wagmiConfig, {
+      abi: erc20ABI,
+      address: fromTokenErc20Address,
+      functionName: 'approve',
+      args: [transactionRequest?.target, state.inputAmount.raw],
+    });
+  } catch (e) {
+    console.error('Error in squidRouter: ', e);
+    return { ...state, failure: 'unrecoverable' };
+  }
 
   setSigningPhase?.('approved');
 
   await waitForEvmTransaction(approvalHash, wagmiConfig);
 
-  const swapHash = await sendTransaction(wagmiConfig, {
-    to: transactionRequest.target,
-    data: transactionRequest.data,
-    value: transactionRequest.value,
-    gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
-  });
+  let swapHash;
+  try {
+    swapHash = await sendTransaction(wagmiConfig, {
+      to: transactionRequest.target,
+      data: transactionRequest.data,
+      value: transactionRequest.value,
+      gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
+    });
+  } catch (e) {
+    console.error('Error in squidRouter: ', e);
+    return { ...state, failure: 'unrecoverable' };
+  }
 
   setSigningPhase?.('signed');
 

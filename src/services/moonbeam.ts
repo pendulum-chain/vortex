@@ -52,6 +52,14 @@ export async function executeXCM(state: OfframpingState): Promise<OfframpingStat
 
       try {
         moonbeamXcmTransactionHash = (await response.json()).hash;
+
+        // We want to store the `moonbeamXcmTransactionHash` immediately in the local storage
+        // and not just after this function call here would usually end (i.e. after the
+        // tokens arrived on Pendulum).
+        // For that reason we return early here and the outer logic of the `useMainProcess` hook
+        // will ensure that this function `executeXCM` will be called again shortly after
+        // where this time `moonbeamXcmTransactionHash` is already defined right at the beginning
+        // of the call
         return { ...state, moonbeamXcmTransactionHash };
       } catch (error) {
         throw new Error(

@@ -221,12 +221,13 @@ export const SwapPage = () => {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={sep24Id} />;
   }
 
-  if (offrampingState?.isFailure === true) {
+  if (offrampingState?.failure !== undefined) {
     return (
       <FailurePage
         finishOfframping={finishOfframping}
         continueFailedFlow={continueFailedFlow}
         transactionId={sep24Id}
+        failure={offrampingState.failure}
       />
     );
   }
