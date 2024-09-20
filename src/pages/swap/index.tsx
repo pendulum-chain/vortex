@@ -25,6 +25,7 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+import { useEventsContext } from '../../contexts/events';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -160,12 +161,14 @@ export const SwapPage = () => {
     [form, fromToken, setModalType],
   );
 
-  function getCurrentErrorMessage() {
+  function useGetCurrentErrorMessage() {
+    const { trackEvent } = useEventsContext();
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
@@ -178,6 +181,7 @@ export const SwapPage = () => {
 
       if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
         const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
+        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
         return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
@@ -185,6 +189,7 @@ export const SwapPage = () => {
 
       if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
         const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
+        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
@@ -251,7 +256,7 @@ export const SwapPage = () => {
         <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
+        <p className="text-red-600 mb-6">{useGetCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
@@ -282,7 +287,7 @@ export const SwapPage = () => {
         ) : (
           <SwapSubmitButton
             text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+            disabled={Boolean(useGetCurrentErrorMessage()) || !inputAmountIsStable}
             pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}
