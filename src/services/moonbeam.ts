@@ -1,7 +1,7 @@
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { Keyring } from '@polkadot/api';
-import { http, createConfig, readContract } from '@wagmi/core';
+import { http, createConfig, readContract, waitForTransactionReceipt } from '@wagmi/core';
 import { moonbeam } from '@wagmi/core/chains';
 
 import { OfframpingState } from './offrampingFlow';
@@ -31,20 +31,38 @@ export async function executeXCM(state: OfframpingState): Promise<OfframpingStat
   const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(ephemeralKeypair.address));
   const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
 
-  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/moonbeam/execute-xcm`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: state.squidRouterReceiverId, payload: squidRouterPayload }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error while executing XCM: ${response.statusText}`);
-  }
-
-  await waitUntilTrue(async () => {
+  const didInputTokenArrivedOnPendulum = async () => {
     const inputBalanceRaw = await getRawInputBalance(state);
     return inputBalanceRaw.gt(Big(0));
-  }, 5000);
+  };
+
+  if (!(await didInputTokenArrivedOnPendulum())) {
+    let { moonbeamXcmTransactionHash } = state;
+
+    if (moonbeamXcmTransactionHash === undefined) {
+      const response = await fetch(`${SIGNING_SERVICE_URL}/v1/moonbeam/execute-xcm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: state.squidRouterReceiverId, payload: squidRouterPayload }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error while executing XCM: ${response.statusText}`);
+      }
+
+      try {
+        moonbeamXcmTransactionHash = (await response.json()).hash;
+        return { ...state, moonbeamXcmTransactionHash };
+      } catch (error) {
+        throw new Error(
+          `Error while executing XCM: Could not fetch transaction receipt for hash : ${moonbeamXcmTransactionHash}`,
+        );
+      }
+    }
+
+    await waitForTransactionReceipt(moonbeamConfig, { hash: moonbeamXcmTransactionHash, chainId: moonbeam.id });
+    await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
+  }
 
   return { ...state, phase: 'subsidizePreSwap' };
 }

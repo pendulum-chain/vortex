@@ -1,20 +1,21 @@
-import { useCallback, useEffect, useState } from 'preact/compat';
+import { useState, useEffect, useCallback } from 'preact/compat';
 
 // Configs, Types, constants
-import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First, sep24Second } from '../services/anchor';
+import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
 import { ExecutionInput } from '../types';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+
+import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
 import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { useConfig } from 'wagmi';
 import {
+  OfframpingState,
   advanceOfframpingState,
   clearOfframpingState,
   constructInitialState,
-  FinalOfframpingPhase,
-  OfframpingPhase,
-  OfframpingState,
   readCurrentState,
+  recoverFromFailure,
 } from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
@@ -37,28 +38,28 @@ export const useMainProcess = () => {
   // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
-  const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
+  const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const wagmiConfig = useConfig();
-  const { trackEvent } = useEventsContext();
+  const { trackEvent, resetUniqueEvents } = useEventsContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
-      if (state?.phase === 'success' || state?.phase === 'failure') {
+      if (state?.phase === 'success' || state?.isFailure === true) {
         setSigningPhase(undefined);
       }
-      setOfframpingPhase(state?.phase);
+      setOfframpingState(state);
       setSep24Id(state?.sep24Id);
 
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
-      } else if (state?.phase === 'failure') {
+      } else if (state?.isFailure === true) {
         trackEvent(createTransactionEvent('transaction_failure', state));
       }
     },
@@ -78,7 +79,7 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
-      if (offrampingStarted || offrampingPhase !== undefined) return;
+      if (offrampingStarted || offrampingState !== undefined) return;
 
       (async () => {
         setOfframpingStarted(true);
@@ -142,34 +143,45 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingPhase, offrampingStarted, trackEvent, updateHookStateFromState],
+    [offrampingState, offrampingStarted, trackEvent, updateHookStateFromState],
   );
 
   const finishOfframping = useCallback(() => {
     (async () => {
       await clearOfframpingState();
+      resetUniqueEvents();
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
     })();
-  }, [updateHookStateFromState]);
+  }, [updateHookStateFromState, resetUniqueEvents]);
+
+  const continueFailedFlow = useCallback(() => {
+    const nextState = recoverFromFailure(offrampingState);
+    updateHookStateFromState(nextState);
+  }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
     (async () => {
-      const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig, setSigningPhase });
-      updateHookStateFromState(nextState);
+      const nextState = await advanceOfframpingState(offrampingState, {
+        renderEvent: addEvent,
+        wagmiConfig,
+        setSigningPhase,
+      });
+
+      if (offrampingState !== nextState) updateHookStateFromState(nextState);
     })();
-  }, [offrampingPhase, updateHookStateFromState, wagmiConfig]);
+  }, [offrampingState, updateHookStateFromState, wagmiConfig]);
 
   const resetSep24Url = () => setSep24Url(undefined);
 
   return {
-    setOfframpingPhase,
     handleOnSubmit,
     sep24Url,
-    offrampingPhase,
+    offrampingState,
     offrampingStarted,
     sep24Id,
     finishOfframping,
+    continueFailedFlow,
     resetSep24Url,
     signingPhase,
   };

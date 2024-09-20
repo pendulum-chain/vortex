@@ -18,8 +18,7 @@ import { Buffer } from 'buffer';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
-import { EventStatus } from '../../components/GenericEvent';
-import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+import { OfframpingState } from '../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../signingService';
 
 export interface StellarOperations {
@@ -293,10 +292,7 @@ export async function stellarOfframp(state: OfframpingState): Promise<Offramping
   return { ...state, phase: 'stellarCleanup' };
 }
 
-export async function stellarCleanup(
-  state: OfframpingState,
-  { renderEvent }: ExecutionContext,
-): Promise<OfframpingState> {
+export async function stellarCleanup(state: OfframpingState): Promise<OfframpingState> {
   if (state.transactions === undefined) {
     throw new Error('Transactions not prepared');
   }
@@ -306,14 +302,16 @@ export async function stellarCleanup(
     await horizonServer.submitTransaction(mergeAccountTransaction);
   } catch (error) {
     const horizonError = error as { response: { data: { extras: any } } };
-    renderEvent(
+    console.log(
       `Could not submit the cleanup transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
-      EventStatus.Error,
     );
 
-    console.error('Could not submit the cleanup transaction');
-    console.error(horizonError.response.data.extras);
-    throw new Error('Could not submit the cleanup transaction');
+    if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
+      console.log('Recovery mode: Cleanup already performed.');
+    } else {
+      console.error(horizonError.response.data.extras);
+      throw new Error('Could not submit the cleanup transaction');
+    }
   }
 
   return {

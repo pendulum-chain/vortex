@@ -20,7 +20,7 @@ interface CollapseProps {
   exchangeRate?: JSX.Element;
 }
 
-export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toToken, exchangeRate }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { trackEvent } = useEventsContext();
   const toTokenSymbol = toToken.fiat.symbol;

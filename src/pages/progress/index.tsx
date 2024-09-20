@@ -1,6 +1,6 @@
-import { FC, StateUpdater, useEffect } from 'preact/compat';
+import { FC } from 'preact/compat';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
-import { FinalOfframpingPhase, OfframpingPhase } from '../../services/offrampingFlow';
+import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 
@@ -19,34 +19,13 @@ const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
   stellarCleanup: '12/12: Cleaning up Stellar ephemeral account',
 };
 
-const handleTabClose = (event: Event) => {
-  event.preventDefault();
-};
-
 interface ProgressPageProps {
-  setOfframpingPhase: StateUpdater<OfframpingPhase | FinalOfframpingPhase | undefined>;
-  offrampingPhase: OfframpingPhase | FinalOfframpingPhase | undefined;
+  offrampingState: OfframpingState;
 }
 
-export const ProgressPage: FC<ProgressPageProps> = ({ setOfframpingPhase, offrampingPhase }) => {
-  // After 15 minutes of waiting, we want to redirect user to the failure page.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setOfframpingPhase('failure');
-    }, 15 * 60 * 1000);
-
-    window.addEventListener('beforeunload', handleTabClose);
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('beforeunload', handleTabClose);
-    };
-  }, [setOfframpingPhase]);
-
+export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   const phaseMessage =
-    offrampingPhase === undefined || offrampingPhase === 'failure' || offrampingPhase === 'success'
-      ? undefined
-      : OFFRAMPING_PHASE_MESSAGES[offrampingPhase];
+    offrampingState.phase === 'success' ? undefined : OFFRAMPING_PHASE_MESSAGES[offrampingState.phase];
 
   const main = (
     <main>
