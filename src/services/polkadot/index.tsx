@@ -84,10 +84,15 @@ export async function executeSpacewalkRedeem(
     phase: 'pendulumCleanup',
   } as const;
 
+  // We wait for up to 10 minutes
+  const maxWaitingTimeMinutes = 10;
+  const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
+
   const waitForOutputTokensToArriveOnStellar = async () => {
     const amountUnitsBig = new Big(outputAmount.units);
     const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
     const stellarTargetAccountId = stellarEphemeralKeypair.publicKey();
+    const stellarPollingTimeMs = 1000;
 
     try {
       await checkBalancePeriodically(
@@ -114,11 +119,6 @@ export async function executeSpacewalkRedeem(
     return { ...state, failure: 'unrecoverable' };
   }
   let redeemRequestEvent;
-
-  // We wait for up to 10 minutes
-  const maxWaitingTimeMinutes = 10;
-  const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
-  const stellarPollingTimeMs = 1000;
 
   const pendulumApiComponents = await new ApiManager().getApiComponents();
   const { ss58Format, api } = pendulumApiComponents;
