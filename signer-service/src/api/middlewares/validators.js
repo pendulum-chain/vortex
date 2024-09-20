@@ -1,5 +1,6 @@
-const { SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
+const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -33,18 +34,22 @@ const validateChangeOpInput = (req, res, next) => {
   next();
 };
 
-const validateStorageInput = (req, res, next) => {
+const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) => {
   const data = req.body;
-  // Check if the data contains values for all the headers
-  if (!SHEET_HEADER_VALUES.every((header) => data[header])) {
-    const missingItems = SHEET_HEADER_VALUES.filter((header) => !data[header]);
-    let errorMessage = 'Data does not match schema. Missing items: ' + missingItems.join(', ');
+
+  if (!requiredRequestBodyKeys.every((key) => data[key])) {
+    const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
+    const errorMessage = 'Request body data does not match schema. Missing items: ' + missingItems.join(', ');
     console.error(errorMessage);
     return res.status(400).json({ error: errorMessage });
   }
 
   next();
 };
+
+const validateStorageInput = validateRequestBodyValues(DUMP_SHEET_HEADER_VALUES);
+const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
+const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
 
 const validatePreSwapSubsidizationInput = (req, res, next) => {
   const { amountRaw, address } = req.body;
@@ -97,4 +102,6 @@ module.exports = {
   validatePreSwapSubsidizationInput,
   validatePostSwapSubsidizationInput,
   validateStorageInput,
+  validateEmailInput,
+  validateExecuteXCM,
 };

@@ -5,7 +5,7 @@ import Big from 'big.js';
 
 import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
-import { FeeCollapse } from '../../components/FeeCollapse';
+import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -25,7 +25,7 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
-import { IframeComponent, IframeProps} from '../../components/Iframe';
+import { IframeComponent, IframeProps } from '../../components/Iframe';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -54,11 +54,13 @@ export const SwapPage = () => {
   const {
     handleOnSubmit,
     finishOfframping,
+    continueFailedFlow,
     offrampingStarted,
     sep24Url,
     sep24Id,
-    offrampingPhase,
-    setOfframpingPhase,
+    offrampingState,
+    isInitiating,
+    resetSep24Url,
     signingPhase,
   } = useMainProcess();
 
@@ -120,13 +122,15 @@ export const SwapPage = () => {
   useEffect(() => {
     if (tokenOutData.data) {
       const toAmount = tokenOutData.data.amountOut.preciseBigDecimal.round(2, 0);
-      form.setValue('toAmount', stringifyBigWithSignificantDecimals(toAmount, 2));
+      // Calculate the final amount after the offramp fees
+      const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
+      form.setValue('toAmount', totalReceive);
 
       setIsQuoteSubmitted(false);
     } else {
       form.setValue('toAmount', '');
     }
-  }, [form, tokenOutData.data]);
+  }, [form, tokenOutData.data, toToken]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -142,7 +146,7 @@ export const SwapPage = () => {
     [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
   );
 
-  const WidthrawNumericInput = useMemo(
+  const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
@@ -215,47 +219,45 @@ export const SwapPage = () => {
     />
   );
 
-  if (offrampingPhase === 'success') {
+  if (offrampingState?.phase === 'success') {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={sep24Id} />;
   }
 
-  if (offrampingPhase === 'failure') {
-    return <FailurePage finishOfframping={finishOfframping} transactionId={sep24Id} />;
+  if (offrampingState?.isFailure === true) {
+    return (
+      <FailurePage
+        finishOfframping={finishOfframping}
+        continueFailedFlow={continueFailedFlow}
+        transactionId={sep24Id}
+      />
+    );
   }
 
-  if (offrampingPhase !== undefined || offrampingStarted) {
+  if (offrampingState !== undefined || offrampingStarted) {
     const showMainScreenAnyway =
-      offrampingPhase === undefined;
-
-    if (sep24Url && showMainScreenAnyway && fromAmount && tokenOutData.data?.amountOut.preciseBigDecimal){
-      return (
-          <IframeComponent
-            src={sep24Url}
-            title="Verify Your Identity"
-            subtitle="Please follow the steps below to complete the identity verification."
-            assetIn={from}
-            assetOut={to}
-            fromAmount={fromAmount}
-            toAmount={tokenOutData.data?.amountOut.preciseBigDecimal}
-          />
-        );
-    }
+      offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
     if (!showMainScreenAnyway) {
-      return <ProgressPage setOfframpingPhase={setOfframpingPhase} offrampingPhase={offrampingPhase} signingPhase={signingPhase} />;
+      return <ProgressPage offrampingState={offrampingState} />;
     }
   }
 
   const main = (
     <main ref={formRef}>
-          <form
-            className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
-            onSubmit={onSubmit}
-          >
-            <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-            <LabeledInput label="You withdraw" Input={WidthrawNumericInput} />
-            <Arrow />
-            <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-            <p className="text-red-600">{getCurrentErrorMessage()}</p>
+      <SigningBox step={signingPhase} />
+      <form
+        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        onSubmit={onSubmit}
+      >
+        <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
+        <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
+        <Arrow />
+        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
+        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
+        <FeeCollapse
+          fromAmount={fromAmount?.toString()}
+          toAmount={tokenOutData.data?.amountOut.preciseString}
+          toToken={toToken}
+          exchangeRate={
             <ExchangeRate
               {...{
                 tokenOutData,
@@ -263,20 +265,29 @@ export const SwapPage = () => {
                 toTokenSymbol: toToken.fiat.symbol,
               }}
             />
-            <FeeCollapse
-              fromAmount={fromAmount?.toString()}
-              toAmount={tokenOutData.data?.amountOut.preciseString}
-              toToken={toToken}
-            />
-            <section className="flex items-center justify-center w-full mt-5">
-              <BenefitsList amount={fromAmount} currency={from} />
-            </section>
-              <SwapSubmitButton
-                text={offrampingStarted ? 'Offramping in Progress' : 'Start Offramping'}
-                disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-                pending={offrampingStarted || offrampingPhase !== undefined}
-              />
-          </form>
+          }
+        />
+        <section className="flex items-center justify-center w-full mt-5">
+          <BenefitsList amount={fromAmount} currency={from} />
+        </section>
+        {sep24Url !== undefined ? (
+          <a
+            href={sep24Url}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+            onClick={resetSep24Url}
+          >
+            Enter details
+          </a>
+        ) : (
+          <SwapSubmitButton
+            text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+            pending={isInitiating || offrampingStarted || offrampingState !== undefined}
+          />
+        )}
+      </form>
     </main>
   );
 

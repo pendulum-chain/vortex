@@ -10,6 +10,8 @@ import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import axios from 'axios';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { isHashRegistered } from '../moonbeam';
+import { waitUntilTrue } from '../../helpers/function';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
 
@@ -21,13 +23,19 @@ async function getEphemeralAddress({ pendulumEphemeralSeed }: OfframpingState) {
   return ephemeralKeypair.address;
 }
 
-async function waitUntil(test: () => Promise<boolean>) {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    if (await test()) {
-      return true;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+export async function getEphemeralNonce({ pendulumEphemeralSeed }: OfframpingState): Promise<number | undefined> {
+  const pendulumApiComponents = await getApiManagerInstance();
+  const apiData = pendulumApiComponents.apiData!;
+
+  const keyring = new Keyring({ type: 'sr25519', ss58Format: apiData.ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  try {
+    const accountData = await apiData.api.query.system.account(ephemeralKeypair.address);
+    return accountData.nonce.toNumber();
+  } catch (error) {
+    console.error(`Can't request nonce of ephemeral account ${ephemeralKeypair.address}`);
+    return undefined;
   }
 }
 
@@ -51,20 +59,17 @@ export async function pendulumFundEphemeral(
 
     if (response.data.status !== 'success') {
       console.error('Error funding ephemeral account: funding timed out or failed');
-      return { ...state, phase: 'failure' };
+      throw new Error('Error funding ephemeral account: funding timed out or failed');
     }
 
-    await waitUntil(isEphemeralFunded.bind(null, state));
+    await waitUntilTrue(isEphemeralFunded.bind(null, state));
   }
 
-  await waitUntil(async () => {
-    const inputBalanceRaw = await getRawInputBalance(state);
-    return inputBalanceRaw.gt(Big(0));
-  });
+  await waitUntilTrue(isHashRegistered.bind(null, state.squidRouterReceiverHash));
 
   return {
     ...state,
-    phase: 'subsidizePreSwap',
+    phase: 'executeXCM',
   };
 }
 
@@ -98,7 +103,7 @@ export async function createPendulumEphemeralSeed() {
   console.log('Ephemeral account seedphrase: ', seedPhrase);
   console.log('Ephemeral account created:', ephemeralAccountKeypair.address);
 
-  return seedPhrase;
+  return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
 export async function pendulumCleanup(state: OfframpingState): Promise<OfframpingState> {
@@ -133,7 +138,7 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
   return { ...state, phase: 'stellarOfframp' };
 }
 
-async function getRawInputBalance(state: OfframpingState): Promise<Big> {
+export async function getRawInputBalance(state: OfframpingState): Promise<Big> {
   const pendulumApiComponents = await getApiManagerInstance();
   const { api } = pendulumApiComponents.apiData!;
 
@@ -187,7 +192,7 @@ export async function subsidizePreSwap(state: OfframpingState): Promise<Offrampi
       throw new Error(`Error while subsidizing pre-swap: ${response.statusText}`);
     }
 
-    await waitUntil(async () => {
+    await waitUntilTrue(async () => {
       const currentBalance = await getRawInputBalance(state);
       return currentBalance.gte(Big(state.inputAmount.raw));
     });
@@ -225,7 +230,7 @@ export async function subsidizePostSwap(state: OfframpingState): Promise<Offramp
       throw new Error(`Error while subsidizing post-swap: ${response.statusText}`);
     }
 
-    await waitUntil(async () => {
+    await waitUntilTrue(async () => {
       const currentBalance = await getRawOutputBalance(state);
       return currentBalance.gte(Big(state.outputAmount.raw));
     });

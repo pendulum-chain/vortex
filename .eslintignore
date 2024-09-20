@@ -5,6 +5,8 @@ lib/
 types/
 coverage/
 gql/
+signer-service
+mooncontracts/
 
 *.d.ts
 *.config.*

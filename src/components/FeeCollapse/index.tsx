@@ -1,13 +1,10 @@
 import { FC } from 'preact/compat';
 import { useState } from 'preact/hooks';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
-import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import Big from 'big.js';
 import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
-
-const FEES_RATE = 0.05; // 0.5% fee rate
 
 export function calculateTotalReceive(toAmount: string, outputToken: OutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
@@ -16,19 +13,14 @@ export function calculateTotalReceive(toAmount: string, outputToken: OutputToken
   return totalReceive;
 }
 
-function calculateFeesUSD(fromAmount: string): string {
-  const totalReceiveUSD = Number(fromAmount) * (1 - FEES_RATE);
-  const feesCost = Number(fromAmount) - Number(totalReceiveUSD);
-  return roundDownToSignificantDecimals(new Big(feesCost || 0), 2).toString();
-}
-
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: string;
   toToken: OutputTokenDetails;
+  exchangeRate?: JSX.Element;
 }
 
-export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toToken }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { trackEvent } = useEventsContext();
   const toTokenSymbol = toToken.fiat.symbol;
@@ -44,31 +36,41 @@ export const FeeCollapse: FC<CollapseProps> = ({ fromAmount, toAmount, toToken }
     <ChevronDownIcon className="w-8 text-blue-700" />
   );
 
+  const toAmountFixed = roundDownToSignificantDecimals(new Big(toAmount || 0), 2).toString();
   const totalReceive = calculateTotalReceive(toAmount || '0', toToken);
-  const feesCost = calculateFeesUSD(fromAmount || '0');
+  const feesCost = roundDownToSignificantDecimals(Big(toAmountFixed || 0).sub(totalReceive), 2).toString();
 
   return (
     <details className="transition border border-blue-700 collapse" onClick={toggleIsOpen}>
       <summary className="min-h-0 px-4 py-2 collapse-title">
         <div className="flex items-center justify-between">
-          <p>
-            <strong className="font-bold">
-              {totalReceive} {toTokenSymbol}
-            </strong>
-            &nbsp;is what you will receive, after fees
-          </p>
-          <div className="flex items-center ml-5 select-none">
-            <p>Show fees</p>
-            {chevron}
-          </div>
+          <p>Details</p>
+          <div className="flex items-center ml-5 select-none">{chevron}</div>
         </div>
       </summary>
       <div className="collapse-content">
         <div className="flex justify-between">
-          <p>Total fees</p>
+          <p>Your quote ({exchangeRate})</p>
           <div className="flex">
-            <LocalGasStationIcon className="w-8 text-blue-700" />
-            <span>${feesCost}</span>
+            <span>
+              {toAmountFixed} {toTokenSymbol}
+            </span>
+          </div>
+        </div>
+        <div className="flex justify-between">
+          <p>Offramp fees</p>
+          <div className="flex">
+            <span>
+              - {feesCost} {toTokenSymbol}
+            </span>
+          </div>
+        </div>
+        <div className="flex justify-between">
+          <strong className="font-bold">Final Amount</strong>
+          <div className="flex">
+            <span>
+              {totalReceive} {toTokenSymbol}
+            </span>
           </div>
         </div>
       </div>

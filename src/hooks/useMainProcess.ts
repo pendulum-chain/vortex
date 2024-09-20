@@ -10,19 +10,17 @@ import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { useConfig } from 'wagmi';
 import {
-  FinalOfframpingPhase,
-  OfframpingPhase,
   OfframpingState,
   advanceOfframpingState,
   clearOfframpingState,
   constructInitialState,
   readCurrentState,
+  recoverFromFailure,
 } from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
-import { storageService } from '../services/storage/local';
-import { OFFRAMPING_STATE_LOCAL_STORAGE_KEY } from '../services/offrampingFlow';
+import { showToast, ToastMessage } from '../helpers/notifications';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -40,28 +38,29 @@ export const useMainProcess = () => {
   // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
-  const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
+  const [isInitiating, setIsInitiating] = useState<boolean>(false);
+  const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const wagmiConfig = useConfig();
-  const { trackEvent } = useEventsContext();
+  const { trackEvent, resetUniqueEvents } = useEventsContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
-      if (state?.phase === 'success' || state?.phase === 'failure') {
+      if (state?.phase === 'success' || state?.isFailure === true) {
         setSigningPhase(undefined);
       }
-      setOfframpingPhase(state?.phase);
+      setOfframpingState(state);
       setSep24Id(state?.sep24Id);
 
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
-      } else if (state?.phase === 'failure') {
+      } else if (state?.isFailure === true) {
         trackEvent(createTransactionEvent('transaction_failure', state));
       }
     },
@@ -81,8 +80,9 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
-      if (offrampingStarted || offrampingPhase !== undefined) return;
+      if (offrampingStarted || offrampingState !== undefined) return;
 
+      setIsInitiating(true);
       (async () => {
         setOfframpingStarted(true);
         trackEvent({
@@ -92,7 +92,6 @@ export const useMainProcess = () => {
           from_amount: amountInUnits,
           to_amount: Big(minAmountOutUnits).round(2, 0).toFixed(2, 0),
         });
-        
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
@@ -113,9 +112,20 @@ export const useMainProcess = () => {
           const firstSep24Response = await sep24First(anchorSessionParams);
           console.log('sep24 url:', firstSep24Response.url);
           setSep24Url(firstSep24Response.url);
+
           const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
 
           console.log('secondSep24Response', secondSep24Response);
+
+          // Check if the amount entered in the KYC UI matches the one we expect
+          if (!Big(secondSep24Response.amount).eq(truncatedAmountToOfframp)) {
+            setOfframpingStarted(false);
+            console.error(
+              "The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.",
+            );
+            showToast(ToastMessage.AMOUNT_MISMATCH);
+            return;
+          }
 
           const initialState = await constructInitialState({
             sep24Id: firstSep24Response.id,
@@ -129,57 +139,55 @@ export const useMainProcess = () => {
           trackEvent(createTransactionEvent('kyc_completed', initialState));
 
           updateHookStateFromState(initialState);
-
         } catch (error) {
-          let initialStateFailure = await constructInitialState({
-            sep24Id: 'null',
-            inputTokenType,
-            outputTokenType,
-            amountIn: amountInUnits,
-            amountOut: minAmountOutUnits,
-            sepResult: {
-              amount: '0',
-              memo: '0',
-              memoType: '0',
-              offrampingAccount: '0',
-            },
-          });
-          initialStateFailure.phase = 'failure';
-          storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialStateFailure);
-          setOfframpingPhase('failure');
-
           console.error('Some error occurred initializing the offramping process', error);
+          setOfframpingStarted(false);
+        } finally {
+          setIsInitiating(false);
         }
       })();
     },
-    [offrampingPhase, offrampingStarted, trackEvent, updateHookStateFromState, setOfframpingPhase],
+    [offrampingState, offrampingStarted, trackEvent, updateHookStateFromState],
   );
 
   const finishOfframping = useCallback(() => {
     (async () => {
-      setSep24Url(undefined);
       await clearOfframpingState();
+      resetUniqueEvents();
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
     })();
-  }, [updateHookStateFromState]);
+  }, [updateHookStateFromState, resetUniqueEvents]);
+
+  const continueFailedFlow = useCallback(() => {
+    const nextState = recoverFromFailure(offrampingState);
+    updateHookStateFromState(nextState);
+  }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
     (async () => {
-      const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig, setSigningPhase });
-      updateHookStateFromState(nextState);
-    })();
-  }, [offrampingPhase, updateHookStateFromState, wagmiConfig]);
+      const nextState = await advanceOfframpingState(offrampingState, {
+        renderEvent: addEvent,
+        wagmiConfig,
+        setSigningPhase,
+      });
 
+      if (offrampingState !== nextState) updateHookStateFromState(nextState);
+    })();
+  }, [offrampingState, updateHookStateFromState, wagmiConfig]);
+
+  const resetSep24Url = () => setSep24Url(undefined);
 
   return {
-    setOfframpingPhase,
     handleOnSubmit,
     sep24Url,
-    offrampingPhase,
+    offrampingState,
     offrampingStarted,
     sep24Id,
+    isInitiating,
     finishOfframping,
+    continueFailedFlow,
+    resetSep24Url,
     signingPhase,
   };
 };

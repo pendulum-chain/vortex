@@ -27,7 +27,17 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
     return state;
   }
 
-  const { stellarEphemeralSecret, pendulumEphemeralSeed, outputTokenType, sepResult } = state;
+  const {
+    stellarEphemeralSecret,
+    pendulumEphemeralSeed,
+    outputTokenType,
+    sepResult,
+    inputAmount,
+    outputAmount,
+    inputTokenType,
+    squidRouterReceiverId,
+    squidRouterReceiverHash,
+  } = state;
 
   // TESTING - TODO: Remove commented
   // const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
@@ -54,7 +64,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   //   nablaApproveTransaction: encodeSubmittableExtrinsic(nablaApproveTransaction),
   // };
 
-  // mock all 
+  // mock all
   const transactions = {
     stellarOfframpingTransaction: 'stellarOfframpingTransaction',
     stellarCleanupTransaction: 'stellarCleanupTransaction',
@@ -85,6 +95,12 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
       spacewalkRedeemTx: transactions.spacewalkRedeemTransaction,
       stellarOfframpTx: transactions.stellarOfframpingTransaction,
       stellarCleanupTx: transactions.stellarCleanupTransaction,
+      inputAmount: inputAmount.raw.toString(),
+      inputTokenType,
+      outputAmount: outputAmount.raw.toString(),
+      outputTokenType,
+      squidRouterReceiverId,
+      squidRouterReceiverHash,
     };
     //await storeDataInBackend(data);
   } catch (error) {

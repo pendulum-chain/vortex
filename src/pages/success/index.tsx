@@ -29,7 +29,7 @@ export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProp
           If your transaction is not completed after 60 minutes please contact support on:
         </p>
         <TelegramButton />
-        <EmailForm />
+        <EmailForm transactionId={transactionId} />
         <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
           Return Home
         </button>

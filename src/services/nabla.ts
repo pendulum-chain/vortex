@@ -29,6 +29,7 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 import { decodeSubmittableExtrinsic } from './signedTransactions';
 import { config } from '../config';
 import { KeyringPair } from '@polkadot/keyring/types';
+import { getEphemeralNonce } from './polkadot/ephemeral';
 
 async function createAndSignApproveExtrinsic({
   api,
@@ -60,7 +61,7 @@ async function createAndSignApproveExtrinsic({
 
   const { extrinsic } = execution;
 
-  return extrinsic.signAsync(keypairEphemeral, { nonce });
+  return extrinsic.signAsync(keypairEphemeral, { nonce, era: 0 });
 }
 
 export async function prepareNablaApproveTransaction(
@@ -132,12 +133,22 @@ export async function nablaApprove(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
-  const { transactions, inputAmount, inputTokenType } = state;
+  const { transactions, inputAmount, inputTokenType, nablaApproveNonce } = state;
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
 
   if (!transactions) {
     console.error('Missing transactions for nablaApprove');
-    return { ...state, phase: 'failure' };
+    return { ...state, isFailure: true };
+  }
+
+  const successorState = {
+    ...state,
+    phase: 'nablaSwap',
+  } as const;
+
+  const ephemeralAccountNonce = await getEphemeralNonce(state);
+  if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > nablaApproveNonce) {
+    return successorState;
   }
 
   try {
@@ -170,10 +181,7 @@ export async function nablaApprove(
     return Promise.reject('Could not approve token');
   }
 
-  return {
-    ...state,
-    phase: 'nablaSwap',
-  };
+  return successorState;
 }
 
 interface CreateAndSignSwapExtrinsicOptions {
@@ -221,7 +229,7 @@ export async function createAndSignSwapExtrinsic({
   }
 
   const { extrinsic } = execution;
-  return extrinsic.signAsync(keypairEphemeral, { nonce });
+  return extrinsic.signAsync(keypairEphemeral, { nonce, era: 0 });
 }
 
 export async function prepareNablaSwapTransaction(
@@ -278,13 +286,32 @@ export async function prepareNablaSwapTransaction(
 }
 
 export async function nablaSwap(state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> {
-  const { transactions, inputAmount, inputTokenType, outputAmount, outputTokenType, pendulumEphemeralSeed } = state;
+  const {
+    transactions,
+    inputAmount,
+    inputTokenType,
+    outputAmount,
+    outputTokenType,
+    pendulumEphemeralSeed,
+    nablaSwapNonce,
+  } = state;
+
+  const successorState = {
+    ...state,
+    phase: 'subsidizePostSwap',
+  } as const;
+
+  const ephemeralAccountNonce = await getEphemeralNonce(state);
+  if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > nablaSwapNonce) {
+    return successorState;
+  }
+
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   if (transactions === undefined) {
     console.error('Missing transactions for nablaSwap');
-    return { ...state, phase: 'failure' };
+    throw new Error('Missing transactions for nablaSwap');
   }
 
   const { api, ss58Format } = (await getApiManagerInstance()).apiData!;
@@ -338,10 +365,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   console.log('Swap successful');
 
-  return {
-    ...state,
-    phase: 'subsidizePostSwap',
-  };
+  return successorState;
 }
 
 const calcDeadline = (min: number) => `${Math.floor(Date.now() / 1000) + min * 60}`;

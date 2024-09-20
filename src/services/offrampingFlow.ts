@@ -1,4 +1,7 @@
 import { Config } from 'wagmi';
+import { u8aToHex } from '@polkadot/util';
+import { decodeAddress } from '@polkadot/util-crypto';
+
 import { storageService } from './storage/local';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
@@ -18,11 +21,17 @@ import { RenderEventHandler } from '../components/GenericEvent';
 import { executeSpacewalkRedeem } from './polkadot';
 import { SigningPhase } from '../hooks/useMainProcess';
 import { prepareTransactions } from './signedTransactions';
+import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
+import encodePayload from './squidrouter/payload';
+import { executeXCM } from './moonbeam';
+
+const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
 export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
   | 'pendulumFundEphemeral'
+  | 'executeXCM'
   | 'subsidizePreSwap'
   | 'nablaApprove'
   | 'nablaSwap'
@@ -32,7 +41,7 @@ export type OfframpingPhase =
   | 'stellarOfframp'
   | 'stellarCleanup';
 
-export type FinalOfframpingPhase = 'success' | 'failure';
+export type FinalOfframpingPhase = 'success';
 
 export interface OfframpingState {
   sep24Id: string;
@@ -54,9 +63,16 @@ export interface OfframpingState {
 
   phase: OfframpingPhase | FinalOfframpingPhase;
 
+  isFailure?: boolean;
+
   // phase squidRouter
+  squidRouterReceiverId: `0x${string}`;
+  squidRouterReceiverHash: `0x${string}`;
   squidRouterApproveHash?: `0x${string}`;
   squidRouterSwapHash?: `0x${string}`;
+
+  // phase executeXCM
+  moonbeamXcmTransactionHash?: `0x${string}`;
 
   // nablaApprove
   nablaApproveNonce: number;
@@ -68,6 +84,10 @@ export interface OfframpingState {
   executeSpacewalkNonce: number;
 
   sepResult: SepResult;
+
+  // Initiating state timestamp
+  createdAt: number;
+  failureTimeoutAt: number;
 
   // All signed transactions, if available
   transactions?: {
@@ -88,6 +108,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunctio
   prepareTransactions,
   squidRouter,
   pendulumFundEphemeral,
+  executeXCM,
   subsidizePreSwap,
   nablaApprove,
   nablaSwap,
@@ -123,7 +144,7 @@ export async function constructInitialState({
   amountOut,
   sepResult,
 }: InitiateStateArguments) {
-  const pendulumEphemeralSeed = await createPendulumEphemeralSeed();
+  const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
   const stellarEphemeralSecret = createStellarEphemeralSecret();
 
   const inputTokenDecimals = INPUT_TOKEN_CONFIG[inputTokenType].decimals;
@@ -135,6 +156,12 @@ export async function constructInitialState({
   const outputAmountBig = Big(amountOut).round(2, 0);
   const outputAmountRaw = multiplyByPowerOfTen(outputAmountBig, outputTokenDecimals).toFixed();
 
+  const squidRouterReceiverId = createRandomString(32);
+  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
+  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
+
+  const now = Date.now();
   const initialState: OfframpingState = {
     sep24Id,
     pendulumEphemeralSeed,
@@ -150,10 +177,13 @@ export async function constructInitialState({
       raw: outputAmountRaw,
     },
     phase: 'prepareTransactions',
+    squidRouterReceiverId,
+    squidRouterReceiverHash,
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
-
+    createdAt: now,
+    failureTimeoutAt: now + minutesInMs(10),
     sepResult,
 
     transactions: undefined,
@@ -167,20 +197,43 @@ export async function clearOfframpingState() {
   storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
 }
 
-export function readCurrentState() {
-  return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
-}
-
-export async function advanceOfframpingState(context: ExecutionContext): Promise<OfframpingState | undefined> {
-  const state = readCurrentState();
-
+export function recoverFromFailure(state: OfframpingState | undefined) {
   if (state === undefined) {
     console.log('No offramping in process');
     return undefined;
   }
 
-  const { phase } = state;
-  const phaseIsFinal = phase === 'success' || phase === 'failure';
+  if (state.isFailure !== true) {
+    console.log('Current state is not a failure.');
+    return state;
+  }
+
+  const newState = {
+    ...state,
+    isFailure: undefined,
+    failureTimeoutAt: Date.now() + minutesInMs(5),
+  };
+  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
+
+  console.log('Recovered from failure');
+  return newState;
+}
+
+export function readCurrentState() {
+  return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+}
+
+export async function advanceOfframpingState(
+  state: OfframpingState | undefined,
+  context: ExecutionContext,
+): Promise<OfframpingState | undefined> {
+  if (state === undefined) {
+    console.log('No offramping in process');
+    return undefined;
+  }
+
+  const { phase, isFailure } = state;
+  const phaseIsFinal = phase === 'success' || isFailure === true;
 
   if (phaseIsFinal) {
     console.log('Offramping is already in a final phase:', phase);
@@ -198,8 +251,16 @@ export async function advanceOfframpingState(context: ExecutionContext): Promise
       console.error('Wallet not connected. Try to connect wallet');
       return state;
     }
+
+    if (Date.now() < state.failureTimeoutAt) {
+      console.error('Possible transient error within 10 minutes. Reloading page in 30 seconds.', error);
+      await new Promise((resolve) => setTimeout(resolve, 30000));
+      window.location.reload();
+      return state;
+    }
+
     console.error('Unrecoverable error advancing offramping state', error);
-    newState = { ...state, phase: 'failure' };
+    newState = { ...state, isFailure: true };
   }
 
   if (newState !== undefined) {

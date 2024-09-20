@@ -13,10 +13,11 @@ const Cross = () => (
 
 interface FailurePageProps {
   finishOfframping: () => void;
+  continueFailedFlow: () => void;
   transactionId: string | undefined;
 }
 
-export const FailurePage = ({ finishOfframping, transactionId }: FailurePageProps) => {
+export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId }: FailurePageProps) => {
   console.log('Failure page');
   const main = (
     <main>
@@ -25,15 +26,20 @@ export const FailurePage = ({ finishOfframping, transactionId }: FailurePageProp
         <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Withdrawal unsuccessful</h1>
         {transactionId && <TransactionInfo transactionId={transactionId} />}
         <p className="mt-6 text-center">
-          Unfortunately, your withdrawal request could not be processed. Please try again.
+          Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary
+          problem such as bad internet connection.
         </p>
+        <p>Either try to continue or start over.</p>
+        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
+          Continue
+        </button>
+        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
+          Start over
+        </button>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         <p className="text-center text-gray-400">If you continue to experience issues, contact support on:</p>
         <TelegramButton />
-        <EmailForm />
-        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
-          Try again
-        </button>
+        <EmailForm transactionId={transactionId} />
       </Box>
     </main>
   );
