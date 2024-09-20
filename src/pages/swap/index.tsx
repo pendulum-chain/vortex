@@ -236,6 +236,20 @@ export const SwapPage = () => {
   if (offrampingState !== undefined || offrampingStarted) {
     const showMainScreenAnyway =
       offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
+
+    if (sep24Url && showMainScreenAnyway && fromAmount && tokenOutData.data?.amountOut.preciseBigDecimal) {
+      return (
+        <IframeComponent
+          src={sep24Url}
+          title="Verify Your Identity"
+          subtitle="Please follow the steps below to complete the identity verification."
+          assetIn={from}
+          assetOut={to}
+          fromAmount={fromAmount}
+          toAmount={tokenOutData.data?.amountOut.preciseBigDecimal}
+        />
+      );
+    }
     if (!showMainScreenAnyway) {
       return <ProgressPage offrampingState={offrampingState} />;
     }
@@ -270,23 +284,11 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-        {sep24Url !== undefined ? (
-          <a
-            href={sep24Url}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-            onClick={resetSep24Url}
-          >
-            Enter details
-          </a>
-        ) : (
-          <SwapSubmitButton
-            text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-            pending={isInitiating || offrampingStarted || offrampingState !== undefined}
-          />
-        )}
+        <SwapSubmitButton
+          text={offrampingStarted ? 'Offramping in Progress' : 'Start Offramping'}
+          disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+          pending={offrampingStarted || offrampingState !== undefined}
+        />
       </form>
     </main>
   );
