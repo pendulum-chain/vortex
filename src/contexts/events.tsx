@@ -11,7 +11,7 @@ declare global {
   }
 }
 
-const UNIQUE_EVENT_TYPES = [
+const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
   'amount_type',
   'click_details',
   'click_support',
@@ -47,12 +47,18 @@ export interface ClickSupportEvent {
   transaction_status: 'success' | 'failure';
 }
 
+export interface FormErrorEvent {
+  event: 'form_error';
+  error_message: 'insufficient_balance' | 'insufficient_liquidity' | 'less_than_minimum_withdrawal';
+}
+
 export type TrackableEvent =
   | AmountTypeEvent
   | ClickDetailsEvent
   | WalletConnectEvent
   | TransactionEvent
-  | ClickSupportEvent;
+  | ClickSupportEvent
+  | FormErrorEvent;
 
 type EventType = TrackableEvent['event'];
 
