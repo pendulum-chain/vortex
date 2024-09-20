@@ -40,8 +40,6 @@ export const useMainProcess = () => {
   const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
-  const [sep24UpdateInterval, setSep24UpdateInterval] = useState<number | undefined>(undefined);
-  console.log('sep24Url', sep24Url, 'sep24Id', sep24Id, 'sep24UpdateInterval', sep24UpdateInterval);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
@@ -108,7 +106,7 @@ export const useMainProcess = () => {
           const finishInitialState = async () => {
             const firstSep24Response = await sep24First(anchorSessionParams);
             setSep24Url(firstSep24Response.url);
-            console.log('sep24 url:', firstSep24Response.url);
+            console.log('SEP24 url:', firstSep24Response.url);
 
             const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
 
@@ -127,13 +125,21 @@ export const useMainProcess = () => {
             updateHookStateFromState(initialState);
           };
 
-          const interval = setInterval(() => {
-            finishInitialState().then(() => clearInterval(interval));
-          }, 20000);
-
-          finishInitialState().catch((error) => {
-            console.error('Error in finishInitiateState', error);
-          });
+          let interval: number | undefined = undefined;
+          const executeFinishInitialState = async () => {
+            try {
+              await finishInitialState();
+              if (interval !== undefined) {
+                clearInterval(interval);
+                interval = undefined;
+              }
+            } catch (error) {
+              console.error('Some error occurred finalizing the initial state of the offramping process', error);
+              setOfframpingStarted(false);
+            }
+          };
+          interval = window.setInterval(executeFinishInitialState, 20000);
+          executeFinishInitialState();
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);

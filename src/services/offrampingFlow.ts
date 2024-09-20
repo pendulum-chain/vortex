@@ -42,7 +42,7 @@ export type OfframpingPhase =
 export type FinalOfframpingPhase = 'success' | 'failure';
 
 export interface OfframpingState {
-  sep24Id?: string;
+  sep24Id: string;
 
   pendulumEphemeralSeed: string;
   stellarEphemeralSecret: string;
@@ -76,7 +76,7 @@ export interface OfframpingState {
   // executeSpacewalk
   executeSpacewalkNonce: number;
 
-  sepResult?: SepResult;
+  sepResult: SepResult;
 
   // All signed transactions, if available
   transactions?: {
@@ -152,6 +152,7 @@ export async function constructInitialState({
   const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
 
   const initialState: OfframpingState = {
+    sep24Id,
     pendulumEphemeralSeed,
     stellarEphemeralSecret,
     inputTokenType,
@@ -170,6 +171,8 @@ export async function constructInitialState({
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
+
+    sepResult,
 
     transactions: undefined,
   };
