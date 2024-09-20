@@ -49,12 +49,12 @@ const WarningSection: FC = () => (
 );
 
 const ProgressContent: FC<{ currentPhaseIndex: number }> = ({ currentPhaseIndex }) => (
-  <Box className="flex flex-col items-center justify-center mt-12">
+  <Box className="flex flex-col items-center justify-center mt-4">
     <div className="flex flex-col items-center justify-center max-w-[400px]">
-      <span className="w-20 text-blue-700 loading loading-spinner"></span>
-      <h1 className="text-xl font-bold text-blue-700 my-7">Your transaction is in progress.</h1>
+      <span className="w-10 text-blue-700 loading loading-spinner"></span>
+      <h1 className="my-3 text-xl font-bold text-blue-700">Your transaction is in progress.</h1>
       <WarningSection />
-      <div className="h-0.5 m-auto w-full bg-blue-700 mt-8 mb-5" />
+      <div className="h-0.5 m-auto w-full bg-blue-700 mt-3 mb-1" />
       <ProgressSteps currentPhaseIndex={currentPhaseIndex} />
     </div>
   </Box>
@@ -66,7 +66,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   return (
     <BaseLayout
       main={
-        <main className="pb-12">
+        <main>
           <ProgressContent currentPhaseIndex={currentPhaseIndex} />
         </main>
       }

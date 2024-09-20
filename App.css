@@ -69,6 +69,9 @@ div[data-rk] {
 }
 
 @layer components {
+  .step-vortex {
+    min-height: 2.5rem !important;
+  }
   .step-vortex::before {
     @apply bg-blue-700 !important;
     width: 2px !important;
