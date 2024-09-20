@@ -20,6 +20,7 @@ import {
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { showToast, ToastMessage } from '../helpers/notifications';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -113,6 +114,16 @@ export const useMainProcess = () => {
           const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
 
           console.log('secondSep24Response', secondSep24Response);
+
+          // Check if the amount entered in the KYC UI matches the one we expect
+          if (!Big(secondSep24Response.amount).eq(truncatedAmountToOfframp)) {
+            setOfframpingStarted(false);
+            console.error(
+              "The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.",
+            );
+            showToast(ToastMessage.AMOUNT_MISMATCH);
+            return;
+          }
 
           const initialState = await constructInitialState({
             sep24Id: firstSep24Response.id,
