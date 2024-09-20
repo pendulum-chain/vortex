@@ -49,7 +49,11 @@ export interface ClickSupportEvent {
 
 export interface FormErrorEvent {
   event: 'form_error';
-  error_message: 'insufficient_balance' | 'insufficient_liquidity' | 'less_than_minimum_withdrawal';
+  error_message:
+    | 'insufficient_balance'
+    | 'insufficient_liquidity'
+    | 'less_than_minimum_withdrawal'
+    | 'more_than_maximum_withdrawal';
 }
 
 export type TrackableEvent =
@@ -68,6 +72,7 @@ const useEvents = () => {
 
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
+  const firedFormErrors = useRef<Set<FormErrorEvent['error_message']>>(new Set());
   const { address } = useAccount();
 
   const trackEvent = useCallback(
@@ -81,6 +86,18 @@ const useEvents = () => {
             trackedEventTypes.add(event.event);
           }
         }
+
+        // Check if form error message has already been fired as we only want to fire each error message once
+        if (event.event === 'form_error') {
+          const { error_message } = event;
+          if (firedFormErrors.current.has(error_message)) {
+            return trackedEventTypes;
+          } else {
+            // Add error message to fired form errors
+            firedFormErrors.current.add(error_message);
+          }
+        }
+
         console.log('Push data layer', event);
 
         window.dataLayer.push(event);
