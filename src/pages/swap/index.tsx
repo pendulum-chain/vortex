@@ -40,6 +40,8 @@ export const SwapPage = () => {
 
   const { isDisconnected } = useAccount();
 
+  const { trackEvent } = useEventsContext();
+
   useEffect(() => {
     const initializeApiManager = async () => {
       const manager = await getApiManagerInstance();
@@ -161,8 +163,7 @@ export const SwapPage = () => {
     [form, fromToken, setModalType],
   );
 
-  function useGetCurrentErrorMessage() {
-    const { trackEvent } = useEventsContext();
+  function getCurrentErrorMessage() {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
@@ -256,7 +257,7 @@ export const SwapPage = () => {
         <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600 mb-6">{useGetCurrentErrorMessage()}</p>
+        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
@@ -287,7 +288,7 @@ export const SwapPage = () => {
         ) : (
           <SwapSubmitButton
             text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(useGetCurrentErrorMessage()) || !inputAmountIsStable}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
             pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}
