@@ -1,4 +1,4 @@
-import React, { useState, useEffect }  from 'react';
+import React from 'preact/compat';
 import { BaseLayout } from '../../layouts';
 import { SummaryCard, SummaryCardProps } from '../../components/SummaryCard';
 
@@ -11,14 +11,8 @@ export interface IframeProps extends SummaryCardProps {
 export const IframeComponent: React.FC<IframeProps> = ({
   src, title, subtitle, assetIn, assetOut, fromAmount, toAmount
 }) => {
-  const [cachedSrc, setCachedSrc] = useState<string | null>(null);
 
-  useEffect(() => {
-    if ( src && !cachedSrc) {
-      setCachedSrc(src);
-    }
-  }, [src, cachedSrc]);
-  let main = (
+  const main = (
     <div className="flex flex-col justify-center items-center p-4 w-full">
     <div className="md:w-[535px] w-full">
       <div className="text-center">
@@ -38,8 +32,9 @@ export const IframeComponent: React.FC<IframeProps> = ({
     </div>
     <div className="flex justify-center items-center relative w-full h-[50vh] md:w-[535px] ">
       <iframe
+        title="Anchor KYC"
         src={src}
-        style={{ border: 'none' }}
+        style={{ border: 'border-0' }}
         className="absolute top-0 left-0 w-full h-full"
         allowFullScreen
       />

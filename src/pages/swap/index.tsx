@@ -37,7 +37,6 @@ export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const [isIframVisible, setIframVisible] = useState(false);
 
   const { isDisconnected } = useAccount();
 
