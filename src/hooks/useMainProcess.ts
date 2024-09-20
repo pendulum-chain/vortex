@@ -7,7 +7,6 @@ import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfi
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
-import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { useConfig } from 'wagmi';
 import {
   OfframpingState,
@@ -146,7 +145,9 @@ export const useMainProcess = () => {
           let interval: number | undefined = undefined;
           const executeFinishInitialState = async () => {
             try {
+              // This will only return if the initialization of the offramping process is finished or exited because an error occurred
               await finishInitialState();
+              setSep24Url(undefined);
               if (interval !== undefined) {
                 clearInterval(interval);
                 interval = undefined;
@@ -201,7 +202,6 @@ export const useMainProcess = () => {
     sep24Id,
     finishOfframping,
     continueFailedFlow,
-    resetSep24Url,
     signingPhase,
   };
 };

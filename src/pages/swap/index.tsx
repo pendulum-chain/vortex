@@ -58,9 +58,6 @@ export const SwapPage = () => {
     sep24Url,
     sep24Id,
     offrampingState,
-    resetSep24Url,
-    offrampingPhase,
-    setOfframpingPhase,
     signingPhase,
   } = useMainProcess();
 
@@ -275,9 +272,6 @@ export const SwapPage = () => {
             target="_blank"
             rel="noreferrer"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-            onClick={() => {
-              // resetSep24Url();
-            }}
           >
             Start Offramping
           </a>

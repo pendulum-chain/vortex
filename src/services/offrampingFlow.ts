@@ -12,7 +12,7 @@ import {
   subsidizePostSwap,
   subsidizePreSwap,
 } from './polkadot/ephemeral';
-import { createStellarEphemeralSecret, SepResult } from './anchor';
+import { SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { stellarCleanup, stellarOfframp } from './stellar';
