@@ -122,10 +122,12 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
       form.setValue('toAmount', totalReceive);
-    } else {
+    } else if (!tokenOutData.isLoading || tokenOutData.error) {
       form.setValue('toAmount', '0');
+    } else {
+      // Do nothing?
     }
-  }, [form, tokenOutData.data, toToken]);
+  }, [form, tokenOutData.data, tokenOutData.error, toToken]);
 
   const ReceiveNumericInput = useMemo(
     () => (
