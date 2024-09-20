@@ -32,39 +32,43 @@ function alreadyHasDecimal(e: KeyboardEvent) {
 
 function handleOnInput(e: Event, maxDecimals: number): void {
   const target = e.target as HTMLInputElement;
-  let originalValue = target.value;
+  const originalValue = target.value;
 
-  if (target.value === '') {
+  if (target.value === '' || target.value === '.') {
     target.value = '0';
   }
 
-  if (target.value === '.') {
-    target.value = '0';
+  target.value = target.value.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+
+  // Handle case where user tries to add a second decimal point, we keep the leftmost one.
+  let firstDotOccurence = target.value.search(/[.]/);
+  if (firstDotOccurence !== -1 && target.value[firstDotOccurence] === '.') {
+    target.value =
+      target.value.slice(0, firstDotOccurence + 1) + target.value.slice(firstDotOccurence + 1).replace('.', '');
   }
 
-  target.value = target.value.replace(/,/g, '.');
   if (exceedsMaxDecimals(target.value, maxDecimals)) {
     target.value = target.value.slice(0, -1);
   }
+
+  // remove leading zeros when the number is >= 1
   if (Number(target.value) >= 1) {
     target.value = target.value.replace(/^0+/, '');
   }
+
+  // Add leading zeros for numbers < 1 that don't start with '0'
   if (Number(target.value) < 1 && target.value[0] !== '0') {
     target.value = '0' + target.value;
   }
 
-  // replace more than 1 zero at the beginning
+  // No more than one leading zero
   target.value = target.value.replace(/^0+/, '0');
 
+  // Dispatch input event if the value has changed, this forces the
+  // update on the form. Otherwise the form can get the invalid valiue.
   if (originalValue !== target.value) {
     const newEvent = new Event('input', { bubbles: true, cancelable: true });
     target.dispatchEvent(newEvent);
-  }
-}
-
-function handleOnKeyPress(e: KeyboardEvent): void {
-  if (!isValidNumericInput(e.key) || alreadyHasDecimal(e)) {
-    e.preventDefault();
   }
 }
 
@@ -92,7 +96,6 @@ export const NumericInput = ({
             : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content ' + additionalStyle
         }
         minlength="1"
-        onKeyPress={(e: KeyboardEvent) => handleOnKeyPress(e)}
         onInput={(e: Event) => {
           trackEvent({ event: 'amount_type' });
           handleOnInput(e, maxDecimals);

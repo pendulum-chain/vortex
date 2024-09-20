@@ -33,7 +33,6 @@ const Arrow = () => (
 );
 
 export const SwapPage = () => {
-  const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
 
@@ -123,8 +122,6 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
       form.setValue('toAmount', totalReceive);
-
-      setIsQuoteSubmitted(false);
     } else {
       form.setValue('toAmount', '');
     }
@@ -137,18 +134,18 @@ export const SwapPage = () => {
         tokenSymbol={toToken.fiat.symbol}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
-        disabled={isQuoteSubmitted || tokenOutData.isLoading}
+        disabled={tokenOutData.isLoading}
         readOnly={true}
       />
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutData.isLoading, setModalType],
   );
 
   const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
-          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+          registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
