@@ -37,6 +37,7 @@ export const useMainProcess = () => {
   // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
+  const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
@@ -80,6 +81,7 @@ export const useMainProcess = () => {
     ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
       if (offrampingStarted || offrampingState !== undefined) return;
 
+      setIsInitiating(true);
       (async () => {
         setOfframpingStarted(true);
         trackEvent({
@@ -129,6 +131,8 @@ export const useMainProcess = () => {
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);
+        } finally {
+          setIsInitiating(false);
         }
       })();
     },
@@ -169,6 +173,7 @@ export const useMainProcess = () => {
     offrampingState,
     offrampingStarted,
     sep24Id,
+    isInitiating,
     finishOfframping,
     continueFailedFlow,
     resetSep24Url,
