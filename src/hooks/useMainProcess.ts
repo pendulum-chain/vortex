@@ -1,24 +1,26 @@
 import { useState, useEffect, useCallback } from 'preact/compat';
 
 // Configs, Types, constants
+import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
 import { ExecutionInput } from '../types';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 
-import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First, sep24Second } from '../services/anchor';
+import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
+import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { useConfig } from 'wagmi';
 import {
-  FinalOfframpingPhase,
-  OfframpingPhase,
   OfframpingState,
   advanceOfframpingState,
   clearOfframpingState,
   constructInitialState,
   readCurrentState,
+  recoverFromFailure,
 } from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { showToast, ToastMessage } from '../helpers/notifications';
 import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
@@ -37,7 +39,7 @@ export const useMainProcess = () => {
   // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
-  const [offrampingPhase, setOfframpingPhase] = useState<OfframpingPhase | FinalOfframpingPhase | undefined>(undefined);
+  const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
 
@@ -50,15 +52,15 @@ export const useMainProcess = () => {
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
-      if (state?.phase === 'success' || state?.phase === 'failure') {
+      if (state?.phase === 'success' || state?.isFailure === true) {
         setSigningPhase(undefined);
       }
-      setOfframpingPhase(state?.phase);
+      setOfframpingState(state);
       setSep24Id(state?.sep24Id);
 
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
-      } else if (state?.phase === 'failure') {
+      } else if (state?.isFailure === true) {
         trackEvent(createTransactionEvent('transaction_failure', state));
       }
     },
@@ -78,7 +80,7 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
-      if (offrampingStarted || offrampingPhase !== undefined) return;
+      if (offrampingStarted || offrampingState !== undefined) return;
 
       (async () => {
         setOfframpingStarted(true);
@@ -92,10 +94,14 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
+
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
+
           const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(Big(minAmountOutUnits), 2);
+
           const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
+
           const anchorSessionParams = {
             token: sep10Token,
             tomlValues: tomlValues,
@@ -109,6 +115,18 @@ export const useMainProcess = () => {
             console.log('SEP24 url:', firstSep24Response.url);
 
             const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
+
+            console.log('secondSep24Response', secondSep24Response);
+
+            // Check if the amount entered in the KYC UI matches the one we expect
+            if (!Big(secondSep24Response.amount).eq(truncatedAmountToOfframp)) {
+              setOfframpingStarted(false);
+              console.error(
+                "The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.",
+              );
+              showToast(ToastMessage.AMOUNT_MISMATCH);
+              return;
+            }
 
             const initialState = await constructInitialState({
               sep24Id: firstSep24Response.id,
@@ -146,7 +164,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingPhase, offrampingStarted, trackEvent, updateHookStateFromState],
+    [offrampingState, offrampingStarted, trackEvent, updateHookStateFromState],
   );
 
   const finishOfframping = useCallback(() => {
@@ -158,21 +176,32 @@ export const useMainProcess = () => {
     })();
   }, [updateHookStateFromState, resetUniqueEvents]);
 
+  const continueFailedFlow = useCallback(() => {
+    const nextState = recoverFromFailure(offrampingState);
+    updateHookStateFromState(nextState);
+  }, [updateHookStateFromState, offrampingState]);
+
   useEffect(() => {
     (async () => {
-      const nextState = await advanceOfframpingState({ renderEvent: addEvent, wagmiConfig, setSigningPhase });
-      updateHookStateFromState(nextState);
+      const nextState = await advanceOfframpingState(offrampingState, {
+        renderEvent: addEvent,
+        wagmiConfig,
+        setSigningPhase,
+      });
+
+      if (offrampingState !== nextState) updateHookStateFromState(nextState);
     })();
-  }, [offrampingPhase, updateHookStateFromState, wagmiConfig]);
+  }, [offrampingState, updateHookStateFromState, wagmiConfig]);
 
   return {
-    setOfframpingPhase,
     handleOnSubmit,
     sep24Url,
-    offrampingPhase,
+    offrampingState,
     offrampingStarted,
     sep24Id,
     finishOfframping,
+    continueFailedFlow,
+    resetSep24Url,
     signingPhase,
   };
 };

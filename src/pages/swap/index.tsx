@@ -53,9 +53,12 @@ export const SwapPage = () => {
   const {
     handleOnSubmit,
     finishOfframping,
+    continueFailedFlow,
     offrampingStarted,
     sep24Url,
     sep24Id,
+    offrampingState,
+    resetSep24Url,
     offrampingPhase,
     setOfframpingPhase,
     signingPhase,
@@ -215,19 +218,25 @@ export const SwapPage = () => {
     />
   );
 
-  if (offrampingPhase === 'success') {
+  if (offrampingState?.phase === 'success') {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={sep24Id} />;
   }
 
-  if (offrampingPhase === 'failure') {
-    return <FailurePage finishOfframping={finishOfframping} transactionId={sep24Id} />;
+  if (offrampingState?.isFailure === true) {
+    return (
+      <FailurePage
+        finishOfframping={finishOfframping}
+        continueFailedFlow={continueFailedFlow}
+        transactionId={sep24Id}
+      />
+    );
   }
 
-  if (offrampingPhase !== undefined || offrampingStarted) {
+  if (offrampingState !== undefined || offrampingStarted) {
     const showMainScreenAnyway =
-      offrampingPhase === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingPhase);
+      offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
     if (!showMainScreenAnyway) {
-      return <ProgressPage setOfframpingPhase={setOfframpingPhase} offrampingPhase={offrampingPhase} />;
+      return <ProgressPage offrampingState={offrampingState} />;
     }
   }
 
@@ -276,7 +285,7 @@ export const SwapPage = () => {
           <SwapSubmitButton
             text={offrampingStarted ? 'Offramping in Progress' : 'Confirm'}
             disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-            pending={offrampingStarted || offrampingPhase !== undefined}
+            pending={offrampingStarted || offrampingState !== undefined}
           />
         )}
       </form>
