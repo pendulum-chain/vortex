@@ -1,5 +1,5 @@
 import { createContext } from 'preact';
-import { PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from 'preact/compat';
+import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
 import { useAccount } from 'wagmi';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
@@ -68,49 +68,41 @@ type EventType = TrackableEvent['event'];
 
 type UseEventsContext = ReturnType<typeof useEvents>;
 const useEvents = () => {
-  const [_, setTrackedEventTypes] = useState<Set<EventType>>(new Set());
-
+  const { address } = useAccount();
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
+
+  const trackedEventTypes = useRef<Set<EventType>>(new Set());
   const firedFormErrors = useRef<Set<FormErrorEvent['error_message']>>(new Set());
-  const { address } = useAccount();
 
-  const trackEvent = useCallback(
-    (event: TrackableEvent) => {
-      setTrackedEventTypes((trackedEventTypes) => {
-        if (UNIQUE_EVENT_TYPES.includes(event.event)) {
-          if (trackedEventTypes.has(event.event)) {
-            return trackedEventTypes;
-          } else {
-            trackedEventTypes = new Set(trackedEventTypes);
-            trackedEventTypes.add(event.event);
-          }
-        }
+  const trackEvent = useCallback((event: TrackableEvent) => {
+    if (UNIQUE_EVENT_TYPES.includes(event.event)) {
+      if (trackedEventTypes.current.has(event.event)) {
+        return;
+      } else {
+        trackedEventTypes.current.add(event.event);
+      }
+    }
 
-        // Check if form error message has already been fired as we only want to fire each error message once
-        if (event.event === 'form_error') {
-          const { error_message } = event;
-          if (firedFormErrors.current.has(error_message)) {
-            return trackedEventTypes;
-          } else {
-            // Add error message to fired form errors
-            firedFormErrors.current.add(error_message);
-          }
-        }
+    // Check if form error message has already been fired as we only want to fire each error message once
+    if (event.event === 'form_error') {
+      const { error_message } = event;
+      if (firedFormErrors.current.has(error_message)) {
+        return;
+      } else {
+        // Add error message to fired form errors
+        firedFormErrors.current.add(error_message);
+      }
+    }
 
-        console.log('Push data layer', event);
+    console.log('Push data layer', event);
 
-        window.dataLayer.push(event);
-
-        return trackedEventTypes;
-      });
-    },
-    [setTrackedEventTypes],
-  );
+    window.dataLayer.push(event);
+  }, []);
 
   const resetUniqueEvents = useCallback(() => {
-    setTrackedEventTypes(new Set());
-  }, [setTrackedEventTypes]);
+    trackedEventTypes.current = new Set();
+  }, []);
 
   useEffect(() => {
     const wasConnected = previousAddress.current !== undefined;
