@@ -44,7 +44,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     assetSymbol: 'USDC',
     erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
     axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6fhKqoQnH15fis5yXQEybbMaWwwochhjdeZeNRhHsqM2VtCJ',
+      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
@@ -55,7 +55,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     assetSymbol: 'USDC.e',
     erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
     axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6fhKqoQnH15fis5yXQEybbMaWwwochhjdeZeNRhHsqM2VtCJ',
+      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
