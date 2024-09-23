@@ -6,6 +6,7 @@ import { calculateTotalReceive } from '../FeeCollapse';
 import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
 import { UpperSummaryCard } from './UpperSummaryCard';
 import { LowerSummaryCard } from './LowerSummaryCard';
+import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 export interface SummaryCardProps {
   assetIn: InputTokenType;
   assetOut: OutputTokenType;
@@ -42,9 +43,8 @@ export const SummaryCard: FC<SummaryCardProps> = ({ assetIn, assetOut, fromAmoun
           <LowerSummaryCard
             label="Your quote"
             amount={roundDownToSignificantDecimals(toAmount, 2).toString()}
-            icon={assetOutIcon}
+            endIcon={assetOutIcon}
             symbol={assetOutSymbol}
-            colSpan={3}
             remarked={true}
           />
         </div>
@@ -52,18 +52,15 @@ export const SummaryCard: FC<SummaryCardProps> = ({ assetIn, assetOut, fromAmoun
           <LowerSummaryCard
             label="Exchange rate"
             amount={`1 ${assetInSymbol} ≈ ${approximateExchangeRate} ${assetOutSymbol}`}
-            icon={null}
-            symbol={null}
-            colSpan={4}
           />
         </div>
         <div className="col-span-3">
           <LowerSummaryCard
             label="Offramp fees"
             amount={offrampFees}
-            icon={assetOutIcon}
+            startIcon={<LocalGasStationIcon className="text-blue-700" fontSize="small" />}
+            endIcon={assetOutIcon}
             symbol={assetOutSymbol}
-            colSpan={3}
           />
         </div>
       </div>
