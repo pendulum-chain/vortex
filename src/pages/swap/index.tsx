@@ -38,6 +38,17 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
 
+  // This is used to store the values that were submitted to the form. We need to store them because the form values
+  // might change due to price fluctuations, but we need to keep the original values to submit the transaction.
+  // This is important for the summary shown above the iframe.
+  const [committedFormValues, setCommittedFormValues] = useState<
+    | {
+        fromAmount: Big;
+        toAmount: Big;
+      }
+    | undefined
+  >(undefined);
+
   const { isDisconnected } = useAccount();
 
   useEffect(() => {
@@ -110,6 +121,12 @@ export const SwapPage = () => {
     }
 
     console.log('starting ....');
+
+    // Commit the amounts so that we can show them in the summary above the iframe
+    setCommittedFormValues({
+      fromAmount: new Big(fromAmountString),
+      toAmount: new Big(minimumOutputAmount.preciseString),
+    });
 
     handleOnSubmit({
       inputTokenType: from as InputTokenType,
@@ -237,7 +254,13 @@ export const SwapPage = () => {
     const showMainScreenAnyway =
       offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
 
-    if (sep24Url && showMainScreenAnyway && fromAmount && tokenOutData.data?.amountOut.preciseBigDecimal) {
+    if (
+      sep24Url &&
+      committedFormValues &&
+      showMainScreenAnyway &&
+      fromAmount &&
+      tokenOutData.data?.amountOut.preciseBigDecimal
+    ) {
       return (
         <IframeComponent
           src={sep24Url}
@@ -245,8 +268,8 @@ export const SwapPage = () => {
           subtitle="Please follow the steps below to complete the identity verification."
           assetIn={from}
           assetOut={to}
-          fromAmount={fromAmount}
-          toAmount={tokenOutData.data?.amountOut.preciseBigDecimal}
+          fromAmount={committedFormValues.fromAmount}
+          toAmount={committedFormValues.toAmount}
         />
       );
     }
