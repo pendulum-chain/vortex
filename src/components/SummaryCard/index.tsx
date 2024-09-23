@@ -26,7 +26,7 @@ export const SummaryCard: FC<SummaryCardProps> = ({ assetIn, assetOut, fromAmoun
   const offrampFees = roundDownToSignificantDecimals(toAmount.sub(receiveAmount), 2).toString();
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg w-full">
+    <div className="bg-white card p-4 rounded-lg border w-full shadow">
       <div className="grid grid-cols-2 gap-4 mb-2">
         <UpperSummaryCard
           label="You withdraw"
