@@ -182,12 +182,11 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    // TESTING - TODO: Remove comment
-    // if (typeof userInputTokenBalance === 'string') {
-    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-    //   }
-    // }
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+      }
+    }
 
     const amountOut = tokenOutData.data?.amountOut;
 
