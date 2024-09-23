@@ -59,7 +59,7 @@ export const config = {
     projectId: '299fda67fbf3b60a31ba8695524534cd',
   },
   test: {
-    mockSep24: true,
+    mockSep24: false,
     overwriteMinimumTransferAmount: false,
   },
   telegramUrl: 'https://t.me/+Lq-sxfXBNIQ5YzRl',
