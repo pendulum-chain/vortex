@@ -55,10 +55,11 @@ export const SwapPage = () => {
     finishOfframping,
     continueFailedFlow,
     offrampingStarted,
-    sep24Url,
-    sep24Id,
+    firstSep24ResponseState,
+    handleOnAnchorWindowOpen,
     offrampingState,
     signingPhase,
+    sep24FirstInterval,
   } = useMainProcess();
 
   const {
@@ -216,7 +217,7 @@ export const SwapPage = () => {
   );
 
   if (offrampingState?.phase === 'success') {
-    return <SuccessPage finishOfframping={finishOfframping} transactionId={sep24Id} />;
+    return <SuccessPage finishOfframping={finishOfframping} transactionId={firstSep24ResponseState?.id} />;
   }
 
   if (offrampingState?.isFailure === true) {
@@ -224,7 +225,7 @@ export const SwapPage = () => {
       <FailurePage
         finishOfframping={finishOfframping}
         continueFailedFlow={continueFailedFlow}
-        transactionId={sep24Id}
+        transactionId={firstSep24ResponseState?.id}
       />
     );
   }
@@ -266,12 +267,13 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-        {sep24Url !== undefined ? (
+        {firstSep24ResponseState?.url !== undefined && sep24FirstInterval !== undefined ? (
           <a
-            href={sep24Url}
+            href={firstSep24ResponseState.url}
             target="_blank"
             rel="noreferrer"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+            onClick={handleOnAnchorWindowOpen}
           >
             Start Offramping
           </a>

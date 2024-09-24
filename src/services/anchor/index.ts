@@ -12,7 +12,7 @@ interface TomlValues {
   kycServer?: string;
 }
 
-interface ISep24Intermediate {
+export interface ISep24Intermediate {
   url: string;
   id: string;
 }

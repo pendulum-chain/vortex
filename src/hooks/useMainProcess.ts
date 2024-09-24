@@ -21,8 +21,10 @@ import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
+import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
+type ExtendedExecutionInput = ExecutionInput & { truncatedAmountToOfframp: string; stellarEphemeralSecret: string };
 
 export const useMainProcess = () => {
   // EXAMPLE mocking states
@@ -39,8 +41,10 @@ export const useMainProcess = () => {
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
-  const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
-  const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
+  const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
+  const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
+  const [executionInput, setExecutionInput] = useState<ExtendedExecutionInput | undefined>(undefined);
+  const [sep24FirstInterval, setSep24FirstInterval] = useState<number | undefined>(undefined);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
@@ -55,7 +59,6 @@ export const useMainProcess = () => {
         setSigningPhase(undefined);
       }
       setOfframpingState(state);
-      setSep24Id(state?.sep24Id);
 
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
@@ -107,57 +110,32 @@ export const useMainProcess = () => {
             tokenConfig: outputToken,
             offrampAmount: truncatedAmountToOfframp,
           };
+          setExecutionInput({
+            inputTokenType,
+            outputTokenType,
+            amountInUnits,
+            minAmountOutUnits,
+            truncatedAmountToOfframp,
+            stellarEphemeralSecret,
+          });
+          setAnchorSessionParams(anchorSessionParams);
 
-          const finishInitialState = async () => {
+          const fetchAndUpdateSep24Url = async () => {
             const firstSep24Response = await sep24First(anchorSessionParams);
-            setSep24Url(firstSep24Response.url);
+            setFirstSep24Response(firstSep24Response);
             console.log('SEP24 url:', firstSep24Response.url);
-
-            const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
-
-            console.log('secondSep24Response', secondSep24Response);
-
-            // Check if the amount entered in the KYC UI matches the one we expect
-            if (!Big(secondSep24Response.amount).eq(truncatedAmountToOfframp)) {
-              setOfframpingStarted(false);
-              console.error(
-                "The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.",
-              );
-              showToast(ToastMessage.AMOUNT_MISMATCH);
-              return;
-            }
-
-            const initialState = await constructInitialState({
-              sep24Id: firstSep24Response.id,
-              stellarEphemeralSecret,
-              inputTokenType,
-              outputTokenType,
-              amountIn: amountInUnits,
-              amountOut: minAmountOutUnits,
-              sepResult: secondSep24Response,
-            });
-
-            trackEvent(createTransactionEvent('kyc_completed', initialState));
-
-            updateHookStateFromState(initialState);
           };
 
-          let interval: number | undefined = undefined;
           const executeFinishInitialState = async () => {
             try {
               // This will only return if the initialization of the offramping process is finished or exited because an error occurred
-              await finishInitialState();
-              setSep24Url(undefined);
-              if (interval !== undefined) {
-                clearInterval(interval);
-                interval = undefined;
-              }
+              await fetchAndUpdateSep24Url();
             } catch (error) {
               console.error('Some error occurred finalizing the initial state of the offramping process', error);
               setOfframpingStarted(false);
             }
           };
-          interval = window.setInterval(executeFinishInitialState, 20000);
+          setSep24FirstInterval(window.setInterval(executeFinishInitialState, 20000));
           executeFinishInitialState();
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
@@ -167,6 +145,40 @@ export const useMainProcess = () => {
     },
     [offrampingState, offrampingStarted, trackEvent, updateHookStateFromState],
   );
+
+  const handleOnAnchorWindowOpen = useCallback(async () => {
+    if (firstSep24ResponseState === undefined || anchorSessionParams === undefined || executionInput === undefined) {
+      return;
+    }
+
+    clearInterval(sep24FirstInterval); // stop fetching new sep24 url's
+    setSep24FirstInterval(undefined); // for UI button on main swap screen
+
+    const secondSep24Response = await sep24Second(firstSep24ResponseState, anchorSessionParams);
+
+    console.log('secondSep24Response', secondSep24Response);
+
+    // Check if the amount entered in the KYC UI matches the one we expect
+    if (!Big(secondSep24Response.amount).eq(executionInput.truncatedAmountToOfframp)) {
+      setOfframpingStarted(false);
+      console.error("The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.");
+      showToast(ToastMessage.AMOUNT_MISMATCH);
+      return;
+    }
+
+    const initialState = await constructInitialState({
+      sep24Id: firstSep24ResponseState.id,
+      stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
+      inputTokenType: executionInput.inputTokenType,
+      outputTokenType: executionInput.outputTokenType,
+      amountIn: executionInput.amountInUnits,
+      amountOut: executionInput.minAmountOutUnits,
+      sepResult: secondSep24Response,
+    });
+
+    trackEvent(createTransactionEvent('kyc_completed', initialState));
+    updateHookStateFromState(initialState);
+  }, [firstSep24ResponseState, anchorSessionParams, executionInput, updateHookStateFromState, trackEvent]);
 
   const finishOfframping = useCallback(() => {
     (async () => {
@@ -196,12 +208,13 @@ export const useMainProcess = () => {
 
   return {
     handleOnSubmit,
-    sep24Url,
+    firstSep24ResponseState,
     offrampingState,
     offrampingStarted,
-    sep24Id,
     finishOfframping,
     continueFailedFlow,
+    handleOnAnchorWindowOpen,
     signingPhase,
+    sep24FirstInterval,
   };
 };
