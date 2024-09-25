@@ -26,3 +26,11 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
     throw new Error('Could not fetch funding secret key or signing service is down');
   }
 };
+
+// helper function to check if the signing service is operational, regardless of the reason.
+export const isSigningServiceOperational = async () => {
+  let signerServiceStatus = await fetchSigningServiceAccountId();
+  if (!signerServiceStatus.stellar.status || !signerServiceStatus.pendulum.status) {
+    throw new Error('Signing service status: false');
+  }
+};

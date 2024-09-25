@@ -7,7 +7,7 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
+import { ApiComponents, ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { ExchangeRate } from '../../components/ExchangeRate';
@@ -25,6 +25,9 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+import { testRoute } from '../../services/squidrouter/route';
+import { initialChecks } from '../../services/initialChecks';
+import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -35,18 +38,24 @@ const Arrow = () => (
 export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
+  const [apiComponents, setApiComponents] = useState<ApiComponents | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
-
   const { isDisconnected } = useAccount();
 
+  // hook used for services on initialization and pre-offramp check
   useEffect(() => {
-    const initializeApiManager = async () => {
+    const initializeApp = async () => {
       const manager = await getApiManagerInstance();
-      const { api } = await manager.getApiComponents();
-      setApi(api);
+      const apiComponents = await manager.getApiComponents();
+      await initialChecks();
+      setApiComponents(apiComponents);
+      setApi(apiComponents.api);
     };
 
-    initializeApiManager().catch(console.error);
+    initializeApp().catch(() => {
+      // do something, like block the button and show a message.
+      console.log('Error in initializeApp');
+    });
   }, []);
 
   // Main process hook
@@ -61,6 +70,7 @@ export const SwapPage = () => {
     isInitiating,
     resetSep24Url,
     signingPhase,
+    setIsInitiating,
   } = useMainProcess();
 
   const {
@@ -108,14 +118,31 @@ export const SwapPage = () => {
       return;
     }
 
-    console.log('starting ....');
+    // test the route for starting token, then proceed
+    setIsInitiating(true);
 
-    handleOnSubmit({
-      inputTokenType: from as InputTokenType,
-      outputTokenType: to as OutputTokenType,
-      amountInUnits: fromAmountString,
-      minAmountOutUnits: minimumOutputAmount.preciseString,
-    });
+    const outputToken = OUTPUT_TOKEN_CONFIG[to];
+    Promise.all([
+      getVaultsForCurrency(
+        api!,
+        outputToken.stellarAsset.code.hex,
+        outputToken.stellarAsset.issuer.hex,
+        '1000000000000000',
+      ),
+      testRoute(fromToken),
+    ])
+      .then(() => {
+        console.log('starting ....');
+        handleOnSubmit({
+          inputTokenType: from as InputTokenType,
+          outputTokenType: to as OutputTokenType,
+          amountInUnits: fromAmountString,
+          minAmountOutUnits: minimumOutputAmount.preciseString,
+        });
+      })
+      .catch((error) => {
+        setIsInitiating(false);
+      });
   }
 
   useEffect(() => {
@@ -164,32 +191,32 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
+    // if (typeof userInputTokenBalance === 'string') {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+    //   }
+    // }
 
     const amountOut = tokenOutData.data?.amountOut;
 
-    if (amountOut !== undefined) {
-      const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
-      const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
+    // if (amountOut !== undefined) {
+    //   const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
+    //   const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
 
-      if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
-        const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
-        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
+    //   if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
+    //     const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
+    //     return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+    //       toToken.fiat.symbol
+    //     }.`;
+    //   }
 
-      if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
-        const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
-        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
-    }
+    //   if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
+    //     const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
+    //     return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
+    //       toToken.fiat.symbol
+    //     }.`;
+    //   }
+    // }
 
     return tokenOutData.error;
   }

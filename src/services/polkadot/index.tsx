@@ -13,11 +13,14 @@ import { Extrinsic } from '@pendulum-chain/api-solang';
 import { decodeSubmittableExtrinsic } from '../signedTransactions';
 import { getEphemeralNonce } from './ephemeral';
 
-async function createVaultService(apiComponents: ApiComponents, assetCodeHex: string, assetIssuerHex: string) {
-  const vaultsForCurrency = await getVaultsForCurrency(apiComponents.api, assetCodeHex, assetIssuerHex);
-  if (vaultsForCurrency.length === 0) {
-    throw new Error(`No vaults found for currency ${assetCodeHex}`);
-  }
+async function createVaultService(
+  apiComponents: ApiComponents,
+  assetCodeHex: string,
+  assetIssuerHex: string,
+  redeemAmount: string,
+) {
+  // we expect the list to have at least one vault, otherwise getVaultsForCurrency would throw
+  const vaultsForCurrency = await getVaultsForCurrency(apiComponents.api, assetCodeHex, assetIssuerHex, redeemAmount);
   const targetVaultId = vaultsForCurrency[0].id;
   return new VaultService(targetVaultId, apiComponents);
 }
@@ -47,6 +50,7 @@ export async function prepareSpacewalkRedeemTransaction(
       pendulumApiComponents,
       outputToken.stellarAsset.code.hex,
       outputToken.stellarAsset.issuer.hex,
+      outputAmount.raw,
     );
     renderEvent(
       `Requesting redeem of ${outputAmount.units} tokens for vault ${prettyPrintVaultId(vaultService.vaultId)}`,
