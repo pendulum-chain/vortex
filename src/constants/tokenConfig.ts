@@ -44,7 +44,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     assetSymbol: 'USDC',
     erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
     axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',
+      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
@@ -55,7 +55,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     assetSymbol: 'USDC.e',
     erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
     axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6cXCaQeLQtYhyaQgMGaLcBakgfdgNiSoENW2LA2z8nLBcpSh',
+      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
       pendulumCurrencyId: { XCM: 12 },
       pendulumAssetSymbol: 'USDC.axl',
     },
@@ -67,7 +67,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
 export type OutputTokenType = 'eurc';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
-    tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
+    tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
     decimals: 12,
     fiat: {
       assetIcon: 'eur',
@@ -79,12 +79,12 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
         string: 'EURC',
       },
       issuer: {
-        hex: '0x2112ee863867e4e219fe254c0918b00bc9ea400775bfc3ab4430971ce505877c',
-        stellarEncoding: 'GAQRF3UGHBT6JYQZ7YSUYCIYWAF4T2SAA5237Q5LIQYJOHHFAWDXZ7NM',
+        hex: '0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136',
+        stellarEncoding: 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
       },
     },
-    vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
-    erc20WrapperAddress: '6fA9DRKJ12oTXfSAU7ZZGZ9gEQ92YnyRXeJzW1wXekPzeXZC',
+    vaultAccountId: '6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh',
+    erc20WrapperAddress: '6eEEZCxJB8YstEEGjkacneHUjd2XzHTht7rwNu6evv4VSC2w',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,

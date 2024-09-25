@@ -1,8 +1,8 @@
 const TOKEN_CONFIG = {
   eurc: {
-    tomlFileUrl: 'https://mykobo.co/.well-known/stellar.toml',
+    tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
     assetCode: 'EURC',
-    assetIssuer: 'GAQRF3UGHBT6JYQZ7YSUYCIYWAF4T2SAA5237Q5LIQYJOHHFAWDXZ7NM',
+    assetIssuer: 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     minWithdrawalAmount: '10000000000000',
     maximumSubsidyAmountRaw: '1000000000000', // 1 unit
