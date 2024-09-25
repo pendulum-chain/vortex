@@ -58,7 +58,6 @@ export async function pendulumFundEphemeral(
     const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, { ephemeralAddress });
 
     if (response.data.status !== 'success') {
-      console.error('Error funding ephemeral account: funding timed out or failed');
       throw new Error('Error funding ephemeral account: funding timed out or failed');
     }
 

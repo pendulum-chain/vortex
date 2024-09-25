@@ -20,6 +20,7 @@ import {
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { showToast, ToastMessage } from '../helpers/notifications';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -37,6 +38,7 @@ export const useMainProcess = () => {
   // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
+  const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [sep24Url, setSep24Url] = useState<string | undefined>(undefined);
   const [sep24Id, setSep24Id] = useState<string | undefined>(undefined);
@@ -50,7 +52,7 @@ export const useMainProcess = () => {
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
-      if (state?.phase === 'success' || state?.isFailure === true) {
+      if (state === undefined || state.phase === 'success' || state.failure !== undefined) {
         setSigningPhase(undefined);
       }
       setOfframpingState(state);
@@ -58,7 +60,7 @@ export const useMainProcess = () => {
 
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
-      } else if (state?.isFailure === true) {
+      } else if (state?.failure !== undefined) {
         trackEvent(createTransactionEvent('transaction_failure', state));
       }
     },
@@ -80,6 +82,7 @@ export const useMainProcess = () => {
     ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
       if (offrampingStarted || offrampingState !== undefined) return;
 
+      setIsInitiating(true);
       (async () => {
         setOfframpingStarted(true);
         trackEvent({
@@ -114,6 +117,16 @@ export const useMainProcess = () => {
 
           console.log('secondSep24Response', secondSep24Response);
 
+          // Check if the amount entered in the KYC UI matches the one we expect
+          if (!Big(secondSep24Response.amount).eq(truncatedAmountToOfframp)) {
+            setOfframpingStarted(false);
+            console.error(
+              "The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.",
+            );
+            showToast(ToastMessage.AMOUNT_MISMATCH);
+            return;
+          }
+
           const initialState = await constructInitialState({
             sep24Id: firstSep24Response.id,
             inputTokenType,
@@ -129,6 +142,8 @@ export const useMainProcess = () => {
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);
+        } finally {
+          setIsInitiating(false);
         }
       })();
     },
@@ -169,6 +184,7 @@ export const useMainProcess = () => {
     offrampingState,
     offrampingStarted,
     sep24Id,
+    isInitiating,
     finishOfframping,
     continueFailedFlow,
     resetSep24Url,

@@ -58,6 +58,7 @@ export const SwapPage = () => {
     sep24Url,
     sep24Id,
     offrampingState,
+    isInitiating,
     resetSep24Url,
     signingPhase,
   } = useMainProcess();
@@ -220,12 +221,13 @@ export const SwapPage = () => {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={sep24Id} />;
   }
 
-  if (offrampingState?.isFailure === true) {
+  if (offrampingState?.failure !== undefined) {
     return (
       <FailurePage
         finishOfframping={finishOfframping}
         continueFailedFlow={continueFailedFlow}
         transactionId={sep24Id}
+        failure={offrampingState.failure}
       />
     );
   }
@@ -275,13 +277,13 @@ export const SwapPage = () => {
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={resetSep24Url}
           >
-            Start Offramping
+            Enter details
           </a>
         ) : (
           <SwapSubmitButton
-            text={offrampingStarted ? 'Offramping in Progress' : 'Confirm'}
+            text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
             disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-            pending={offrampingStarted || offrampingState !== undefined}
+            pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}
       </form>
