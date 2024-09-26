@@ -27,6 +27,8 @@ import { executeXCM } from './moonbeam';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
+export type FailureType = 'recoverable' | 'unrecoverable';
+
 export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
@@ -63,7 +65,7 @@ export interface OfframpingState {
 
   phase: OfframpingPhase | FinalOfframpingPhase;
 
-  isFailure?: boolean;
+  failure?: FailureType;
 
   // phase squidRouter
   squidRouterReceiverId: `0x${string}`;
@@ -204,14 +206,14 @@ export function recoverFromFailure(state: OfframpingState | undefined) {
     return undefined;
   }
 
-  if (state.isFailure !== true) {
+  if (state.failure !== undefined) {
     console.log('Current state is not a failure.');
     return state;
   }
 
   const newState = {
     ...state,
-    isFailure: undefined,
+    failure: undefined,
     failureTimeoutAt: Date.now() + minutesInMs(5),
   };
   storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
@@ -233,8 +235,8 @@ export async function advanceOfframpingState(
     return undefined;
   }
 
-  const { phase, isFailure } = state;
-  const phaseIsFinal = phase === 'success' || isFailure === true;
+  const { phase, failure } = state;
+  const phaseIsFinal = phase === 'success' || failure !== undefined;
 
   if (phaseIsFinal) {
     console.log('Offramping is already in a final phase:', phase);
@@ -260,8 +262,8 @@ export async function advanceOfframpingState(
       return state;
     }
 
-    console.error('Unrecoverable error advancing offramping state', error);
-    newState = { ...state, isFailure: true };
+    console.error('Error advancing offramping state', error);
+    newState = { ...state, failure: 'recoverable' };
   }
 
   if (newState !== undefined) {

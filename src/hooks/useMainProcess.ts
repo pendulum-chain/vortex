@@ -40,6 +40,7 @@ export const useMainProcess = () => {
   // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
 
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
+  const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
   const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
@@ -56,14 +57,14 @@ export const useMainProcess = () => {
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
-      if (state?.phase === 'success' || state?.isFailure === true) {
+      if (state === undefined || state.phase === 'success' || state.failure !== undefined) {
         setSigningPhase(undefined);
       }
       setOfframpingState(state);
 
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
-      } else if (state?.isFailure === true) {
+      } else if (state?.failure !== undefined) {
         trackEvent(createTransactionEvent('transaction_failure', state));
       }
     },
@@ -94,6 +95,7 @@ export const useMainProcess = () => {
     ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
       if (offrampingStarted || offrampingState !== undefined) return;
 
+      setIsInitiating(true);
       (async () => {
         setOfframpingStarted(true);
         trackEvent({
@@ -152,6 +154,8 @@ export const useMainProcess = () => {
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);
+        } finally {
+          setIsInitiating(false);
         }
       })();
     },
@@ -225,6 +229,7 @@ export const useMainProcess = () => {
     firstSep24ResponseState,
     offrampingState,
     offrampingStarted,
+    isInitiating,
     finishOfframping,
     continueFailedFlow,
     handleOnAnchorWindowOpen,
