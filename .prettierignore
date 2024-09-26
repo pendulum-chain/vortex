@@ -6,11 +6,14 @@ preact/
 internals/
 docs/
 .lighthouseci/
+mooncontracts/
 
 *.yml
 
 package-lock.json
 package.json
 yarn.lock
+.eslintignore
+.prettierignore
 
 CHANGELOG.md

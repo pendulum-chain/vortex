@@ -25,6 +25,7 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+import { IframeComponent, IframeProps } from '../../components/Iframe';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -36,6 +37,17 @@ export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
+
+  // This is used to store the values that were submitted to the form. We need to store them because the form values
+  // might change due to price fluctuations, but we need to keep the original values to submit the transaction.
+  // This is important for the summary shown above the iframe.
+  const [committedFormValues, setCommittedFormValues] = useState<
+    | {
+        fromAmount: Big;
+        toAmount: Big;
+      }
+    | undefined
+  >(undefined);
 
   const { isDisconnected } = useAccount();
 
@@ -111,6 +123,12 @@ export const SwapPage = () => {
     }
 
     console.log('starting ....');
+
+    // Commit the amounts so that we can show them in the summary above the iframe
+    setCommittedFormValues({
+      fromAmount: new Big(fromAmountString),
+      toAmount: new Big(minimumOutputAmount.preciseString),
+    });
 
     handleOnSubmit({
       inputTokenType: from as InputTokenType,
@@ -237,6 +255,26 @@ export const SwapPage = () => {
   if (offrampingState !== undefined || offrampingStarted) {
     const showMainScreenAnyway =
       offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
+
+    if (
+      sep24Url &&
+      committedFormValues &&
+      showMainScreenAnyway &&
+      fromAmount &&
+      tokenOutData.data?.amountOut.preciseBigDecimal
+    ) {
+      return (
+        <IframeComponent
+          src={sep24Url}
+          title="Verify Your Identity"
+          subtitle="Please follow the steps below to complete the identity verification."
+          assetIn={from}
+          assetOut={to}
+          fromAmount={committedFormValues.fromAmount}
+          toAmount={committedFormValues.toAmount}
+        />
+      );
+    }
     if (!showMainScreenAnyway) {
       return <ProgressPage offrampingState={offrampingState} />;
     }
@@ -271,23 +309,11 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-        {sep24Url !== undefined ? (
-          <a
-            href={sep24Url}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
-            onClick={resetSep24Url}
-          >
-            Enter details
-          </a>
-        ) : (
-          <SwapSubmitButton
-            text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-            pending={isInitiating || offrampingStarted || offrampingState !== undefined}
-          />
-        )}
+        <SwapSubmitButton
+          text={offrampingStarted ? 'Offramping in Progress' : 'Start Offramping'}
+          disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+          pending={offrampingStarted || offrampingState !== undefined}
+        />
       </form>
     </main>
   );

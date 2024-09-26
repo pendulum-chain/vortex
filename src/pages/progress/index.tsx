@@ -3,6 +3,8 @@ import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
+import { SigningBox } from '../../components/SigningBox';
+import { SigningPhase } from '../../hooks/useMainProcess';
 
 const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
   prepareTransactions: 'Preparing transactions',
