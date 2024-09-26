@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'preact/compat';
+import { useState, useEffect, useCallback, useRef } from 'preact/compat';
 
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
@@ -44,7 +44,8 @@ export const useMainProcess = () => {
   const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
   const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
   const [executionInput, setExecutionInput] = useState<ExtendedExecutionInput | undefined>(undefined);
-  const [sep24FirstInterval, setSep24FirstInterval] = useState<number | undefined>(undefined);
+
+  const sep24FirstIntervalRef = useRef<number | undefined>(undefined);
 
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
@@ -77,6 +78,14 @@ export const useMainProcess = () => {
   const addEvent = (message: string, status: EventStatus) => {
     console.log('Add event', message, status);
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
+  };
+
+  const cleanInterval = () => {
+    if (sep24FirstIntervalRef.current !== undefined) {
+      // stop executing the function, and reset the ref variable.
+      clearInterval(sep24FirstIntervalRef.current);
+      sep24FirstIntervalRef.current = undefined;
+    }
   };
 
   // Main submit handler. Offramp button.
@@ -128,14 +137,16 @@ export const useMainProcess = () => {
 
           const executeFinishInitialState = async () => {
             try {
-              // This will only return if the initialization of the offramping process is finished or exited because an error occurred
               await fetchAndUpdateSep24Url();
             } catch (error) {
               console.error('Some error occurred finalizing the initial state of the offramping process', error);
               setOfframpingStarted(false);
+              cleanInterval();
+              setFirstSep24Response(undefined);
             }
           };
-          setSep24FirstInterval(window.setInterval(executeFinishInitialState, 20000));
+
+          sep24FirstIntervalRef.current = window.setInterval(fetchAndUpdateSep24Url, 5000);
           executeFinishInitialState();
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
@@ -151,8 +162,9 @@ export const useMainProcess = () => {
       return;
     }
 
-    clearInterval(sep24FirstInterval); // stop fetching new sep24 url's
-    setSep24FirstInterval(undefined); // for UI button on main swap screen
+    // stop fetching new sep24 url's and
+    // for UI button on main swap screen
+    cleanInterval();
 
     const secondSep24Response = await sep24Second(firstSep24ResponseState, anchorSessionParams);
 
@@ -178,6 +190,7 @@ export const useMainProcess = () => {
 
     trackEvent(createTransactionEvent('kyc_completed', initialState));
     updateHookStateFromState(initialState);
+    setFirstSep24Response(undefined);
   }, [firstSep24ResponseState, anchorSessionParams, executionInput, updateHookStateFromState, trackEvent]);
 
   const finishOfframping = useCallback(() => {
@@ -215,6 +228,6 @@ export const useMainProcess = () => {
     continueFailedFlow,
     handleOnAnchorWindowOpen,
     signingPhase,
-    sep24FirstInterval,
+    sep24FirstIntervalRef,
   };
 };
