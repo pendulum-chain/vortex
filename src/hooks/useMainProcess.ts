@@ -141,7 +141,6 @@ export const useMainProcess = () => {
           const executeFinishInitialState = async () => {
             try {
               await fetchAndUpdateSep24Url();
-              throw new Error('This is a test error');
             } catch (error) {
               console.error('Some error occurred finalizing the initial state of the offramping process', error);
               setOfframpingStarted(false);
@@ -172,30 +171,40 @@ export const useMainProcess = () => {
     let firstSep24Response = firstSep24ResponseState;
     cleanSep24FirstVariables();
 
-    const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
+    let secondSep24Response;
+    try {
+      secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
+      console.log('secondSep24Response', secondSep24Response);
 
-    console.log('secondSep24Response', secondSep24Response);
-
-    // Check if the amount entered in the KYC UI matches the one we expect
-    if (!Big(secondSep24Response.amount).eq(executionInput.truncatedAmountToOfframp)) {
-      setOfframpingStarted(false);
-      console.error("The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.");
-      showToast(ToastMessage.AMOUNT_MISMATCH);
-      return;
+      // Check if the amount entered in the KYC UI matches the one we expect
+      if (!Big(secondSep24Response.amount).eq(executionInput.truncatedAmountToOfframp)) {
+        setOfframpingStarted(false);
+        console.error("The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.");
+        showToast(ToastMessage.AMOUNT_MISMATCH);
+        return;
+      }
+    } catch (error) {
+      console.error('Some error occurred on second part of sep24 process', error);
+      return setOfframpingStarted(false);
     }
 
-    const initialState = await constructInitialState({
-      sep24Id: firstSep24Response.id,
-      stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
-      inputTokenType: executionInput.inputTokenType,
-      outputTokenType: executionInput.outputTokenType,
-      amountIn: executionInput.amountInUnits,
-      amountOut: executionInput.minAmountOutUnits,
-      sepResult: secondSep24Response,
-    });
+    try {
+      const initialState = await constructInitialState({
+        sep24Id: firstSep24Response.id,
+        stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
+        inputTokenType: executionInput.inputTokenType,
+        outputTokenType: executionInput.outputTokenType,
+        amountIn: executionInput.amountInUnits,
+        amountOut: executionInput.minAmountOutUnits,
+        sepResult: secondSep24Response,
+      });
 
-    trackEvent(createTransactionEvent('kyc_completed', initialState));
-    updateHookStateFromState(initialState);
+      trackEvent(createTransactionEvent('kyc_completed', initialState));
+      updateHookStateFromState(initialState);
+    } catch (error) {
+      console.error('Some error occurred constructing initial state', error);
+      setOfframpingStarted(false);
+    }
   }, [firstSep24ResponseState, anchorSessionParams, executionInput, updateHookStateFromState, trackEvent]);
 
   const finishOfframping = useCallback(() => {
