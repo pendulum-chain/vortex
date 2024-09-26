@@ -111,6 +111,7 @@ export const useMainProcess = () => {
           const firstSep24Response = await sep24First(anchorSessionParams);
           console.log('sep24 url:', firstSep24Response.url);
           setSep24Url(firstSep24Response.url);
+          setIsInitiating(false);
 
           const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams!);
 
@@ -131,7 +132,6 @@ export const useMainProcess = () => {
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);
-        } finally {
           setIsInitiating(false);
         }
       })();
