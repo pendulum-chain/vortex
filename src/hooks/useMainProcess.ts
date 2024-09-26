@@ -80,11 +80,12 @@ export const useMainProcess = () => {
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
   };
 
-  const cleanInterval = () => {
+  const cleanSep24FirstVariables = () => {
     if (sep24FirstIntervalRef.current !== undefined) {
       // stop executing the function, and reset the ref variable.
       clearInterval(sep24FirstIntervalRef.current);
       sep24FirstIntervalRef.current = undefined;
+      setFirstSep24Response(undefined);
     }
   };
 
@@ -138,15 +139,15 @@ export const useMainProcess = () => {
           const executeFinishInitialState = async () => {
             try {
               await fetchAndUpdateSep24Url();
+              throw new Error('This is a test error');
             } catch (error) {
               console.error('Some error occurred finalizing the initial state of the offramping process', error);
               setOfframpingStarted(false);
-              cleanInterval();
-              setFirstSep24Response(undefined);
+              cleanSep24FirstVariables();
             }
           };
 
-          sep24FirstIntervalRef.current = window.setInterval(fetchAndUpdateSep24Url, 5000);
+          sep24FirstIntervalRef.current = window.setInterval(fetchAndUpdateSep24Url, 20000);
           executeFinishInitialState();
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
@@ -164,9 +165,10 @@ export const useMainProcess = () => {
 
     // stop fetching new sep24 url's and
     // for UI button on main swap screen
-    cleanInterval();
+    let firstSep24Response = firstSep24ResponseState;
+    cleanSep24FirstVariables();
 
-    const secondSep24Response = await sep24Second(firstSep24ResponseState, anchorSessionParams);
+    const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
 
     console.log('secondSep24Response', secondSep24Response);
 
@@ -179,7 +181,7 @@ export const useMainProcess = () => {
     }
 
     const initialState = await constructInitialState({
-      sep24Id: firstSep24ResponseState.id,
+      sep24Id: firstSep24Response.id,
       stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
       inputTokenType: executionInput.inputTokenType,
       outputTokenType: executionInput.outputTokenType,
@@ -190,7 +192,6 @@ export const useMainProcess = () => {
 
     trackEvent(createTransactionEvent('kyc_completed', initialState));
     updateHookStateFromState(initialState);
-    setFirstSep24Response(undefined);
   }, [firstSep24ResponseState, anchorSessionParams, executionInput, updateHookStateFromState, trackEvent]);
 
   const finishOfframping = useCallback(() => {
@@ -228,6 +229,5 @@ export const useMainProcess = () => {
     continueFailedFlow,
     handleOnAnchorWindowOpen,
     signingPhase,
-    sep24FirstIntervalRef,
   };
 };

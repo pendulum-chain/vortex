@@ -59,7 +59,6 @@ export const SwapPage = () => {
     handleOnAnchorWindowOpen,
     offrampingState,
     signingPhase,
-    sep24FirstIntervalRef,
   } = useMainProcess();
 
   const {
@@ -267,7 +266,7 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-        {firstSep24ResponseState?.url !== undefined && sep24FirstIntervalRef.current !== undefined ? (
+        {firstSep24ResponseState?.url !== undefined ? (
           <a
             href={firstSep24ResponseState.url}
             target="_blank"
