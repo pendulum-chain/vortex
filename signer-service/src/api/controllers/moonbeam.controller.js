@@ -2,11 +2,12 @@ const { createWalletClient, createPublicClient, http, encodeFunctionData } = req
 const { moonbeam } = require('viem/chains');
 const { privateKeyToAccount } = require('viem/accounts');
 
-const { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } = require('../../constants/constants');
+const {
+  MOONBEAM_EXECUTOR_PRIVATE_KEY,
+  MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+  MOONBEAM_FUNDING_AMOUNT_UNITS,
+} = require('../../constants/constants');
 const splitReceiverABI = require('../../../../mooncontracts/splitReceiverABI.json');
-
-// To check for the readiness of the executor account.
-const MINIMUM_BALANCE_IN_GLMR = 10;
 
 exports.executeXcmController = async (req, res) => {
   const { id, payload } = req.body;
@@ -61,7 +62,7 @@ exports.sendStatusWithPk = async () => {
     const balance = await publicClient.getBalance({ address: moonbeamExecutorAccount.address });
 
     // We are checking if the balance is less than 10 GLMR
-    let minimum_balance = MINIMUM_BALANCE_IN_GLMR * 10 ** 18;
+    let minimum_balance = MOONBEAM_FUNDING_AMOUNT_UNITS * 10 ** 18;
     if (balance < minimum_balance) {
       return { status: false, public: moonbeamExecutorAccount.address };
     } else {

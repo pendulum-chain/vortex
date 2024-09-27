@@ -136,16 +136,17 @@ export const SwapPage = () => {
     const outputAmountBigMargin = Big(minimumOutputAmount.preciseString)
       .round(2, 0)
       .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
-    const outputAmountRawMargin = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
+    const expecetedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
 
     const inputAmountBig = Big(fromAmountString);
     const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputToken.decimals).toFixed();
+
     Promise.all([
       getVaultsForCurrency(
         api!,
         outputToken.stellarAsset.code.hex,
         outputToken.stellarAsset.issuer.hex,
-        outputAmountRawMargin,
+        expecetedRedeemAmountRaw,
       ),
       testRoute(fromToken, inputAmountRaw),
     ])
