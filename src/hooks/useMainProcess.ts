@@ -42,9 +42,9 @@ export const useMainProcess = () => {
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
-  const [anchorSessionParams, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
+  const [anchorSessionParamsState, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
   const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
-  const [executionInput, setExecutionInput] = useState<ExtendedExecutionInput | undefined>(undefined);
+  const [executionInputState, setExecutionInput] = useState<ExtendedExecutionInput | undefined>(undefined);
 
   const sep24FirstIntervalRef = useRef<number | undefined>(undefined);
 
@@ -151,7 +151,7 @@ export const useMainProcess = () => {
           };
 
           sep24FirstIntervalRef.current = window.setInterval(fetchAndUpdateSep24Url, 20000);
-          executeFinishInitialState();
+          executeFinishInitialState().finally(() => setIsInitiating(false));
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);
@@ -163,13 +163,19 @@ export const useMainProcess = () => {
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
-    if (firstSep24ResponseState === undefined || anchorSessionParams === undefined || executionInput === undefined) {
+    if (
+      firstSep24ResponseState === undefined ||
+      anchorSessionParamsState === undefined ||
+      executionInputState === undefined
+    ) {
       return;
     }
 
-    // stop fetching new sep24 url's and
-    // for UI button on main swap screen
+    // stop fetching new sep24 url's and clean session variables from the state to be safe.
+    // We want to avoid session variables used in defferent sessions.
     let firstSep24Response = firstSep24ResponseState;
+    let anchorSessionParams = anchorSessionParamsState;
+    let executionInput = executionInputState;
     cleanSep24FirstVariables();
 
     let secondSep24Response;
@@ -206,7 +212,7 @@ export const useMainProcess = () => {
       console.error('Some error occurred constructing initial state', error);
       setOfframpingStarted(false);
     }
-  }, [firstSep24ResponseState, anchorSessionParams, executionInput, updateHookStateFromState, trackEvent]);
+  }, [firstSep24ResponseState, anchorSessionParamsState, executionInputState, updateHookStateFromState, trackEvent]);
 
   const finishOfframping = useCallback(() => {
     (async () => {
