@@ -12,12 +12,12 @@ interface TomlValues {
   kycServer?: string;
 }
 
-interface ISep24Intermediate {
+export interface ISep24Intermediate {
   url: string;
   id: string;
 }
 
-interface IAnchorSessionParams {
+export interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
   tokenConfig: OutputTokenDetails;
