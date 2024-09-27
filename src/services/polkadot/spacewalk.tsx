@@ -88,7 +88,6 @@ export async function getVaultsForCurrency(
   const vaultsForCurrency = vaults.filter((vault) => {
     // toString returns the hex string
     // toHuman returns the hex string if the string has length < 4, otherwise the readable string
-    console.log(vault);
     return (
       vault.id.currencies.wrapped.isStellar &&
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
@@ -100,8 +99,9 @@ export async function getVaultsForCurrency(
   });
 
   if (vaultsForCurrency.length === 0) {
-    console.log(`No vaults found for currency ${assetCodeHex}`);
-    throw new Error(`No vaults found for currency ${assetCodeHex}`);
+    let errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemAmount}`;
+    console.log(errorMessage);
+    throw new Error(errorMessage);
   }
 
   return vaultsForCurrency;

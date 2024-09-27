@@ -22,8 +22,11 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
         moonbeam: serviceResponse.moonbeam,
       };
     }
+
+    // we really want to throw for both cases: accounts not funded, or service down.
     throw new Error('One or more funding accounts are inactive');
-  } catch {
+  } catch (error) {
+    console.error('Signing service is down: ', error);
     throw new Error('Signing service is down');
   }
 };

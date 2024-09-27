@@ -7,7 +7,7 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { BenefitsList } from '../../components/BenefitsList';
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { ApiComponents, ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
+import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { ExchangeRate } from '../../components/ExchangeRate';
@@ -28,6 +28,7 @@ import { UserBalance } from '../../components/UserBalance';
 import { testRoute } from '../../services/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
+import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -38,24 +39,28 @@ const Arrow = () => (
 export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
-  const [apiComponents, setApiComponents] = useState<ApiComponents | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected } = useAccount();
+  const [initializeFailed, setInitializeFailed] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
-  // hook used for services on initialization and pre-offramp check
+  // Hook used for services on initialization and pre-offramp check
+  // That is why no dependencies are used
   useEffect(() => {
     const initializeApp = async () => {
       const manager = await getApiManagerInstance();
-      const apiComponents = await manager.getApiComponents();
+      const { api } = await manager.getApiComponents();
+      setApi(api);
       await initialChecks();
-      setApiComponents(apiComponents);
-      setApi(apiComponents.api);
     };
 
-    initializeApp().catch(() => {
-      // do something, like block the button and show a message.
-      console.log('Error in initializeApp');
-    });
+    initializeApp()
+      .then(() => {
+        setIsReady(true);
+      })
+      .catch(() => {
+        setInitializeFailed(true);
+      });
   }, []);
 
   // Main process hook
@@ -104,7 +109,7 @@ export const SwapPage = () => {
     tokenOutData.stableAmountInUnits != '' &&
     Big(tokenOutData.stableAmountInUnits).gt(Big(0));
 
-  function onSubmit(e: Event) {
+  function onConfirm(e: Event) {
     e.preventDefault();
 
     if (!inputAmountIsStable) return;
@@ -121,17 +126,28 @@ export const SwapPage = () => {
     }
 
     // test the route for starting token, then proceed
+    // will disable the confirm button
     setIsInitiating(true);
 
     const outputToken = OUTPUT_TOKEN_CONFIG[to];
+    const inputToken = INPUT_TOKEN_CONFIG[from];
+
+    // both route and stellar vault checks must be valid to proceed
+    const outputAmountBigMargin = Big(minimumOutputAmount.preciseString)
+      .round(2, 0)
+      .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
+    const outputAmountRawMargin = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
+
+    const inputAmountBig = Big(fromAmountString);
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputToken.decimals).toFixed();
     Promise.all([
       getVaultsForCurrency(
         api!,
         outputToken.stellarAsset.code.hex,
         outputToken.stellarAsset.issuer.hex,
-        '1000000000000000',
+        outputAmountRawMargin,
       ),
-      testRoute(fromToken),
+      testRoute(fromToken, inputAmountRaw),
     ])
       .then(() => {
         console.log('starting ....');
@@ -142,8 +158,9 @@ export const SwapPage = () => {
           minAmountOutUnits: minimumOutputAmount.preciseString,
         });
       })
-      .catch((error) => {
+      .catch((_error) => {
         setIsInitiating(false);
+        setInitializeFailed(true);
       });
   }
 
@@ -193,32 +210,32 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    // if (typeof userInputTokenBalance === 'string') {
-    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-    //   }
-    // }
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+      }
+    }
 
     const amountOut = tokenOutData.data?.amountOut;
 
-    // if (amountOut !== undefined) {
-    //   const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
-    //   const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
+    if (amountOut !== undefined) {
+      const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
+      const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
 
-    //   if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
-    //     const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
-    //     return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-    //       toToken.fiat.symbol
-    //     }.`;
-    //   }
+      if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
+        const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
+        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+          toToken.fiat.symbol
+        }.`;
+      }
 
-    //   if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
-    //     const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
-    //     return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-    //       toToken.fiat.symbol
-    //     }.`;
-    //   }
-    // }
+      if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
+        const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
+        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
+          toToken.fiat.symbol
+        }.`;
+      }
+    }
 
     return tokenOutData.error;
   }
@@ -274,7 +291,7 @@ export const SwapPage = () => {
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
-        onSubmit={onSubmit}
+        onSubmit={onConfirm}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
         <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
@@ -298,6 +315,13 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
+        <section className="flex justify-center w-full mt-5">
+          {initializeFailed && (
+            <p className="text-red-600">
+              Application initialization failed. Please reload, or try again later if the problem persists.
+            </p>
+          )}
+        </section>
         {sep24Url !== undefined ? (
           <a
             href={sep24Url}
@@ -311,7 +335,7 @@ export const SwapPage = () => {
         ) : (
           <SwapSubmitButton
             text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || initializeFailed || !isReady}
             pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}

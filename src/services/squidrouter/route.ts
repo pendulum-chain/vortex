@@ -151,16 +151,15 @@ export async function getRouteTransactionRequest(
   };
 }
 
-export async function testRoute(testingToken: InputTokenDetails) {
+export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string) {
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
-
-  const mockFromAddress = '0x2527db2c3dc99db4ab7689e1972bf7168bfe0417';
+  const mockFromAddress = '0x2527db2c3dc99db4ab7689e1972bf7168bfe0417'; // realy shouldn't matter
 
   let sharedRouteParams: RouteParams = {
     fromAddress: mockFromAddress,
     fromChain: fromChainId,
     fromToken: testingToken.erc20AddressSourceChain,
-    fromAmount: '1000000000',
+    fromAmount: attemptedAmountRaw,
     toChain: toChainId,
     toToken: axlUSDC_MOONBEAM,
     toAddress: mockFromAddress,
@@ -170,5 +169,6 @@ export async function testRoute(testingToken: InputTokenDetails) {
     enableExpress: true,
   };
 
+  // will throw if no route is found
   await getRoute(sharedRouteParams);
 }
