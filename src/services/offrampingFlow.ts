@@ -12,7 +12,7 @@ import {
   subsidizePostSwap,
   subsidizePreSwap,
 } from './polkadot/ephemeral';
-import { createStellarEphemeralSecret, SepResult } from './anchor';
+import { SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { stellarCleanup, stellarOfframp } from './stellar';
@@ -131,6 +131,7 @@ const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 
 export interface InitiateStateArguments {
   sep24Id: string;
+  stellarEphemeralSecret: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
@@ -140,6 +141,7 @@ export interface InitiateStateArguments {
 
 export async function constructInitialState({
   sep24Id,
+  stellarEphemeralSecret,
   inputTokenType,
   outputTokenType,
   amountIn,
@@ -147,7 +149,6 @@ export async function constructInitialState({
   sepResult,
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
-  const stellarEphemeralSecret = createStellarEphemeralSecret();
 
   const inputTokenDecimals = INPUT_TOKEN_CONFIG[inputTokenType].decimals;
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
