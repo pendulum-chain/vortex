@@ -99,7 +99,7 @@ export async function getVaultsForCurrency(
   });
 
   if (vaultsForCurrency.length === 0) {
-    let errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemAmount}`;
+    const errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemAmount}`;
     console.log(errorMessage);
     throw new Error(errorMessage);
   }

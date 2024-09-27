@@ -37,6 +37,7 @@ async function setupTest() {
     api,
     testToken.stellarAsset.code.hex,
     testToken.stellarAsset.issuer.hex,
+    '1000', // we don't mind the redeemable amount for this test.
   );
   if (vaultsForCurrency.length === 0) {
     console.log(`No vaults found for currency ${TEST_CURRENCY_SYMBOL}`);

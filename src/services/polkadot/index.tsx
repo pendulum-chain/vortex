@@ -136,6 +136,7 @@ export async function executeSpacewalkRedeem(
       pendulumApiComponents,
       outputToken.stellarAsset.code.hex,
       outputToken.stellarAsset.issuer.hex,
+      outputAmount.raw,
     );
     renderEvent(
       `Requesting redeem of ${outputAmount.units} tokens for vault ${prettyPrintVaultId(vaultService.vaultId)}`,

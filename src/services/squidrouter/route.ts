@@ -155,7 +155,7 @@ export async function testRoute(testingToken: InputTokenDetails, attemptedAmount
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
   const mockFromAddress = '0x2527db2c3dc99db4ab7689e1972bf7168bfe0417'; // realy shouldn't matter
 
-  let sharedRouteParams: RouteParams = {
+  const sharedRouteParams: RouteParams = {
     fromAddress: mockFromAddress,
     fromChain: fromChainId,
     fromToken: testingToken.erc20AddressSourceChain,
