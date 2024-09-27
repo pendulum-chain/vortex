@@ -87,6 +87,8 @@ export const useMainProcess = () => {
       clearInterval(sep24FirstIntervalRef.current);
       sep24FirstIntervalRef.current = undefined;
       setFirstSep24Response(undefined);
+      setExecutionInput(undefined);
+      setAnchorSessionParams(undefined);
     }
   };
 
@@ -153,7 +155,6 @@ export const useMainProcess = () => {
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
           setOfframpingStarted(false);
-        } finally {
           setIsInitiating(false);
         }
       })();
