@@ -1,36 +1,29 @@
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 
-interface PendulumFundingStatus {
-  status: boolean;
-  public: string;
-}
-
-interface StellarFundingStatus {
+interface AccountStatusResponse {
   status: boolean;
   public: string;
 }
 interface SigningServiceStatus {
-  pendulum: PendulumFundingStatus;
-  stellar: StellarFundingStatus;
+  pendulum: AccountStatusResponse;
+  stellar: AccountStatusResponse;
+  moonbeam: AccountStatusResponse;
 }
 
 export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStatus> => {
   try {
     const serviceResponse: SigningServiceStatus = await (await fetch(`${SIGNING_SERVICE_URL}/v1/status`)).json();
 
-    if (serviceResponse.stellar.status == true && serviceResponse.pendulum.status == true) {
-      return { stellar: serviceResponse.stellar, pendulum: serviceResponse.pendulum };
+    const allServicesActive = Object.values(serviceResponse).every((service: AccountStatusResponse) => service.status);
+    if (allServicesActive) {
+      return {
+        stellar: serviceResponse.stellar,
+        pendulum: serviceResponse.pendulum,
+        moonbeam: serviceResponse.moonbeam,
+      };
     }
-    throw new Error('Could not fetch funding secret key or signing service is down');
+    throw new Error('One or more funding accounts are inactive');
   } catch {
-    throw new Error('Could not fetch funding secret key or signing service is down');
-  }
-};
-
-// helper function to check if the signing service is operational, regardless of the reason.
-export const isSigningServiceOperational = async () => {
-  let signerServiceStatus = await fetchSigningServiceAccountId();
-  if (!signerServiceStatus.stellar.status || !signerServiceStatus.pendulum.status) {
-    throw new Error('Signing service status: false');
+    throw new Error('Signing service is down');
   }
 };

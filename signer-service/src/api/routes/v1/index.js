@@ -10,14 +10,17 @@ const subsidizeRoutes = require('./subsidize.route');
 const router = express.Router({ mergeParams: true });
 const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../services/stellar.service');
 const { sendStatusWithPk: sendPendulumStatusWithPk } = require('../../services/pendulum.service');
+const { sendStatusWithPk: sendMoonbeamStatusWithPk } = require('../../controllers/moonbeam.controller');
 
 async function sendStatusWithPk(req, res, next) {
   const stellar = await sendStellarStatusWithPk();
   const pendulum = await sendPendulumStatusWithPk();
+  const moonbeam = await sendMoonbeamStatusWithPk();
 
   res.json({
     stellar,
     pendulum,
+    moonbeam,
   });
 }
 /**
