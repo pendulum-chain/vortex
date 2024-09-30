@@ -95,9 +95,11 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
-      if (offrampingStarted || offrampingState !== undefined) return;
+      if (offrampingStarted || offrampingState !== undefined) {
+        setIsInitiating(false);
+        return;
+      }
 
-      setIsInitiating(true);
       (async () => {
         setOfframpingStarted(true);
         trackEvent({
@@ -246,6 +248,7 @@ export const useMainProcess = () => {
     offrampingState,
     offrampingStarted,
     isInitiating,
+    setIsInitiating,
     finishOfframping,
     continueFailedFlow,
     handleOnAnchorWindowOpen,

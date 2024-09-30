@@ -25,6 +25,10 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+import { testRoute } from '../../services/squidrouter/route';
+import { initialChecks } from '../../services/initialChecks';
+import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
+import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -36,17 +40,27 @@ export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
-
   const { isDisconnected } = useAccount();
+  const [initializeFailed, setInitializeFailed] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
+  // Hook used for services on initialization and pre-offramp check
+  // That is why no dependencies are used
   useEffect(() => {
-    const initializeApiManager = async () => {
+    const initializeApp = async () => {
       const manager = await getApiManagerInstance();
       const { api } = await manager.getApiComponents();
       setApi(api);
+      await initialChecks();
     };
 
-    initializeApiManager().catch(console.error);
+    initializeApp()
+      .then(() => {
+        setIsReady(true);
+      })
+      .catch(() => {
+        setInitializeFailed(true);
+      });
   }, []);
 
   // Main process hook
@@ -60,6 +74,7 @@ export const SwapPage = () => {
     offrampingState,
     isInitiating,
     signingPhase,
+    setIsInitiating,
   } = useMainProcess();
 
   const {
@@ -93,7 +108,7 @@ export const SwapPage = () => {
     tokenOutData.stableAmountInUnits != '' &&
     Big(tokenOutData.stableAmountInUnits).gt(Big(0));
 
-  function onSubmit(e: Event) {
+  function onConfirm(e: Event) {
     e.preventDefault();
 
     if (!inputAmountIsStable) return;
@@ -109,14 +124,44 @@ export const SwapPage = () => {
       return;
     }
 
-    console.log('starting ....');
+    // test the route for starting token, then proceed
+    // will disable the confirm button
+    setIsInitiating(true);
 
-    handleOnSubmit({
-      inputTokenType: from as InputTokenType,
-      outputTokenType: to as OutputTokenType,
-      amountInUnits: fromAmountString,
-      minAmountOutUnits: minimumOutputAmount.preciseString,
-    });
+    const outputToken = OUTPUT_TOKEN_CONFIG[to];
+    const inputToken = INPUT_TOKEN_CONFIG[from];
+
+    // both route and stellar vault checks must be valid to proceed
+    const outputAmountBigMargin = Big(minimumOutputAmount.preciseString)
+      .round(2, 0)
+      .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
+    const expecetedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
+
+    const inputAmountBig = Big(fromAmountString);
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputToken.decimals).toFixed();
+
+    Promise.all([
+      getVaultsForCurrency(
+        api!,
+        outputToken.stellarAsset.code.hex,
+        outputToken.stellarAsset.issuer.hex,
+        expecetedRedeemAmountRaw,
+      ),
+      testRoute(fromToken, inputAmountRaw),
+    ])
+      .then(() => {
+        console.log('starting ....');
+        handleOnSubmit({
+          inputTokenType: from as InputTokenType,
+          outputTokenType: to as OutputTokenType,
+          amountInUnits: fromAmountString,
+          minAmountOutUnits: minimumOutputAmount.preciseString,
+        });
+      })
+      .catch((_error) => {
+        setIsInitiating(false);
+        setInitializeFailed(true);
+      });
   }
 
   useEffect(() => {
@@ -246,7 +291,7 @@ export const SwapPage = () => {
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
-        onSubmit={onSubmit}
+        onSubmit={onConfirm}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
         <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
@@ -270,6 +315,13 @@ export const SwapPage = () => {
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
+        <section className="flex justify-center w-full mt-5">
+          {initializeFailed && (
+            <p className="text-red-600">
+              Application initialization failed. Please reload, or try again later if the problem persists.
+            </p>
+          )}
+        </section>
         {firstSep24ResponseState?.url !== undefined ? (
           <a
             href={firstSep24ResponseState.url}
@@ -283,7 +335,7 @@ export const SwapPage = () => {
         ) : (
           <SwapSubmitButton
             text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || initializeFailed || !isReady}
             pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}
