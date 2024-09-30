@@ -4840,6 +4840,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react@npm:^17.0.83":
+  version: 17.0.83
+  resolution: "@types/react@npm:17.0.83"
+  dependencies:
+    "@types/prop-types": "npm:*"
+    "@types/scheduler": "npm:^0.16"
+    csstype: "npm:^3.0.2"
+  checksum: 0abf5c8ccf8ee03e28ff7cd077e7759f4a65c4694a23f6a2b6574e2ea2a3a8e7f6d6a5802e847454091a006d4b4ebc8a485ada74fbfc3cf19c7221171b1538ab
+  languageName: node
+  linkType: hard
+
+"@types/scheduler@npm:^0.16":
+  version: 0.16.8
+  resolution: "@types/scheduler@npm:0.16.8"
+  checksum: 6c091b096daa490093bf30dd7947cd28e5b2cd612ec93448432b33f724b162587fed9309a0acc104d97b69b1d49a0f3fc755a62282054d62975d53d7fd13472d
+  languageName: node
+  linkType: hard
+
 "@types/secp256k1@npm:^4.0.6":
   version: 4.0.6
   resolution: "@types/secp256k1@npm:4.0.6"
@@ -13029,6 +13047,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-dom@npm:@preact/compat@17.1.2, react@npm:@preact/compat@17.1.2":
+  version: 17.1.2
+  resolution: "@preact/compat@npm:17.1.2"
+  peerDependencies:
+    preact: "*"
+  checksum: 512b0f149fc11e36c5980c4173c696d17b2b4e78f500ca44fde9c688a1d58b835b70c91161d6d5d903e5d46b4649fc73b28151f43d7cdf91ec2825b24e8cdf7b
+  languageName: node
+  linkType: hard
+
 "react-dom@npm:^18.2.0":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1"
@@ -15615,6 +15642,7 @@ __metadata:
     "@types/big.js": "npm:^6"
     "@types/bn.js": "npm:^5"
     "@types/node": "npm:^18.14.1"
+    "@types/react": "npm:^17.0.83"
     "@typescript-eslint/eslint-plugin": "npm:^5.53.0"
     "@typescript-eslint/parser": "npm:^5.53.0"
     "@walletconnect/modal": "npm:^2.6.2"
@@ -15635,7 +15663,9 @@ __metadata:
     postcss: "npm:^8.4.38"
     preact: "npm:^10.12.1"
     prettier: "npm:^2.8.4"
+    react: "npm:@preact/compat@17.1.2"
     react-daisyui: "npm:^5.0.0"
+    react-dom: "npm:@preact/compat@17.1.2"
     react-hook-form: "npm:^7.51.5"
     react-router-dom: "npm:^6.8.1"
     react-toastify: "npm:^10.0.5"
