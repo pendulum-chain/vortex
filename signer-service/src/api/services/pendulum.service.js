@@ -1,7 +1,13 @@
 const { Keyring } = require('@polkadot/api');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 const Big = require('big.js');
-const { PENDULUM_FUNDING_AMOUNT_UNITS, PENDULUM_WSS } = require('../../constants/constants');
+const {
+  PENDULUM_FUNDING_AMOUNT_UNITS,
+  PENDULUM_WSS,
+  SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
+} = require('../../constants/constants');
+const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+
 require('dotenv').config();
 
 const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
@@ -56,7 +62,32 @@ exports.sendStatusWithPk = async () => {
   const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
 
-  if (Big(balance.free.toString()).gte(fundingAmountRaw)) {
+  const tokensToCheck = ['eurc', 'usdc.axl'];
+  let isTokensSufficient = true;
+
+  // Wait for all required token balances check.
+  await Promise.all(
+    tokensToCheck.map(async (token) => {
+      const tokenConfig = TOKEN_CONFIG[token];
+
+      const tokenBalanceResponse = await apiData.api.query.tokens.accounts(
+        fundingAccountKeypair.address,
+        tokenConfig.pendulumCurrencyId,
+      );
+
+      const tokenBalance = Big(tokenBalanceResponse?.free?.toString() ?? '0');
+      const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
+      const subsidyRatio = tokenBalance.div(maximumSubsidyAmountRaw);
+
+      if (subsidyRatio.lt(SUBSIDY_MINIMUM_RATIO_FUND_UNITS)) {
+        isTokensSufficient = false;
+        console.log(`Token ${token} balance is insufficient.`);
+      }
+    }),
+  );
+
+  const nativeBalance = Big(balance?.free?.toString() ?? '0');
+  if (nativeBalance.gte(fundingAmountRaw) && isTokensSufficient) {
     return { status: true, public: fundingAccountKeypair.address };
   }
   return { status: false, public: fundingAccountKeypair.address };
