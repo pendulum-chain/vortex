@@ -62,14 +62,14 @@ exports.sendStatusWithPk = async () => {
   const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
 
-  const tokensToCheck = ['eurc', 'usdc.axl'];
+  const tokensToCheck = Object.keys(TOKEN_CONFIG);
   let isTokensSufficient = true;
 
   // Wait for all required token balances check.
   await Promise.all(
     tokensToCheck.map(async (token) => {
       const tokenConfig = TOKEN_CONFIG[token];
-
+      console.log(`Checking token ${token} balance...`);
       const tokenBalanceResponse = await apiData.api.query.tokens.accounts(
         fundingAccountKeypair.address,
         tokenConfig.pendulumCurrencyId,
