@@ -15,7 +15,6 @@ export default defineConfig({
   // @ts-ignore
   test: {
     globals: true,
-    setupFiles: ['./src/setupTests.ts'],
     environment: 'happy-dom',
     testTimeout: 15000,
   },
