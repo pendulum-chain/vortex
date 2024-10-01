@@ -25,6 +25,7 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+import { useEventsContext } from '../../contexts/events';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -38,6 +39,8 @@ export const SwapPage = () => {
   const [api, setApi] = useState<ApiPromise | null>(null);
 
   const { isDisconnected } = useAccount();
+
+  const { trackEvent } = useEventsContext();
 
   useEffect(() => {
     const initializeApiManager = async () => {
@@ -167,6 +170,7 @@ export const SwapPage = () => {
 
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
@@ -179,6 +183,7 @@ export const SwapPage = () => {
 
       if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
         const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
+        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
         return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
@@ -186,6 +191,7 @@ export const SwapPage = () => {
 
       if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
         const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
+        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
