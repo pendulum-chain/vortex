@@ -197,6 +197,8 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
   const sep24Params = new URLSearchParams({
     asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
     amount: sessionParams.offrampAmount,
+    callback: 'callback-complete',
+    on_change_callback: 'callback-change',
   });
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;

@@ -168,12 +168,13 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
+    // TESTING - REMOVE
+    // if (typeof userInputTokenBalance === 'string') {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+    //     trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+    //   }
+    // }
 
     const amountOut = tokenOutData.data?.amountOut;
 
@@ -247,6 +248,30 @@ export const SwapPage = () => {
     }
   }
 
+  // We create one listener to listen for the anchor callback, on initialize.
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.origin != 'https://circle.anchor.mykobo.co') {
+        return;
+      }
+
+      // See: https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md
+      // status: pending_user_transfer_start indicates the anchor is ready to receive funds
+      if (event.data.transaction.status === 'pending_user_transfer_start') {
+        console.log('Callback received from external site, anchor flow completed. Closing...');
+        event.source.close();
+      }
+    };
+
+    // Add the message listener
+    window.addEventListener('message', handleMessage);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
   const main = (
     <main ref={formRef}>
       <SigningBox step={signingPhase} />
@@ -279,8 +304,8 @@ export const SwapPage = () => {
         {firstSep24ResponseState?.url !== undefined ? (
           <a
             href={firstSep24ResponseState.url}
-            target="_blank"
-            rel="noreferrer"
+            target="popupWindow"
+            rel="opener"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={handleOnAnchorWindowOpen}
           >
