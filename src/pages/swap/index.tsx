@@ -304,7 +304,7 @@ export const SwapPage = () => {
         {firstSep24ResponseState?.url !== undefined ? (
           <a
             href={firstSep24ResponseState.url}
-            target="popupWindow"
+            target="_blank"
             rel="opener"
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={handleOnAnchorWindowOpen}
