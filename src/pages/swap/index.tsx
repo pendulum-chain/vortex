@@ -250,7 +250,7 @@ export const SwapPage = () => {
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
-    const handleMessage = (event) => {
+    const handleMessage = (event: any) => {
       if (event.origin != 'https://circle.anchor.mykobo.co') {
         return;
       }
@@ -305,7 +305,7 @@ export const SwapPage = () => {
           <a
             href={firstSep24ResponseState.url}
             target="_blank"
-            rel="opener"
+            rel="opener" //noopener forbids the use of postMessages.
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={handleOnAnchorWindowOpen}
           >
