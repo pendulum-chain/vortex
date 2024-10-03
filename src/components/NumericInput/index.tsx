@@ -13,11 +13,6 @@ interface NumericInputProps {
   disableStyles?: boolean;
 }
 
-export enum USER_INPUT_MAX_DECIMALS {
-  PENDULUM = 12,
-  STELLAR = 7,
-}
-
 export const NumericInput = ({
   register,
   readOnly = false,
@@ -52,7 +47,6 @@ export const NumericInput = ({
         }
         minlength="1"
         onChange={handleOnChange}
-        onKeyDown={handleOnKeyDownNumericInput}
         onPaste={handleOnPaste}
         pattern="^[0-9]*[.,]?[0-9]*$"
         placeholder="0.0"

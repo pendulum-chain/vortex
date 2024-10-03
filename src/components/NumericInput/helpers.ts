@@ -28,6 +28,10 @@ export function handleOnChangeNumericInput(e: KeyboardEvent, maxDecimals: number
   target.value = sanitizeNumericInput(target.value);
 
   target.value = trimToMaxDecimals(target.value, maxDecimals);
+
+  target.value = handleLeadingZeros(target.value);
+
+  target.value = replaceInvalidOrEmptyString(target.value);
 }
 
 /**
@@ -40,10 +44,25 @@ function alreadyHasDecimal(e: KeyboardEvent) {
   return decimalChars.some((char) => e.key === char && e.target && (e.target as HTMLInputElement).value.includes('.'));
 }
 
-export function handleOnKeyDownNumericInput(e: KeyboardEvent): void {
-  if (alreadyHasDecimal(e)) {
-    e.preventDefault();
+function replaceInvalidOrEmptyString(value: string): string {
+  if (value === '' || value === '.') {
+    return '0';
   }
+  return value;
+}
+
+function handleLeadingZeros(value: string): string {
+  if (Number(value) >= 1) {
+    return value.replace(/^0+/, '');
+  }
+
+  // Add leading zeros for numbers < 1 that don't start with '0'
+  if (Number(value) < 1 && value[0] !== '0') {
+    return '0' + value;
+  }
+
+  // No more than one leading zero
+  return value.replace(/^0+/, '0');
 }
 
 /**
