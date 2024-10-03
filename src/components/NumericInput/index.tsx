@@ -1,6 +1,6 @@
 import { Input } from 'react-daisyui';
 import { UseFormRegisterReturn } from 'react-hook-form';
-import { handleOnChangeNumericInput, handleOnKeyDownNumericInput, handleOnPasteNumericInput } from './helpers';
+import { handleOnChangeNumericInput, handleOnPasteNumericInput } from './helpers';
 
 interface NumericInputProps {
   register: UseFormRegisterReturn;
@@ -9,7 +9,6 @@ interface NumericInputProps {
   maxDecimals?: number;
   defaultValue?: string;
   autoFocus?: boolean;
-  disabled?: boolean;
   disableStyles?: boolean;
 }
 
@@ -20,7 +19,6 @@ export const NumericInput = ({
   maxDecimals = 2,
   defaultValue,
   autoFocus,
-  disabled,
   disableStyles = false,
 }: NumericInputProps) => {
   function handleOnChange(e: KeyboardEvent): void {

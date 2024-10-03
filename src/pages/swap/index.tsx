@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import { useAccount } from 'wagmi';
 import Big from 'big.js';
@@ -125,9 +126,9 @@ export const SwapPage = () => {
     } else if (!tokenOutData.isLoading || tokenOutData.error) {
       form.setValue('toAmount', '0');
     } else {
-      // Do nothing?
+      // Do nothing
     }
-  }, [form, tokenOutData.data, tokenOutData.error, toToken]);
+  }, [form, tokenOutData.data, tokenOutData.error, tokenOutData.isLoading, toToken]);
 
   const ReceiveNumericInput = useMemo(
     () => (
