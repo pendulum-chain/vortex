@@ -34,16 +34,6 @@ export function handleOnChangeNumericInput(e: KeyboardEvent, maxDecimals: number
   target.value = replaceInvalidOrEmptyString(target.value);
 }
 
-/**
- * Checks if the input already has a decimal point and prevents the user from entering another one.
- * Why onKeyDown? Because it is triggered before the character is processed and added to the input value.
- */
-
-function alreadyHasDecimal(e: KeyboardEvent) {
-  const decimalChars = ['.', ','];
-  return decimalChars.some((char) => e.key === char && e.target && (e.target as HTMLInputElement).value.includes('.'));
-}
-
 function replaceInvalidOrEmptyString(value: string): string {
   if (value === '' || value === '.') {
     return '0';
