@@ -87,6 +87,7 @@ export function handleOnPasteNumericInput(e: ClipboardEvent, maxDecimals: number
 
   e.preventDefault();
   inputElement.value = trimToMaxDecimals(sanitizedValue, maxDecimals);
+  inputElement.value = handleLeadingZeros(inputElement.value);
 
   const newCursorPosition =
     (selectionStart || 0) + clipboardData.length - (combinedValue.length - sanitizedValue.length);
