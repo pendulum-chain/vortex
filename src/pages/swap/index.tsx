@@ -26,6 +26,7 @@ import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
 import { useEventsContext } from '../../contexts/events';
+import { showToast, ToastMessage } from '../../helpers/notifications';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -260,6 +261,7 @@ export const SwapPage = () => {
       if (event.data.transaction.status === 'pending_user_transfer_start') {
         console.log('Callback received from external site, anchor flow completed. Closing...');
         event.source.close();
+        showToast(ToastMessage.KYC_COMPLETED);
       }
     };
 
@@ -308,6 +310,7 @@ export const SwapPage = () => {
             rel="opener" //noopener forbids the use of postMessages.
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={handleOnAnchorWindowOpen}
+            // open in a tinier window
           >
             Enter details
           </a>
