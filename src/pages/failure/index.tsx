@@ -35,7 +35,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
             </p>
             <p>Either try to continue or start over.</p>
           </>
-        )}
+        ): (<p></p>)}
         {failure === 'recoverable' && (
           <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
             Continue
