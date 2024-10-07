@@ -25,7 +25,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12">
         <Cross />
-        <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Withdrawal unsuccessful</h1>
+        <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Oops! Something went wrong</h1>
         {transactionId && <TransactionInfo transactionId={transactionId} />}
         {failure === 'recoverable' ? (
           <>
@@ -35,10 +35,6 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
             </p>
             <p>Either try to continue or start over.</p>
           </>
-        ) : (
-          <p className="mt-6 text-center">
-            Unfortunately, your withdrawal request could not be processed. Please try again.
-          </p>
         )}
         {failure === 'recoverable' && (
           <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
@@ -46,10 +42,11 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
           </button>
         )}
         <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
-          Start over
+          Try again
         </button>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <p className="text-center text-gray-400">If you continue to experience issues, contact support on:</p>
+        <p className="text-center text-gray-400">In case you experience any issues, please copy this {transactionId && <TransactionInfo transactionId={transactionId} />} </p>
+        <p className="text-center text-gray-400">Contact our support team at: We’re here to help!</p>
         <TelegramButton />
         <EmailForm transactionId={transactionId} />
       </Box>
