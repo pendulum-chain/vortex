@@ -21,7 +21,7 @@ const ToastProperties: Record<ToastMessage, ToastSettings> = {
   [ToastMessage.KYC_COMPLETED]: {
     message: 'Successfully completed KYC. Offramp is being processed.',
     options: {
-      toastId: ToastMessage.AMOUNT_MISMATCH,
+      toastId: ToastMessage.KYC_COMPLETED,
       type: 'success',
     },
   },
