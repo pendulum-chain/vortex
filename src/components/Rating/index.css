@@ -1,0 +1,8 @@
+.rating input:hover ~ input,
+.rating input:hover {
+  --tw-bg-opacity: 1 !important;
+}
+
+.rating input {
+  --tw-bg-opacity: 0.2 !important;
+}
