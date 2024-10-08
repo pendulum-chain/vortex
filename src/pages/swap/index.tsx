@@ -89,7 +89,9 @@ export const SwapPage = () => {
   });
 
   const inputAmountIsStable =
-    tokenOutData.stableAmountInUnits !== undefined && Big(tokenOutData.stableAmountInUnits).gt(Big(0));
+    tokenOutData.stableAmountInUnits !== undefined &&
+    tokenOutData.stableAmountInUnits != '' &&
+    Big(tokenOutData.stableAmountInUnits).gt(Big(0));
 
   function onSubmit(e: Event) {
     e.preventDefault();
