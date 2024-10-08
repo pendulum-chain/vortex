@@ -136,8 +136,11 @@ export const useMainProcess = () => {
 
           const fetchAndUpdateSep24Url = async () => {
             let firstSep24Response = await sep24First(anchorSessionParams);
-            firstSep24Response.url = firstSep24Response.url + '&callback=postMessage';
+            const url = new URL(firstSep24Response.url);
+            url.searchParams.append('callback', 'postMessage');
+            firstSep24Response.url = url.toString();
             setFirstSep24Response(firstSep24Response);
+
             console.log('SEP24 url:', firstSep24Response.url);
           };
 
