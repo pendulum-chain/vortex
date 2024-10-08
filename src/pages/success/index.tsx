@@ -23,7 +23,7 @@ export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProp
         <Checkmark />
         <h1 className="mt-6 text-2xl font-bold text-center text-blue-700">All set! The withdrawal has been sent to your bank</h1>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <p className="text-center text-gray-400"> Funds will received in 1 min (Instant SEPA) or 2 days (Standard SEPA)
+        <p className="text-center text-gray-400"> Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA).
         </p>
         <EmailForm transactionId={transactionId} />
         <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
