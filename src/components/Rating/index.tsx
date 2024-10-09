@@ -12,7 +12,7 @@ import './index.css';
 export function Rating() {
   const { isVisible, setIsVisible, setTimestamp } = useRatingVisibility();
   const [rating, setRating] = useState(0);
-  const { address } = useAccount();
+  const { address: walletAddress } = useAccount();
 
   const {
     mutate: saveUserRatingMutation,
@@ -31,9 +31,9 @@ export function Rating() {
   }, [isError, isSuccess, setTimestamp, setIsVisible]);
 
   const onSubmit = (ratingValue: number) => {
-    if (address) {
+    if (walletAddress) {
       setRating(ratingValue);
-      saveUserRatingMutation({ rating: ratingValue, walletAddress: address });
+      saveUserRatingMutation({ rating: ratingValue, walletAddress });
     }
   };
 
