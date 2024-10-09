@@ -6,11 +6,12 @@ preact/
 internals/
 docs/
 .lighthouseci/
-
+**/coins/*
 *.yml
 
 package-lock.json
 package.json
 yarn.lock
+.prettierignore 
 
 CHANGELOG.md
