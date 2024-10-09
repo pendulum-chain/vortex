@@ -17,6 +17,7 @@ import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { useEffect } from 'preact/hooks';
 import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
 import { SwapFormValues } from '../../components/Nabla/schema';
+import { useEventsContext } from '../../contexts/events';
 
 type UseTokenOutAmountProps = {
   wantsSwap: boolean;
@@ -51,6 +52,7 @@ export function useTokenOutAmount({
   form,
 }: UseTokenOutAmountProps) {
   const { setError, clearErrors } = form;
+  const { trackEvent } = useEventsContext();
 
   const debouncedFromAmountString = useDebouncedValue(fromAmountString, 800);
   let debouncedAmountBigDecimal: Big | undefined;
@@ -116,16 +118,19 @@ export function useTokenOutAmount({
         };
       },
       parseError: (error) => {
+        const insufficientLiquidityMessage = () => {
+          trackEvent({ event: 'form_error', error_message: 'insufficient_liquidity' });
+          return 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.';
+        };
+
         switch (error.type) {
           case 'error':
             return 'Something went wrong';
           case 'panic':
-            return error.errorCode === 0x11
-              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
-              : 'Something went wrong';
+            return error.errorCode === 0x11 ? insufficientLiquidityMessage() : 'Something went wrong';
           case 'reverted':
             return error.description === 'SwapPool: EXCEEDS_MAX_COVERAGE_RATIO'
-              ? 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.'
+              ? insufficientLiquidityMessage()
               : 'Something went wrong';
           default:
             return 'Something went wrong';

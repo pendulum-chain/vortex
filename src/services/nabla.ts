@@ -138,7 +138,7 @@ export async function nablaApprove(
 
   if (!transactions) {
     console.error('Missing transactions for nablaApprove');
-    return { ...state, isFailure: true };
+    return { ...state, failure: 'unrecoverable' };
   }
 
   const successorState = {
@@ -311,7 +311,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   if (transactions === undefined) {
     console.error('Missing transactions for nablaSwap');
-    throw new Error('Missing transactions for nablaSwap');
+    return { ...state, failure: 'unrecoverable' };
   }
 
   const { api, ss58Format } = (await getApiManagerInstance()).apiData!;

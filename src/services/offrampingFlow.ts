@@ -12,7 +12,7 @@ import {
   subsidizePostSwap,
   subsidizePreSwap,
 } from './polkadot/ephemeral';
-import { createStellarEphemeralSecret, SepResult } from './anchor';
+import { SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { stellarCleanup, stellarOfframp } from './stellar';
@@ -26,6 +26,8 @@ import encodePayload from './squidrouter/payload';
 import { executeXCM } from './moonbeam';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
+
+export type FailureType = 'recoverable' | 'unrecoverable';
 
 export type OfframpingPhase =
   | 'prepareTransactions'
@@ -63,7 +65,7 @@ export interface OfframpingState {
 
   phase: OfframpingPhase | FinalOfframpingPhase;
 
-  isFailure?: boolean;
+  failure?: FailureType;
 
   // phase squidRouter
   squidRouterReceiverId: `0x${string}`;
@@ -129,6 +131,7 @@ const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 
 export interface InitiateStateArguments {
   sep24Id: string;
+  stellarEphemeralSecret: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
@@ -138,6 +141,7 @@ export interface InitiateStateArguments {
 
 export async function constructInitialState({
   sep24Id,
+  stellarEphemeralSecret,
   inputTokenType,
   outputTokenType,
   amountIn,
@@ -145,7 +149,6 @@ export async function constructInitialState({
   sepResult,
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
-  const stellarEphemeralSecret = createStellarEphemeralSecret();
 
   const inputTokenDecimals = INPUT_TOKEN_CONFIG[inputTokenType].decimals;
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
@@ -203,14 +206,14 @@ export function recoverFromFailure(state: OfframpingState | undefined) {
     return undefined;
   }
 
-  if (state.isFailure !== true) {
+  if (state.failure !== undefined) {
     console.log('Current state is not a failure.');
     return state;
   }
 
   const newState = {
     ...state,
-    isFailure: undefined,
+    failure: undefined,
     failureTimeoutAt: Date.now() + minutesInMs(5),
   };
   storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
@@ -232,8 +235,8 @@ export async function advanceOfframpingState(
     return undefined;
   }
 
-  const { phase, isFailure } = state;
-  const phaseIsFinal = phase === 'success' || isFailure === true;
+  const { phase, failure } = state;
+  const phaseIsFinal = phase === 'success' || failure !== undefined;
 
   if (phaseIsFinal) {
     console.log('Offramping is already in a final phase:', phase);
@@ -259,8 +262,8 @@ export async function advanceOfframpingState(
       return state;
     }
 
-    console.error('Unrecoverable error advancing offramping state', error);
-    newState = { ...state, isFailure: true };
+    console.error('Error advancing offramping state', error);
+    newState = { ...state, failure: 'recoverable' };
   }
 
   if (newState !== undefined) {

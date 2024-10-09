@@ -3,7 +3,8 @@ import { TransactionInfo } from '../../components/TransactionInfo';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
-import { TelegramButton } from '../../components/buttons/TelegramButton';
+import { FailureType } from '../../services/offrampingFlow';
+import { config } from '../../config';
 
 const Cross = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-red-500 rounded-full">
@@ -15,30 +16,48 @@ interface FailurePageProps {
   finishOfframping: () => void;
   continueFailedFlow: () => void;
   transactionId: string | undefined;
+  failure: FailureType;
 }
 
-export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId }: FailurePageProps) => {
+export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId, failure }: FailurePageProps) => {
   console.log('Failure page');
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12">
         <Cross />
-        <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Withdrawal unsuccessful</h1>
+        <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Oops! Something went wrong</h1>
         {transactionId && <TransactionInfo transactionId={transactionId} />}
-        <p className="mt-6 text-center">
-          Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary
-          problem such as bad internet connection.
-        </p>
-        <p>Either try to continue or start over.</p>
-        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
-          Continue
-        </button>
+        {failure === 'recoverable' ? (
+          <>
+            <p className="mt-6 text-center">
+              Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary
+              problem such as bad internet connection.
+            </p>
+            <p>Either try to continue or start over.</p>
+          </>
+        ) : undefined}
+        {failure === 'recoverable' && (
+          <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
+            Continue
+          </button>
+        )}
         <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
-          Start over
+          Try again
         </button>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <p className="text-center text-gray-400">If you continue to experience issues, contact support on:</p>
-        <TelegramButton />
+        {transactionId && (
+          <p className="text-center text-gray-400">
+            In case you experience any issues, please copy this
+            <TransactionInfo transactionId={transactionId} />
+          </p>
+        )}
+        <p className="text-center text-gray-400 mb-6">
+          Contact our support team on{' '}
+          <a href={config.telegramUrl} target="_blank" rel="noreferrer" className="underline">
+            Telegram
+          </a>
+          . We’re here to help!
+        </p>
         <EmailForm transactionId={transactionId} />
       </Box>
     </main>
