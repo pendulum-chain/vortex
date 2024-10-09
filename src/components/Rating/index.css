@@ -6,3 +6,7 @@
 .rating input {
   --tw-bg-opacity: 0.2 !important;
 }
+
+.rating-checked input {
+  --tw-bg-opacity: 1 !important;
+}
