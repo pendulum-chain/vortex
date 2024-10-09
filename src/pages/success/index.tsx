@@ -4,6 +4,7 @@ import { Box } from '../../components/Box';
 import { TransactionInfo } from '../../components/TransactionInfo';
 import { EmailForm } from '../../components/EmailForm';
 import { TelegramButton } from '../../components/buttons/TelegramButton';
+import { Rating } from '../../components/Rating';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">
@@ -34,6 +35,7 @@ export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProp
           Return Home
         </button>
       </Box>
+      <Rating />
     </main>
   );
 
