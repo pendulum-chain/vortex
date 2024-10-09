@@ -62,7 +62,6 @@ exports.sendStatusWithPk = async () => {
   const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
 
-  const tokensToCheck = Object.keys(TOKEN_CONFIG);
   let isTokensSufficient = true;
 
   // Wait for all required token balances check.
@@ -76,9 +75,9 @@ exports.sendStatusWithPk = async () => {
 
       const tokenBalance = Big(tokenBalanceResponse?.free?.toString() ?? '0');
       const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
-      const subsidyRatio = tokenBalance.div(maximumSubsidyAmountRaw);
+      const remainingMaxSubsidiesAvailable = tokenBalance.div(maximumSubsidyAmountRaw);
 
-      if (subsidyRatio.lt(SUBSIDY_MINIMUM_RATIO_FUND_UNITS)) {
+      if (remainingMaxSubsidiesAvailable.lt(SUBSIDY_MINIMUM_RATIO_FUND_UNITS)) {
         isTokensSufficient = false;
         console.log(`Token ${token} balance is insufficient.`);
       }

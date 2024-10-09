@@ -5,7 +5,7 @@ const NETWORK = 'Pendulum';
 const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN
 const STELLAR_FUNDING_AMOUNT_UNITS = '10'; // 10 XLM
 const MOONBEAM_FUNDING_AMOUNT_UNITS = '10'; // 10 GLMR
-const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = '10'; // 10 Max subsidies
+const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = '10'; // 10 Subsidies considering maximum subsidy amount use on each (worst case scenario)
 const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = '0x0004446021fe650c15fb0b2e046b39130e3bfe36';
 
 require('dotenv').config();
