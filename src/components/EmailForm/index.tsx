@@ -60,7 +60,7 @@ export const EmailForm = ({ transactionId }: EmailFormProps) => {
 
   return (
     <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? 'request-error-message' : undefined}>
-      <p className="font-light text-center text-blue-700 font-bold">
+      <p className="text-center text-blue-700 font-bold">
          Thank you for using our new product!
       </p>
       <p className="font-light text-center text-blue-700">We’re always looking to improve, and we’d greatly appreciate your feedback. If you’re willing, please leave your email below so we can reach out for a quick chat about your experience.</p>
