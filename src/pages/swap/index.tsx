@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import { useAccount } from 'wagmi';
 import Big from 'big.js';
@@ -35,7 +36,6 @@ const Arrow = () => (
 );
 
 export const SwapPage = () => {
-  const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
 
@@ -129,12 +129,12 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
       form.setValue('toAmount', totalReceive);
-
-      setIsQuoteSubmitted(false);
+    } else if (!tokenOutData.isLoading || tokenOutData.error) {
+      form.setValue('toAmount', '0');
     } else {
-      form.setValue('toAmount', '');
+      // Do nothing
     }
-  }, [form, tokenOutData.data, toToken]);
+  }, [form, tokenOutData.data, tokenOutData.error, tokenOutData.isLoading, toToken]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -143,18 +143,18 @@ export const SwapPage = () => {
         tokenSymbol={toToken.fiat.symbol}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
-        disabled={isQuoteSubmitted || tokenOutData.isLoading}
+        disabled={tokenOutData.isLoading}
         readOnly={true}
       />
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutData.isLoading, setModalType],
   );
 
   const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
-          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+          registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
@@ -316,7 +316,7 @@ export const SwapPage = () => {
         ) : (
           <SwapSubmitButton
             text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={false}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
             pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}

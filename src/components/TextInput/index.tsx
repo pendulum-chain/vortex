@@ -14,7 +14,7 @@ function getPattern(textInputType?: string) {
   return patterns.default;
 }
 
-interface NumericInputProps {
+interface TextInputProps {
   register: UseFormRegisterReturn;
   readOnly?: boolean;
   additionalStyle?: string;
@@ -34,7 +34,7 @@ export const TextInput = ({
   error,
   placeholder,
   type,
-}: NumericInputProps) => (
+}: TextInputProps) => (
   <div className="flex-grow text-black font-outfit">
     <Input
       className={
