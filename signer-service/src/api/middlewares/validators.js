@@ -1,6 +1,7 @@
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
+const { RATING_SHEET_HEADER_VALUES } = require('../controllers/rating.controller');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -49,6 +50,7 @@ const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) 
 
 const validateStorageInput = validateRequestBodyValues(DUMP_SHEET_HEADER_VALUES);
 const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
+const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
 const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
 
 const validatePreSwapSubsidizationInput = (req, res, next) => {
@@ -103,5 +105,6 @@ module.exports = {
   validatePostSwapSubsidizationInput,
   validateStorageInput,
   validateEmailInput,
+  validateRatingInput,
   validateExecuteXCM,
 };
