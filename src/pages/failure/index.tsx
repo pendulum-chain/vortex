@@ -3,8 +3,8 @@ import { TransactionInfo } from '../../components/TransactionInfo';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
-import { TelegramButton } from '../../components/buttons/TelegramButton';
 import { FailureType } from '../../services/offrampingFlow';
+import { config } from '../../config';
 
 const Cross = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-red-500 rounded-full">
@@ -35,7 +35,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
             </p>
             <p>Either try to continue or start over.</p>
           </>
-        ): (<p></p>)}
+        ) : undefined}
         {failure === 'recoverable' && (
           <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={continueFailedFlow}>
             Continue
@@ -45,9 +45,19 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
           Try again
         </button>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <p className="text-center text-gray-400">In case you experience any issues, please copy this {transactionId && <TransactionInfo transactionId={transactionId} />} </p>
-        <p className="text-center text-gray-400">Contact our support team at: We’re here to help!</p>
-        <TelegramButton />
+        {transactionId && (
+          <p className="text-center text-gray-400">
+            In case you experience any issues, please copy this
+            <TransactionInfo transactionId={transactionId} />
+          </p>
+        )}
+        <p className="text-center text-gray-400 mb-6">
+          Contact our support team on{' '}
+          <a href={config.telegramUrl} target="_blank" rel="noreferrer" className="underline">
+            Telegram
+          </a>
+          . We’re here to help!
+        </p>
         <EmailForm transactionId={transactionId} />
       </Box>
     </main>
