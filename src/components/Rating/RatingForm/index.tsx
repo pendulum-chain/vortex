@@ -15,7 +15,7 @@ const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isFormSubmitted, rati
   return (
     <>
       <h2 className="w-full text-center text-md sm:text-lg">
-        {isFormSubmitted ? 'Thank you!' : 'How would you rate our interface?'}
+        {isFormSubmitted ? 'Thank you!' : 'How would you rate your experience?'}
       </h2>
       <form className={`rating rating-lg mt-2.5 pb-5 flex flex-row-reverse ${isFormSubmitted ? 'rating-checked' : ''}`}>
         <AnimatePresence>
