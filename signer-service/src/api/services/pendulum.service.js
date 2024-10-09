@@ -67,8 +67,7 @@ exports.sendStatusWithPk = async () => {
 
   // Wait for all required token balances check.
   await Promise.all(
-    tokensToCheck.map(async (token) => {
-      const tokenConfig = TOKEN_CONFIG[token];
+    Object.entries(TOKEN_CONFIG).map(async ([token, tokenConfig]) => {
       console.log(`Checking token ${token} balance...`);
       const tokenBalanceResponse = await apiData.api.query.tokens.accounts(
         fundingAccountKeypair.address,
