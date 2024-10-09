@@ -4,7 +4,6 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
 import { FailureType } from '../../services/offrampingFlow';
-import { Rating } from '../../components/Rating';
 import { config } from '../../config';
 
 const Cross = () => (
@@ -61,7 +60,6 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
         </p>
         <EmailForm transactionId={transactionId} />
       </Box>
-      <Rating />
     </main>
   );
 
