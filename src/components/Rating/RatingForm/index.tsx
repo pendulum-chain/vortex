@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 
 // From the highest to the lowest rating - because of ".rating input:hover ~ input" in ./index.css
+// https://developer.mozilla.org/en-US/docs/Web/CSS/Subsequent-sibling_combinator
 const ratings = [5, 4, 3, 2, 1];
 
 interface RatingFormProps {
