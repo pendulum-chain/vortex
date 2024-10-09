@@ -24,7 +24,12 @@ interface EmailData {
   transactionId: string;
 }
 
-async function sendRequestToBackend(endpoint: string, data: EmailData | DumpData) {
+interface RatingData {
+  rating: number;
+  walletAddress: `0x${string}` | undefined;
+}
+
+async function sendRequestToBackend(endpoint: string, data: EmailData | DumpData | RatingData) {
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -47,6 +52,12 @@ export async function storeDataInBackend(data: DumpData) {
 
 export async function storeUserEmailInBackend(data: EmailData) {
   const endpoint = `${SIGNING_SERVICE_URL}/v1/email/create`;
+  const payload = { ...data, timestamp: new Date().toISOString() };
+  return await sendRequestToBackend(endpoint, payload);
+}
+
+export async function storeUserRatingInBackend(data: RatingData) {
+  const endpoint = `${SIGNING_SERVICE_URL}/v1/rating/create`;
   const payload = { ...data, timestamp: new Date().toISOString() };
   return await sendRequestToBackend(endpoint, payload);
 }
