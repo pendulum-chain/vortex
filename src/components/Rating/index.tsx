@@ -31,8 +31,10 @@ export function Rating() {
   }, [isError, isSuccess, setTimestamp, setIsVisible]);
 
   const onSubmit = (ratingValue: number) => {
-    setRating(ratingValue);
-    saveUserRatingMutation({ rating: ratingValue, walletAddress: address });
+    if (address) {
+      setRating(ratingValue);
+      saveUserRatingMutation({ rating: ratingValue, walletAddress: address });
+    }
   };
 
   const onClose = () => {
