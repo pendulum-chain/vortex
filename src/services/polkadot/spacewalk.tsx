@@ -80,7 +80,7 @@ export async function getVaultsForCurrency(
   api: ApiPromise,
   assetCodeHex: string,
   assetIssuerHex: string,
-  redeemAmount: string,
+  redeemableAmount: string,
 ) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([_, value]) => value.unwrap());
@@ -94,12 +94,12 @@ export async function getVaultsForCurrency(
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex &&
       //vault.bannedUntil === null &&
-      vaultHasEnoughRedeemable(vault, redeemAmount)
+      vaultHasEnoughRedeemable(vault, redeemableAmount)
     );
   });
 
   if (vaultsForCurrency.length === 0) {
-    const errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemAmount}`;
+    const errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemableAmount}`;
     console.log(errorMessage);
     throw new Error(errorMessage);
   }
@@ -107,10 +107,10 @@ export async function getVaultsForCurrency(
   return vaultsForCurrency;
 }
 
-function vaultHasEnoughRedeemable(vault: any, redeemAmount: string): boolean {
+function vaultHasEnoughRedeemable(vault: any, redeemableAmount: string): boolean {
   //issuedTokens - toBeRedeemedTokens = redeemableTokens
   const redeemableTokens = new Big(vault.issuedTokens).sub(new Big(vault.toBeRedeemedTokens));
-  if (redeemableTokens.gt(new Big(redeemAmount))) {
+  if (redeemableTokens.gt(new Big(redeemableAmount))) {
     return true;
   }
   return false;

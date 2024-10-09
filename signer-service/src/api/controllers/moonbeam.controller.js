@@ -11,9 +11,10 @@ const splitReceiverABI = require('../../../../mooncontracts/splitReceiverABI.jso
 
 exports.executeXcmController = async (req, res) => {
   const { id, payload } = req.body;
-  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY);
 
   try {
+    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY);
+
     const walletClient = createWalletClient({
       account: moonbeamExecutorAccount,
       chain: moonbeam,
@@ -52,9 +53,11 @@ exports.executeXcmController = async (req, res) => {
 };
 
 exports.sendStatusWithPk = async () => {
-  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY);
+  let moonbeamExecutorAccount;
 
   try {
+    moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY);
+
     const publicClient = createPublicClient({
       chain: moonbeam,
       transport: http(),
