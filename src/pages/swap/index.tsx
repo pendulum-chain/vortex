@@ -150,7 +150,7 @@ export const SwapPage = () => {
       testRoute(fromToken, inputAmountRaw),
     ])
       .then(() => {
-        console.log('starting ....');
+        console.log('Initial checks completed. Starting process..');
         handleOnSubmit({
           inputTokenType: from as InputTokenType,
           outputTokenType: to as OutputTokenType,
