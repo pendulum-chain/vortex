@@ -5,6 +5,7 @@ const moonbeamRoutes = require('./moonbeam.route');
 const pendulumRoutes = require('./pendulum.route');
 const storageRoutes = require('./storage.route');
 const emailRoutes = require('./email.route');
+const ratingRoutes = require('./rating.route');
 const subsidizeRoutes = require('./subsidize.route');
 
 const router = express.Router({ mergeParams: true });
@@ -60,5 +61,10 @@ router.use('/email', emailRoutes);
  * POST v1/subsidize
  */
 router.use('/subsidize', subsidizeRoutes);
+
+/**
+ * POST v1/rating
+ */
+router.use('/rating', ratingRoutes);
 
 module.exports = router;
