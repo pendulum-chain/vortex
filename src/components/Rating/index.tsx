@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useMutation } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAccount } from 'wagmi';
+import { validator } from 'web3';
 
 import { storeUserRatingInBackend } from '../../services/storage/remote';
 import { CloseButton } from '../buttons/CloseButton';
@@ -13,6 +14,8 @@ export function Rating() {
   const { isVisible, onClose } = useRatingVisibility();
   const { address: walletAddress } = useAccount();
   const [rating, setRating] = useState(0);
+
+  const isValidAddress = !!walletAddress && validator.isAddress(walletAddress);
 
   const {
     mutate: saveUserRatingMutation,
@@ -30,15 +33,17 @@ export function Rating() {
   }, [isError, isSuccess, onClose]);
 
   const onSubmit = (ratingValue: number) => {
-    if (walletAddress) {
+    if (isValidAddress) {
       setRating(ratingValue);
       saveUserRatingMutation({ rating: ratingValue, walletAddress });
     }
   };
 
+  const isConnectedAndIsVisible = isValidAddress && isVisible;
+
   return (
     <AnimatePresence>
-      {isVisible && (
+      {isConnectedAndIsVisible && (
         <motion.div
           key="rating-toast"
           initial={{ y: 200 }}
