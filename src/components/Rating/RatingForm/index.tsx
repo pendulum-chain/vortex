@@ -5,27 +5,19 @@ const ratings = [5, 4, 3, 2, 1];
 
 interface RatingFormProps {
   onSubmit: (ratingValue: number) => void;
-  isPending: boolean;
-  isSuccess: boolean;
-  isError: boolean;
+  isFormSubmitted: boolean;
   rating: number;
 }
 
-const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isPending, isSuccess, isError, rating }) => {
-  const isFormSubmitted = isPending || isSuccess || isError;
-
+const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isFormSubmitted, rating }) => {
   const filterRatingsBasedOnUserInput = (r: number) => !isFormSubmitted || (isFormSubmitted && r <= rating);
 
   return (
     <>
-      <h2 className="w-full text-lg text-center">
+      <h2 className="w-full text-center text-md sm:text-lg">
         {isFormSubmitted ? 'Thank you!' : 'How would you rate our interface?'}
       </h2>
-      <motion.form
-        className={`rating rating-lg mt-2.5 pb-5 flex flex-row-reverse ${isFormSubmitted ? 'rating-checked' : ''}`}
-        initial="hidden"
-        animate="visible"
-      >
+      <form className={`rating rating-lg mt-2.5 pb-5 flex flex-row-reverse ${isFormSubmitted ? 'rating-checked' : ''}`}>
         <AnimatePresence>
           <input type="radio" defaultChecked name="rating" className="hidden" />
           {ratings.filter(filterRatingsBasedOnUserInput).map((ratingValue, index) => (
@@ -36,11 +28,11 @@ const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isPending, isSuccess,
               type="radio"
               name="rating"
               onClick={() => onSubmit(ratingValue)}
-              exit={{ scale: 0, y: 300, rotate: 180 }}
+              exit={{ scale: 0, y: 300, rotate: 360 }}
             />
           ))}
         </AnimatePresence>
-      </motion.form>
+      </form>
     </>
   );
 };

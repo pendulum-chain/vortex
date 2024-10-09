@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 import { useLocalStorage, LocalStorageKeys } from '../../hooks/useLocalStorage';
 
 export function useRatingVisibility() {
@@ -13,9 +13,10 @@ export function useRatingVisibility() {
 
   useEffect(() => {
     const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
-    const now = new Date();
+    const now = new Date().getTime();
+    const lastRatingTimestamp = Number(timestamp);
 
-    if (now.getTime() - Number(timestamp) < FIFTEEN_DAYS_MS) {
+    if (now - lastRatingTimestamp < FIFTEEN_DAYS_MS) {
       setIsVisible(false);
     } else {
       clear();
@@ -23,9 +24,13 @@ export function useRatingVisibility() {
     }
   }, [clear, timestamp]);
 
+  const onClose = useCallback(() => {
+    setIsVisible(false);
+    setTimestamp(Date.now().toString());
+  }, [setIsVisible, setTimestamp]);
+
   return {
     isVisible,
-    setIsVisible,
-    setTimestamp,
+    onClose,
   };
 }

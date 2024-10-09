@@ -10,9 +10,9 @@ import RatingForm from './RatingForm';
 import './index.css';
 
 export function Rating() {
-  const { isVisible, setIsVisible, setTimestamp } = useRatingVisibility();
-  const [rating, setRating] = useState(0);
+  const { isVisible, onClose } = useRatingVisibility();
   const { address: walletAddress } = useAccount();
+  const [rating, setRating] = useState(0);
 
   const {
     mutate: saveUserRatingMutation,
@@ -25,21 +25,15 @@ export function Rating() {
 
   useEffect(() => {
     if (isSuccess || isError) {
-      setIsVisible(false);
-      setTimestamp(Date.now().toString());
+      onClose();
     }
-  }, [isError, isSuccess, setTimestamp, setIsVisible]);
+  }, [isError, isSuccess, onClose]);
 
   const onSubmit = (ratingValue: number) => {
     if (walletAddress) {
       setRating(ratingValue);
       saveUserRatingMutation({ rating: ratingValue, walletAddress });
     }
-  };
-
-  const onClose = () => {
-    setIsVisible(false);
-    setTimestamp(Date.now().toString());
   };
 
   return (
@@ -53,21 +47,15 @@ export function Rating() {
           whileHover={{ scale: 1.02 }}
           className="left-0 right-0 transition toast"
         >
-          <div className="w-3/4 mx-auto">
+          <div className="w-full sm:w-3/4 mx-auto max-w-[800px]">
             <div className="bg-white border rounded shadow-2xl border-neutral-200">
               <section className="px-6 py-5">
                 <div className="flex justify-between w-full">
-                  <h1 className="text-2xl">Your opinion matters!</h1>
+                  <h1 className="text-lg sm:text-2xl">Your opinion matters!</h1>
                   <CloseButton onClick={onClose} />
                 </div>
                 <div className="flex flex-wrap items-center justify-center w-full mt-10">
-                  <RatingForm
-                    onSubmit={onSubmit}
-                    isPending={isPending}
-                    isSuccess={isSuccess}
-                    isError={isError}
-                    rating={rating}
-                  />
+                  <RatingForm onSubmit={onSubmit} isFormSubmitted={isPending || isSuccess || isError} rating={rating} />
                 </div>
               </section>
             </div>
