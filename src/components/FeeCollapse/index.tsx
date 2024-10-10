@@ -1,7 +1,7 @@
 import { FC } from 'preact/compat';
 import { useRef } from 'preact/hooks';
 import Big from 'big.js';
-import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
+import { roundDownToTwoDecimals } from '../../helpers/parseNumbers';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 
@@ -28,10 +28,10 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate
     trackEvent({ event: 'click_details' });
   };
 
-  const toAmountFixed = roundDownToSignificantDecimals(new Big(toAmount || 0), 2).toString();
+  const toAmountFixed = roundDownToTwoDecimals(Big(toAmount || 0)).toString();
   const totalReceive = calculateTotalReceive(toAmount || '0', toToken);
-  const totalReceiveFormatted = roundDownToSignificantDecimals(Big(totalReceive), 2).toString();
-  const feesCost = roundDownToSignificantDecimals(Big(toAmountFixed || 0).sub(totalReceive), 2).toString();
+  const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive)).toString();
+  const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive)).toString();
 
   return (
     <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>
@@ -42,7 +42,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate
         </div>
       </div>
       <div className="collapse-content">
-        <div className="flex justify-between">
+        <div className="flex justify-between mt-2 ">
           <p>Your quote ({exchangeRate})</p>
           <div className="flex">
             <span>

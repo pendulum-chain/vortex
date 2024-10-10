@@ -284,7 +284,7 @@ export const SwapPage = () => {
         <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
+        <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
