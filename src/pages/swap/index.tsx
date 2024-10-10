@@ -145,6 +145,7 @@ export const SwapPage = () => {
         registerInput={form.register('toAmount')}
         disabled={tokenOutData.isLoading}
         readOnly={true}
+        id="toAmount"
       />
     ),
     [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutData.isLoading, setModalType],
@@ -158,8 +159,9 @@ export const SwapPage = () => {
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
+          id="fromAmount"
         />
-        <UserBalance token={fromToken} />
+        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
     [form, fromToken, setModalType],
@@ -281,10 +283,10 @@ export const SwapPage = () => {
         onSubmit={onSubmit}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
+        <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <Arrow />
-        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
+        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
+        <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
