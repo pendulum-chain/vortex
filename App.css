@@ -68,6 +68,7 @@ div[data-rk] {
   }
 }
 
+/** Vortex customisations of DaisyUI components */
 @layer components {
   .step-vortex {
     min-height: 2.5rem !important;
@@ -81,5 +82,18 @@ div[data-rk] {
   }
   .step-primary.step-vortex::after {
     @apply text-white !important;
+  }
+
+  .collapse-title,
+  :where(.collapse > input[type='checkbox']),
+  :where(.collapse > input[type='radio']) {
+    min-height: 0rem !important;
+  }
+
+  .collapse-title::after {
+    @apply text-blue-700;
+    @apply w-3 !important;
+    @apply h-3 !important;
+    top: 1.4rem !important;
   }
 }
