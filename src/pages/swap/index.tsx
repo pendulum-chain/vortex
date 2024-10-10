@@ -258,8 +258,11 @@ export const SwapPage = () => {
       // See: https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md
       // status: pending_user_transfer_start indicates the anchor is ready to receive funds
       if (event.data.transaction.status === 'pending_user_transfer_start') {
-        console.log('Callback received from external site, anchor flow completed. Closing...');
-        event.source.close();
+        console.log('Callback received from external site, anchor flow completed.');
+
+        // We don't automatically close the window, as this could be confusing for the user.
+        // event.source.close();
+
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
