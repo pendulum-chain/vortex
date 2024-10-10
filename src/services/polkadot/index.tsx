@@ -17,10 +17,15 @@ async function createVaultService(
   apiComponents: ApiComponents,
   assetCodeHex: string,
   assetIssuerHex: string,
-  redeemAmount: string,
+  redeemAmountRaw: string,
 ) {
   // we expect the list to have at least one vault, otherwise getVaultsForCurrency would throw
-  const vaultsForCurrency = await getVaultsForCurrency(apiComponents.api, assetCodeHex, assetIssuerHex, redeemAmount);
+  const vaultsForCurrency = await getVaultsForCurrency(
+    apiComponents.api,
+    assetCodeHex,
+    assetIssuerHex,
+    redeemAmountRaw,
+  );
   const targetVaultId = vaultsForCurrency[0].id;
   return new VaultService(targetVaultId, apiComponents);
 }

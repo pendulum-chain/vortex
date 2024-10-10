@@ -40,7 +40,7 @@ export const SwapPage = () => {
   const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { isDisconnected } = useAccount();
+  const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
@@ -112,6 +112,7 @@ export const SwapPage = () => {
     e.preventDefault();
 
     if (!inputAmountIsStable) return;
+    if (!address) return; // Address must exist as this point.
 
     if (fromAmount === undefined) {
       console.log('Input amount is undefined');
@@ -137,8 +138,9 @@ export const SwapPage = () => {
       .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
     const expectedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
 
-    const inputAmountBig = Big(fromAmountString);
-    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputToken.decimals).toFixed();
+    const inputAmountBig = Big(fromAmount);
+    const inputAmountBigMargin = inputAmountBig.mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN);
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBigMargin, inputToken.decimals).toFixed();
 
     Promise.all([
       getVaultsForCurrency(
@@ -147,7 +149,7 @@ export const SwapPage = () => {
         outputToken.stellarAsset.issuer.hex,
         expectedRedeemAmountRaw,
       ),
-      testRoute(fromToken, inputAmountRaw),
+      testRoute(fromToken, inputAmountRaw, address!), // Address
     ])
       .then(() => {
         console.log('Initial checks completed. Starting process..');

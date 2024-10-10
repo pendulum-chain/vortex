@@ -2,11 +2,13 @@ const HORIZON_URL = 'https://horizon.stellar.org';
 const BASE_FEE = '1000000';
 const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 const NETWORK = 'Pendulum';
-const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN
-const STELLAR_FUNDING_AMOUNT_UNITS = '10'; // 10 XLM
-const MOONBEAM_FUNDING_AMOUNT_UNITS = '10'; // 10 GLMR
+const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN. Minimum balance of funding account
+const STELLAR_FUNDING_AMOUNT_UNITS = '10'; // 10 XLM.  Minimum balance of funding account
+const MOONBEAM_FUNDING_AMOUNT_UNITS = '10'; // 10 GLMR. Minimum balance of funding account
 const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = '10'; // 10 Subsidies considering maximum subsidy amount use on each (worst case scenario)
 const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = '0x0004446021fe650c15fb0b2e046b39130e3bfe36';
+const STELLAR_EPHEMERAL_STARTING_BALANCE = '2.5'; // Amount to send to the new stellar ephemeral account created
+const PENDULUM_EPHEMERAL_STARTING_BALANCE = '0.1'; // Amount to send to the new pendulum ephemeral account created
 
 require('dotenv').config();
 
@@ -27,4 +29,6 @@ module.exports = {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
+  STELLAR_EPHEMERAL_STARTING_BALANCE,
+  PENDULUM_EPHEMERAL_STARTING_BALANCE,
 };

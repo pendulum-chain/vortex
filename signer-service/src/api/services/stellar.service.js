@@ -1,5 +1,11 @@
 const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
-const { HORIZON_URL, BASE_FEE, FUNDING_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } = require('../../constants/constants');
+const {
+  HORIZON_URL,
+  BASE_FEE,
+  FUNDING_SECRET,
+  STELLAR_FUNDING_AMOUNT_UNITS,
+  STELLAR_EPHEMERAL_STARTING_BALANCE,
+} = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
 // Derive funding pk
@@ -27,7 +33,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
     .addOperation(
       Operation.createAccount({
         destination: ephemeralAccountId,
-        startingBalance: '2.5',
+        startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE,
       }),
     )
     .addOperation(

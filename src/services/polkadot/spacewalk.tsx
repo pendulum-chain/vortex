@@ -80,7 +80,7 @@ export async function getVaultsForCurrency(
   api: ApiPromise,
   assetCodeHex: string,
   assetIssuerHex: string,
-  redeemableAmount: string,
+  redeemableAmountRaw: string,
 ) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([_, value]) => value.unwrap());
@@ -94,12 +94,12 @@ export async function getVaultsForCurrency(
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex &&
       //vault.bannedUntil === null &&
-      vaultHasEnoughRedeemable(vault, redeemableAmount)
+      vaultHasEnoughRedeemable(vault, redeemableAmountRaw)
     );
   });
 
   if (vaultsForCurrency.length === 0) {
-    const errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemableAmount}`;
+    const errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemableAmountRaw}`;
     console.log(errorMessage);
     throw new Error(errorMessage);
   }

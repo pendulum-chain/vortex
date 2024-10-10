@@ -6,6 +6,9 @@ require('dotenv').config();
 
 const { FUNDING_SECRET, PENDULUM_FUNDING_SEED, MOONBEAM_EXECUTOR_PRIVATE_KEY } = require('./constants/constants');
 
+const minimum_balance = Big(MOONBEAM_FUNDING_AMOUNT_UNITS) ** Big(18);
+console.log(minimum_balance);
+
 // stop the application if the funding secret key is not set
 if (!FUNDING_SECRET) {
   logger.error('FUNDING_SECRET not set in the environment variables');

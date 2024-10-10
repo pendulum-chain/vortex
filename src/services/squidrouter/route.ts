@@ -151,18 +151,17 @@ export async function getRouteTransactionRequest(
   };
 }
 
-export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string) {
+export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: `0x${string}`) {
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
-  const mockFromAddress = '0x2527db2c3dc99db4ab7689e1972bf7168bfe0417'; // realy shouldn't matter
 
   const sharedRouteParams: RouteParams = {
-    fromAddress: mockFromAddress,
+    fromAddress: address,
     fromChain: fromChainId,
     fromToken: testingToken.erc20AddressSourceChain,
     fromAmount: attemptedAmountRaw,
     toChain: toChainId,
     toToken: axlUSDC_MOONBEAM,
-    toAddress: mockFromAddress,
+    toAddress: address,
     slippageConfig: {
       autoMode: 1,
     },

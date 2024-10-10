@@ -5,6 +5,7 @@ const {
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_WSS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
+  PENDULUM_EPHEMERAL_STARTING_BALANCE,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 
@@ -37,7 +38,7 @@ async function createPolkadotApi() {
 function getFundingData(ss58Format, decimals) {
   const keyring = new Keyring({ type: 'sr25519', ss58Format });
   const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED);
-  const fundingAmountUnits = Big(PENDULUM_FUNDING_AMOUNT_UNITS);
+  const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
   return { fundingAccountKeypair, fundingAmountRaw };
@@ -59,7 +60,7 @@ exports.fundEphemeralAccount = async (ephemeralAddress) => {
 
 exports.sendStatusWithPk = async () => {
   const apiData = await createPolkadotApi();
-  const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
+  const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
 
   let isTokensSufficient = true;
@@ -84,8 +85,9 @@ exports.sendStatusWithPk = async () => {
     }),
   );
 
+  const minimumBalanceFundingAccount = multiplyByPowerOfTen(Big(PENDULUM_FUNDING_AMOUNT_UNITS), apiData.decimals);
   const nativeBalance = Big(balance?.free?.toString() ?? '0');
-  if (nativeBalance.gte(fundingAmountRaw) && isTokensSufficient) {
+  if (nativeBalance.gte(minimumBalanceFundingAccount) && isTokensSufficient) {
     return { status: true, public: fundingAccountKeypair.address };
   }
   return { status: false, public: fundingAccountKeypair.address };

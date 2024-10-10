@@ -1,6 +1,7 @@
 const { createWalletClient, createPublicClient, http, encodeFunctionData } = require('viem');
 const { moonbeam } = require('viem/chains');
 const { privateKeyToAccount } = require('viem/accounts');
+const Big = require('big.js');
 
 const {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
@@ -65,7 +66,7 @@ exports.sendStatusWithPk = async () => {
     const balance = await publicClient.getBalance({ address: moonbeamExecutorAccount.address });
 
     // We are checking if the balance is less than 10 GLMR
-    let minimum_balance = MOONBEAM_FUNDING_AMOUNT_UNITS * 10 ** 18;
+    const minimum_balance = Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18));
     if (balance < minimum_balance) {
       return { status: false, public: moonbeamExecutorAccount.address };
     } else {
@@ -73,6 +74,6 @@ exports.sendStatusWithPk = async () => {
     }
   } catch (error) {
     console.error('Error fetching Moonbeam executor balance:', error);
-    return { status: false, public: moonbeamExecutorAccount.address };
+    return { status: false, public: moonbeamExecutorAccount?.address };
   }
 };
