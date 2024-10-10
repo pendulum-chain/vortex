@@ -16,11 +16,16 @@ export const BankDetails: FC<BankDetailsProps> = ({ registerBankAccount, registe
     <p className="my-5 font-thin text-center text-gray-400">Which bank account should we send the funds to?</p>
     <LabeledInput
       label="PIX ID"
+      htmlFor="bankAccount"
       Input={
         <TextInput register={registerBankAccount} placeholder="3eE4729a-123B-45c6-8d7e-F9aD567b9c1e" disabled={true} />
       }
     />
     <div className="mt-5" />
-    <LabeledInput label="CPF" Input={<TextInput register={registerTaxNumber} placeholder="123.456.789-00" />} />
+    <LabeledInput
+      label="CPF"
+      htmlFor="taxNumber"
+      Input={<TextInput register={registerTaxNumber} placeholder="123.456.789-00" />}
+    />
   </section>
 );
