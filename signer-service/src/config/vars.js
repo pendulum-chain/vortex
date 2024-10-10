@@ -21,5 +21,6 @@ module.exports = {
     },
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID,
     emailSheetId: process.env.GOOGLE_EMAIL_SPREADSHEET_ID,
+    ratingSheetId: process.env.GOOGLE_RATING_SPREADSHEET_ID,
   },
 };
