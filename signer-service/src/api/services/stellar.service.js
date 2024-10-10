@@ -4,7 +4,7 @@ const {
   BASE_FEE,
   FUNDING_SECRET,
   STELLAR_FUNDING_AMOUNT_UNITS,
-  STELLAR_EPHEMERAL_STARTING_BALANCE,
+  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
@@ -33,7 +33,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
     .addOperation(
       Operation.createAccount({
         destination: ephemeralAccountId,
-        startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE,
+        startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
       }),
     )
     .addOperation(

@@ -5,7 +5,7 @@ const {
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_WSS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
-  PENDULUM_EPHEMERAL_STARTING_BALANCE,
+  PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 
@@ -38,7 +38,7 @@ async function createPolkadotApi() {
 function getFundingData(ss58Format, decimals) {
   const keyring = new Keyring({ type: 'sr25519', ss58Format });
   const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED);
-  const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE);
+  const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
   return { fundingAccountKeypair, fundingAmountRaw };
