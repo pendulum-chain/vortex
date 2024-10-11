@@ -28,10 +28,10 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate
     trackEvent({ event: 'click_details' });
   };
 
-  const toAmountFixed = roundDownToTwoDecimals(Big(toAmount || 0)).toString();
+  const toAmountFixed = roundDownToTwoDecimals(Big(toAmount || 0));
   const totalReceive = calculateTotalReceive(toAmount || '0', toToken);
-  const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive)).toString();
-  const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive)).toString();
+  const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive));
+  const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive));
 
   return (
     <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>
