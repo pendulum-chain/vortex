@@ -325,6 +325,18 @@ export const SwapPage = () => {
     };
   }, []);
 
+  async function createLinkDynamicOnClick(event: any): Promise<void> {
+    event.preventDefault();
+    const newWindow = window.open('', '_blank');
+
+    // Navigate to the generated link
+    if (newWindow) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const rand = Math.random();
+      const link = `https://example.com/1234/${rand}`;
+      newWindow.location = link;
+    }
+  }
   const main = (
     <main ref={formRef}>
       <SigningBox step={signingPhase} />
@@ -360,6 +372,18 @@ export const SwapPage = () => {
               Application initialization failed. Please reload, or try again later if the problem persists.
             </p>
           )}
+        </section>
+        <section>
+          <a
+            href="#"
+            target="_blank"
+            rel="opener" //noopener forbids the use of postMessages.
+            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+            onClick={createLinkDynamicOnClick}
+            // open in a tinier window
+          >
+            Test dinamic link
+          </a>
         </section>
         {firstSep24ResponseState?.url !== undefined ? (
           <a
