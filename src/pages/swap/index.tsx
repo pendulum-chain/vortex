@@ -33,8 +33,6 @@ import { testRoute } from '../../services/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
-import { useEventsContext } from '../../contexts/events';
-import { showToast, ToastMessage } from '../../helpers/notifications';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
