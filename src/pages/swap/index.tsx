@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import { useAccount } from 'wagmi';
 import Big from 'big.js';
@@ -35,7 +36,6 @@ const Arrow = () => (
 );
 
 export const SwapPage = () => {
-  const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
 
@@ -129,12 +129,12 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
       form.setValue('toAmount', totalReceive);
-
-      setIsQuoteSubmitted(false);
+    } else if (!tokenOutData.isLoading || tokenOutData.error) {
+      form.setValue('toAmount', '0');
     } else {
-      form.setValue('toAmount', '');
+      // Do nothing
     }
-  }, [form, tokenOutData.data, toToken]);
+  }, [form, tokenOutData.data, tokenOutData.error, tokenOutData.isLoading, toToken]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -143,23 +143,25 @@ export const SwapPage = () => {
         tokenSymbol={toToken.fiat.symbol}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
-        disabled={isQuoteSubmitted || tokenOutData.isLoading}
+        disabled={tokenOutData.isLoading}
         readOnly={true}
+        id="toAmount"
       />
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutData.isLoading, setModalType],
   );
 
   const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
-          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+          registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
+          id="fromAmount"
         />
-        <UserBalance token={fromToken} />
+        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
     [form, fromToken, setModalType],
@@ -258,8 +260,11 @@ export const SwapPage = () => {
       // See: https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md
       // status: pending_user_transfer_start indicates the anchor is ready to receive funds
       if (event.data.transaction.status === 'pending_user_transfer_start') {
-        console.log('Callback received from external site, anchor flow completed. Closing...');
-        event.source.close();
+        console.log('Callback received from external site, anchor flow completed.');
+
+        // We don't automatically close the window, as this could be confusing for the user.
+        // event.source.close();
+
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
@@ -281,9 +286,9 @@ export const SwapPage = () => {
         onSubmit={onSubmit}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
+        <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <Arrow />
-        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
+        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
@@ -316,7 +321,7 @@ export const SwapPage = () => {
         ) : (
           <SwapSubmitButton
             text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={false}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
             pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}
