@@ -328,8 +328,8 @@ export const SwapPage = () => {
   async function createLinkDynamicOnClick(event: any): Promise<void> {
     event.preventDefault();
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    const newWindow = window.open('', '_blank');
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const newWindow = window.open('https://www.google.com', '_blank');
 
     // Navigate to the generated link
     if (newWindow) {
