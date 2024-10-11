@@ -1,5 +1,4 @@
 import { FC } from 'preact/compat';
-import { useRef } from 'preact/hooks';
 import Big from 'big.js';
 import { roundDownToTwoDecimals } from '../../helpers/parseNumbers';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
@@ -21,7 +20,6 @@ interface CollapseProps {
 
 export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate }) => {
   const { trackEvent } = useEventsContext();
-  const isOpenCheckboxRef = useRef<HTMLInputElement>(null);
   const toTokenSymbol = toToken.fiat.symbol;
 
   const trackFeeCollapseOpen = () => {
@@ -35,7 +33,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate
 
   return (
     <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>
-      <input type="checkbox" ref={isOpenCheckboxRef} />
+      <input type="checkbox" />
       <div className="min-h-0 px-4 py-2 collapse-title">
         <div className="flex items-center justify-between">
           <p>Details</p>
