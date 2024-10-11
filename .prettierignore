@@ -1,3 +1,4 @@
+.prettierignore
 node_modules/
 coverage/
 dist/
@@ -12,5 +13,6 @@ docs/
 package-lock.json
 package.json
 yarn.lock
+favicon.png
 
 CHANGELOG.md
