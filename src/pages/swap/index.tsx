@@ -26,6 +26,8 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+import { useEventsContext } from '../../contexts/events';
+import { showToast, ToastMessage } from '../../helpers/notifications';
 
 import { testRoute } from '../../services/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
@@ -368,6 +370,7 @@ export const SwapPage = () => {
             rel="opener" //noopener forbids the use of postMessages.
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={handleOnAnchorWindowOpen}
+            // open in a tinier window
           >
             Enter details
           </a>
