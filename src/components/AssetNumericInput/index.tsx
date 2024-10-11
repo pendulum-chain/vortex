@@ -1,4 +1,4 @@
-import { FC, useMemo } from 'preact/compat';
+import { FC } from 'preact/compat';
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { AssetButton } from '../buttons/AssetButton';
 import { SwapFormValues } from '../Nabla/schema';
@@ -12,6 +12,7 @@ interface AssetNumericInputProps {
   disabled?: boolean;
   readOnly?: boolean;
   registerInput: UseFormRegisterReturn<keyof SwapFormValues>;
+  id: string;
 }
 
 export const AssetNumericInput: FC<AssetNumericInputProps> = ({
@@ -20,30 +21,17 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   onClick,
   registerInput,
   ...rest
-}) => {
-  const memoizedAssetButton = useMemo(
-    () => <AssetButton assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />,
-    [assetIcon, tokenSymbol, onClick],
-  );
-
-  return (
-    <div
-      className={
-        'flex pl-2 focus:outline-none input-ghost text-accent-content input-bordered input ' +
-        (rest.disabled ? 'opacity-50 input-disabled' : '')
-      }
-    >
-      <div className="flex items-center justify-between">
-        {memoizedAssetButton}
-        <div className="w-2"></div>
-      </div>
-
-      <NumericInput
-        register={registerInput}
-        additionalStyle="text-right text-lg w-full"
-        disableStyles={true}
-        {...rest}
-      />
+}) => (
+  <div
+    className={
+      'flex pl-2 focus:outline-none input-ghost text-accent-content input-bordered input ' +
+      (rest.disabled ? 'opacity-50 input-disabled' : '')
+    }
+  >
+    <div className="flex items-center justify-between">
+      <AssetButton assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
     </div>
-  );
-};
+
+    <NumericInput register={registerInput} additionalStyle="text-right text-lg w-full" disableStyles={true} {...rest} />
+  </div>
+);
