@@ -145,6 +145,7 @@ export const SwapPage = () => {
         registerInput={form.register('toAmount')}
         disabled={tokenOutData.isLoading}
         readOnly={true}
+        id="toAmount"
       />
     ),
     [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutData.isLoading, setModalType],
@@ -158,8 +159,9 @@ export const SwapPage = () => {
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
+          id="fromAmount"
         />
-        <UserBalance token={fromToken} />
+        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
     [form, fromToken, setModalType],
@@ -258,8 +260,11 @@ export const SwapPage = () => {
       // See: https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md
       // status: pending_user_transfer_start indicates the anchor is ready to receive funds
       if (event.data.transaction.status === 'pending_user_transfer_start') {
-        console.log('Callback received from external site, anchor flow completed. Closing...');
-        event.source.close();
+        console.log('Callback received from external site, anchor flow completed.');
+
+        // We don't automatically close the window, as this could be confusing for the user.
+        // event.source.close();
+
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
@@ -281,9 +286,9 @@ export const SwapPage = () => {
         onSubmit={onSubmit}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
+        <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <Arrow />
-        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
+        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
