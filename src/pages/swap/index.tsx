@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import { useAccount } from 'wagmi';
 import Big from 'big.js';
@@ -25,10 +26,13 @@ import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
+
 import { testRoute } from '../../services/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
+import { useEventsContext } from '../../contexts/events';
+import { showToast, ToastMessage } from '../../helpers/notifications';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -37,12 +41,12 @@ const Arrow = () => (
 );
 
 export const SwapPage = () => {
-  const [isQuoteSubmitted, setIsQuoteSubmitted] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const { trackEvent } = useEventsContext();
 
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
@@ -172,12 +176,12 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
       form.setValue('toAmount', totalReceive);
-
-      setIsQuoteSubmitted(false);
+    } else if (!tokenOutData.isLoading || tokenOutData.error) {
+      form.setValue('toAmount', '0');
     } else {
-      form.setValue('toAmount', '');
+      // Do nothing
     }
-  }, [form, tokenOutData.data, toToken]);
+  }, [form, tokenOutData.data, tokenOutData.error, tokenOutData.isLoading, toToken]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -186,23 +190,25 @@ export const SwapPage = () => {
         tokenSymbol={toToken.fiat.symbol}
         onClick={() => setModalType('to')}
         registerInput={form.register('toAmount')}
-        disabled={isQuoteSubmitted || tokenOutData.isLoading}
+        disabled={tokenOutData.isLoading}
         readOnly={true}
+        id="toAmount"
       />
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, isQuoteSubmitted, tokenOutData.isLoading, setModalType],
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutData.isLoading, setModalType],
   );
 
   const WithdrawNumericInput = useMemo(
     () => (
       <>
         <AssetNumericInput
-          registerInput={form.register('fromAmount', { onChange: () => setIsQuoteSubmitted(true) })}
+          registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
+          id="fromAmount"
         />
-        <UserBalance token={fromToken} />
+        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
     [form, fromToken, setModalType],
@@ -214,6 +220,7 @@ export const SwapPage = () => {
 
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
@@ -226,6 +233,7 @@ export const SwapPage = () => {
 
       if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
         const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
+        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
         return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
@@ -233,6 +241,7 @@ export const SwapPage = () => {
 
       if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
         const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
+        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
@@ -288,6 +297,34 @@ export const SwapPage = () => {
     }
   }
 
+  // We create one listener to listen for the anchor callback, on initialize.
+  useEffect(() => {
+    const handleMessage = (event: any) => {
+      if (event.origin != 'https://circle.anchor.mykobo.co') {
+        return;
+      }
+
+      // See: https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md
+      // status: pending_user_transfer_start indicates the anchor is ready to receive funds
+      if (event.data.transaction.status === 'pending_user_transfer_start') {
+        console.log('Callback received from external site, anchor flow completed.');
+
+        // We don't automatically close the window, as this could be confusing for the user.
+        // event.source.close();
+
+        showToast(ToastMessage.KYC_COMPLETED);
+      }
+    };
+
+    // Add the message listener
+    window.addEventListener('message', handleMessage);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
   const main = (
     <main ref={formRef}>
       <SigningBox step={signingPhase} />
@@ -296,10 +333,10 @@ export const SwapPage = () => {
         onSubmit={onConfirm}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" Input={WithdrawNumericInput} />
+        <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <Arrow />
-        <LabeledInput label="You receive" Input={ReceiveNumericInput} />
-        <p className="text-red-600 mb-6">{getCurrentErrorMessage()}</p>
+        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
+        <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutData.data?.amountOut.preciseString}
@@ -328,7 +365,7 @@ export const SwapPage = () => {
           <a
             href={firstSep24ResponseState.url}
             target="_blank"
-            rel="noreferrer"
+            rel="opener" //noopener forbids the use of postMessages.
             className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
             onClick={handleOnAnchorWindowOpen}
           >
@@ -337,7 +374,7 @@ export const SwapPage = () => {
         ) : (
           <SwapSubmitButton
             text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || initializeFailed || !isReady}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
             pending={isInitiating || offrampingStarted || offrampingState !== undefined}
           />
         )}

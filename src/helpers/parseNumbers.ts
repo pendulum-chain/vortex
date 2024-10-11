@@ -122,3 +122,7 @@ export const roundNumber = (value: number | string = 0, round = 6) => {
 export function roundDownToSignificantDecimals(big: BigNumber, decimals: number) {
   return big.prec(Math.max(0, big.e + 1) + decimals, 0);
 }
+
+export function roundDownToTwoDecimals(big: BigNumber): string {
+  return roundDownToSignificantDecimals(big, 2).toFixed(2, 0);
+}

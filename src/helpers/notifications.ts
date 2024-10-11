@@ -2,6 +2,7 @@ import { ToastOptions, toast } from 'react-toastify';
 
 export enum ToastMessage {
   AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
+  KYC_COMPLETED = 'KYC_COMPLETED',
 }
 
 type ToastSettings = {
@@ -15,6 +16,13 @@ const ToastProperties: Record<ToastMessage, ToastSettings> = {
     options: {
       toastId: ToastMessage.AMOUNT_MISMATCH,
       type: 'error',
+    },
+  },
+  [ToastMessage.KYC_COMPLETED]: {
+    message: 'Success! Get ready to off-ramp.',
+    options: {
+      toastId: ToastMessage.KYC_COMPLETED,
+      type: 'success',
     },
   },
 };

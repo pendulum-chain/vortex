@@ -28,7 +28,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   if (step !== 'started' && step !== 'approved' && step !== 'signed') return <></>;
 
   return (
-    <section className="toast toast-end">
+    <section className="z-50 toast toast-end">
       <div className="shadow-2xl">
         <header className="bg-pink-500 rounded-t">
           <h1 className="w-full py-2 text-center text-white">Action Required</h1>
@@ -43,7 +43,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
               <p>your connected wallet to proceed</p>
             </div>
           </div>
-          <div className="w-full mb-2.5">
+          <div className="w-full pb-2.5">
             <Progress
               value={getProgressValue(step)}
               max="100"
