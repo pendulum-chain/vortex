@@ -2,6 +2,7 @@ import { CheckIcon } from '@heroicons/react/20/solid';
 import { BaseLayout } from '../../layouts';
 import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
+import { Rating } from '../../components/Rating';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">
@@ -33,6 +34,7 @@ export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProp
           Return Home
         </button>
       </Box>
+      <Rating />
     </main>
   );
 

@@ -1,6 +1,6 @@
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { Progress } from 'react-daisyui';
 import { FC } from 'preact/compat';
+import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { SigningPhase } from '../../hooks/useMainProcess';
 
@@ -36,7 +36,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
         <main className="px-8 bg-white">
           <div className="flex items-center justify-center">
             <div className="flex items-center justify-center w-10 h-10 border rounded-full border-primary">
-              <AccountBalanceWalletOutlinedIcon className="text-primary" />
+              <img src={accountBalanceWalletIcon} alt="wallet account button" />
             </div>
             <div className="mx-4 my-5 text-xs">
               <p>Please sign the transaction in</p>

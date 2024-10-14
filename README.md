@@ -4,7 +4,6 @@
 &nbsp; ![TypeScript](https://img.shields.io/badge/-TypeSript-05122A?style=flat&logo=typescript)&nbsp;
 ![Preact](https://img.shields.io/badge/-Preact-05122A?style=flat&logo=preact)&nbsp;
 ![Vite](https://img.shields.io/badge/-Vite-05122A?style=flat&logo=vite)&nbsp;
-![MUI](https://img.shields.io/badge/-MaterialUI-05122A?style=flat&logo=mui)&nbsp;
 ![Polkadot](https://img.shields.io/badge/-Polkadot-05122A?style=flat&logo=polkadot)&nbsp;
 
 ---
@@ -39,10 +38,9 @@ matter what URL the browser requests.
 ## Env Variables
 
 - `VITE_SIGNING_SERVICE_URL`: Optional variable to point to a specific signing backend service URL. If undefined, it
-  will
-  default to either:
-    - http://localhost:3000 (if in development mode)
-    - https://prototype-signer-service-polygon.pendulumchain.tech (if in production mode)
+  will default to either:
+  - http://localhost:3000 (if in development mode)
+  - https://prototype-signer-service-polygon.pendulumchain.tech (if in production mode)
 - `VITE_ALCHEMY_API_KEY`: Optional variable to set the Alchemy API key for the custom RPC provider. If undefined, it
   will use dhe default endpoint.
 

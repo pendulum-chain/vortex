@@ -51,7 +51,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
             <TransactionInfo transactionId={transactionId} />
           </p>
         )}
-        <p className="text-center text-gray-400 mb-6">
+        <p className="mb-6 text-center text-gray-400">
           Contact our support team on{' '}
           <a href={config.telegramUrl} target="_blank" rel="noreferrer" className="underline">
             Telegram

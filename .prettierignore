@@ -16,3 +16,5 @@ yarn.lock
 favicon.png
 
 CHANGELOG.md
+**/*.svg
+.prettierignore

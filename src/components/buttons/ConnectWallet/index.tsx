@@ -1,7 +1,7 @@
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useEventsContext } from '../../../contexts/events';
+import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
 
 export function ConnectWallet() {
   const { handleUserClickWallet } = useEventsContext();
@@ -69,7 +69,7 @@ export function ConnectWallet() {
                     type="button"
                     className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
                   >
-                    <AccountBalanceWalletOutlinedIcon className="w-4" />
+                    <img src={accountBalanceWalletIcon} alt="wallet account button" />
                     <p className="hidden font-thin md:block">{account.displayName}</p>
                   </button>
                 </>
