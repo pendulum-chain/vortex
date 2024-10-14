@@ -1,9 +1,8 @@
-import { FC, useEffect, useState } from 'preact/compat';
+import { FC, useEffect, useRef, useState } from 'preact/compat';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
-import { useRef } from 'react';
 
 const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
   prepareTransactions: 'Preparing transactions',
