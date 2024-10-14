@@ -96,4 +96,38 @@ div[data-rk] {
     @apply h-3 !important;
     top: 1.4rem !important;
   }
+
+  .btn-vortex-primary {
+    @apply bg-blue-700;
+    @apply text-white;
+    @apply rounded-xl;
+    @apply border;
+    @apply border-blue-700;
+  }
+
+  .btn-vortex-primary:hover {
+    @apply bg-white;
+    @apply text-blue-700;
+    @apply border-blue-700;
+  }
+
+  .btn-vortex-primary:disabled {
+    @apply bg-blue-200;
+    @apply text-blue-700;
+    @apply opacity-50;
+    @apply border-blue-700;
+  }
+
+  .btn-vortex-secondary {
+    @apply text-white;
+    @apply bg-pink-600;
+    @apply border-pink-600;
+  }
+
+  .btn-vortex-secondary:hover {
+    @apply bg-pink-100;
+    @apply text-pink-600;
+    @apply border;
+    @apply border-pink-600;
+  }
 }

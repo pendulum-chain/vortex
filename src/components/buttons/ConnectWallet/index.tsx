@@ -33,7 +33,7 @@ export function ConnectWallet() {
                       handleUserClickWallet();
                     }}
                     type="button"
-                    className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
+                    className="btn-vortex-secondary btn rounded-3xl"
                   >
                     <p className="flex">
                       Connect <span className="hidden lg:block lg:ml-1">Wallet</span>
@@ -51,7 +51,7 @@ export function ConnectWallet() {
                       handleUserClickWallet();
                     }}
                     type="button"
-                    className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
+                    className="btn-vortex-secondary btn rounded-3xl"
                   >
                     Wrong network
                     <PlayCircleIcon className="w-5" />
@@ -67,7 +67,7 @@ export function ConnectWallet() {
                       handleUserClickWallet();
                     }}
                     type="button"
-                    className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
+                    className="btn-vortex-secondary btn rounded-3xl"
                   >
                     <img src={accountBalanceWalletIcon} alt="wallet account button" />
                     <p className="hidden font-thin md:block">{account.displayName}</p>
