@@ -3,21 +3,35 @@ import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
+import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 
-const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
-  prepareTransactions: 'Preparing transactions',
-  squidRouter: 'Bridging assets via Axelar',
-  pendulumFundEphemeral: 'Creating Pendulum ephemeral account',
-  executeXCM: 'Bridging assets via XCM',
-  subsidizePreSwap: 'Compensating swap risk',
-  nablaApprove: 'Approving Forex AMM',
-  nablaSwap: 'Swapping on Forex AMM',
-  subsidizePostSwap: 'Compensating swap risk',
-  executeSpacewalkRedeem: 'Bridging assets via Spacewalk',
-  pendulumCleanup: 'Cleaning up Pendulum ephemeral account',
-  stellarOfframp: 'Offramping on Stellar',
-  stellarCleanup: 'Cleaning up Stellar ephemeral account',
-};
+function createOfframpingPhaseMessage(offrampingState: OfframpingState): string {
+  const inputToken = INPUT_TOKEN_CONFIG[offrampingState.inputTokenType];
+  const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
+
+  switch (offrampingState.phase) {
+    case 'prepareTransactions':
+    case 'squidRouter':
+    case 'pendulumFundEphemeral':
+      return `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`;
+    case 'executeXCM':
+      return `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`;
+    case 'subsidizePreSwap':
+    case 'nablaApprove':
+    case 'nablaSwap':
+    case 'subsidizePostSwap':
+      return `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`;
+    case 'executeSpacewalkRedeem':
+      return `Bridging ${outputToken.stellarAsset.code.string} to Stellar via Spacewalk`;
+    case 'pendulumCleanup':
+    case 'stellarOfframp':
+    case 'stellarCleanup':
+      return 'Transferring to local partner for bank transfer';
+
+    default:
+      return '';
+  }
+}
 
 const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   prepareTransactions: 1,
@@ -36,7 +50,7 @@ const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
 
 const CIRCLE_RADIUS = 80;
 const CIRCLE_STROKE_WIDTH = 8;
-const numberOfPhases = Object.keys(OFFRAMPING_PHASE_MESSAGES).length;
+const numberOfPhases = Object.keys(OFFRAMPING_PHASE_SECONDS).length;
 
 interface ProgressPageProps {
   offrampingState: OfframpingState;
@@ -52,10 +66,11 @@ const WarningSection: FC = () => (
   </section>
 );
 
-const ProgressContent: FC<{ currentPhase: OfframpingPhase; currentPhaseIndex: number }> = ({
-  currentPhase,
-  currentPhaseIndex,
-}) => {
+const ProgressContent: FC<{
+  currentPhase: OfframpingPhase;
+  currentPhaseIndex: number;
+  message: string;
+}> = ({ currentPhase, currentPhaseIndex, message }) => {
   const [currentPercentage, setCurrentPercentage] = useState<number>(
     Math.round((100 / numberOfPhases) * currentPhaseIndex),
   );
@@ -132,7 +147,7 @@ const ProgressContent: FC<{ currentPhase: OfframpingPhase; currentPhaseIndex: nu
           </div>
         </div>
         <h1 className="my-3 text-base font-bold text-blue-700">Your transaction is in progress.</h1>
-        <div>{OFFRAMPING_PHASE_MESSAGES[currentPhase]}</div>
+        <div>{message}</div>
       </div>
     </Box>
   );
@@ -140,13 +155,14 @@ const ProgressContent: FC<{ currentPhase: OfframpingPhase; currentPhaseIndex: nu
 
 export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   const currentPhase = offrampingState.phase as OfframpingPhase; // this component will not be shown if the phase is 'success'
-  const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_MESSAGES).indexOf(currentPhase);
+  const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
+  const message = createOfframpingPhaseMessage(offrampingState);
 
   return (
     <BaseLayout
       main={
         <main>
-          <ProgressContent currentPhase={currentPhase} currentPhaseIndex={currentPhaseIndex} />
+          <ProgressContent currentPhase={currentPhase} currentPhaseIndex={currentPhaseIndex} message={message} />
         </main>
       }
     />
