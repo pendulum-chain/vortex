@@ -185,7 +185,10 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
   //>????
 }*/
 
-export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
+export async function sep24First(
+  sessionParams: IAnchorSessionParams,
+  stellarPublic: string,
+): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
   }
@@ -195,8 +198,9 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
 
   // at this stage, assetCode should be defined, if the config is consistent.
   const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
+    asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
     amount: sessionParams.offrampAmount,
+    account: stellarPublic, // Ephemeral public. Requried for Anclap, TODO: will this break the others?
   });
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;
