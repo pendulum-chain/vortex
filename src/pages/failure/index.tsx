@@ -52,9 +52,9 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
           </p>
         )}
         <p className="mb-6 text-center text-gray-400">
-          Contact our support team on{' '}
-          <a href={config.telegramUrl} target="_blank" rel="noreferrer" className="underline">
-            Telegram
+          Contact our{' '}
+          <a href={config.supportUrl} target="_blank" rel="noreferrer" className="underline">
+            support team
           </a>
           . We’re here to help!
         </p>
