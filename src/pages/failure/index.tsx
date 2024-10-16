@@ -53,7 +53,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
         )}
         <p className="mb-6 text-center text-gray-400">
           Contact our{' '}
-          <a href={config.telegramUrl} target="_blank" rel="noreferrer" className="underline">
+          <a href={config.supportUrl} target="_blank" rel="noreferrer" className="underline">
             support team
           </a>
           . We’re here to help!
