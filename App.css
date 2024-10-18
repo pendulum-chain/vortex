@@ -112,9 +112,16 @@ div[data-rk] {
   }
 
   .btn-vortex-primary:disabled {
+    @apply bg-blue-700;
+    @apply text-white;
+    @apply border-blue-700;
+    @apply opacity-40;
+  }
+
+  .btn-vortex-primary:active,
+  .btn-vortex-primary:focus {
     @apply bg-blue-200;
     @apply text-blue-700;
-    @apply opacity-50;
     @apply border-blue-700;
   }
 
