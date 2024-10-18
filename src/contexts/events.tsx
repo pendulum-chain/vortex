@@ -16,9 +16,13 @@ const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
   'click_details',
   'click_support',
   'transaction_confirmation',
+  'kyc_started',
   'kyc_completed',
+  'signing_requested',
+  'transactions_signed',
   'transaction_success',
   'transaction_failure',
+  'email_submission',
 ];
 
 export interface AmountTypeEvent {
@@ -35,11 +39,28 @@ export interface WalletConnectEvent {
 }
 
 export interface TransactionEvent {
-  event: 'transaction_confirmation' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+  event:
+    | 'transaction_confirmation'
+    | 'kyc_started'
+    | 'kyc_completed'
+    | 'signing_requested'
+    | 'transactions_signed'
+    | 'transaction_success'
+    | 'transaction_failure';
   from_asset: string;
   to_asset: string;
   from_amount: string;
   to_amount: string;
+}
+
+export interface ProgressEvent {
+  event: 'progress';
+  phase: number;
+}
+
+export interface EmailSubmissionEvent {
+  event: 'email_submission';
+  transaction_status: 'success' | 'failure';
 }
 
 export interface ClickSupportEvent {
@@ -62,7 +83,9 @@ export type TrackableEvent =
   | WalletConnectEvent
   | TransactionEvent
   | ClickSupportEvent
-  | FormErrorEvent;
+  | FormErrorEvent
+  | EmailSubmissionEvent
+  | ProgressEvent;
 
 type EventType = TrackableEvent['event'];
 
