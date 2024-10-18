@@ -28,8 +28,6 @@ export async function squidRouter(
 
   console.log('Asking for approval of', transactionRequest?.target, fromTokenErc20Address, state.inputAmount.units);
 
-  trackEvent(createTransactionEvent('signing_requested', state));
-
   setSigningPhase?.('started');
 
   let approvalHash;
@@ -43,6 +41,8 @@ export async function squidRouter(
   } catch (e) {
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
+  } finally {
+    trackEvent(createTransactionEvent('signing_requested', state));
   }
 
   setSigningPhase?.('approved');
