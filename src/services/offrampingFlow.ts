@@ -24,6 +24,7 @@ import { prepareTransactions } from './signedTransactions';
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
 import { executeXCM } from './moonbeam';
+import { TrackableEvent } from '../contexts/events';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
@@ -125,6 +126,7 @@ export interface ExecutionContext {
   wagmiConfig: Config;
   renderEvent: RenderEventHandler;
   setSigningPhase: (n: SigningPhase) => void;
+  trackEvent: (event: TrackableEvent) => void;
 }
 
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
