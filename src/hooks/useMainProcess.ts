@@ -7,7 +7,8 @@ import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfi
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
-import { useConfig } from 'wagmi';
+import { useConfig, useSwitchChain } from 'wagmi';
+import { polygon } from 'wagmi/chains';
 import {
   OfframpingState,
   advanceOfframpingState,
@@ -51,6 +52,7 @@ export const useMainProcess = () => {
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const wagmiConfig = useConfig();
+  const { switchChain } = useSwitchChain();
   const { trackEvent, resetUniqueEvents } = useEventsContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
@@ -101,6 +103,9 @@ export const useMainProcess = () => {
       }
 
       (async () => {
+        // If we already are on the polygon chain, we don't need to switch and this will be a no-op
+        switchChain({ chainId: polygon.id });
+
         setOfframpingStarted(true);
         trackEvent({
           event: 'transaction_confirmation',
