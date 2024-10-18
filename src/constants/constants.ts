@@ -12,3 +12,6 @@ export const TRANSFER_WAITING_TIME_SECONDS = 6000;
 export const SIGNING_SERVICE_URL =
   config.maybeSignerServiceUrl ||
   (config.isProd ? 'https://prototype-signer-service-polygon.pendulumchain.tech' : 'http://localhost:3000');
+
+// The chain id for polygon is 137, see [here](https://wagmi.sh/react/api/chains#available-chains)
+export const POLYGON_CHAIN_ID = 137;
