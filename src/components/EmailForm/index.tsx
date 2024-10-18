@@ -1,14 +1,18 @@
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { storeUserEmailInBackend } from '../../services/storage/remote';
-import { TextInput } from '../../components/TextInput';
+import { TextInput } from '../TextInput';
+import { useEventsContext } from '../../contexts/events';
 
 interface EmailFormProps {
   transactionId?: string;
+  // Boolean to check if the transaction was successful, important for the event tracking
+  transactionSuccess: boolean;
 }
 
-export const EmailForm = ({ transactionId }: EmailFormProps) => {
+export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps) => {
   const { register, handleSubmit } = useForm();
+  const { trackEvent } = useEventsContext();
 
   const {
     mutate: saveUserEmailMutation,
@@ -25,6 +29,7 @@ export const EmailForm = ({ transactionId }: EmailFormProps) => {
       return;
     }
 
+    trackEvent({ event: 'email_submission', transaction_status: transactionSuccess ? 'success' : 'failure' });
     saveUserEmailMutation({ email: data.email, transactionId });
   });
 

@@ -1,8 +1,9 @@
-import { FC } from 'preact/compat';
+import { FC, useEffect } from 'preact/compat';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
+import { useEventsContext } from '../../contexts/events';
 
 const OFFRAMPING_PHASE_MESSAGES: Record<OfframpingPhase, string> = {
   prepareTransactions: 'Preparing transactions',
@@ -61,7 +62,13 @@ const ProgressContent: FC<{ currentPhaseIndex: number }> = ({ currentPhaseIndex 
 );
 
 export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
+  const { trackEvent } = useEventsContext();
+
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_MESSAGES).indexOf(offrampingState.phase);
+
+  useEffect(() => {
+    trackEvent({ event: 'progress', phase: currentPhaseIndex });
+  }, [currentPhaseIndex, trackEvent]);
 
   return (
     <BaseLayout

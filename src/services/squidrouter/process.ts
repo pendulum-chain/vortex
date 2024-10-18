@@ -5,10 +5,11 @@ import erc20ABI from '../../contracts/ERC20';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { waitForEvmTransaction } from '../evmTransactions';
 import { getRouteTransactionRequest } from './route';
+import { createTransactionEvent } from '../../contexts/events';
 
 export async function squidRouter(
   state: OfframpingState,
-  { wagmiConfig, setSigningPhase }: ExecutionContext,
+  { wagmiConfig, setSigningPhase, trackEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const inputToken = INPUT_TOKEN_CONFIG[state.inputTokenType];
   const fromTokenErc20Address = inputToken.erc20AddressSourceChain;
@@ -40,6 +41,8 @@ export async function squidRouter(
   } catch (e) {
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
+  } finally {
+    trackEvent(createTransactionEvent('signing_requested', state));
   }
 
   setSigningPhase?.('approved');
@@ -64,6 +67,7 @@ export async function squidRouter(
   const axelarScanLink = 'https://axelarscan.io/gmp/' + swapHash;
   console.log(`Squidrouter Swap Initiated! Check Axelarscan for details: ${axelarScanLink}`);
 
+  trackEvent(createTransactionEvent('transactions_signed', state));
   setSigningPhase?.('finished');
 
   return {
