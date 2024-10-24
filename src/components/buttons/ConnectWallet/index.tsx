@@ -2,6 +2,7 @@ import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useEventsContext } from '../../../contexts/events';
 import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
+import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet-pink.svg';
 
 export function ConnectWallet() {
   const { handleUserClickWallet } = useEventsContext();
@@ -33,12 +34,12 @@ export function ConnectWallet() {
                       handleUserClickWallet();
                     }}
                     type="button"
-                    className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
+                    className="btn-vortex-secondary btn rounded-3xl group"
                   >
                     <p className="flex">
                       Connect <span className="hidden lg:block lg:ml-1">Wallet</span>
                     </p>
-                    <PlayCircleIcon className="w-5" />
+                    <PlayCircleIcon className="w-5 group-hover:text-pink-600" />
                   </button>
                 );
               }
@@ -51,10 +52,10 @@ export function ConnectWallet() {
                       handleUserClickWallet();
                     }}
                     type="button"
-                    className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
+                    className="btn-vortex-secondary btn rounded-3xl group"
                   >
                     Wrong network
-                    <PlayCircleIcon className="w-5" />
+                    <PlayCircleIcon className="w-5 group-hover:text-pink-600" />
                   </button>
                 );
               }
@@ -67,10 +68,19 @@ export function ConnectWallet() {
                       handleUserClickWallet();
                     }}
                     type="button"
-                    className="text-white bg-pink-600 border-pink-600 btn rounded-3xl"
+                    className="btn-vortex-secondary btn rounded-3xl group"
                   >
-                    <img src={accountBalanceWalletIcon} alt="wallet account button" />
-                    <p className="hidden font-thin md:block">{account.displayName}</p>
+                    <img
+                      src={accountBalanceWalletIcon}
+                      className="block group-hover:hidden"
+                      alt="wallet account button"
+                    />
+                    <img
+                      src={accountBalanceWalletIconPink}
+                      className="hidden group-hover:block"
+                      alt="wallet account button hovered"
+                    />
+                    <p className="hidden font-thin md:block ">{account.displayName}</p>
                   </button>
                 </>
               );
