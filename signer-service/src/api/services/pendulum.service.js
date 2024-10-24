@@ -1,7 +1,14 @@
 const { Keyring } = require('@polkadot/api');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 const Big = require('big.js');
-const { FUNDING_AMOUNT_UNITS, PENDULUM_WSS } = require('../../constants/constants');
+const {
+  PENDULUM_FUNDING_AMOUNT_UNITS,
+  PENDULUM_WSS,
+  SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
+  PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
+} = require('../../constants/constants');
+const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+
 require('dotenv').config();
 
 const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
@@ -31,7 +38,7 @@ async function createPolkadotApi() {
 function getFundingData(ss58Format, decimals) {
   const keyring = new Keyring({ type: 'sr25519', ss58Format });
   const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED);
-  const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
+  const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
   return { fundingAccountKeypair, fundingAmountRaw };
@@ -53,10 +60,34 @@ exports.fundEphemeralAccount = async (ephemeralAddress) => {
 
 exports.sendStatusWithPk = async () => {
   const apiData = await createPolkadotApi();
-  const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
+  const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
 
-  if (Big(balance.free.toString()).gte(fundingAmountRaw)) {
+  let isTokensSufficient = true;
+
+  // Wait for all required token balances check.
+  await Promise.all(
+    Object.entries(TOKEN_CONFIG).map(async ([token, tokenConfig]) => {
+      console.log(`Checking token ${token} balance...`);
+      const tokenBalanceResponse = await apiData.api.query.tokens.accounts(
+        fundingAccountKeypair.address,
+        tokenConfig.pendulumCurrencyId,
+      );
+
+      const tokenBalance = Big(tokenBalanceResponse?.free?.toString() ?? '0');
+      const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
+      const remainingMaxSubsidiesAvailable = tokenBalance.div(maximumSubsidyAmountRaw);
+
+      if (remainingMaxSubsidiesAvailable.lt(SUBSIDY_MINIMUM_RATIO_FUND_UNITS)) {
+        isTokensSufficient = false;
+        console.log(`Token ${token} balance is insufficient.`);
+      }
+    }),
+  );
+
+  const minimumBalanceFundingAccount = multiplyByPowerOfTen(Big(PENDULUM_FUNDING_AMOUNT_UNITS), apiData.decimals);
+  const nativeBalance = Big(balance?.free?.toString() ?? '0');
+  if (nativeBalance.gte(minimumBalanceFundingAccount) && isTokensSufficient) {
     return { status: true, public: fundingAccountKeypair.address };
   }
   return { status: false, public: fundingAccountKeypair.address };

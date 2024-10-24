@@ -13,6 +13,7 @@ import { KeyringPair } from '@polkadot/keyring/types';
 import { SpacewalkPrimitivesCurrencyId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api/types';
 import { SignerOptions } from '@polkadot/api-base/types';
+import { Big } from 'big.js';
 
 export function extractAssetFromWrapped(wrapped: SpacewalkPrimitivesCurrencyId) {
   if (!wrapped.isStellar) {
@@ -74,7 +75,13 @@ function prettyPrintAssetInfo(assetInfo: any) {
   return assetInfo.code;
 }
 
-export async function getVaultsForCurrency(api: ApiPromise, assetCodeHex: string, assetIssuerHex: string) {
+// Filter each vault by required wrapped id and redeemable amount
+export async function getVaultsForCurrency(
+  api: ApiPromise,
+  assetCodeHex: string,
+  assetIssuerHex: string,
+  redeemableAmountRaw: string,
+) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([_, value]) => value.unwrap());
 
@@ -85,13 +92,29 @@ export async function getVaultsForCurrency(api: ApiPromise, assetCodeHex: string
       vault.id.currencies.wrapped.isStellar &&
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
-      vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex
+      vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex &&
+      //vault.bannedUntil === null &&
+      vaultHasEnoughRedeemable(vault, redeemableAmountRaw)
     );
   });
+
+  if (vaultsForCurrency.length === 0) {
+    const errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemableAmountRaw}`;
+    console.log(errorMessage);
+    throw new Error(errorMessage);
+  }
 
   return vaultsForCurrency;
 }
 
+function vaultHasEnoughRedeemable(vault: any, redeemableAmount: string): boolean {
+  //issuedTokens - toBeRedeemedTokens = redeemableTokens
+  const redeemableTokens = new Big(vault.issuedTokens).sub(new Big(vault.toBeRedeemedTokens));
+  if (redeemableTokens.gt(new Big(redeemableAmount))) {
+    return true;
+  }
+  return false;
+}
 function isWalletAccount(signer: WalletAccount | KeyringPair): signer is WalletAccount {
   return (signer as WalletAccount).signer !== undefined;
 }

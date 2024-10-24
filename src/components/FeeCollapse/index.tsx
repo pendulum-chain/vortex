@@ -1,8 +1,6 @@
 import { FC } from 'preact/compat';
-import { useState } from 'preact/hooks';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
-import { roundDownToSignificantDecimals } from '../../helpers/parseNumbers';
+import { roundDownToTwoDecimals } from '../../helpers/parseNumbers';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 
@@ -21,35 +19,28 @@ interface CollapseProps {
 }
 
 export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const { trackEvent } = useEventsContext();
   const toTokenSymbol = toToken.fiat.symbol;
 
-  const toggleIsOpen = () => {
+  const trackFeeCollapseOpen = () => {
     trackEvent({ event: 'click_details' });
-    setIsOpen((state) => !state);
   };
 
-  const chevron = isOpen ? (
-    <ChevronUpIcon className="w-8 text-blue-700" />
-  ) : (
-    <ChevronDownIcon className="w-8 text-blue-700" />
-  );
-
-  const toAmountFixed = roundDownToSignificantDecimals(new Big(toAmount || 0), 2).toString();
+  const toAmountFixed = roundDownToTwoDecimals(Big(toAmount || 0));
   const totalReceive = calculateTotalReceive(toAmount || '0', toToken);
-  const feesCost = roundDownToSignificantDecimals(Big(toAmountFixed || 0).sub(totalReceive), 2).toString();
+  const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive));
+  const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive));
 
   return (
-    <details className="transition border border-blue-700 collapse" onClick={toggleIsOpen}>
-      <summary className="min-h-0 px-4 py-2 collapse-title">
+    <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>
+      <input type="checkbox" />
+      <div className="min-h-0 px-4 py-2 collapse-title">
         <div className="flex items-center justify-between">
           <p>Details</p>
-          <div className="flex items-center ml-5 select-none">{chevron}</div>
         </div>
-      </summary>
+      </div>
       <div className="collapse-content">
-        <div className="flex justify-between">
+        <div className="flex justify-between mt-2 ">
           <p>Your quote ({exchangeRate})</p>
           <div className="flex">
             <span>
@@ -69,11 +60,11 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate
           <strong className="font-bold">Final Amount</strong>
           <div className="flex">
             <span>
-              {totalReceive} {toTokenSymbol}
+              {totalReceiveFormatted} {toTokenSymbol}
             </span>
           </div>
         </div>
       </div>
-    </details>
+    </div>
   );
 };

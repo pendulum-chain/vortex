@@ -1,6 +1,6 @@
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { Progress } from 'react-daisyui';
 import { FC } from 'preact/compat';
+import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { SigningPhase } from '../../hooks/useMainProcess';
 
@@ -28,7 +28,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   if (step !== 'started' && step !== 'approved' && step !== 'signed') return <></>;
 
   return (
-    <section className="toast toast-end">
+    <section className="z-50 toast toast-end">
       <div className="shadow-2xl">
         <header className="bg-pink-500 rounded-t">
           <h1 className="w-full py-2 text-center text-white">Action Required</h1>
@@ -36,14 +36,14 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
         <main className="px-8 bg-white">
           <div className="flex items-center justify-center">
             <div className="flex items-center justify-center w-10 h-10 border rounded-full border-primary">
-              <AccountBalanceWalletOutlinedIcon className="text-primary" />
+              <img src={accountBalanceWalletIcon} alt="wallet account button" />
             </div>
             <div className="mx-4 my-5 text-xs">
               <p>Please sign the transaction in</p>
               <p>your connected wallet to proceed</p>
             </div>
           </div>
-          <div className="w-full mb-2.5">
+          <div className="w-full pb-2.5">
             <Progress
               value={getProgressValue(step)}
               max="100"

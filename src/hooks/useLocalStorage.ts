@@ -112,3 +112,7 @@ export const useLocalStorage = <T>({
 
   return { state, set, merge, clear };
 };
+
+export enum LocalStorageKeys {
+  RATING = 'RATING',
+}
