@@ -22,7 +22,7 @@
     "postpublish": "git push --tags"
   },
   "dependencies": {
-    "@polkadot/api": "^10.3.4",
+    "@polkadot/api": "^13.2.1",
     "big.js": "^6.2.1",
     "body-parser": "^1.17.0",
     "compression": "^1.6.2",
