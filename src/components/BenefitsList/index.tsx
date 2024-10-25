@@ -16,7 +16,7 @@ export const BenefitsList: FC<BenefitsListProps> = () => (
     <li className="flex">
       <CheckIcon className="w-4 mr-2 text-pink-500" />
       <p>
-        Should arrive in <span className="font-bold text-blue-700">5 minutes</span>
+        Takes <span className="font-bold text-blue-700">5 minutes</span>
       </p>
     </li>
   </ul>
