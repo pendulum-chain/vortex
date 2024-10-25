@@ -33,7 +33,7 @@ export const defaultWriteLimits: Limits = {
 
 export const createWriteOptions = (api: ApiPromise, opts?: ContractOptions) => ({
   gas: {
-    refTime: '360000000000',
+    refTime: '345000000000',
     proofSize: '1300000',
   },
   storageDepositLimit: null,
