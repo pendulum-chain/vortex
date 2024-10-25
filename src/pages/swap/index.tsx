@@ -370,7 +370,7 @@ export const SwapPage = () => {
             onClick={handleOnAnchorWindowOpen}
             // open in a tinier window
           >
-            Enter details
+            Continue with Partner
           </a>
         ) : (
           <SwapSubmitButton
