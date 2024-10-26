@@ -2,6 +2,7 @@ import { CheckIcon } from '@heroicons/react/20/solid';
 import { BaseLayout } from '../../layouts';
 import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
+import { Rating } from '../../components/Rating';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">
@@ -29,10 +30,11 @@ export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProp
         </p>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         <EmailForm transactionId={transactionId} />
-        <button className="w-full mt-5 text-white bg-blue-700 btn rounded-xl" onClick={finishOfframping}>
+        <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={finishOfframping}>
           Return Home
         </button>
       </Box>
+      <Rating />
     </main>
   );
 

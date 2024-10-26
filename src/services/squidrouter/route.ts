@@ -10,7 +10,6 @@ interface RouteParams {
   fromAddress: string;
   fromChain: string;
   fromToken: string;
-  inputToken: InputTokenDetails;
   fromAmount: string;
   toChain: string;
   toToken: string;
@@ -19,7 +18,7 @@ interface RouteParams {
     autoMode: number;
   };
   enableExpress: boolean;
-  postHook: {
+  postHook?: {
     chainType: string;
     calls: any[];
     provider: string;
@@ -55,7 +54,6 @@ function createRouteParams(
     fromChain: fromChainId,
     fromToken: fromToken,
     fromAmount: amount,
-    inputToken,
     toChain: toChainId,
     toToken: axlUSDC_MOONBEAM,
     toAddress: userAddress,
@@ -121,7 +119,7 @@ async function getRoute(params: RouteParams) {
     return { data: result.data, requestId: requestId };
   } catch (error) {
     if (error) {
-      console.error('API error:', (error as any).response.data);
+      console.error('Squidrouter API error:', (error as any).response.data);
     }
     console.error('Error with parameters:', params);
     throw error;
@@ -151,4 +149,25 @@ export async function getRouteTransactionRequest(
     transactionRequest,
     data: routeResult.data,
   };
+}
+
+export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: `0x${string}`) {
+  const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
+
+  const sharedRouteParams: RouteParams = {
+    fromAddress: address,
+    fromChain: fromChainId,
+    fromToken: testingToken.erc20AddressSourceChain,
+    fromAmount: attemptedAmountRaw,
+    toChain: toChainId,
+    toToken: axlUSDC_MOONBEAM,
+    toAddress: address,
+    slippageConfig: {
+      autoMode: 1,
+    },
+    enableExpress: true,
+  };
+
+  // will throw if no route is found
+  await getRoute(sharedRouteParams);
 }
