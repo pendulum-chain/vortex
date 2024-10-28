@@ -123,7 +123,14 @@ export const useMainProcess = () => {
 
           const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(Big(minAmountOutUnits), 2);
 
-          const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
+          const requiresClientDomain = outputToken.requiresClientDomain;
+          const sep10Token = await sep10(
+            tomlValues,
+            stellarEphemeralSecret,
+            requiresClientDomain,
+            outputTokenType,
+            addEvent,
+          );
 
           const anchorSessionParams = {
             token: sep10Token,

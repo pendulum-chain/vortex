@@ -1,7 +1,8 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
-import { OutputTokenDetails } from '../../constants/tokenConfig';
+import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSigningServiceAccountId } from '../signingService';
+import { fetchClientDomainSep10 } from '../signingService';
 import { config } from '../../config';
 
 interface TomlValues {
@@ -67,6 +68,8 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
+  requiresClientDomain: boolean,
+  outTokenCode: OutputTokenType,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -77,9 +80,18 @@ export const sep10 = async (
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
-  const urlParams = new URLSearchParams({
-    account: accountId,
-  });
+
+  let urlParams;
+  if (requiresClientDomain) {
+    urlParams = new URLSearchParams({
+      account: accountId,
+      client_domain: 'https://satoshipay.io/.well-known/stellar.toml',
+    });
+  } else {
+    urlParams = new URLSearchParams({
+      account: accountId,
+    });
+  }
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -100,6 +112,14 @@ export const sep10 = async (
   }
 
   // More tests required, ignore for prototype
+
+  // let signer-service sign the challenge to authenticate our
+  // client domain definition.
+  if (requiresClientDomain) {
+    const { clientSignature, clientPublic } = await fetchClientDomainSep10(transactionSigned.toXDR(), outTokenCode);
+    console.log(clientSignature, clientPublic);
+    transactionSigned.addSignature(clientPublic, clientSignature);
+  }
 
   transactionSigned.sign(ephemeralKeys);
 

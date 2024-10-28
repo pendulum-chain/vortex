@@ -5,9 +5,10 @@ const {
   FUNDING_SECRET,
   STELLAR_FUNDING_AMOUNT_UNITS,
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
+  CLIENT_SECRET,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
-
+const { fetchTomlValues } = require('../helpers/anchors');
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -151,4 +152,21 @@ async function sendStatusWithPk() {
   }
 }
 
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };
+async function signSep10Challenge(challengeXDR, outToken) {
+  const keypair = Keypair.fromSecret(CLIENT_SECRET);
+
+  const { signingKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
+
+  const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
+  if (transactionSigned.source !== signingKey) {
+    throw new Error(`Invalid source account: ${transactionSigned.source}`);
+  }
+  if (transactionSigned.sequence !== '0') {
+    throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
+  }
+
+  const signature = transactionSigned.getKeypairSignature(keypair);
+  return { clientSignature: signature, clientPublic: keypair.publicKey() };
+}
+
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk, signSep10Challenge };

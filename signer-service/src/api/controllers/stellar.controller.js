@@ -3,7 +3,12 @@ require('dotenv').config();
 const { Keypair } = require('stellar-sdk');
 const { FUNDING_SECRET } = require('../../constants/constants');
 
-const { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk } = require('../services/stellar.service');
+const {
+  buildCreationStellarTx,
+  buildPaymentAndMergeTx,
+  sendStatusWithPk,
+  signSep10Challenge,
+} = require('../services/stellar.service');
 
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
@@ -48,5 +53,15 @@ exports.changeOpTransaction = async (req, res, next) => {
   } catch (error) {
     console.error('Error in changeOpTransaction:', error);
     return res.status(500).json({ error: 'Failed to process transaction', details: error.message });
+  }
+};
+
+exports.signSep10Challenge = async (req, res, next) => {
+  try {
+    let { clientSignature, clientPublic } = await signSep10Challenge(req.body.challengeXDR, req.body.outToken);
+    return res.json({ clientSignature, clientPublic });
+  } catch (error) {
+    console.error('Error in signSep10Challenge:', error);
+    return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });
   }
 };
