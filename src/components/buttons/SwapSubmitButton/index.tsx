@@ -23,7 +23,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
                 <button
                   onClick={openConnectModal}
                   type="button"
-                  className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+                  className="w-full mt-5 btn-vortex-primary btn rounded-xl"
                 >
                   Connect Wallet
                 </button>
@@ -31,10 +31,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
             }
 
             return (
-              <button
-                className="w-full mt-5 text-white bg-blue-700 btn rounded-xl disabled:text-neutral-400 disabled:bg-neutral-100"
-                disabled={showInDisabledState}
-              >
+              <button className="w-full mt-5 btn-vortex-primary btn" disabled={showInDisabledState}>
                 {pending && <span className="loading loading-spinner loading-sm"></span>}
                 {text}
               </button>

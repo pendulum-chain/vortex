@@ -41,7 +41,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
     }
 
     if (isPending) {
-      return <div className="flex items-center justify-center mt-2 text-white bg-blue-700 btn">Loading...</div>;
+      return <div className="flex items-center justify-center mt-2 btn-vortex-primary btn">Loading...</div>;
     }
 
     return (
@@ -50,7 +50,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
           <div className="mr-3 grow">
             <TextInput type="email" placeholder="example@mail.com" register={register('email')} />
           </div>
-          <button className="px-5 text-white bg-blue-700 btn rounded-xl" type="submit">
+          <button className="px-5 btn-vortex-primary btn rounded-xl" type="submit">
             Submit
           </button>
         </div>
@@ -65,7 +65,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
   return (
     <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? 'request-error-message' : undefined}>
-      <p className="text-center text-blue-700 font-bold">Thank you for using our new product!</p>
+      <p className="font-bold text-center text-blue-700">Thank you for using our new product!</p>
       <p className="font-light text-center text-blue-700">
         We’re always looking to improve, and we’d greatly appreciate your feedback. If you’re willing, please leave your
         email below so we can reach out for a quick chat about your experience.

@@ -366,11 +366,11 @@ export const SwapPage = () => {
             href={firstSep24ResponseState.url}
             target="_blank"
             rel="opener" //noopener forbids the use of postMessages.
-            className="w-full mt-5 text-white bg-blue-700 btn rounded-xl"
+            className="w-full mt-5 btn-vortex-primary btn rounded-xl"
             onClick={handleOnAnchorWindowOpen}
             // open in a tinier window
           >
-            Enter details
+            Continue with Partner
           </a>
         ) : (
           <SwapSubmitButton
