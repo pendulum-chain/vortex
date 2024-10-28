@@ -32,17 +32,17 @@ export async function squidRouter(
 
   let approvalHash;
   try {
+    trackEvent({ event: 'signing_requested', index: 1 });
     approvalHash = await writeContract(wagmiConfig, {
       abi: erc20ABI,
       address: fromTokenErc20Address,
       functionName: 'approve',
       args: [transactionRequest?.target, state.inputAmount.raw],
     });
+    trackEvent({ event: 'transaction_signed', index: 1 });
   } catch (e) {
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
-  } finally {
-    trackEvent(createTransactionEvent('signing_requested', state));
   }
 
   setSigningPhase?.('approved');
@@ -51,12 +51,14 @@ export async function squidRouter(
 
   let swapHash;
   try {
+    trackEvent({ event: 'signing_requested', index: 2 });
     swapHash = await sendTransaction(wagmiConfig, {
       to: transactionRequest.target,
       data: transactionRequest.data,
       value: transactionRequest.value,
       gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
     });
+    trackEvent({ event: 'transaction_signed', index: 2 });
   } catch (e) {
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
@@ -67,7 +69,6 @@ export async function squidRouter(
   const axelarScanLink = 'https://axelarscan.io/gmp/' + swapHash;
   console.log(`Squidrouter Swap Initiated! Check Axelarscan for details: ${axelarScanLink}`);
 
-  trackEvent(createTransactionEvent('transactions_signed', state));
   setSigningPhase?.('finished');
 
   return {
