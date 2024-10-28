@@ -361,24 +361,29 @@ export const SwapPage = () => {
             </p>
           )}
         </section>
-        {firstSep24ResponseState?.url !== undefined ? (
-          <a
-            href={firstSep24ResponseState.url}
-            target="_blank"
-            rel="opener" //noopener forbids the use of postMessages.
-            className="w-full mt-5 btn-vortex-primary btn rounded-xl"
-            onClick={handleOnAnchorWindowOpen}
-            // open in a tinier window
-          >
-            Continue with Partner
-          </a>
-        ) : (
-          <SwapSubmitButton
-            text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-            pending={isInitiating || offrampingStarted || offrampingState !== undefined}
-          />
-        )}
+        <div className="flex mt-5 gap-3">
+          <button className="grow btn-vortex-secondary btn" disabled={!inputAmountIsStable}>
+            Compare fees
+          </button>
+          {firstSep24ResponseState?.url !== undefined ? (
+            <a
+              href={firstSep24ResponseState.url}
+              target="_blank"
+              rel="opener" //noopener forbids the use of postMessages.
+              className="grow btn-vortex-primary btn rounded-xl"
+              onClick={handleOnAnchorWindowOpen}
+              // open in a tinier window
+            >
+              Continue with Partner
+            </a>
+          ) : (
+            <SwapSubmitButton
+              text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
+              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+              pending={isInitiating || offrampingStarted || offrampingState !== undefined}
+            />
+          )}
+        </div>
       </form>
     </main>
   );

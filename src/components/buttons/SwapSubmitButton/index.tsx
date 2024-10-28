@@ -16,22 +16,18 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
       const showInDisabledState = disabled || pending;
 
       return (
-        <div>
+        <div className="grow">
           {(() => {
             if (!connected) {
               return (
-                <button
-                  onClick={openConnectModal}
-                  type="button"
-                  className="w-full mt-5 btn-vortex-primary btn rounded-xl"
-                >
+                <button onClick={openConnectModal} type="button" className="w-full btn-vortex-primary btn rounded-xl">
                   Connect Wallet
                 </button>
               );
             }
 
             return (
-              <button className="w-full mt-5 btn-vortex-primary btn" disabled={showInDisabledState}>
+              <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
                 {pending && <span className="loading loading-spinner loading-sm"></span>}
                 {text}
               </button>
