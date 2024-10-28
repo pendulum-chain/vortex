@@ -164,7 +164,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
 
   useEffect(() => {
     trackEvent({ event: 'progress', phase: currentPhaseIndex, name: offrampingState.phase });
-  }, [currentPhaseIndex, trackEvent]);
+  }, [currentPhaseIndex, trackEvent, offrampingState.phase]);
 
   return (
     <BaseLayout

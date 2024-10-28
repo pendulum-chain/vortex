@@ -170,7 +170,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingState, offrampingStarted, trackEvent],
+    [offrampingState, offrampingStarted, trackEvent, switchChain],
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
@@ -257,7 +257,7 @@ export const useMainProcess = () => {
 
       if (offrampingState !== nextState) updateHookStateFromState(nextState);
     })();
-  }, [offrampingState, updateHookStateFromState, wagmiConfig]);
+  }, [offrampingState, updateHookStateFromState, trackEvent, wagmiConfig]);
 
   return {
     handleOnSubmit,
