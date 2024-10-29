@@ -14,6 +14,13 @@ module.exports = {
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 15,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   logs: process.env.NODE_ENV === 'production' ? 'combined' : 'dev',
+  quoteProviders: {
+    alchemyPay: {
+      baseUrl: process.env.ALCHEMYPAY_PROD_URL || 'https://openapi.alchemypay.org',
+      appId: process.env.ALCHEMYPAY_APP_ID,
+      secretKey: process.env.ALCHEMYPAY_SECRET_KEY,
+    },
+  },
   spreadsheet: {
     googleCredentials: {
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,

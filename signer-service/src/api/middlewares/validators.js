@@ -2,6 +2,7 @@ const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 const { RATING_SHEET_HEADER_VALUES } = require('../controllers/rating.controller');
+const { SUPPORTED_PROVIDERS } = require('../controllers/quote.controller');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -16,6 +17,36 @@ const validateCreationInput = (req, res, next) => {
   if (typeof maxTime !== 'number') {
     return res.status(400).json({ error: 'maxTime must be a number' });
   }
+  next();
+};
+
+const validateQuoteInput = (req, res, next) => {
+  const { provider, fromCrypto, toFiat, amount } = req.query;
+
+  console.log('body', req.query);
+
+  if (!provider || SUPPORTED_PROVIDERS.indexOf(provider.toLowerCase()) === -1) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid provider. Supported providers are: ' + SUPPORTED_PROVIDERS.join(', ') });
+  }
+
+  if (!fromCrypto) {
+    return res.status(400).json({ error: 'Missing fromCrypto parameter' });
+  }
+
+  if (!toFiat) {
+    return res.status(400).json({ error: 'Missing toFiat parameter' });
+  }
+
+  if (!amount) {
+    return res.status(400).json({ error: 'Missing amount parameter' });
+  }
+
+  if (isNaN(parseFloat(amount))) {
+    return res.status(400).json({ error: 'Invalid amount parameter. Not a number.' });
+  }
+
   next();
 };
 
@@ -100,6 +131,7 @@ const validatePostSwapSubsidizationInput = (req, res, next) => {
 
 module.exports = {
   validateChangeOpInput,
+  validateQuoteInput,
   validateCreationInput,
   validatePreSwapSubsidizationInput,
   validatePostSwapSubsidizationInput,
