@@ -152,7 +152,7 @@ async function sendStatusWithPk() {
   }
 }
 
-async function signSep10Challenge(challengeXDR, outToken, clientPublicKey) {
+async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo) {
   const keypair = Keypair.fromSecret(CLIENT_SECRET);
 
   const { signingKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
@@ -163,6 +163,12 @@ async function signSep10Challenge(challengeXDR, outToken, clientPublicKey) {
   }
   if (transactionSigned.sequence !== '0') {
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
+  }
+
+  // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
+  // memo field should match and not be empty.
+  if (transactionSigned.memo.value !== memo && memo !== '') {
+    throw new Error('Memo does not match');
   }
 
   // Verify manage_data operations
