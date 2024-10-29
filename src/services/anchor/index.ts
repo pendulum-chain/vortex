@@ -85,7 +85,7 @@ export const sep10 = async (
   if (requiresClientDomain) {
     urlParams = new URLSearchParams({
       account: accountId,
-      client_domain: 'https://satoshipay.io/.well-known/stellar.toml',
+      client_domain: config.applicationClientDomain,
     });
   } else {
     urlParams = new URLSearchParams({
@@ -116,8 +116,11 @@ export const sep10 = async (
   // let signer-service sign the challenge to authenticate our
   // client domain definition.
   if (requiresClientDomain) {
-    const { clientSignature, clientPublic } = await fetchClientDomainSep10(transactionSigned.toXDR(), outTokenCode);
-    console.log(clientSignature, clientPublic);
+    const { clientSignature, clientPublic } = await fetchClientDomainSep10(
+      transactionSigned.toXDR(),
+      outTokenCode,
+      ephemeralKeys.publicKey(),
+    );
     transactionSigned.addSignature(clientPublic, clientSignature);
   }
 

@@ -40,11 +40,13 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
 export const fetchClientDomainSep10 = async (
   challengeXDR: string,
   outToken: OutputTokenType,
+  clientPublicKey: string,
 ): Promise<ClientDomainSep10Response> => {
+  // TODO remove after testing.
   const response = await fetch(`http://localhost:3000/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ challengeXDR, outToken }),
+    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey }),
   });
   if (response.status !== 200) {
     throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);

@@ -1,5 +1,5 @@
-const fetchTomlValues = async (TOML_FILE_URL) => {
-  const response = await fetch(TOML_FILE_URL);
+const fetchTomlValues = async (tomlFileUrl) => {
+  const response = await fetch(tomlFileUrl);
   if (response.status !== 200) {
     throw new Error(`Failed to fetch TOML file: ${response.statusText}`);
   }
