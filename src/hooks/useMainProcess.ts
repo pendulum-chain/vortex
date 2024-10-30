@@ -118,14 +118,18 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-          const stellarEphemeralPublic = Keypair.fromSecret(stellarEphemeralSecret).publicKey();
 
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
           const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(Big(minAmountOutUnits), 2);
 
-          const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
+          const { token: sep10Token, masterPublic } = await sep10(
+            tomlValues,
+            stellarEphemeralSecret,
+            outputTokenType,
+            addEvent,
+          );
 
           const anchorSessionParams = {
             token: sep10Token,
@@ -144,7 +148,7 @@ export const useMainProcess = () => {
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            let firstSep24Response = await sep24First(anchorSessionParams, stellarEphemeralPublic);
+            let firstSep24Response = await sep24First(anchorSessionParams, masterPublic);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();

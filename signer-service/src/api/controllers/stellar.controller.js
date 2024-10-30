@@ -1,9 +1,10 @@
 require('dotenv').config();
 
 const { Keypair } = require('stellar-sdk');
-const { FUNDING_SECRET } = require('../../constants/constants');
+const { FUNDING_SECRET, SEP10_MASTER_SECRET } = require('../../constants/constants');
 
 const { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk } = require('../services/stellar.service');
+const { signSep10Challenge } = require('../services/sep10.service');
 
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
@@ -48,5 +49,25 @@ exports.changeOpTransaction = async (req, res, next) => {
   } catch (error) {
     console.error('Error in changeOpTransaction:', error);
     return res.status(500).json({ error: 'Failed to process transaction', details: error.message });
+  }
+};
+
+exports.signSep10Challenge = async (req, res, next) => {
+  try {
+    let { masterSignature, masterPublic } = await signSep10Challenge(req.body.challengeXDR);
+    return res.json({ masterSignature, masterPublic });
+  } catch (error) {
+    console.error('Error in signSep10Challenge:', error);
+    return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });
+  }
+};
+
+exports.getSep10MasterPK = async (req, res, next) => {
+  try {
+    const masterSep10Public = Keypair.fromSecret(SEP10_MASTER_SECRET).publicKey();
+    return res.json({ masterSep10Public });
+  } catch (error) {
+    console.error('Error in signSep10Challenge:', error);
+    return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });
   }
 };

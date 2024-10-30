@@ -10,6 +10,11 @@ interface SigningServiceStatus {
   moonbeam: AccountStatusResponse;
 }
 
+interface MasterSep10Response {
+  masterSignature: string;
+  masterPublic: string;
+}
+
 export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStatus> => {
   try {
     const serviceResponse: SigningServiceStatus = await (await fetch(`${SIGNING_SERVICE_URL}/v1/status`)).json();
@@ -29,4 +34,18 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
     console.error('Signing service is down: ', error);
     throw new Error('Signing service is down');
   }
+};
+
+export const fetchMasterSignatureSep10 = async (challengeXDR: string): Promise<MasterSep10Response> => {
+  // TODO remove after testing.
+  const response = await fetch(`http://localhost:3000/v1/stellar/sep10`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ challengeXDR }),
+  });
+  if (response.status !== 200) {
+    throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
+  }
+  const { masterSignature, masterPublic } = await response.json();
+  return { masterSignature, masterPublic };
 };

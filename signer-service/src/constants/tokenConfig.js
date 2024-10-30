@@ -27,6 +27,14 @@ const TOKEN_CONFIG = {
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
     minWithdrawalAmount: '10000000000000',
     maximumSubsidyAmountRaw: '100000000000000', // 100 unit ~ 0.1 USD @ Oct/2024
+    pendulumCurrencyId: {
+      Stellar: {
+        AlphaNum4: {
+          code: '0x41525300',
+          issuer: '0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1',
+        },
+      },
+    },
   },
 };
 

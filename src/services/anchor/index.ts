@@ -1,7 +1,7 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
-import { OutputTokenDetails } from '../../constants/tokenConfig';
-import { fetchSigningServiceAccountId } from '../signingService';
+import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
+import { fetchSigningServiceAccountId, fetchMasterSignatureSep10 } from '../signingService';
 import { config } from '../../config';
 
 interface TomlValues {
@@ -67,8 +67,9 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
+  outputToken: OutputTokenType,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<string> => {
+): Promise<{ masterPublic: string | undefined; token: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
@@ -77,9 +78,20 @@ export const sep10 = async (
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
-  const urlParams = new URLSearchParams({
-    account: accountId,
-  });
+
+  let urlParams;
+  if (outputToken === 'ars') {
+    // need to send the account of the stellar master account
+    const response = await fetch(`http://localhost:3000/v1/stellar/sep10`);
+    const { masterSep10Public } = await response.json();
+    urlParams = new URLSearchParams({
+      account: masterSep10Public,
+    });
+  } else {
+    urlParams = new URLSearchParams({
+      account: accountId,
+    });
+  }
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -100,8 +112,17 @@ export const sep10 = async (
   }
 
   // More tests required, ignore for prototype
-
-  transactionSigned.sign(ephemeralKeys);
+  // only sign if not ARS token, else call the temporary
+  // signing service's endpoint
+  let maybeMasterPublic;
+  if (outputToken !== 'ars') {
+    transactionSigned.sign(ephemeralKeys);
+  } else {
+    const { masterSignature, masterPublic } = await fetchMasterSignatureSep10(transactionSigned.toXDR());
+    console.log(masterSignature, masterPublic);
+    transactionSigned.addSignature(masterPublic, masterSignature);
+    maybeMasterPublic = masterPublic;
+  }
 
   const jwt = await fetch(webAuthEndpoint, {
     method: 'POST',
@@ -117,10 +138,10 @@ export const sep10 = async (
 
   // print the ephemeral secret, for testing
   renderEvent(
-    `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
+    `Unique recovery code (Please keep safe in case something fails): ${'testing master account'}`,
     EventStatus.Waiting,
   );
-  return token;
+  return { token, masterPublic: maybeMasterPublic };
 };
 
 // TODO modify according to the anchor's requirements and implementation
@@ -187,7 +208,7 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
-  stellarPublic: string,
+  masterOrEphemeralPublic: string | undefined,
 ): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
@@ -200,10 +221,13 @@ export async function sep24First(
   let sep24Params;
 
   if (sessionParams.tokenConfig.stellarAsset.code.string === 'ARS\0') {
+    if (!masterOrEphemeralPublic) {
+      throw new Error('Master must be defined at this point.');
+    }
     sep24Params = new URLSearchParams({
       asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
       amount: sessionParams.offrampAmount,
-      account: stellarPublic, // For Ancalap, we need to send this parameter.
+      account: masterOrEphemeralPublic, // Since we signed with the master from the service, we need to specify the corresponding public here
     });
   } else {
     sep24Params = new URLSearchParams({
