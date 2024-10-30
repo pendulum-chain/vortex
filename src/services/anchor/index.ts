@@ -197,11 +197,20 @@ export async function sep24First(
   const { sep24Url } = tomlValues;
 
   // at this stage, assetCode should be defined, if the config is consistent.
-  const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
-    amount: sessionParams.offrampAmount,
-    account: stellarPublic, // Ephemeral public. Requried for Anclap, TODO: will this break the others?
-  });
+  let sep24Params;
+
+  if (sessionParams.tokenConfig.stellarAsset.code.string === 'ARS\0') {
+    sep24Params = new URLSearchParams({
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      amount: sessionParams.offrampAmount,
+      account: stellarPublic, // For Ancalap, we need to send this parameter.
+    });
+  } else {
+    sep24Params = new URLSearchParams({
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      amount: sessionParams.offrampAmount,
+    });
+  }
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;
   const sep24Response = await fetch(fetchUrl, {
