@@ -1,5 +1,11 @@
 const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
-const { HORIZON_URL, BASE_FEE, FUNDING_SECRET } = require('../../constants/constants');
+const {
+  HORIZON_URL,
+  BASE_FEE,
+  FUNDING_SECRET,
+  STELLAR_FUNDING_AMOUNT_UNITS,
+  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
+} = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 
 // Derive funding pk
@@ -27,7 +33,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
     .addOperation(
       Operation.createAccount({
         destination: ephemeralAccountId,
-        startingBalance: '2.5',
+        startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
       }),
     )
     .addOperation(
@@ -133,8 +139,8 @@ async function sendStatusWithPk() {
     let account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
     let stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
 
-    // ensure we have at the very least 2.5 XLM in the account
-    if (Number(stellarBalance.balance) < 2.5) {
+    // ensure we have at the very least 10 XLM in the account
+    if (Number(stellarBalance.balance) < STELLAR_FUNDING_AMOUNT_UNITS) {
       return { status: false, public: FUNDING_PUBLIC_KEY };
     }
 

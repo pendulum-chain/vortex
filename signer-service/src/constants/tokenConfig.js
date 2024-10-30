@@ -6,6 +6,14 @@ const TOKEN_CONFIG = {
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     minWithdrawalAmount: '10000000000000',
     maximumSubsidyAmountRaw: '1000000000000', // 1 unit
+    pendulumCurrencyId: {
+      Stellar: {
+        AlphaNum4: {
+          code: '0x45555243',
+          issuer: '0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136',
+        },
+      },
+    },
   },
   'usdc.axl': {
     pendulumCurrencyId: { XCM: 12 },
