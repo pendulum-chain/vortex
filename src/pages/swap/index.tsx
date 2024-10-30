@@ -283,7 +283,7 @@ export const SwapPage = () => {
   );
 
   if (offrampingState?.phase === 'success') {
-    return <SuccessPage finishOfframping={finishOfframping} transactionId={firstSep24ResponseState?.id} />;
+    return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} />;
   }
 
   if (offrampingState?.failure !== undefined) {
@@ -291,7 +291,7 @@ export const SwapPage = () => {
       <FailurePage
         finishOfframping={finishOfframping}
         continueFailedFlow={continueFailedFlow}
-        transactionId={firstSep24ResponseState?.id}
+        transactionId={cachedId}
         failure={offrampingState.failure}
       />
     );
