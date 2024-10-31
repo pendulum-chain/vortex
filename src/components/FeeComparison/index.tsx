@@ -112,7 +112,7 @@ interface FeeComparisonProps {
 
 export function FeeComparison({ amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeComparisonProps) {
   return (
-    <div className="flex items-center flex-col md:flex-row gap-x-8 gap-y-8 max-w-4xl px-4 py-8 rounded-lg md:mx-auto md:w-3/4 md:h-[40vh]">
+    <div className="flex items-center flex-col md:flex-row gap-x-8 gap-y-8 max-w-4xl px-4 py-8 rounded-lg md:mx-auto md:w-3/4">
       <div className="grow w-full overflow-auto gap-6">
         <h1 className="text-2xl font-bold">Save on exchange rate markups</h1>
         <p className="text-lg mt-4">
