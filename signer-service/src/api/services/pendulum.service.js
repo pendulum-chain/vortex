@@ -22,18 +22,35 @@ function multiplyByPowerOfTen(bigDecimal, power) {
 }
 
 let api;
+let previousSpecVersion;
 
 async function createPolkadotApi() {
-  if (!api) {
+  const getSpecVersion = async () => {
+    const runtimeVersion = await api.call.core.version();
+    return runtimeVersion.toHuman().specVersion;
+  };
+
+  const initiateApi = async () => {
     const wsProvider = new WsProvider(PENDULUM_WSS);
     api = await ApiPromise.create({
       provider: wsProvider,
     });
     await api.isReady;
+
+    previousSpecVersion = await getSpecVersion();
+  };
+
+  if (!api) {
+    await initiateApi();
   }
 
   if (!api.isConnected) await api.connect();
   await api.isReady;
+
+  const currentSpecVersion = await getSpecVersion();
+  if (currentSpecVersion !== previousSpecVersion) {
+    await initiateApi();
+  }
 
   const chainProperties = api.registry.getChainProperties();
   const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
