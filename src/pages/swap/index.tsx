@@ -96,6 +96,8 @@ export const SwapPage = () => {
 
   const fromToken = INPUT_TOKEN_CONFIG[from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
+  const formToAmount = form.watch('toAmount');
+  const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
@@ -398,11 +400,12 @@ export const SwapPage = () => {
           )}
         </div>
       </form>
-      {showCompareFees && fromToken && fromAmount && toToken && (
+      {showCompareFees && fromToken && fromAmount && toToken && tokenOutData.data && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
           amount={fromAmount}
           targetAssetSymbol={toToken.fiat.symbol}
+          vortexPrice={vortexPrice}
         />
       )}
     </main>

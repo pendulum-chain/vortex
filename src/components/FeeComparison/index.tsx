@@ -1,5 +1,7 @@
 import Big from 'big.js';
+import { useMemo } from 'preact/hooks';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { getQueryFnForService, QuoteQuery } from '../../services/quotes';
 import { Skeleton } from '../Skeleton';
 import alchemyPayIcon from '../../assets/alchemypay.svg';
@@ -33,15 +35,22 @@ interface FeeProviderRowProps {
   amount: Big;
   sourceCurrency: string;
   targetCurrency: string;
+  vortexPrice: Big;
 }
 
-function FeeProviderRow({ provider, amount, sourceCurrency, targetCurrency }: FeeProviderRowProps) {
+function FeeProviderRow({ provider, amount, sourceCurrency, targetCurrency, vortexPrice }: FeeProviderRowProps) {
   const { isLoading, error, data } = useQuery({
     queryKey: [sourceCurrency, targetCurrency, amount, provider.name],
     queryFn: () => provider.query(sourceCurrency, targetCurrency, amount),
   });
 
-  error && console.error(error);
+  const priceDiff = useMemo(() => {
+    if (isLoading || error || !data) {
+      return undefined;
+    }
+
+    return data.minus(vortexPrice);
+  }, [isLoading, error, data, vortexPrice]);
 
   return (
     <div className="flex items-center justify-between w-full">
@@ -52,7 +61,17 @@ function FeeProviderRow({ provider, amount, sourceCurrency, targetCurrency }: Fe
         {isLoading ? (
           <Skeleton className="w-20 h-10 mb-2" />
         ) : (
-          <span className="text-md font-bold">{error ? 'N/A' : data + ' ' + targetCurrency}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-md font-bold">
+              {error ? 'N/A' : (data ? data.toFixed(2) : '0') + ' ' + targetCurrency}
+            </span>
+            {priceDiff && (
+              <span className={`flex items-center ${priceDiff.gt(0) ? 'text-green-600' : 'text-red-600'}`}>
+                <ChevronDownIcon className={`w-5 h-5 ${priceDiff.gt(0) ? 'rotate-180' : ''}`} /> {priceDiff.toFixed(2)}{' '}
+                {targetCurrency}
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -63,9 +82,10 @@ interface FeeComparisonTableProps {
   amount: Big;
   sourceCurrency: string;
   targetCurrency: string;
+  vortexPrice: Big;
 }
 
-function FeeComparisonTable({ amount, sourceCurrency, targetCurrency }: FeeComparisonTableProps) {
+function FeeComparisonTable({ amount, sourceCurrency, targetCurrency, vortexPrice }: FeeComparisonTableProps) {
   const amountString = amount.toFixed(2);
 
   return (
@@ -90,6 +110,7 @@ function FeeComparisonTable({ amount, sourceCurrency, targetCurrency }: FeeCompa
             provider={provider}
             sourceCurrency={sourceCurrency}
             targetCurrency={targetCurrency}
+            vortexPrice={vortexPrice}
           />
         </>
       ))}
@@ -101,9 +122,10 @@ interface FeeComparisonProps {
   amount: Big;
   sourceAssetSymbol: string;
   targetAssetSymbol: string;
+  vortexPrice: Big;
 }
 
-export function FeeComparison({ amount, sourceAssetSymbol, targetAssetSymbol }: FeeComparisonProps) {
+export function FeeComparison({ amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeComparisonProps) {
   return (
     <div className="flex items-center flex-col md:flex-row gap-x-8 gap-y-8 max-w-4xl px-4 py-8 rounded-lg md:mx-auto md:w-3/4 md:h-[40vh]">
       <div className="grow w-full overflow-auto gap-6">
@@ -114,7 +136,12 @@ export function FeeComparison({ amount, sourceAssetSymbol, targetAssetSymbol }: 
         </p>
         <p className="text-lg mt-4">At Vortex, we’ll never do that and show our fees upfront.</p>
       </div>
-      <FeeComparisonTable amount={amount} sourceCurrency={sourceAssetSymbol} targetCurrency={targetAssetSymbol} />
+      <FeeComparisonTable
+        amount={amount}
+        sourceCurrency={sourceAssetSymbol}
+        targetCurrency={targetAssetSymbol}
+        vortexPrice={vortexPrice}
+      />
     </div>
   );
 }

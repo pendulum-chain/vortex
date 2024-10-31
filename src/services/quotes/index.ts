@@ -6,9 +6,13 @@ const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 type QuoteService = 'moonpay' | 'transak' | 'alchemypay';
 
 interface Quote {
+  // The price of crypto -> fiat, i.e. cryptoAmount * cryptoPrice = fiatAmount + totalFee
   cryptoPrice: number;
+  // The amount of sent crypto
   cryptoAmount: number;
+  // The amount in received fiat _after_ fees.
   fiatAmount: number;
+  // The total fee in fiat (e.g. ramp fee + network fee)
   totalFee: number;
 }
 
