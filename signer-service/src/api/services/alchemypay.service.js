@@ -167,11 +167,14 @@ function priceQuery(crypto, fiat, amount, network, side) {
       const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;
 
       const totalFee = (rampFee || 0) + (networkFee || 0);
+      // According to a comment in the response sample [here](https://alchemypay.readme.io/docs/price-query#response-sample)
+      // the `fiatQuantity` does not yet include the fees so we need to subtract them.
+      const fiatAmount = fiatQuantity - totalFee;
 
       return {
         cryptoPrice,
         cryptoAmount: amount,
-        fiatAmount: fiatQuantity,
+        fiatAmount,
         totalFee,
       };
     })

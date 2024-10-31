@@ -20,6 +20,10 @@ module.exports = {
       appId: process.env.ALCHEMYPAY_APP_ID,
       secretKey: process.env.ALCHEMYPAY_SECRET_KEY,
     },
+    transak: {
+      baseUrl: process.env.TRANSAK_PROD_URL || 'https://api-stg.transak.com' || 'https://api.transak.com',
+      partnerApiKey: process.env.TRANSAK_API_KEY,
+    },
   },
   spreadsheet: {
     googleCredentials: {
