@@ -1,5 +1,6 @@
 const { quoteProviders } = require('../../config/vars');
 
+// See https://docs.transak.com/reference/get-price
 async function priceQuery(cryptoCurrency, fiatCurrency, fiatAmount, network, isBuyOrSell, paymentMethod) {
   const { baseUrl, partnerApiKey } = quoteProviders.transak;
   const requestPath = '/api/v1/pricing/public/quotes';
@@ -48,5 +49,6 @@ exports.getQuoteFor = (fromCrypto, toFiat, amount) => {
   // FIXME switch to SEPA bank transfer once KYB is done
   const paymentMethod = undefined;
 
-  return priceQuery(fromCrypto, toFiat, amount, network, side, paymentMethod);
+  // The currencies need to be in uppercase
+  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, network, side, paymentMethod);
 };

@@ -193,5 +193,6 @@ exports.getQuoteFor = (fromCrypto, toFiat, amount) => {
   const network = 'MATIC'; // see https://alchemypay.readme.io/docs/network-code
   const side = 'SELL';
 
-  return priceQuery(fromCrypto, toFiat, amount, network, side);
+  // The currencies need to be in uppercase
+  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, network, side);
 };
