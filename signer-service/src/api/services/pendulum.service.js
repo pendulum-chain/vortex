@@ -21,11 +21,18 @@ function multiplyByPowerOfTen(bigDecimal, power) {
   return newBigDecimal;
 }
 
+let api;
+
 async function createPolkadotApi() {
-  const wsProvider = new WsProvider(PENDULUM_WSS);
-  const api = await ApiPromise.create({
-    provider: wsProvider,
-  });
+  if (!api) {
+    const wsProvider = new WsProvider(PENDULUM_WSS);
+    api = await ApiPromise.create({
+      provider: wsProvider,
+    });
+    await api.isReady;
+  }
+
+  if (!api.isConnected) await api.connect();
   await api.isReady;
 
   const chainProperties = api.registry.getChainProperties();
