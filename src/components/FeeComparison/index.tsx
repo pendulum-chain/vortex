@@ -6,6 +6,7 @@ import { getQueryFnForService, QuoteQuery } from '../../services/quotes';
 import { Skeleton } from '../Skeleton';
 import alchemyPayIcon from '../../assets/alchemypay.svg';
 import transakIcon from '../../assets/transak.svg';
+import vortexIcon from '../../assets/logo/blue.svg';
 
 interface QuoteProvider {
   name: string;
@@ -78,6 +79,21 @@ function FeeProviderRow({ provider, amount, sourceCurrency, targetCurrency, vort
   );
 }
 
+function VortexRow({ targetCurrency, vortexPrice }: { targetCurrency: string; vortexPrice: Big }) {
+  return (
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-4 w-full grow ml-4">
+        <img src={vortexIcon} className="w-36 h-10" alt="Vortex" />
+      </div>
+      <div className="flex items-center justify-center gap-4 w-full grow">
+        <div className="flex flex-col items-center">
+          <span className="text-md font-bold">{vortexPrice.toFixed(2) + ' ' + targetCurrency}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface FeeComparisonTableProps {
   amount: Big;
   sourceCurrency: string;
@@ -101,6 +117,8 @@ function FeeComparisonTable({ amount, sourceCurrency, targetCurrency, vortexPric
           <span className="text-sm">(Total after fees)</span>
         </div>
       </div>
+      <div className="border-b border-gray-200 w-full my-4" />
+      <VortexRow targetCurrency={targetCurrency} vortexPrice={vortexPrice} />
       {providers.map((provider, index) => (
         <>
           <div className="border-b border-gray-200 w-full my-4" />
