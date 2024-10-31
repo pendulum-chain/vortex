@@ -31,27 +31,23 @@ const providers: QuoteProvider[] = [
   },
 ];
 
-interface FeeProviderRowProps {
-  provider: QuoteProvider;
-  amount: Big;
-  sourceCurrency: string;
-  targetCurrency: string;
-  vortexPrice: Big;
-}
+type FeeProviderRowProps = FeeComparisonProps & { provider: QuoteProvider };
 
-function FeeProviderRow({ provider, amount, sourceCurrency, targetCurrency, vortexPrice }: FeeProviderRowProps) {
+function FeeProviderRow({ provider, amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeProviderRowProps) {
   const { isLoading, error, data } = useQuery({
-    queryKey: [sourceCurrency, targetCurrency, amount, provider.name],
-    queryFn: () => provider.query(sourceCurrency, targetCurrency, amount),
+    queryKey: [sourceAssetSymbol, targetAssetSymbol, amount, provider.name],
+    queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount),
   });
 
+  const providerPrice = data?.lt(0) ? undefined : data;
+
   const priceDiff = useMemo(() => {
-    if (isLoading || error || !data) {
+    if (isLoading || error || !providerPrice) {
       return undefined;
     }
 
-    return data.minus(vortexPrice);
-  }, [isLoading, error, data, vortexPrice]);
+    return providerPrice.minus(vortexPrice);
+  }, [isLoading, error, providerPrice, vortexPrice]);
 
   return (
     <div className="flex items-center justify-between w-full">
@@ -64,12 +60,12 @@ function FeeProviderRow({ provider, amount, sourceCurrency, targetCurrency, vort
         ) : (
           <div className="flex flex-col items-center">
             <span className="text-md font-bold">
-              {error ? 'N/A' : (data ? data.toFixed(2) : '0') + ' ' + targetCurrency}
+              {error || !providerPrice ? 'N/A' : providerPrice.toFixed(2) + ' ' + targetAssetSymbol}
             </span>
             {priceDiff && (
               <span className={`flex items-center ${priceDiff.gt(0) ? 'text-green-600' : 'text-red-600'}`}>
                 <ChevronDownIcon className={`w-5 h-5 ${priceDiff.gt(0) ? 'rotate-180' : ''}`} /> {priceDiff.toFixed(2)}{' '}
-                {targetCurrency}
+                {targetAssetSymbol}
               </span>
             )}
           </div>
@@ -79,7 +75,10 @@ function FeeProviderRow({ provider, amount, sourceCurrency, targetCurrency, vort
   );
 }
 
-function VortexRow({ targetCurrency, vortexPrice }: { targetCurrency: string; vortexPrice: Big }) {
+function VortexRow({
+  targetAssetSymbol,
+  vortexPrice,
+}: Omit<FeeProviderRowProps, 'provider' | 'sourceAssetSymbol' | 'amount'>) {
   return (
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center gap-4 w-full grow ml-4">
@@ -87,29 +86,22 @@ function VortexRow({ targetCurrency, vortexPrice }: { targetCurrency: string; vo
       </div>
       <div className="flex items-center justify-center gap-4 w-full grow">
         <div className="flex flex-col items-center">
-          <span className="text-md font-bold">{vortexPrice.toFixed(2) + ' ' + targetCurrency}</span>
+          <span className="text-md font-bold">{vortexPrice.toFixed(2) + ' ' + targetAssetSymbol}</span>
         </div>
       </div>
     </div>
   );
 }
 
-interface FeeComparisonTableProps {
-  amount: Big;
-  sourceCurrency: string;
-  targetCurrency: string;
-  vortexPrice: Big;
-}
+type FeeComparisonTableProps = FeeComparisonProps;
 
-function FeeComparisonTable({ amount, sourceCurrency, targetCurrency, vortexPrice }: FeeComparisonTableProps) {
-  const amountString = amount.toFixed(2);
-
+function FeeComparisonTable({ amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeComparisonTableProps) {
   return (
     <div className="grow w-full rounded-3xl shadow-custom p-4">
       <div className="flex items-center justify-center w-full mb-3">
         <div className="flex items-center justify-center gap-4 w-full">
           <span className="text-md font-bold">
-            Sending {amountString} {sourceCurrency} <br /> with
+            Sending {amount.toFixed(2)} {sourceAssetSymbol} <br /> with
           </span>
         </div>
         <div className="flex flex-col items-center justify-center w-full">
@@ -118,7 +110,7 @@ function FeeComparisonTable({ amount, sourceCurrency, targetCurrency, vortexPric
         </div>
       </div>
       <div className="border-b border-gray-200 w-full my-4" />
-      <VortexRow targetCurrency={targetCurrency} vortexPrice={vortexPrice} />
+      <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
       {providers.map((provider, index) => (
         <>
           <div className="border-b border-gray-200 w-full my-4" />
@@ -126,8 +118,8 @@ function FeeComparisonTable({ amount, sourceCurrency, targetCurrency, vortexPric
             key={index}
             amount={amount}
             provider={provider}
-            sourceCurrency={sourceCurrency}
-            targetCurrency={targetCurrency}
+            sourceAssetSymbol={sourceAssetSymbol}
+            targetAssetSymbol={targetAssetSymbol}
             vortexPrice={vortexPrice}
           />
         </>
@@ -156,8 +148,8 @@ export function FeeComparison({ amount, sourceAssetSymbol, targetAssetSymbol, vo
       </div>
       <FeeComparisonTable
         amount={amount}
-        sourceCurrency={sourceAssetSymbol}
-        targetCurrency={targetAssetSymbol}
+        sourceAssetSymbol={sourceAssetSymbol}
+        targetAssetSymbol={targetAssetSymbol}
         vortexPrice={vortexPrice}
       />
     </div>
