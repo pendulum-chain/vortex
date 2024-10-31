@@ -33,6 +33,7 @@ import { testRoute } from '../../services/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
+import { FeeComparison } from '../../components/FeeComparison';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -46,6 +47,7 @@ export const SwapPage = () => {
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [showCompareFees, setShowCompareFees] = useState(false);
   const { trackEvent } = useEventsContext();
 
   // Hook used for services on initialization and pre-offramp check
@@ -329,7 +331,7 @@ export const SwapPage = () => {
     <main ref={formRef}>
       <SigningBox step={signingPhase} />
       <form
-        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onConfirm}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
@@ -362,7 +364,18 @@ export const SwapPage = () => {
           )}
         </section>
         <div className="flex mt-5 gap-3">
-          <button className="grow btn-vortex-secondary btn" disabled={!inputAmountIsStable}>
+          <button
+            className="grow btn-vortex-secondary btn"
+            disabled={!inputAmountIsStable}
+            onClick={(e) => {
+              e.preventDefault();
+              setShowCompareFees(!showCompareFees);
+              // Smooth scroll to bottom of page
+              setTimeout(() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              }, 300);
+            }}
+          >
             Compare fees
           </button>
           {firstSep24ResponseState?.url !== undefined ? (
@@ -385,6 +398,13 @@ export const SwapPage = () => {
           )}
         </div>
       </form>
+      {showCompareFees && fromToken && fromAmount && toToken && (
+        <FeeComparison
+          sourceAssetSymbol={fromToken.assetSymbol}
+          amount={fromAmount}
+          targetAssetSymbol={toToken.fiat.symbol}
+        />
+      )}
     </main>
   );
 
