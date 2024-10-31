@@ -2,36 +2,29 @@ import Big from 'big.js';
 import { useMemo } from 'preact/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { getQueryFnForService, QuoteQuery } from '../../services/quotes';
 import { Skeleton } from '../Skeleton';
-import alchemyPayIcon from '../../assets/alchemypay.svg';
-import transakIcon from '../../assets/transak.svg';
 import vortexIcon from '../../assets/logo/blue.svg';
-
-interface QuoteProvider {
-  name: string;
-  icon?: JSX.Element;
-  query: QuoteQuery;
-  href: string;
-}
-
-const providers: QuoteProvider[] = [
-  {
-    name: 'AlchemyPay',
-    icon: <img src={alchemyPayIcon} className="w-40" alt="AlchemyPay" />,
-    query: getQueryFnForService('alchemypay'),
-    href: 'https://alchemypay.org',
-  },
-  // { name: 'MoonPay', icon: undefined, query: getQuoteFromService('moonpay') },
-  {
-    name: 'Transak',
-    icon: <img src={transakIcon} className="w-30 h-10" alt="Transak" />,
-    query: getQueryFnForService('transak'),
-    href: 'https://transak.com',
-  },
-];
+import { QuoteProvider, quoteProviders } from './quoteProviders';
 
 type FeeProviderRowProps = FeeComparisonProps & { provider: QuoteProvider };
+
+function VortexRow({
+  targetAssetSymbol,
+  vortexPrice,
+}: Omit<FeeProviderRowProps, 'provider' | 'sourceAssetSymbol' | 'amount'>) {
+  return (
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-4 w-full grow ml-4">
+        <img src={vortexIcon} className="w-36 h-10" alt="Vortex" />
+      </div>
+      <div className="flex items-center justify-center gap-4 w-full grow">
+        <div className="flex flex-col items-center">
+          <span className="text-md font-bold">{vortexPrice.toFixed(2) + ' ' + targetAssetSymbol}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function FeeProviderRow({ provider, amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeProviderRowProps) {
   const { isLoading, error, data } = useQuery({
@@ -75,24 +68,6 @@ function FeeProviderRow({ provider, amount, sourceAssetSymbol, targetAssetSymbol
   );
 }
 
-function VortexRow({
-  targetAssetSymbol,
-  vortexPrice,
-}: Omit<FeeProviderRowProps, 'provider' | 'sourceAssetSymbol' | 'amount'>) {
-  return (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-4 w-full grow ml-4">
-        <img src={vortexIcon} className="w-36 h-10" alt="Vortex" />
-      </div>
-      <div className="flex items-center justify-center gap-4 w-full grow">
-        <div className="flex flex-col items-center">
-          <span className="text-md font-bold">{vortexPrice.toFixed(2) + ' ' + targetAssetSymbol}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 type FeeComparisonTableProps = FeeComparisonProps;
 
 function FeeComparisonTable({ amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeComparisonTableProps) {
@@ -111,7 +86,7 @@ function FeeComparisonTable({ amount, sourceAssetSymbol, targetAssetSymbol, vort
       </div>
       <div className="border-b border-gray-200 w-full my-4" />
       <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
-      {providers.map((provider, index) => (
+      {quoteProviders.map((provider, index) => (
         <>
           <div className="border-b border-gray-200 w-full my-4" />
           <FeeProviderRow
