@@ -48,6 +48,7 @@ export const SwapPage = () => {
   const [initializeFailed, setInitializeFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
+  const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
 
   // Hook used for services on initialization and pre-offramp check
@@ -82,6 +83,13 @@ export const SwapPage = () => {
     signingPhase,
     setIsInitiating,
   } = useMainProcess();
+
+  // Store the id as it is cleared after the user opens the anchor window
+  useEffect(() => {
+    if (firstSep24ResponseState?.id != undefined) {
+      setCachedId(firstSep24ResponseState?.id);
+    }
+  }, [firstSep24ResponseState?.id]);
 
   const {
     tokensModal: [modalType, setModalType],
@@ -279,7 +287,7 @@ export const SwapPage = () => {
   );
 
   if (offrampingState?.phase === 'success') {
-    return <SuccessPage finishOfframping={finishOfframping} transactionId={firstSep24ResponseState?.id} />;
+    return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} />;
   }
 
   if (offrampingState?.failure !== undefined) {
@@ -287,7 +295,7 @@ export const SwapPage = () => {
       <FailurePage
         finishOfframping={finishOfframping}
         continueFailedFlow={continueFailedFlow}
-        transactionId={firstSep24ResponseState?.id}
+        transactionId={cachedId}
         failure={offrampingState.failure}
       />
     );
