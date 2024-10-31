@@ -163,7 +163,6 @@ function priceQuery(crypto, fiat, amount, network, side) {
         throw new Error('Could not get quote: ' + body.returnMsg || 'Unknown error');
       }
 
-      console.log('Response body', body);
       const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;
 
       const totalFee = (rampFee || 0) + (networkFee || 0);

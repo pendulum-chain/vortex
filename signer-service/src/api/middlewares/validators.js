@@ -23,8 +23,6 @@ const validateCreationInput = (req, res, next) => {
 const validateQuoteInput = (req, res, next) => {
   const { provider, fromCrypto, toFiat, amount } = req.query;
 
-  console.log('body', req.query);
-
   if (!provider || SUPPORTED_PROVIDERS.indexOf(provider.toLowerCase()) === -1) {
     return res
       .status(400)

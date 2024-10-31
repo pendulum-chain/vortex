@@ -20,6 +20,7 @@ async function priceQuery(cryptoCurrency, fiatCurrency, fiatAmount, network, isB
 
   return fetch(url).then(async (response) => {
     if (!response.ok) {
+      console.error('Could not get quote from Transak', await response.text());
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const body = await response.json();
