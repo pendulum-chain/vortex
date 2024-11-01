@@ -38,13 +38,22 @@ export interface WalletConnectEvent {
   wallet_action: 'connect' | 'disconnect' | 'change';
 }
 
-export interface TransactionEvent {
-  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+interface OfframpingParameters {
   from_asset: string;
   to_asset: string;
   from_amount: string;
   to_amount: string;
 }
+
+export type TransactionEvent = OfframpingParameters & {
+  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+};
+
+export type TransactionFailedEvent = OfframpingParameters & {
+  event: 'transaction_failure';
+  phase_name: string;
+  phase_index: number;
+};
 
 export interface ProgressEvent {
   event: 'progress';
@@ -86,6 +95,7 @@ export type TrackableEvent =
   | ClickDetailsEvent
   | WalletConnectEvent
   | TransactionEvent
+  | TransactionFailedEvent
   | ClickSupportEvent
   | FormErrorEvent
   | EmailSubmissionEvent
