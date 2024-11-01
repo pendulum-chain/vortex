@@ -3,6 +3,7 @@ import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
+import { useEventsContext } from '../../contexts/events';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState): string {
@@ -155,9 +156,15 @@ const ProgressContent: FC<{
 };
 
 export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
+  const { trackEvent } = useEventsContext();
+
   const currentPhase = offrampingState.phase as OfframpingPhase; // this component will not be shown if the phase is 'success'
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
   const message = createOfframpingPhaseMessage(offrampingState);
+
+  useEffect(() => {
+    trackEvent({ event: 'progress', phase: currentPhaseIndex, name: offrampingState.phase });
+  }, [currentPhaseIndex, trackEvent, offrampingState.phase]);
 
   return (
     <BaseLayout

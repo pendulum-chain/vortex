@@ -5,10 +5,11 @@ import erc20ABI from '../../contracts/ERC20';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { waitForEvmTransaction } from '../evmTransactions';
 import { getRouteTransactionRequest } from './route';
+import { createTransactionEvent } from '../../contexts/events';
 
 export async function squidRouter(
   state: OfframpingState,
-  { wagmiConfig, setSigningPhase }: ExecutionContext,
+  { wagmiConfig, setSigningPhase, trackEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const inputToken = INPUT_TOKEN_CONFIG[state.inputTokenType];
   const fromTokenErc20Address = inputToken.erc20AddressSourceChain;
@@ -31,12 +32,14 @@ export async function squidRouter(
 
   let approvalHash;
   try {
+    trackEvent({ event: 'signing_requested', index: 1 });
     approvalHash = await writeContract(wagmiConfig, {
       abi: erc20ABI,
       address: fromTokenErc20Address,
       functionName: 'approve',
       args: [transactionRequest?.target, state.inputAmount.raw],
     });
+    trackEvent({ event: 'transaction_signed', index: 1 });
   } catch (e) {
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
@@ -48,12 +51,14 @@ export async function squidRouter(
 
   let swapHash;
   try {
+    trackEvent({ event: 'signing_requested', index: 2 });
     swapHash = await sendTransaction(wagmiConfig, {
       to: transactionRequest.target,
       data: transactionRequest.data,
       value: transactionRequest.value,
       gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
     });
+    trackEvent({ event: 'transaction_signed', index: 2 });
   } catch (e) {
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
