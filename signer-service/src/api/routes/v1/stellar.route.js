@@ -8,4 +8,6 @@ router.route('/create').post(validateCreationInput, controller.createStellarTran
 
 router.route('/payment').post(validateChangeOpInput, controller.changeOpTransaction);
 
+router.route('/sep10').post(controller.signSep10Challenge);
+
 module.exports = router;

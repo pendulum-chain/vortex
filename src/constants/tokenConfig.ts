@@ -21,6 +21,7 @@ export interface Fiat {
 
 export interface OutputTokenDetails {
   tomlFileUrl: string;
+  requiresClientDomain: boolean;
   decimals: number;
   fiat: Fiat;
   stellarAsset: {
@@ -68,6 +69,7 @@ export type OutputTokenType = 'eurc';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
+    requiresClientDomain: true,
     decimals: 12,
     fiat: {
       assetIcon: 'eur',
