@@ -163,7 +163,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   const message = createOfframpingPhaseMessage(offrampingState);
 
   useEffect(() => {
-    trackEvent({ event: 'progress', phase: currentPhaseIndex, name: offrampingState.phase });
+    trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });
   }, [currentPhaseIndex, trackEvent, offrampingState.phase]);
 
   return (
