@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/compat';
 
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
-import { ExecutionInput } from '../types';
-import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
@@ -21,11 +20,18 @@ import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
-import { stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
-type ExtendedExecutionInput = ExecutionInput & { truncatedAmountToOfframp: string; stellarEphemeralSecret: string };
+
+export interface ExecutionInput {
+  inputTokenType: InputTokenType;
+  outputTokenType: OutputTokenType;
+  amountInUnits: string;
+  offrampAmount: Big;
+}
+
+type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
 
 export const useMainProcess = () => {
   // EXAMPLE mocking states
@@ -45,7 +51,7 @@ export const useMainProcess = () => {
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [anchorSessionParamsState, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
   const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
-  const [executionInputState, setExecutionInput] = useState<ExtendedExecutionInput | undefined>(undefined);
+  const [executionInputState, setExecutionInputState] = useState<ExtendedExecutionInput | undefined>(undefined);
 
   const sep24FirstIntervalRef = useRef<number | undefined>(undefined);
 
@@ -89,14 +95,16 @@ export const useMainProcess = () => {
       clearInterval(sep24FirstIntervalRef.current);
       sep24FirstIntervalRef.current = undefined;
       setFirstSep24Response(undefined);
-      setExecutionInput(undefined);
+      setExecutionInputState(undefined);
       setAnchorSessionParams(undefined);
     }
   };
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
-    ({ inputTokenType, outputTokenType, amountInUnits, minAmountOutUnits }: ExecutionInput) => {
+    (executionInput: ExecutionInput) => {
+      const { inputTokenType, outputTokenType, amountInUnits, offrampAmount } = executionInput;
+
       if (offrampingStarted || offrampingState !== undefined) {
         setIsInitiating(false);
         return;
@@ -112,7 +120,7 @@ export const useMainProcess = () => {
           from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
-          to_amount: Big(minAmountOutUnits).round(2, 0).toFixed(2, 0),
+          to_amount: offrampAmount.toFixed(2, 0),
         });
 
         try {
@@ -121,28 +129,22 @@ export const useMainProcess = () => {
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          const truncatedAmountToOfframp = stringifyBigWithSignificantDecimals(Big(minAmountOutUnits), 2);
-
           const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
 
           const anchorSessionParams = {
             token: sep10Token,
             tomlValues: tomlValues,
             tokenConfig: outputToken,
-            offrampAmount: truncatedAmountToOfframp,
+            offrampAmount: offrampAmount.toFixed(2, 0),
           };
-          setExecutionInput({
-            inputTokenType,
-            outputTokenType,
-            amountInUnits,
-            minAmountOutUnits,
-            truncatedAmountToOfframp,
+          setExecutionInputState({
+            ...executionInput,
             stellarEphemeralSecret,
           });
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            let firstSep24Response = await sep24First(anchorSessionParams);
+            const firstSep24Response = await sep24First(anchorSessionParams);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();
@@ -170,7 +172,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingState, offrampingStarted, trackEvent, switchChain],
+    [offrampingStarted, offrampingState, switchChain, trackEvent],
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
@@ -186,14 +188,13 @@ export const useMainProcess = () => {
       from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
       to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
       from_amount: executionInputState.amountInUnits,
-      to_amount: Big(executionInputState.minAmountOutUnits).round(2, 0).toFixed(2, 0),
+      to_amount: executionInputState.offrampAmount.toFixed(2, 0),
     });
 
     // stop fetching new sep24 url's and clean session variables from the state to be safe.
     // We want to avoid session variables used in defferent sessions.
     const firstSep24Response = firstSep24ResponseState;
     const anchorSessionParams = anchorSessionParamsState;
-    const executionInput = executionInputState;
     cleanSep24FirstVariables();
 
     let secondSep24Response;
@@ -202,7 +203,7 @@ export const useMainProcess = () => {
       console.log('secondSep24Response', secondSep24Response);
 
       // Check if the amount entered in the KYC UI matches the one we expect
-      if (!Big(secondSep24Response.amount).eq(executionInput.truncatedAmountToOfframp)) {
+      if (!Big(secondSep24Response.amount).eq(executionInputState.offrampAmount)) {
         setOfframpingStarted(false);
         console.error("The amount entered in the KYC UI doesn't match the one we expect. Stopping offramping process.");
         showToast(ToastMessage.AMOUNT_MISMATCH);
@@ -216,11 +217,11 @@ export const useMainProcess = () => {
     try {
       const initialState = await constructInitialState({
         sep24Id: firstSep24Response.id,
-        stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
-        inputTokenType: executionInput.inputTokenType,
-        outputTokenType: executionInput.outputTokenType,
-        amountIn: executionInput.amountInUnits,
-        amountOut: executionInput.minAmountOutUnits,
+        stellarEphemeralSecret: executionInputState.stellarEphemeralSecret,
+        inputTokenType: executionInputState.inputTokenType,
+        outputTokenType: executionInputState.outputTokenType,
+        amountIn: executionInputState.amountInUnits,
+        amountOut: executionInputState.offrampAmount,
         sepResult: secondSep24Response,
       });
 
