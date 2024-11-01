@@ -7,13 +7,14 @@ preact/
 internals/
 docs/
 .lighthouseci/
-
+**/coins/*
 *.yml
 
 package-lock.json
 package.json
 yarn.lock
 favicon.png
+.prettierignore 
 
 CHANGELOG.md
 **/*.svg

@@ -49,7 +49,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
     .addOperation(
       Operation.changeTrust({
         source: ephemeralAccountId,
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
       }),
     )
     .setTimebounds(0, maxTime)
@@ -99,7 +99,7 @@ async function buildPaymentAndMergeTx(
     .addOperation(
       Operation.payment({
         amount,
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
         destination: offrampingAccount,
       }),
     )
@@ -113,7 +113,7 @@ async function buildPaymentAndMergeTx(
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
         limit: '0',
       }),
     )

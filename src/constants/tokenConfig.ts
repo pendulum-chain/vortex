@@ -65,7 +65,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   },
 };
 
-export type OutputTokenType = 'eurc';
+export type OutputTokenType = 'eurc' | 'ars';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
@@ -90,6 +90,29 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,
+  },
+  ars: {
+    tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
+    decimals: 12,
+    fiat: {
+      assetIcon: 'ars',
+      symbol: 'ARS',
+    },
+    stellarAsset: {
+      code: {
+        hex: '0x41525300',
+        string: 'ARS\0',
+      },
+      issuer: {
+        hex: '0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1',
+        stellarEncoding: 'GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS',
+      },
+    },
+    vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
+    erc20WrapperAddress: '6cNENXUqHUeEGSm4psQCeykZiLXJL9VzMQnvSoouyeEEoJpe',
+    minWithdrawalAmountRaw: '100000000000000', // 100 ARS?
+    maxWithdrawalAmountRaw: '500000000000000000', // 500000 ARS
+    offrampFeesBasisPoints: 200, // 2%
   },
 };
 

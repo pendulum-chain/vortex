@@ -21,6 +21,7 @@ import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
+import { Keypair } from 'stellar-sdk';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -125,6 +126,7 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
+          const stellarEphemeralPublic = Keypair.fromSecret(stellarEphemeralSecret).publicKey();
 
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
@@ -151,7 +153,7 @@ export const useMainProcess = () => {
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams);
+            const firstSep24Response = await sep24First(anchorSessionParams, stellarEphemeralPublic);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();

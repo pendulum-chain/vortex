@@ -1,8 +1,9 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
-import { OutputTokenDetails } from '../../constants/tokenConfig';
+import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { config } from '../../config';
+import { fetchClientDomainSep10 } from '../signingService';
 
 interface TomlValues {
   signingKey?: string;
@@ -67,6 +68,8 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
+  requiresClientDomain: boolean,
+  outTokenCode: OutputTokenType,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -75,11 +78,19 @@ export const sep10 = async (
     throw new Error('Missing values in TOML file');
   }
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
-  const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
+  const ephemeralKeys = Keypair.fromSecret('///');
   const accountId = ephemeralKeys.publicKey();
-  const urlParams = new URLSearchParams({
-    account: accountId,
-  });
+  let urlParams;
+  if (requiresClientDomain) {
+    urlParams = new URLSearchParams({
+      account: accountId,
+      client_domain: config.applicationClientDomain,
+    });
+  } else {
+    urlParams = new URLSearchParams({
+      account: accountId,
+    });
+  }
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -97,6 +108,17 @@ export const sep10 = async (
   }
   if (transactionSigned.sequence !== '0') {
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
+  }
+
+  // let signer-service sign the challenge to authenticate our
+  // client domain definition.
+  if (requiresClientDomain) {
+    const { clientSignature, clientPublic } = await fetchClientDomainSep10(
+      transactionSigned.toXDR(),
+      outTokenCode,
+      ephemeralKeys.publicKey(),
+    );
+    transactionSigned.addSignature(clientPublic, clientSignature);
   }
 
   // More tests required, ignore for prototype
@@ -117,7 +139,7 @@ export const sep10 = async (
 
   // print the ephemeral secret, for testing
   renderEvent(
-    `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
+    `Unique recovery code (Please keep safe in case something fails): ${'testing master account'}`,
     EventStatus.Waiting,
   );
   return token;
@@ -185,7 +207,10 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
   //>????
 }*/
 
-export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
+export async function sep24First(
+  sessionParams: IAnchorSessionParams,
+  stellarPublic: string,
+): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
   }
@@ -194,10 +219,21 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
   const { sep24Url } = tomlValues;
 
   // at this stage, assetCode should be defined, if the config is consistent.
-  const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
-    amount: sessionParams.offrampAmount,
-  });
+  let sep24Params;
+
+  // TODO change
+  if (sessionParams.tokenConfig.stellarAsset.code.string === 'ARS\0') {
+    sep24Params = new URLSearchParams({
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      amount: sessionParams.offrampAmount,
+      account: stellarPublic,
+    });
+  } else {
+    sep24Params = new URLSearchParams({
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      amount: sessionParams.offrampAmount,
+    });
+  }
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;
   const sep24Response = await fetch(fetchUrl, {
