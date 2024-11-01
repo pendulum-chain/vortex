@@ -24,6 +24,7 @@ import { prepareTransactions } from './signedTransactions';
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
 import { executeXCM } from './moonbeam';
+import * as Sentry from '@sentry/react';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
@@ -248,6 +249,9 @@ export async function advanceOfframpingState(
   let newState: OfframpingState | undefined;
   try {
     newState = await STATE_ADVANCEMENT_HANDLERS[phase](state, context);
+    if (newState) {
+      Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
+    }
   } catch (error: unknown) {
     if ((error as Error)?.message === 'Wallet not connected') {
       // TODO: transmit error to caller

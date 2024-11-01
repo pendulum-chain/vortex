@@ -3,7 +3,7 @@ import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'p
 import { useAccount } from 'wagmi';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
-
+import * as Sentry from '@sentry/react';
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,6 +109,11 @@ const useEvents = () => {
     const isConnected = address !== undefined;
 
     previousAddress.current = address;
+
+    // set sentry user as wallet address
+    if (address) {
+      Sentry.setUser({ id: address });
+    }
 
     if (!userClickedState.current) {
       return;
