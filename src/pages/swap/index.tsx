@@ -123,10 +123,6 @@ export const SwapPage = () => {
   function onConfirm(e: Event) {
     e.preventDefault();
 
-    if (inputAmountIsStable) {
-      throw new Error('Test error. Sentry.');
-    }
-
     if (!inputAmountIsStable) return;
     if (!address) return; // Address must exist as this point.
 
