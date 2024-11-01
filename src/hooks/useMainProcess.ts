@@ -170,7 +170,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingState, offrampingStarted, trackEvent],
+    [offrampingState, offrampingStarted, trackEvent, switchChain],
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
@@ -181,6 +181,13 @@ export const useMainProcess = () => {
     ) {
       return;
     }
+    trackEvent({
+      event: 'kyc_started',
+      from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
+      to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
+      from_amount: executionInputState.amountInUnits,
+      to_amount: Big(executionInputState.minAmountOutUnits).round(2, 0).toFixed(2, 0),
+    });
 
     // stop fetching new sep24 url's and clean session variables from the state to be safe.
     // We want to avoid session variables used in defferent sessions.
@@ -245,11 +252,12 @@ export const useMainProcess = () => {
         renderEvent: addEvent,
         wagmiConfig,
         setSigningPhase,
+        trackEvent,
       });
 
       if (offrampingState !== nextState) updateHookStateFromState(nextState);
     })();
-  }, [offrampingState, updateHookStateFromState, wagmiConfig]);
+  }, [offrampingState, updateHookStateFromState, trackEvent, wagmiConfig]);
 
   return {
     handleOnSubmit,

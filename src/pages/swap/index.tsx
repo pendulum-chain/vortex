@@ -195,6 +195,34 @@ export const SwapPage = () => {
     }
   }, [form, tokenOutData.data, tokenOutData.error, tokenOutData.isLoading, toToken]);
 
+  // We create one listener to listen for the anchor callback, on initialize.
+  useEffect(() => {
+    const handleMessage = (event: any) => {
+      if (event.origin != 'https://circle.anchor.mykobo.co') {
+        return;
+      }
+
+      // See: https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md
+      // status: pending_user_transfer_start indicates the anchor is ready to receive funds
+      if (event.data.transaction.status === 'pending_user_transfer_start') {
+        console.log('Callback received from external site, anchor flow completed.');
+
+        // We don't automatically close the window, as this could be confusing for the user.
+        // event.source.close();
+
+        showToast(ToastMessage.KYC_COMPLETED);
+      }
+    };
+
+    // Add the message listener
+    window.addEventListener('message', handleMessage);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
@@ -308,34 +336,6 @@ export const SwapPage = () => {
       return <ProgressPage offrampingState={offrampingState} />;
     }
   }
-
-  // We create one listener to listen for the anchor callback, on initialize.
-  useEffect(() => {
-    const handleMessage = (event: any) => {
-      if (event.origin != 'https://circle.anchor.mykobo.co') {
-        return;
-      }
-
-      // See: https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0024.md
-      // status: pending_user_transfer_start indicates the anchor is ready to receive funds
-      if (event.data.transaction.status === 'pending_user_transfer_start') {
-        console.log('Callback received from external site, anchor flow completed.');
-
-        // We don't automatically close the window, as this could be confusing for the user.
-        // event.source.close();
-
-        showToast(ToastMessage.KYC_COMPLETED);
-      }
-    };
-
-    // Add the message listener
-    window.addEventListener('message', handleMessage);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, []);
 
   const main = (
     <main ref={formRef}>
