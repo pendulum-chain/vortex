@@ -25,6 +25,7 @@ import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
 import { executeXCM } from './moonbeam';
 import { TrackableEvent } from '../contexts/events';
+import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
@@ -76,6 +77,10 @@ export interface OfframpingState {
 
   // phase executeXCM
   moonbeamXcmTransactionHash?: `0x${string}`;
+
+  // nabla minimum output amounts
+  nablaSoftMinimumOutputRaw: string;
+  nablaHardMinimumOutputRaw: string;
 
   // nablaApprove
   nablaApproveNonce: number;
@@ -137,7 +142,7 @@ export interface InitiateStateArguments {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountIn: string;
-  amountOut: string;
+  amountOut: Big;
   sepResult: SepResult;
 }
 
@@ -158,8 +163,13 @@ export async function constructInitialState({
   const inputAmountBig = Big(amountIn);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals).toFixed();
 
-  const outputAmountBig = Big(amountOut).round(2, 0);
-  const outputAmountRaw = multiplyByPowerOfTen(outputAmountBig, outputTokenDecimals).toFixed();
+  const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
+
+  // nabla minimum output amounts
+  const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
+  const nablaSoftMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenDecimals).toFixed();
+  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenDecimals).toFixed();
 
   const squidRouterReceiverId = createRandomString(32);
   const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
@@ -178,12 +188,14 @@ export async function constructInitialState({
       raw: inputAmountRaw,
     },
     outputAmount: {
-      units: outputAmountBig.toFixed(2, 0),
+      units: amountOut.toFixed(2, 0),
       raw: outputAmountRaw,
     },
     phase: 'prepareTransactions',
     squidRouterReceiverId,
     squidRouterReceiverHash,
+    nablaHardMinimumOutputRaw,
+    nablaSoftMinimumOutputRaw,
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     executeSpacewalkNonce: 2,
