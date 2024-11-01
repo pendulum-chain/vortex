@@ -34,7 +34,7 @@ function createOfframpingPhaseMessage(offrampingState: OfframpingState): string 
   }
 }
 
-const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
+export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   prepareTransactions: 1,
   squidRouter: 1,
   pendulumFundEphemeral: 80,
