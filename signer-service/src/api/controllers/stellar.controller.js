@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const { Keypair } = require('stellar-sdk');
-const { FUNDING_SECRET } = require('../../constants/constants');
+const { FUNDING_SECRET, SEP10_MASTER_SECRET } = require('../../constants/constants');
 
 const { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk } = require('../services/stellar.service');
 const { signSep10Challenge } = require('../services/sep10.service');
@@ -64,7 +64,7 @@ exports.signSep10Challenge = async (req, res, next) => {
 
 exports.getSep10MasterPK = async (req, res, next) => {
   try {
-    const masterSep10Public = Keypair.fromSecret(FUNDING_SECRET).publicKey();
+    const masterSep10Public = Keypair.fromSecret(SEP10_MASTER_SECRET).publicKey();
     return res.json({ masterSep10Public });
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
