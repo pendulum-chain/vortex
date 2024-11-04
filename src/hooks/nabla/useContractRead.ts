@@ -22,10 +22,10 @@ type UseContractReadProps<ReturnType> = {
   noWalletAddressRequired?: boolean;
   parseSuccessOutput: (successResult: any) => ReturnType;
   parseError: string | ((errorResult: MessageCallErrorResult) => string);
-  queryOptions: QueryOptions<ReturnType | null, string>;
+  queryOptions: QueryOptions<ReturnType | undefined, string>;
 };
 
-type UseContractReadResult<ReturnType> = UseQueryResult<ReturnType | null, string>;
+type UseContractReadResult<ReturnType> = UseQueryResult<ReturnType | undefined, string>;
 
 export function useContractRead<ReturnType>(
   key: QueryKey,
@@ -53,7 +53,7 @@ export function useContractRead<ReturnType>(
 
   const queryKey = enabled ? key : emptyCacheKey;
   const queryFn = async () => {
-    if (!enabled) return null;
+    if (!enabled) return undefined;
     const limits = defaultReadLimits;
 
     if (isDevelopment) {
@@ -86,7 +86,7 @@ export function useContractRead<ReturnType>(
     return parseSuccessOutput(response.value);
   };
 
-  const query = useQuery<ReturnType | null, string>({ ...queryOptions, queryKey, queryFn, enabled, retry: false });
+  const query = useQuery<ReturnType | undefined, string>({ ...queryOptions, queryKey, queryFn, enabled, retry: false });
 
   return query;
 }

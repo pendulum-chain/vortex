@@ -58,7 +58,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
           </a>
           . We’re here to help!
         </p>
-        <EmailForm transactionId={transactionId} />
+        <EmailForm transactionId={transactionId} transactionSuccess={false} />
       </Box>
     </main>
   );
