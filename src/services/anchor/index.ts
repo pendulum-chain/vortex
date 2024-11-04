@@ -120,7 +120,6 @@ export const sep10 = async (
     transactionSigned.sign(ephemeralKeys);
   } else {
     const { masterSignature, masterPublic } = await fetchMasterSignatureSep10(transactionSigned.toXDR());
-    console.log(masterSignature, masterPublic);
     transactionSigned.addSignature(masterPublic, masterSignature);
     maybeMasterPublic = masterPublic;
   }
