@@ -37,8 +37,7 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
 };
 
 export const fetchMasterSignatureSep10 = async (challengeXDR: string): Promise<MasterSep10Response> => {
-  // TODO remove after testing.
-  const response = await fetch(`http://localhost:3000/v1/stellar/sep10`, {
+  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ challengeXDR }),

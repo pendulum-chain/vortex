@@ -108,7 +108,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     },
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
     erc20WrapperAddress: '6cNENXUqHUeEGSm4psQCeykZiLXJL9VzMQnvSoouyeEEoJpe',
-    minWithdrawalAmountRaw: '100000000000000', // 100 ARS?
+    minWithdrawalAmountRaw: '11000000000000', // 11 ARS
     maxWithdrawalAmountRaw: '500000000000000000', // 500000 ARS
     offrampFeesBasisPoints: 200, // 2%
   },
