@@ -132,11 +132,17 @@ export const useMainProcess = () => {
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
           const requiresClientDomain = outputToken.requiresClientDomain;
+
+          // get or derive memo:
+          // for mykobo memo should be ''
+          const memo = ''; // derived from user's start chain account or empty.
+
           const sep10Token = await sep10(
             tomlValues,
             stellarEphemeralSecret,
             requiresClientDomain,
             outputTokenType,
+            memo,
             addEvent,
           );
 

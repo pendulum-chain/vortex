@@ -2,8 +2,8 @@ import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSigningServiceAccountId } from '../signingService';
-import { config } from '../../config';
 import { fetchClientDomainSep10 } from '../signingService';
+import { config } from '../../config';
 
 interface TomlValues {
   signingKey?: string;
@@ -70,6 +70,7 @@ export const sep10 = async (
   stellarEphemeralSecret: string,
   requiresClientDomain: boolean,
   outTokenCode: OutputTokenType,
+  memo: string,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -78,18 +79,28 @@ export const sep10 = async (
     throw new Error('Missing values in TOML file');
   }
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
-  const ephemeralKeys = Keypair.fromSecret('///');
+  const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
+
   let urlParams;
+  //TODO requires testing, unclear what the anchors expect on each case.
   if (requiresClientDomain) {
     urlParams = new URLSearchParams({
-      account: accountId,
+      account: `G.....`, // TODO master account we use to sign along with memo
+      memo: memo,
       client_domain: config.applicationClientDomain,
     });
   } else {
-    urlParams = new URLSearchParams({
-      account: accountId,
-    });
+    if (memo !== '') {
+      urlParams = new URLSearchParams({
+        account: accountId,
+        memo: memo,
+      });
+    } else {
+      urlParams = new URLSearchParams({
+        account: accountId,
+      });
+    }
   }
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
@@ -111,19 +122,26 @@ export const sep10 = async (
   }
 
   // let signer-service sign the challenge to authenticate our
-  // client domain definition.
-  if (requiresClientDomain) {
+  // client domain definition AND/OR sign the transaction with master identifying memo
+  if (requiresClientDomain || memo !== '') {
     const { clientSignature, clientPublic } = await fetchClientDomainSep10(
       transactionSigned.toXDR(),
       outTokenCode,
       ephemeralKeys.publicKey(),
+      memo,
+      undefined,
     );
     transactionSigned.addSignature(clientPublic, clientSignature);
+
+    // TODO we are missing the signature from the master account
   }
 
   // More tests required, ignore for prototype
 
-  transactionSigned.sign(ephemeralKeys);
+  // Ephemeral only signs if NOT identified by memo
+  if (memo === '') {
+    transactionSigned.sign(ephemeralKeys);
+  }
 
   const jwt = await fetch(webAuthEndpoint, {
     method: 'POST',
@@ -136,7 +154,6 @@ export const sep10 = async (
   }
 
   const { token } = await jwt.json();
-
   // print the ephemeral secret, for testing
   renderEvent(
     `Unique recovery code (Please keep safe in case something fails): ${'testing master account'}`,
@@ -224,9 +241,10 @@ export async function sep24First(
   // TODO change
   if (sessionParams.tokenConfig.stellarAsset.code.string === 'ARS\0') {
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      asset_code: 'ARS',
       amount: sessionParams.offrampAmount,
       account: stellarPublic,
+      // TODO do we also need memo here? we shouldn't even need account, in theory, so we probably need it also.
     });
   } else {
     sep24Params = new URLSearchParams({
