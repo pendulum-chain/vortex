@@ -3,6 +3,7 @@ import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSigningServiceAccountId, fetchMasterSignatureSep10 } from '../signingService';
 import { config } from '../../config';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 interface TomlValues {
   signingKey?: string;
@@ -82,7 +83,7 @@ export const sep10 = async (
   let urlParams;
   if (outputToken === 'ars') {
     // need to send the account of the stellar master account
-    const response = await fetch(`http://localhost:3000/v1/stellar/sep10`);
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
     const { masterSep10Public } = await response.json();
     urlParams = new URLSearchParams({
       account: masterSep10Public,
@@ -138,7 +139,7 @@ export const sep10 = async (
 
   // print the ephemeral secret, for testing
   renderEvent(
-    `Unique recovery code (Please keep safe in case something fails): ${'testing master account'}`,
+    `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
     EventStatus.Waiting,
   );
   return { token, masterPublic: maybeMasterPublic };
@@ -225,7 +226,7 @@ export async function sep24First(
       throw new Error('Master must be defined at this point.');
     }
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      asset_code: 'ARS',
       amount: sessionParams.offrampAmount,
       account: masterOrEphemeralPublic, // Since we signed with the master from the service, we need to specify the corresponding public here
     });
