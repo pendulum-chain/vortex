@@ -6,9 +6,15 @@ import { useEventsContext } from '../../contexts/events';
 
 export function calculateTotalReceive(toAmount: Big, outputToken: OutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
-  const fees = toAmount.mul(feeBasisPoints).div(10000).round(2, 1);
-  const totalReceive = toAmount.minus(fees).toFixed(2, 0);
-  return totalReceive;
+  const fixedFees = new Big(outputToken.offrampFeesFixedComponent ? outputToken.offrampFeesFixedComponent : 0);
+  const fees = toAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
+  const totalReceiveRaw = toAmount.minus(fees);
+
+  if (totalReceiveRaw.gt(0)) {
+    return totalReceiveRaw.toFixed(2, 0);
+  } else {
+    return '0';
+  }
 }
 
 interface CollapseProps {
