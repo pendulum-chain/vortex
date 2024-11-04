@@ -26,3 +26,6 @@ dist-ssr
 .yarn
 !.yarn/releases/*
 
+
+# Sentry Config File
+.env.sentry-build-plugin

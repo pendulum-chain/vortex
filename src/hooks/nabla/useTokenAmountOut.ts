@@ -1,6 +1,5 @@
 import BigNumber from 'big.js';
 import Big from 'big.js';
-import { UseQueryResult } from '@tanstack/react-query';
 import { UseFormReturn } from 'react-hook-form';
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
@@ -32,12 +31,12 @@ type UseTokenOutAmountProps = {
 export interface UseTokenOutAmountResult {
   isLoading: boolean;
   enabled: boolean;
-  data: TokenOutData | undefined | null;
-  refetch?: UseQueryResult<TokenOutData | null, string>['refetch'];
+  data: TokenOutData | undefined;
 }
 
 interface TokenOutData {
-  amountOut: ContractBalance;
+  preciseQuotedAmountOut: ContractBalance;
+  roundedDownQuotedAmountOut: Big;
   swapFee: ContractBalance;
   effectiveExchangeRate: string;
 }
@@ -81,7 +80,7 @@ export function useTokenOutAmount({
     debouncedAmountBigDecimal.gt(new BigNumber(0)) &&
     (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
 
-  const { isLoading, fetchStatus, data, error, refetch } = useContractRead<TokenOutData | null>(
+  const { isLoading, fetchStatus, data, error } = useContractRead<TokenOutData | undefined>(
     [
       cacheKeys.tokenOutAmount,
       inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
@@ -102,16 +101,17 @@ export function useTokenOutAmount({
       },
       parseSuccessOutput: (data) => {
         if (outputToken === undefined || inputToken === undefined || debouncedAmountBigDecimal === undefined) {
-          return null;
+          return undefined;
         }
 
-        const amountOut = parseContractBalanceResponse(outputToken.decimals, data[0]);
+        const preciseQuotedAmountOut = parseContractBalanceResponse(outputToken.decimals, data[0]);
         const swapFee = parseContractBalanceResponse(outputToken.decimals, data[1]);
 
         return {
-          amountOut,
+          preciseQuotedAmountOut,
+          roundedDownQuotedAmountOut: preciseQuotedAmountOut.preciseBigDecimal.round(2, 0),
           effectiveExchangeRate: stringifyBigWithSignificantDecimals(
-            amountOut.preciseBigDecimal.div(debouncedAmountBigDecimal),
+            preciseQuotedAmountOut.preciseBigDecimal.div(debouncedAmountBigDecimal),
             4,
           ),
           swapFee,
@@ -152,5 +152,5 @@ export function useTokenOutAmount({
   const isInputStable = debouncedFromAmountString === fromAmountString;
   const stableAmountInUnits = isInputStable ? debouncedFromAmountString : undefined;
 
-  return { isLoading: pending, enabled, data, refetch, error, stableAmountInUnits };
+  return { isLoading: pending, enabled, data, error, stableAmountInUnits };
 }

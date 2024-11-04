@@ -4,21 +4,21 @@ import { roundDownToTwoDecimals } from '../../helpers/parseNumbers';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 
-export function calculateTotalReceive(toAmount: string, outputToken: OutputTokenDetails): string {
+export function calculateTotalReceive(toAmount: Big, outputToken: OutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
-  const fees = Big(toAmount).mul(feeBasisPoints).div(10000).round(2, 1);
-  const totalReceive = Big(toAmount).minus(fees).toFixed(2, 0);
+  const fees = toAmount.mul(feeBasisPoints).div(10000).round(2, 1);
+  const totalReceive = toAmount.minus(fees).toFixed(2, 0);
   return totalReceive;
 }
 
 interface CollapseProps {
   fromAmount?: string;
-  toAmount?: string;
+  toAmount?: Big;
   toToken: OutputTokenDetails;
   exchangeRate?: JSX.Element;
 }
 
-export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exchangeRate }) => {
   const { trackEvent } = useEventsContext();
   const toTokenSymbol = toToken.fiat.symbol;
 
@@ -26,8 +26,8 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRate
     trackEvent({ event: 'click_details' });
   };
 
-  const toAmountFixed = roundDownToTwoDecimals(Big(toAmount || 0));
-  const totalReceive = calculateTotalReceive(toAmount || '0', toToken);
+  const toAmountFixed = roundDownToTwoDecimals(toAmount);
+  const totalReceive = calculateTotalReceive(toAmount, toToken);
   const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive));
   const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive));
 

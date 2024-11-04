@@ -3,7 +3,7 @@ import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'p
 import { useAccount } from 'wagmi';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
-
+import * as Sentry from '@sentry/react';
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,9 +16,13 @@ const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
   'click_details',
   'click_support',
   'transaction_confirmation',
+  'kyc_started',
   'kyc_completed',
+  'signing_requested',
+  'transaction_signed',
   'transaction_success',
   'transaction_failure',
+  'email_submission',
 ];
 
 export interface AmountTypeEvent {
@@ -35,11 +39,32 @@ export interface WalletConnectEvent {
 }
 
 export interface TransactionEvent {
-  event: 'transaction_confirmation' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
   from_asset: string;
   to_asset: string;
   from_amount: string;
   to_amount: string;
+}
+
+export interface ProgressEvent {
+  event: 'progress';
+  phase: number;
+  name: string;
+}
+
+export interface SigningRequestedEvent {
+  event: 'signing_requested';
+  index: number;
+}
+
+export interface TransactionSignedEvent {
+  event: 'transaction_signed';
+  index: number;
+}
+
+export interface EmailSubmissionEvent {
+  event: 'email_submission';
+  transaction_status: 'success' | 'failure';
 }
 
 export interface ClickSupportEvent {
@@ -62,7 +87,11 @@ export type TrackableEvent =
   | WalletConnectEvent
   | TransactionEvent
   | ClickSupportEvent
-  | FormErrorEvent;
+  | FormErrorEvent
+  | EmailSubmissionEvent
+  | SigningRequestedEvent
+  | TransactionSignedEvent
+  | ProgressEvent;
 
 type EventType = TrackableEvent['event'];
 
@@ -109,6 +138,11 @@ const useEvents = () => {
     const isConnected = address !== undefined;
 
     previousAddress.current = address;
+
+    // set sentry user as wallet address
+    if (address) {
+      Sentry.setUser({ id: address });
+    }
 
     if (!userClickedState.current) {
       return;
