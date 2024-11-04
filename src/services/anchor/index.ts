@@ -209,7 +209,7 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
-  masterOrEphemeralPublic: string | undefined,
+  masterPublic: string | undefined,
 ): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
@@ -222,13 +222,13 @@ export async function sep24First(
   let sep24Params;
 
   if (sessionParams.tokenConfig.stellarAsset.code.string === 'ARS\0') {
-    if (!masterOrEphemeralPublic) {
+    if (!masterPublic) {
       throw new Error('Master must be defined at this point.');
     }
     sep24Params = new URLSearchParams({
       asset_code: 'ARS',
       amount: sessionParams.offrampAmount,
-      account: masterOrEphemeralPublic, // Since we signed with the master from the service, we need to specify the corresponding public here
+      account: masterPublic, // Since we signed with the master from the service, we need to specify the corresponding public here
     });
   } else {
     sep24Params = new URLSearchParams({
