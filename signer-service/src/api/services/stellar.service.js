@@ -152,6 +152,14 @@ async function sendStatusWithPk() {
   }
 }
 
+// This function will receive the challenge in xdr format from the UI (relayed from the anchor), and will
+// also receive the signature of our challenge message. From it we can derive the public key of the client
+// and from the public key we can derive the memo. We will then verify that the memo (if exists) is the expected one
+// given a particular derivation method.
+
+// Security assurances: we therefore assure that the client is in possession of the private key corresponding to the
+// public from which the memo is derived. This signature(s) we provide are ONLY useful for getting a JWT from the anchor
+// corresponding to the "virtual" account represented by master:memo.
 async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo, userChallengeSignature) {
   const keypair = Keypair.fromSecret(CLIENT_SECRET);
 
