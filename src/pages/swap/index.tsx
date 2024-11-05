@@ -34,6 +34,8 @@ import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 
+import { SignInModal } from '../../components/SignIn';
+
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
     <ArrowDownIcon className="text-blue-700 w-7" />
@@ -335,6 +337,7 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
+      <SignInModal />
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"

@@ -108,6 +108,7 @@ type EventType = TrackableEvent['event'];
 type UseEventsContext = ReturnType<typeof useEvents>;
 const useEvents = () => {
   const { address } = useAccount();
+
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
