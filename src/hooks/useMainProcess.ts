@@ -21,6 +21,7 @@ import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
+import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -73,7 +74,15 @@ export const useMainProcess = () => {
       if (state?.phase === 'success') {
         trackEvent(createTransactionEvent('transaction_success', state));
       } else if (state?.failure !== undefined) {
-        trackEvent(createTransactionEvent('transaction_failure', state));
+        const currentPhase = state?.phase;
+        const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
+
+        trackEvent({
+          ...createTransactionEvent('transaction_failure', state),
+          event: 'transaction_failure',
+          phase_name: currentPhase,
+          phase_index: currentPhaseIndex,
+        });
       }
     },
     [trackEvent],
