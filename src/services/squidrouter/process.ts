@@ -1,11 +1,13 @@
-import { writeContract, sendTransaction, getAccount } from '@wagmi/core';
+import { getAccount, sendTransaction, writeContract } from '@wagmi/core';
+import { SendTransactionErrorType, WriteContractErrorType } from 'viem';
+import * as Sentry from '@sentry/react';
 
 import { INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import erc20ABI from '../../contracts/ERC20';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { waitForEvmTransaction } from '../evmTransactions';
 import { getRouteTransactionRequest } from './route';
-import { createTransactionEvent } from '../../contexts/events';
+import { showToast, ToastMessage } from '../../helpers/notifications';
 
 export async function squidRouter(
   state: OfframpingState,
@@ -41,6 +43,20 @@ export async function squidRouter(
     });
     trackEvent({ event: 'transaction_signed', index: 1 });
   } catch (e) {
+    const error = e as WriteContractErrorType;
+
+    const message = 'shortMessage' in error ? error.shortMessage : error.message;
+
+    showToast(ToastMessage.SIGNING_FAILED, 'Failed to sign transaction: ' + message);
+
+    Sentry.captureException(error, {
+      level: 'warning',
+      extra: {
+        message: 'Call to writeContract() failed in squidRouter()',
+        cause: 'cause' in error ? error.cause : undefined,
+      },
+    });
+
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
   }
@@ -60,6 +76,19 @@ export async function squidRouter(
     });
     trackEvent({ event: 'transaction_signed', index: 2 });
   } catch (e) {
+    const error = e as SendTransactionErrorType;
+
+    const message = 'shortMessage' in error ? error.shortMessage : error.message;
+
+    showToast(ToastMessage.SIGNING_FAILED, 'Failed to sign transaction: ' + message);
+    Sentry.captureException(error, {
+      level: 'warning',
+      extra: {
+        message: 'Call to sendTransaction() failed in squidRouter()',
+        cause: 'cause' in error ? error.cause : undefined,
+      },
+    });
+
     console.error('Error in squidRouter: ', e);
     return { ...state, failure: 'unrecoverable' };
   }

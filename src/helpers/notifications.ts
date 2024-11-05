@@ -3,6 +3,7 @@ import { ToastOptions, toast } from 'react-toastify';
 export enum ToastMessage {
   AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
   KYC_COMPLETED = 'KYC_COMPLETED',
+  SIGNING_FAILED = 'SIGNING_FAILED',
 }
 
 type ToastSettings = {
@@ -23,6 +24,13 @@ const ToastProperties: Record<ToastMessage, ToastSettings> = {
     options: {
       toastId: ToastMessage.KYC_COMPLETED,
       type: 'success',
+    },
+  },
+  [ToastMessage.SIGNING_FAILED]: {
+    message: 'Signing failed. Please try again.',
+    options: {
+      toastId: ToastMessage.SIGNING_FAILED,
+      type: 'error',
     },
   },
 };

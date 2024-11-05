@@ -19,3 +19,4 @@ favicon.png
 CHANGELOG.md
 **/*.svg
 .prettierignore
+.gitignore

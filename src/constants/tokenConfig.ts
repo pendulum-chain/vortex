@@ -69,7 +69,7 @@ export type OutputTokenType = 'eurc' | 'ars';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
-    requiresClientDomain: true,
+    requiresClientDomain: false,
     decimals: 12,
     fiat: {
       assetIcon: 'eur',
@@ -93,6 +93,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
   },
   ars: {
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
+    requiresClientDomain: true,
     decimals: 12,
     fiat: {
       assetIcon: 'ars',

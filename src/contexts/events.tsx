@@ -3,7 +3,7 @@ import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'p
 import { useAccount } from 'wagmi';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
-
+import * as Sentry from '@sentry/react';
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,18 +38,27 @@ export interface WalletConnectEvent {
   wallet_action: 'connect' | 'disconnect' | 'change';
 }
 
-export interface TransactionEvent {
-  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+interface OfframpingParameters {
   from_asset: string;
   to_asset: string;
   from_amount: string;
   to_amount: string;
 }
 
+export type TransactionEvent = OfframpingParameters & {
+  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+};
+
+export type TransactionFailedEvent = OfframpingParameters & {
+  event: 'transaction_failure';
+  phase_name: string;
+  phase_index: number;
+};
+
 export interface ProgressEvent {
   event: 'progress';
-  phase: number;
-  name: string;
+  phase_name: string;
+  phase_index: number;
 }
 
 export interface SigningRequestedEvent {
@@ -86,6 +95,7 @@ export type TrackableEvent =
   | ClickDetailsEvent
   | WalletConnectEvent
   | TransactionEvent
+  | TransactionFailedEvent
   | ClickSupportEvent
   | FormErrorEvent
   | EmailSubmissionEvent
@@ -138,6 +148,11 @@ const useEvents = () => {
     const isConnected = address !== undefined;
 
     previousAddress.current = address;
+
+    // set sentry user as wallet address
+    if (address) {
+      Sentry.setUser({ id: address });
+    }
 
     if (!userClickedState.current) {
       return;
