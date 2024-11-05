@@ -175,8 +175,6 @@ const useEvents = () => {
     const wasConnected = previousAddress.current !== undefined;
     const isConnected = address !== undefined;
 
-    previousAddress.current = address;
-
     // set sentry user as wallet address
     if (address) {
       Sentry.setUser({ id: address });
@@ -200,6 +198,7 @@ const useEvents = () => {
       });
     }
 
+    previousAddress.current = address;
     userClickedState.current = false;
     // Important NOT to add userClicked to the dependencies array, otherwise logic will not work.
   }, [address, trackEvent, userClickedState]);
