@@ -5,7 +5,6 @@ const {
   FUNDING_SECRET,
   STELLAR_FUNDING_AMOUNT_UNITS,
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
-  CLIENT_SECRET,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 const { fetchTomlValues, verifyClientDomainChallengeOps } = require('../helpers/anchors');
@@ -152,48 +151,4 @@ async function sendStatusWithPk() {
   }
 }
 
-// This function will receive the challenge in xdr format from the UI (relayed from the anchor), and will
-// also receive the signature of our challenge message. From it we can derive the public key of the client
-// and from the public key we can derive the memo. We will then verify that the memo (if exists) is the expected one
-// given a particular derivation method.
-
-// Security assurances: we therefore assure that the client is in possession of the private key corresponding to the
-// public from which the memo is derived. This signature(s) we provide are ONLY useful for getting a JWT from the anchor
-// corresponding to the "virtual" account represented by master:memo.
-async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo, userChallengeSignature) {
-  const keypair = Keypair.fromSecret(CLIENT_SECRET);
-
-  const { signingKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
-
-  //TODO verify userChallengeSignature if outToken requires so.....
-  //  const fields = await siweMessage.verify({signature}) must return the pk, we
-  // need to verify that the memo is the corresponding one to the pk.
-
-  // TODO how to make the expected key based on outToken? with a simple manual map?
-  const expectedKey = `mykobo.co auth`;
-
-  let expectedMemoInOps;
-  if (!memo) {
-    expectedMemoInOps = '';
-  } else {
-    expectedMemoInOps = memo;
-  }
-
-  // TODO clientPublicKey must be either ephemeral for non memo case, or
-  // the master for the memo case
-
-  // incorrect verification leads to failure
-  verifyClientDomainChallengeOps(
-    challengeXDR,
-    NETWORK_PASSPHRASE,
-    signingKey,
-    clientPublicKey,
-    expectedMemoInOps,
-    expectedKey,
-  );
-
-  const signature = transactionSigned.getKeypairSignature(keypair);
-  return { clientSignature: signature, clientPublic: keypair.publicKey() };
-}
-
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk, signSep10Challenge };
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };

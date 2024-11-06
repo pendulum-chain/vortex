@@ -10,4 +10,6 @@ router.route('/payment').post(validateChangeOpInput, controller.changeOpTransact
 
 router.route('/sep10').post(controller.signSep10Challenge);
 
+router.route('/sep10').get(controller.getSep10MasterPK);
+
 module.exports = router;

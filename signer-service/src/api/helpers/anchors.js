@@ -6,13 +6,8 @@ const fetchTomlValues = async (tomlFileUrl) => {
 
   const tomlFileContent = (await response.text()).split('\n');
   const findValueInToml = (key) => {
-    for (const line of tomlFileContent) {
-      const regexp = new RegExp(`^\\s*${key}\\s*=\\s*"(.*)"\\s*$`);
-      const match = regexp.exec(line);
-      if (match) {
-        return match[1];
-      }
-    }
+    const keyValue = tomlFileContent.find((line) => line.includes(key));
+    return keyValue?.split('=')[1].trim().replaceAll('"', '');
   };
 
   return {

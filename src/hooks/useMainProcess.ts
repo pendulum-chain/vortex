@@ -21,7 +21,6 @@ import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
-import { Keypair } from 'stellar-sdk';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
@@ -113,7 +112,7 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     (executionInput: ExecutionInput) => {
-      const { inputTokenType, outputTokenType, amountInUnits, offrampAmount } = executionInput;
+      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
         setIsInitiating(false);
@@ -135,23 +134,13 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-          const stellarEphemeralPublic = Keypair.fromSecret(stellarEphemeralSecret).publicKey();
-
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          const requiresClientDomain = outputToken.requiresClientDomain;
-
-          // get or derive memo:
-          // for mykobo memo should be ''
-          const memo = ''; // derived from user's start chain account or empty.
-
-          const sep10Token = await sep10(
+          const { token: sep10Token, sep10Account } = await sep10(
             tomlValues,
             stellarEphemeralSecret,
-            requiresClientDomain,
             outputTokenType,
-            memo,
             addEvent,
           );
 
@@ -168,7 +157,7 @@ export const useMainProcess = () => {
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams, stellarEphemeralPublic);
+            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();

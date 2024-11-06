@@ -63,5 +63,5 @@ export const config = {
     overwriteMinimumTransferAmount: false,
   },
   supportUrl: 'https://forms.gle/bgH4XTTbQ3YbwQ3t7',
-  applicationClientDomain: 'https://satoshipay.io/.well-known/stellar.toml',
+  applicationClientDomain: 'satoshipay.io',
 };
