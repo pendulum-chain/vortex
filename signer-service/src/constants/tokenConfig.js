@@ -6,6 +6,7 @@ const TOKEN_CONFIG = {
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     minWithdrawalAmount: '10000000000000',
     maximumSubsidyAmountRaw: '1000000000000', // 1 unit
+    anchorExpectedKey: 'mykobo.co auth',
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {

@@ -183,8 +183,7 @@ async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo)
     throw new Error('First manageData operation must have the client account as the source');
   }
 
-  // TODO how to make the expected key based on outToken? with a simple manual map?
-  const expectedKey = `mykobo.co auth`;
+  const expectedKey = TOKEN_CONFIG[outToken].expectedKey;
   if (firstOp.name !== expectedKey) {
     throw new Error(`First manageData operation should have key '${expectedKey}'`);
   }
