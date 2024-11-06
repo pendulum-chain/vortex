@@ -6,6 +6,7 @@ const TOKEN_CONFIG = {
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     minWithdrawalAmount: '10000000000000',
     maximumSubsidyAmountRaw: '1000000000000', // 1 unit
+    anchorExpectedKey: 'mykobo.co auth',
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {
@@ -27,6 +28,7 @@ const TOKEN_CONFIG = {
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
     minWithdrawalAmount: '11000000000000', //  11 ARS. Anchor minimum limit.
     maximumSubsidyAmountRaw: '100000000000000', // Defined by us:  100 unit ~ 0.1 USD @ Oct/2024
+    anchorExpectedKey: 'api.anclap.com auth',
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {

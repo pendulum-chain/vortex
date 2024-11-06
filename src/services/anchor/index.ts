@@ -4,6 +4,7 @@ import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig
 import { fetchSigningServiceAccountId, fetchMasterSignatureSep10 } from '../signingService';
 import { config } from '../../config';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 
 interface TomlValues {
   signingKey?: string;
@@ -65,12 +66,38 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
+async function getUrlParams(
+  ephemeralAccount: string,
+  requiresClientMasterOverride: boolean,
+): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
+  let sep10Account;
+  if (requiresClientMasterOverride) {
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch client master SEP-10 public account.');
+    }
+
+    const { masterSep10Public } = await response.json();
+
+    if (!masterSep10Public) {
+      throw new Error('masterSep10Public not found in response.');
+    }
+
+    sep10Account = masterSep10Public;
+  } else {
+    sep10Account = ephemeralAccount;
+  }
+
+  return { urlParams: new URLSearchParams({ sep10Account }), sep10Account };
+}
+
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<{ masterPublic: string | undefined; token: string }> => {
+): Promise<{ sep10Account: string; token: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
@@ -80,21 +107,10 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  let urlParams;
-  // Do not hardcode, use flag comming from outputToken
-  // TODO also, make a functtion to return urlParams.
-  if (outputToken === 'ars') {
-    // need to send the account of the stellar master account
-    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
-    const { masterSep10Public } = await response.json();
-    urlParams = new URLSearchParams({
-      account: masterSep10Public,
-    });
-  } else {
-    urlParams = new URLSearchParams({
-      account: accountId,
-    });
-  }
+  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
+
+  // will select either clientMaster or the ephemeral account
+  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -117,14 +133,12 @@ export const sep10 = async (
   // More tests required, ignore for prototype
   // only sign if not ARS token, else call the temporary
   // signing service's endpoint
-  // TODO replace with masterSep10Public from above, avoid sending it with the signature.
-  let maybeMasterPublic;
-  if (outputToken !== 'ars') {
+
+  if (!requiresClientMasterOverride) {
     transactionSigned.sign(ephemeralKeys);
   } else {
-    const { masterSignature, masterPublic } = await fetchMasterSignatureSep10(transactionSigned.toXDR());
-    transactionSigned.addSignature(masterPublic, masterSignature);
-    maybeMasterPublic = masterPublic;
+    const { masterSignature } = await fetchMasterSignatureSep10(transactionSigned.toXDR());
+    transactionSigned.addSignature(sep10Account, masterSignature);
   }
 
   const jwt = await fetch(webAuthEndpoint, {
@@ -144,7 +158,7 @@ export const sep10 = async (
     `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
     EventStatus.Waiting,
   );
-  return { token, masterPublic: maybeMasterPublic };
+  return { token, sep10Account };
 };
 
 // TODO modify according to the anchor's requirements and implementation
@@ -211,7 +225,8 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
-  masterPublic: string | undefined,
+  sep10Account: string,
+  outputToken: OutputTokenType,
 ): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
@@ -220,18 +235,18 @@ export async function sep24First(
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  // at this stage, assetCode should be defined, if the config is consistent.
-  let sep24Params;
+  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
 
-  // use flag from outputToken, same as in the other TODO
-  if (sessionParams.tokenConfig.stellarAsset.code.string === 'ARS\0') {
-    if (!masterPublic) {
+  let sep24Params;
+  if (requiresClientMasterOverride) {
+    if (!sep10Account) {
       throw new Error('Master must be defined at this point.');
     }
     sep24Params = new URLSearchParams({
-      asset_code: 'ARS',
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
       amount: sessionParams.offrampAmount,
-      account: masterPublic, // Since we signed with the master from the service, we need to specify the corresponding public here
+      account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
+      // Since we signed with the master from the service, we need to specify the corresponding public here
     });
   } else {
     sep24Params = new URLSearchParams({

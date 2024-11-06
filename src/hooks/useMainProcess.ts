@@ -129,7 +129,7 @@ export const useMainProcess = () => {
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          const { token: sep10Token, masterPublic } = await sep10(
+          const { token: sep10Token, sep10Account } = await sep10(
             tomlValues,
             stellarEphemeralSecret,
             outputTokenType,
@@ -149,7 +149,7 @@ export const useMainProcess = () => {
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams, masterPublic);
+            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();
