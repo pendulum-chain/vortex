@@ -94,7 +94,6 @@ async function getUrlParams(
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
-  requiresClientDomain: boolean,
   outputToken: OutputTokenType,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ sep10Account: string; token: string }> => {
@@ -131,20 +130,8 @@ export const sep10 = async (
   }
 
   // More tests required, ignore for prototype
-  // only sign if not ARS token, else call the temporary
-  // signing service's endpoint
 
-  // let signer-service sign the challenge to authenticate our
-  // client domain definition.
-  // if (requiresClientDomain) {
-  //   const { clientSignature, clientPublic } = await fetchClientDomainSep10(
-  //     transactionSigned.toXDR(),
-  //     outTokenCode,
-  //     ephemeralKeys.publicKey(),
-  //   );
-  //   transactionSigned.addSignature(clientPublic, clientSignature);
-  // }
-
+  // sign both for client_domain + an extra signature for Anclap workaround
   const { masterSignature, clientSignature, clientPublic } = await fetchSep10Signatures(
     transactionSigned.toXDR(),
     outputToken,

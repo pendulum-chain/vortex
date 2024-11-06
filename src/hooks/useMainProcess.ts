@@ -138,12 +138,9 @@ export const useMainProcess = () => {
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          // Do we need this? Don't all anchors accept it?
-          const requiresClientDomain = outputToken.requiresClientDomain;
           const { token: sep10Token, sep10Account } = await sep10(
             tomlValues,
             stellarEphemeralSecret,
-            requiresClientDomain,
             outputTokenType,
             addEvent,
           );
