@@ -81,7 +81,6 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  const hardcodedMemo = '1230129012941249'; // derived from user's start chain account.
   let urlParams;
   if (requiresClientDomain) {
     urlParams = new URLSearchParams({
@@ -91,7 +90,6 @@ export const sep10 = async (
   } else {
     urlParams = new URLSearchParams({
       account: accountId,
-      memo: hardcodedMemo,
     });
   }
 
@@ -122,7 +120,6 @@ export const sep10 = async (
       transactionSigned.toXDR(),
       outTokenCode,
       ephemeralKeys.publicKey(),
-      hardcodedMemo,
     );
     transactionSigned.addSignature(clientPublic, clientSignature);
   }

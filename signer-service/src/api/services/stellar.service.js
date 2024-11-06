@@ -152,7 +152,7 @@ async function sendStatusWithPk() {
   }
 }
 
-async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo) {
+async function signSep10Challenge(challengeXDR, outToken, clientPublicKey) {
   const keypair = Keypair.fromSecret(CLIENT_SECRET);
 
   const { signingKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
@@ -166,14 +166,12 @@ async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo)
   }
 
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
-  // memo field should match and not be empty.
-  if (transactionSigned.memo.value !== memo && memo !== '') {
+  // memo field should be empty as we assume (in this implementation) that we use the ephemeral to authenticate
+  if (transactionSigned.memo.value === '') {
     throw new Error('Memo does not match');
   }
 
-  // Verify manage_data operations
   const operations = transactionSigned.operations;
-  // Verify the first manage_data operation
   const firstOp = operations[0];
   if (firstOp.type !== 'manageData') {
     throw new Error('The first operation should be manageData');
@@ -183,7 +181,7 @@ async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo)
     throw new Error('First manageData operation must have the client account as the source');
   }
 
-  const expectedKey = TOKEN_CONFIG[outToken].expectedKey;
+  const expectedKey = TOKEN_CONFIG[outToken].anchorExpectedKey;
   if (firstOp.name !== expectedKey) {
     throw new Error(`First manageData operation should have key '${expectedKey}'`);
   }
@@ -191,11 +189,9 @@ async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo)
     throw new Error('First manageData operation should have a 64-byte random nonce as value');
   }
 
-  // Flags to check presence of required operations
   let hasWebAuthDomain = false;
   let hasClientDomain = false;
 
-  // Verify extra manage_data operations
   for (let i = 1; i < operations.length; i++) {
     const op = operations[i];
 
@@ -203,30 +199,18 @@ async function signSep10Challenge(challengeXDR, outToken, clientPublicKey, memo)
       throw new Error('All operations should be manage_data operations');
     }
 
-    // Verify web_auth_domain operation
     if (op.name === 'web_auth_domain') {
       hasWebAuthDomain = true;
       if (op.source !== signingKey) {
         throw new Error('web_auth_domain manage_data operation must have the server account as the source');
       }
-
-      // value web_auth_domain but in bytes
-      // if (op.value !== 'web_auth_domain') {
-      //   throw new Error(`web_auth_domain manageData operation should have value 'web_auth_domain'`);
-      // }
     }
 
-    // Verify client_domain operation (if applicable)
     if (op.name === 'client_domain') {
       hasClientDomain = true;
-      // Replace 'CLIENT_DOMAIN_ACCOUNT' with the actual client domain account public key
       if (op.source !== keypair.publicKey()) {
         throw new Error('client_domain manage_data operation must have the client domain account as the source');
       }
-      // Also in bytes first
-      // if (op.value !== 'client_domain') {
-      //   throw new Error(`client_domain manageData operation should have value 'client_domain'`);
-      // }
     }
   }
 
