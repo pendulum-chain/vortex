@@ -7,7 +7,7 @@ const {
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
-const { fetchTomlValues, verifyClientDomainChallengeOps } = require('../helpers/anchors');
+
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);

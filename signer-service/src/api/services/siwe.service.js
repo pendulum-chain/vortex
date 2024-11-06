@@ -6,7 +6,7 @@ const domain = 'localhost';
 const origin = 'https://localhost/login';
 const statement = 'Please sign the message to login!';
 
-// Set that will hold the siwe messages sent + nonce we defined
+// Map that will hold the siwe messages sent + nonce we defined
 const siweMessagesMap = new Map();
 
 exports.createAndSendSiweMessage = async (address) => {

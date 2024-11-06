@@ -8,6 +8,8 @@ const { SEP10_MASTER_SECRET, CLIENT_SECRET } = require('../../constants/constant
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
+// we validate a challenge for a given nonce. From it we obtain the address and derive the memo
+// we can then ensure that the memo is the same as the one we expect from the anchor challenge
 const getAndValidateMemo = async (nonce, userChallengeSignature) => {
   if (!userChallengeSignature || !nonce) {
     return '';
@@ -62,14 +64,15 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   }
 
   // Temporary. This check will be removed when we have the memo solution.
-  if (outToken === 'ars') {
+  if (memo !== '') {
     // We only want to accept a challenge that would authorize the master key.
     if (firstOp.source !== masterStellarKeypair.publicKey()) {
       throw new Error('First manageData operation must have the master signing key as the source');
     }
   } else {
     // Only authorize a session that corresponds with the ephemeral client account
-    if (firstOp.source !== clientPublicKey) {
+    // if no memo, we should not authorize a session for our client domain master
+    if (firstOp.source !== clientPublicKey || firstOp.source == masterStellarKeypair.publicKey()) {
       throw new Error('First manageData operation must have the client account as the source');
     }
   }
@@ -82,11 +85,9 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
     throw new Error('First manageData operation should have a 64-byte random nonce as value');
   }
 
-  // Flags to check presence of required operations
   let hasWebAuthDomain = false;
   let hasClientDomain = false;
 
-  // Verify extra manage_data operations, web_auth and proper client domain.
   for (let i = 1; i < operations.length; i++) {
     const op = operations[i];
 
