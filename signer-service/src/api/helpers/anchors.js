@@ -61,7 +61,6 @@ const verifyClientDomainChallengeOps = async (
     throw new Error('First manageData operation should have a 64-byte random nonce as value');
   }
 
-  // Flags to check presence of required operations
   let hasWebAuthDomain = false;
   let hasClientDomain = false;
 
@@ -79,11 +78,6 @@ const verifyClientDomainChallengeOps = async (
       if (op.source !== signingKey) {
         throw new Error('web_auth_domain manage_data operation must have the server account as the source');
       }
-
-      // value web_auth_domain but in bytes
-      // if (op.value !== 'web_auth_domain') {
-      //   throw new Error(`web_auth_domain manageData operation should have value 'web_auth_domain'`);
-      // }
     }
 
     // Verify client_domain operation (if applicable)
@@ -93,10 +87,6 @@ const verifyClientDomainChallengeOps = async (
       if (op.source !== keypair.publicKey()) {
         throw new Error('client_domain manage_data operation must have the client domain account as the source');
       }
-      // Also in bytes first
-      // if (op.value !== 'client_domain') {
-      //   throw new Error(`client_domain manageData operation should have value 'client_domain'`);
-      // }
     }
   }
 
