@@ -1,15 +1,41 @@
 const { Keypair } = require('stellar-sdk');
 const { TransactionBuilder, Networks } = require('stellar-sdk');
 const { fetchTomlValues } = require('../helpers/anchors');
+const { verifySiweMessage } = require('./siwe.service');
 
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 const { SEP10_MASTER_SECRET, CLIENT_SECRET } = require('../../constants/constants');
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => {
+const getAndValidateMemo = async (nonce, userChallengeSignature) => {
+  if (!userChallengeSignature || !nonce) {
+    return '';
+  }
+  const siweData = await verifySiweMessage(nonce, userChallengeSignature);
+
+  const memo = deriveMemoFromAddress(siweData.address);
+  return memo;
+};
+
+const deriveMemoFromAddress = (address) => {
+  return address.slice(5, 15).replace(/\D/g, '');
+};
+
+exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, userChallengeSignature, nonce) => {
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_SECRET);
+
+  // we validate a challenge for a given nonce. From it we obtain the address and derive the memo
+  // we can then ensure that the memo is the same as the one we expect from the anchor challenge
+
+  let memo = ''; // Default memo value when single stellar account is used
+  try {
+    memo = getAndValidateMemo(nonce, userChallengeSignature);
+  } catch (e) {
+    console.log(e);
+    throw new Error(`Invalid evm account verification`);
+  }
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
 
@@ -24,8 +50,8 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
   // memo field should be empty as we assume (in this implementation) that we use the ephemeral (or master, in case of ARS)
   // to authenticate. But no memo sub account derivation.
-  if (transactionSigned.memo.value === '') {
-    throw new Error('Memo does not match');
+  if (transactionSigned.memo.value === memo) {
+    throw new Error('Memo does not match with specified user signature or address. Could not validate.');
   }
 
   const { operations } = transactionSigned;

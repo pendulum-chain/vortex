@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSignMessage } from 'wagmi';
+import { SIGNING_SERVICE_URL } from '../constants/constants';
 
 export function useSignChallenge(address: `0x${string}` | undefined) {
   const { signMessageAsync } = useSignMessage();
@@ -8,14 +9,19 @@ export function useSignChallenge(address: `0x${string}` | undefined) {
 
   const handleSiweSignIn = useCallback(async () => {
     try {
-      // const response = await fetch('/api/siwe-challenge');
-      // const { message } = await response.json();
-      const message = 'Please sign the message to log in';
-      const signature = await signMessageAsync({ message });
+      const response = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ walletAddress: address }),
+      });
+      const { siweMessage, nonce } = await response.json();
+      console.log('SIWE message:', siweMessage, 'nonce:', nonce);
+      const signature = await signMessageAsync({ message: siweMessage });
 
       console.log('SIWE signature:', signature);
-
-      localStorage.setItem(`siwe-signature-${address}`, signature);
+      localStorage.setItem(`siwe-signature-${address}`, JSON.stringify({ nonce, signature }));
 
       setIsModalOpen(false);
     } catch (error) {

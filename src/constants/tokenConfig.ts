@@ -40,6 +40,7 @@ export interface OutputTokenDetails {
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
   requiresClientMasterOverride: boolean;
+  usesMemo: boolean;
 }
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
@@ -91,6 +92,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,
     requiresClientMasterOverride: false,
+    usesMemo: false,
   },
   ars: {
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
@@ -116,6 +118,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     offrampFeesBasisPoints: 200, // 2%
     offrampFeesFixedComponent: 10, // 10 ARS
     requiresClientMasterOverride: true,
+    usesMemo: true,
   },
 };
 

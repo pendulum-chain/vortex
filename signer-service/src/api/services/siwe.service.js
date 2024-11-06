@@ -4,10 +4,10 @@ const siwe = require('siwe');
 const scheme = 'https';
 const domain = 'localhost';
 const origin = 'https://localhost/login';
-const statement = 'Please sign the message to login and give me your money';
+const statement = 'Please sign the message to login!';
 
 // Set that will hold the siwe messages sent + nonce we defined
-const siweMessageSet = new Set();
+const siweMessagesMap = new Map();
 
 exports.createAndSendSiweMessage = async (address) => {
   const nonce = siwe.generateNonce();
@@ -20,23 +20,35 @@ exports.createAndSendSiweMessage = async (address) => {
     version: '1',
     chainId: '1',
     nonce,
-    expirationTime: new Date().toISOString(),
+    expirationTime: new Date(Date.now() + 360 * 60 * 1000).toISOString(),
   });
   const preparedMessage = siweMessage.prepareMessage();
-  siweMessageSet.add({ nonce, preparedMessage });
+  siweMessagesMap.set(nonce, siweMessage);
 
-  return preparedMessage;
+  return { siweMessage: preparedMessage, nonce };
 };
 
-exports.verifySiweMessage = async (messageFromUser, signature) => {
-  const fields = await messageFromUser.verify({ signature });
-  const expectedSentMessage = { nonce: fields.data.nonce, messageFromUser };
-
-  const isSiweMessage = siweMessageSet.has(expectedSentMessage);
-  if (!isSiweMessage) {
+exports.verifySiweMessage = async (nonce, signature) => {
+  const maybeSiweMessage = siweMessagesMap.get(nonce);
+  if (!maybeSiweMessage) {
     throw new Error('Message not found, we have not send this message or nonce is incorrect.');
   }
-  siweMessageSet.delete(expectedSentMessage);
+  // TODO DEFINE at some point we need to delete them (?)
+  //siweMessagesMap.delete(nonce);
 
-  return fields;
+  // Verify the signature and other message fields
+  const { data } = await maybeSiweMessage.verify({ signature });
+
+  // Perform additional checks to ensure message integrity
+  if (data.nonce !== nonce) {
+    throw new Error('Nonce mismatch.');
+  }
+
+  if (data.expirationTime && new Date(data.expirationTime) < new Date()) {
+    throw new Error('Message has expired.');
+  }
+
+  return data;
 };
+
+// TODO we need some sort of session log-out.

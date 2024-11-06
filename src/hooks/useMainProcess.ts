@@ -6,7 +6,7 @@ import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenTyp
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
-import { useConfig, useSwitchChain } from 'wagmi';
+import { useAccount, useConfig, useSwitchChain } from 'wagmi';
 import { polygon } from 'wagmi/chains';
 import {
   OfframpingState,
@@ -59,6 +59,7 @@ export const useMainProcess = () => {
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const wagmiConfig = useConfig();
+  const { address } = useAccount();
   const { switchChain } = useSwitchChain();
   const { trackEvent, resetUniqueEvents } = useEventsContext();
 
@@ -141,6 +142,7 @@ export const useMainProcess = () => {
             tomlValues,
             stellarEphemeralSecret,
             outputTokenType,
+            address,
             addEvent,
           );
 
@@ -157,7 +159,7 @@ export const useMainProcess = () => {
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType);
+            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType, address);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();
@@ -185,7 +187,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingStarted, offrampingState, switchChain, trackEvent],
+    [offrampingStarted, offrampingState, switchChain, trackEvent, address],
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {

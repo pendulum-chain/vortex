@@ -58,7 +58,8 @@ exports.signSep10Challenge = async (req, res, next) => {
       req.body.challengeXDR,
       req.body.outToken,
       req.body.clientPublicKey,
-      req.body.userChallengeSignature,
+      req.body.maybeChallengeSignature,
+      req.body.maybeNonce,
     );
     return res.json({ masterSignature, masterPublic, clientSignature, clientPublic });
   } catch (error) {

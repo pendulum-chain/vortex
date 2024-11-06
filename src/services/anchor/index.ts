@@ -65,6 +65,8 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 async function getUrlParams(
   ephemeralAccount: string,
   requiresClientMasterOverride: boolean,
+  usesMemo: boolean,
+  address: `0x${string}`,
 ): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
   let sep10Account;
   if (requiresClientMasterOverride) {
@@ -85,16 +87,31 @@ async function getUrlParams(
     sep10Account = ephemeralAccount;
   }
 
+  if (usesMemo) {
+    return {
+      urlParams: new URLSearchParams({
+        account: sep10Account,
+        client_domain: config.applicationClientDomain,
+        memo: deriveMemoFromAddress(address),
+      }),
+      sep10Account,
+    };
+  }
   return {
     urlParams: new URLSearchParams({ account: sep10Account, client_domain: config.applicationClientDomain }),
     sep10Account,
   };
 }
 
+const deriveMemoFromAddress = (address: `0x${string}`) => {
+  return address.slice(5, 15).replace(/\D/g, '');
+};
+
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
+  address: `0x${string}` | undefined,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ sep10Account: string; token: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -106,10 +123,10 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { requiresClientMasterOverride, usesMemo } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   // will select either clientMaster or the ephemeral account
-  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride);
+  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride, usesMemo, address!);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -129,16 +146,23 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  // More tests required, ignore for prototype
+  const maybeStoredSignatureString = localStorage.getItem(`siwe-signature-${address}`);
+  let nonce;
+  let signature;
 
-  // TODO fetch and check signing signature from localstore,
-  const maybeChallengeSignature = undefined;
+  // TODO actually, if usesMemo and not maybeStored.. we need to ask for it again.
+  if (maybeStoredSignatureString && usesMemo) {
+    const storedSignatureObject = JSON.parse(maybeStoredSignatureString);
+    nonce = storedSignatureObject.nonce;
+    signature = storedSignatureObject.signature;
+  }
   // sign both for client_domain + an extra signature for Anclap workaround
   const { masterSignature, clientSignature, clientPublic } = await fetchSep10Signatures(
     transactionSigned.toXDR(),
     outputToken,
     sep10Account,
-    maybeChallengeSignature,
+    signature,
+    nonce,
   );
   transactionSigned.addSignature(clientPublic, clientSignature);
 
@@ -233,6 +257,7 @@ export async function sep24First(
   sessionParams: IAnchorSessionParams,
   sep10Account: string,
   outputToken: OutputTokenType,
+  address: `0x${string}` | undefined,
 ): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
@@ -253,6 +278,8 @@ export async function sep24First(
       amount: sessionParams.offrampAmount,
       account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
       // Since we signed with the master from the service, we need to specify the corresponding public here
+      // memo: deriveMemoFromAddress(address!),
+      // memo_type: 'id',
     });
   } else {
     sep24Params = new URLSearchParams({
