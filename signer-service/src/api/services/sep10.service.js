@@ -7,7 +7,7 @@ const { SEP10_MASTER_SECRET } = require('../../constants/constants');
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-exports.signSep10Challenge = async (challengeXDR) => {
+exports.signSep10Challenge = async (challengeXDR, outToken) => {
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG.ars.tomlFileUrl);
 
@@ -20,7 +20,7 @@ exports.signSep10Challenge = async (challengeXDR) => {
   }
 
   // Verify manage_data operations
-  const operations = transactionSigned.operations;
+  const { operations } = transactionSigned;
   // Verify the first manage_data operation
   const firstOp = operations[0];
   if (firstOp.type !== 'manageData') {

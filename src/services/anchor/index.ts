@@ -48,13 +48,8 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 
   const tomlFileContent = (await response.text()).split('\n');
   const findValueInToml = (key: string): string | undefined => {
-    for (const line of tomlFileContent) {
-      const regexp = new RegExp(`^\\s*${key}\\s*=\\s*"(.*)"\\s*$`);
-      const match = regexp.exec(line);
-      if (match) {
-        return match[1];
-      }
-    }
+    const keyValue = tomlFileContent.find((line) => line.includes(key));
+    return keyValue?.split('=')[1].trim().replaceAll('"', '');
   };
 
   return {
@@ -89,7 +84,7 @@ async function getUrlParams(
     sep10Account = ephemeralAccount;
   }
 
-  return { urlParams: new URLSearchParams({ sep10Account }), sep10Account };
+  return { urlParams: new URLSearchParams({ account: sep10Account }), sep10Account };
 }
 
 export const sep10 = async (
@@ -137,7 +132,7 @@ export const sep10 = async (
   if (!requiresClientMasterOverride) {
     transactionSigned.sign(ephemeralKeys);
   } else {
-    const { masterSignature } = await fetchMasterSignatureSep10(transactionSigned.toXDR());
+    const { masterSignature } = await fetchMasterSignatureSep10(transactionSigned.toXDR(), outputToken);
     transactionSigned.addSignature(sep10Account, masterSignature);
   }
 

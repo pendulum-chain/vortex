@@ -1,4 +1,5 @@
 import { SIGNING_SERVICE_URL } from '../constants/constants';
+import { OutputTokenType } from '../constants/tokenConfig';
 
 interface AccountStatusResponse {
   status: boolean;
@@ -36,11 +37,14 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
   }
 };
 
-export const fetchMasterSignatureSep10 = async (challengeXDR: string): Promise<MasterSep10Response> => {
+export const fetchMasterSignatureSep10 = async (
+  challengeXDR: string,
+  outToken: OutputTokenType,
+): Promise<MasterSep10Response> => {
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ challengeXDR }),
+    body: JSON.stringify({ challengeXDR, outToken }),
   });
   if (response.status !== 200) {
     throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
