@@ -33,6 +33,7 @@ exports.signSep10Challenge = async (challengeXDR) => {
 
   // Purposely hardcode Anclap's key, we don't want to sign this type of transaction
   // for Mykobo
+  // TODO make it generic for all Anchors. Caller must pass the token key
   const expectedKey = `api.anclap.com auth`;
   if (firstOp.name !== expectedKey) {
     throw new Error(`First manageData operation should have key '${expectedKey}'`);

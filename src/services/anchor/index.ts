@@ -81,6 +81,8 @@ export const sep10 = async (
   const accountId = ephemeralKeys.publicKey();
 
   let urlParams;
+  // Do not hardcode, use flag comming from outputToken
+  // TODO also, make a functtion to return urlParams.
   if (outputToken === 'ars') {
     // need to send the account of the stellar master account
     const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
@@ -115,6 +117,7 @@ export const sep10 = async (
   // More tests required, ignore for prototype
   // only sign if not ARS token, else call the temporary
   // signing service's endpoint
+  // TODO replace with masterSep10Public from above, avoid sending it with the signature.
   let maybeMasterPublic;
   if (outputToken !== 'ars') {
     transactionSigned.sign(ephemeralKeys);
@@ -220,6 +223,7 @@ export async function sep24First(
   // at this stage, assetCode should be defined, if the config is consistent.
   let sep24Params;
 
+  // use flag from outputToken, same as in the other TODO
   if (sessionParams.tokenConfig.stellarAsset.code.string === 'ARS\0') {
     if (!masterPublic) {
       throw new Error('Master must be defined at this point.');

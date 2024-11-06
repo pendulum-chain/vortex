@@ -104,7 +104,7 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     (executionInput: ExecutionInput) => {
-      const { inputTokenType, outputTokenType, amountInUnits, offrampAmount } = executionInput;
+      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
         setIsInitiating(false);
@@ -126,7 +126,6 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 

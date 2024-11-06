@@ -25,8 +25,8 @@ const TOKEN_CONFIG = {
     assetCode: 'ARS\0',
     assetIssuer: 'GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS',
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
-    minWithdrawalAmount: '10000000000000',
-    maximumSubsidyAmountRaw: '100000000000000', // 100 unit ~ 0.1 USD @ Oct/2024
+    minWithdrawalAmount: '11000000000000', //  11 ARS. Anchor minimum limit.
+    maximumSubsidyAmountRaw: '100000000000000', // Defined by us:  100 unit ~ 0.1 USD @ Oct/2024
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {
