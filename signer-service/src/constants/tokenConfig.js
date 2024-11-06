@@ -21,6 +21,23 @@ const TOKEN_CONFIG = {
     decimals: 6,
     maximumSubsidyAmountRaw: '1000000', // 1 unit
   },
+  ars: {
+    tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
+    assetCode: 'ARS\0',
+    assetIssuer: 'GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS',
+    vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
+    minWithdrawalAmount: '11000000000000', //  11 ARS. Anchor minimum limit.
+    maximumSubsidyAmountRaw: '100000000000000', // Defined by us:  100 unit ~ 0.1 USD @ Oct/2024
+    anchorExpectedKey: 'api.anclap.com auth',
+    pendulumCurrencyId: {
+      Stellar: {
+        AlphaNum4: {
+          code: '0x41525300',
+          issuer: '0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1',
+        },
+      },
+    },
+  },
 };
 
 function getTokenConfigByAssetCode(cofig, assetCode) {

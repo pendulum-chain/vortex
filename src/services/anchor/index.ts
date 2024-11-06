@@ -1,9 +1,11 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
-import { fetchSigningServiceAccountId } from '../signingService';
-import { fetchClientDomainSep10 } from '../signingService';
+import { fetchSep10Signatures, fetchSigningServiceAccountId } from '../signingService';
+
 import { config } from '../../config';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 
 interface TomlValues {
   signingKey?: string;
@@ -47,13 +49,8 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 
   const tomlFileContent = (await response.text()).split('\n');
   const findValueInToml = (key: string): string | undefined => {
-    for (const line of tomlFileContent) {
-      const regexp = new RegExp(`^\\s*${key}\\s*=\\s*"(.*)"\\s*$`);
-      const match = regexp.exec(line);
-      if (match) {
-        return match[1];
-      }
-    }
+    const keyValue = tomlFileContent.find((line) => line.includes(key));
+    return keyValue?.split('=')[1].trim().replaceAll('"', '');
   };
 
   return {
@@ -65,13 +62,42 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
+async function getUrlParams(
+  ephemeralAccount: string,
+  requiresClientMasterOverride: boolean,
+): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
+  let sep10Account;
+  if (requiresClientMasterOverride) {
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch client master SEP-10 public account.');
+    }
+
+    const { masterSep10Public } = await response.json();
+
+    if (!masterSep10Public) {
+      throw new Error('masterSep10Public not found in response.');
+    }
+
+    sep10Account = masterSep10Public;
+  } else {
+    sep10Account = ephemeralAccount;
+  }
+
+  return {
+    urlParams: new URLSearchParams({ account: sep10Account, client_domain: config.applicationClientDomain }),
+    sep10Account,
+  };
+}
+
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   requiresClientDomain: boolean,
-  outTokenCode: OutputTokenType,
+  outputToken: OutputTokenType,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<string> => {
+): Promise<{ sep10Account: string; token: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
@@ -81,17 +107,10 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  let urlParams;
-  if (requiresClientDomain) {
-    urlParams = new URLSearchParams({
-      account: accountId,
-      client_domain: config.applicationClientDomain,
-    });
-  } else {
-    urlParams = new URLSearchParams({
-      account: accountId,
-    });
-  }
+  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
+
+  // will select either clientMaster or the ephemeral account
+  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -112,19 +131,32 @@ export const sep10 = async (
   }
 
   // More tests required, ignore for prototype
+  // only sign if not ARS token, else call the temporary
+  // signing service's endpoint
 
   // let signer-service sign the challenge to authenticate our
   // client domain definition.
-  if (requiresClientDomain) {
-    const { clientSignature, clientPublic } = await fetchClientDomainSep10(
-      transactionSigned.toXDR(),
-      outTokenCode,
-      ephemeralKeys.publicKey(),
-    );
-    transactionSigned.addSignature(clientPublic, clientSignature);
-  }
+  // if (requiresClientDomain) {
+  //   const { clientSignature, clientPublic } = await fetchClientDomainSep10(
+  //     transactionSigned.toXDR(),
+  //     outTokenCode,
+  //     ephemeralKeys.publicKey(),
+  //   );
+  //   transactionSigned.addSignature(clientPublic, clientSignature);
+  // }
 
-  transactionSigned.sign(ephemeralKeys);
+  const { masterSignature, clientSignature, clientPublic } = await fetchSep10Signatures(
+    transactionSigned.toXDR(),
+    outputToken,
+    sep10Account,
+  );
+  transactionSigned.addSignature(clientPublic, clientSignature);
+
+  if (!requiresClientMasterOverride) {
+    transactionSigned.sign(ephemeralKeys);
+  } else {
+    transactionSigned.addSignature(sep10Account, masterSignature);
+  }
 
   const jwt = await fetch(webAuthEndpoint, {
     method: 'POST',
@@ -142,7 +174,7 @@ export const sep10 = async (
     `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
     EventStatus.Waiting,
   );
-  return token;
+  return { token, sep10Account };
 };
 
 // TODO modify according to the anchor's requirements and implementation
@@ -207,7 +239,11 @@ export async function sep12First(sessionParams: IAnchorSessionParams): Promise<v
   //>????
 }*/
 
-export async function sep24First(sessionParams: IAnchorSessionParams): Promise<ISep24Intermediate> {
+export async function sep24First(
+  sessionParams: IAnchorSessionParams,
+  sep10Account: string,
+  outputToken: OutputTokenType,
+): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
   }
@@ -215,11 +251,25 @@ export async function sep24First(sessionParams: IAnchorSessionParams): Promise<I
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  // at this stage, assetCode should be defined, if the config is consistent.
-  const sep24Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
-    amount: sessionParams.offrampAmount,
-  });
+  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
+
+  let sep24Params;
+  if (requiresClientMasterOverride) {
+    if (!sep10Account) {
+      throw new Error('Master must be defined at this point.');
+    }
+    sep24Params = new URLSearchParams({
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      amount: sessionParams.offrampAmount,
+      account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
+      // Since we signed with the master from the service, we need to specify the corresponding public here
+    });
+  } else {
+    sep24Params = new URLSearchParams({
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      amount: sessionParams.offrampAmount,
+    });
+  }
 
   const fetchUrl = `${sep24Url}/transactions/withdraw/interactive`;
   const sep24Response = await fetch(fetchUrl, {

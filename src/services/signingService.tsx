@@ -11,9 +11,11 @@ interface SigningServiceStatus {
   moonbeam: AccountStatusResponse;
 }
 
-interface ClientDomainSep10Response {
+interface SignerServiceSep10Response {
   clientSignature: string;
   clientPublic: string;
+  masterSignature: string;
+  masterPublic: string;
 }
 
 export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStatus> => {
@@ -37,11 +39,11 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
   }
 };
 
-export const fetchClientDomainSep10 = async (
+export const fetchSep10Signatures = async (
   challengeXDR: string,
   outToken: OutputTokenType,
   clientPublicKey: string,
-): Promise<ClientDomainSep10Response> => {
+): Promise<SignerServiceSep10Response> => {
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -50,6 +52,7 @@ export const fetchClientDomainSep10 = async (
   if (response.status !== 200) {
     throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
   }
-  const { clientSignature, clientPublic } = await response.json();
-  return { clientSignature, clientPublic };
+
+  const { masterSignature, masterPublic, clientSignature, clientPublic } = await response.json();
+  return { masterSignature, masterPublic, clientSignature, clientPublic };
 };

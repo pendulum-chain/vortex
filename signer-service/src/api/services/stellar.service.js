@@ -5,7 +5,6 @@ const {
   FUNDING_SECRET,
   STELLAR_FUNDING_AMOUNT_UNITS,
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
-  CLIENT_SECRET,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
 const { fetchTomlValues } = require('../helpers/anchors');
@@ -49,7 +48,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
     .addOperation(
       Operation.changeTrust({
         source: ephemeralAccountId,
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
       }),
     )
     .setTimebounds(0, maxTime)
@@ -99,7 +98,7 @@ async function buildPaymentAndMergeTx(
     .addOperation(
       Operation.payment({
         amount,
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
         destination: offrampingAccount,
       }),
     )
@@ -113,7 +112,7 @@ async function buildPaymentAndMergeTx(
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
         limit: '0',
       }),
     )
@@ -152,78 +151,4 @@ async function sendStatusWithPk() {
   }
 }
 
-async function signSep10Challenge(challengeXDR, outToken, clientPublicKey) {
-  const keypair = Keypair.fromSecret(CLIENT_SECRET);
-
-  const { signingKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
-
-  const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
-  if (transactionSigned.source !== signingKey) {
-    throw new Error(`Invalid source account: ${transactionSigned.source}`);
-  }
-  if (transactionSigned.sequence !== '0') {
-    throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
-  }
-
-  // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
-  // memo field should be empty as we assume (in this implementation) that we use the ephemeral to authenticate
-  if (transactionSigned.memo.value === '') {
-    throw new Error('Memo does not match');
-  }
-
-  const operations = transactionSigned.operations;
-  const firstOp = operations[0];
-  if (firstOp.type !== 'manageData') {
-    throw new Error('The first operation should be manageData');
-  }
-  // We don't want to accept a challenge that would authorize as Application client account!
-  if (firstOp.source !== clientPublicKey || firstOp.source == signingKey) {
-    throw new Error('First manageData operation must have the client account as the source');
-  }
-
-  const expectedKey = TOKEN_CONFIG[outToken].anchorExpectedKey;
-  if (firstOp.name !== expectedKey) {
-    throw new Error(`First manageData operation should have key '${expectedKey}'`);
-  }
-  if (!firstOp.value || firstOp.value.length !== 64) {
-    throw new Error('First manageData operation should have a 64-byte random nonce as value');
-  }
-
-  let hasWebAuthDomain = false;
-  let hasClientDomain = false;
-
-  for (let i = 1; i < operations.length; i++) {
-    const op = operations[i];
-
-    if (op.type !== 'manageData') {
-      throw new Error('All operations should be manage_data operations');
-    }
-
-    if (op.name === 'web_auth_domain') {
-      hasWebAuthDomain = true;
-      if (op.source !== signingKey) {
-        throw new Error('web_auth_domain manage_data operation must have the server account as the source');
-      }
-    }
-
-    if (op.name === 'client_domain') {
-      hasClientDomain = true;
-      if (op.source !== keypair.publicKey()) {
-        throw new Error('client_domain manage_data operation must have the client domain account as the source');
-      }
-    }
-  }
-
-  //  the web_auth_domain and client_domain operation must be present
-  if (!hasWebAuthDomain) {
-    throw new Error('Transaction must contain a web_auth_domain manageData operation');
-  }
-  if (!hasClientDomain) {
-    throw new Error('Transaction must contain a client_domain manageData operation');
-  }
-
-  const signature = transactionSigned.getKeypairSignature(keypair);
-  return { clientSignature: signature, clientPublic: keypair.publicKey() };
-}
-
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk, signSep10Challenge };
+module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };

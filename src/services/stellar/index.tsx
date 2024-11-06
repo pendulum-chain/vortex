@@ -138,7 +138,10 @@ async function setupStellarAccount(
       .addOperation(
         Operation.changeTrust({
           source: ephemeralAccountId,
-          asset: new Asset(outputToken.stellarAsset.code.string, outputToken.stellarAsset.issuer.stellarEncoding),
+          asset: new Asset(
+            outputToken.stellarAsset.code.string.replace('\0', ''),
+            outputToken.stellarAsset.issuer.stellarEncoding,
+          ),
         }),
       )
       .setTimebounds(0, maxTime)
@@ -188,7 +191,7 @@ async function createOfframpAndMergeTransaction(
       throw new Error(`Unexpected offramp memo type: ${memoType}`);
   }
 
-  const stellarAsset = new Asset(code.string, issuer.stellarEncoding);
+  const stellarAsset = new Asset(code.string.replace('\0', ''), issuer.stellarEncoding);
 
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added

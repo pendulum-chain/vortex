@@ -22,6 +22,7 @@ import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
+import { Keypair } from 'stellar-sdk';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -112,7 +113,7 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     (executionInput: ExecutionInput) => {
-      const { inputTokenType, outputTokenType, amountInUnits, offrampAmount } = executionInput;
+      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
         setIsInitiating(false);
@@ -134,12 +135,12 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
+          // Do we need this? Don't all anchors accept it?
           const requiresClientDomain = outputToken.requiresClientDomain;
-          const sep10Token = await sep10(
+          const { token: sep10Token, sep10Account } = await sep10(
             tomlValues,
             stellarEphemeralSecret,
             requiresClientDomain,
@@ -160,7 +161,7 @@ export const useMainProcess = () => {
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams);
+            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();
