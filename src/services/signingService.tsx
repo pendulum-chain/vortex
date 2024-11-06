@@ -42,7 +42,6 @@ export const fetchClientDomainSep10 = async (
   outToken: OutputTokenType,
   clientPublicKey: string,
 ): Promise<ClientDomainSep10Response> => {
-  // TODO remove after testing.
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
