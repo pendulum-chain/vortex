@@ -8,6 +8,9 @@ export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 export const NABLA_ROUTER = '6dQQoUKQ9LNDCrGMjoZjeHBXsuihSgQiQEgD9Z7VtHR82wfG'; // EURC circle instance
 
 export const SPACEWALK_REDEEM_SAFETY_MARGIN = 0.05;
+export const AMM_MINIMUM_OUTPUT_SOFT_MARGIN = 0.02;
+export const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
+
 export const TRANSFER_WAITING_TIME_SECONDS = 6000;
 export const SIGNING_SERVICE_URL =
   config.maybeSignerServiceUrl ||

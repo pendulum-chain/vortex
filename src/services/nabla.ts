@@ -236,7 +236,15 @@ export async function prepareNablaSwapTransaction(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<Extrinsic> {
-  const { inputTokenType, outputTokenType, inputAmount, outputAmount, pendulumEphemeralSeed, nablaSwapNonce } = state;
+  const {
+    inputTokenType,
+    outputTokenType,
+    inputAmount,
+    outputAmount,
+    nablaHardMinimumOutputRaw,
+    pendulumEphemeralSeed,
+    nablaSwapNonce,
+  } = state;
 
   // event attempting swap
   const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
@@ -259,7 +267,7 @@ export async function prepareNablaSwapTransaction(
 
   // Since this is an ephemeral account, balanceBefore being greater than the minimum amount means that the swap was successful
   // but we missed the event. This is important for recovery process.
-  if (rawBalanceBefore.lt(Big(outputAmount.raw))) {
+  if (rawBalanceBefore.lt(Big(nablaHardMinimumOutputRaw))) {
     // Try swap
     try {
       renderEvent(
@@ -269,8 +277,8 @@ export async function prepareNablaSwapTransaction(
 
       return createAndSignSwapExtrinsic({
         api: api,
-        amount: inputAmount.raw, // toString can render exponential notation
-        amountMin: outputAmount.raw, // toString can render exponential notation
+        amount: inputAmount.raw,
+        amountMin: nablaHardMinimumOutputRaw,
         tokenIn: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
         tokenOut: outputToken.erc20WrapperAddress,
         contractAbi: routerAbiObject,
@@ -294,6 +302,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
     outputTokenType,
     pendulumEphemeralSeed,
     nablaSwapNonce,
+    nablaSoftMinimumOutputRaw,
   } = state;
 
   const successorState = {
@@ -330,6 +339,29 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
       `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
       EventStatus.Waiting,
     );
+
+    // get an up to date quote for the AMM
+    const response = await readMessage({
+      abi: new Abi(routerAbi),
+      api,
+      contractDeploymentAddress: NABLA_ROUTER,
+      callerAddress: ephemeralKeypair.address,
+      messageName: 'getAmountOut',
+      messageArguments: [
+        inputAmount.raw,
+        [inputToken.axelarEquivalent.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress],
+      ],
+      limits: defaultReadLimits,
+    });
+
+    if (response.type !== 'success') {
+      throw new Error("Couldn't get a quote from the AMM");
+    }
+
+    const ouputAmountQuoteRaw = Big(response.value[0].toString());
+    if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
+      throw new Error("Won't execute the swap now. The estimated output amount is too low.");
+    }
 
     const swapExtrinsic = decodeSubmittableExtrinsic(transactions.nablaSwapTransaction, api);
     const result = await submitExtrinsic(swapExtrinsic);
