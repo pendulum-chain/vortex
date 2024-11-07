@@ -14,8 +14,6 @@ interface SigningServiceStatus {
 interface SignerServiceSep10Response {
   clientSignature: string;
   clientPublic: string;
-  masterSignature: string;
-  masterPublic: string;
 }
 
 export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStatus> => {
@@ -53,6 +51,6 @@ export const fetchSep10Signatures = async (
     throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
   }
 
-  const { masterSignature, masterPublic, clientSignature, clientPublic } = await response.json();
-  return { masterSignature, masterPublic, clientSignature, clientPublic };
+  const { clientSignature, clientPublic } = await response.json();
+  return { clientSignature, clientPublic };
 };

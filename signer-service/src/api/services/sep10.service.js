@@ -3,12 +3,11 @@ const { TransactionBuilder, Networks } = require('stellar-sdk');
 const { fetchTomlValues } = require('../helpers/anchors');
 
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
-const { SEP10_MASTER_SECRET, CLIENT_SECRET } = require('../../constants/constants');
+const { CLIENT_SECRET } = require('../../constants/constants');
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => {
-  const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_SECRET);
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
@@ -22,7 +21,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
   }
 
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
-  // memo field should be empty as we assume (in this implementation) that we use the ephemeral (or master, in case of ARS)
+  // memo field should be empty as we assume (in this implementation) that we use the ephemeral
   // to authenticate. But no memo sub account derivation.
   if (transactionSigned.memo.value === '') {
     throw new Error('Memo does not match');
@@ -35,19 +34,11 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     throw new Error('The first operation should be manageData');
   }
 
-  // Temporary. This check will be removed when we have the memo solution.
-  if (outToken === 'ars') {
-    // We only want to accept a challenge that would authorize the master key.
-    if (firstOp.source !== masterStellarKeypair.publicKey()) {
-      throw new Error('First manageData operation must have the master signing key as the source');
-    }
-  } else {
-    // Only authorize a session that corresponds with the ephemeral client account
-    if (firstOp.source !== clientPublicKey) {
-      throw new Error('First manageData operation must have the client account as the source');
-    }
+  // Only authorize a session that corresponds with the ephemeral client account
+  if (firstOp.source !== clientPublicKey) {
+    throw new Error('First manageData operation must have the client account as the source');
   }
-  console.log(operations);
+
   const { anchorExpectedKey: expectedKey, clientDomainEnabled } = TOKEN_CONFIG[outToken];
   if (firstOp.name !== expectedKey) {
     throw new Error(`First manageData operation should have key '${expectedKey}'`);
@@ -92,20 +83,12 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     throw new Error('Transaction must contain a client_domain manageData operation');
   }
 
-  let masterClientSignature;
-  if (outToken === 'ars') {
-    masterClientSignature = transactionSigned.getKeypairSignature(masterStellarKeypair);
-  }
-
-  // Disable client domain for ars...
   let clientDomainSignature;
   if (clientDomainEnabled) {
     clientDomainSignature = transactionSigned.getKeypairSignature(clientDomainStellarKeypair);
   }
 
   return {
-    masterSignature: masterClientSignature,
-    masterPublic: masterStellarKeypair.publicKey(),
     clientSignature: clientDomainSignature,
     clientPublic: clientDomainStellarKeypair.publicKey(),
   };

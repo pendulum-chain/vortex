@@ -135,18 +135,15 @@ export const useMainProcess = () => {
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
+          const sep10Account = Keypair.fromSecret(stellarEphemeralSecret).publicKey();
+
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          const { token: sep10Token, sep10Account } = await sep10(
-            tomlValues,
-            stellarEphemeralSecret,
-            outputTokenType,
-            addEvent,
-          );
+          const token = await sep10(tomlValues, stellarEphemeralSecret, outputTokenType, addEvent);
 
           const anchorSessionParams = {
-            token: sep10Token,
+            token,
             tomlValues: tomlValues,
             tokenConfig: outputToken,
             offrampAmount: offrampAmount.toFixed(2, 0),

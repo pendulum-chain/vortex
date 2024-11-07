@@ -62,41 +62,11 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
-async function getUrlParams(
-  ephemeralAccount: string,
-  requiresClientMasterOverride: boolean,
-  supportsClientDomain: boolean,
-): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
-  let sep10Account;
-  if (requiresClientMasterOverride) {
-    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch client master SEP-10 public account.');
-    }
-
-    const { masterSep10Public } = await response.json();
-
-    if (!masterSep10Public) {
-      throw new Error('masterSep10Public not found in response.');
-    }
-
-    sep10Account = masterSep10Public;
-  } else {
-    sep10Account = ephemeralAccount;
-  }
-
+async function getUrlParams(ephemeralAccount: string, supportsClientDomain: boolean): Promise<URLSearchParams> {
   if (supportsClientDomain) {
-    return {
-      urlParams: new URLSearchParams({ account: sep10Account, client_domain: config.applicationClientDomain }),
-      sep10Account,
-    };
+    return new URLSearchParams({ account: ephemeralAccount, client_domain: config.applicationClientDomain });
   }
-
-  return {
-    urlParams: new URLSearchParams({ account: sep10Account }),
-    sep10Account,
-  };
+  return new URLSearchParams({ account: ephemeralAccount });
 }
 
 export const sep10 = async (
@@ -104,7 +74,7 @@ export const sep10 = async (
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<{ sep10Account: string; token: string }> => {
+): Promise<string> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
@@ -118,7 +88,7 @@ export const sep10 = async (
   const { supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   // will select either clientMaster or the ephemeral account
-  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride, supportsClientDomain);
+  const urlParams = await getUrlParams(accountId, supportsClientDomain);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -141,23 +111,17 @@ export const sep10 = async (
   // More tests required, ignore for prototype
 
   // sign both for client_domain + an extra signature for Anclap workaround
-  const { masterSignature, clientSignature, clientPublic } = await fetchSep10Signatures(
+  const { clientSignature, clientPublic } = await fetchSep10Signatures(
     transactionSigned.toXDR(),
     outputToken,
-    sep10Account,
+    accountId,
   );
 
-  // Workaround for Anclap, it is also disabled on backend so no security issues,
-  // modification here would only break the sep 10.
   if (supportsClientDomain) {
     transactionSigned.addSignature(clientPublic, clientSignature);
   }
 
-  if (!requiresClientMasterOverride) {
-    transactionSigned.sign(ephemeralKeys);
-  } else {
-    transactionSigned.addSignature(sep10Account, masterSignature);
-  }
+  transactionSigned.sign(ephemeralKeys);
 
   const jwt = await fetch(webAuthEndpoint, {
     method: 'POST',
@@ -175,7 +139,7 @@ export const sep10 = async (
     `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
     EventStatus.Waiting,
   );
-  return { token, sep10Account };
+  return token;
 };
 
 // TODO modify according to the anchor's requirements and implementation
