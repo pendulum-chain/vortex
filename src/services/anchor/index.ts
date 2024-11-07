@@ -4,7 +4,6 @@ import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig
 import { fetchSep10Signatures, fetchSigningServiceAccountId } from '../signingService';
 
 import { config } from '../../config';
-import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 
 interface TomlValues {
@@ -84,7 +83,6 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
   const { supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   // will select either clientMaster or the ephemeral account
@@ -216,10 +214,8 @@ export async function sep24First(
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
-
   let sep24Params;
-  if (requiresClientMasterOverride) {
+  if (outputToken == 'ars') {
     if (!sep10Account) {
       throw new Error('Master must be defined at this point.');
     }
