@@ -7,6 +7,7 @@ const TOKEN_CONFIG = {
     minWithdrawalAmount: '10000000000000',
     maximumSubsidyAmountRaw: '1000000000000', // 1 unit
     anchorExpectedKey: 'mykobo.co auth',
+    clientDomainEnabled: true,
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {
@@ -29,6 +30,7 @@ const TOKEN_CONFIG = {
     minWithdrawalAmount: '11000000000000', //  11 ARS. Anchor minimum limit.
     maximumSubsidyAmountRaw: '100000000000000', // Defined by us:  100 unit ~ 0.1 USD @ Oct/2024
     anchorExpectedKey: 'api.anclap.com auth',
+    clientDomainEnabled: false,
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {

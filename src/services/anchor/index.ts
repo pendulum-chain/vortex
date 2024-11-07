@@ -65,6 +65,7 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
 async function getUrlParams(
   ephemeralAccount: string,
   requiresClientMasterOverride: boolean,
+  supportsClientDomain: boolean,
 ): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
   let sep10Account;
   if (requiresClientMasterOverride) {
@@ -85,8 +86,15 @@ async function getUrlParams(
     sep10Account = ephemeralAccount;
   }
 
+  if (supportsClientDomain) {
+    return {
+      urlParams: new URLSearchParams({ account: sep10Account, client_domain: config.applicationClientDomain }),
+      sep10Account,
+    };
+  }
+
   return {
-    urlParams: new URLSearchParams({ account: sep10Account, client_domain: config.applicationClientDomain }),
+    urlParams: new URLSearchParams({ account: sep10Account }),
     sep10Account,
   };
 }
@@ -107,9 +115,10 @@ export const sep10 = async (
   const accountId = ephemeralKeys.publicKey();
 
   const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   // will select either clientMaster or the ephemeral account
-  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride);
+  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride, supportsClientDomain);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -137,7 +146,12 @@ export const sep10 = async (
     outputToken,
     sep10Account,
   );
-  transactionSigned.addSignature(clientPublic, clientSignature);
+
+  // Workaround for Anclap, it is also disabled on backend so no security issues,
+  // modification here would only break the sep 10.
+  if (supportsClientDomain) {
+    transactionSigned.addSignature(clientPublic, clientSignature);
+  }
 
   if (!requiresClientMasterOverride) {
     transactionSigned.sign(ephemeralKeys);

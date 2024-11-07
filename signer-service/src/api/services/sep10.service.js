@@ -48,7 +48,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     }
   }
   console.log(operations);
-  const expectedKey = TOKEN_CONFIG[outToken].anchorExpectedKey;
+  const { anchorExpectedKey: expectedKey, clientDomainEnabled } = TOKEN_CONFIG[outToken];
   if (firstOp.name !== expectedKey) {
     throw new Error(`First manageData operation should have key '${expectedKey}'`);
   }
@@ -88,7 +88,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
   if (!hasWebAuthDomain) {
     throw new Error('Transaction must contain a web_auth_domain manageData operation');
   }
-  if (!hasClientDomain) {
+  if (!hasClientDomain && clientDomainEnabled) {
     throw new Error('Transaction must contain a client_domain manageData operation');
   }
 
@@ -97,7 +97,11 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     masterClientSignature = transactionSigned.getKeypairSignature(masterStellarKeypair);
   }
 
-  const clientDomainSignature = transactionSigned.getKeypairSignature(clientDomainStellarKeypair);
+  // Disable client domain for ars...
+  let clientDomainSignature;
+  if (clientDomainEnabled) {
+    clientDomainSignature = transactionSigned.getKeypairSignature(clientDomainStellarKeypair);
+  }
 
   return {
     masterSignature: masterClientSignature,
