@@ -85,7 +85,6 @@ export const sep10 = async (
 
   const { supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
-  // will select either clientMaster or the ephemeral account
   const urlParams = await getUrlParams(accountId, supportsClientDomain);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
@@ -106,9 +105,6 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  // More tests required, ignore for prototype
-
-  // sign both for client_domain + an extra signature for Anclap workaround
   const { clientSignature, clientPublic } = await fetchSep10Signatures(
     transactionSigned.toXDR(),
     outputToken,
@@ -222,8 +218,8 @@ export async function sep24First(
     sep24Params = new URLSearchParams({
       asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
       amount: sessionParams.offrampAmount,
-      account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
-      // Since we signed with the master from the service, we need to specify the corresponding public here
+      account: sep10Account, // THIS is a particularity of Anclap. Should be able to work without it, or with a different one
+      // to that of the sep-10
     });
   } else {
     sep24Params = new URLSearchParams({

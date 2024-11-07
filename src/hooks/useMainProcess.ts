@@ -140,10 +140,10 @@ export const useMainProcess = () => {
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          const token = await sep10(tomlValues, stellarEphemeralSecret, outputTokenType, addEvent);
+          const sep10token = await sep10(tomlValues, stellarEphemeralSecret, outputTokenType, addEvent);
 
           const anchorSessionParams = {
-            token,
+            token: sep10token,
             tomlValues: tomlValues,
             tokenConfig: outputToken,
             offrampAmount: offrampAmount.toFixed(2, 0),
