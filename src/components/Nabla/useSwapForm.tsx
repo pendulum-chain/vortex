@@ -22,17 +22,25 @@ export const useSwapForm = () => {
   const setTokenModal = tokensModal[1];
 
   const initialState = useMemo(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+
+    const defaultValues = { from: 'usdc', to: 'eurc' };
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
+    const searchParamValues = { from: searchParams.get('from'), to: searchParams.get('to') };
 
-    const storedFromTokenIsValid = INPUT_TOKEN_CONFIG[storageValues?.from as InputTokenType] !== undefined;
-    const storedToTokenIsValid = OUTPUT_TOKEN_CONFIG[storageValues?.to as OutputTokenType] !== undefined;
-
-    return {
-      from: (storedFromTokenIsValid ? storageValues?.from : 'usdc') as InputTokenType,
-      to: (storedToTokenIsValid ? storageValues?.to : 'eurc') as OutputTokenType,
-      taxNumber: '',
-      bankAccount: '',
+    const initialValues = {
+      ...defaultValues,
+      ...searchParamValues,
+      ...storageValues,
     };
+
+    const initialFromTokenIsValid = INPUT_TOKEN_CONFIG[initialValues.from as InputTokenType] !== undefined;
+    const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
+
+    const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;
+    const to = (initialToTokenIsValid ? initialValues.to : defaultValues.to) as OutputTokenType;
+
+    return { from, to };
   }, []);
 
   const form = useForm<SwapFormValues>({
