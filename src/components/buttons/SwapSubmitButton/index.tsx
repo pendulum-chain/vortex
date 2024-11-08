@@ -1,5 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { FC } from 'preact/compat';
+import { Spinner } from '../../Spinner';
 
 interface SwapSubmitButtonProps {
   text: string;
@@ -32,7 +33,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
 
             return (
               <button className="w-full mt-5 btn-vortex-primary btn" disabled={showInDisabledState}>
-                {pending && <span className="loading loading-spinner loading-sm"></span>}
+                {pending && <Spinner />}
                 {text}
               </button>
             );
