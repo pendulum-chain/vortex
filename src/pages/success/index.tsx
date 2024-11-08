@@ -29,7 +29,7 @@ export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProp
           bank support.
         </p>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <EmailForm transactionId={transactionId} />
+        <EmailForm transactionId={transactionId} transactionSuccess={true} />
         <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={finishOfframping}>
           Return Home
         </button>

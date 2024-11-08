@@ -24,6 +24,7 @@ import { useMainProcess } from '../../hooks/useMainProcess';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
+import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
 import { useEventsContext } from '../../contexts/events';
@@ -109,7 +110,7 @@ export const SwapPage = () => {
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
-  const tokenOutData = useTokenOutAmount({
+  const tokenOutAmount = useTokenOutAmount({
     wantsSwap: true,
     api,
     inputTokenType: from,
@@ -120,9 +121,9 @@ export const SwapPage = () => {
   });
 
   const inputAmountIsStable =
-    tokenOutData.stableAmountInUnits !== undefined &&
-    tokenOutData.stableAmountInUnits != '' &&
-    Big(tokenOutData.stableAmountInUnits).gt(Big(0));
+    tokenOutAmount.stableAmountInUnits !== undefined &&
+    tokenOutAmount.stableAmountInUnits != '' &&
+    Big(tokenOutAmount.stableAmountInUnits).gt(Big(0));
 
   function onConfirm(e: Event) {
     e.preventDefault();
@@ -135,11 +136,13 @@ export const SwapPage = () => {
       return;
     }
 
-    const minimumOutputAmount = tokenOutData.data?.amountOut;
-    if (minimumOutputAmount === undefined) {
+    const tokenOutAmountData = tokenOutAmount.data;
+    if (!tokenOutAmountData) {
       console.log('Output amount is undefined');
       return;
     }
+
+    const preciseQuotedAmountOut = tokenOutAmountData.preciseQuotedAmountOut;
 
     // test the route for starting token, then proceed
     // will disable the confirm button
@@ -149,7 +152,7 @@ export const SwapPage = () => {
     const inputToken = INPUT_TOKEN_CONFIG[from];
 
     // both route and stellar vault checks must be valid to proceed
-    const outputAmountBigMargin = Big(minimumOutputAmount.preciseString)
+    const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
       .round(2, 0)
       .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
     const expectedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
@@ -173,7 +176,7 @@ export const SwapPage = () => {
           inputTokenType: from as InputTokenType,
           outputTokenType: to as OutputTokenType,
           amountInUnits: fromAmountString,
-          minAmountOutUnits: minimumOutputAmount.preciseString,
+          offrampAmount: tokenOutAmountData.roundedDownQuotedAmountOut,
         });
       })
       .catch((_error) => {
@@ -183,131 +186,17 @@ export const SwapPage = () => {
   }
 
   useEffect(() => {
-    if (tokenOutData.data) {
-      const toAmount = tokenOutData.data.amountOut.preciseBigDecimal.round(2, 0);
+    if (tokenOutAmount.data) {
+      const toAmount = tokenOutAmount.data.roundedDownQuotedAmountOut;
       // Calculate the final amount after the offramp fees
-      const totalReceive = calculateTotalReceive(toAmount.toString(), toToken);
+      const totalReceive = calculateTotalReceive(toAmount, toToken);
       form.setValue('toAmount', totalReceive);
-    } else if (!tokenOutData.isLoading || tokenOutData.error) {
+    } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing
     }
-  }, [form, tokenOutData.data, tokenOutData.error, tokenOutData.isLoading, toToken]);
-
-  const ReceiveNumericInput = useMemo(
-    () => (
-      <AssetNumericInput
-        assetIcon={toToken.fiat.assetIcon}
-        tokenSymbol={toToken.fiat.symbol}
-        onClick={() => setModalType('to')}
-        registerInput={form.register('toAmount')}
-        disabled={tokenOutData.isLoading}
-        readOnly={true}
-        id="toAmount"
-      />
-    ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutData.isLoading, setModalType],
-  );
-
-  const WithdrawNumericInput = useMemo(
-    () => (
-      <>
-        <AssetNumericInput
-          registerInput={form.register('fromAmount')}
-          tokenSymbol={fromToken.assetSymbol}
-          assetIcon={fromToken.polygonAssetIcon}
-          onClick={() => setModalType('from')}
-          id="fromAmount"
-        />
-        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
-      </>
-    ),
-    [form, fromToken, setModalType],
-  );
-
-  function getCurrentErrorMessage() {
-    // Do not show any error if the user is disconnected
-    if (isDisconnected) return;
-
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
-
-    const amountOut = tokenOutData.data?.amountOut;
-
-    if (amountOut !== undefined) {
-      const maxAmountRaw = Big(toToken.maxWithdrawalAmountRaw);
-      const minAmountRaw = Big(toToken.minWithdrawalAmountRaw);
-
-      if (maxAmountRaw.lt(Big(amountOut.rawBalance))) {
-        const maxAmountUnits = multiplyByPowerOfTen(maxAmountRaw, -toToken.decimals);
-        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
-        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
-
-      if (config.test.overwriteMinimumTransferAmount === false && minAmountRaw.gt(Big(amountOut.rawBalance))) {
-        const minAmountUnits = multiplyByPowerOfTen(minAmountRaw, -toToken.decimals);
-        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
-        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
-    }
-
-    return tokenOutData.error;
-  }
-
-  const definitions =
-    modalType === 'from'
-      ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: key as InputTokenType,
-          assetSymbol: value.assetSymbol,
-          assetIcon: value.polygonAssetIcon,
-        }))
-      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: key as OutputTokenType,
-          assetSymbol: value.fiat.symbol,
-          assetIcon: value.fiat.assetIcon,
-        }));
-
-  const modals = (
-    <PoolSelectorModal
-      open={!!modalType}
-      onSelect={modalType === 'from' ? onFromChange : onToChange}
-      definitions={definitions}
-      selected={modalType === 'from' ? from : to}
-      onClose={() => setModalType(undefined)}
-    />
-  );
-
-  if (offrampingState?.phase === 'success') {
-    return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} />;
-  }
-
-  if (offrampingState?.failure !== undefined) {
-    return (
-      <FailurePage
-        finishOfframping={finishOfframping}
-        continueFailedFlow={continueFailedFlow}
-        transactionId={cachedId}
-        failure={offrampingState.failure}
-      />
-    );
-  }
-
-  if (offrampingState !== undefined || offrampingStarted) {
-    const showMainScreenAnyway =
-      offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
-    if (!showMainScreenAnyway) {
-      return <ProgressPage offrampingState={offrampingState} />;
-    }
-  }
+  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken]);
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
@@ -337,6 +226,122 @@ export const SwapPage = () => {
     };
   }, []);
 
+  const ReceiveNumericInput = useMemo(
+    () => (
+      <AssetNumericInput
+        assetIcon={toToken.fiat.assetIcon}
+        tokenSymbol={toToken.fiat.symbol}
+        onClick={() => setModalType('to')}
+        registerInput={form.register('toAmount')}
+        disabled={tokenOutAmount.isLoading}
+        readOnly={true}
+        id="toAmount"
+      />
+    ),
+    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutAmount.isLoading, setModalType],
+  );
+
+  const WithdrawNumericInput = useMemo(
+    () => (
+      <>
+        <AssetNumericInput
+          registerInput={form.register('fromAmount')}
+          tokenSymbol={fromToken.assetSymbol}
+          assetIcon={fromToken.polygonAssetIcon}
+          onClick={() => setModalType('from')}
+          id="fromAmount"
+        />
+        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
+      </>
+    ),
+    [form, fromToken, setModalType],
+  );
+
+  function getCurrentErrorMessage() {
+    // Do not show any error if the user is disconnected
+    if (isDisconnected) return;
+
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+      }
+    }
+
+    const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
+
+    if (amountOut !== undefined) {
+      const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
+      const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
+
+      if (maxAmountUnits.lt(amountOut)) {
+        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
+        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+          toToken.fiat.symbol
+        }.`;
+      }
+
+      if (config.test.overwriteMinimumTransferAmount === false && minAmountUnits.gt(amountOut)) {
+        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
+        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
+          toToken.fiat.symbol
+        }.`;
+      }
+    }
+
+    return tokenOutAmount.error;
+  }
+
+  const definitions =
+    modalType === 'from'
+      ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
+          type: key as InputTokenType,
+          assetSymbol: value.assetSymbol,
+          assetIcon: value.polygonAssetIcon,
+        }))
+      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
+          type: key as OutputTokenType,
+          assetSymbol: value.fiat.symbol,
+          assetIcon: value.fiat.assetIcon,
+        }));
+
+  const modals = (
+    <>
+      <TermsAndConditions />
+      <PoolSelectorModal
+        open={!!modalType}
+        onSelect={modalType === 'from' ? onFromChange : onToChange}
+        definitions={definitions}
+        selected={modalType === 'from' ? from : to}
+        onClose={() => setModalType(undefined)}
+        isLoading={false}
+      />
+    </>
+  );
+
+  if (offrampingState?.phase === 'success') {
+    return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} />;
+  }
+
+  if (offrampingState?.failure !== undefined) {
+    return (
+      <FailurePage
+        finishOfframping={finishOfframping}
+        continueFailedFlow={continueFailedFlow}
+        transactionId={cachedId}
+        failure={offrampingState.failure}
+      />
+    );
+  }
+
+  if (offrampingState !== undefined || offrampingStarted) {
+    const showMainScreenAnyway =
+      offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
+    if (!showMainScreenAnyway) {
+      return <ProgressPage offrampingState={offrampingState} />;
+    }
+  }
+
   const main = (
     <main ref={formRef}>
       <SigningBox step={signingPhase} />
@@ -351,12 +356,12 @@ export const SwapPage = () => {
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
-          toAmount={tokenOutData.data?.amountOut.preciseString}
+          toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
           toToken={toToken}
           exchangeRate={
             <ExchangeRate
               {...{
-                tokenOutData,
+                tokenOutData: tokenOutAmount,
                 fromToken,
                 toTokenSymbol: toToken.fiat.symbol,
               }}
@@ -389,6 +394,7 @@ export const SwapPage = () => {
             Compare fees
           </button>
           {firstSep24ResponseState?.url !== undefined ? (
+            // eslint-disable-next-line react/jsx-no-target-blank
             <a
               href={firstSep24ResponseState.url}
               target="_blank"
