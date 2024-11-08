@@ -408,7 +408,7 @@ export const SwapPage = () => {
           )}
         </div>
       </form>
-      {showCompareFees && fromToken && fromAmount && toToken && tokenOutData.data && (
+      {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
           amount={fromAmount}
