@@ -1,7 +1,7 @@
 const { quoteProviders } = require('../../config/vars');
 
 // See https://docs.transak.com/reference/get-price
-async function priceQuery(cryptoCurrency, fiatCurrency, fiatAmount, network, isBuyOrSell, paymentMethod) {
+async function priceQuery(cryptoCurrency, fiatCurrency, cryptoAmount, network, isBuyOrSell, paymentMethod) {
   const { baseUrl, partnerApiKey } = quoteProviders.transak;
   const requestPath = '/api/v1/pricing/public/quotes';
   const requestUrl = baseUrl + requestPath;
@@ -9,7 +9,7 @@ async function priceQuery(cryptoCurrency, fiatCurrency, fiatAmount, network, isB
     partnerApiKey,
     cryptoCurrency,
     fiatCurrency,
-    fiatAmount,
+    cryptoAmount,
     network,
     isBuyOrSell,
   });
@@ -39,14 +39,9 @@ async function priceQuery(cryptoCurrency, fiatCurrency, fiatAmount, network, isB
 
 exports.getQuoteFor = (fromCrypto, toFiat, amount) => {
   const network = 'polygon';
-  // const side = 'SELL'; // We always sell our crypto for fiat
+  const side = 'SELL'; // We always sell our crypto for fiat
 
-  // FIXME switch to SELL once KYB is done
-  const side = 'BUY';
-
-  // If the fiat currency is EUR we can use SEPA bank transfer, otherwise we assume credit_debit_card
-  // const paymentMethod = toFiat.toLowerCase() === 'eur' ? 'sepa_bank_transfer' : 'credit_debit_card';
-  // FIXME switch to SEPA bank transfer once KYB is done
+  // We assume the default payment method is used
   const paymentMethod = undefined;
 
   // The currencies need to be in uppercase
