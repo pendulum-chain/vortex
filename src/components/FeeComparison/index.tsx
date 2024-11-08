@@ -30,6 +30,7 @@ function FeeProviderRow({ provider, amount, sourceAssetSymbol, targetAssetSymbol
   const { isLoading, error, data } = useQuery({
     queryKey: [sourceAssetSymbol, targetAssetSymbol, amount, provider.name],
     queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount),
+    retry: false, // We don't want to retry the request to avoid spamming the server
   });
 
   const providerPrice = data?.lt(0) ? undefined : data;
