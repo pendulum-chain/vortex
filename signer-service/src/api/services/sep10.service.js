@@ -11,6 +11,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_SECRET);
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
+  const { homeDomain, clientDomainEnabled } = TOKEN_CONFIG[outToken];
 
   const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== anchorSigningKey) {
@@ -23,7 +24,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
   // memo field should be empty as we assume (in this implementation) that we use the ephemeral
   // to authenticate. But no memo sub account derivation.
-  if (transactionSigned.memo.value === '') {
+  if (transactionSigned.memo.value !== null) {
     throw new Error('Memo does not match');
   }
 
@@ -39,9 +40,8 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     throw new Error('First manageData operation must have the client account as the source');
   }
 
-  const { anchorExpectedKey: expectedKey, clientDomainEnabled } = TOKEN_CONFIG[outToken];
-  if (firstOp.name !== expectedKey) {
-    throw new Error(`First manageData operation should have key '${expectedKey}'`);
+  if (firstOp.name !== `${homeDomain} auth`) {
+    throw new Error(`First manageData operation should have key '${homeDomain} auth'`);
   }
   if (!firstOp.value || firstOp.value.length !== 64) {
     throw new Error('First manageData operation should have a 64-byte random nonce as value');

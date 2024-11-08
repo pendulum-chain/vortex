@@ -7,7 +7,6 @@ const {
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
-const { fetchTomlValues } = require('../helpers/anchors');
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -48,7 +47,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
     .addOperation(
       Operation.changeTrust({
         source: ephemeralAccountId,
-        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCodeStellar, tokenConfig.assetIssuer),
       }),
     )
     .setTimebounds(0, maxTime)
@@ -98,7 +97,7 @@ async function buildPaymentAndMergeTx(
     .addOperation(
       Operation.payment({
         amount,
-        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCodeStellar, tokenConfig.assetIssuer),
         destination: offrampingAccount,
       }),
     )
@@ -112,7 +111,7 @@ async function buildPaymentAndMergeTx(
   })
     .addOperation(
       Operation.changeTrust({
-        asset: new Asset(tokenConfig.assetCode.replace('\0', ''), tokenConfig.assetIssuer),
+        asset: new Asset(tokenConfig.assetCodeStellar, tokenConfig.assetIssuer),
         limit: '0',
       }),
     )

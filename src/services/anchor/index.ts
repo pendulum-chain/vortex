@@ -216,14 +216,14 @@ export async function sep24First(
       throw new Error('Master must be defined at this point.');
     }
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.stringStellar,
       amount: sessionParams.offrampAmount,
       account: sep10Account, // THIS is a particularity of Anclap. Should be able to work without it, or with a different one
       // to that of the sep-10
     });
   } else {
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.stringStellar,
       amount: sessionParams.offrampAmount,
     });
   }
