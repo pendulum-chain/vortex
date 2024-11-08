@@ -19,8 +19,11 @@ async function priceQuery(currencyCode, quoteCurrencyCode, baseCurrencyAmount, e
 
   return fetch(url).then(async (response) => {
     if (!response.ok) {
-      console.error('Could not get quote from Moonpay', await response.text());
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const body = await response.json();
+      if (body.type === 'NotFoundError') {
+        throw new Error('Token not supported');
+      }
+      throw new Error(`Could not get quote for ${currencyCode} to ${quoteCurrencyCode} from Moonpay: ${body.message}`);
     }
     const body = await response.json();
     const { baseCurrencyAmount, baseCurrencyPrice, quoteCurrencyAmount, feeAmount } = body;

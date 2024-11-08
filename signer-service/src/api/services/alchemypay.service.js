@@ -160,7 +160,9 @@ function priceQuery(crypto, fiat, amount, network, side) {
       }
       const body = await response.json();
       if (!body.success) {
-        throw new Error('Could not get quote: ' + body.returnMsg || 'Unknown error');
+        throw new Error(
+          `Could not get quote for ${crypto} to ${fiat} from AlchemyPay: ` + body.returnMsg || 'Unknown error',
+        );
       }
 
       const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;
@@ -182,10 +184,6 @@ function priceQuery(crypto, fiat, amount, network, side) {
         throw new Error(data.error);
       }
       return data;
-    })
-    .catch((error) => {
-      console.error('Error fetching quote:', error);
-      throw error;
     });
 }
 

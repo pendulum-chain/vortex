@@ -21,8 +21,13 @@ async function priceQuery(cryptoCurrency, fiatCurrency, cryptoAmount, network, i
 
   return fetch(url).then(async (response) => {
     if (!response.ok) {
-      console.error('Could not get quote from Transak', await response.text());
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const body = await response.json();
+      if (body.error.message === 'Invalid fiat currency') {
+        throw new Error('Token not supported');
+      }
+      throw new Error(
+        `Could not get quote for ${cryptoCurrency} to ${fiatCurrency} from Transak: ${body.error.message}`,
+      );
     }
     const body = await response.json();
     const { conversionPrice, cryptoAmount, fiatAmount, totalFee } = body.response;

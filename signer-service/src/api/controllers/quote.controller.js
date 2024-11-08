@@ -11,14 +11,33 @@ exports.getQuoteForProvider = async (req, res, next) => {
   try {
     switch (provider.toLowerCase()) {
       case 'alchemypay':
-        const alchemyPayQuote = await alchemyPayService.getQuoteFor(fromCrypto, toFiat, amount);
-        return res.json(alchemyPayQuote);
+        try {
+          const alchemyPayQuote = await alchemyPayService.getQuoteFor(fromCrypto, toFiat, amount);
+          return res.json(alchemyPayQuote);
+        } catch (error) {
+          // AlchemyPay's errors are not very descriptive, so we just return a generic error message
+          return res.status(500).json({ error: 'Could not get quote from AlchemyPay', details: error.message });
+        }
       case 'moonpay':
-        const moonpayQuote = await moonpayService.getQuoteFor(fromCrypto, toFiat, amount);
-        return res.json(moonpayQuote);
+        try {
+          const moonpayQuote = await moonpayService.getQuoteFor(fromCrypto, toFiat, amount);
+          return res.json(moonpayQuote);
+        } catch (error) {
+          if (error.message === 'Token not supported') {
+            return res.status(404).json({ error: 'Token not supported' });
+          }
+          return res.status(500).json({ error: 'Could not get quote from Moonpay', details: error.message });
+        }
       case 'transak':
-        const transakQuote = await transakService.getQuoteFor(fromCrypto, toFiat, amount);
-        return res.json(transakQuote);
+        try {
+          const transakQuote = await transakService.getQuoteFor(fromCrypto, toFiat, amount);
+          return res.json(transakQuote);
+        } catch (error) {
+          if (error.message === 'Token not supported') {
+            return res.status(404).json({ error: 'Token not supported' });
+          }
+          return res.status(500).json({ error: 'Could not get quote from Transak', details: error.message });
+        }
       default:
         return res.status(400).json({ error: 'Invalid provider' });
     }
