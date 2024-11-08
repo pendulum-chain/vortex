@@ -62,32 +62,25 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
+// Return the URLSearchParams and the account (master/omnibus or ephemeral) that was used for SEP-10
 async function getUrlParams(
   ephemeralAccount: string,
-  requiresClientMasterOverride: boolean,
   usesMemo: boolean,
   address: `0x${string}`,
 ): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
-  let sep10Account;
-  if (requiresClientMasterOverride) {
+  if (usesMemo) {
     const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
 
     if (!response.ok) {
       throw new Error('Failed to fetch client master SEP-10 public account.');
     }
-
     const { masterSep10Public } = await response.json();
-
     if (!masterSep10Public) {
       throw new Error('masterSep10Public not found in response.');
     }
 
-    sep10Account = masterSep10Public;
-  } else {
-    sep10Account = ephemeralAccount;
-  }
+    const sep10Account = masterSep10Public;
 
-  if (usesMemo) {
     return {
       urlParams: new URLSearchParams({
         account: sep10Account,
@@ -98,11 +91,12 @@ async function getUrlParams(
     };
   }
   return {
-    urlParams: new URLSearchParams({ account: sep10Account, client_domain: config.applicationClientDomain }),
-    sep10Account,
+    urlParams: new URLSearchParams({ account: ephemeralAccount, client_domain: config.applicationClientDomain }),
+    sep10Account: ephemeralAccount,
   };
 }
 
+//TODO A very naive memo derivation for testing. NOT SECURE
 const deriveMemoFromAddress = (address: `0x${string}`) => {
   return address.slice(5, 15).replace(/\D/g, '');
 };
@@ -123,10 +117,10 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  const { requiresClientMasterOverride, usesMemo } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { usesMemo } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   // will select either clientMaster or the ephemeral account
-  const { urlParams, sep10Account } = await getUrlParams(accountId, requiresClientMasterOverride, usesMemo, address!);
+  const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, address!);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -146,6 +140,8 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
+  // TODO change to add a fx that will either try to get the signature from storage,
+  // check if it's still valid, and if not ask for another one.
   const maybeStoredSignatureString = localStorage.getItem(`siwe-signature-${address}`);
   let nonce;
   let signature;
@@ -166,7 +162,7 @@ export const sep10 = async (
   );
   transactionSigned.addSignature(clientPublic, clientSignature);
 
-  if (!requiresClientMasterOverride) {
+  if (!usesMemo) {
     transactionSigned.sign(ephemeralKeys);
   } else {
     transactionSigned.addSignature(sep10Account, masterSignature);
@@ -266,18 +262,16 @@ export async function sep24First(
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
-  const { requiresClientMasterOverride } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { usesMemo } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   let sep24Params;
-  if (requiresClientMasterOverride) {
-    if (!sep10Account) {
-      throw new Error('Master must be defined at this point.');
-    }
+  if (usesMemo) {
     sep24Params = new URLSearchParams({
       asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
       amount: sessionParams.offrampAmount,
       account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
-      // Since we signed with the master from the service, we need to specify the corresponding public here
+      // or at least the anchor should be able to get it from the JWT.
+      // Since we signed with the master/omnibus from the service, we need to specify the corresponding public here
       // memo: deriveMemoFromAddress(address!),
       // memo_type: 'id',
     });
