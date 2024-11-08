@@ -19,7 +19,7 @@ export const TermsAndConditions = () => {
           color="accent"
           target="_blank"
           rel="noreferrer"
-          href="https://pendulumchain.org/legal/portal-terms-and-conditions"
+          href="https://www.vortexfinance.co/terms-conditions"
         >
           View Terms and Conditions
         </Link>
