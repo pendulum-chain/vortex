@@ -22,7 +22,7 @@ import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
-
+import { useGetOrRefreshSiweSignature } from './useSignChallenge';
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
 export interface ExecutionInput {
@@ -64,6 +64,7 @@ export const useMainProcess = () => {
   const { trackEvent, resetUniqueEvents } = useEventsContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
+  const { getOrRefreshSiweSignature } = useGetOrRefreshSiweSignature(address);
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
@@ -143,6 +144,7 @@ export const useMainProcess = () => {
             stellarEphemeralSecret,
             outputTokenType,
             address,
+            getOrRefreshSiweSignature,
             addEvent,
           );
 

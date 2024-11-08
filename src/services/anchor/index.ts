@@ -106,6 +106,7 @@ export const sep10 = async (
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
   address: `0x${string}` | undefined,
+  getOrRefreshSiweSignature: any,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ sep10Account: string; token: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -142,13 +143,14 @@ export const sep10 = async (
 
   // TODO change to add a fx that will either try to get the signature from storage,
   // check if it's still valid, and if not ask for another one.
-  const maybeStoredSignatureString = localStorage.getItem(`siwe-signature-${address}`);
+  const signatureData = await getOrRefreshSiweSignature();
+  console.log('fetched: ', signatureData);
   let nonce;
   let signature;
 
   // TODO actually, if usesMemo and not maybeStored.. we need to ask for it again.
-  if (maybeStoredSignatureString && usesMemo) {
-    const storedSignatureObject = JSON.parse(maybeStoredSignatureString);
+  if (signatureData && usesMemo) {
+    const storedSignatureObject = signatureData.signature;
     nonce = storedSignatureObject.nonce;
     signature = storedSignatureObject.signature;
   }
