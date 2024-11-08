@@ -164,12 +164,12 @@ const useEvents = () => {
 
     trackEvent({
       event: 'network_change',
-      from_network: previousChainId.current || chainId,
+      from_network: previousChainId.current,
       to_network: chainId,
     });
 
     previousChainId.current = chainId;
-  }, [chainId, previousChainId]);
+  }, [chainId, trackEvent]);
 
   useEffect(() => {
     const wasConnected = previousAddress.current !== undefined;
