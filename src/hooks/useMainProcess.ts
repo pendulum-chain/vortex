@@ -257,6 +257,8 @@ export const useMainProcess = () => {
   }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
+    if (wagmiConfig.state.status !== 'connected') return;
+
     (async () => {
       const nextState = await advanceOfframpingState(offrampingState, {
         renderEvent: addEvent,
@@ -267,7 +269,13 @@ export const useMainProcess = () => {
 
       if (offrampingState !== nextState) updateHookStateFromState(nextState);
     })();
-  }, [offrampingState, updateHookStateFromState, trackEvent, wagmiConfig]);
+  }, [
+    offrampingState,
+    updateHookStateFromState,
+    trackEvent,
+    wagmiConfig,
+    wagmiConfig.state.status, // wagmiConfig is a mutable object so we need to list wagmiConfig.state.status here
+  ]);
 
   return {
     handleOnSubmit,
