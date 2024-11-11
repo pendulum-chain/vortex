@@ -107,7 +107,8 @@ export const sep10 = async (
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
   address: `0x${string}` | undefined,
-  getOrRefreshSiweSignature: any,
+  checkSiweSignatureValidity: () => SiweSignatureData | undefined,
+  forceRefreshSiweSignature: () => void,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ token: string; sep10Account: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -143,10 +144,10 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  // TODO change to add a fx that will either try to get the signature from storage,
-  // check if it's still valid, and if not ask for another one.
-  const signatureData: SiweSignatureData = await getOrRefreshSiweSignature();
-
+  const signatureData = checkSiweSignatureValidity();
+  if (!signatureData) {
+    throw new Error('Invalid stored challenge signature');
+  }
   // undefined if not using memo
   let nonce;
   let signature;
@@ -161,7 +162,12 @@ export const sep10 = async (
     sep10Account,
     signature,
     nonce,
-  );
+  ).catch((error) => {
+    if (error.message === 'Invalid signature') {
+      forceRefreshSiweSignature();
+    }
+    throw new Error('Invalid stored challenge signature');
+  });
 
   if (supportsClientDomain) {
     transactionSigned.addSignature(clientPublic, clientSignature);

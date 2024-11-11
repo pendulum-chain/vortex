@@ -1,20 +1,23 @@
-import React from 'react';
+import { FC } from 'react';
 import { useAccount } from 'wagmi';
-import { useSignChallenge } from '../../hooks/useSignChallenge';
 import { Modal } from 'react-daisyui';
 
-export function SignInModal() {
+interface SignInModalProps {
+  requiresSign: boolean;
+  closeModal: any;
+  handleSignIn: any;
+}
+
+export const SignInModal: FC<SignInModalProps> = ({ requiresSign, closeModal, handleSignIn }) => {
   const { address } = useAccount();
   console.log('address:', address);
 
-  const { isModalOpen, handleSiweSignIn, closeModal } = useSignChallenge(address);
-
-  if (!isModalOpen) {
+  if (!requiresSign) {
     return null;
   }
 
   return (
-    <Modal open={isModalOpen} onClickBackdrop={closeModal}>
+    <Modal open={requiresSign} onClickBackdrop={closeModal}>
       <Modal.Header className="font-bold text-xl flex justify-between">
         Sign In
         <button onClick={closeModal} className="btn btn-sm btn-circle">
@@ -25,7 +28,7 @@ export function SignInModal() {
         <p>Please sign the message to log-in</p>
       </Modal.Body>
       <Modal.Actions className="justify-end">
-        <button className="btn btn-primary" onClick={handleSiweSignIn}>
+        <button className="btn btn-primary" onClick={handleSignIn}>
           Sign Message
         </button>
         <button className="btn" onClick={closeModal}>
@@ -34,4 +37,4 @@ export function SignInModal() {
       </Modal.Actions>
     </Modal>
   );
-}
+};

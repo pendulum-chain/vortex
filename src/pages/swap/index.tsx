@@ -35,6 +35,7 @@ import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 
 import { SignInModal } from '../../components/SignIn';
+import { useSiweSignature } from '../../hooks/useSignChallenge';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -50,6 +51,8 @@ export const SwapPage = () => {
   const [isReady, setIsReady] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
+  const { requiresSign, signSiweMessage, closeModal, forceRefreshSiweSignature, checkSiweSignatureValidity } =
+    useSiweSignature(address);
 
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
@@ -82,7 +85,7 @@ export const SwapPage = () => {
     isInitiating,
     signingPhase,
     setIsInitiating,
-  } = useMainProcess();
+  } = useMainProcess({ checkSiweSignatureValidity, forceRefreshSiweSignature });
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
@@ -337,7 +340,7 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
-      <SignInModal />
+      <SignInModal requiresSign={requiresSign} closeModal={closeModal} handleSignIn={signSiweMessage} />
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"

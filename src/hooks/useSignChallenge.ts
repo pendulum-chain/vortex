@@ -10,16 +10,18 @@ export type SiweSignatureData = {
   expirationDate: string;
 };
 
-export function useGetOrRefreshSiweSignature(address: `0x${string}` | undefined) {
+export function useSiweSignature(address: `0x${string}` | undefined) {
   const { signMessageAsync } = useSignMessage();
-  const [signatureData, setSignatureData] = useState<SiweSignatureData | null>(null);
+  const [requiresSign, setRequiresSign] = useState<boolean>(false);
 
-  const getOrRefreshSiweSignature = useCallback(async (): Promise<SiweSignatureData | undefined> => {
+  const storageKey = `${storageKeys.SIWE_SIGNATURE_KEY_PREFIX}${address}`;
+
+  const checkSiweSignatureValidity = useCallback((): SiweSignatureData | undefined => {
     if (!address) {
-      return;
+      setRequiresSign(false);
+      return undefined;
     }
 
-    const storageKey = `${storageKeys.SIWE_SIGNATURE_KEY_PREFIX}${address}`;
     const maybeStoredSignatureData = localStorage.getItem(storageKey);
 
     if (maybeStoredSignatureData) {
@@ -27,16 +29,24 @@ export function useGetOrRefreshSiweSignature(address: `0x${string}` | undefined)
       const expirationDate = new Date(storedSignatureData.expirationDate);
 
       if (expirationDate > new Date()) {
-        // Signature is still valid
-        setSignatureData(storedSignatureData);
+        setRequiresSign(false);
         return storedSignatureData;
       } else {
-        // Signature expired, remove it
         localStorage.removeItem(storageKey);
+        setRequiresSign(true);
+        return undefined;
       }
+    } else {
+      setRequiresSign(true);
+      return undefined;
+    }
+  }, [address, storageKey]);
+
+  const signSiweMessage = useCallback(async () => {
+    if (!address) {
+      return;
     }
 
-    // Signature not found or expired, fetch a new one
     try {
       const response = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
         method: 'POST',
@@ -48,7 +58,6 @@ export function useGetOrRefreshSiweSignature(address: `0x${string}` | undefined)
 
       const { siweMessage, nonce } = await response.json();
 
-      // Parse the SIWE message to extract the expiration date
       const message = new SiweMessage(siweMessage);
       const expirationDate = message.expirationTime!;
 
@@ -61,40 +70,32 @@ export function useGetOrRefreshSiweSignature(address: `0x${string}` | undefined)
       };
 
       localStorage.setItem(storageKey, JSON.stringify(newSignatureData));
-      setSignatureData(newSignatureData);
-      return newSignatureData;
+      setRequiresSign(false);
     } catch (error) {
       console.error('Error during SIWE sign-in:', error);
     }
-  }, [address, signMessageAsync]);
+  }, [address, signMessageAsync, storageKey]);
 
-  return { signatureData, getOrRefreshSiweSignature };
-}
-
-export function useSignChallenge(address: `0x${string}` | undefined) {
-  const { signatureData, getOrRefreshSiweSignature } = useGetOrRefreshSiweSignature(address);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    getOrRefreshSiweSignature();
-  }, [address]);
-
-  useEffect(() => {
+  // Function to force a signature refresh
+  const forceRefreshSiweSignature = useCallback(() => {
     if (!address) {
-      setIsModalOpen(false);
       return;
     }
 
-    if (!signatureData) {
-      setIsModalOpen(true);
-    } else {
-      setIsModalOpen(false);
-    }
-  }, [address, signatureData]);
+    localStorage.removeItem(storageKey);
+    setRequiresSign(true);
+  }, [address, storageKey]);
+
+  // Refresh on address change
+  useEffect(() => {
+    checkSiweSignatureValidity();
+  }, [address, checkSiweSignatureValidity]);
 
   return {
-    isModalOpen,
-    handleSiweSignIn: getOrRefreshSiweSignature,
-    closeModal: () => setIsModalOpen(false),
+    requiresSign,
+    checkSiweSignatureValidity,
+    signSiweMessage,
+    forceRefreshSiweSignature,
+    closeModal: () => setRequiresSign(false),
   };
 }

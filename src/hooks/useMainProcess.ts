@@ -22,7 +22,7 @@ import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
-import { useGetOrRefreshSiweSignature } from './useSignChallenge';
+import { SiweSignatureData } from './useSignChallenge';
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
 export interface ExecutionInput {
@@ -32,9 +32,14 @@ export interface ExecutionInput {
   offrampAmount: Big;
 }
 
+interface UseMainProcessProps {
+  checkSiweSignatureValidity: () => SiweSignatureData | undefined;
+  forceRefreshSiweSignature: () => void;
+}
+
 type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
 
-export const useMainProcess = () => {
+export const useMainProcess = ({ checkSiweSignatureValidity, forceRefreshSiweSignature }: UseMainProcessProps) => {
   // EXAMPLE mocking states
 
   // Approval already performed (scenario: service shut down after sending approval but before getting it's confirmation)
@@ -64,7 +69,6 @@ export const useMainProcess = () => {
   const { trackEvent, resetUniqueEvents } = useEventsContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
-  const { getOrRefreshSiweSignature } = useGetOrRefreshSiweSignature(address);
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
@@ -145,7 +149,8 @@ export const useMainProcess = () => {
             stellarEphemeralSecret,
             outputTokenType,
             address,
-            getOrRefreshSiweSignature,
+            checkSiweSignatureValidity,
+            forceRefreshSiweSignature,
             addEvent,
           );
 

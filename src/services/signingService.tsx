@@ -52,6 +52,9 @@ export const fetchSep10Signatures = async (
     body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, maybeChallengeSignature, maybeNonce }),
   });
   if (response.status !== 200) {
+    if (response.status === 401) {
+      throw new Error('Invalid signature');
+    }
     throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
   }
 
