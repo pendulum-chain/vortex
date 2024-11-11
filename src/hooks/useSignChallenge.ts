@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSignMessage } from 'wagmi';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
@@ -13,6 +13,15 @@ export type SiweSignatureData = {
 export function useSiweSignature(address: `0x${string}` | undefined) {
   const { signMessageAsync } = useSignMessage();
   const [requiresSign, setRequiresSign] = useState<boolean>(false);
+  const [signatureData, setSignatureData] = useState<SiweSignatureData | undefined>(undefined);
+
+  const requiresSignRef = useRef(requiresSign);
+  const signatureDataRef = useRef(signatureData);
+
+  useEffect(() => {
+    requiresSignRef.current = requiresSign;
+    signatureDataRef.current = signatureData;
+  }, [requiresSign, signatureData]);
 
   const storageKey = `${storageKeys.SIWE_SIGNATURE_KEY_PREFIX}${address}`;
 
@@ -30,13 +39,16 @@ export function useSiweSignature(address: `0x${string}` | undefined) {
 
       if (expirationDate > new Date()) {
         setRequiresSign(false);
+        setSignatureData(storedSignatureData);
         return storedSignatureData;
       } else {
+        setSignatureData(undefined);
         localStorage.removeItem(storageKey);
         setRequiresSign(true);
         return undefined;
       }
     } else {
+      setSignatureData(undefined);
       setRequiresSign(true);
       return undefined;
     }
@@ -69,7 +81,16 @@ export function useSiweSignature(address: `0x${string}` | undefined) {
         expirationDate,
       };
 
+      const validation_response = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nonce, signature }),
+      });
+
       localStorage.setItem(storageKey, JSON.stringify(newSignatureData));
+      setSignatureData(newSignatureData);
       setRequiresSign(false);
     } catch (error) {
       console.error('Error during SIWE sign-in:', error);
@@ -82,6 +103,7 @@ export function useSiweSignature(address: `0x${string}` | undefined) {
       return;
     }
 
+    setSignatureData(undefined);
     localStorage.removeItem(storageKey);
     setRequiresSign(true);
   }, [address, storageKey]);
@@ -91,11 +113,49 @@ export function useSiweSignature(address: `0x${string}` | undefined) {
     checkSiweSignatureValidity();
   }, [address, checkSiweSignatureValidity]);
 
+  const checkAndWaitForSignature = useCallback((): Promise<SiweSignatureData> => {
+    checkSiweSignatureValidity();
+
+    return new Promise((resolve, reject) => {
+      const interval = setInterval(() => {
+        // Access the latest values via refs
+        if (!requiresSignRef.current && signatureDataRef.current) {
+          clearInterval(interval);
+          resolve(signatureDataRef.current);
+        }
+
+        if (!requiresSignRef.current && !signatureDataRef.current) {
+          clearInterval(interval);
+          reject('User cancelled login request');
+        }
+      }, 100);
+    });
+  }, [checkSiweSignatureValidity]);
+
+  const forceAndWaitForSignature = useCallback((): Promise<SiweSignatureData> => {
+    forceRefreshSiweSignature();
+
+    return new Promise((resolve, reject) => {
+      const interval = setInterval(() => {
+        // Access the latest values via refs
+        if (!requiresSignRef.current && signatureDataRef.current) {
+          clearInterval(interval);
+          resolve(signatureDataRef.current);
+        }
+
+        if (!requiresSignRef.current && !signatureDataRef.current) {
+          clearInterval(interval);
+          reject('User cancelled the login request');
+        }
+      }, 100);
+    });
+  }, [forceRefreshSiweSignature]);
+
   return {
     requiresSign,
-    checkSiweSignatureValidity,
+    checkAndWaitForSignature,
     signSiweMessage,
-    forceRefreshSiweSignature,
+    forceRefreshSiweSignature: forceAndWaitForSignature,
     closeModal: () => setRequiresSign(false),
   };
 }

@@ -51,7 +51,7 @@ export const SwapPage = () => {
   const [isReady, setIsReady] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
-  const { requiresSign, signSiweMessage, closeModal, forceRefreshSiweSignature, checkSiweSignatureValidity } =
+  const { requiresSign, signSiweMessage, closeModal, forceRefreshSiweSignature, checkAndWaitForSignature } =
     useSiweSignature(address);
 
   // Hook used for services on initialization and pre-offramp check
@@ -85,7 +85,7 @@ export const SwapPage = () => {
     isInitiating,
     signingPhase,
     setIsInitiating,
-  } = useMainProcess({ checkSiweSignatureValidity, forceRefreshSiweSignature });
+  } = useMainProcess({ checkAndWaitForSignature, forceRefreshSiweSignature });
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {

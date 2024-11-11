@@ -1,7 +1,7 @@
-import { Transaction, Keypair, Networks } from 'stellar-sdk';
+import { Transaction, Keypair, Networks, Signer } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
-import { fetchSep10Signatures, fetchSigningServiceAccountId } from '../signingService';
+import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
 import { SiweSignatureData } from '../../hooks/useSignChallenge';
 
 import { config } from '../../config';
@@ -97,6 +97,26 @@ async function getUrlParams(
   };
 }
 
+const sep10SignaturesWithLoginRefresh = async (
+  refreshFunction: () => Promise<SiweSignatureData>,
+  args: SignerServiceSep10Request,
+) => {
+  try {
+    console.log(args);
+    return await fetchSep10Signatures(args);
+  } catch (error: any) {
+    console.log(error.message);
+    if (error.message === 'Invalid signature') {
+      let { nonce, signature } = await refreshFunction();
+      console.log('new signature', signature);
+      console.log('ne nonce ', nonce);
+      let regreshedArgs = { ...args, maybeChallengeSignature: signature, maybeNonce: nonce };
+      return await fetchSep10Signatures(regreshedArgs);
+    }
+    throw new Error('Could not fetch sep 10 signatures from backend');
+  }
+};
+
 //TODO A very naive memo derivation for testing. NOT SECURE
 const deriveMemoFromAddress = (address: `0x${string}`) => {
   return address.slice(5, 15).replace(/\D/g, '');
@@ -107,8 +127,8 @@ export const sep10 = async (
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
   address: `0x${string}` | undefined,
-  checkSiweSignatureValidity: () => SiweSignatureData | undefined,
-  forceRefreshSiweSignature: () => void,
+  checkAndWaitForSignature: () => Promise<SiweSignatureData>,
+  forceRefreshSiweSignature: () => Promise<SiweSignatureData>,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ token: string; sep10Account: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -144,30 +164,28 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  const signatureData = checkSiweSignatureValidity();
+  let signatureData = await checkAndWaitForSignature();
   if (!signatureData) {
     throw new Error('Invalid stored challenge signature');
   }
   // undefined if not using memo
-  let nonce;
-  let signature;
+  let maybeNonce;
+  let maybeChallengeSignature;
   if (signatureData && usesMemo) {
-    nonce = signatureData.nonce;
-    signature = signatureData.signature;
+    maybeNonce = signatureData.nonce;
+    maybeChallengeSignature = signatureData.signature;
   }
   // sign both for client_domain + an extra signature for Anclap workaround
-  const { masterClientSignature, clientSignature, clientPublic } = await fetchSep10Signatures(
-    transactionSigned.toXDR(),
-    outputToken,
-    sep10Account,
-    signature,
-    nonce,
-  ).catch((error) => {
-    if (error.message === 'Invalid signature') {
-      forceRefreshSiweSignature();
-    }
-    throw new Error('Invalid stored challenge signature');
-  });
+  const { masterClientSignature, clientSignature, clientPublic } = await sep10SignaturesWithLoginRefresh(
+    forceRefreshSiweSignature,
+    {
+      challengeXDR: transactionSigned.toXDR(),
+      outToken: outputToken,
+      clientPublicKey: sep10Account,
+      maybeNonce,
+      maybeChallengeSignature,
+    },
+  );
 
   if (supportsClientDomain) {
     transactionSigned.addSignature(clientPublic, clientSignature);
@@ -198,68 +216,6 @@ export const sep10 = async (
   );
   return { token, sep10Account };
 };
-
-// TODO modify according to the anchor's requirements and implementation
-// we should be able to do the whole flow on this function since we have all the
-// information we need
-/*
-export async function sep6First(sessionParams: IAnchorSessionParams): Promise<SepResult> {
-  const { token, tomlValues } = sessionParams;
-  const { sep6Url } = tomlValues;
-
-  return {
-    amount: '10.4',
-    memo: 'a memo',
-    memoType: 'text',
-    offrampingAccount: 'GCUHGQ6LY3L2NAB7FX2LJGUJFCG6LKAQHVIMJLZNNBMCZUQNBPJTXE6O',
-  };
-
-  const sep6Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.assetCode!,
-    type: 'bank_account',
-    dest: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e', // Ntokens crashes when sending destination, complains of not having it??
-  });
-
-  const fetchUrl = `${sep6Url}/withdraw?`;
-  const sep6Response = await fetch(fetchUrl + sep6Params, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
-  });
-  console.log(sep6Response);
-  if (sep6Response.status !== 200) {
-    console.log(await sep6Response.json(), sep6Response.toString());
-    throw new Error(`Failed to initiate SEP-6: ${sep6Response.statusText}`);
-  }
-
-  const { type, id } = await sep6Response.json();
-  if (type !== 'interactive_customer_info_needed') {
-    throw new Error(`Unexpected SEP-6 type: ${type}`);
-  }
-  //return { transactionId: id };
-}*/
-
-/*
-export async function sep12First(sessionParams: IAnchorSessionParams): Promise<void> {
-  const { token, tomlValues } = sessionParams;
-  const { sep6Url } = tomlValues;
-
-  const sep12Params = new URLSearchParams({
-    account: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e',
-  });
-
-  const fetchUrl = `${sep6Url}/customer`;
-  const sep12Response = await fetch(fetchUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
-    body: sep12Params.toString(),
-  });
-  console.log(sep12Response);
-  if (sep12Response.status !== 200) {
-    console.log(await sep12Response.json(), sep12Response.toString());
-    throw new Error(`Failed to initiate SEP-6: ${sep12Response.statusText}`);
-  }
-  //>????
-}*/
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,

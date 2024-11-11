@@ -4,8 +4,8 @@ const { polygon } = require('viem/chains');
 
 // Make constants on config
 const scheme = 'https';
-const domain = 'localhost';
-const origin = 'https://localhost/login';
+const domain = 'satoshipay.io';
+const origin = 'https://vortex.com';
 const statement = 'Please sign the message to login!';
 
 // Map that will hold the siwe messages sent + nonce we defined
@@ -20,7 +20,7 @@ exports.createAndSendSiweMessage = async (address) => {
     statement,
     uri: origin,
     version: '1',
-    chainId: '1',
+    chainId: polygon.id,
     nonce,
     expirationTime: new Date(Date.now() + 360 * 60 * 1000).toISOString(),
   });
@@ -59,6 +59,14 @@ exports.verifySiweMessage = async (nonce, signature) => {
   if (maybeSiweData.expirationTime && new Date(maybeSiweData.expirationTime) < new Date()) {
     throw new Error('Message has expired.');
   }
+
+  // Successful verification, remove messages with same address
+  // from map except for the one we just verified.
+  siweMessagesMap.forEach((data, nonce) => {
+    if (data.address === maybeSiweData.address && nonce !== maybeSiweData.siweMessage.nonce) {
+      siweMessagesMap.delete(nonce);
+    }
+  });
 
   return maybeSiweData.siweMessage;
 };
