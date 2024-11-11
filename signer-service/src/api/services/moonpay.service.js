@@ -28,7 +28,7 @@ async function priceQuery(currencyCode, quoteCurrencyCode, baseCurrencyAmount, e
     const body = await response.json();
     const { baseCurrencyAmount: receivedBaseCurrencyAmount, baseCurrencyPrice, quoteCurrencyAmount, feeAmount } = body;
 
-    if (baseCurrencyAmount !== receivedBaseCurrencyAmount) {
+    if (Number(baseCurrencyAmount) !== receivedBaseCurrencyAmount) {
       throw new Error('Received baseCurrencyAmount does not match the requested baseCurrencyAmount');
     }
 
