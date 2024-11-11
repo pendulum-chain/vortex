@@ -2,6 +2,7 @@ import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSep10Signatures, fetchSigningServiceAccountId } from '../signingService';
+import { SiweSignatureData } from '../../hooks/useSignChallenge';
 
 import { config } from '../../config';
 import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
@@ -144,15 +145,14 @@ export const sep10 = async (
 
   // TODO change to add a fx that will either try to get the signature from storage,
   // check if it's still valid, and if not ask for another one.
-  const signatureData = await getOrRefreshSiweSignature();
-  console.log('fetched: ', signatureData);
+  const signatureData: SiweSignatureData = await getOrRefreshSiweSignature();
+
+  // undefined if not using memo
   let nonce;
   let signature;
-
-  // TODO actually, if usesMemo and not maybeStored.. we need to ask for it again.
   if (signatureData && usesMemo) {
-    nonce = signatureData.signature.nonce;
-    signature = signatureData.signature.signature;
+    nonce = signatureData.nonce;
+    signature = signatureData.signature;
   }
   // sign both for client_domain + an extra signature for Anclap workaround
   const { masterClientSignature, clientSignature, clientPublic } = await fetchSep10Signatures(

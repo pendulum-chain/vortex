@@ -43,8 +43,8 @@ export const fetchSep10Signatures = async (
   challengeXDR: string,
   outToken: OutputTokenType,
   clientPublicKey: string,
-  maybeChallengeSignature: string,
-  maybeNonce: string,
+  maybeChallengeSignature: string | undefined,
+  maybeNonce: string | undefined,
 ): Promise<SignerServiceSep10Response> => {
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',

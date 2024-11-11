@@ -14,9 +14,15 @@ const getAndValidateMemo = async (nonce, userChallengeSignature) => {
   if (!userChallengeSignature || !nonce) {
     return null; // Default memo value when single stellar account is used
   }
-  const siweData = await verifySiweMessage(nonce, userChallengeSignature);
 
-  const memo = deriveMemoFromAddress(siweData.address);
+  let message;
+  try {
+    message = await verifySiweMessage(nonce, userChallengeSignature);
+  } catch (e) {
+    throw new Error(`Could not verify signature: ${e.message}`);
+  }
+
+  const memo = deriveMemoFromAddress(message.address);
   return memo;
 };
 
@@ -33,10 +39,10 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
 
   let memo;
   try {
-    memo = getAndValidateMemo(nonce, userChallengeSignature);
+    memo = await getAndValidateMemo(nonce, userChallengeSignature);
   } catch (e) {
     console.log(e);
-    throw new Error(`Invalid evm account verification`);
+    throw new Error(`Could not verify signature or derive memo: ${e.message}`);
   }
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
@@ -53,7 +59,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
   // memo field should be empty as we assume for the ephemeral case, or the corresponding evm address
   // derivation.
-  if (transactionSigned.memo.value === memo) {
+  if (transactionSigned.memo.value !== memo) {
     throw new Error('Memo does not match with specified user signature or address. Could not validate.');
   }
 

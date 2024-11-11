@@ -4,7 +4,7 @@ import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
 import { SiweMessage } from 'siwe';
 
-type SiweSignatureData = {
+export type SiweSignatureData = {
   nonce: string;
   signature: string;
   expirationDate: string;
