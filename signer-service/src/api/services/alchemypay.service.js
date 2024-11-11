@@ -167,6 +167,8 @@ function priceQuery(crypto, fiat, amount, network, side) {
 
       const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;
 
+      console.log('body.data', body.data);
+
       const totalFee = (rampFee || 0) + (networkFee || 0);
       // According to a comment in the response sample [here](https://alchemypay.readme.io/docs/price-query#response-sample)
       // the `fiatQuantity` does not yet include the fees so we need to subtract them.
@@ -197,10 +199,25 @@ function getAlchemyPayNetworkCode(network) {
   }
 }
 
+function getCryptoCurrencyCode(fromCrypto) {
+  if (fromCrypto.toLowerCase() === 'usdc') {
+    return 'USDC';
+  } else if (fromCrypto.toLowerCase() === 'usdce' || fromCrypto.toLowerCase() === 'usdc.e') {
+    return 'USDC.e';
+  }
+
+  // The currencies need to be in uppercase
+  return fromCrypto.toUpperCase();
+}
+
+function getFiatCode(toFiat) {
+  // The currencies need to be in uppercase
+  return toFiat.toUpperCase();
+}
+
 exports.getQuoteFor = (fromCrypto, toFiat, amount, network) => {
   const networkCode = getAlchemyPayNetworkCode(network);
   const side = 'SELL';
 
-  // The currencies need to be in uppercase
-  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, networkCode, side);
+  return priceQuery(getCryptoCurrencyCode(fromCrypto), getFiatCode(toFiat), amount, networkCode, side);
 };

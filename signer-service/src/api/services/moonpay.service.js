@@ -38,14 +38,28 @@ async function priceQuery(currencyCode, quoteCurrencyCode, baseCurrencyAmount, e
   });
 }
 
-exports.getQuoteFor = (fromCrypto, toFiat, amount) => {
+function getCryptoCode(fromCrypto) {
   // If fromCrypto is USDC, we need to convert it to USDC_Polygon
-  const fromCryptoPolygon = fromCrypto.toLowerCase() === 'usdc' ? 'usdc_polygon' : fromCrypto;
+  if (
+    fromCrypto.toLowerCase() === 'usdc' ||
+    fromCrypto.toLowerCase() === 'usdc.e' ||
+    fromCrypto.toLowerCase() === 'usdce'
+  ) {
+    return 'usdc_polygon';
+  }
 
+  return fromCrypto.toLowerCase();
+}
+
+function getFiatCode(toFiat) {
+  return toFiat.toLowerCase();
+}
+
+exports.getQuoteFor = (fromCrypto, toFiat, amount) => {
   // We can specify a custom fee percentage here added on top of the Moonpay fee but we don't
   const extraFeePercentage = 0;
   // If the fiat currency is EUR we can use SEPA bank transfer, otherwise we assume credit_debit_card
   const paymentMethod = toFiat.toLowerCase() === 'eur' ? 'sepa_bank_transfer' : 'credit_debit_card';
 
-  return priceQuery(fromCryptoPolygon, toFiat, amount, extraFeePercentage, paymentMethod);
+  return priceQuery(getCryptoCode(fromCrypto), getFiatCode(toFiat), amount, extraFeePercentage, paymentMethod);
 };

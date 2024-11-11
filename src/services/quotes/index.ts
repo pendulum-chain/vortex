@@ -37,10 +37,5 @@ async function getQuoteFromService(
 export type QuoteQuery = (fromCrypto: string, toFiat: string, amount: Big) => Promise<Big>;
 
 export function getQueryFnForService(quoteService: QuoteService): QuoteQuery {
-  return (fromCrypto, toFiat, amount) => {
-    // Make sure that USDC.e is converted to USDC as the service only supports the latter
-    const fromCryptoCleaned = fromCrypto.toLowerCase().includes('usdc') ? 'usdc' : fromCrypto;
-
-    return getQuoteFromService(quoteService, fromCryptoCleaned, toFiat, amount);
-  };
+  return (fromCrypto, toFiat, amount) => getQuoteFromService(quoteService, fromCrypto, toFiat, amount);
 }

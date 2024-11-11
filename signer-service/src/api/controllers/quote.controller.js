@@ -6,6 +6,10 @@ const moonpayService = require('../services/moonpay.service');
 
 exports.SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'];
 
+exports.SUPPORTED_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e'];
+
+exports.SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars'];
+
 exports.getQuoteForProvider = async (req, res, next) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
   try {

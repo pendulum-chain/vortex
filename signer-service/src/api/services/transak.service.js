@@ -53,6 +53,23 @@ function getTransakNetworkCode(network) {
   }
 }
 
+function getCryptoCode(fromCrypto) {
+  // The currencies need to be in uppercase
+  if (
+    fromCrypto.toLowerCase() === 'usdc' ||
+    fromCrypto.toLowerCase() === 'usdc.e' ||
+    fromCrypto.toLowerCase() === 'usdce'
+  ) {
+    return 'USDC';
+  }
+  return fromCrypto.toUpperCase();
+}
+
+function getFiatCode(toFiat) {
+  // The currencies need to be in uppercase
+  return toFiat.toUpperCase();
+}
+
 exports.getQuoteFor = (fromCrypto, toFiat, amount, network) => {
   const networkCode = getTransakNetworkCode(network);
   const side = 'SELL'; // We always sell our crypto for fiat
@@ -60,6 +77,5 @@ exports.getQuoteFor = (fromCrypto, toFiat, amount, network) => {
   // We assume the default payment method is used
   const paymentMethod = undefined;
 
-  // The currencies need to be in uppercase
-  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, networkCode, side, paymentMethod);
+  return priceQuery(getCryptoCode(fromCrypto), getFiatCode(toFiat), amount, networkCode, side, paymentMethod);
 };

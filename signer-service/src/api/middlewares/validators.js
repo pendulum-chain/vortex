@@ -2,7 +2,11 @@ const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 const { RATING_SHEET_HEADER_VALUES } = require('../controllers/rating.controller');
-const { SUPPORTED_PROVIDERS } = require('../controllers/quote.controller');
+const {
+  SUPPORTED_PROVIDERS,
+  SUPPORTED_CRYPTO_CURRENCIES,
+  SUPPORTED_FIAT_CURRENCIES,
+} = require('../controllers/quote.controller');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -29,12 +33,16 @@ const validateQuoteInput = (req, res, next) => {
       .json({ error: 'Invalid provider. Supported providers are: ' + SUPPORTED_PROVIDERS.join(', ') });
   }
 
-  if (!fromCrypto) {
-    return res.status(400).json({ error: 'Missing fromCrypto parameter' });
+  if (!fromCrypto || SUPPORTED_CRYPTO_CURRENCIES.indexOf(fromCrypto.toLowerCase()) === -1) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid fromCrypto. Supported currencies are: ' + SUPPORTED_CRYPTO_CURRENCIES.join(', ') });
   }
 
-  if (!toFiat) {
-    return res.status(400).json({ error: 'Missing toFiat parameter' });
+  if (!toFiat || SUPPORTED_FIAT_CURRENCIES.indexOf(toFiat.toLowerCase()) === -1) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid toFiat. Supported currencies are: ' + SUPPORTED_FIAT_CURRENCIES.join(', ') });
   }
 
   if (!amount) {
