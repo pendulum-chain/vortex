@@ -54,14 +54,14 @@ exports.changeOpTransaction = async (req, res, next) => {
 
 exports.signSep10Challenge = async (req, res, next) => {
   try {
-    let { masterSignature, masterPublic, clientSignature, clientPublic } = await signSep10Challenge(
+    let { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
       req.body.challengeXDR,
       req.body.outToken,
       req.body.clientPublicKey,
       req.body.maybeChallengeSignature,
       req.body.maybeNonce,
     );
-    return res.json({ masterSignature, masterPublic, clientSignature, clientPublic });
+    return res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
     return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });

@@ -26,7 +26,8 @@ export interface OutputTokenDetails {
   stellarAsset: {
     code: {
       hex: string;
-      string: string;
+      stringRaw: string; // stringRaw. With /0 if the Asset has less than 4 letters.
+      stringStellar: string;
     };
     issuer: {
       hex: string;
@@ -40,6 +41,7 @@ export interface OutputTokenDetails {
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
   usesMemo: boolean;
+  supportsClientDomain: boolean;
 }
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
@@ -78,7 +80,8 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     stellarAsset: {
       code: {
         hex: '0x45555243',
-        string: 'EURC',
+        stringStellar: 'EURC',
+        stringRaw: 'EURC',
       },
       issuer: {
         hex: '0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136',
@@ -91,6 +94,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,
     usesMemo: false,
+    supportsClientDomain: true,
   },
   ars: {
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
@@ -102,7 +106,8 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     stellarAsset: {
       code: {
         hex: '0x41525300',
-        string: 'ARS\0',
+        stringStellar: 'ARS',
+        stringRaw: 'ARS\0',
       },
       issuer: {
         hex: '0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1',
@@ -116,6 +121,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     offrampFeesBasisPoints: 200, // 2%
     offrampFeesFixedComponent: 10, // 10 ARS
     usesMemo: true,
+    supportsClientDomain: true,
   },
 };
 

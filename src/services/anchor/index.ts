@@ -4,8 +4,8 @@ import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig
 import { fetchSep10Signatures, fetchSigningServiceAccountId } from '../signingService';
 
 import { config } from '../../config';
-import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 interface TomlValues {
   signingKey?: string;
@@ -108,7 +108,7 @@ export const sep10 = async (
   address: `0x${string}` | undefined,
   getOrRefreshSiweSignature: any,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<{ sep10Account: string; token: string }> => {
+): Promise<{ token: string; sep10Account: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
@@ -122,6 +122,7 @@ export const sep10 = async (
 
   // will select either clientMaster or the ephemeral account
   const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, address!);
+  const { supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -150,24 +151,27 @@ export const sep10 = async (
 
   // TODO actually, if usesMemo and not maybeStored.. we need to ask for it again.
   if (signatureData && usesMemo) {
-    const storedSignatureObject = signatureData.signature;
-    nonce = storedSignatureObject.nonce;
-    signature = storedSignatureObject.signature;
+    nonce = signatureData.signature.nonce;
+    signature = signatureData.signature.signature;
   }
   // sign both for client_domain + an extra signature for Anclap workaround
-  const { masterSignature, clientSignature, clientPublic } = await fetchSep10Signatures(
+  const { masterClientSignature, clientSignature, clientPublic } = await fetchSep10Signatures(
     transactionSigned.toXDR(),
     outputToken,
     sep10Account,
     signature,
     nonce,
   );
-  transactionSigned.addSignature(clientPublic, clientSignature);
+
+  if (supportsClientDomain) {
+    transactionSigned.addSignature(clientPublic, clientSignature);
+  }
 
   if (!usesMemo) {
     transactionSigned.sign(ephemeralKeys);
   } else {
-    transactionSigned.addSignature(sep10Account, masterSignature);
+    console.log(sep10Account);
+    transactionSigned.addSignature(sep10Account, masterClientSignature);
   }
 
   const jwt = await fetch(webAuthEndpoint, {
@@ -269,7 +273,7 @@ export async function sep24First(
   let sep24Params;
   if (usesMemo) {
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.stringStellar,
       amount: sessionParams.offrampAmount,
       account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
       // or at least the anchor should be able to get it from the JWT.
@@ -279,7 +283,7 @@ export async function sep24First(
     });
   } else {
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.string.replace('\0', ''),
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.stringStellar,
       amount: sessionParams.offrampAmount,
     });
   }

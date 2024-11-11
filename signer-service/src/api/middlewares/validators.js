@@ -98,6 +98,22 @@ const validatePostSwapSubsidizationInput = (req, res, next) => {
   next();
 };
 
+const validateSep10Input = (req, res, next) => {
+  const { challengeXDR, outToken, clientPublicKey } = req.body;
+  if (!challengeXDR) {
+    return res.status(400).json({ error: 'Missing Anchor challenge: challengeXDR' });
+  }
+
+  if (!outToken) {
+    return res.status(400).json({ error: 'Missing offramp token identifier: outToken' });
+  }
+
+  if (!clientPublicKey) {
+    return res.status(400).json({ error: 'Missing Stellar ephemeral public key: clientPublicKey' });
+  }
+  next();
+};
+
 module.exports = {
   validateChangeOpInput,
   validateCreationInput,
@@ -107,4 +123,5 @@ module.exports = {
   validateEmailInput,
   validateRatingInput,
   validateExecuteXCM,
+  validateSep10Input,
 };

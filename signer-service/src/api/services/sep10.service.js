@@ -12,7 +12,7 @@ const NETWORK_PASSPHRASE = Networks.PUBLIC;
 // we can then ensure that the memo is the same as the one we expect from the anchor challenge
 const getAndValidateMemo = async (nonce, userChallengeSignature) => {
   if (!userChallengeSignature || !nonce) {
-    return '';
+    return null; // Default memo value when single stellar account is used
   }
   const siweData = await verifySiweMessage(nonce, userChallengeSignature);
 
@@ -31,7 +31,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   // we validate a challenge for a given nonce. From it we obtain the address and derive the memo
   // we can then ensure that the memo is the same as the one we expect from the anchor challenge
 
-  let memo = ''; // Default memo value when single stellar account is used
+  let memo;
   try {
     memo = getAndValidateMemo(nonce, userChallengeSignature);
   } catch (e) {
@@ -40,6 +40,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   }
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
+  const { homeDomain, clientDomainEnabled, memoEnabled } = TOKEN_CONFIG[outToken];
 
   const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== anchorSigningKey) {
@@ -50,8 +51,8 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   }
 
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
-  // memo field should be empty as we assume (in this implementation) that we use the ephemeral (or master, in case of ARS)
-  // to authenticate. But no memo sub account derivation.
+  // memo field should be empty as we assume for the ephemeral case, or the corresponding evm address
+  // derivation.
   if (transactionSigned.memo.value === memo) {
     throw new Error('Memo does not match with specified user signature or address. Could not validate.');
   }
@@ -63,23 +64,22 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
     throw new Error('The first operation should be manageData');
   }
 
-  // Temporary. This check will be removed when we have the memo solution.
-  if (memo !== '') {
-    // We only want to accept a challenge that would authorize the master key.
+  // Only authorize a session that corresponds with the ephemeral client account
+  // TODO is this really an edge case? Obviously incorrenct, but security concern?
+  if (firstOp.source !== clientPublicKey) {
+    throw new Error('First manageData operation must have the client account as the source');
+  }
+
+  if (memo !== null && memoEnabled) {
     if (firstOp.source !== masterStellarKeypair.publicKey()) {
-      throw new Error('First manageData operation must have the master signing key as the source');
-    }
-  } else {
-    // Only authorize a session that corresponds with the ephemeral client account
-    // if no memo, we should not authorize a session for our client domain master
-    if (firstOp.source !== clientPublicKey || firstOp.source == masterStellarKeypair.publicKey()) {
-      throw new Error('First manageData operation must have the client account as the source');
+      throw new Error(
+        'First manageData operation must have the master signing key as the source when memo is being used.',
+      );
     }
   }
-  console.log(operations);
-  const expectedKey = TOKEN_CONFIG[outToken].anchorExpectedKey;
-  if (firstOp.name !== expectedKey) {
-    throw new Error(`First manageData operation should have key '${expectedKey}'`);
+
+  if (firstOp.name !== `${homeDomain} auth`) {
+    throw new Error(`First manageData operation should have key '${homeDomain} auth'`);
   }
   if (!firstOp.value || firstOp.value.length !== 64) {
     throw new Error('First manageData operation should have a 64-byte random nonce as value');
@@ -115,21 +115,24 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   if (!hasWebAuthDomain) {
     throw new Error('Transaction must contain a web_auth_domain manageData operation');
   }
-  if (!hasClientDomain) {
+  if (!hasClientDomain && clientDomainEnabled) {
     throw new Error('Transaction must contain a client_domain manageData operation');
   }
 
+  let clientDomainSignature;
+  if (clientDomainEnabled) {
+    clientDomainSignature = transactionSigned.getKeypairSignature(clientDomainStellarKeypair);
+  }
+
   let masterClientSignature;
-  if (outToken === 'ars') {
+  if (memo !== null && memoEnabled) {
     masterClientSignature = transactionSigned.getKeypairSignature(masterStellarKeypair);
   }
 
-  const clientDomainSignature = transactionSigned.getKeypairSignature(clientDomainStellarKeypair);
-
   return {
-    masterSignature: masterClientSignature,
-    masterPublic: masterStellarKeypair.publicKey(),
     clientSignature: clientDomainSignature,
     clientPublic: clientDomainStellarKeypair.publicKey(),
+    masterClientSignature,
+    masterClientPublic: masterStellarKeypair.publicKey(),
   };
 };
