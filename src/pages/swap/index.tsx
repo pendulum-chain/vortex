@@ -420,6 +420,7 @@ export const SwapPage = () => {
           amount={fromAmount}
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
+          network={fromToken.network}
         />
       )}
     </main>

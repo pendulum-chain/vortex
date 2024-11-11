@@ -1,5 +1,7 @@
 import { AssetIconType } from '../hooks/useGetIcon';
 
+export type NetworkType = 'polygon';
+
 export interface InputTokenDetails {
   assetSymbol: string;
   erc20AddressSourceChain: `0x${string}`;
@@ -10,6 +12,7 @@ export interface InputTokenDetails {
   };
   polygonAssetIcon: AssetIconType;
   decimals: number;
+  network: NetworkType;
 }
 
 export type InputTokenType = 'usdc' | 'usdce';
@@ -50,6 +53,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     },
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
+    network: 'polygon',
   },
   usdce: {
     assetSymbol: 'USDC.e',
@@ -61,6 +65,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     },
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
+    network: 'polygon',
   },
 };
 

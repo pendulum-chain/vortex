@@ -5,6 +5,7 @@ import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Skeleton } from '../Skeleton';
 import vortexIcon from '../../assets/logo/blue.svg';
 import { QuoteProvider, quoteProviders } from './quoteProviders';
+import { NetworkType } from '../../constants/tokenConfig';
 
 type FeeProviderRowProps = FeeComparisonProps & { provider: QuoteProvider };
 
@@ -26,10 +27,17 @@ function VortexRow({
   );
 }
 
-function FeeProviderRow({ provider, amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeProviderRowProps) {
+function FeeProviderRow({
+  provider,
+  amount,
+  sourceAssetSymbol,
+  targetAssetSymbol,
+  vortexPrice,
+  network,
+}: FeeProviderRowProps) {
   const { isLoading, error, data } = useQuery({
-    queryKey: [sourceAssetSymbol, targetAssetSymbol, amount, provider.name],
-    queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount),
+    queryKey: [sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, network],
+    queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, network),
     retry: false, // We don't want to retry the request to avoid spamming the server
   });
 
@@ -71,7 +79,13 @@ function FeeProviderRow({ provider, amount, sourceAssetSymbol, targetAssetSymbol
 
 type FeeComparisonTableProps = FeeComparisonProps;
 
-function FeeComparisonTable({ amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeComparisonTableProps) {
+function FeeComparisonTable({
+  amount,
+  sourceAssetSymbol,
+  targetAssetSymbol,
+  vortexPrice,
+  network,
+}: FeeComparisonTableProps) {
   return (
     <div className="grow w-full rounded-3xl shadow-custom p-4">
       <div className="flex items-center justify-center w-full mb-3">
@@ -86,7 +100,7 @@ function FeeComparisonTable({ amount, sourceAssetSymbol, targetAssetSymbol, vort
         </div>
       </div>
       <div className="border-b border-gray-200 w-full my-4" />
-      <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
+      <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} network={network} />
       {quoteProviders.map((provider, index) => (
         <>
           <div className="border-b border-gray-200 w-full my-4" />
@@ -97,6 +111,7 @@ function FeeComparisonTable({ amount, sourceAssetSymbol, targetAssetSymbol, vort
             sourceAssetSymbol={sourceAssetSymbol}
             targetAssetSymbol={targetAssetSymbol}
             vortexPrice={vortexPrice}
+            network={network}
           />
         </>
       ))}
@@ -109,9 +124,16 @@ interface FeeComparisonProps {
   sourceAssetSymbol: string;
   targetAssetSymbol: string;
   vortexPrice: Big;
+  network: NetworkType;
 }
 
-export function FeeComparison({ amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice }: FeeComparisonProps) {
+export function FeeComparison({
+  amount,
+  sourceAssetSymbol,
+  targetAssetSymbol,
+  vortexPrice,
+  network,
+}: FeeComparisonProps) {
   return (
     <div className="flex items-center flex-col md:flex-row gap-x-8 gap-y-8 max-w-4xl px-4 py-8 rounded-lg md:mx-auto md:w-3/4">
       <div className="grow w-full overflow-auto gap-6">
@@ -127,6 +149,7 @@ export function FeeComparison({ amount, sourceAssetSymbol, targetAssetSymbol, vo
         sourceAssetSymbol={sourceAssetSymbol}
         targetAssetSymbol={targetAssetSymbol}
         vortexPrice={vortexPrice}
+        network={network}
       />
     </div>
   );

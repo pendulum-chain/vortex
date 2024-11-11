@@ -5,6 +5,8 @@ const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 
 type QuoteService = 'moonpay' | 'transak' | 'alchemypay';
 
+type SupportedNetworks = 'polygon';
+
 interface Quote {
   // The price of crypto -> fiat, i.e. cryptoAmount * cryptoPrice = fiatAmount + totalFee
   cryptoPrice: number;
@@ -21,9 +23,10 @@ async function getQuoteFromService(
   fromCrypto: string,
   toFiat: string,
   amount: Big,
+  network: SupportedNetworks,
 ): Promise<Big> {
   // Fetch the quote from the service with a GET request
-  const params = new URLSearchParams({ provider, fromCrypto, toFiat, amount: amount.toFixed(2) });
+  const params = new URLSearchParams({ provider, fromCrypto, toFiat, amount: amount.toFixed(2), network });
   const response = await fetch(`${QUOTE_ENDPOINT}?${params.toString()}`);
 
   if (!response.ok) {
@@ -34,8 +37,9 @@ async function getQuoteFromService(
   return new Big(quote.fiatAmount);
 }
 
-export type QuoteQuery = (fromCrypto: string, toFiat: string, amount: Big) => Promise<Big>;
+export type QuoteQuery = (fromCrypto: string, toFiat: string, amount: Big, network: SupportedNetworks) => Promise<Big>;
 
 export function getQueryFnForService(quoteService: QuoteService): QuoteQuery {
-  return (fromCrypto, toFiat, amount) => getQuoteFromService(quoteService, fromCrypto, toFiat, amount);
+  return (fromCrypto, toFiat, amount, network) =>
+    getQuoteFromService(quoteService, fromCrypto, toFiat, amount, network);
 }
