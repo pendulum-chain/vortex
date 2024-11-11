@@ -26,7 +26,11 @@ async function priceQuery(currencyCode, quoteCurrencyCode, baseCurrencyAmount, e
       throw new Error(`Could not get quote for ${currencyCode} to ${quoteCurrencyCode} from Moonpay: ${body.message}`);
     }
     const body = await response.json();
-    const { baseCurrencyAmount, baseCurrencyPrice, quoteCurrencyAmount, feeAmount } = body;
+    const { baseCurrencyAmount: receivedBaseCurrencyAmount, baseCurrencyPrice, quoteCurrencyAmount, feeAmount } = body;
+
+    if (baseCurrencyAmount !== receivedBaseCurrencyAmount) {
+      throw new Error('Received baseCurrencyAmount does not match the requested baseCurrencyAmount');
+    }
 
     return {
       cryptoPrice: baseCurrencyPrice,
