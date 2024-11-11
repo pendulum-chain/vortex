@@ -30,8 +30,8 @@ export const useSwapForm = () => {
 
     const initialValues = {
       ...defaultValues,
-      ...searchParamValues,
       ...storageValues,
+      ...searchParamValues,
     };
 
     const initialFromTokenIsValid = INPUT_TOKEN_CONFIG[initialValues.from as InputTokenType] !== undefined;
