@@ -99,7 +99,11 @@ async function setupStellarAccount(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetCode: outputToken.stellarAsset.code.string }),
+    body: JSON.stringify({
+      accountId: ephemeralAccountId,
+      maxTime,
+      assetCode: outputToken.stellarAsset.code.stringRaw,
+    }),
   });
 
   if (!response.ok) {
@@ -139,7 +143,7 @@ async function setupStellarAccount(
         Operation.changeTrust({
           source: ephemeralAccountId,
           asset: new Asset(
-            outputToken.stellarAsset.code.string.replace('\0', ''),
+            outputToken.stellarAsset.code.stringStellar,
             outputToken.stellarAsset.issuer.stellarEncoding,
           ),
         }),
@@ -191,7 +195,7 @@ async function createOfframpAndMergeTransaction(
       throw new Error(`Unexpected offramp memo type: ${memoType}`);
   }
 
-  const stellarAsset = new Asset(code.string.replace('\0', ''), issuer.stellarEncoding);
+  const stellarAsset = new Asset(code.stringStellar, issuer.stellarEncoding);
 
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added
@@ -246,7 +250,7 @@ async function createOfframpAndMergeTransaction(
       paymentData: sepResult,
       sequence,
       maxTime,
-      assetCode: code.string,
+      assetCode: code.stringRaw,
     }),
   });
 
