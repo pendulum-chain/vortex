@@ -21,7 +21,7 @@ const validateCreationInput = (req, res, next) => {
 };
 
 const validateQuoteInput = (req, res, next) => {
-  const { provider, fromCrypto, toFiat, amount } = req.query;
+  const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || SUPPORTED_PROVIDERS.indexOf(provider.toLowerCase()) === -1) {
     return res
@@ -39,6 +39,10 @@ const validateQuoteInput = (req, res, next) => {
 
   if (!amount) {
     return res.status(400).json({ error: 'Missing amount parameter' });
+  }
+
+  if (!network) {
+    return res.status(400).json({ error: 'Missing network parameter' });
   }
 
   if (isNaN(parseFloat(amount))) {

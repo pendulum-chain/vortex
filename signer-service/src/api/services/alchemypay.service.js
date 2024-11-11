@@ -187,10 +187,20 @@ function priceQuery(crypto, fiat, amount, network, side) {
     });
 }
 
-exports.getQuoteFor = (fromCrypto, toFiat, amount) => {
-  const network = 'MATIC'; // see https://alchemypay.readme.io/docs/network-code
+// see https://alchemypay.readme.io/docs/network-code
+function getAlchemyPayNetworkCode(network) {
+  switch (network.toUpperCase()) {
+    case 'POLYGON':
+      return 'MATIC';
+    default:
+      return network;
+  }
+}
+
+exports.getQuoteFor = (fromCrypto, toFiat, amount, network) => {
+  const networkCode = getAlchemyPayNetworkCode(network);
   const side = 'SELL';
 
   // The currencies need to be in uppercase
-  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, network, side);
+  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, networkCode, side);
 };

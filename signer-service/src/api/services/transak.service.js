@@ -42,13 +42,24 @@ async function priceQuery(cryptoCurrency, fiatCurrency, cryptoAmount, network, i
   });
 }
 
-exports.getQuoteFor = (fromCrypto, toFiat, amount) => {
-  const network = 'polygon';
+// Helper function to get the network code for Transak. It seems like Transak just uses the commonly known network names
+// as the code for the network parameter in their API so we just return the network as is.
+function getTransakNetworkCode(network) {
+  switch (network.toUpperCase()) {
+    case 'POLYGON':
+      return 'polygon';
+    default:
+      return network;
+  }
+}
+
+exports.getQuoteFor = (fromCrypto, toFiat, amount, network) => {
+  const networkCode = getTransakNetworkCode(network);
   const side = 'SELL'; // We always sell our crypto for fiat
 
   // We assume the default payment method is used
   const paymentMethod = undefined;
 
   // The currencies need to be in uppercase
-  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, network, side, paymentMethod);
+  return priceQuery(fromCrypto.toUpperCase(), toFiat.toUpperCase(), amount, networkCode, side, paymentMethod);
 };

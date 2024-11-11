@@ -7,12 +7,12 @@ const moonpayService = require('../services/moonpay.service');
 exports.SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'];
 
 exports.getQuoteForProvider = async (req, res, next) => {
-  const { provider, fromCrypto, toFiat, amount } = req.query;
+  const { provider, fromCrypto, toFiat, amount, network } = req.query;
   try {
     switch (provider.toLowerCase()) {
       case 'alchemypay':
         try {
-          const alchemyPayQuote = await alchemyPayService.getQuoteFor(fromCrypto, toFiat, amount);
+          const alchemyPayQuote = await alchemyPayService.getQuoteFor(fromCrypto, toFiat, amount, network);
           return res.json(alchemyPayQuote);
         } catch (error) {
           // AlchemyPay's errors are not very descriptive, so we just return a generic error message
@@ -30,7 +30,7 @@ exports.getQuoteForProvider = async (req, res, next) => {
         }
       case 'transak':
         try {
-          const transakQuote = await transakService.getQuoteFor(fromCrypto, toFiat, amount);
+          const transakQuote = await transakService.getQuoteFor(fromCrypto, toFiat, amount, network);
           return res.json(transakQuote);
         } catch (error) {
           if (error.message === 'Token not supported') {
