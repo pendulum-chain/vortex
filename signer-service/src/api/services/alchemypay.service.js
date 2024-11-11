@@ -151,9 +151,7 @@ function priceQuery(crypto, fiat, amount, network, side) {
     body: sortedBody,
   };
 
-  const url = baseUrl + requestPath;
-
-  return fetch(url, request)
+  return fetch(requestUrl, request)
     .then(async (response) => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -167,16 +165,14 @@ function priceQuery(crypto, fiat, amount, network, side) {
 
       const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;
 
-      console.log('body.data', body.data);
-
-      const totalFee = (rampFee || 0) + (networkFee || 0);
+      const totalFee = (Number(rampFee) || 0) + (Number(networkFee) || 0);
       // According to a comment in the response sample [here](https://alchemypay.readme.io/docs/price-query#response-sample)
       // the `fiatQuantity` does not yet include the fees so we need to subtract them.
-      const fiatAmount = fiatQuantity - totalFee;
+      const fiatAmount = Number(fiatQuantity) - totalFee;
 
       return {
-        cryptoPrice,
-        cryptoAmount: amount,
+        cryptoPrice: Number(cryptoPrice),
+        cryptoAmount: Number(amount),
         fiatAmount,
         totalFee,
       };
