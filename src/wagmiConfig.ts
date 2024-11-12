@@ -1,4 +1,4 @@
-import { polygon } from '@reown/appkit/networks';
+import { AppKitNetwork, polygon } from '@reown/appkit/networks';
 import { createConfig, http } from 'wagmi';
 import { config } from './config';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
@@ -36,6 +36,7 @@ const wagmiAdapter = new WagmiAdapter({
 // 5. Create modal
 createAppKit({
   adapters: [wagmiAdapter],
+  // @ts-ignore
   networks,
   projectId,
   features: {
