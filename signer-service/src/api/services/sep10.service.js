@@ -36,18 +36,11 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
 
-  // we validate a challenge for a given nonce. From it we obtain the address and derive the memo
-  // we can then ensure that the memo is the same as the one we expect from the anchor challenge
-
-  let memo;
-  try {
-    memo = await getAndValidateMemo(nonce, userChallengeSignature);
-  } catch (e) {
-    throw new Error(`Could not verify signature or derive memo: ${e.message}`);
-  }
-
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
   const { homeDomain, clientDomainEnabled, memoEnabled } = TOKEN_CONFIG[outToken];
+
+  // Expected memo based on user's signature and nonce.
+  memo = await getAndValidateMemo(nonce, userChallengeSignature);
 
   const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== anchorSigningKey) {
@@ -58,7 +51,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   }
 
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
-  // memo field should be empty as we assume for the ephemeral case, or the corresponding evm address
+  // memo field should be empty for the ephemeral case, or the corresponding one based on evm address
   // derivation.
   if (transactionSigned.memo.value !== memo) {
     throw new Error('Memo does not match with specified user signature or address. Could not validate.');
@@ -71,8 +64,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
     throw new Error('The first operation should be manageData');
   }
 
-  // Only authorize a session that corresponds with the ephemeral client account
-  // TODO is this really an edge case? Obviously incorrenct, but security concern?
+  // clientPublicKey is either: the ephemeral, or the master account
   if (firstOp.source !== clientPublicKey) {
     throw new Error('First manageData operation must have the client account as the source');
   }

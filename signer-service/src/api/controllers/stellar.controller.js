@@ -65,15 +65,10 @@ exports.signSep10Challenge = async (req, res, next) => {
   } catch (error) {
     if (error.message.includes('Could not verify signature')) {
       // Distinguish between failed signature check and other errors.
-      try {
-        return res.status(401).json({
-          error: 'Signature validation failed.',
-          details: error.message,
-        });
-      } catch (error) {
-        console.error('Error in signSep10Challenge:', error);
-        return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });
-      }
+      return res.status(401).json({
+        error: 'Signature validation failed.',
+        details: error.message,
+      });
     }
 
     console.error('Error in signSep10Challenge:', error);

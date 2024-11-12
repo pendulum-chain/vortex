@@ -100,7 +100,6 @@ exports.sendStatusWithPk = async () => {
         fundingAccountKeypair.address,
         tokenConfig.pendulumCurrencyId,
       );
-      console.log(tokenBalanceResponse?.free?.toString());
 
       const tokenBalance = Big(tokenBalanceResponse?.free?.toString() ?? '0');
       const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
