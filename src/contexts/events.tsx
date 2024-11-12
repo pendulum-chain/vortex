@@ -1,9 +1,10 @@
 import { createContext } from 'preact';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
+import * as Sentry from '@sentry/react';
 import { useAccount } from 'wagmi';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
-import * as Sentry from '@sentry/react';
+
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,6 +37,7 @@ export interface ClickDetailsEvent {
 export interface WalletConnectEvent {
   event: 'wallet_connect';
   wallet_action: 'connect' | 'disconnect' | 'change';
+  account_address: string;
 }
 
 interface OfframpingParameters {
@@ -81,6 +83,12 @@ export interface ClickSupportEvent {
   transaction_status: 'success' | 'failure';
 }
 
+export interface NetworkChangeEvent {
+  event: 'network_change';
+  from_network: number;
+  to_network: number;
+}
+
 export interface FormErrorEvent {
   event: 'form_error';
   error_message:
@@ -101,15 +109,16 @@ export type TrackableEvent =
   | EmailSubmissionEvent
   | SigningRequestedEvent
   | TransactionSignedEvent
-  | ProgressEvent;
+  | ProgressEvent
+  | NetworkChangeEvent;
 
 type EventType = TrackableEvent['event'];
 
 type UseEventsContext = ReturnType<typeof useEvents>;
 const useEvents = () => {
-  const { address } = useAccount();
-
+  const { address, chainId } = useAccount();
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
+  const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
   const trackedEventTypes = useRef<Set<EventType>>(new Set());
@@ -145,10 +154,26 @@ const useEvents = () => {
   }, []);
 
   useEffect(() => {
+    if (!chainId) return;
+
+    if (previousChainId.current === undefined) {
+      previousChainId.current = chainId;
+      // This means we are in the first render, so we don't want to track the event
+      return;
+    }
+
+    trackEvent({
+      event: 'network_change',
+      from_network: previousChainId.current,
+      to_network: chainId,
+    });
+
+    previousChainId.current = chainId;
+  }, [chainId, trackEvent]);
+
+  useEffect(() => {
     const wasConnected = previousAddress.current !== undefined;
     const isConnected = address !== undefined;
-
-    previousAddress.current = address;
 
     // set sentry user as wallet address
     if (address) {
@@ -160,11 +185,20 @@ const useEvents = () => {
     }
 
     if (!isConnected) {
-      trackEvent({ event: 'wallet_connect', wallet_action: 'disconnect' });
+      trackEvent({
+        event: 'wallet_connect',
+        wallet_action: 'disconnect',
+        account_address: previousAddress.current || '',
+      });
     } else {
-      trackEvent({ event: 'wallet_connect', wallet_action: wasConnected ? 'change' : 'connect' });
+      trackEvent({
+        event: 'wallet_connect',
+        wallet_action: wasConnected ? 'change' : 'connect',
+        account_address: address,
+      });
     }
 
+    previousAddress.current = address;
     userClickedState.current = false;
     // Important NOT to add userClicked to the dependencies array, otherwise logic will not work.
   }, [address, trackEvent, userClickedState]);
