@@ -22,6 +22,8 @@ import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
+import { writeContract } from '@wagmi/core';
+import erc20ABI from '../contracts/ERC20';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -111,7 +113,20 @@ export const useMainProcess = () => {
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
-    (executionInput: ExecutionInput) => {
+    async (executionInput: ExecutionInput) => {
+      switchChain({ chainId: polygon.id });
+
+      const approvalHash = await writeContract(wagmiConfig, {
+        abi: erc20ABI,
+        address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+        functionName: 'approve',
+        args: ['0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', '1000'],
+      });
+
+      console.log('approvalHash', approvalHash);
+      setIsInitiating(false);
+      return;
+
       const { inputTokenType, outputTokenType, amountInUnits, offrampAmount } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
