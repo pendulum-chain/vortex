@@ -208,7 +208,7 @@ export const sep10 = async (
   const { token } = await jwt.json();
   // print the ephemeral secret, for testing
   renderEvent(
-    `Unique recovery code (Please keep safe in case something fails): ${'testing master account'}`,
+    `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
     EventStatus.Waiting,
   );
   return { token, sep10Account };

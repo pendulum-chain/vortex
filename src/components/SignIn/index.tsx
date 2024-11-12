@@ -9,8 +9,6 @@ interface SignInModalProps {
 }
 
 export const SignInModal: FC<SignInModalProps> = ({ requiresSign, closeModal, handleSignIn }) => {
-  const { address } = useAccount();
-
   if (!requiresSign) {
     return null;
   }

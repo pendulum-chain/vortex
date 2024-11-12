@@ -92,7 +92,7 @@ export function useSiweSignature(address?: `0x${string}`) {
       signPromiseRef.current = null;
     }
     setRequiresSign(false);
-  }, []);
+  }, [setRequiresSign]);
 
   const checkAndWaitForSignature = useCallback(async (): Promise<SiweSignatureData> => {
     const stored = checkStoredSignature();
