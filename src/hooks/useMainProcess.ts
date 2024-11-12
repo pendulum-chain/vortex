@@ -34,12 +34,12 @@ export interface ExecutionInput {
 
 interface UseMainProcessProps {
   checkAndWaitForSignature: () => Promise<SiweSignatureData>;
-  forceRefreshSiweSignature: () => Promise<SiweSignatureData>;
+  forceRefreshAndWaitForSignature: () => Promise<SiweSignatureData>;
 }
 
 type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
 
-export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshSiweSignature }: UseMainProcessProps) => {
+export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitForSignature }: UseMainProcessProps) => {
   // EXAMPLE mocking states
 
   // Approval already performed (scenario: service shut down after sending approval but before getting it's confirmation)
@@ -150,7 +150,7 @@ export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshSiweSigna
             outputTokenType,
             address,
             checkAndWaitForSignature,
-            forceRefreshSiweSignature,
+            forceRefreshAndWaitForSignature,
             addEvent,
           );
 

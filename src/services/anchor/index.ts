@@ -128,7 +128,7 @@ export const sep10 = async (
   outputToken: OutputTokenType,
   address: `0x${string}` | undefined,
   checkAndWaitForSignature: () => Promise<SiweSignatureData>,
-  forceRefreshSiweSignature: () => Promise<SiweSignatureData>,
+  forceRefreshAndWaitForSignature: () => Promise<SiweSignatureData>,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ token: string; sep10Account: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -175,9 +175,9 @@ export const sep10 = async (
     maybeNonce = signatureData.nonce;
     maybeChallengeSignature = signatureData.signature;
   }
-  // sign both for client_domain + an extra signature for Anclap workaround
+  // sign for client_domain + an signature for memo
   const { masterClientSignature, clientSignature, clientPublic } = await sep10SignaturesWithLoginRefresh(
-    forceRefreshSiweSignature,
+    forceRefreshAndWaitForSignature,
     {
       challengeXDR: transactionSigned.toXDR(),
       outToken: outputToken,
