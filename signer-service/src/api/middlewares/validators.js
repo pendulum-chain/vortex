@@ -155,6 +155,27 @@ const validateSep10Input = (req, res, next) => {
   next();
 };
 
+const validateSiweCreate = (req, res, next) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) {
+    return res.status(400).json({ error: 'Missing address: walletAddress' });
+  }
+  next();
+};
+
+const validateSiweValidate = (req, res, next) => {
+  const { nonce, signature } = req.body;
+  if (!signature) {
+    return res.status(400).json({ error: 'Missing signature: signature' });
+  }
+
+  if (!nonce) {
+    return res.status(400).json({ error: 'Missing initial nonce: nonce' });
+  }
+
+  next();
+};
+
 module.exports = {
   validateChangeOpInput,
   validateQuoteInput,
@@ -166,4 +187,6 @@ module.exports = {
   validateRatingInput,
   validateExecuteXCM,
   validateSep10Input,
+  validateSiweCreate,
+  validateSiweValidate,
 };
