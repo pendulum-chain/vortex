@@ -3,12 +3,12 @@ const { TransactionBuilder, Networks } = require('stellar-sdk');
 const { fetchTomlValues } = require('../helpers/anchors');
 
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
-const { CLIENT_SECRET } = require('../../constants/constants');
+const { CLIENT_DOMAIN_SECRET } = require('../../constants/constants');
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => {
-  const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_SECRET);
+  const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
   const { homeDomain, clientDomainEnabled } = TOKEN_CONFIG[outToken];

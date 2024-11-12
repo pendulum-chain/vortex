@@ -8,7 +8,7 @@ const {
   FUNDING_SECRET,
   PENDULUM_FUNDING_SEED,
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  CLIENT_SECRET,
+  CLIENT_DOMAIN_SECRET,
 } = require('./constants/constants');
 
 //stop the application if the funding secret key is not set
@@ -29,8 +29,8 @@ if (!MOONBEAM_EXECUTOR_PRIVATE_KEY) {
   process.exit(1);
 }
 
-if (!CLIENT_SECRET) {
-  logger.error('CLIENT_SECRET not set in the environment variables');
+if (!CLIENT_DOMAIN_SECRET) {
+  logger.error('CLIENT_DOMAIN_SECRET not set in the environment variables');
   process.exit(1);
 }
 
