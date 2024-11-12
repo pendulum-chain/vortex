@@ -24,6 +24,7 @@ import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
 import { writeContract } from '@wagmi/core';
 import erc20ABI from '../contracts/ERC20';
+import { Keypair } from 'stellar-sdk';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -127,7 +128,7 @@ export const useMainProcess = () => {
       setIsInitiating(false);
       return;
 
-      const { inputTokenType, outputTokenType, amountInUnits, offrampAmount } = executionInput;
+      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
         setIsInitiating(false);
@@ -142,21 +143,22 @@ export const useMainProcess = () => {
         trackEvent({
           event: 'transaction_confirmation',
           from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
-          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
+          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.stringRaw,
           from_amount: amountInUnits,
           to_amount: offrampAmount.toFixed(2, 0),
         });
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
+          const sep10Account = Keypair.fromSecret(stellarEphemeralSecret).publicKey();
 
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          const sep10Token = await sep10(tomlValues, stellarEphemeralSecret, addEvent);
+          const sep10token = await sep10(tomlValues, stellarEphemeralSecret, outputTokenType, addEvent);
 
           const anchorSessionParams = {
-            token: sep10Token,
+            token: sep10token,
             tomlValues: tomlValues,
             tokenConfig: outputToken,
             offrampAmount: offrampAmount.toFixed(2, 0),
@@ -168,7 +170,7 @@ export const useMainProcess = () => {
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams);
+            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();
@@ -210,7 +212,7 @@ export const useMainProcess = () => {
     trackEvent({
       event: 'kyc_started',
       from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
-      to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
+      to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.stringRaw,
       from_amount: executionInputState.amountInUnits,
       to_amount: executionInputState.offrampAmount.toFixed(2, 0),
     });
@@ -272,6 +274,8 @@ export const useMainProcess = () => {
   }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
+    if (wagmiConfig.state.status !== 'connected') return;
+
     (async () => {
       const nextState = await advanceOfframpingState(offrampingState, {
         renderEvent: addEvent,
@@ -282,7 +286,13 @@ export const useMainProcess = () => {
 
       if (offrampingState !== nextState) updateHookStateFromState(nextState);
     })();
-  }, [offrampingState, updateHookStateFromState, trackEvent, wagmiConfig]);
+  }, [
+    offrampingState,
+    updateHookStateFromState,
+    trackEvent,
+    wagmiConfig,
+    wagmiConfig.state.status, // wagmiConfig is a mutable object so we need to list wagmiConfig.state.status here
+  ]);
 
   return {
     handleOnSubmit,

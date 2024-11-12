@@ -2,6 +2,11 @@ const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 const { RATING_SHEET_HEADER_VALUES } = require('../controllers/rating.controller');
+const {
+  SUPPORTED_PROVIDERS,
+  SUPPORTED_CRYPTO_CURRENCIES,
+  SUPPORTED_FIAT_CURRENCIES,
+} = require('../controllers/quote.controller');
 
 const validateCreationInput = (req, res, next) => {
   const { accountId, maxTime, assetCode } = req.body;
@@ -16,6 +21,42 @@ const validateCreationInput = (req, res, next) => {
   if (typeof maxTime !== 'number') {
     return res.status(400).json({ error: 'maxTime must be a number' });
   }
+  next();
+};
+
+const validateQuoteInput = (req, res, next) => {
+  const { provider, fromCrypto, toFiat, amount, network } = req.query;
+
+  if (!provider || SUPPORTED_PROVIDERS.indexOf(provider.toLowerCase()) === -1) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid provider. Supported providers are: ' + SUPPORTED_PROVIDERS.join(', ') });
+  }
+
+  if (!fromCrypto || SUPPORTED_CRYPTO_CURRENCIES.indexOf(fromCrypto.toLowerCase()) === -1) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid fromCrypto. Supported currencies are: ' + SUPPORTED_CRYPTO_CURRENCIES.join(', ') });
+  }
+
+  if (!toFiat || SUPPORTED_FIAT_CURRENCIES.indexOf(toFiat.toLowerCase()) === -1) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid toFiat. Supported currencies are: ' + SUPPORTED_FIAT_CURRENCIES.join(', ') });
+  }
+
+  if (!amount) {
+    return res.status(400).json({ error: 'Missing amount parameter' });
+  }
+
+  if (!network) {
+    return res.status(400).json({ error: 'Missing network parameter' });
+  }
+
+  if (isNaN(parseFloat(amount))) {
+    return res.status(400).json({ error: 'Invalid amount parameter. Not a number.' });
+  }
+
   next();
 };
 
@@ -98,8 +139,25 @@ const validatePostSwapSubsidizationInput = (req, res, next) => {
   next();
 };
 
+const validateSep10Input = (req, res, next) => {
+  const { challengeXDR, outToken, clientPublicKey } = req.body;
+  if (!challengeXDR) {
+    return res.status(400).json({ error: 'Missing Anchor challenge: challengeXDR' });
+  }
+
+  if (!outToken) {
+    return res.status(400).json({ error: 'Missing offramp token identifier: outToken' });
+  }
+
+  if (!clientPublicKey) {
+    return res.status(400).json({ error: 'Missing Stellar ephemeral public key: clientPublicKey' });
+  }
+  next();
+};
+
 module.exports = {
   validateChangeOpInput,
+  validateQuoteInput,
   validateCreationInput,
   validatePreSwapSubsidizationInput,
   validatePostSwapSubsidizationInput,
@@ -107,4 +165,5 @@ module.exports = {
   validateEmailInput,
   validateRatingInput,
   validateExecuteXCM,
+  validateSep10Input,
 };
