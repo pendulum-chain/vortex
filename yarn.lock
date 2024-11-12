@@ -3948,9 +3948,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rainbow-me/rainbowkit@npm:^2.1.7":
-  version: 2.1.7
-  resolution: "@rainbow-me/rainbowkit@npm:2.1.7"
+"@rainbow-me/rainbowkit@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@rainbow-me/rainbowkit@npm:2.2.0"
   dependencies:
     "@vanilla-extract/css": "npm:1.15.5"
     "@vanilla-extract/dynamic": "npm:2.1.2"
@@ -3965,7 +3965,7 @@ __metadata:
     react-dom: ">=18"
     viem: 2.x
     wagmi: ^2.9.0
-  checksum: 10/759187003cb33173bba01cafd5205c59df9a3dcc30a454dfc2a9234a35820fcf716ec054ff88abb294a39d4f3419cfd6f73a52c03a018ccc458567a6e33910ad
+  checksum: 10/5848d39c2b34b533481ed636e44de2cde9d25cbe3fc5bebd77ce1e60ebddcb5cbfc3bfc3ecbc93a74c0fc8ddff4a4b098e2174b6a35a45231a0351e54ccd3ed4
   languageName: node
   linkType: hard
 
@@ -16583,7 +16583,7 @@ __metadata:
     "@polkadot/util": "npm:^13.1.1"
     "@polkadot/util-crypto": "npm:^13.1.1"
     "@preact/preset-vite": "npm:^2.9.1"
-    "@rainbow-me/rainbowkit": "npm:^2.1.7"
+    "@rainbow-me/rainbowkit": "npm:^2.2.0"
     "@sentry/react": "npm:^8.36.0"
     "@sentry/vite-plugin": "npm:^2.22.6"
     "@talismn/connect-components": "npm:^1.1.8"

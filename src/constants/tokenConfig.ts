@@ -12,7 +12,7 @@ export interface InputTokenDetails {
   decimals: number;
 }
 
-export type InputTokenType = 'usdc' | 'usdce';
+export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 
 export interface Fiat {
   assetIcon: AssetIconType;
@@ -60,6 +60,17 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
       pendulumAssetSymbol: 'USDC.axl',
     },
     polygonAssetIcon: 'polygonUSDC',
+    decimals: 6,
+  },
+  usdt: {
+    assetSymbol: 'USDT',
+    erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
+    axelarEquivalent: {
+      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
+      pendulumCurrencyId: { XCM: 12 },
+      pendulumAssetSymbol: 'USDC.axl',
+    },
+    polygonAssetIcon: 'polygonUSDT',
     decimals: 6,
   },
 };
