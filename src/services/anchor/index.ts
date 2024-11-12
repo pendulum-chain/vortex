@@ -3,6 +3,7 @@ import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
 import { SiweSignatureData } from '../../hooks/useSignChallenge';
+import { keccak256 } from 'viem/utils';
 
 import { config } from '../../config';
 import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
@@ -63,6 +64,12 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
+//A memo derivation. TODO: Secure? how to check for collisions?
+async function deriveMemoFromAddress(address: `0x${string}`) {
+  const hash = keccak256(address);
+  return BigInt(hash).toString().slice(0, 15);
+}
+
 // Return the URLSearchParams and the account (master/omnibus or ephemeral) that was used for SEP-10
 async function getUrlParams(
   ephemeralAccount: string,
@@ -86,7 +93,7 @@ async function getUrlParams(
       urlParams: new URLSearchParams({
         account: sep10Account,
         client_domain: config.applicationClientDomain,
-        memo: deriveMemoFromAddress(address),
+        memo: await deriveMemoFromAddress(address),
       }),
       sep10Account,
     };
@@ -102,24 +109,15 @@ const sep10SignaturesWithLoginRefresh = async (
   args: SignerServiceSep10Request,
 ) => {
   try {
-    console.log(args);
     return await fetchSep10Signatures(args);
   } catch (error: any) {
-    console.log(error.message);
     if (error.message === 'Invalid signature') {
       let { nonce, signature } = await refreshFunction();
-      console.log('new signature', signature);
-      console.log('ne nonce ', nonce);
       let regreshedArgs = { ...args, maybeChallengeSignature: signature, maybeNonce: nonce };
       return await fetchSep10Signatures(regreshedArgs);
     }
     throw new Error('Could not fetch sep 10 signatures from backend');
   }
-};
-
-//TODO A very naive memo derivation for testing. NOT SECURE
-const deriveMemoFromAddress = (address: `0x${string}`) => {
-  return address.slice(5, 15).replace(/\D/g, '');
 };
 
 export const sep10 = async (
@@ -194,7 +192,6 @@ export const sep10 = async (
   if (!usesMemo) {
     transactionSigned.sign(ephemeralKeys);
   } else {
-    console.log(sep10Account);
     transactionSigned.addSignature(sep10Account, masterClientSignature);
   }
 

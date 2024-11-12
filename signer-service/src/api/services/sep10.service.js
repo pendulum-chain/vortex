@@ -2,11 +2,17 @@ const { Keypair } = require('stellar-sdk');
 const { TransactionBuilder, Networks } = require('stellar-sdk');
 const { fetchTomlValues } = require('../helpers/anchors');
 const { verifySiweMessage } = require('./siwe.service');
+const { keccak256 } = require('viem/utils');
 
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
-const { SEP10_MASTER_SECRET, CLIENT_SECRET } = require('../../constants/constants');
+const { SEP10_MASTER_SECRET, CLIENT_DOMAIN_SECRET } = require('../../constants/constants');
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
+
+async function deriveMemoFromAddress(address) {
+  const hash = keccak256(address);
+  return BigInt(hash).toString().slice(0, 15);
+}
 
 // we validate a challenge for a given nonce. From it we obtain the address and derive the memo
 // we can then ensure that the memo is the same as the one we expect from the anchor challenge
@@ -22,17 +28,13 @@ const getAndValidateMemo = async (nonce, userChallengeSignature) => {
     throw new Error(`Could not verify signature: ${e.message}`);
   }
 
-  const memo = deriveMemoFromAddress(message.address);
+  const memo = await deriveMemoFromAddress(message.address);
   return memo;
-};
-
-const deriveMemoFromAddress = (address) => {
-  return address.slice(5, 15).replace(/\D/g, '');
 };
 
 exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, userChallengeSignature, nonce) => {
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
-  const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_SECRET);
+  const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
 
   // we validate a challenge for a given nonce. From it we obtain the address and derive the memo
   // we can then ensure that the memo is the same as the one we expect from the anchor challenge
@@ -41,7 +43,6 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   try {
     memo = await getAndValidateMemo(nonce, userChallengeSignature);
   } catch (e) {
-    console.log(e);
     throw new Error(`Could not verify signature or derive memo: ${e.message}`);
   }
 
