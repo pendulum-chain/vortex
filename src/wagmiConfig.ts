@@ -30,6 +30,7 @@ const wagmiAdapter = new WagmiAdapter({
   networks,
   projectId,
   ssr: false,
+  transports,
 });
 
 // 5. Create modal
@@ -44,7 +45,8 @@ createAppKit({
     socials: false,
     swaps: false,
   },
-  featuredWalletIds: ['c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96'], // metamask
+  // metamask is somehow not always included
+  featuredWalletIds: ['c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96'],
   metadata: undefined, // Optional
 });
 
