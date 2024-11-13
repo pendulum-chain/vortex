@@ -203,7 +203,7 @@ export async function sep24First(
   sep10Account: string,
   outputToken: OutputTokenType,
 ): Promise<ISep24Intermediate> {
-  if (config.test.mockSep24) {
+  if (false) {
     return { url: 'https://www.example.com', id: '1234' };
   }
 
@@ -256,6 +256,7 @@ export async function sep24Second(
   const { sep24Url } = tomlValues;
 
   if (config.test.mockSep24) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     return {
       amount: sessionParams.offrampAmount,
       memo: 'MYK1722323689',
