@@ -24,10 +24,7 @@ export const SuccessPage = ({ finishOfframping, transactionId }: SuccessPageProp
           All set! The withdrawal has been sent to your bank.
         </h1>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <p className="text-center text-gray-400">
-          Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient
-          bank support.
-        </p>
+        <p className="text-center text-gray-400">Your funds will arrive in your bank account in a few minutes..</p>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         <EmailForm transactionId={transactionId} transactionSuccess={true} />
         <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={finishOfframping}>
