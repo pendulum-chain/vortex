@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
-import { useAccount } from 'wagmi';
+import { useAccount, useSwitchChain } from 'wagmi';
 import Big from 'big.js';
 
 import { LabeledInput } from '../../components/LabeledInput';
@@ -35,6 +35,11 @@ import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import { FeeComparison } from '../../components/FeeComparison';
+
+import { polygon } from 'wagmi/chains';
+import { writeContract } from '@wagmi/core';
+import erc20ABI from '../../contracts/ERC20';
+import { wagmiConfig } from '../../wagmiConfig';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -125,64 +130,22 @@ export const SwapPage = () => {
     tokenOutAmount.stableAmountInUnits != '' &&
     Big(tokenOutAmount.stableAmountInUnits).gt(Big(0));
 
-  function onConfirm(e: Event) {
+  const { switchChain } = useSwitchChain();
+
+  async function onConfirm(e: Event) {
     e.preventDefault();
 
-    if (!inputAmountIsStable) return;
-    if (!address) return; // Address must exist as this point.
+    switchChain({ chainId: polygon.id });
 
-    if (fromAmount === undefined) {
-      console.log('Input amount is undefined');
-      return;
-    }
+    const approvalHash = await writeContract(wagmiConfig, {
+      abi: erc20ABI,
+      address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+      functionName: 'approve',
+      args: ['0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', '1000'],
+    });
 
-    const tokenOutAmountData = tokenOutAmount.data;
-    if (!tokenOutAmountData) {
-      console.log('Output amount is undefined');
-      return;
-    }
-
-    const preciseQuotedAmountOut = tokenOutAmountData.preciseQuotedAmountOut;
-
-    // test the route for starting token, then proceed
-    // will disable the confirm button
-    setIsInitiating(true);
-
-    const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = INPUT_TOKEN_CONFIG[from];
-
-    // both route and stellar vault checks must be valid to proceed
-    const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
-      .round(2, 0)
-      .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
-    const expectedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
-
-    const inputAmountBig = Big(fromAmount);
-    const inputAmountBigMargin = inputAmountBig.mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN);
-    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBigMargin, inputToken.decimals).toFixed();
-
-    Promise.all([
-      getVaultsForCurrency(
-        api!,
-        outputToken.stellarAsset.code.hex,
-        outputToken.stellarAsset.issuer.hex,
-        expectedRedeemAmountRaw,
-      ),
-      testRoute(fromToken, inputAmountRaw, address!), // Address is both sender and receiver (in different chains)
-    ])
-      .then(() => {
-        console.log('Initial checks completed. Starting process..');
-        handleOnSubmit({
-          inputTokenType: from as InputTokenType,
-          outputTokenType: to as OutputTokenType,
-          amountInUnits: fromAmountString,
-          offrampAmount: tokenOutAmountData.roundedDownQuotedAmountOut,
-        });
-      })
-      .catch((_error) => {
-        setIsInitiating(false);
-        setInitializeFailed(true);
-      });
+    console.log('approvalHash', approvalHash);
+    setIsInitiating(false);
   }
 
   useEffect(() => {
@@ -408,7 +371,7 @@ export const SwapPage = () => {
           ) : (
             <SwapSubmitButton
               text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+              disabled={false}
               pending={isInitiating || offrampingStarted || offrampingState !== undefined}
             />
           )}

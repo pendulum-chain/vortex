@@ -115,19 +115,6 @@ export const useMainProcess = () => {
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     async (executionInput: ExecutionInput) => {
-      switchChain({ chainId: polygon.id });
-
-      const approvalHash = await writeContract(wagmiConfig, {
-        abi: erc20ABI,
-        address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
-        functionName: 'approve',
-        args: ['0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', '1000'],
-      });
-
-      console.log('approvalHash', approvalHash);
-      setIsInitiating(false);
-      return;
-
       const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
