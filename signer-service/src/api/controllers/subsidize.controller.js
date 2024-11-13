@@ -4,7 +4,7 @@ const Big = require('big.js');
 
 const { PENDULUM_WSS, PENDULUM_FUNDING_SEED } = require('../../constants/constants');
 
-const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+const { TOKEN_CONFIG, getPaddedAssetCode } = require('../../constants/tokenConfig');
 
 const TOKEN_TO_SWAP = 'usdc.axl';
 
@@ -40,7 +40,7 @@ exports.subsidizePostSwap = async (req, res) => {
     const { address, amountRaw, token } = req.body;
     console.log('Subsidize post swap', address, amountRaw, token);
 
-    const { assetCodeRaw, assetIssuer, maximumSubsidyAmountRaw } = TOKEN_CONFIG[token];
+    const { assetCode, assetIssuer, maximumSubsidyAmountRaw } = TOKEN_CONFIG[token];
 
     if (Big(amountRaw).gt(Big(maximumSubsidyAmountRaw))) {
       throw new Error('Amount exceeds maximum subsidy amount');
@@ -49,7 +49,7 @@ exports.subsidizePostSwap = async (req, res) => {
     const assetIssuerHex = `0x${Keypair.fromPublicKey(assetIssuer).rawPublicKey().toString('hex')}`;
     const pendulumCurrencyId = {
       Stellar: {
-        AlphaNum4: { code: assetCodeRaw, issuer: assetIssuerHex },
+        AlphaNum4: { code: getPaddedAssetCode(assetCode), issuer: assetIssuerHex },
       },
     };
 

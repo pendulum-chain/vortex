@@ -271,7 +271,7 @@ export async function prepareNablaSwapTransaction(
     // Try swap
     try {
       renderEvent(
-        `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.stringRaw} `,
+        `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
         EventStatus.Waiting,
       );
 
@@ -336,7 +336,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   try {
     renderEvent(
-      `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.stringRaw} `,
+      `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
       EventStatus.Waiting,
     );
 

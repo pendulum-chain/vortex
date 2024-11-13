@@ -132,7 +132,7 @@ const validatePostSwapSubsidizationInput = (req, res, next) => {
   }
 
   const tokenConfig = TOKEN_CONFIG[token];
-  if (tokenConfig === undefined || tokenConfig.assetCodeRaw === undefined || tokenConfig.assetIssuer === undefined) {
+  if (tokenConfig === undefined || tokenConfig.assetCode === undefined || tokenConfig.assetIssuer === undefined) {
     return res.status(400).json({ error: 'Invalid "token" parameter' });
   }
 
