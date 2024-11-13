@@ -40,7 +40,7 @@ exports.subsidizePostSwap = async (req, res) => {
     const { address, amountRaw, token } = req.body;
     console.log('Subsidize post swap', address, amountRaw, token);
 
-    const { assetCode, assetIssuer, maximumSubsidyAmountRaw } = TOKEN_CONFIG[token];
+    const { assetCodeRaw, assetIssuer, maximumSubsidyAmountRaw } = TOKEN_CONFIG[token];
 
     if (Big(amountRaw).gt(Big(maximumSubsidyAmountRaw))) {
       throw new Error('Amount exceeds maximum subsidy amount');
@@ -49,7 +49,7 @@ exports.subsidizePostSwap = async (req, res) => {
     const assetIssuerHex = `0x${Keypair.fromPublicKey(assetIssuer).rawPublicKey().toString('hex')}`;
     const pendulumCurrencyId = {
       Stellar: {
-        AlphaNum4: { code: assetCode.padEnd(4, '\0'), issuer: assetIssuerHex },
+        AlphaNum4: { code: assetCodeRaw.padEnd(4, '\0'), issuer: assetIssuerHex },
       },
     };
 

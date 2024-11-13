@@ -46,7 +46,7 @@ const TOKEN_CONFIG = {
 
 function getTokenConfigByAssetCode(cofig, assetCode) {
   for (const key in cofig) {
-    if (cofig[key].assetCode === assetCode) {
+    if (cofig[key].assetCodeRaw === assetCode) {
       return cofig[key];
     }
   }
