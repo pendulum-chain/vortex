@@ -7,6 +7,7 @@ const {
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
+const { SlackNotifier } = require('./slack.service');
 
 // Derive funding pk
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
@@ -133,14 +134,19 @@ async function buildPaymentAndMergeTx(
 }
 
 async function sendStatusWithPk() {
+  const slackNotifier = new SlackNotifier();
+  let stellarBalance = null;
+
   try {
     // ensure the funding account exists
-    const horizonServer = new Horizon.Server(HORIZON_URL);
-    let account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
-    let stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
+    const account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
+    stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
 
     // ensure we have at the very least 10 XLM in the account
     if (Number(stellarBalance.balance) < STELLAR_FUNDING_AMOUNT_UNITS) {
+      slackNotifier.sendMessage({
+        text: `Current balance of funding account is ${stellarBalance.balance} XLM please charge this account ${FUNDING_PUBLIC_KEY}.`,
+      });
       return { status: false, public: FUNDING_PUBLIC_KEY };
     }
 
