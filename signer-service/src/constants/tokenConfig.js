@@ -44,10 +44,10 @@ const TOKEN_CONFIG = {
   },
 };
 
-function getTokenConfigByAssetCode(cofig, assetCode) {
-  for (const key in cofig) {
-    if (cofig[key].assetCodeRaw === assetCode) {
-      return cofig[key];
+function getTokenConfigByAssetCode(config, assetCode) {
+  for (const key in config) {
+    if (config[key].assetCodeRaw === assetCode) {
+      return config[key];
     }
   }
   return undefined;
