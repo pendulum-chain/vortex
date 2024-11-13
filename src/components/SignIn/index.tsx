@@ -1,11 +1,10 @@
 import { FC } from 'react';
-import { useAccount } from 'wagmi';
 import { Modal } from 'react-daisyui';
 
 interface SignInModalProps {
   requiresSign: boolean;
-  closeModal: any;
-  handleSignIn: any;
+  closeModal: () => void;
+  handleSignIn: () => void;
 }
 
 export const SignInModal: FC<SignInModalProps> = ({ requiresSign, closeModal, handleSignIn }) => {

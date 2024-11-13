@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSignMessage } from 'wagmi';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
@@ -16,7 +16,7 @@ export function useSiweSignature(address?: `0x${string}`) {
 
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
-  const signPromiseRef = useRef<{
+  const [signPromise, setSignPromise] = useState<{
     resolve: (data: SiweSignatureData) => void;
     reject: (reason: Error) => void;
   } | null>(null);
@@ -40,13 +40,13 @@ export function useSiweSignature(address?: `0x${string}`) {
 
   const signMessage = useCallback((): Promise<SiweSignatureData> => {
     return new Promise((resolve, reject) => {
-      signPromiseRef.current = { resolve, reject };
+      setSignPromise({ resolve, reject });
       setRequiresSign(true);
     });
-  }, [setRequiresSign]);
+  }, [setRequiresSign, setSignPromise]);
 
   const handleSign = useCallback(async () => {
-    if (!address || !signPromiseRef.current) return;
+    if (!address || !signPromise) return;
 
     try {
       const response = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
@@ -76,23 +76,23 @@ export function useSiweSignature(address?: `0x${string}`) {
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
-      signPromiseRef.current.resolve(signatureData);
+      signPromise.resolve(signatureData);
     } catch (error) {
-      signPromiseRef.current.reject(new Error('Signing failed'));
+      signPromise.reject(new Error('Signing failed'));
     } finally {
       setRequiresSign(false);
-      signPromiseRef.current = null;
+      setSignPromise(null);
     }
-  }, [address, signMessageAsync, storageKey]);
+  }, [address, storageKey, signMessageAsync, signPromise, setRequiresSign, setSignPromise]);
 
   // Handler for modal cancellation
   const handleCancel = useCallback(() => {
-    if (signPromiseRef.current) {
-      signPromiseRef.current.reject(new Error('User cancelled'));
-      signPromiseRef.current = null;
+    if (signPromise) {
+      signPromise.reject(new Error('User cancelled'));
+      setSignPromise(null);
     }
     setRequiresSign(false);
-  }, [setRequiresSign]);
+  }, [signPromise, setRequiresSign, setSignPromise]);
 
   const checkAndWaitForSignature = useCallback(async (): Promise<SiweSignatureData> => {
     const stored = checkStoredSignature();
@@ -106,12 +106,12 @@ export function useSiweSignature(address?: `0x${string}`) {
   }, [storageKey, signMessage]);
 
   // ask for signature on address change and on init
-  // useEffect(() => {
-  //   if (address) {
-  //     const stored = checkStoredSignature();
-  //     if (!stored) signMessage();
-  //   }
-  // }, [address, checkStoredSignature, signMessage]);
+  useEffect(() => {
+    if (address) {
+      const stored = checkStoredSignature();
+      if (!stored) signMessage();
+    }
+  }, [address, checkStoredSignature, signMessage]);
 
   return {
     requiresSign,

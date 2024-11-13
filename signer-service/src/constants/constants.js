@@ -9,6 +9,7 @@ const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = '10'; // 10 Subsidies considering maxim
 const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = '0x0004446021fe650c15fb0b2e046b39130e3bfe36';
 const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the new stellar ephemeral account created
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new pendulum ephemeral account created
+const DEFAULT_EXPIRATION_TIME_HOURS = 24;
 
 require('dotenv').config();
 
@@ -35,4 +36,5 @@ module.exports = {
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   SEP10_MASTER_SECRET,
   CLIENT_DOMAIN_SECRET,
+  DEFAULT_EXPIRATION_TIME_HOURS,
 };

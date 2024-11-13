@@ -167,7 +167,7 @@ export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitFo
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType, address);
+            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType);
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();
@@ -195,7 +195,15 @@ export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitFo
         }
       })();
     },
-    [offrampingStarted, offrampingState, switchChain, trackEvent, address],
+    [
+      offrampingStarted,
+      offrampingState,
+      switchChain,
+      trackEvent,
+      address,
+      checkAndWaitForSignature,
+      forceRefreshAndWaitForSignature,
+    ],
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {

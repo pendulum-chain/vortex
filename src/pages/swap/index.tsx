@@ -50,7 +50,7 @@ export const SwapPage = () => {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();

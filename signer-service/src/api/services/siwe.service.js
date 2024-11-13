@@ -1,6 +1,7 @@
 const siwe = require('siwe');
 const { createPublicClient, http } = require('viem');
 const { polygon } = require('viem/chains');
+const { DEFAULT_EXPIRATION_TIME_HOURS } = require('../../constants/constants');
 
 // Make constants on config
 const scheme = 'https';
@@ -22,7 +23,7 @@ exports.createAndSendSiweMessage = async (address) => {
     version: '1',
     chainId: polygon.id,
     nonce,
-    expirationTime: new Date(Date.now() + 360 * 60 * 1000).toISOString(),
+    expirationTime: new Date(Date.now() + DEFAULT_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).toISOString(), // Constructor in ms.
   });
   const preparedMessage = siweMessage.toMessage();
   siweMessagesMap.set(nonce, { siweMessage, address });

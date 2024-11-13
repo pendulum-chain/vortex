@@ -1,4 +1,4 @@
-import { Transaction, Keypair, Networks, Signer } from 'stellar-sdk';
+import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
@@ -110,11 +110,11 @@ const sep10SignaturesWithLoginRefresh = async (
 ) => {
   try {
     return await fetchSep10Signatures(args);
-  } catch (error: any) {
-    if (error.message === 'Invalid signature') {
-      let { nonce, signature } = await refreshFunction();
-      let regreshedArgs = { ...args, maybeChallengeSignature: signature, maybeNonce: nonce };
-      return await fetchSep10Signatures(regreshedArgs);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Invalid signature') {
+      const { nonce, signature } = await refreshFunction();
+      const refreshedArgs = { ...args, maybeChallengeSignature: signature, maybeNonce: nonce };
+      return await fetchSep10Signatures(refreshedArgs);
     }
     throw new Error('Could not fetch sep 10 signatures from backend');
   }
@@ -162,7 +162,7 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  let signatureData = await checkAndWaitForSignature();
+  const signatureData = await checkAndWaitForSignature();
   if (!signatureData) {
     throw new Error('Invalid stored challenge signature');
   }
@@ -218,7 +218,6 @@ export async function sep24First(
   sessionParams: IAnchorSessionParams,
   sep10Account: string,
   outputToken: OutputTokenType,
-  address: `0x${string}` | undefined,
 ): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
