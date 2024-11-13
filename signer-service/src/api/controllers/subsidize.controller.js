@@ -49,7 +49,7 @@ exports.subsidizePostSwap = async (req, res) => {
     const assetIssuerHex = `0x${Keypair.fromPublicKey(assetIssuer).rawPublicKey().toString('hex')}`;
     const pendulumCurrencyId = {
       Stellar: {
-        AlphaNum4: { code: assetCodeRaw.padEnd(4, '\0'), issuer: assetIssuerHex },
+        AlphaNum4: { code: assetCodeRaw, issuer: assetIssuerHex },
       },
     };
 
