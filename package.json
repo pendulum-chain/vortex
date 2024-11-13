@@ -37,6 +37,7 @@
     "@rainbow-me/rainbowkit": "^2.1.7",
     "@sentry/react": "^8.36.0",
     "@sentry/vite-plugin": "^2.22.6",
+    "@slack/web-api": "^7.7.0",
     "@talismn/connect-components": "^1.1.8",
     "@talismn/connect-wallets": "^1.2.5",
     "@tanstack/react-query": "^5.45.1",
