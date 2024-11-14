@@ -46,8 +46,12 @@ createAppKit({
     socials: false,
     swaps: false,
   },
-  // metamask is somehow not always included
-  featuredWalletIds: ['c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96'],
+  // Some wallets are not always shown. We can define them with their ID found [here](https://walletguide.walletconnect.network/)
+  featuredWalletIds: [
+    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // metamask
+    'a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393', // phantom
+    '18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1', // rabby
+  ],
   metadata: undefined, // Optional
 });
 
