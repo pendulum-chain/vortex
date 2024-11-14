@@ -50,6 +50,8 @@ function getCryptoCode(fromCrypto) {
     fromCrypto.toLowerCase() === 'usdce'
   ) {
     return 'usdc_polygon';
+  } else if (fromCrypto.toLowerCase() === 'usdt') {
+    return 'usdt';
   }
 
   return fromCrypto.toLowerCase();

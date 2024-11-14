@@ -6,7 +6,7 @@ const moonpayService = require('../services/moonpay.service');
 
 exports.SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'];
 
-exports.SUPPORTED_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e'];
+exports.SUPPORTED_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'];
 
 exports.SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars'];
 
