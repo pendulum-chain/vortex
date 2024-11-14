@@ -19,7 +19,7 @@ export function ConnectWallet() {
   const { open } = useAppKit();
 
   // Check if the network selected in the wallet extension is enabled in our wagmi config
-  const isOnNetworkSupported = wagmiConfig.chains.find((chain) => chain.id === walletChainId) !== undefined;
+  const isOnSupportedNetwork = wagmiConfig.chains.find((chain) => chain.id === walletChainId) !== undefined;
 
   const ConnectButton = useMemo(() => {
     if (!isConnected) {
@@ -38,7 +38,7 @@ export function ConnectWallet() {
           <PlayCircleIcon className="w-5 group-hover:text-pink-600" />
         </button>
       );
-    } else if (!isOnNetworkSupported) {
+    } else if (!isOnSupportedNetwork) {
       return (
         <button
           onClick={() => {
