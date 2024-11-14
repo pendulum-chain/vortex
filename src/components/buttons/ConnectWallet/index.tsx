@@ -56,27 +56,25 @@ export function ConnectWallet() {
       );
     } else {
       return (
-        <>
-          <button
-            onClick={() => {
-              open({ view: 'Account' });
-              handleUserClickWallet();
-            }}
-            type="button"
-            className="btn-vortex-secondary btn rounded-3xl group"
-          >
-            <img src={accountBalanceWalletIcon} className="block group-hover:hidden" alt="wallet account button" />
-            <img
-              src={accountBalanceWalletIconPink}
-              className="hidden group-hover:block"
-              alt="wallet account button hovered"
-            />
-            <p className="hidden font-thin md:block ">{address ? trimAddress(address) : ''}</p>
-          </button>
-        </>
+        <button
+          onClick={() => {
+            open({ view: 'Account' });
+            handleUserClickWallet();
+          }}
+          type="button"
+          className="btn-vortex-secondary btn rounded-3xl group"
+        >
+          <img src={accountBalanceWalletIcon} className="block group-hover:hidden" alt="wallet account button" />
+          <img
+            src={accountBalanceWalletIconPink}
+            className="hidden group-hover:block"
+            alt="wallet account button hovered"
+          />
+          <p className="hidden font-thin md:block ">{address ? trimAddress(address) : ''}</p>
+        </button>
       );
     }
-  }, [address, handleUserClickWallet, open]);
+  }, [address, appkitNetwork, handleUserClickWallet, isConnected, isOnSupportedNetwork, open, switchNetwork]);
 
   return <div>{ConnectButton}</div>;
 }
