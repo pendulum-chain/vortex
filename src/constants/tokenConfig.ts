@@ -79,6 +79,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     },
     polygonAssetIcon: 'polygonUSDT',
     decimals: 6,
+    network: 'polygon',
   },
 };
 
