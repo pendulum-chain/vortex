@@ -99,7 +99,11 @@ async function setupStellarAccount(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ accountId: ephemeralAccountId, maxTime, assetCode: outputToken.stellarAsset.code.string }),
+    body: JSON.stringify({
+      accountId: ephemeralAccountId,
+      maxTime,
+      assetCode: outputToken.stellarAsset.code.string,
+    }),
   });
 
   if (!response.ok) {

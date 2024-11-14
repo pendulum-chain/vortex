@@ -24,6 +24,7 @@ import { useMainProcess } from '../../hooks/useMainProcess';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
+import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
 import { useEventsContext } from '../../contexts/events';
@@ -33,6 +34,7 @@ import { testRoute } from '../../services/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
+import { FeeComparison } from '../../components/FeeComparison';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -46,6 +48,7 @@ export const SwapPage = () => {
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
 
@@ -102,6 +105,8 @@ export const SwapPage = () => {
 
   const fromToken = INPUT_TOKEN_CONFIG[from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
+  const formToAmount = form.watch('toAmount');
+  const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
@@ -301,13 +306,17 @@ export const SwapPage = () => {
         }));
 
   const modals = (
-    <PoolSelectorModal
-      open={!!modalType}
-      onSelect={modalType === 'from' ? onFromChange : onToChange}
-      definitions={definitions}
-      selected={modalType === 'from' ? from : to}
-      onClose={() => setModalType(undefined)}
-    />
+    <>
+      <TermsAndConditions />
+      <PoolSelectorModal
+        open={!!modalType}
+        onSelect={modalType === 'from' ? onFromChange : onToChange}
+        definitions={definitions}
+        selected={modalType === 'from' ? from : to}
+        onClose={() => setModalType(undefined)}
+        isLoading={false}
+      />
+    </>
   );
 
   if (offrampingState?.phase === 'success') {
@@ -337,7 +346,7 @@ export const SwapPage = () => {
     <main ref={formRef}>
       <SigningBox step={signingPhase} />
       <form
-        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-12 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onConfirm}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
@@ -369,26 +378,51 @@ export const SwapPage = () => {
             </p>
           )}
         </section>
-        {firstSep24ResponseState?.url !== undefined ? (
-          // eslint-disable-next-line react/jsx-no-target-blank
-          <a
-            href={firstSep24ResponseState.url}
-            target="_blank"
-            rel="opener" //noopener forbids the use of postMessages.
-            className="w-full mt-5 btn-vortex-primary btn rounded-xl"
-            onClick={handleOnAnchorWindowOpen}
-            // open in a tinier window
+        <div className="flex mt-5 gap-3">
+          <button
+            className="grow btn-vortex-secondary btn"
+            disabled={!inputAmountIsStable}
+            onClick={(e) => {
+              e.preventDefault();
+              setShowCompareFees(!showCompareFees);
+              // Smooth scroll to bottom of page
+              setTimeout(() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              }, 300);
+            }}
           >
-            Continue with Partner
-          </a>
-        ) : (
-          <SwapSubmitButton
-            text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
-            pending={isInitiating || offrampingStarted || offrampingState !== undefined}
-          />
-        )}
+            Compare fees
+          </button>
+          {firstSep24ResponseState?.url !== undefined ? (
+            // eslint-disable-next-line react/jsx-no-target-blank
+            <a
+              href={firstSep24ResponseState.url}
+              target="_blank"
+              rel="opener" //noopener forbids the use of postMessages.
+              className="grow btn-vortex-primary btn rounded-xl"
+              onClick={handleOnAnchorWindowOpen}
+              // open in a tinier window
+            >
+              Continue with Partner
+            </a>
+          ) : (
+            <SwapSubmitButton
+              text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
+              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+              pending={isInitiating || offrampingStarted || offrampingState !== undefined}
+            />
+          )}
+        </div>
       </form>
+      {showCompareFees && fromToken && fromAmount && toToken && (
+        <FeeComparison
+          sourceAssetSymbol={fromToken.assetSymbol}
+          amount={fromAmount}
+          targetAssetSymbol={toToken.fiat.symbol}
+          vortexPrice={vortexPrice}
+          network={fromToken.network}
+        />
+      )}
     </main>
   );
 

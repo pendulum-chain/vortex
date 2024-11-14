@@ -1,5 +1,7 @@
 import { AssetIconType } from '../hooks/useGetIcon';
 
+export type NetworkType = 'polygon';
+
 export interface InputTokenDetails {
   assetSymbol: string;
   erc20AddressSourceChain: `0x${string}`;
@@ -10,6 +12,7 @@ export interface InputTokenDetails {
   };
   polygonAssetIcon: AssetIconType;
   decimals: number;
+  network: NetworkType;
 }
 
 export type InputTokenType = 'usdc' | 'usdce';
@@ -26,7 +29,7 @@ export interface OutputTokenDetails {
   stellarAsset: {
     code: {
       hex: string;
-      string: string;
+      string: string; // Stellar representation (3 or 4 letter code)
     };
     issuer: {
       hex: string;
@@ -38,6 +41,8 @@ export interface OutputTokenDetails {
   maxWithdrawalAmountRaw: string;
   erc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
+  offrampFeesFixedComponent?: number;
+  supportsClientDomain: boolean;
 }
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
@@ -50,6 +55,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     },
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
+    network: 'polygon',
   },
   usdce: {
     assetSymbol: 'USDC.e',
@@ -61,10 +67,11 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
     },
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
+    network: 'polygon',
   },
 };
 
-export type OutputTokenType = 'eurc';
+export type OutputTokenType = 'eurc' | 'ars';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
@@ -88,6 +95,32 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,
+    supportsClientDomain: true,
+  },
+  ars: {
+    tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
+    decimals: 12,
+    fiat: {
+      assetIcon: 'ars',
+      symbol: 'ARS',
+    },
+    stellarAsset: {
+      code: {
+        hex: '0x41525300',
+        string: 'ARS',
+      },
+      issuer: {
+        hex: '0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1',
+        stellarEncoding: 'GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS',
+      },
+    },
+    vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
+    erc20WrapperAddress: '6cNENXUqHUeEGSm4psQCeykZiLXJL9VzMQnvSoouyeEEoJpe',
+    minWithdrawalAmountRaw: '11000000000000', // 11 ARS
+    maxWithdrawalAmountRaw: '500000000000000000', // 500000 ARS
+    offrampFeesBasisPoints: 200, // 2%
+    offrampFeesFixedComponent: 10, // 10 ARS
+    supportsClientDomain: false,
   },
 };
 

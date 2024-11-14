@@ -3,9 +3,14 @@ const logger = require('./config/logger');
 const app = require('./config/express');
 require('dotenv').config();
 
-const { FUNDING_SECRET, PENDULUM_FUNDING_SEED, MOONBEAM_EXECUTOR_PRIVATE_KEY } = require('./constants/constants');
+const {
+  FUNDING_SECRET,
+  PENDULUM_FUNDING_SEED,
+  MOONBEAM_EXECUTOR_PRIVATE_KEY,
+  CLIENT_DOMAIN_SECRET,
+} = require('./constants/constants');
 
-// stop the application if the funding secret key is not set
+//stop the application if the funding secret key is not set
 if (!FUNDING_SECRET) {
   logger.error('FUNDING_SECRET not set in the environment variables');
   process.exit(1);
@@ -20,6 +25,11 @@ if (!PENDULUM_FUNDING_SEED) {
 // stop the application if the Moonbeam executor private key is not set
 if (!MOONBEAM_EXECUTOR_PRIVATE_KEY) {
   logger.error('MOONBEAM_EXECUTOR_PRIVATE_KEY not set in the environment variables');
+  process.exit(1);
+}
+
+if (!CLIENT_DOMAIN_SECRET) {
+  logger.error('CLIENT_DOMAIN_SECRET not set in the environment variables');
   process.exit(1);
 }
 

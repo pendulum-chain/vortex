@@ -24,14 +24,20 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
 }) => (
   <div
     className={
-      'flex pl-2 focus:outline-none input-ghost text-accent-content input-bordered input ' +
-      (rest.disabled ? 'opacity-50 input-disabled' : '')
+      'flex pl-2 focus:outline-none input-ghost text-accent-content' +
+      (rest.disabled ? ' opacity-50 input-disabled' : '') +
+      (rest.readOnly ? ' pr-4' : ' input-bordered input')
     }
   >
     <div className="flex items-center justify-between">
       <AssetButton assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
     </div>
 
-    <NumericInput register={registerInput} additionalStyle="text-right text-lg w-full" disableStyles={true} {...rest} />
+    <NumericInput
+      register={registerInput}
+      additionalStyle={'text-right text-lg w-full' + (rest.readOnly ? ' text-xl' : '')}
+      disableStyles={true}
+      {...rest}
+    />
   </div>
 );

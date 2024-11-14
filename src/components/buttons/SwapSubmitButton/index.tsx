@@ -1,11 +1,13 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { FC } from 'preact/compat';
+import { Spinner } from '../../Spinner';
 
 interface SwapSubmitButtonProps {
   text: string;
   disabled: boolean;
   pending: boolean;
 }
+
 export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => (
   <ConnectButton.Custom>
     {({ account, chain, openConnectModal, authenticationStatus, mounted }) => {
@@ -16,23 +18,19 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
       const showInDisabledState = disabled || pending;
 
       return (
-        <div>
+        <div className="grow">
           {(() => {
             if (!connected) {
               return (
-                <button
-                  onClick={openConnectModal}
-                  type="button"
-                  className="w-full mt-5 btn-vortex-primary btn rounded-xl"
-                >
+                <button onClick={openConnectModal} type="button" className="w-full btn-vortex-primary btn rounded-xl">
                   Connect Wallet
                 </button>
               );
             }
 
             return (
-              <button className="w-full mt-5 btn-vortex-primary btn" disabled={showInDisabledState}>
-                {pending && <span className="loading loading-spinner loading-sm"></span>}
+              <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
+                {pending && <Spinner />}
                 {text}
               </button>
             );

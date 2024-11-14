@@ -7,6 +7,7 @@ const storageRoutes = require('./storage.route');
 const emailRoutes = require('./email.route');
 const ratingRoutes = require('./rating.route');
 const subsidizeRoutes = require('./subsidize.route');
+const quoteRoutes = require('./quote.route');
 
 const router = express.Router({ mergeParams: true });
 const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../services/stellar.service');
@@ -34,6 +35,11 @@ router.get('/status', sendStatusWithPk);
  */
 // Don't show docs for now.
 // router.use("/docs", express.static("docs"));
+
+/**
+ * GET v1/quotes
+ */
+router.use('/quotes', quoteRoutes);
 
 /**
  * POST v1/stellar
