@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'preact/compat';
+import { useState, useEffect, useCallback, useRef, StateUpdater } from 'preact/compat';
 
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
@@ -30,6 +30,7 @@ export interface ExecutionInput {
   outputTokenType: OutputTokenType;
   amountInUnits: string;
   offrampAmount: Big;
+  setInitializeFailed: StateUpdater<boolean>;
 }
 
 interface UseMainProcessProps {
@@ -118,7 +119,7 @@ export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitFo
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     (executionInput: ExecutionInput) => {
-      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
+      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
         setIsInitiating(false);
@@ -181,6 +182,7 @@ export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitFo
               await fetchAndUpdateSep24Url();
             } catch (error) {
               console.error('Some error occurred finalizing the initial state of the offramping process', error);
+              setInitializeFailed(true);
               setOfframpingStarted(false);
               cleanSep24FirstVariables();
             }
@@ -190,6 +192,7 @@ export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitFo
           executeFinishInitialState().finally(() => setIsInitiating(false));
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
+          setInitializeFailed(true);
           setOfframpingStarted(false);
           setIsInitiating(false);
         }

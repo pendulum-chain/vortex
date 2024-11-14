@@ -182,6 +182,7 @@ export const SwapPage = () => {
           outputTokenType: to as OutputTokenType,
           amountInUnits: fromAmountString,
           offrampAmount: tokenOutAmountData.roundedDownQuotedAmountOut,
+          setInitializeFailed,
         });
       })
       .catch((_error) => {

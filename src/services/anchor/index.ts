@@ -162,14 +162,11 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  const signatureData = await checkAndWaitForSignature();
-  if (!signatureData) {
-    throw new Error('Invalid stored challenge signature');
-  }
   // undefined if not using memo
   let maybeNonce;
   let maybeChallengeSignature;
-  if (signatureData && usesMemo) {
+  if (usesMemo) {
+    const signatureData = await checkAndWaitForSignature();
     maybeNonce = signatureData.nonce;
     maybeChallengeSignature = signatureData.signature;
   }
