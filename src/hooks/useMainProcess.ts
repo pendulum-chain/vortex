@@ -22,8 +22,6 @@ import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
-import { writeContract } from '@wagmi/core';
-import erc20ABI from '../contracts/ERC20';
 import { Keypair } from 'stellar-sdk';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
@@ -114,7 +112,7 @@ export const useMainProcess = () => {
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
-    async (executionInput: ExecutionInput) => {
+    (executionInput: ExecutionInput) => {
       const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
