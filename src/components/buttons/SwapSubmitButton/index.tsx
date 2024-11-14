@@ -11,28 +11,26 @@ interface SwapSubmitButtonProps {
 export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => {
   const showInDisabledState = disabled || pending;
 
-  const { open, close } = useAppKit();
+  const { open: openWalletModal } = useAppKit();
 
-  const { address, isConnected, caipAddress, status } = useAppKitAccount();
+  const { isConnected } = useAppKitAccount();
+
+  if (!isConnected) {
+    return (
+      <div className="grow">
+        <button onClick={() => openWalletModal()} type="button" className="w-full btn-vortex-primary btn rounded-xl">
+          Connect Wallet
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      {(() => {
-        if (!isConnected) {
-          return (
-            <button onClick={() => open()} type="button" className="w-full mt-5 btn-vortex-primary btn rounded-xl">
-              Connect Wallet
-            </button>
-          );
-        }
-
-        return (
-          <button className="w-full mt-5 btn-vortex-primary btn" disabled={showInDisabledState}>
-            {pending && <Spinner />}
-            {text}
-          </button>
-        );
-      })()}
+    <div className="grow">
+      <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
+        {pending && <Spinner />}
+        {text}
+      </button>
     </div>
   );
 };
