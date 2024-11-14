@@ -125,7 +125,7 @@ export const SwapPage = () => {
     tokenOutAmount.stableAmountInUnits != '' &&
     Big(tokenOutAmount.stableAmountInUnits).gt(Big(0));
 
-  async function onConfirm(e: Event) {
+  function onConfirm(e: Event) {
     e.preventDefault();
 
     if (!inputAmountIsStable) return;
