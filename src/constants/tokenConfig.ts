@@ -1,6 +1,7 @@
+import { polygon } from 'wagmi/chains';
 import { AssetIconType } from '../hooks/useGetIcon';
 
-export type NetworkType = 'polygon';
+export type NetworkType = typeof polygon.name;
 
 export interface InputTokenDetails {
   assetSymbol: string;
@@ -44,42 +45,37 @@ export interface OutputTokenDetails {
   offrampFeesFixedComponent?: number;
   supportsClientDomain: boolean;
 }
+
+const PENDULUM_USDC_AXL = {
+  pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
+  pendulumCurrencyId: { XCM: 12 },
+  pendulumAssetSymbol: 'USDC.axl',
+};
+
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
     assetSymbol: 'USDC',
     erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
-    axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
-      pendulumCurrencyId: { XCM: 12 },
-      pendulumAssetSymbol: 'USDC.axl',
-    },
+    axelarEquivalent: PENDULUM_USDC_AXL,
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
-    network: 'polygon',
+    network: polygon.name,
   },
   usdce: {
     assetSymbol: 'USDC.e',
     erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
-    axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
-      pendulumCurrencyId: { XCM: 12 },
-      pendulumAssetSymbol: 'USDC.axl',
-    },
+    axelarEquivalent: PENDULUM_USDC_AXL,
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
-    network: 'polygon',
+    network: polygon.name,
   },
   usdt: {
     assetSymbol: 'USDT',
     erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
-    axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
-      pendulumCurrencyId: { XCM: 12 },
-      pendulumAssetSymbol: 'USDC.axl',
-    },
+    axelarEquivalent: PENDULUM_USDC_AXL,
     polygonAssetIcon: 'polygonUSDT',
     decimals: 6,
-    network: 'polygon',
+    network: polygon.name,
   },
 };
 
