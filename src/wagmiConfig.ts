@@ -1,5 +1,5 @@
 import { connectorsForWallets } from '@rainbow-me/rainbowkit';
-import { walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
+import { injectedWallet, safeWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets';
 import { polygon } from 'wagmi/chains';
 import { createConfig, http } from 'wagmi';
 import { config } from './config';
@@ -8,7 +8,7 @@ const connectors = connectorsForWallets(
   [
     {
       groupName: 'Recommended',
-      wallets: [walletConnectWallet],
+      wallets: [injectedWallet, safeWallet, walletConnectWallet],
     },
   ],
   {
