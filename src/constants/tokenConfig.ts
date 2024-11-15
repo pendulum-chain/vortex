@@ -1,6 +1,7 @@
+import { polygon } from 'wagmi/chains';
 import { AssetIconType } from '../hooks/useGetIcon';
 
-export type NetworkType = 'polygon';
+export type NetworkType = typeof polygon.name;
 
 export interface InputTokenDetails {
   assetSymbol: string;
@@ -15,7 +16,7 @@ export interface InputTokenDetails {
   network: NetworkType;
 }
 
-export type InputTokenType = 'usdc' | 'usdce';
+export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 
 export interface Fiat {
   assetIcon: AssetIconType;
@@ -29,8 +30,7 @@ export interface OutputTokenDetails {
   stellarAsset: {
     code: {
       hex: string;
-      stringRaw: string; // stringRaw. With /0 if the Asset has less than 4 letters.
-      stringStellar: string;
+      string: string; // Stellar representation (3 or 4 letter code)
     };
     issuer: {
       hex: string;
@@ -46,30 +46,36 @@ export interface OutputTokenDetails {
   supportsClientDomain: boolean;
 }
 
+const PENDULUM_USDC_AXL = {
+  pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
+  pendulumCurrencyId: { XCM: 12 },
+  pendulumAssetSymbol: 'USDC.axl',
+};
+
 export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
     assetSymbol: 'USDC',
     erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
-    axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
-      pendulumCurrencyId: { XCM: 12 },
-      pendulumAssetSymbol: 'USDC.axl',
-    },
+    axelarEquivalent: PENDULUM_USDC_AXL,
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
-    network: 'polygon',
+    network: polygon.name,
   },
   usdce: {
     assetSymbol: 'USDC.e',
     erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
-    axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
-      pendulumCurrencyId: { XCM: 12 },
-      pendulumAssetSymbol: 'USDC.axl',
-    },
+    axelarEquivalent: PENDULUM_USDC_AXL,
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
-    network: 'polygon',
+    network: polygon.name,
+  },
+  usdt: {
+    assetSymbol: 'USDT',
+    erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
+    axelarEquivalent: PENDULUM_USDC_AXL,
+    polygonAssetIcon: 'polygonUSDT',
+    decimals: 6,
+    network: polygon.name,
   },
 };
 
@@ -85,8 +91,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     stellarAsset: {
       code: {
         hex: '0x45555243',
-        stringStellar: 'EURC',
-        stringRaw: 'EURC',
+        string: 'EURC',
       },
       issuer: {
         hex: '0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136',
@@ -110,8 +115,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     stellarAsset: {
       code: {
         hex: '0x41525300',
-        stringStellar: 'ARS',
-        stringRaw: 'ARS\0',
+        string: 'ARS',
       },
       issuer: {
         hex: '0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1',

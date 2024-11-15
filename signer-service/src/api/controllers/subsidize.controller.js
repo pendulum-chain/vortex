@@ -4,7 +4,7 @@ const Big = require('big.js');
 
 const { PENDULUM_WSS, PENDULUM_FUNDING_SEED } = require('../../constants/constants');
 
-const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+const { TOKEN_CONFIG, getPaddedAssetCode } = require('../../constants/tokenConfig');
 
 const TOKEN_TO_SWAP = 'usdc.axl';
 
@@ -49,7 +49,7 @@ exports.subsidizePostSwap = async (req, res) => {
     const assetIssuerHex = `0x${Keypair.fromPublicKey(assetIssuer).rawPublicKey().toString('hex')}`;
     const pendulumCurrencyId = {
       Stellar: {
-        AlphaNum4: { code: assetCode.padEnd(4, '\0'), issuer: assetIssuerHex },
+        AlphaNum4: { code: getPaddedAssetCode(assetCode), issuer: assetIssuerHex },
       },
     };
 

@@ -21,9 +21,9 @@ function createOfframpingPhaseMessage(offrampingState: OfframpingState): string 
     case 'nablaApprove':
     case 'nablaSwap':
     case 'subsidizePostSwap':
-      return `Swapping to ${outputToken.stellarAsset.code.stringRaw} on Vortex DEX`;
+      return `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`;
     case 'executeSpacewalkRedeem':
-      return `Bridging ${outputToken.stellarAsset.code.stringRaw} to Stellar via Spacewalk`;
+      return `Bridging ${outputToken.stellarAsset.code.string} to Stellar via Spacewalk`;
     case 'pendulumCleanup':
     case 'stellarOfframp':
     case 'stellarCleanup':

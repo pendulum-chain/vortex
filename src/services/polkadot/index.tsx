@@ -202,7 +202,7 @@ function checkBalancePeriodically(
       try {
         const someBalanceUnits = await getStellarBalanceUnits(
           stellarTargetAccountId,
-          outputToken.stellarAsset.code.stringRaw,
+          outputToken.stellarAsset.code.string,
         );
         console.log(`Balance check: ${someBalanceUnits.toString()} / ${amountDesiredUnitsBig.toString()}`);
 
