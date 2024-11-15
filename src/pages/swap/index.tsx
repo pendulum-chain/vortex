@@ -37,7 +37,7 @@ import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import { FeeComparison } from '../../components/FeeComparison';
 
 import { SignInModal } from '../../components/SignIn';
-import { useSiweSignature } from '../../hooks/useSignChallenge';
+import { useSiweContext } from '../../contexts/siwe';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -54,8 +54,7 @@ export const SwapPage = () => {
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
-  const { requiresSign, handleSign, handleCancel, checkAndWaitForSignature, forceRefreshAndWaitForSignature } =
-    useSiweSignature(address);
+  const { requiresSign, handleSign, handleCancel } = useSiweContext();
 
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
@@ -88,7 +87,7 @@ export const SwapPage = () => {
     isInitiating,
     signingPhase,
     setIsInitiating,
-  } = useMainProcess({ checkAndWaitForSignature, forceRefreshAndWaitForSignature });
+  } = useMainProcess();
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {

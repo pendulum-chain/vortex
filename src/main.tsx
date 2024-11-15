@@ -13,6 +13,7 @@ import { App } from './app';
 import { GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
 import { wagmiConfig } from './wagmiConfig';
 import { EventsProvider } from './contexts/events';
+import { SiweProvider } from './contexts/siwe';
 import * as Sentry from '@sentry/react';
 import { config } from './config';
 
@@ -35,12 +36,12 @@ Sentry.init({
 });
 
 render(
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider>
-            <EventsProvider>
+  <BrowserRouter>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>
+          <EventsProvider>
+            <SiweProvider>
               <GlobalStateProvider>
                 <GlobalStateContext.Consumer>
                   {() => {
@@ -48,11 +49,11 @@ render(
                   }}
                 </GlobalStateContext.Consumer>
               </GlobalStateProvider>
-            </EventsProvider>
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </BrowserRouter>
-  </QueryClientProvider>,
+            </SiweProvider>
+          </EventsProvider>
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  </BrowserRouter>,
   document.getElementById('app') as HTMLElement,
 );

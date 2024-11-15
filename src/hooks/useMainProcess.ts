@@ -23,6 +23,7 @@ import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
 import { SiweSignatureData } from './useSignChallenge';
+import { useSiweContext } from '../contexts/siwe';
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
 export interface ExecutionInput {
@@ -33,14 +34,9 @@ export interface ExecutionInput {
   setInitializeFailed: StateUpdater<boolean>;
 }
 
-interface UseMainProcessProps {
-  checkAndWaitForSignature: () => Promise<SiweSignatureData>;
-  forceRefreshAndWaitForSignature: () => Promise<SiweSignatureData>;
-}
-
 type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
 
-export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitForSignature }: UseMainProcessProps) => {
+export const useMainProcess = () => {
   // EXAMPLE mocking states
 
   // Approval already performed (scenario: service shut down after sending approval but before getting it's confirmation)
@@ -68,6 +64,7 @@ export const useMainProcess = ({ checkAndWaitForSignature, forceRefreshAndWaitFo
   const { address } = useAccount();
   const { switchChain } = useSwitchChain();
   const { trackEvent, resetUniqueEvents } = useEventsContext();
+  const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
 
