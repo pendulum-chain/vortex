@@ -1,9 +1,11 @@
 import { polygon } from 'wagmi/chains';
 import { AssetIconType } from '../hooks/useGetIcon';
 
-export type NetworkType = typeof polygon.name;
+type EvmNetworkType = typeof polygon.name;
+type SubstrateNetworkType = 'AssetHub';
+export type NetworkType = EvmNetworkType | SubstrateNetworkType;
 
-export interface InputTokenDetails {
+interface EvmInputTokenDetails {
   assetSymbol: string;
   erc20AddressSourceChain: `0x${string}`;
   axelarEquivalent: {
@@ -13,10 +15,20 @@ export interface InputTokenDetails {
   };
   polygonAssetIcon: AssetIconType;
   decimals: number;
-  network: NetworkType;
+  network: EvmNetworkType;
 }
 
-export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
+interface SubstrateTokenDetails {
+  assetSymbol: string;
+  decimals: number;
+  network: SubstrateNetworkType;
+}
+
+export type InputTokenDetails = EvmInputTokenDetails | SubstrateTokenDetails;
+
+type EvmInputTokenType = 'usdc' | 'usdce' | 'usdt';
+type SubstrateInputTokenType = 'usdc';
+export type InputTokenType = EvmInputTokenType | SubstrateInputTokenType;
 
 export interface Fiat {
   assetIcon: AssetIconType;
@@ -52,30 +64,39 @@ const PENDULUM_USDC_AXL = {
   pendulumAssetSymbol: 'USDC.axl',
 };
 
-export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
-  usdc: {
-    assetSymbol: 'USDC',
-    erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
-    axelarEquivalent: PENDULUM_USDC_AXL,
-    polygonAssetIcon: 'polygonUSDC',
-    decimals: 6,
-    network: polygon.name,
+export const INPUT_TOKEN_CONFIG: Record<NetworkType, Partial<Record<InputTokenType, InputTokenDetails>>> = {
+  Polygon: {
+    usdc: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+      axelarEquivalent: PENDULUM_USDC_AXL,
+      polygonAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: polygon.name,
+    },
+    usdce: {
+      assetSymbol: 'USDC.e',
+      erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
+      axelarEquivalent: PENDULUM_USDC_AXL,
+      polygonAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: polygon.name,
+    },
+    usdt: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
+      axelarEquivalent: PENDULUM_USDC_AXL,
+      polygonAssetIcon: 'polygonUSDT',
+      decimals: 6,
+      network: polygon.name,
+    },
   },
-  usdce: {
-    assetSymbol: 'USDC.e',
-    erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
-    axelarEquivalent: PENDULUM_USDC_AXL,
-    polygonAssetIcon: 'polygonUSDC',
-    decimals: 6,
-    network: polygon.name,
-  },
-  usdt: {
-    assetSymbol: 'USDT',
-    erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
-    axelarEquivalent: PENDULUM_USDC_AXL,
-    polygonAssetIcon: 'polygonUSDT',
-    decimals: 6,
-    network: polygon.name,
+  AssetHub: {
+    usdc: {
+      assetSymbol: 'USDC',
+      decimals: 6,
+      network: 'AssetHub',
+    },
   },
 };
 
