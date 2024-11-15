@@ -1,6 +1,6 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { FC } from 'preact/compat';
 import { Spinner } from '../../Spinner';
+import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 
 interface SwapSubmitButtonProps {
   text: string;
@@ -8,35 +8,29 @@ interface SwapSubmitButtonProps {
   pending: boolean;
 }
 
-export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => (
-  <ConnectButton.Custom>
-    {({ account, chain, openConnectModal, authenticationStatus, mounted }) => {
-      const ready = mounted && authenticationStatus !== 'loading';
-      const connected =
-        ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
+export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => {
+  const showInDisabledState = disabled || pending;
 
-      const showInDisabledState = disabled || pending;
+  const { open: openWalletModal } = useAppKit();
 
-      return (
-        <div className="grow">
-          {(() => {
-            if (!connected) {
-              return (
-                <button onClick={openConnectModal} type="button" className="w-full btn-vortex-primary btn rounded-xl">
-                  Connect Wallet
-                </button>
-              );
-            }
+  const { isConnected } = useAppKitAccount();
 
-            return (
-              <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
-                {pending && <Spinner />}
-                {text}
-              </button>
-            );
-          })()}
-        </div>
-      );
-    }}
-  </ConnectButton.Custom>
-);
+  if (!isConnected) {
+    return (
+      <div className="grow">
+        <button onClick={() => openWalletModal()} type="button" className="w-full btn-vortex-primary btn rounded-xl">
+          Connect Wallet
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grow">
+      <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
+        {pending && <Spinner />}
+        {text}
+      </button>
+    </div>
+  );
+};
