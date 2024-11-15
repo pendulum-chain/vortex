@@ -299,6 +299,15 @@ export const useMainProcess = () => {
     wagmiConfig.state.status, // wagmiConfig is a mutable object so we need to list wagmiConfig.state.status here
   ]);
 
+  const maybeCancelSep24First = useCallback(() => {
+    // Check if the SEP-24 second process is in the waiting state (user has not opened window yet)
+    // only then we allow cancelling.
+    if (sep24FirstIntervalRef.current !== undefined) {
+      setOfframpingStarted(false);
+      cleanSep24FirstVariables();
+    }
+  }, [setOfframpingStarted, cleanSep24FirstVariables]);
+
   return {
     handleOnSubmit,
     firstSep24ResponseState,
@@ -310,5 +319,6 @@ export const useMainProcess = () => {
     continueFailedFlow,
     handleOnAnchorWindowOpen,
     signingPhase,
+    maybeCancelSep24First,
   };
 };

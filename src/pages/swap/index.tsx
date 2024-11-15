@@ -87,6 +87,7 @@ export const SwapPage = () => {
     isInitiating,
     signingPhase,
     setIsInitiating,
+    maybeCancelSep24First,
   } = useMainProcess();
 
   // Store the id as it is cleared after the user opens the anchor window
@@ -315,7 +316,10 @@ export const SwapPage = () => {
       <TermsAndConditions />
       <PoolSelectorModal
         open={!!modalType}
-        onSelect={modalType === 'from' ? onFromChange : onToChange}
+        onSelect={(token) => {
+          modalType === 'from' ? onFromChange(token) : onToChange(token);
+          maybeCancelSep24First();
+        }}
         definitions={definitions}
         selected={modalType === 'from' ? from : to}
         onClose={() => setModalType(undefined)}

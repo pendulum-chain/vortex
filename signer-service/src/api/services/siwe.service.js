@@ -6,7 +6,7 @@ const { DEFAULT_EXPIRATION_TIME_HOURS } = require('../../constants/constants');
 // Make constants on config
 const scheme = 'https';
 const domain = 'satoshipay.io';
-const origin = 'https://vortex.com';
+const origin = 'https://app.vortexfinance.co';
 const statement = 'Please sign the message to login!';
 
 // Map that will hold the siwe messages sent + nonce we defined
