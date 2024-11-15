@@ -14,4 +14,4 @@ export const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 export const TRANSFER_WAITING_TIME_SECONDS = 6000;
 export const SIGNING_SERVICE_URL =
   config.maybeSignerServiceUrl ||
-  (config.isProd ? 'https://prototype-signer-service-polygon.pendulumchain.tech' : 'http://localhost:3000');
+  (config.isProd ? 'https://prototype-signer-service-polygon.pendulumchain.tech' : 'http://localhost:3001');

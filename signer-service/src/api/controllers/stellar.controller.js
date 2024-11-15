@@ -54,12 +54,25 @@ exports.changeOpTransaction = async (req, res, next) => {
 
 exports.signSep10Challenge = async (req, res, next) => {
   try {
+    let maybeChallengeSignature;
+    let maybeNonce;
+    if (req.cookies?.authTokenSignature) {
+      maybeChallengeSignature = req.cookies.authTokenSignature.signature;
+      maybeNonce = req.cookies.authTokenSignature.nonce;
+    }
+
+    if (Boolean(req.body.memo) && (!maybeChallengeSignature || !maybeNonce)) {
+      return res.status(401).json({
+        error: 'Missing signature or nonce',
+      });
+    }
+
     let { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
       req.body.challengeXDR,
       req.body.outToken,
       req.body.clientPublicKey,
-      req.body.maybeChallengeSignature,
-      req.body.maybeNonce,
+      maybeChallengeSignature,
+      maybeNonce,
     );
     return res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
   } catch (error) {

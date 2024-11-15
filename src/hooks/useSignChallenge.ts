@@ -5,8 +5,7 @@ import { storageKeys } from '../constants/localStorage';
 import { SiweMessage } from 'siwe';
 
 export interface SiweSignatureData {
-  nonce: string;
-  signature: string;
+  signatureSet: boolean;
   expirationDate: string;
 }
 
@@ -17,7 +16,7 @@ export function useSiweSignature(address?: `0x${string}`) {
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
   const [signPromise, setSignPromise] = useState<{
-    resolve: (data: SiweSignatureData) => void;
+    resolve: () => void;
     reject: (reason: Error) => void;
   } | null>(null);
 
@@ -38,7 +37,7 @@ export function useSiweSignature(address?: `0x${string}`) {
     }
   }, [address, storageKey]);
 
-  const signMessage = useCallback((): Promise<SiweSignatureData> => {
+  const signMessage = useCallback((): Promise<void> => {
     return new Promise((resolve, reject) => {
       setSignPromise({ resolve, reject });
       setRequiresSign(true);
@@ -52,6 +51,7 @@ export function useSiweSignature(address?: `0x${string}`) {
       const response = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ walletAddress: address }),
       });
 
@@ -64,19 +64,19 @@ export function useSiweSignature(address?: `0x${string}`) {
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ nonce, signature }),
       });
 
       if (!validationResponse.ok) throw new Error('Failed to validate signature');
 
       const signatureData: SiweSignatureData = {
-        nonce,
-        signature,
+        signatureSet: true,
         expirationDate: message.expirationTime!,
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
-      signPromise.resolve(signatureData);
+      signPromise.resolve();
     } catch (error) {
       signPromise.reject(new Error('Signing failed'));
     } finally {
@@ -94,24 +94,25 @@ export function useSiweSignature(address?: `0x${string}`) {
     setRequiresSign(false);
   }, [signPromise, setRequiresSign, setSignPromise]);
 
-  const checkAndWaitForSignature = useCallback(async (): Promise<SiweSignatureData> => {
+  const checkAndWaitForSignature = useCallback(async (): Promise<void> => {
     const stored = checkStoredSignature();
-    if (stored) return stored;
+    console.log('stored', stored);
+    if (stored) return;
     return signMessage();
   }, [checkStoredSignature, signMessage]);
 
-  const forceRefreshAndWaitForSignature = useCallback(async (): Promise<SiweSignatureData> => {
+  const forceRefreshAndWaitForSignature = useCallback(async (): Promise<void> => {
     localStorage.removeItem(storageKey);
     return signMessage();
   }, [storageKey, signMessage]);
 
   // ask for signature on address change and on init
-  useEffect(() => {
-    if (address) {
-      const stored = checkStoredSignature();
-      if (!stored) signMessage();
-    }
-  }, [address, checkStoredSignature, signMessage]);
+  // useEffect(() => {
+  //   if (address) {
+  //     const stored = checkStoredSignature();
+  //     if (!stored) signMessage();
+  //   }
+  // }, [address, checkStoredSignature, signMessage]);
 
   return {
     requiresSign,

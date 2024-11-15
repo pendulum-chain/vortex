@@ -105,16 +105,15 @@ async function getUrlParams(
 }
 
 const sep10SignaturesWithLoginRefresh = async (
-  refreshFunction: () => Promise<SiweSignatureData>,
+  refreshFunction: () => Promise<void>,
   args: SignerServiceSep10Request,
 ) => {
   try {
     return await fetchSep10Signatures(args);
   } catch (error: unknown) {
     if (error instanceof Error && error.message === 'Invalid signature') {
-      const { nonce, signature } = await refreshFunction();
-      const refreshedArgs = { ...args, maybeChallengeSignature: signature, maybeNonce: nonce };
-      return await fetchSep10Signatures(refreshedArgs);
+      await refreshFunction();
+      return await fetchSep10Signatures(args);
     }
     throw new Error('Could not fetch sep 10 signatures from backend');
   }
@@ -125,8 +124,8 @@ export const sep10 = async (
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
   address: `0x${string}` | undefined,
-  checkAndWaitForSignature: () => Promise<SiweSignatureData>,
-  forceRefreshAndWaitForSignature: () => Promise<SiweSignatureData>,
+  checkAndWaitForSignature: () => Promise<void>,
+  forceRefreshAndWaitForSignature: () => Promise<void>,
   renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ token: string; sep10Account: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
@@ -162,23 +161,17 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  // undefined if not using memo
-  let maybeNonce;
-  let maybeChallengeSignature;
   if (usesMemo) {
-    const signatureData = await checkAndWaitForSignature();
-    maybeNonce = signatureData.nonce;
-    maybeChallengeSignature = signatureData.signature;
+    await checkAndWaitForSignature();
   }
-  // sign for client_domain + an signature for memo
+
   const { masterClientSignature, clientSignature, clientPublic } = await sep10SignaturesWithLoginRefresh(
     forceRefreshAndWaitForSignature,
     {
       challengeXDR: transactionSigned.toXDR(),
       outToken: outputToken,
       clientPublicKey: sep10Account,
-      maybeNonce,
-      maybeChallengeSignature,
+      memo: usesMemo,
     },
   );
 
