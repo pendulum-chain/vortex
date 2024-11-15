@@ -1,11 +1,12 @@
 import Big from 'big.js';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { polygon } from 'wagmi/chains';
 
 const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 
 type QuoteService = 'moonpay' | 'transak' | 'alchemypay';
 
-type SupportedNetworks = 'polygon';
+type SupportedNetworks = typeof polygon.name;
 
 interface Quote {
   // The price of crypto -> fiat, i.e. cryptoAmount * cryptoPrice = fiatAmount + totalFee

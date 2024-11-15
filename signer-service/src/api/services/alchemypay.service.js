@@ -200,6 +200,8 @@ function getCryptoCurrencyCode(fromCrypto) {
     return 'USDC';
   } else if (fromCrypto.toLowerCase() === 'usdce' || fromCrypto.toLowerCase() === 'usdc.e') {
     return 'USDC.e';
+  } else if (fromCrypto.toLowerCase() === 'usdt') {
+    return 'USDT';
   }
 
   // The currencies need to be in uppercase

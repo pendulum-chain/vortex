@@ -1,20 +1,18 @@
-import { getAccount, sendTransaction, writeContract } from '@wagmi/core';
+import { getAccount, sendTransaction, waitForTransactionReceipt, writeContract } from '@wagmi/core';
 import { SendTransactionErrorType, WriteContractErrorType } from 'viem';
 import * as Sentry from '@sentry/react';
 
+import { showToast, ToastMessage } from '../../helpers/notifications';
 import { INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import erc20ABI from '../../contracts/ERC20';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
-import { waitForEvmTransaction } from '../evmTransactions';
 import { getRouteTransactionRequest } from './route';
-import { showToast, ToastMessage } from '../../helpers/notifications';
 
 export async function squidRouter(
   state: OfframpingState,
   { wagmiConfig, setSigningPhase, trackEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const inputToken = INPUT_TOKEN_CONFIG[state.inputTokenType];
-  const fromTokenErc20Address = inputToken.erc20AddressSourceChain;
 
   const accountData = getAccount(wagmiConfig);
   if (accountData?.address === undefined) {
@@ -28,7 +26,12 @@ export async function squidRouter(
     inputToken,
   );
 
-  console.log('Asking for approval of', transactionRequest?.target, fromTokenErc20Address, state.inputAmount.units);
+  console.log(
+    'Asking for approval of',
+    transactionRequest?.target,
+    inputToken.erc20AddressSourceChain,
+    state.inputAmount.units,
+  );
 
   setSigningPhase?.('started');
 
@@ -37,7 +40,7 @@ export async function squidRouter(
     trackEvent({ event: 'signing_requested', index: 1 });
     approvalHash = await writeContract(wagmiConfig, {
       abi: erc20ABI,
-      address: fromTokenErc20Address,
+      address: inputToken.erc20AddressSourceChain,
       functionName: 'approve',
       args: [transactionRequest?.target, state.inputAmount.raw],
     });
@@ -63,7 +66,7 @@ export async function squidRouter(
 
   setSigningPhase?.('approved');
 
-  await waitForEvmTransaction(approvalHash, wagmiConfig);
+  await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash });
 
   let swapHash;
   try {

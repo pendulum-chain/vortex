@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
-import { getApiManagerInstance } from './polkadotApi';
-import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
-import Big from 'big.js';
-import { ExecutionContext, OfframpingState } from '../offrampingFlow';
-import { waitForEvmTransaction } from '../evmTransactions';
-import { multiplyByPowerOfTen } from '../../helpers/contracts';
+import { waitForTransactionReceipt } from '@wagmi/core';
 import axios from 'axios';
-import { fetchSigningServiceAccountId } from '../signingService';
+import Big from 'big.js';
+
+import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
-import { isHashRegistered } from '../moonbeam';
+import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import { waitUntilTrue } from '../../helpers/function';
+import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+import { fetchSigningServiceAccountId } from '../signingService';
+import { isHashRegistered } from '../moonbeam';
+import { getApiManagerInstance } from './polkadotApi';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
 
@@ -49,7 +50,7 @@ export async function pendulumFundEphemeral(
     throw new Error('No squid router swap hash found');
   }
 
-  await waitForEvmTransaction(squidRouterSwapHash, wagmiConfig);
+  await waitForTransactionReceipt(wagmiConfig, { hash: squidRouterSwapHash });
 
   const isAlreadyFunded = await isEphemeralFunded(state);
 

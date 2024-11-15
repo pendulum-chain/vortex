@@ -34,7 +34,7 @@
     "@polkadot/types": "^13.2.1",
     "@polkadot/util": "^13.1.1",
     "@polkadot/util-crypto": "^13.1.1",
-    "@rainbow-me/rainbowkit": "^2.1.7",
+    "@rainbow-me/rainbowkit": "^2.2.0",
     "@sentry/react": "^8.36.0",
     "@sentry/vite-plugin": "^2.22.6",
     "@talismn/connect-components": "^1.1.8",
