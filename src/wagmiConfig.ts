@@ -18,7 +18,7 @@ const metadata = {
   name: 'Vortex',
   description: 'Vortex',
   url: 'https://app.vortexfinance.co', // origin must match your domain & subdomain
-  icons: ['https://avatars.githubusercontent.com/u/179229932'],
+  icons: [],
 };
 
 // 3. Set the networks
@@ -52,7 +52,7 @@ createAppKit({
     'a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393', // phantom
     '18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1', // rabby
   ],
-  metadata: undefined, // Optional
+  metadata,
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
