@@ -3,7 +3,13 @@ import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 
 import { storageService } from './storage/local';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
+import {
+  INPUT_TOKEN_CONFIG,
+  InputTokenType,
+  NetworkType,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
+} from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
 import {
   createPendulumEphemeralSeed,
@@ -23,10 +29,11 @@ import { SigningPhase } from '../hooks/useMainProcess';
 import { prepareTransactions } from './signedTransactions';
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
-import { executeXCM } from './moonbeam';
+import { executeMoonbeamXCM } from './moonbeam';
 import { TrackableEvent } from '../contexts/events';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 import * as Sentry from '@sentry/react';
+import { executeAssethubXCM } from './assethub';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
@@ -36,7 +43,8 @@ export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
   | 'pendulumFundEphemeral'
-  | 'executeXCM'
+  | 'executeAssethubXCM'
+  | 'executeMoonbeamXCM'
   | 'subsidizePreSwap'
   | 'nablaApprove'
   | 'nablaSwap'
@@ -49,6 +57,8 @@ export type OfframpingPhase =
 export type FinalOfframpingPhase = 'success';
 
 export interface OfframpingState {
+  type: NetworkType;
+
   sep24Id: string;
 
   pendulumEphemeralSeed: string;
@@ -76,8 +86,10 @@ export interface OfframpingState {
   squidRouterApproveHash?: `0x${string}`;
   squidRouterSwapHash?: `0x${string}`;
 
-  // phase executeXCM
+  // phase executeMoonbeamXCM
   moonbeamXcmTransactionHash?: `0x${string}`;
+
+  assethubXcmTransactionHash?: string;
 
   // nabla minimum output amounts
   nablaSoftMinimumOutputRaw: string;
@@ -113,19 +125,34 @@ export type StateTransitionFunction = (
   context: ExecutionContext,
 ) => Promise<OfframpingState | undefined>;
 
-const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunction> = {
-  prepareTransactions,
-  squidRouter,
-  pendulumFundEphemeral,
-  executeXCM,
-  subsidizePreSwap,
-  nablaApprove,
-  nablaSwap,
-  subsidizePostSwap,
-  executeSpacewalkRedeem,
-  pendulumCleanup,
-  stellarOfframp,
-  stellarCleanup,
+const STATE_ADVANCEMENT_HANDLERS: Record<NetworkType, Partial<Record<OfframpingPhase, StateTransitionFunction>>> = {
+  Polygon: {
+    prepareTransactions,
+    squidRouter,
+    pendulumFundEphemeral,
+    executeMoonbeamXCM,
+    subsidizePreSwap,
+    nablaApprove,
+    nablaSwap,
+    subsidizePostSwap,
+    executeSpacewalkRedeem,
+    pendulumCleanup,
+    stellarOfframp,
+    stellarCleanup,
+  },
+  AssetHub: {
+    prepareTransactions,
+    pendulumFundEphemeral,
+    executeAssethubXCM,
+    subsidizePreSwap,
+    nablaApprove,
+    nablaSwap,
+    subsidizePostSwap,
+    executeSpacewalkRedeem,
+    pendulumCleanup,
+    stellarOfframp,
+    stellarCleanup,
+  },
 };
 
 export interface ExecutionContext {
@@ -145,6 +172,7 @@ export interface InitiateStateArguments {
   amountIn: string;
   amountOut: Big;
   sepResult: SepResult;
+  networkType: NetworkType;
 }
 
 export async function constructInitialState({
@@ -155,10 +183,16 @@ export async function constructInitialState({
   amountIn,
   amountOut,
   sepResult,
+  networkType,
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
 
-  const inputTokenDecimals = INPUT_TOKEN_CONFIG[inputTokenType].decimals;
+  const inputToken = INPUT_TOKEN_CONFIG[networkType][inputTokenType];
+  if (inputToken === undefined) {
+    throw new Error(`Input token ${inputTokenType} not supported on network ${networkType}`);
+  }
+
+  const inputTokenDecimals = inputToken.decimals;
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
 
   const inputAmountBig = Big(amountIn);
@@ -179,6 +213,7 @@ export async function constructInitialState({
 
   const now = Date.now();
   const initialState: OfframpingState = {
+    type: networkType,
     sep24Id,
     pendulumEphemeralSeed,
     stellarEphemeralSecret,
@@ -250,7 +285,7 @@ export async function advanceOfframpingState(
     return undefined;
   }
 
-  const { phase, failure } = state;
+  const { phase, failure, type } = state;
   const phaseIsFinal = phase === 'success' || failure !== undefined;
 
   if (phaseIsFinal) {
@@ -262,7 +297,11 @@ export async function advanceOfframpingState(
 
   let newState: OfframpingState | undefined;
   try {
-    newState = await STATE_ADVANCEMENT_HANDLERS[phase](state, context);
+    const nextHandler = STATE_ADVANCEMENT_HANDLERS[type][phase];
+    if (nextHandler === undefined) {
+      throw new Error(`No handler for phase ${phase} on network ${type}`);
+    }
+    newState = await nextHandler(state, context);
     if (newState) {
       Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
     }

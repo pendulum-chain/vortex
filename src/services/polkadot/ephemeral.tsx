@@ -46,11 +46,14 @@ export async function pendulumFundEphemeral(
 ): Promise<OfframpingState> {
   console.log('Pendulum funding ephemeral account');
   const { squidRouterSwapHash } = state;
-  if (squidRouterSwapHash === undefined) {
-    throw new Error('No squid router swap hash found');
-  }
 
-  await waitForTransactionReceipt(wagmiConfig, { hash: squidRouterSwapHash });
+  if (state.type !== 'AssetHub') {
+    if (squidRouterSwapHash === undefined) {
+      throw new Error('No squid router swap hash found');
+    }
+
+    await waitForTransactionReceipt(wagmiConfig, { hash: squidRouterSwapHash });
+  }
 
   const isAlreadyFunded = await isEphemeralFunded(state);
 
@@ -69,7 +72,7 @@ export async function pendulumFundEphemeral(
 
   return {
     ...state,
-    phase: 'executeXCM',
+    phase: 'executeMoonbeamXCM',
   };
 }
 
@@ -108,8 +111,11 @@ export async function createPendulumEphemeralSeed() {
 
 export async function pendulumCleanup(state: OfframpingState): Promise<OfframpingState> {
   try {
-    const { pendulumEphemeralSeed, inputTokenType, outputTokenType } = state;
-    const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+    const { pendulumEphemeralSeed, inputTokenType, outputTokenType, type } = state;
+    const inputToken = INPUT_TOKEN_CONFIG[type][inputTokenType];
+    if (inputToken === undefined) {
+      throw new Error(`Input token ${inputTokenType} not supported on network ${type}`);
+    }
 
     const pendulumApiComponents = await getApiManagerInstance();
     const { api, ss58Format } = pendulumApiComponents.apiData!;
@@ -142,7 +148,10 @@ export async function getRawInputBalance(state: OfframpingState): Promise<Big> {
   const pendulumApiComponents = await getApiManagerInstance();
   const { api } = pendulumApiComponents.apiData!;
 
-  const inputToken = INPUT_TOKEN_CONFIG[state.inputTokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[state.type][state.inputTokenType];
+  if (inputToken === undefined) {
+    throw new Error(`Input token ${state.inputTokenType} not supported on network`);
+  }
 
   const balanceResponse = (await api.query.tokens.accounts(
     await getEphemeralAddress(state),
