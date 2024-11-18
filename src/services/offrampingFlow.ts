@@ -33,7 +33,7 @@ import { executeMoonbeamXCM } from './moonbeam';
 import { TrackableEvent } from '../contexts/events';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 import * as Sentry from '@sentry/react';
-import { executeAssethubXCM } from './assethub';
+import { executeAssethubXCM } from './polkadot/assethub';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
