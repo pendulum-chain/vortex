@@ -12,11 +12,10 @@ import {
 import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
 import { useDebouncedValue } from '../useDebouncedValue';
-import { ApiPromise } from '../../services/polkadot/polkadotApi';
+import { ApiPromise } from '@polkadot/api';
 import { useEffect } from 'preact/hooks';
 import {
   getInputTokenDetails,
-  INPUT_TOKEN_CONFIG,
   InputTokenType,
   NetworkType,
   OUTPUT_TOKEN_CONFIG,

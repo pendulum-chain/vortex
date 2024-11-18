@@ -47,7 +47,7 @@ export async function executeAssethubXCM(state: OfframpingState): Promise<Offram
   };
 
   if (!(await didInputTokenArrivedOnPendulum())) {
-    let { assethubXcmTransactionHash, inputAmount } = state;
+    const { assethubXcmTransactionHash, inputAmount } = state;
 
     if (assethubXcmTransactionHash === undefined) {
       const assethubApi = await createAssethubApi();

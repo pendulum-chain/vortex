@@ -5,7 +5,6 @@ import { decodeAddress } from '@polkadot/util-crypto';
 import { storageService } from './storage/local';
 import {
   getInputTokenDetails,
-  INPUT_TOKEN_CONFIG,
   InputTokenType,
   NetworkType,
   OUTPUT_TOKEN_CONFIG,

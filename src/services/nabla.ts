@@ -23,12 +23,7 @@ import {
   parseContractBalanceResponse,
   stringifyBigWithSignificantDecimals,
 } from '../helpers/contracts';
-import {
-  getInputTokenDetails,
-  getPendulumCurrencyId,
-  INPUT_TOKEN_CONFIG,
-  OUTPUT_TOKEN_CONFIG,
-} from '../constants/tokenConfig';
+import { getInputTokenDetails, getPendulumCurrencyId, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { ExecutionContext, OfframpingState } from './offrampingFlow';
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { decodeSubmittableExtrinsic } from './signedTransactions';

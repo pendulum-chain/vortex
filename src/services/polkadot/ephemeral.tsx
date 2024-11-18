@@ -5,7 +5,7 @@ import { waitForTransactionReceipt } from '@wagmi/core';
 import axios from 'axios';
 import Big from 'big.js';
 
-import { getInputTokenDetails, getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetails, getPendulumCurrencyId } from '../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import { waitUntilTrue } from '../../helpers/function';

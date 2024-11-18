@@ -6,20 +6,19 @@ import { multiplyByPowerOfTen } from '../helpers/contracts';
 import Big from 'big.js';
 
 export const useInputTokenBalance = ({ fromToken }: { fromToken?: InputTokenDetails }): string | undefined => {
-  if (fromToken === undefined || !isEvmInputTokenDetails(fromToken)) {
-    return undefined;
-  }
-
   const { address } = useAccount();
 
+  const tokenAddress =
+    fromToken !== undefined && isEvmInputTokenDetails(fromToken) ? fromToken.erc20AddressSourceChain : undefined;
+
   const { data: balance }: { data: bigint | undefined } = useReadContract({
-    address: fromToken.erc20AddressSourceChain,
+    address: tokenAddress,
     abi: erc20ABI,
     functionName: 'balanceOf',
     args: [address],
   });
 
-  return address === undefined || balance === undefined
+  return address === undefined || balance === undefined || fromToken === undefined
     ? undefined
     : multiplyByPowerOfTen(Big(balance.toString()), -fromToken.decimals).toFixed(2, 0);
 };
