@@ -34,6 +34,15 @@ function getCaseSensitiveNetwork(network: string): NetworkType {
   }
 }
 
+// Helper function to merge values if they are defined
+function mergeIfDefined(target: any, source: any) {
+  for (const key in source) {
+    if (source[key] !== undefined && source[key] !== null) {
+      target[key] = source[key];
+    }
+  }
+}
+
 export const useSwapForm = () => {
   const tokensModal = useState<undefined | 'from' | 'to'>();
   const setTokenModal = tokensModal[1];
@@ -51,11 +60,11 @@ export const useSwapForm = () => {
 
     const initialValues = {
       ...defaultValues,
-      ...storageValues,
-      ...searchParamValues,
     };
+    mergeIfDefined(initialValues, storageValues);
+    mergeIfDefined(initialValues, searchParamValues);
 
-    const network = getCaseSensitiveNetwork(initialValues.network!);
+    const network = getCaseSensitiveNetwork(initialValues.network);
     const initialFromTokenIsValid = INPUT_TOKEN_CONFIG[network][initialValues.from as InputTokenType] !== undefined;
     const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
 
