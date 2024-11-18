@@ -47,7 +47,7 @@ export async function pendulumFundEphemeral(
   console.log('Pendulum funding ephemeral account');
   const { squidRouterSwapHash } = state;
 
-  if (state.type !== 'AssetHub') {
+  if (state.network !== 'AssetHub') {
     if (squidRouterSwapHash === undefined) {
       throw new Error('No squid router swap hash found');
     }
@@ -111,10 +111,10 @@ export async function createPendulumEphemeralSeed() {
 
 export async function pendulumCleanup(state: OfframpingState): Promise<OfframpingState> {
   try {
-    const { pendulumEphemeralSeed, inputTokenType, outputTokenType, type } = state;
-    const inputToken = INPUT_TOKEN_CONFIG[type][inputTokenType];
+    const { pendulumEphemeralSeed, inputTokenType, outputTokenType, network } = state;
+    const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
     if (inputToken === undefined) {
-      throw new Error(`Input token ${inputTokenType} not supported on network ${type}`);
+      throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
     }
 
     const pendulumApiComponents = await getApiManagerInstance();
@@ -127,7 +127,7 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
 
     // probably will never be exactly '0', but to be safe
     // TODO: if the value is too small, do we really want to transfer token dust and spend fees?
-    const inputCurrencyId = inputToken.axelarEquivalent.pendulumCurrencyId;
+    const inputCurrencyId = inputToken.pendulumCurrencyId;
     const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
 
     await api.tx.utility
@@ -148,14 +148,14 @@ export async function getRawInputBalance(state: OfframpingState): Promise<Big> {
   const pendulumApiComponents = await getApiManagerInstance();
   const { api } = pendulumApiComponents.apiData!;
 
-  const inputToken = INPUT_TOKEN_CONFIG[state.type][state.inputTokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[state.network][state.inputTokenType];
   if (inputToken === undefined) {
     throw new Error(`Input token ${state.inputTokenType} not supported on network`);
   }
 
   const balanceResponse = (await api.query.tokens.accounts(
     await getEphemeralAddress(state),
-    inputToken.axelarEquivalent.pendulumCurrencyId,
+    inputToken.pendulumCurrencyId,
   )) as any;
 
   const inputBalanceRaw = Big(balanceResponse?.free?.toString() ?? '0');

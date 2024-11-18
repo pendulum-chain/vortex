@@ -234,7 +234,7 @@ export function EventsProvider({ children }: PropsWithChildren) {
 export function createTransactionEvent(type: TransactionEvent['event'], state: OfframpingState) {
   return {
     event: type,
-    from_asset: INPUT_TOKEN_CONFIG[state.inputTokenType].assetSymbol,
+    from_asset: INPUT_TOKEN_CONFIG[state.network][state.inputTokenType]?.assetSymbol || 'Unknown',
     to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType].stellarAsset.code.string,
     from_amount: state.inputAmount.units,
     to_amount: state.outputAmount.units,

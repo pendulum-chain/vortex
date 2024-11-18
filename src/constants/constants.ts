@@ -5,7 +5,7 @@ export const HORIZON_URL = 'https://horizon.stellar.org';
 export const BASE_FEE = '1000000';
 export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 //export const PENDULUM_WSS = 'ws://localhost:8000';
-export const NABLA_ROUTER = '6dQQoUKQ9LNDCrGMjoZjeHBXsuihSgQiQEgD9Z7VtHR82wfG'; // EURC circle instance
+export const NABLA_ROUTER = '6gAVVw13mQgzzKk4yEwScMmWiCNyMAunXFJUZonbgKrym81N'; // AssetHub USDC instance
 
 export const SPACEWALK_REDEEM_SAFETY_MARGIN = 0.05;
 export const AMM_MINIMUM_OUTPUT_SOFT_MARGIN = 0.02;

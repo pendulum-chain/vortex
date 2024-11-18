@@ -4,7 +4,7 @@ import { encodeFunctionData } from 'viem';
 import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 import erc20ABI from '../../contracts/ERC20';
 import { squidRouterConfig } from './config';
-import { InputTokenDetails } from '../../constants/tokenConfig';
+import { InputTokenDetails, isEvmInputTokenDetails } from '../../constants/tokenConfig';
 
 interface RouteParams {
   fromAddress: string;
@@ -35,6 +35,9 @@ function createRouteParams(
 ): RouteParams {
   const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = squidRouterConfig;
 
+  if (!isEvmInputTokenDetails(inputToken)) {
+    throw new Error(`Token ${inputToken.assetSymbol} is not supported on EVM chains`);
+  }
   const fromToken = inputToken.erc20AddressSourceChain as `0x${string}`;
 
   const approvalErc20 = encodeFunctionData({
@@ -153,6 +156,9 @@ export async function getRouteTransactionRequest(
 
 export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: `0x${string}`) {
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
+  if (!isEvmInputTokenDetails(testingToken)) {
+    return Promise.reject(new Error(`Token ${testingToken.assetSymbol} is not supported on EVM chains`));
+  }
 
   const sharedRouteParams: RouteParams = {
     fromAddress: address,

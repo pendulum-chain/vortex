@@ -57,7 +57,7 @@ export type OfframpingPhase =
 export type FinalOfframpingPhase = 'success';
 
 export interface OfframpingState {
-  type: NetworkType;
+  network: NetworkType;
 
   sep24Id: string;
 
@@ -172,7 +172,7 @@ export interface InitiateStateArguments {
   amountIn: string;
   amountOut: Big;
   sepResult: SepResult;
-  networkType: NetworkType;
+  network: NetworkType;
 }
 
 export async function constructInitialState({
@@ -183,13 +183,13 @@ export async function constructInitialState({
   amountIn,
   amountOut,
   sepResult,
-  networkType,
+  network,
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
 
-  const inputToken = INPUT_TOKEN_CONFIG[networkType][inputTokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
   if (inputToken === undefined) {
-    throw new Error(`Input token ${inputTokenType} not supported on network ${networkType}`);
+    throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
   }
 
   const inputTokenDecimals = inputToken.decimals;
@@ -213,7 +213,7 @@ export async function constructInitialState({
 
   const now = Date.now();
   const initialState: OfframpingState = {
-    type: networkType,
+    network,
     sep24Id,
     pendulumEphemeralSeed,
     stellarEphemeralSecret,
@@ -285,7 +285,7 @@ export async function advanceOfframpingState(
     return undefined;
   }
 
-  const { phase, failure, type } = state;
+  const { phase, failure, network } = state;
   const phaseIsFinal = phase === 'success' || failure !== undefined;
 
   if (phaseIsFinal) {
@@ -297,9 +297,9 @@ export async function advanceOfframpingState(
 
   let newState: OfframpingState | undefined;
   try {
-    const nextHandler = STATE_ADVANCEMENT_HANDLERS[type][phase];
+    const nextHandler = STATE_ADVANCEMENT_HANDLERS[network][phase];
     if (nextHandler === undefined) {
-      throw new Error(`No handler for phase ${phase} on network ${type}`);
+      throw new Error(`No handler for phase ${phase} on network ${network}`);
     }
     newState = await nextHandler(state, context);
     if (newState) {

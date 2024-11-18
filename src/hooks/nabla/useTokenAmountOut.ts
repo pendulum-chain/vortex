@@ -14,7 +14,13 @@ import { useContractRead } from './useContractRead';
 import { useDebouncedValue } from '../useDebouncedValue';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { useEffect } from 'preact/hooks';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
+import {
+  INPUT_TOKEN_CONFIG,
+  InputTokenType,
+  NetworkType,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
+} from '../../constants/tokenConfig';
 import { SwapFormValues } from '../../components/Nabla/schema';
 import { useEventsContext } from '../../contexts/events';
 
@@ -26,6 +32,7 @@ type UseTokenOutAmountProps = {
   outputTokenType: OutputTokenType;
   maximumFromAmount: BigNumber | undefined;
   form: UseFormReturn<SwapFormValues>;
+  network: NetworkType;
 };
 
 export interface UseTokenOutAmountResult {
@@ -49,6 +56,7 @@ export function useTokenOutAmount({
   outputTokenType,
   maximumFromAmount,
   form,
+  network,
 }: UseTokenOutAmountProps) {
   const { setError, clearErrors } = form;
   const { trackEvent } = useEventsContext();
@@ -61,7 +69,10 @@ export function useTokenOutAmount({
     // no action required
   }
 
-  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
+  if (inputToken === undefined) {
+    throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
+  }
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   const fromTokenDecimals = inputToken?.decimals;
@@ -81,19 +92,14 @@ export function useTokenOutAmount({
     (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
 
   const { isLoading, fetchStatus, data, error } = useContractRead<TokenOutData | undefined>(
-    [
-      cacheKeys.tokenOutAmount,
-      inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
-      outputToken.erc20WrapperAddress,
-      amountIn,
-    ],
+    [cacheKeys.tokenOutAmount, inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress, amountIn],
     api,
     undefined, // Does not matter since noWalletAddressRequired is true
     {
       abi: routerAbi,
       address: NABLA_ROUTER,
       method: 'getAmountOut',
-      args: [amountIn, [inputToken.axelarEquivalent.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
+      args: [amountIn, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
       noWalletAddressRequired: true,
       queryOptions: {
         ...activeOptions['30s'],

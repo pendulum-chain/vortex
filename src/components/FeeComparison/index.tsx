@@ -33,8 +33,11 @@ function FeeProviderRow({
   sourceAssetSymbol,
   targetAssetSymbol,
   vortexPrice,
-  network,
+  network: _network,
 }: FeeProviderRowProps) {
+  // AssetHub is not supported so instead of using the network passed in the props, we hardcode it
+  const network = 'Polygon';
+
   const { isLoading, error, data } = useQuery({
     queryKey: [sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, network],
     queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, network),

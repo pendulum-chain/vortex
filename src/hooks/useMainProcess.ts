@@ -57,6 +57,9 @@ export const useMainProcess = () => {
 
   const sep24FirstIntervalRef = useRef<number | undefined>(undefined);
 
+  // FIXME - replace with the network selection once available
+  const network = 'AssetHub';
+
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const wagmiConfig = useConfig();
@@ -127,7 +130,7 @@ export const useMainProcess = () => {
         setOfframpingStarted(true);
         trackEvent({
           event: 'transaction_confirmation',
-          from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
+          from_asset: INPUT_TOKEN_CONFIG[network][inputTokenType]!.assetSymbol,
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
           to_amount: offrampAmount.toFixed(2, 0),
@@ -196,7 +199,7 @@ export const useMainProcess = () => {
     }
     trackEvent({
       event: 'kyc_started',
-      from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
+      from_asset: INPUT_TOKEN_CONFIG[network][executionInputState.inputTokenType]!.assetSymbol,
       to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
       from_amount: executionInputState.amountInUnits,
       to_amount: executionInputState.offrampAmount.toFixed(2, 0),
@@ -234,6 +237,7 @@ export const useMainProcess = () => {
         amountIn: executionInputState.amountInUnits,
         amountOut: executionInputState.offrampAmount,
         sepResult: secondSep24Response,
+        network,
       });
 
       trackEvent(createTransactionEvent('kyc_completed', initialState));

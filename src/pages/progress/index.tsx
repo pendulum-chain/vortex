@@ -7,16 +7,28 @@ import { useEventsContext } from '../../contexts/events';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState): string {
-  const inputToken = INPUT_TOKEN_CONFIG[offrampingState.inputTokenType];
+  const inputToken = INPUT_TOKEN_CONFIG[offrampingState.network][offrampingState.inputTokenType];
+  if (!inputToken) {
+    return '';
+  }
+
   const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
 
   switch (offrampingState.phase) {
     case 'prepareTransactions':
+      return offrampingState.network
+        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'squidRouter':
-    case 'pendulumFundEphemeral':
       return `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`;
+    case 'pendulumFundEphemeral':
+      return offrampingState.network
+        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'executeMoonbeamXCM':
       return `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`;
+    case 'executeAssethubXCM':
+      return `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'subsidizePreSwap':
     case 'nablaApprove':
     case 'nablaSwap':
@@ -39,6 +51,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   squidRouter: 1,
   pendulumFundEphemeral: 80,
   executeMoonbeamXCM: 40,
+  executeAssethubXCM: 24,
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,

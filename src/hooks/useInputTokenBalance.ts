@@ -1,11 +1,15 @@
 import { useAccount, useReadContract } from 'wagmi';
 
 import erc20ABI from '../contracts/ERC20';
-import { InputTokenDetails } from '../constants/tokenConfig';
+import { InputTokenDetails, isEvmInputTokenDetails } from '../constants/tokenConfig';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import Big from 'big.js';
 
-export const useInputTokenBalance = ({ fromToken }: { fromToken: InputTokenDetails }): string | undefined => {
+export const useInputTokenBalance = ({ fromToken }: { fromToken?: InputTokenDetails }): string | undefined => {
+  if (fromToken === undefined || isEvmInputTokenDetails(fromToken) === false) {
+    return undefined;
+  }
+
   const { address } = useAccount();
 
   const { data: balance }: { data: bigint | undefined } = useReadContract({

@@ -7,21 +7,28 @@ export type NetworkType = EvmNetworkType | SubstrateNetworkType;
 
 interface EvmInputTokenDetails {
   assetSymbol: string;
-  erc20AddressSourceChain: `0x${string}`;
-  axelarEquivalent: {
-    pendulumErc20WrapperAddress: string;
-    pendulumCurrencyId: { XCM: number };
-    pendulumAssetSymbol: string;
-  };
-  polygonAssetIcon: AssetIconType;
   decimals: number;
+  erc20AddressSourceChain: `0x${string}`;
+  pendulumErc20WrapperAddress: string;
+  pendulumCurrencyId: { XCM: number };
+  pendulumAssetSymbol: string;
+  networkAssetIcon: AssetIconType;
   network: EvmNetworkType;
 }
 
 interface SubstrateTokenDetails {
   assetSymbol: string;
   decimals: number;
+  pendulumErc20WrapperAddress: string;
+  pendulumCurrencyId: { XCM: number };
+  pendulumAssetSymbol: string;
+  networkAssetIcon: AssetIconType;
   network: SubstrateNetworkType;
+}
+
+// Guard function to check if the input token is an EVM token
+export function isEvmInputTokenDetails(inputToken: InputTokenDetails): inputToken is EvmInputTokenDetails {
+  return (inputToken as EvmInputTokenDetails).erc20AddressSourceChain !== undefined;
 }
 
 export type InputTokenDetails = EvmInputTokenDetails | SubstrateTokenDetails;
@@ -59,9 +66,15 @@ export interface OutputTokenDetails {
 }
 
 const PENDULUM_USDC_AXL = {
-  pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
+  pendulumErc20WrapperAddress: '6eMCHeByJ3m2yPsXFkezBfCQtMs3ymUPqtAyCA41mNWmbNJe',
   pendulumCurrencyId: { XCM: 12 },
   pendulumAssetSymbol: 'USDC.axl',
+};
+
+const PENDULUM_USDC_ASSETHUB = {
+  pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF',
+  pendulumCurrencyId: { XCM: 2 },
+  pendulumAssetSymbol: 'USDC',
 };
 
 export const INPUT_TOKEN_CONFIG: Record<NetworkType, Partial<Record<InputTokenType, InputTokenDetails>>> = {
@@ -69,26 +82,26 @@ export const INPUT_TOKEN_CONFIG: Record<NetworkType, Partial<Record<InputTokenTy
     usdc: {
       assetSymbol: 'USDC',
       erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
-      axelarEquivalent: PENDULUM_USDC_AXL,
-      polygonAssetIcon: 'polygonUSDC',
+      networkAssetIcon: 'polygonUSDC',
       decimals: 6,
       network: polygon.name,
+      ...PENDULUM_USDC_AXL,
     },
     usdce: {
       assetSymbol: 'USDC.e',
       erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
-      axelarEquivalent: PENDULUM_USDC_AXL,
-      polygonAssetIcon: 'polygonUSDC',
+      networkAssetIcon: 'polygonUSDC',
       decimals: 6,
       network: polygon.name,
+      ...PENDULUM_USDC_AXL,
     },
     usdt: {
       assetSymbol: 'USDT',
       erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
-      axelarEquivalent: PENDULUM_USDC_AXL,
-      polygonAssetIcon: 'polygonUSDT',
+      networkAssetIcon: 'polygonUSDT',
       decimals: 6,
       network: polygon.name,
+      ...PENDULUM_USDC_AXL,
     },
   },
   AssetHub: {
@@ -96,6 +109,8 @@ export const INPUT_TOKEN_CONFIG: Record<NetworkType, Partial<Record<InputTokenTy
       assetSymbol: 'USDC',
       decimals: 6,
       network: 'AssetHub',
+      networkAssetIcon: 'usdc',
+      ...PENDULUM_USDC_ASSETHUB,
     },
   },
 };
@@ -120,7 +135,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
       },
     },
     vaultAccountId: '6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh',
-    erc20WrapperAddress: '6eEEZCxJB8YstEEGjkacneHUjd2XzHTht7rwNu6evv4VSC2w',
+    erc20WrapperAddress: '6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,
@@ -144,7 +159,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
       },
     },
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
-    erc20WrapperAddress: '6cNENXUqHUeEGSm4psQCeykZiLXJL9VzMQnvSoouyeEEoJpe',
+    erc20WrapperAddress: '6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj',
     minWithdrawalAmountRaw: '11000000000000', // 11 ARS
     maxWithdrawalAmountRaw: '500000000000000000', // 500000 ARS
     offrampFeesBasisPoints: 200, // 2%

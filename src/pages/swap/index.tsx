@@ -52,6 +52,9 @@ export const SwapPage = () => {
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
 
+  // FIXME - use the correct network type from the network selector once implemented
+  const network = 'AssetHub';
+
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
   useEffect(() => {
@@ -103,7 +106,7 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const fromToken = INPUT_TOKEN_CONFIG[from];
+  const fromToken = INPUT_TOKEN_CONFIG[network][from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
   const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
@@ -118,6 +121,7 @@ export const SwapPage = () => {
     maximumFromAmount: undefined,
     fromAmountString,
     form,
+    network,
   });
 
   const inputAmountIsStable =
@@ -149,7 +153,11 @@ export const SwapPage = () => {
     setIsInitiating(true);
 
     const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = INPUT_TOKEN_CONFIG[from];
+    const inputToken = INPUT_TOKEN_CONFIG[network][from];
+    if (!inputToken) {
+      console.log(`Input token ${from} not supported on network ${network}`);
+      return;
+    }
 
     // both route and stellar vault checks must be valid to proceed
     const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
@@ -168,7 +176,7 @@ export const SwapPage = () => {
         outputToken.stellarAsset.issuer.hex,
         expectedRedeemAmountRaw,
       ),
-      testRoute(fromToken, inputAmountRaw, address!), // Address is both sender and receiver (in different chains)
+      testRoute(fromToken!, inputAmountRaw, address!), // Address is both sender and receiver (in different chains)
     ])
       .then(() => {
         console.log('Initial checks completed. Starting process..');
@@ -242,18 +250,19 @@ export const SwapPage = () => {
   );
 
   const WithdrawNumericInput = useMemo(
-    () => (
-      <>
-        <AssetNumericInput
-          registerInput={form.register('fromAmount')}
-          tokenSymbol={fromToken.assetSymbol}
-          assetIcon={fromToken.polygonAssetIcon}
-          onClick={() => setModalType('from')}
-          id="fromAmount"
-        />
-        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
-      </>
-    ),
+    () =>
+      fromToken ? (
+        <>
+          <AssetNumericInput
+            registerInput={form.register('fromAmount')}
+            tokenSymbol={fromToken.assetSymbol}
+            assetIcon={fromToken.networkAssetIcon}
+            onClick={() => setModalType('from')}
+            id="fromAmount"
+          />
+          <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
+        </>
+      ) : undefined,
     [form, fromToken, setModalType],
   );
 
@@ -294,10 +303,10 @@ export const SwapPage = () => {
 
   const definitions =
     modalType === 'from'
-      ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
+      ? Object.entries(INPUT_TOKEN_CONFIG[network]).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
-          assetIcon: value.polygonAssetIcon,
+          assetIcon: value.networkAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as OutputTokenType,

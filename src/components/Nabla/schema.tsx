@@ -1,11 +1,12 @@
 import * as Yup from 'yup';
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
+import { InputTokenType, NetworkType, OutputTokenType } from '../../constants/tokenConfig';
 
 export type SwapFormValues = {
   from: InputTokenType;
   fromAmount: string;
   to: OutputTokenType;
   toAmount: string;
+  network: NetworkType;
   slippage: number | undefined;
   deadline: number;
 };
@@ -22,6 +23,7 @@ const schema = Yup.object<SwapFormValues>().shape({
   fromAmount: Yup.string().required(),
   to: Yup.string().required(),
   toAmount: Yup.string().required(),
+  network: Yup.string().required(),
   slippage: Yup.number().nullable().transform(transformNumber),
   deadline: Yup.number().nullable().transform(transformNumber),
 });

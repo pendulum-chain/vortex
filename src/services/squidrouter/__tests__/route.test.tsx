@@ -28,8 +28,8 @@ describe('Squidrouter', () => {
     }
 
     it('should successfully query a route for USDC', async () => {
-      const inputToken = INPUT_TOKEN_CONFIG.usdc;
-      const route = await getRouteForToken(inputToken);
+      const inputToken = INPUT_TOKEN_CONFIG.Polygon.usdc;
+      const route = await getRouteForToken(inputToken!);
 
       expect(route).toBeDefined();
       expect(route.requestId).toBeDefined();
@@ -37,8 +37,8 @@ describe('Squidrouter', () => {
     });
 
     it('should successfully query a route for USDC.e', async () => {
-      const inputToken = INPUT_TOKEN_CONFIG.usdce;
-      const route = await getRouteForToken(inputToken);
+      const inputToken = INPUT_TOKEN_CONFIG.Polygon.usdce;
+      const route = await getRouteForToken(inputToken!);
 
       expect(route).toBeDefined();
       expect(route.requestId).toBeDefined();
