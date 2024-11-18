@@ -97,5 +97,5 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
     console.error('Error storing data', error);
   }
 
-  return { ...state, transactions, phase: 'squidRouter' };
+  return { ...state, transactions, phase: state.network === 'Polygon' ? 'squidRouter' : 'pendulumFundEphemeral' };
 }
