@@ -153,8 +153,7 @@ export const SwapPage = () => {
     setIsInitiating(true);
 
     const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = INPUT_TOKEN_CONFIG[network][from];
-    if (!inputToken) {
+    if (!fromToken) {
       console.log(`Input token ${from} not supported on network ${network}`);
       return;
     }
@@ -167,7 +166,7 @@ export const SwapPage = () => {
 
     const inputAmountBig = Big(fromAmount);
     const inputAmountBigMargin = inputAmountBig.mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN);
-    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBigMargin, inputToken.decimals).toFixed();
+    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBigMargin, fromToken.decimals).toFixed();
 
     Promise.all([
       getVaultsForCurrency(
@@ -176,7 +175,7 @@ export const SwapPage = () => {
         outputToken.stellarAsset.issuer.hex,
         expectedRedeemAmountRaw,
       ),
-      testRoute(fromToken!, inputAmountRaw, address!), // Address is both sender and receiver (in different chains)
+      testRoute(fromToken, inputAmountRaw, address!), // Address is both sender and receiver (in different chains)
     ])
       .then(() => {
         console.log('Initial checks completed. Starting process..');
@@ -290,7 +289,7 @@ export const SwapPage = () => {
         }.`;
       }
 
-      if (config.test.overwriteMinimumTransferAmount === false && minAmountUnits.gt(amountOut)) {
+      if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
         trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol

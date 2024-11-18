@@ -6,7 +6,7 @@ import { multiplyByPowerOfTen } from '../helpers/contracts';
 import Big from 'big.js';
 
 export const useInputTokenBalance = ({ fromToken }: { fromToken?: InputTokenDetails }): string | undefined => {
-  if (fromToken === undefined || isEvmInputTokenDetails(fromToken) === false) {
+  if (fromToken === undefined || !isEvmInputTokenDetails(fromToken)) {
     return undefined;
   }
 

@@ -5,33 +5,30 @@ type EvmNetworkType = typeof polygon.name;
 type SubstrateNetworkType = 'AssetHub';
 export type NetworkType = EvmNetworkType | SubstrateNetworkType;
 
-interface EvmInputTokenDetails {
+interface BaseInputTokenDetails {
   assetSymbol: string;
   decimals: number;
-  erc20AddressSourceChain: `0x${string}`;
   pendulumErc20WrapperAddress: string;
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   networkAssetIcon: AssetIconType;
-  network: EvmNetworkType;
 }
 
-interface SubstrateTokenDetails {
-  assetSymbol: string;
-  decimals: number;
-  pendulumErc20WrapperAddress: string;
-  pendulumCurrencyId: { XCM: number };
-  pendulumAssetSymbol: string;
-  networkAssetIcon: AssetIconType;
+type EvmInputTokenDetails = BaseInputTokenDetails & {
+  erc20AddressSourceChain: `0x${string}`;
+  network: EvmNetworkType;
+};
+
+type SubstrateInputTokenDetails = BaseInputTokenDetails & {
   network: SubstrateNetworkType;
-}
+};
 
 // Guard function to check if the input token is an EVM token
 export function isEvmInputTokenDetails(inputToken: InputTokenDetails): inputToken is EvmInputTokenDetails {
   return (inputToken as EvmInputTokenDetails).erc20AddressSourceChain !== undefined;
 }
 
-export type InputTokenDetails = EvmInputTokenDetails | SubstrateTokenDetails;
+export type InputTokenDetails = EvmInputTokenDetails | SubstrateInputTokenDetails;
 
 type EvmInputTokenType = 'usdc' | 'usdce' | 'usdt';
 type SubstrateInputTokenType = 'usdc';

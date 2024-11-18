@@ -130,7 +130,7 @@ export const useMainProcess = () => {
         setOfframpingStarted(true);
         trackEvent({
           event: 'transaction_confirmation',
-          from_asset: INPUT_TOKEN_CONFIG[network][inputTokenType]!.assetSymbol,
+          from_asset: INPUT_TOKEN_CONFIG[network][inputTokenType]?.assetSymbol || 'Unknown',
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
           to_amount: offrampAmount.toFixed(2, 0),
@@ -199,7 +199,7 @@ export const useMainProcess = () => {
     }
     trackEvent({
       event: 'kyc_started',
-      from_asset: INPUT_TOKEN_CONFIG[network][executionInputState.inputTokenType]!.assetSymbol,
+      from_asset: INPUT_TOKEN_CONFIG[network][executionInputState.inputTokenType]?.assetSymbol || 'Unknown',
       to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
       from_amount: executionInputState.amountInUnits,
       to_amount: executionInputState.offrampAmount.toFixed(2, 0),
