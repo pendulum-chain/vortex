@@ -1,20 +1,24 @@
 import { ApiPromise, Keyring, WsProvider } from '@polkadot/api';
 import Big from 'big.js';
 
-import { OfframpingState } from './offrampingFlow';
-import { getApiManagerInstance } from './polkadot/polkadotApi';
-import { waitUntilTrue } from '../helpers/function';
-import { getRawInputBalance } from './polkadot/ephemeral';
+import { OfframpingState } from '../offrampingFlow';
+import { getApiManagerInstance } from './polkadotApi';
+import { waitUntilTrue } from '../../helpers/function';
+import { getRawInputBalance } from './ephemeral';
+import { u8aToHex } from '@polkadot/util';
+import { decodeAddress } from '@polkadot/util-crypto';
 
-function createAssethubApi() {
-  const assethubWsUrl = 'wss://polkadot-asset-hub-rpc.polkadot.io';
+export function createAssethubApi() {
+  const assethubWsUrl = 'wss://polkadot-asset-hub-rpc.polkadot.io'; // FIXME replace with config
   const assethubWsProvider = new WsProvider(assethubWsUrl);
   return ApiPromise.create({
     provider: assethubWsProvider,
   });
 }
 
-function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverId: string, rawAmount: string) {
+export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
+  const receiverId = u8aToHex(decodeAddress(receiverAddress));
+
   const dest = { V2: { parents: 1, interior: { X1: { Parachain: 2094 } } } };
   const beneficiary = { V2: { parents: 0, interior: { X1: { AccountId32: { network: undefined, id: receiverId } } } } };
   const assets = {
