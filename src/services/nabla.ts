@@ -23,7 +23,12 @@ import {
   parseContractBalanceResponse,
   stringifyBigWithSignificantDecimals,
 } from '../helpers/contracts';
-import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import {
+  getInputTokenDetails,
+  getPendulumCurrencyId,
+  INPUT_TOKEN_CONFIG,
+  OUTPUT_TOKEN_CONFIG,
+} from '../constants/tokenConfig';
 import { ExecutionContext, OfframpingState } from './offrampingFlow';
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { decodeSubmittableExtrinsic } from './signedTransactions';
@@ -71,11 +76,7 @@ export async function prepareNablaApproveTransaction(
   const { inputTokenType, inputAmount, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
 
   // event attempting swap
-  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
-  if (!inputToken) {
-    throw new Error(`Input token ${inputTokenType} not supported on network ${state.network}`);
-  }
-
+  const inputToken = getInputTokenDetails(network, inputTokenType);
   console.log('swap', 'Preparing the signed extrinsic for the approval of swap', inputAmount.units, inputTokenType);
   // get chain api, abi
   const { ss58Format, api } = (await getApiManagerInstance()).apiData!;
@@ -134,11 +135,7 @@ export async function nablaApprove(
   { renderEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const { transactions, inputAmount, inputTokenType, nablaApproveNonce, network } = state;
-  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
-
-  if (!inputToken) {
-    throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
-  }
+  const inputToken = getInputTokenDetails(network, inputTokenType);
 
   if (!transactions) {
     console.error('Missing transactions for nablaApprove');
@@ -249,10 +246,7 @@ export async function prepareNablaSwapTransaction(
   } = state;
 
   // event attempting swap
-  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
-  if (!inputToken) {
-    throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
-  }
+  const inputToken = getInputTokenDetails(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   // get chain api, abi
@@ -321,10 +315,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
     return successorState;
   }
 
-  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
-  if (!inputToken) {
-    throw new Error(`Input token ${inputTokenType} not supported on network ${state.network}`);
-  }
+  const inputToken = getInputTokenDetails(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   if (transactions === undefined) {

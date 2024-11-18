@@ -5,7 +5,7 @@ import { waitForTransactionReceipt } from '@wagmi/core';
 import axios from 'axios';
 import Big from 'big.js';
 
-import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetails, getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import { waitUntilTrue } from '../../helpers/function';
@@ -112,10 +112,7 @@ export async function createPendulumEphemeralSeed() {
 export async function pendulumCleanup(state: OfframpingState): Promise<OfframpingState> {
   try {
     const { pendulumEphemeralSeed, inputTokenType, outputTokenType, network } = state;
-    const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
-    if (inputToken === undefined) {
-      throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
-    }
+    const inputToken = getInputTokenDetails(network, inputTokenType);
 
     const pendulumApiComponents = await getApiManagerInstance();
     const { api, ss58Format } = pendulumApiComponents.apiData!;
@@ -148,11 +145,7 @@ export async function getRawInputBalance(state: OfframpingState): Promise<Big> {
   const pendulumApiComponents = await getApiManagerInstance();
   const { api } = pendulumApiComponents.apiData!;
 
-  const inputToken = INPUT_TOKEN_CONFIG[state.network][state.inputTokenType];
-  if (inputToken === undefined) {
-    throw new Error(`Input token ${state.inputTokenType} not supported on network`);
-  }
-
+  const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
   const balanceResponse = (await api.query.tokens.accounts(
     await getEphemeralAddress(state),
     inputToken.pendulumCurrencyId,

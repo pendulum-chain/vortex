@@ -112,6 +112,15 @@ export const INPUT_TOKEN_CONFIG: Record<NetworkType, Partial<Record<InputTokenTy
   },
 };
 
+// Helper function to wrap the error handling for getting input token details
+export function getInputTokenDetails(network: NetworkType, inputTokenType: InputTokenType): InputTokenDetails {
+  const tokenDetails = INPUT_TOKEN_CONFIG[network][inputTokenType];
+  if (!tokenDetails) {
+    throw new Error(`Invalid input token type: ${inputTokenType}`);
+  }
+  return tokenDetails;
+}
+
 export type OutputTokenType = 'eurc' | 'ars';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {

@@ -4,6 +4,7 @@ import { decodeAddress } from '@polkadot/util-crypto';
 
 import { storageService } from './storage/local';
 import {
+  getInputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   NetworkType,
@@ -187,11 +188,7 @@ export async function constructInitialState({
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
 
-  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
-  if (inputToken === undefined) {
-    throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
-  }
-
+  const inputToken = getInputTokenDetails(network, inputTokenType);
   const inputTokenDecimals = inputToken.decimals;
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
 

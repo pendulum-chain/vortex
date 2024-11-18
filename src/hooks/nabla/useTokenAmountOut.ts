@@ -15,6 +15,7 @@ import { useDebouncedValue } from '../useDebouncedValue';
 import { ApiPromise } from '../../services/polkadot/polkadotApi';
 import { useEffect } from 'preact/hooks';
 import {
+  getInputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   NetworkType,
@@ -69,10 +70,7 @@ export function useTokenOutAmount({
     // no action required
   }
 
-  const inputToken = INPUT_TOKEN_CONFIG[network][inputTokenType];
-  if (inputToken === undefined) {
-    throw new Error(`Input token ${inputTokenType} not supported on network ${network}`);
-  }
+  const inputToken = getInputTokenDetails(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   const fromTokenDecimals = inputToken?.decimals;

@@ -3,7 +3,7 @@ import { SendTransactionErrorType, WriteContractErrorType } from 'viem';
 import * as Sentry from '@sentry/react';
 
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { INPUT_TOKEN_CONFIG, isEvmInputTokenDetails } from '../../constants/tokenConfig';
+import { getInputTokenDetails, INPUT_TOKEN_CONFIG, isEvmInputTokenDetails } from '../../constants/tokenConfig';
 import erc20ABI from '../../contracts/ERC20';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { getRouteTransactionRequest } from './route';
@@ -12,9 +12,9 @@ export async function squidRouter(
   state: OfframpingState,
   { wagmiConfig, setSigningPhase, trackEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
-  const inputToken = INPUT_TOKEN_CONFIG[state.network][state.inputTokenType];
-  if (!inputToken || !isEvmInputTokenDetails(inputToken)) {
-    throw new Error(`Input token ${state.inputTokenType} not supported on network ${state.network}`);
+  const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
+  if (!isEvmInputTokenDetails(inputToken)) {
+    throw new Error(`Token ${inputToken.assetSymbol} is not an EVM token`);
   }
 
   const accountData = getAccount(wagmiConfig);
