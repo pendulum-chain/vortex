@@ -22,7 +22,6 @@ import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
-import { SiweSignatureData } from './useSignChallenge';
 import { useSiweContext } from '../contexts/siwe';
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -102,7 +101,7 @@ export const useMainProcess = () => {
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
   };
 
-  const cleanSep24FirstVariables = () => {
+  const cleanSep24FirstVariables = useCallback(() => {
     if (sep24FirstIntervalRef.current !== undefined) {
       // stop executing the function, and reset the ref variable.
       clearInterval(sep24FirstIntervalRef.current);
@@ -111,7 +110,7 @@ export const useMainProcess = () => {
       setExecutionInputState(undefined);
       setAnchorSessionParams(undefined);
     }
-  };
+  }, [setFirstSep24Response, setExecutionInputState, setAnchorSessionParams]);
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
@@ -203,6 +202,7 @@ export const useMainProcess = () => {
       address,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
+      cleanSep24FirstVariables,
     ],
   );
 
@@ -262,7 +262,14 @@ export const useMainProcess = () => {
       console.error('Some error occurred constructing initial state', error);
       setOfframpingStarted(false);
     }
-  }, [firstSep24ResponseState, anchorSessionParamsState, executionInputState, updateHookStateFromState, trackEvent]);
+  }, [
+    firstSep24ResponseState,
+    anchorSessionParamsState,
+    executionInputState,
+    updateHookStateFromState,
+    trackEvent,
+    cleanSep24FirstVariables,
+  ]);
 
   const finishOfframping = useCallback(() => {
     (async () => {

@@ -2,7 +2,6 @@ import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
-import { SiweSignatureData } from '../../hooks/useSignChallenge';
 import { keccak256 } from 'viem/utils';
 
 import { config } from '../../config';

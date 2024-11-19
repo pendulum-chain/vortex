@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useSignMessage } from 'wagmi';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
@@ -105,14 +105,6 @@ export function useSiweSignature(address?: `0x${string}`) {
     localStorage.removeItem(storageKey);
     return signMessage();
   }, [storageKey, signMessage]);
-
-  // ask for signature on address change and on init
-  // useEffect(() => {
-  //   if (address) {
-  //     const stored = checkStoredSignature();
-  //     if (!stored) signMessage();
-  //   }
-  // }, [address, checkStoredSignature, signMessage]);
 
   return {
     requiresSign,
