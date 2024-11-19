@@ -28,7 +28,6 @@ import { TrackableEvent } from '../contexts/events';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 import * as Sentry from '@sentry/react';
 
-
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
 export type FailureType = 'recoverable' | 'unrecoverable';

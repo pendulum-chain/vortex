@@ -3,6 +3,7 @@ import { FC } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { SigningPhase } from '../../hooks/useMainProcess';
+import { Spinner } from '../Spinner';
 
 const progressValues: Record<SigningPhase, string> = {
   started: '25',
@@ -52,7 +53,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
           </div>
         </main>
         <footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
-          <span className="loading loading-spinner loading-sm"></span>
+          <Spinner />
           <p className="ml-2.5 my-2 text-xs">Waiting for signature {getSignatureNumber(step)}/2</p>
         </footer>
       </div>

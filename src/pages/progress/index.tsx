@@ -34,7 +34,7 @@ function createOfframpingPhaseMessage(offrampingState: OfframpingState): string 
   }
 }
 
-const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
+export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   prepareTransactions: 1,
   squidRouter: 1,
   pendulumFundEphemeral: 80,
@@ -163,7 +163,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   const message = createOfframpingPhaseMessage(offrampingState);
 
   useEffect(() => {
-    trackEvent({ event: 'progress', phase: currentPhaseIndex, name: offrampingState.phase });
+    trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });
   }, [currentPhaseIndex, trackEvent, offrampingState.phase]);
 
   return (
