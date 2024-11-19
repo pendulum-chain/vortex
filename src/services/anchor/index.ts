@@ -220,7 +220,7 @@ export async function sep24First(
   let sep24Params;
   if (usesMemo) {
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.stringStellar,
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
       amount: sessionParams.offrampAmount,
       account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
       // or at least the anchor should be able to get it from the JWT.
@@ -230,7 +230,7 @@ export async function sep24First(
     });
   } else {
     sep24Params = new URLSearchParams({
-      asset_code: sessionParams.tokenConfig.stellarAsset.code.stringStellar,
+      asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
       amount: sessionParams.offrampAmount,
     });
   }

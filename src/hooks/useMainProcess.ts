@@ -130,7 +130,7 @@ export const useMainProcess = () => {
         trackEvent({
           event: 'transaction_confirmation',
           from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
-          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.stringRaw,
+          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
           to_amount: offrampAmount.toFixed(2, 0),
         });
@@ -217,7 +217,7 @@ export const useMainProcess = () => {
     trackEvent({
       event: 'kyc_started',
       from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
-      to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.stringRaw,
+      to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
       from_amount: executionInputState.amountInUnits,
       to_amount: executionInputState.offrampAmount.toFixed(2, 0),
     });

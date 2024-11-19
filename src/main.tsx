@@ -2,11 +2,9 @@ import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
-import '@rainbow-me/rainbowkit/styles.css';
 
 import { render } from 'preact';
 import { BrowserRouter } from 'react-router-dom';
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './app';
@@ -36,10 +34,10 @@ Sentry.init({
 });
 
 render(
-  <BrowserRouter>
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
           <EventsProvider>
             <SiweProvider>
               <GlobalStateProvider>
@@ -51,9 +49,9 @@ render(
               </GlobalStateProvider>
             </SiweProvider>
           </EventsProvider>
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
-  </BrowserRouter>,
+        </QueryClientProvider>
+      </WagmiProvider>
+    </BrowserRouter>
+  </QueryClientProvider>,
   document.getElementById('app') as HTMLElement,
 );

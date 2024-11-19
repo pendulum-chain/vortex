@@ -329,7 +329,7 @@ export const SwapPage = () => {
   );
 
   if (offrampingState?.phase === 'success') {
-    return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} />;
+    return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} toToken={to} />;
   }
 
   if (offrampingState?.failure !== undefined) {

@@ -235,7 +235,7 @@ export function createTransactionEvent(type: TransactionEvent['event'], state: O
   return {
     event: type,
     from_asset: INPUT_TOKEN_CONFIG[state.inputTokenType].assetSymbol,
-    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType].stellarAsset.code.stringRaw,
+    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType].stellarAsset.code.string,
     from_amount: state.inputAmount.units,
     to_amount: state.outputAmount.units,
   };

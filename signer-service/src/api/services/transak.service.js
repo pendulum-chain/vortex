@@ -61,7 +61,10 @@ function getCryptoCode(fromCrypto) {
     fromCrypto.toLowerCase() === 'usdce'
   ) {
     return 'USDC';
+  } else if (fromCrypto.toLowerCase() === 'usdt') {
+    return 'USDT';
   }
+
   return fromCrypto.toUpperCase();
 }
 
