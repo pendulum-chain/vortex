@@ -7,7 +7,7 @@ import { useNetwork } from '../../contexts/network';
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
-export const ChainSelector = () => {
+export const NetworkSelector = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
 
