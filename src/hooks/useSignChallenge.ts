@@ -3,10 +3,28 @@ import { useSignMessage } from 'wagmi';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
 import { SiweMessage } from 'siwe';
+import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
+import { polygon } from 'wagmi/chains';
 
 export interface SiweSignatureData {
   signatureSet: boolean;
   expirationDate: string;
+}
+
+function createSiweMessage(address: `0x${string}`, nonce: string) {
+  // Make constants on config
+  const siweMessage = new SiweMessage({
+    scheme: 'https',
+    domain: window.location.host,
+    address,
+    statement: 'Please sign the message to login!',
+    uri: window.location.origin,
+    version: '1',
+    chainId: polygon.id,
+    nonce,
+    expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).toISOString(), // Constructor in ms.
+  });
+  return siweMessage.toMessage();
 }
 
 export function useSiweSignature(address?: `0x${string}`) {
@@ -56,7 +74,9 @@ export function useSiweSignature(address?: `0x${string}`) {
       });
 
       if (!messageResponse.ok) throw new Error('Failed to create message');
-      const { siweMessage, nonce } = await messageResponse.json();
+      const { nonce } = await messageResponse.json();
+
+      const siweMessage = createSiweMessage(address, nonce);
 
       const message = new SiweMessage(siweMessage);
       const signature = await signMessageAsync({ message: siweMessage });
@@ -65,7 +85,7 @@ export function useSiweSignature(address?: `0x${string}`) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ nonce, signature }),
+        body: JSON.stringify({ nonce, signature, siweMessage }),
       });
 
       if (!validationResponse.ok) throw new Error('Failed to validate signature');

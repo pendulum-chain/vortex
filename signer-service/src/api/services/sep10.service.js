@@ -23,7 +23,9 @@ const validateSignatureAndGetMemo = async (nonce, userChallengeSignature) => {
 
   let message;
   try {
-    message = await verifySiweMessage(nonce, userChallengeSignature);
+    // initialSiweMessage must be undefined after an initial check,
+    // message must exist on the map.
+    message = await verifySiweMessage(nonce, userChallengeSignature, undefined);
   } catch (e) {
     throw new Error(`Could not verify signature: ${e.message}`);
   }

@@ -164,13 +164,17 @@ const validateSiweCreate = (req, res, next) => {
 };
 
 const validateSiweValidate = (req, res, next) => {
-  const { nonce, signature } = req.body;
+  const { nonce, signature, siweMessage } = req.body;
   if (!signature) {
     return res.status(400).json({ error: 'Missing param: signature' });
   }
 
   if (!nonce) {
     return res.status(400).json({ error: 'Missing param: nonce' });
+  }
+
+  if (!siweMessage) {
+    return res.status(400).json({ error: 'Missing param: siweMessage' });
   }
 
   next();
