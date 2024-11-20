@@ -1,7 +1,7 @@
 import { getQueryFnForService, QuoteQuery } from '../../services/quotes';
-import alchemyPayIcon from '../../assets/alchemypay.svg';
-import moonpayIcon from '../../assets/moonpay.svg';
-import transakIcon from '../../assets/transak.svg';
+import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
+import moonpayIcon from '../../assets/offramp/moonpay.svg';
+import transakIcon from '../../assets/offramp/transak.svg';
 
 export interface QuoteProvider {
   name: string;
@@ -25,7 +25,7 @@ export const quoteProviders: QuoteProvider[] = [
   },
   {
     name: 'Transak',
-    icon: <img src={transakIcon} className="w-30 h-10" alt="Transak" />,
+    icon: <img src={transakIcon} className="h-10 w-30" alt="Transak" />,
     query: getQueryFnForService('transak'),
     href: 'https://transak.com',
   },
