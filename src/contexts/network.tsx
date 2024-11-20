@@ -16,7 +16,7 @@ const NetworkContext = createContext<NetworkContextType>({
 
 export const NetworkProvider = ({ children }: { children: preact.ComponentChildren }) => {
   const { state: selectedNetworkLocalStorage, set: setSelectedNetworkLocalStorage } = useLocalStorage<NetworkIconType>({
-    key: LocalStorageKeys.SUBSTRATE_SELECTED_WALLET_NAME,
+    key: LocalStorageKeys.SELECTED_NETWORK,
     defaultValue: NetworkIcons.assetHub,
   });
 
