@@ -249,6 +249,10 @@ export const SwapPage = () => {
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
           onClick={() => setModalType('from')}
+          onChange={(e) => {
+            // User interacted with the input field
+            trackEvent({ event: 'amount_type' });
+          }}
           id="fromAmount"
         />
         <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
