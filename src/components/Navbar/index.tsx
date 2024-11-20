@@ -1,10 +1,11 @@
+import { useState } from 'preact/hooks';
+import { FC } from 'preact/compat';
 import { Bars4Icon, XMarkIcon } from '@heroicons/react/20/solid';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import whiteLogo from '../../assets/logo/white.png';
 import { ConnectWallet } from '../buttons/ConnectWallet';
-import { useState } from 'preact/hooks';
-import { FC } from 'preact/compat';
+import { NetworkSelector } from '../NetworkSelector';
 
 const links = [
   { title: 'Offramp', href: '/' },
@@ -105,6 +106,7 @@ export const Navbar = () => {
         </nav>
       </div>
       <div className="flex items-center">
+        <NetworkSelector />
         <ConnectWallet />
         <MobileMenu onClick={() => setShowMenu(true)} />
         <MobileMenuList showMenu={showMenu} closeMenu={() => setShowMenu(false)} />
