@@ -5,14 +5,16 @@ import '@fontsource/roboto/700.css';
 
 import { render } from 'preact';
 import { BrowserRouter } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { App } from './app';
+
 import { GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
-import { wagmiConfig } from './wagmiConfig';
 import { EventsProvider } from './contexts/events';
-import * as Sentry from '@sentry/react';
+import { NetworkProvider } from './contexts/network';
+import { wagmiConfig } from './wagmiConfig';
 import { config } from './config';
+import { App } from './app';
 
 const queryClient = new QueryClient();
 
@@ -39,11 +41,13 @@ render(
         <QueryClientProvider client={queryClient}>
           <EventsProvider>
             <GlobalStateProvider>
-              <GlobalStateContext.Consumer>
-                {() => {
-                  return <App />;
-                }}
-              </GlobalStateContext.Consumer>
+              <NetworkProvider>
+                <GlobalStateContext.Consumer>
+                  {() => {
+                    return <App />;
+                  }}
+                </GlobalStateContext.Consumer>
+              </NetworkProvider>
             </GlobalStateProvider>
           </EventsProvider>
         </QueryClientProvider>
