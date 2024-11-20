@@ -1,5 +1,5 @@
 import { polygon } from 'wagmi/chains';
-import { AssetIconType } from '../hooks/useGetIcon';
+import { AssetIconType } from '../hooks/useGetAssetIcon';
 
 export type NetworkType = typeof polygon.name;
 

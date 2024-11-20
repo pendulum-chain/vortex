@@ -1,4 +1,4 @@
-import { AssetIconType, useGetIcon } from '../../../hooks/useGetIcon';
+import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 
 interface AssetButtonProps {
   assetIcon: AssetIconType;
@@ -6,7 +6,7 @@ interface AssetButtonProps {
   onClick: () => void;
 }
 export function AssetButton({ assetIcon, tokenSymbol, onClick }: AssetButtonProps) {
-  const icon = useGetIcon(assetIcon);
+  const icon = useGetAssetIcon(assetIcon);
 
   return (
     <button
