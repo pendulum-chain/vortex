@@ -25,9 +25,9 @@ exports.validateSiweSignature = async (req, res) => {
       signature,
     };
 
-    res.cookie('authTokenSignature', token, {
+    res.cookie('authToken', token, {
       httpOnly: true,
-      secure: false,
+      secure: false, // TODO TODO TODO: Change to true in production
       sameSite: 'Strict',
       maxAge: DEFAULT_EXPIRATION_TIME_HOURS * 60 * 60 * 1000,
     });

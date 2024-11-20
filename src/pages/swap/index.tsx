@@ -54,7 +54,7 @@ export const SwapPage = () => {
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
-  const { requiresSign, handleSign, handleCancel } = useSiweContext();
+  const { signingPending, handleSign, handleCancel } = useSiweContext();
 
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
@@ -353,7 +353,7 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
-      <SignInModal requiresSign={requiresSign} closeModal={handleCancel} handleSignIn={handleSign} />
+      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"

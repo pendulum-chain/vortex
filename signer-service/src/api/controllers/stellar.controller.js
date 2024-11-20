@@ -56,9 +56,9 @@ exports.signSep10Challenge = async (req, res, next) => {
   try {
     let maybeChallengeSignature;
     let maybeNonce;
-    if (req.cookies?.authTokenSignature) {
-      maybeChallengeSignature = req.cookies.authTokenSignature.signature;
-      maybeNonce = req.cookies.authTokenSignature.nonce;
+    if (req.cookies?.authToken) {
+      maybeChallengeSignature = req.cookies.authToken.signature;
+      maybeNonce = req.cookies.authToken.nonce;
     }
 
     if (Boolean(req.body.memo) && (!maybeChallengeSignature || !maybeNonce)) {

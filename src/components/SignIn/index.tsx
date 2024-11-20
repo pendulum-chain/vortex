@@ -2,18 +2,18 @@ import { FC } from 'react';
 import { Modal } from 'react-daisyui';
 
 interface SignInModalProps {
-  requiresSign: boolean;
+  signingPending: boolean;
   closeModal: () => void;
   handleSignIn: () => void;
 }
 
-export const SignInModal: FC<SignInModalProps> = ({ requiresSign, closeModal, handleSignIn }) => {
-  if (!requiresSign) {
+export const SignInModal: FC<SignInModalProps> = ({ signingPending, closeModal, handleSignIn }) => {
+  if (!signingPending) {
     return null;
   }
 
   return (
-    <Modal open={requiresSign} onClickBackdrop={closeModal}>
+    <Modal open={signingPending} onClickBackdrop={closeModal}>
       <Modal.Header className="font-bold text-xl flex justify-between">
         Sign In
         <button onClick={closeModal} className="btn btn-sm btn-circle">

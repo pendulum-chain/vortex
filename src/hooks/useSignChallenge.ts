@@ -11,7 +11,7 @@ export interface SiweSignatureData {
 
 export function useSiweSignature(address?: `0x${string}`) {
   const { signMessageAsync } = useSignMessage();
-  const [requiresSign, setRequiresSign] = useState(false);
+  const [signingPending, setSigningPending] = useState(false);
 
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
@@ -40,23 +40,23 @@ export function useSiweSignature(address?: `0x${string}`) {
   const signMessage = useCallback((): Promise<void> => {
     return new Promise((resolve, reject) => {
       setSignPromise({ resolve, reject });
-      setRequiresSign(true);
+      setSigningPending(true);
     });
-  }, [setRequiresSign, setSignPromise]);
+  }, [setSigningPending, setSignPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
 
     try {
-      const response = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
+      const messageResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ walletAddress: address }),
       });
 
-      if (!response.ok) throw new Error('Failed to create message');
-      const { siweMessage, nonce } = await response.json();
+      if (!messageResponse.ok) throw new Error('Failed to create message');
+      const { siweMessage, nonce } = await messageResponse.json();
 
       const message = new SiweMessage(siweMessage);
       const signature = await signMessageAsync({ message: siweMessage });
@@ -78,12 +78,13 @@ export function useSiweSignature(address?: `0x${string}`) {
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
       signPromise.resolve();
     } catch (error) {
-      signPromise.reject(new Error('Signing failed'));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      signPromise.reject(new Error('Signing failed: ' + errorMessage));
     } finally {
-      setRequiresSign(false);
+      setSigningPending(false);
       setSignPromise(null);
     }
-  }, [address, storageKey, signMessageAsync, signPromise, setRequiresSign, setSignPromise]);
+  }, [address, storageKey, signMessageAsync, signPromise, setSigningPending, setSignPromise]);
 
   // Handler for modal cancellation
   const handleCancel = useCallback(() => {
@@ -91,12 +92,11 @@ export function useSiweSignature(address?: `0x${string}`) {
       signPromise.reject(new Error('User cancelled'));
       setSignPromise(null);
     }
-    setRequiresSign(false);
-  }, [signPromise, setRequiresSign, setSignPromise]);
+    setSigningPending(false);
+  }, [signPromise, setSigningPending, setSignPromise]);
 
   const checkAndWaitForSignature = useCallback(async (): Promise<void> => {
     const stored = checkStoredSignature();
-    console.log('stored', stored);
     if (stored) return;
     return signMessage();
   }, [checkStoredSignature, signMessage]);
@@ -107,7 +107,7 @@ export function useSiweSignature(address?: `0x${string}`) {
   }, [storageKey, signMessage]);
 
   return {
-    requiresSign,
+    signingPending,
     handleSign,
     handleCancel,
     checkAndWaitForSignature,

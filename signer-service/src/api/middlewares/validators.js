@@ -158,7 +158,7 @@ const validateSep10Input = (req, res, next) => {
 const validateSiweCreate = (req, res, next) => {
   const { walletAddress } = req.body;
   if (!walletAddress) {
-    return res.status(400).json({ error: 'Missing address: walletAddress' });
+    return res.status(400).json({ error: 'Missing param: walletAddress' });
   }
   next();
 };
@@ -166,11 +166,11 @@ const validateSiweCreate = (req, res, next) => {
 const validateSiweValidate = (req, res, next) => {
   const { nonce, signature } = req.body;
   if (!signature) {
-    return res.status(400).json({ error: 'Missing signature: signature' });
+    return res.status(400).json({ error: 'Missing param: signature' });
   }
 
   if (!nonce) {
-    return res.status(400).json({ error: 'Missing initial nonce: nonce' });
+    return res.status(400).json({ error: 'Missing param: nonce' });
   }
 
   next();

@@ -71,5 +71,3 @@ exports.verifySiweMessage = async (nonce, signature) => {
 
   return maybeSiweData.siweMessage;
 };
-
-// TODO we need some sort of session log-out.

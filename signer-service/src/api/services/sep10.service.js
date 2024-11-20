@@ -40,7 +40,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   const { homeDomain, clientDomainEnabled, memoEnabled } = TOKEN_CONFIG[outToken];
 
   // Expected memo based on user's signature and nonce.
-  memo = await validateSignatureAndGetMemo(nonce, userChallengeSignature);
+  const memo = await validateSignatureAndGetMemo(nonce, userChallengeSignature);
 
   const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== anchorSigningKey) {
