@@ -98,9 +98,9 @@ const verifyMessageFields = (siweMessage) => {
   const expirationTimestamp = new Date(expirationTime).getTime();
 
   const expirationGracePeriod = 1000 * 60; // 1 minute
-  const expirationPeriod = new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).toISOString();
-  const expectedMinExpirationTimestamp = currentTime + expirationPeriod - expirationGracePeriod;
-  const expectedMaxExpirationTimestamp = currentTime + expirationPeriod;
+  const expirationPeriodMs = DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000;
+  const expectedMinExpirationTimestamp = currentTime + expirationPeriodMs - expirationGracePeriod;
+  const expectedMaxExpirationTimestamp = currentTime + expirationPeriodMs;
 
   if (expirationTimestamp < expectedMinExpirationTimestamp) {
     throw new ValidationError('Expiration time is too low');
