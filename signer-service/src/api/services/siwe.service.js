@@ -93,9 +93,14 @@ const verifyMessageFields = (siweMessage) => {
     throw new ValidationError('Scheme must be https');
   }
 
+  if (expirationTime === NaN || expirationTime === undefined) {
+    throw new ValidationError('Must defined valid expiration time');
+  }
+
   // Check if expiration is within a reasonable range from current time
   const currentTime = new Date().getTime();
   const expirationTimestamp = new Date(expirationTime).getTime();
+  console.log('expirationTimestamp', expirationTimestamp);
 
   const expirationGracePeriod = 1000 * 60; // 1 minute
   const expirationPeriodMs = DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000;
