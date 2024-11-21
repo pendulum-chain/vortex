@@ -115,9 +115,10 @@ export type TrackableEvent =
 type EventType = TrackableEvent['event'];
 
 type UseEventsContext = ReturnType<typeof useEvents>;
+
 const useEvents = () => {
   const { address, chainId } = useAccount();
-  const previousAddress = useRef<`0x${string}` | undefined>(undefined);
+  const previousAddress = useRef<`0x${string}` | undefined>(address);
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
@@ -152,6 +153,14 @@ const useEvents = () => {
   const resetUniqueEvents = useCallback(() => {
     trackedEventTypes.current = new Set();
   }, []);
+
+  useEffect(() => {
+    if (!previousAddress.current && address) {
+      // We make sure that `previousAddress` is populated once `address` becomes available.
+      // `address` is not available on first render, so we need to set the value of `previousAddress` once `address` is available.
+      previousAddress.current = address;
+    }
+  }, [address]);
 
   useEffect(() => {
     if (!chainId) return;
