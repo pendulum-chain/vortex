@@ -116,7 +116,7 @@ const verifyMessageFields = (siweMessage) => {
   }
 };
 
-const initialVerifySiweMessage = async (nonce, signature, siweMessage) => {
+const verifyAndStoreSiweMessage = async (nonce, signature, siweMessage) => {
   const validatedMessage = await verifySiweMessage(nonce, signature, siweMessage);
 
   // Perform additional checks to ensure message fields are valid
