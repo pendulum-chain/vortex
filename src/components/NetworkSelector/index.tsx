@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'preact/hooks';
 
 import { NetworkIcon } from '../NetworkIcon';
-import { NetworkIcons, NetworkIconType } from '../../hooks/useGetNetworkIcon';
+import { Networks, NetworkIconType } from '../../hooks/useGetNetworkIcon';
 import { useNetwork } from '../../contexts/network';
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
@@ -28,7 +28,7 @@ export const NetworkSelector = () => {
         transition={{ duration: 0.2 }}
         className="absolute w-48 mt-2 overflow-hidden bg-white rounded-lg shadow-lg top-full dark:bg-gray-800"
       >
-        {Object.values(NetworkIcons).map((networkId) => (
+        {Object.values(Networks).map((networkId) => (
           <button
             key={networkId}
             onClick={() => handleChainSelect(networkId)}
