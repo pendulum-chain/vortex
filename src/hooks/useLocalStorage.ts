@@ -116,4 +116,6 @@ export const useLocalStorage = <T>({
 export enum LocalStorageKeys {
   RATING = 'RATING',
   SELECTED_NETWORK = 'SELECTED_NETWORK',
+  SELECTED_POLKADOT_WALLET = 'SELECTED_POLKADOT_WALLET',
+  ACCOUNT = 'ACCOUNT',
 }
