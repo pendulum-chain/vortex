@@ -28,13 +28,15 @@ const createAndSendNonce = async (address) => {
 // Used to verify the integrity and validity of the signature
 // For the initial verification, the siweMessage must be provided as parameter
 const verifySiweMessage = async (nonce, signature, initialSiweMessage) => {
-  const maybeSiweData = siweMessagesMap.get(nonce);
-  if (!maybeSiweData) {
+  const existingSiweDataForNonce = siweMessagesMap.get(nonce);
+  if (!existingSiweDataForNonce) {
     throw new ValidationError('Message not found, we have not sent this nonce or nonce is incorrect');
   }
 
-  const siweMessage = maybeSiweData.siweMessage ? maybeSiweData.siweMessage : new siwe.SiweMessage(initialSiweMessage);
-  const address = maybeSiweData.address;
+  const siweMessage = existingSiweDataForNonce.siweMessage
+    ? existingSiweDataForNonce.siweMessage
+    : new siwe.SiweMessage(initialSiweMessage);
+  const address = existingSiweDataForNonce.address;
 
   if (!siweMessage) {
     throw new Error('Message must be provided as a parameter if it has not been initially validated.');
@@ -93,14 +95,13 @@ const verifyMessageFields = (siweMessage) => {
     throw new ValidationError('Scheme must be https');
   }
 
-  if (expirationTime === NaN || expirationTime === undefined) {
-    throw new ValidationError('Must defined valid expiration time');
+  if (!expirationTime || isNaN(new Date(expirationTime).getTime())) {
+    throw new ValidationError('Must define a valid expiration time');
   }
 
   // Check if expiration is within a reasonable range from current time
   const currentTime = new Date().getTime();
   const expirationTimestamp = new Date(expirationTime).getTime();
-  console.log('expirationTimestamp', expirationTimestamp);
 
   const expirationGracePeriod = 1000 * 60; // 1 minute
   const expirationPeriodMs = DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000;
@@ -136,4 +137,4 @@ const verifyAndStoreSiweMessage = async (nonce, signature, siweMessage) => {
   });
 };
 
-module.exports = { verifySiweMessage, initialVerifySiweMessage, createAndSendNonce };
+module.exports = { verifySiweMessage, verifyAndStoreSiweMessage, createAndSendNonce };

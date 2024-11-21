@@ -1,4 +1,4 @@
-const { createAndSendNonce, initialVerifySiweMessage } = require('../services/siwe.service');
+const { createAndSendNonce, verifyAndStoreSiweMessage } = require('../services/siwe.service');
 const { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } = require('../../constants/constants');
 
 exports.sendSiweMessage = async (req, res) => {
@@ -17,7 +17,7 @@ exports.sendSiweMessage = async (req, res) => {
 exports.validateSiweSignature = async (req, res) => {
   const { nonce, signature, siweMessage } = req.body;
   try {
-    await initialVerifySiweMessage(nonce, signature, siweMessage);
+    await verifyAndStoreSiweMessage(nonce, signature, siweMessage);
 
     const token = {
       nonce,
