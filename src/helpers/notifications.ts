@@ -4,7 +4,8 @@ export enum ToastMessage {
   AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
   KYC_COMPLETED = 'KYC_COMPLETED',
   SIGNING_FAILED = 'SIGNING_FAILED',
-  SUBSTRATE_WALLET_ALREADY_OPEN_PENDING_CONNECTION = 'SUBSTRATE_WALLET_ALREADY_OPEN_PENDING_CONNECTION',
+  POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = 'POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION',
+  ERROR = 'ERROR',
 }
 
 type ToastSettings = {
@@ -34,10 +35,16 @@ const ToastProperties: Record<ToastMessage, ToastSettings> = {
       type: 'error',
     },
   },
-  [ToastMessage.SUBSTRATE_WALLET_ALREADY_OPEN_PENDING_CONNECTION]: {
+  [ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION]: {
     message: 'Wallet already open pending connection. Please try again.',
     options: {
-      toastId: ToastMessage.SUBSTRATE_WALLET_ALREADY_OPEN_PENDING_CONNECTION,
+      toastId: ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION,
+      type: 'error',
+    },
+  },
+  [ToastMessage.ERROR]: {
+    message: 'An error occurred',
+    options: {
       type: 'error',
     },
   },
