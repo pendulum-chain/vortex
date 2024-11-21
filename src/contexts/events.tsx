@@ -118,7 +118,7 @@ type UseEventsContext = ReturnType<typeof useEvents>;
 
 const useEvents = () => {
   const { address, chainId } = useAccount();
-  const previousAddress = useRef<`0x${string}` | undefined>(address);
+  const previousAddress = useRef<`0x${string}` | undefined>(undefined);
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
@@ -155,14 +155,6 @@ const useEvents = () => {
   }, []);
 
   useEffect(() => {
-    if (!previousAddress.current && address) {
-      // We make sure that `previousAddress` is populated once `address` becomes available.
-      // `address` is not available on first render, so we need to set the value of `previousAddress` once `address` is available.
-      previousAddress.current = address;
-    }
-  }, [address]);
-
-  useEffect(() => {
     if (!chainId) return;
 
     if (previousChainId.current === undefined) {
@@ -181,12 +173,14 @@ const useEvents = () => {
   }, [chainId, trackEvent]);
 
   useEffect(() => {
-    const wasConnected = previousAddress.current !== undefined;
+    const wasConnected = Boolean(previousAddress.current);
     const isConnected = address !== undefined;
 
     // set sentry user as wallet address
     if (address) {
       Sentry.setUser({ id: address });
+
+      previousAddress.current = address;
     }
 
     if (!userClickedState.current) {
@@ -194,11 +188,14 @@ const useEvents = () => {
     }
 
     if (!isConnected) {
-      trackEvent({
-        event: 'wallet_connect',
-        wallet_action: 'disconnect',
-        account_address: previousAddress.current || '',
-      });
+      // Just a failsafe so we never send a disconnect event without a previous address.
+      if (previousAddress.current) {
+        trackEvent({
+          event: 'wallet_connect',
+          wallet_action: 'disconnect',
+          account_address: previousAddress.current,
+        });
+      }
     } else {
       trackEvent({
         event: 'wallet_connect',
