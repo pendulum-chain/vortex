@@ -37,7 +37,7 @@ export interface ClickDetailsEvent {
 export interface WalletConnectEvent {
   event: 'wallet_connect';
   wallet_action: 'connect' | 'disconnect' | 'change';
-  account_address: string;
+  account_address?: string;
 }
 
 interface OfframpingParameters {
@@ -188,14 +188,11 @@ const useEvents = () => {
     }
 
     if (!isConnected) {
-      // Just a failsafe so we never send a disconnect event without a previous address.
-      if (previousAddress.current) {
-        trackEvent({
-          event: 'wallet_connect',
-          wallet_action: 'disconnect',
-          account_address: previousAddress.current,
-        });
-      }
+      trackEvent({
+        event: 'wallet_connect',
+        wallet_action: 'disconnect',
+        account_address: previousAddress.current,
+      });
     } else {
       trackEvent({
         event: 'wallet_connect',
