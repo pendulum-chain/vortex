@@ -73,33 +73,40 @@ async function deriveMemoFromAddress(address: `0x${string}`) {
 async function getUrlParams(
   ephemeralAccount: string,
   usesMemo: boolean,
+  supportsClientDomain: boolean,
   address: `0x${string}`,
 ): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
+  let sep10Account: string;
+  const params = new URLSearchParams();
+
   if (usesMemo) {
     const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
 
     if (!response.ok) {
       throw new Error('Failed to fetch client master SEP-10 public account.');
     }
+
     const { masterSep10Public } = await response.json();
+
     if (!masterSep10Public) {
       throw new Error('masterSep10Public not found in response.');
     }
 
-    const sep10Account = masterSep10Public;
-
-    return {
-      urlParams: new URLSearchParams({
-        account: sep10Account,
-        client_domain: config.applicationClientDomain,
-        memo: await deriveMemoFromAddress(address),
-      }),
-      sep10Account,
-    };
+    sep10Account = masterSep10Public;
+    params.append('account', sep10Account);
+    params.append('memo', await deriveMemoFromAddress(address));
+  } else {
+    sep10Account = ephemeralAccount;
+    params.append('account', sep10Account);
   }
+
+  if (supportsClientDomain) {
+    params.append('client_domain', config.applicationClientDomain);
+  }
+
   return {
-    urlParams: new URLSearchParams({ account: ephemeralAccount, client_domain: config.applicationClientDomain }),
-    sep10Account: ephemeralAccount,
+    urlParams: params,
+    sep10Account,
   };
 }
 
@@ -136,11 +143,10 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  const { usesMemo } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { usesMemo, supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   // will select either clientMaster or the ephemeral account
-  const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, address!);
-  const { supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, supportsClientDomain, address!);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {

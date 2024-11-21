@@ -55,12 +55,13 @@ export function useSiweSignature(address?: `0x${string}`) {
     }
   }, [address, storageKey]);
 
-  const signMessage = useCallback((): Promise<void> => {
+  const signMessage = useCallback((): Promise<void> | undefined => {
+    if (signPromise) return;
     return new Promise((resolve, reject) => {
       setSignPromise({ resolve, reject });
       setSigningPending(true);
     });
-  }, [setSigningPending, setSignPromise]);
+  }, [setSigningPending, setSignPromise, signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;

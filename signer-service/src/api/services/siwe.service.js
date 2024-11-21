@@ -103,7 +103,7 @@ const verifyInitialMessageFields = (siweMessage) => {
   const currentTime = new Date().getTime();
   const expirationTimestamp = new Date(expirationTime).getTime();
 
-  const expirationGracePeriod = 1000 * 60; // 1 minute
+  const expirationGracePeriod = 1000 * 60 * 10; // 10 minutes
   const expirationPeriodMs = DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000;
   const expectedMinExpirationTimestamp = currentTime + expirationPeriodMs - expirationGracePeriod;
   const expectedMaxExpirationTimestamp = currentTime + expirationPeriodMs;

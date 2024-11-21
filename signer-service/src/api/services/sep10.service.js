@@ -16,8 +16,8 @@ async function deriveMemoFromAddress(address) {
 
 // we validate a challenge for a given nonce. From it we obtain the address and derive the memo
 // we can then ensure that the memo is the same as the one we expect from the anchor challenge
-const validateSignatureAndGetMemo = async (nonce, userChallengeSignature) => {
-  if (!userChallengeSignature || !nonce) {
+const validateSignatureAndGetMemo = async (nonce, userChallengeSignature, memoEnabled) => {
+  if (!userChallengeSignature || !nonce || !memoEnabled) {
     return null; // Default memo value when single stellar account is used
   }
 
@@ -42,7 +42,7 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, use
   const { homeDomain, clientDomainEnabled, memoEnabled } = TOKEN_CONFIG[outToken];
 
   // Expected memo based on user's signature and nonce.
-  const memo = await validateSignatureAndGetMemo(nonce, userChallengeSignature);
+  const memo = await validateSignatureAndGetMemo(nonce, userChallengeSignature, memoEnabled);
 
   const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== anchorSigningKey) {
