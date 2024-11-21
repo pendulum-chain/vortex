@@ -173,7 +173,7 @@ const useEvents = () => {
   }, [chainId, trackEvent]);
 
   useEffect(() => {
-    const wasConnected = Boolean(previousAddress.current);
+    const wasConnected = previousAddress.current !== undefined;
     const isConnected = address !== undefined;
 
     // set sentry user as wallet address
