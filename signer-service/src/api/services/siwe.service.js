@@ -71,7 +71,7 @@ const verifySiweMessage = async (nonce, signature, initialSiweMessage) => {
 };
 
 // Since the message is created in the UI, we need to verify the fields of the message
-const verifyMessageFields = (siweMessage) => {
+const verifyInitialMessageFields = (siweMessage) => {
   // Fields we validate on initial
   const domain = siweMessage.domain;
   const uri = siweMessage.uri;
@@ -121,7 +121,7 @@ const verifyAndStoreSiweMessage = async (nonce, signature, siweMessage) => {
   const validatedMessage = await verifySiweMessage(nonce, signature, siweMessage);
 
   // Perform additional checks to ensure message fields are valid
-  verifyMessageFields(validatedMessage);
+  verifyInitialMessageFields(validatedMessage);
 
   // Verification complete. Update the map and append the message.
   const siweData = siweMessagesMap.get(nonce);
