@@ -22,8 +22,8 @@ app.use(
   cors({
     origin: [
       'http://localhost:5173',
-      'https://polygon-prototype-staging--pendulum-pay.netlify.app/',
-      'https://app.vortexfinance.co/',
+      'https://polygon-prototype-staging--pendulum-pay.netlify.app',
+      'https://app.vortexfinance.co',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
