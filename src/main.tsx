@@ -9,12 +9,12 @@ import * as Sentry from '@sentry/react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
 import { EventsProvider } from './contexts/events';
 import { NetworkProvider } from './contexts/network';
 import { wagmiConfig } from './wagmiConfig';
 import { config } from './config';
 import { App } from './app';
+import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
 
 const queryClient = new QueryClient();
 
@@ -40,15 +40,11 @@ render(
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <EventsProvider>
-            <GlobalStateProvider>
-              <NetworkProvider>
-                <GlobalStateContext.Consumer>
-                  {() => {
-                    return <App />;
-                  }}
-                </GlobalStateContext.Consumer>
-              </NetworkProvider>
-            </GlobalStateProvider>
+            <NetworkProvider>
+              <PolkadotWalletStateProvider>
+                <App />
+              </PolkadotWalletStateProvider>
+            </NetworkProvider>
           </EventsProvider>
         </QueryClientProvider>
       </WagmiProvider>
