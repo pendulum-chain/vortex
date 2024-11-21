@@ -2,7 +2,7 @@ import { Signer } from '@polkadot/types/types';
 import { WalletAccount } from '@talismn/connect-wallets';
 import type { SessionTypes } from '@walletconnect/types/dist/types/sign-client/session';
 import UniversalProvider from '@walletconnect/universal-provider';
-import logo from '../../assets/wallet-connect.svg';
+import logo from '../../assets/wallets/wallet-connect.svg';
 import { config } from '../../config';
 
 export const walletConnectService = {
