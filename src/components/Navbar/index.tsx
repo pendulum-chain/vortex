@@ -4,7 +4,7 @@ import { Bars4Icon, XMarkIcon } from '@heroicons/react/20/solid';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import whiteLogo from '../../assets/logo/white.png';
-import { ConnectWallet } from '../buttons/ConnectWallet';
+import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
 import { NetworkSelector } from '../NetworkSelector';
 
 const links = [
@@ -107,7 +107,7 @@ export const Navbar = () => {
       </div>
       <div className="flex items-center">
         <NetworkSelector />
-        <ConnectWallet />
+        <ConnectWalletButton />
         <MobileMenu onClick={() => setShowMenu(true)} />
         <MobileMenuList showMenu={showMenu} closeMenu={() => setShowMenu(false)} />
       </div>
