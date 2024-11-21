@@ -36,6 +36,9 @@ import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import { FeeComparison } from '../../components/FeeComparison';
 
+import { SignInModal } from '../../components/SignIn';
+import { useSiweContext } from '../../contexts/siwe';
+
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
     <ArrowDownIcon className="text-blue-700 w-7" />
@@ -47,10 +50,11 @@ export const SwapPage = () => {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
+  const { signingPending, handleSign, handleCancel } = useSiweContext();
 
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
@@ -83,6 +87,7 @@ export const SwapPage = () => {
     isInitiating,
     signingPhase,
     setIsInitiating,
+    maybeCancelSep24First,
   } = useMainProcess();
 
   // Store the id as it is cleared after the user opens the anchor window
@@ -177,6 +182,7 @@ export const SwapPage = () => {
           outputTokenType: to as OutputTokenType,
           amountInUnits: fromAmountString,
           offrampAmount: tokenOutAmountData.roundedDownQuotedAmountOut,
+          setInitializeFailed,
         });
       })
       .catch((_error) => {
@@ -314,7 +320,10 @@ export const SwapPage = () => {
       <TermsAndConditions />
       <PoolSelectorModal
         open={!!modalType}
-        onSelect={modalType === 'from' ? onFromChange : onToChange}
+        onSelect={(token) => {
+          modalType === 'from' ? onFromChange(token) : onToChange(token);
+          maybeCancelSep24First();
+        }}
         definitions={definitions}
         selected={modalType === 'from' ? from : to}
         onClose={() => setModalType(undefined)}
@@ -348,6 +357,7 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
+      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
