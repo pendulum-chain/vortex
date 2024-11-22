@@ -6,6 +6,7 @@ export type NetworkType = typeof polygon.name;
 export interface InputTokenDetails {
   assetSymbol: string;
   erc20AddressSourceChain: `0x${string}`;
+  assetHubAddress?: string;
   axelarEquivalent: {
     pendulumErc20WrapperAddress: string;
     pendulumCurrencyId: { XCM: number };
@@ -56,6 +57,7 @@ export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
   usdc: {
     assetSymbol: 'USDC',
     erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+    assetHubAddress: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Asset Hub
     axelarEquivalent: PENDULUM_USDC_AXL,
     polygonAssetIcon: 'polygonUSDC',
     decimals: 6,
