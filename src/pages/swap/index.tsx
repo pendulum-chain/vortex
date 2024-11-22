@@ -264,7 +264,7 @@ export const SwapPage = () => {
         <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
-    [form, fromToken, setModalType],
+    [form, fromToken, setModalType, trackEvent],
   );
 
   function getCurrentErrorMessage() {

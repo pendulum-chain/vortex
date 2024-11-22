@@ -43,7 +43,7 @@ export interface WalletConnectEvent {
   account_address?: string;
 }
 
-interface OfframpingParameters {
+export interface OfframpingParameters {
   from_asset: string;
   to_asset: string;
   from_amount: string;
@@ -140,32 +140,17 @@ const useEvents = () => {
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
-  const [scheduledQuotes, setScheduledQuotes] = useState<Partial<Record<QuoteService, string>>>({});
+  const [_scheduledQuotes, setScheduledQuotes] = useState<
+    | {
+        from_asset: string;
+        to_asset: string;
+        quotes: Partial<Record<QuoteService, string>>;
+      }
+    | undefined
+  >(undefined);
 
   const trackedEventTypes = useRef<Set<EventType>>(new Set());
   const firedFormErrors = useRef<Set<FormErrorEvent['error_message']>>(new Set());
-
-  const scheduleQuote = useCallback((service: QuoteService, quote: string, state: OfframpingState) => {
-    setScheduledQuotes((prev) => {
-      const newQuotes = { ...prev, [service]: quote };
-      const sizeChanged = Object.keys(newQuotes).length !== Object.keys(prev).length;
-
-      // If all quotes are ready, emit the event
-      if (sizeChanged && Object.keys(scheduledQuotes).length === 3) {
-        trackEvent({
-          ...createTransactionEvent('compare_quote', state),
-          event: 'compare_quote',
-          transak_quote: newQuotes.transak,
-          moonpay_quote: newQuotes.moonpay,
-          alchemypay_quote: newQuotes.alchemypay,
-        });
-        // Reset the quotes
-        return {};
-      }
-
-      return newQuotes;
-    });
-  }, []);
 
   const trackEvent = useCallback((event: TrackableEvent) => {
     if (UNIQUE_EVENT_TYPES.includes(event.event)) {
@@ -195,6 +180,44 @@ const useEvents = () => {
   const resetUniqueEvents = useCallback(() => {
     trackedEventTypes.current = new Set();
   }, []);
+
+  /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
+  /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
+  const scheduleQuote = useCallback(
+    (service: QuoteService, quote: string, parameters: OfframpingParameters) => {
+      setScheduledQuotes((prev) => {
+        // Check if there is a mismatch in tokens used previously vs the ones passed n the latest state
+        const newQuotes =
+          prev && (prev.from_asset !== parameters.from_asset || prev.to_asset !== parameters.to_asset)
+            ? {
+                from_asset: parameters.from_asset,
+                to_asset: parameters.to_asset,
+                quotes: { [service]: quote },
+              }
+            : {
+                from_asset: parameters.from_asset,
+                to_asset: parameters.to_asset,
+                quotes: { ...prev?.quotes, [service]: quote },
+              };
+
+        // If all quotes are ready, emit the event
+        if (Object.keys(newQuotes.quotes).length === 3) {
+          trackEvent({
+            ...parameters,
+            event: 'compare_quote',
+            transak_quote: newQuotes.quotes.transak !== '-1' ? newQuotes.quotes.transak : undefined,
+            moonpay_quote: newQuotes.quotes.moonpay !== '-1' ? newQuotes.quotes.moonpay : undefined,
+            alchemypay_quote: newQuotes.quotes.alchemypay !== '-1' ? newQuotes.quotes.alchemypay : undefined,
+          });
+          // Reset the quotes
+          return undefined;
+        }
+
+        return newQuotes;
+      });
+    },
+    [trackEvent],
+  );
 
   useEffect(() => {
     if (!chainId) return;

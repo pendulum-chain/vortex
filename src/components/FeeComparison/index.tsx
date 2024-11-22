@@ -1,11 +1,13 @@
 import Big from 'big.js';
 import { useMemo } from 'preact/hooks';
+import { useEffect } from 'preact/compat';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Skeleton } from '../Skeleton';
 import vortexIcon from '../../assets/logo/blue.svg';
 import { QuoteProvider, quoteProviders } from './quoteProviders';
 import { NetworkType } from '../../constants/tokenConfig';
+import { OfframpingParameters, useEventsContext } from '../../contexts/events';
 
 type FeeProviderRowProps = FeeComparisonProps & { provider: QuoteProvider };
 
@@ -35,13 +37,17 @@ function FeeProviderRow({
   vortexPrice,
   network,
 }: FeeProviderRowProps) {
-  const { isLoading, error, data } = useQuery({
+  const { scheduleQuote } = useEventsContext();
+
+  const {
+    isLoading,
+    error,
+    data: providerPrice,
+  } = useQuery({
     queryKey: [sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, network],
     queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, network),
     retry: false, // We don't want to retry the request to avoid spamming the server
   });
-
-  const providerPrice = data?.lt(0) ? undefined : data;
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) {
@@ -50,6 +56,18 @@ function FeeProviderRow({
 
     return providerPrice.minus(vortexPrice);
   }, [isLoading, error, providerPrice, vortexPrice]);
+
+  useEffect(() => {
+    if (providerPrice || error) {
+      const parameters: OfframpingParameters = {
+        from_amount: amount.toFixed(2),
+        from_asset: sourceAssetSymbol,
+        to_amount: vortexPrice.toFixed(2),
+        to_asset: targetAssetSymbol,
+      };
+      scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
+    }
+  }, [amount, provider.name, scheduleQuote, sourceAssetSymbol, targetAssetSymbol, providerPrice, error, vortexPrice]);
 
   return (
     <div className="flex items-center justify-between w-full">
