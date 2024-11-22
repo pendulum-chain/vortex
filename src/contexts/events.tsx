@@ -1,11 +1,12 @@
 import { createContext } from 'preact';
-import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
+import { PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from 'preact/compat';
 import Big from 'big.js';
 import * as Sentry from '@sentry/react';
 import { useAccount } from 'wagmi';
 import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
+import { QuoteService } from '../services/quotes';
 
 declare global {
   interface Window {
@@ -50,7 +51,13 @@ interface OfframpingParameters {
 }
 
 export type TransactionEvent = OfframpingParameters & {
-  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
+  event:
+    | 'transaction_confirmation'
+    | 'kyc_started'
+    | 'kyc_completed'
+    | 'transaction_success'
+    | 'transaction_failure'
+    | 'compare_quote';
 };
 
 export type TransactionFailedEvent = OfframpingParameters & {
@@ -58,6 +65,13 @@ export type TransactionFailedEvent = OfframpingParameters & {
   phase_name: string;
   phase_index: number;
   error_message: string;
+};
+
+export type CompareQuoteEvent = OfframpingParameters & {
+  event: 'compare_quote';
+  moonpay_quote: string;
+  alchemypay_quote: string;
+  transak_quote: string;
 };
 
 export interface ProgressEvent {
@@ -107,6 +121,7 @@ export type TrackableEvent =
   | WalletConnectEvent
   | TransactionEvent
   | TransactionFailedEvent
+  | CompareQuoteEvent
   | ClickSupportEvent
   | FormErrorEvent
   | EmailSubmissionEvent
@@ -125,8 +140,32 @@ const useEvents = () => {
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
+  const [scheduledQuotes, setScheduledQuotes] = useState<Partial<Record<QuoteService, string>>>({});
+
   const trackedEventTypes = useRef<Set<EventType>>(new Set());
   const firedFormErrors = useRef<Set<FormErrorEvent['error_message']>>(new Set());
+
+  const scheduleQuote = useCallback((service: QuoteService, quote: string, state: OfframpingState) => {
+    setScheduledQuotes((prev) => {
+      const newQuotes = { ...prev, [service]: quote };
+      const sizeChanged = Object.keys(newQuotes).length !== Object.keys(prev).length;
+
+      // If all quotes are ready, emit the event
+      if (sizeChanged && Object.keys(scheduledQuotes).length === 3) {
+        trackEvent({
+          ...createTransactionEvent('compare_quote', state),
+          event: 'compare_quote',
+          transak_quote: newQuotes.transak,
+          moonpay_quote: newQuotes.moonpay,
+          alchemypay_quote: newQuotes.alchemypay,
+        });
+        // Reset the quotes
+        return {};
+      }
+
+      return newQuotes;
+    });
+  }, []);
 
   const trackEvent = useCallback((event: TrackableEvent) => {
     if (UNIQUE_EVENT_TYPES.includes(event.event)) {
@@ -217,6 +256,7 @@ const useEvents = () => {
     trackEvent,
     resetUniqueEvents,
     handleUserClickWallet,
+    scheduleQuote,
   };
 };
 
