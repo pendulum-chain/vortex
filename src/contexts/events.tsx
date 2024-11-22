@@ -57,6 +57,7 @@ export type TransactionFailedEvent = OfframpingParameters & {
   event: 'transaction_failure';
   phase_name: string;
   phase_index: number;
+  error_message: string;
 };
 
 export interface ProgressEvent {

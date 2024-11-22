@@ -87,6 +87,7 @@ export const useMainProcess = () => {
           event: 'transaction_failure',
           phase_name: currentPhase,
           phase_index: currentPhaseIndex,
+          error_message: state.failure.message,
         });
       }
     },
