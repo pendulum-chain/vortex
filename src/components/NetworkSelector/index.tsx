@@ -2,8 +2,8 @@ import { motion } from 'framer-motion';
 import { useState } from 'preact/hooks';
 
 import { NetworkIcon } from '../NetworkIcon';
-import { Networks, NetworkIconType } from '../../hooks/useGetNetworkIcon';
-import { useNetwork } from '../../contexts/network';
+import { NetworkIconType } from '../../hooks/useGetNetworkIcon';
+import { Networks, useNetwork } from '../../contexts/network';
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 

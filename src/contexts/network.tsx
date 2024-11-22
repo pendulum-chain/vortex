@@ -1,8 +1,13 @@
 import { createContext } from 'preact';
 import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
 import { useSwitchChain } from 'wagmi';
-import { NetworkIconType, Networks } from '../hooks/useGetNetworkIcon';
+import { NetworkIconType } from '../hooks/useGetNetworkIcon';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
+
+export enum Networks {
+  AssetHub = 'AssetHub',
+  Polygon = 'Polygon',
+}
 
 const assetHubId = 'polkadot:68d56f15f85d3136970ec16946040bc1';
 
@@ -14,14 +19,14 @@ interface NetworkContextType {
 
 const NetworkContext = createContext<NetworkContextType>({
   polkadotSelectedNetworkId: assetHubId,
-  selectedNetwork: Networks.assetHub,
+  selectedNetwork: Networks.AssetHub,
   setSelectedNetwork: () => null,
 });
 
 export const NetworkProvider = ({ children }: { children: preact.ComponentChildren }) => {
   const { state: selectedNetworkLocalStorage, set: setSelectedNetworkLocalStorage } = useLocalStorage<NetworkIconType>({
     key: LocalStorageKeys.SELECTED_NETWORK,
-    defaultValue: Networks.assetHub,
+    defaultValue: Networks.AssetHub,
   });
 
   const [selectedNetwork, setSelectedNetworkState] = useState<NetworkIconType>(selectedNetworkLocalStorage);

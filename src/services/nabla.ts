@@ -23,7 +23,7 @@ import {
   parseContractBalanceResponse,
   stringifyBigWithSignificantDecimals,
 } from '../helpers/contracts';
-import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { getInputTokenDetails, getPendulumCurrencyId, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { ExecutionContext, OfframpingState } from './offrampingFlow';
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { decodeSubmittableExtrinsic } from './signedTransactions';
@@ -68,10 +68,10 @@ export async function prepareNablaApproveTransaction(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<Extrinsic> {
-  const { inputTokenType, inputAmount, pendulumEphemeralSeed, nablaApproveNonce } = state;
+  const { inputTokenType, inputAmount, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
 
   // event attempting swap
-  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const inputToken = getInputTokenDetails(network, inputTokenType);
 
   console.log('swap', 'Preparing the signed extrinsic for the approval of swap', inputAmount.units, inputTokenType);
   // get chain api, abi
@@ -87,7 +87,7 @@ export async function prepareNablaApproveTransaction(
   const response: ReadMessageResult = await readMessage({
     abi: erc20ContractAbi,
     api: api,
-    contractDeploymentAddress: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+    contractDeploymentAddress: inputToken.pendulumErc20WrapperAddress,
     callerAddress: ephemeralKeypair.address,
     messageName: 'allowance',
     messageArguments: [ephemeralKeypair.address, NABLA_ROUTER],
@@ -105,14 +105,11 @@ export async function prepareNablaApproveTransaction(
   //maybe do allowance
   if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmount.raw))) {
     try {
-      renderEvent(
-        `Approving tokens: ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
-        EventStatus.Waiting,
-      );
+      renderEvent(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
       return createAndSignApproveExtrinsic({
         api: api,
         amount: inputAmount.raw,
-        token: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+        token: inputToken.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
         keypairEphemeral: ephemeralKeypair,
@@ -133,8 +130,8 @@ export async function nablaApprove(
   state: OfframpingState,
   { renderEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
-  const { transactions, inputAmount, inputTokenType, nablaApproveNonce } = state;
-  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const { transactions, inputAmount, inputTokenType, nablaApproveNonce, network } = state;
+  const inputToken = getInputTokenDetails(network, inputTokenType);
 
   if (!transactions) {
     console.error('Missing transactions for nablaApprove');
@@ -152,10 +149,7 @@ export async function nablaApprove(
   }
 
   try {
-    renderEvent(
-      `Approving tokens: ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol}`,
-      EventStatus.Waiting,
-    );
+    renderEvent(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
 
     const { api } = (await getApiManagerInstance()).apiData!;
 
@@ -244,10 +238,11 @@ export async function prepareNablaSwapTransaction(
     nablaHardMinimumOutputRaw,
     pendulumEphemeralSeed,
     nablaSwapNonce,
+    network,
   } = state;
 
   // event attempting swap
-  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const inputToken = getInputTokenDetails(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   // get chain api, abi
@@ -271,7 +266,7 @@ export async function prepareNablaSwapTransaction(
     // Try swap
     try {
       renderEvent(
-        `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+        `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
         EventStatus.Waiting,
       );
 
@@ -279,7 +274,7 @@ export async function prepareNablaSwapTransaction(
         api: api,
         amount: inputAmount.raw,
         amountMin: nablaHardMinimumOutputRaw,
-        tokenIn: inputToken.axelarEquivalent.pendulumErc20WrapperAddress,
+        tokenIn: inputToken.pendulumErc20WrapperAddress,
         tokenOut: outputToken.erc20WrapperAddress,
         contractAbi: routerAbiObject,
         keypairEphemeral: ephemeralKeypair,
@@ -303,6 +298,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
     pendulumEphemeralSeed,
     nablaSwapNonce,
     nablaSoftMinimumOutputRaw,
+    network,
   } = state;
 
   const successorState = {
@@ -315,7 +311,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
     return successorState;
   }
 
-  const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+  const inputToken = getInputTokenDetails(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   if (transactions === undefined) {
@@ -336,7 +332,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
 
   try {
     renderEvent(
-      `Swapping ${inputAmount.units} ${inputToken.axelarEquivalent.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+      `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
       EventStatus.Waiting,
     );
 
@@ -347,10 +343,7 @@ export async function nablaSwap(state: OfframpingState, { renderEvent }: Executi
       contractDeploymentAddress: NABLA_ROUTER,
       callerAddress: ephemeralKeypair.address,
       messageName: 'getAmountOut',
-      messageArguments: [
-        inputAmount.raw,
-        [inputToken.axelarEquivalent.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress],
-      ],
+      messageArguments: [inputAmount.raw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
       limits: defaultReadLimits,
     });
 

@@ -3,7 +3,7 @@ import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 
 import { storageService } from './storage/local';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
+import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
 import {
   createPendulumEphemeralSeed,
@@ -27,6 +27,7 @@ import { executeXCM } from './moonbeam';
 import { TrackableEvent } from '../contexts/events';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 import * as Sentry from '@sentry/react';
+import { Networks } from '../contexts/network';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
@@ -106,6 +107,8 @@ export interface OfframpingState {
     nablaApproveTransaction: string;
     nablaSwapTransaction: string;
   };
+
+  network: Networks;
 }
 
 export type StateTransitionFunction = (
@@ -145,6 +148,7 @@ export interface InitiateStateArguments {
   amountIn: string;
   amountOut: Big;
   sepResult: SepResult;
+  network: Networks;
 }
 
 export async function constructInitialState({
@@ -155,14 +159,15 @@ export async function constructInitialState({
   amountIn,
   amountOut,
   sepResult,
+  network,
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
 
-  const inputTokenDecimals = INPUT_TOKEN_CONFIG[inputTokenType].decimals;
+  const inputTokenDecimals = getInputTokenDetails(network, inputTokenType).decimals;
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
 
   const inputAmountBig = Big(amountIn);
-  const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals).toFixed();
+  const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();
 
   const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
 
@@ -203,7 +208,7 @@ export async function constructInitialState({
     createdAt: now,
     failureTimeoutAt: now + minutesInMs(10),
     sepResult,
-
+    network,
     transactions: undefined,
   };
 

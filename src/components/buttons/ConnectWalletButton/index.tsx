@@ -1,12 +1,11 @@
-import { Networks } from '../../../hooks/useGetNetworkIcon';
-import { useNetwork } from '../../../contexts/network';
+import { Networks, useNetwork } from '../../../contexts/network';
 import { EVMWalletButton } from '../EVMWalletButton';
 import { PolkadotWalletButton } from '../PolkadotWalletButton';
 
 export const ConnectWalletButton = () => {
   const { selectedNetwork } = useNetwork();
 
-  if (selectedNetwork === Networks.assetHub) {
+  if (selectedNetwork === Networks.AssetHub) {
     return <PolkadotWalletButton />;
   }
 

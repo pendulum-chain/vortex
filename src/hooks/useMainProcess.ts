@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/compat';
 
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
+import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
@@ -23,6 +23,7 @@ import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
 import { Keypair } from 'stellar-sdk';
+import { useNetwork } from '../contexts/network';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -54,6 +55,7 @@ export const useMainProcess = () => {
   const [anchorSessionParamsState, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
   const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
   const [executionInputState, setExecutionInputState] = useState<ExtendedExecutionInput | undefined>(undefined);
+  const { selectedNetwork } = useNetwork();
 
   const sep24FirstIntervalRef = useRef<number | undefined>(undefined);
 
@@ -73,20 +75,21 @@ export const useMainProcess = () => {
       setOfframpingState(state);
 
       if (state?.phase === 'success') {
-        trackEvent(createTransactionEvent('transaction_success', state));
+        trackEvent(createTransactionEvent('transaction_success', state, selectedNetwork));
       } else if (state?.failure !== undefined) {
         const currentPhase = state?.phase;
         const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
 
         trackEvent({
-          ...createTransactionEvent('transaction_failure', state),
+          ...createTransactionEvent('transaction_failure', state, selectedNetwork),
           event: 'transaction_failure',
           phase_name: currentPhase,
           phase_index: currentPhaseIndex,
+          from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType).assetSymbol,
         });
       }
     },
-    [trackEvent],
+    [trackEvent, selectedNetwork],
   );
 
   useEffect(() => {
@@ -127,7 +130,7 @@ export const useMainProcess = () => {
         setOfframpingStarted(true);
         trackEvent({
           event: 'transaction_confirmation',
-          from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
+          from_asset: getInputTokenDetails(selectedNetwork, inputTokenType).assetSymbol,
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
           to_amount: offrampAmount.toFixed(2, 0),
@@ -183,7 +186,7 @@ export const useMainProcess = () => {
         }
       })();
     },
-    [offrampingStarted, offrampingState, switchChain, trackEvent],
+    [offrampingStarted, offrampingState, switchChain, trackEvent, selectedNetwork],
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
@@ -196,7 +199,7 @@ export const useMainProcess = () => {
     }
     trackEvent({
       event: 'kyc_started',
-      from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
+      from_asset: getInputTokenDetails(selectedNetwork, executionInputState.inputTokenType).assetSymbol,
       to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
       from_amount: executionInputState.amountInUnits,
       to_amount: executionInputState.offrampAmount.toFixed(2, 0),
@@ -234,15 +237,23 @@ export const useMainProcess = () => {
         amountIn: executionInputState.amountInUnits,
         amountOut: executionInputState.offrampAmount,
         sepResult: secondSep24Response,
+        network: selectedNetwork,
       });
 
-      trackEvent(createTransactionEvent('kyc_completed', initialState));
+      trackEvent(createTransactionEvent('kyc_completed', initialState, selectedNetwork));
       updateHookStateFromState(initialState);
     } catch (error) {
       console.error('Some error occurred constructing initial state', error);
       setOfframpingStarted(false);
     }
-  }, [firstSep24ResponseState, anchorSessionParamsState, executionInputState, updateHookStateFromState, trackEvent]);
+  }, [
+    firstSep24ResponseState,
+    anchorSessionParamsState,
+    executionInputState,
+    updateHookStateFromState,
+    trackEvent,
+    selectedNetwork,
+  ]);
 
   const finishOfframping = useCallback(() => {
     (async () => {

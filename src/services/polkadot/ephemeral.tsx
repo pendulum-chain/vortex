@@ -5,7 +5,7 @@ import { waitForTransactionReceipt } from '@wagmi/core';
 import axios from 'axios';
 import Big from 'big.js';
 
-import { getPendulumCurrencyId, INPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getPendulumCurrencyId, getInputTokenDetails } from '../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import { waitUntilTrue } from '../../helpers/function';
@@ -108,8 +108,8 @@ export async function createPendulumEphemeralSeed() {
 
 export async function pendulumCleanup(state: OfframpingState): Promise<OfframpingState> {
   try {
-    const { pendulumEphemeralSeed, inputTokenType, outputTokenType } = state;
-    const inputToken = INPUT_TOKEN_CONFIG[inputTokenType];
+    const { pendulumEphemeralSeed, inputTokenType, outputTokenType, network } = state;
+    const inputToken = getInputTokenDetails(network, inputTokenType);
 
     const pendulumApiComponents = await getApiManagerInstance();
     const { api, ss58Format } = pendulumApiComponents.apiData!;
@@ -121,7 +121,7 @@ export async function pendulumCleanup(state: OfframpingState): Promise<Offrampin
 
     // probably will never be exactly '0', but to be safe
     // TODO: if the value is too small, do we really want to transfer token dust and spend fees?
-    const inputCurrencyId = inputToken.axelarEquivalent.pendulumCurrencyId;
+    const inputCurrencyId = inputToken.pendulumCurrencyId;
     const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
 
     await api.tx.utility
@@ -142,11 +142,11 @@ export async function getRawInputBalance(state: OfframpingState): Promise<Big> {
   const pendulumApiComponents = await getApiManagerInstance();
   const { api } = pendulumApiComponents.apiData!;
 
-  const inputToken = INPUT_TOKEN_CONFIG[state.inputTokenType];
+  const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
 
   const balanceResponse = (await api.query.tokens.accounts(
     await getEphemeralAddress(state),
-    inputToken.axelarEquivalent.pendulumCurrencyId,
+    inputToken.pendulumCurrencyId,
   )) as any;
 
   const inputBalanceRaw = Big(balanceResponse?.free?.toString() ?? '0');

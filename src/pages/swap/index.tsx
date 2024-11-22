@@ -16,7 +16,14 @@ import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { SigningBox } from '../../components/SigningBox';
 import { config } from '../../config';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
+import {
+  getInputTokenDetails,
+  INPUT_TOKEN_CONFIG,
+  InputTokenDetails,
+  InputTokenType,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
+} from '../../constants/tokenConfig';
 import { BaseLayout } from '../../layouts';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
@@ -35,6 +42,8 @@ import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import { FeeComparison } from '../../components/FeeComparison';
+import { useNetwork } from '../../contexts/network';
+import { SupportedNetworks } from '../../services/quotes';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -47,10 +56,11 @@ export const SwapPage = () => {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
+  const { selectedNetwork } = useNetwork();
 
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
@@ -103,7 +113,7 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const fromToken = INPUT_TOKEN_CONFIG[from];
+  const fromToken = getInputTokenDetails(selectedNetwork, from);
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
   const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
@@ -118,6 +128,7 @@ export const SwapPage = () => {
     maximumFromAmount: undefined,
     fromAmountString,
     form,
+    network: selectedNetwork,
   });
 
   const inputAmountIsStable =
@@ -149,7 +160,7 @@ export const SwapPage = () => {
     setIsInitiating(true);
 
     const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = INPUT_TOKEN_CONFIG[from];
+    const inputToken = getInputTokenDetails(selectedNetwork, from);
 
     // both route and stellar vault checks must be valid to proceed
     const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
@@ -200,7 +211,7 @@ export const SwapPage = () => {
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
-    const handleMessage = (event: any) => {
+    const handleMessage = (event: MessageEvent) => {
       if (event.origin != 'https://circle.anchor.mykobo.co') {
         return;
       }
@@ -247,7 +258,7 @@ export const SwapPage = () => {
         <AssetNumericInput
           registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
-          assetIcon={fromToken.polygonAssetIcon}
+          assetIcon={fromToken.networkAssetIcon}
           onClick={() => setModalType('from')}
           id="fromAmount"
         />
@@ -294,10 +305,10 @@ export const SwapPage = () => {
 
   const definitions =
     modalType === 'from'
-      ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
+      ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
-          assetIcon: value.polygonAssetIcon,
+          assetIcon: value.networkAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as OutputTokenType,
@@ -378,7 +389,7 @@ export const SwapPage = () => {
             </p>
           )}
         </section>
-        <div className="flex mt-5 gap-3">
+        <div className="flex gap-3 mt-5">
           <button
             className="grow btn-vortex-secondary btn"
             disabled={!inputAmountIsStable}
@@ -414,7 +425,7 @@ export const SwapPage = () => {
           )}
         </div>
       </form>
-      {showCompareFees && fromToken && fromAmount && toToken && (
+      {showCompareFees && fromToken && fromAmount && toToken && fromToken.network === 'Polygon' && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
           amount={fromAmount}

@@ -4,7 +4,7 @@ import Big from 'big.js';
 
 interface PolkadotTokenBalanceProps {
   address: string;
-  assetId: string;
+  assetId: `0x${string}`;
 }
 
 export const usePolkadotTokenBalance = ({ address, assetId }: PolkadotTokenBalanceProps) => {

@@ -6,7 +6,7 @@ const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 
 type QuoteService = 'moonpay' | 'transak' | 'alchemypay';
 
-type SupportedNetworks = typeof polygon.name;
+export type SupportedNetworks = typeof polygon.name;
 
 interface Quote {
   // The price of crypto -> fiat, i.e. cryptoAmount * cryptoPrice = fiatAmount + totalFee

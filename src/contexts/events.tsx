@@ -2,8 +2,9 @@ import { createContext } from 'preact';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
 import * as Sentry from '@sentry/react';
 import { useAccount } from 'wagmi';
-import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { getInputTokenDetails, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
+import { Networks } from './network';
 
 declare global {
   interface Window {
@@ -231,11 +232,15 @@ export function EventsProvider({ children }: PropsWithChildren) {
   return <Context.Provider value={useEventsResult}>{children}</Context.Provider>;
 }
 
-export function createTransactionEvent(type: TransactionEvent['event'], state: OfframpingState) {
+export function createTransactionEvent(
+  type: TransactionEvent['event'],
+  state: OfframpingState,
+  selectedNetwork: Networks,
+) {
   return {
     event: type,
-    from_asset: INPUT_TOKEN_CONFIG[state.inputTokenType].assetSymbol,
-    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType].stellarAsset.code.string,
+    from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType).assetSymbol,
+    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType]?.stellarAsset?.code?.string,
     from_amount: state.inputAmount.units,
     to_amount: state.outputAmount.units,
   };

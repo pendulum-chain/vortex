@@ -35,7 +35,7 @@ function createRouteParams(
 ): RouteParams {
   const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = squidRouterConfig;
 
-  const fromToken = inputToken.erc20AddressSourceChain as `0x${string}`;
+  const fromToken = inputToken.pendulumErc20WrapperAddress as `0x${string}`;
 
   const approvalErc20 = encodeFunctionData({
     abi: erc20ABI,
@@ -157,7 +157,7 @@ export async function testRoute(testingToken: InputTokenDetails, attemptedAmount
   const sharedRouteParams: RouteParams = {
     fromAddress: address,
     fromChain: fromChainId,
-    fromToken: testingToken.erc20AddressSourceChain,
+    fromToken: testingToken.pendulumErc20WrapperAddress,
     fromAmount: attemptedAmountRaw,
     toChain: toChainId,
     toToken: axlUSDC_MOONBEAM,

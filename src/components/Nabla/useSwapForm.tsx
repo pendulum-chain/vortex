@@ -4,10 +4,17 @@ import { useCallback, useMemo, useState } from 'preact/compat';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
+import {
+  getInputTokenDetails,
+  INPUT_TOKEN_CONFIG,
+  InputTokenType,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
+} from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
+import { useNetwork } from '../../contexts/network';
 
 interface SwapSettings {
   from: string;
@@ -20,6 +27,7 @@ const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTING
 export const useSwapForm = () => {
   const tokensModal = useState<undefined | 'from' | 'to'>();
   const setTokenModal = tokensModal[1];
+  const { selectedNetwork } = useNetwork();
 
   const initialState = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -34,14 +42,21 @@ export const useSwapForm = () => {
       ...searchParamValues,
     };
 
-    const initialFromTokenIsValid = INPUT_TOKEN_CONFIG[initialValues.from as InputTokenType] !== undefined;
+    const initialFromTokenIsValid = (() => {
+      try {
+        getInputTokenDetails(selectedNetwork, initialValues.from as InputTokenType);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
     const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;
     const to = (initialToTokenIsValid ? initialValues.to : defaultValues.to) as OutputTokenType;
 
     return { from, to };
-  }, []);
+  }, [selectedNetwork]);
 
   const form = useForm<SwapFormValues>({
     resolver: yupResolver(schema) as Resolver<SwapFormValues>,
@@ -52,7 +67,7 @@ export const useSwapForm = () => {
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
-  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
+  const fromToken = from ? getInputTokenDetails(selectedNetwork, from) : undefined;
   const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
 
   const onFromChange = useCallback(
