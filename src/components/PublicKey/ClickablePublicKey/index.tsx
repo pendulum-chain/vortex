@@ -1,4 +1,4 @@
-import { CSSProperties } from 'react';
+import { CSSProperties } from 'preact/compat';
 import { Button } from 'react-daisyui';
 import { FormatPublicKeyVariant, PublicKey } from '..';
 

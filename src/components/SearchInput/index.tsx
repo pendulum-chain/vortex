@@ -1,12 +1,12 @@
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
-import { Dispatch } from 'react';
+import { StateUpdater } from 'preact/compat';
 
 interface SearchInputProps {
-  set: Dispatch<string>;
+  set: StateUpdater<string>;
 }
 
 export const SearchInput = ({ set, ...p }: SearchInputProps) => (
-  <label className="input input-bordered flex items-center" htmlFor="search">
+  <label className="flex items-center input input-bordered" htmlFor="search">
     <MagnifyingGlassIcon className="mr-1 size-5 text-neutral-400" />
     <input
       className="w-full"
