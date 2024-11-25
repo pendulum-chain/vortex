@@ -67,7 +67,7 @@ function FeeProviderRow({
       };
       scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
     }
-  }, [amount, provider.name, scheduleQuote, sourceAssetSymbol, targetAssetSymbol, providerPrice, error, vortexPrice]);
+  }, [amount, provider.name, scheduleQuote, sourceAssetSymbol, targetAssetSymbol, providerPrice, vortexPrice, error]);
 
   return (
     <div className="flex items-center justify-between w-full">
