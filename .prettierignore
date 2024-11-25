@@ -20,3 +20,4 @@ CHANGELOG.md
 **/*.svg
 .prettierignore
 .gitignore
+_redirects
