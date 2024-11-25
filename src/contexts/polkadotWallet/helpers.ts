@@ -1,9 +1,10 @@
 import { getWalletBySource, WalletAccount } from '@talismn/connect-wallets';
 import { getSdkError } from '@walletconnect/utils';
 
-import { LocalStorageKeys } from '../../hooks/useLocalStorage';
 import { walletConnectService } from '../../components/PolkadotWalletSelectorDialog/WalletConnect/WalletConnectService';
+import { LocalStorageKeys } from '../../hooks/useLocalStorage';
 import { storageService } from '../../services/storage/local';
+import { ASSETHUB_ID } from '../../constants/constants';
 
 const initTalisman = async (dAppName: string, selected?: string) => {
   const name = storageService.get(LocalStorageKeys.SELECTED_POLKADOT_WALLET);
@@ -23,9 +24,7 @@ const initWalletConnect = async (chainId: string) => {
 
 export const initSelectedWallet = async (storageAddress: string) => {
   const appName = 'Vortex';
-
-  const assetHubId = 'polkadot:68d56f15f85d3136970ec16946040bc1'; //@todo
-  return (await initTalisman(appName, storageAddress)) || (await initWalletConnect(assetHubId));
+  return (await initTalisman(appName, storageAddress)) || (await initWalletConnect(ASSETHUB_ID));
 };
 
 export const handleWalletConnectDisconnect = async (walletAccount: WalletAccount | undefined) => {

@@ -4,28 +4,27 @@ import { SessionTypes } from '@walletconnect/types';
 import { Button } from 'react-daisyui';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 
-import logo from '../../../assets/wallets/wallet-connect.svg';
-import { config } from '../../../config';
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
+import logo from '../../../assets/wallets/wallet-connect.svg';
+import { ASSETHUB_ID } from '../../../constants/constants';
 import { useNetwork } from '../../../contexts/network';
+import { config } from '../../../config';
 import { walletConnectService } from './WalletConnectService';
-
-const assetHubId = 'polkadot:68d56f15f85d3136970ec16946040bc1'; //@todo
 
 export const walletConnectConfig = {
   requiredNamespaces: {
     polkadot: {
       methods: ['polkadot_signTransaction', 'polkadot_signMessage'],
       events: ['chainChanged', 'accountsChanged'],
-      chains: [assetHubId],
+      chains: [ASSETHUB_ID],
     },
   },
   optionalNamespaces: {
     polkadot: {
       methods: ['polkadot_signTransaction', 'polkadot_signMessage'],
       events: ['chainChanged', 'accountsChanged'],
-      chains: [assetHubId],
+      chains: [ASSETHUB_ID],
     },
   },
 };

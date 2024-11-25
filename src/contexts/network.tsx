@@ -1,15 +1,15 @@
 import { createContext } from 'preact';
 import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
 import { useSwitchChain } from 'wagmi';
-import { NetworkIconType } from '../hooks/useGetNetworkIcon';
+
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
+import { NetworkIconType } from '../hooks/useGetNetworkIcon';
+import { ASSETHUB_ID } from '../constants/constants';
 
 export enum Networks {
   AssetHub = 'AssetHub',
   Polygon = 'Polygon',
 }
-
-const assetHubId = 'polkadot:68d56f15f85d3136970ec16946040bc1';
 
 interface NetworkContextType {
   polkadotSelectedNetworkId: string;
@@ -18,7 +18,7 @@ interface NetworkContextType {
 }
 
 const NetworkContext = createContext<NetworkContextType>({
-  polkadotSelectedNetworkId: assetHubId,
+  polkadotSelectedNetworkId: ASSETHUB_ID,
   selectedNetwork: Networks.AssetHub,
   setSelectedNetwork: () => null,
 });
@@ -60,7 +60,7 @@ export const NetworkProvider = ({ children }: { children: preact.ComponentChildr
   return (
     <NetworkContext.Provider
       value={{
-        polkadotSelectedNetworkId: assetHubId,
+        polkadotSelectedNetworkId: ASSETHUB_ID,
         selectedNetwork,
         setSelectedNetwork,
       }}
