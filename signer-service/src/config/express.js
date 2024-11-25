@@ -9,12 +9,27 @@ const rateLimit = require('express-rate-limit');
 const routes = require('../api/routes/v1');
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = require('./vars');
 const error = require('../api/middlewares/error');
+const cookieParser = require('cookie-parser');
 
 /**
  * Express instance
  * @public
  */
 const app = express();
+
+// enable CORS - Cross Origin Resource Sharing
+app.use(
+  cors({
+    origin: [
+      'http://localhost:5173',
+      'https://polygon-prototype-staging--pendulum-pay.netlify.app',
+      'https://app.vortexfinance.co',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    allowedHeaders: 'Content-Type,Authorization',
+  }),
+);
 
 // enable rate limiting
 // Set number of expected proxies
@@ -27,6 +42,9 @@ const limiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 app.use(limiter);
+
+// parse cookies
+app.use(cookieParser());
 
 // request logging. dev: console | production: file
 app.use(morgan(logs));
@@ -44,17 +62,6 @@ app.use(methodOverride());
 
 // secure apps by setting various HTTP headers
 app.use(helmet());
-
-// enable CORS - Cross Origin Resource Sharing
-app.use(cors());
-
-app.use(
-  cors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type,Authorization',
-  }),
-);
 
 // mount api token routes
 app.use('/v1', routes);

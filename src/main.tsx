@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EventsProvider } from './contexts/events';
 import { NetworkProvider } from './contexts/network';
 import { wagmiConfig } from './wagmiConfig';
+import { SiweProvider } from './contexts/siwe';
 import { config } from './config';
 import { App } from './app';
 import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
@@ -40,11 +41,13 @@ render(
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <EventsProvider>
-            <NetworkProvider>
-              <PolkadotWalletStateProvider>
-                <App />
-              </PolkadotWalletStateProvider>
-            </NetworkProvider>
+            <SiweProvider>
+              <NetworkProvider>
+                <PolkadotWalletStateProvider>
+                  <App />
+                </PolkadotWalletStateProvider>
+              </NetworkProvider>
+            </SiweProvider>
           </EventsProvider>
         </QueryClientProvider>
       </WagmiProvider>

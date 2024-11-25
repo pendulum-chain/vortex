@@ -38,7 +38,7 @@ export interface ClickDetailsEvent {
 export interface WalletConnectEvent {
   event: 'wallet_connect';
   wallet_action: 'connect' | 'disconnect' | 'change';
-  account_address: string;
+  account_address?: string;
 }
 
 interface OfframpingParameters {
@@ -116,6 +116,7 @@ export type TrackableEvent =
 type EventType = TrackableEvent['event'];
 
 type UseEventsContext = ReturnType<typeof useEvents>;
+
 const useEvents = () => {
   const { address, chainId } = useAccount();
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
@@ -179,6 +180,8 @@ const useEvents = () => {
     // set sentry user as wallet address
     if (address) {
       Sentry.setUser({ id: address });
+
+      previousAddress.current = address;
     }
 
     if (!userClickedState.current) {
@@ -189,7 +192,7 @@ const useEvents = () => {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: 'disconnect',
-        account_address: previousAddress.current || '',
+        account_address: previousAddress.current,
       });
     } else {
       trackEvent({

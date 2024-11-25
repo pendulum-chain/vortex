@@ -1,10 +1,12 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { EventStatus } from '../../components/GenericEvent';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
-import { fetchSep10Signatures, fetchSigningServiceAccountId } from '../signingService';
+import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
+import { keccak256 } from 'viem/utils';
 
 import { config } from '../../config';
 import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 interface TomlValues {
   signingKey?: string;
@@ -61,19 +63,77 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
-async function getUrlParams(ephemeralAccount: string, supportsClientDomain: boolean): Promise<URLSearchParams> {
-  if (supportsClientDomain) {
-    return new URLSearchParams({ account: ephemeralAccount, client_domain: config.applicationClientDomain });
-  }
-  return new URLSearchParams({ account: ephemeralAccount });
+//A memo derivation. TODO: Secure? how to check for collisions?
+async function deriveMemoFromAddress(address: `0x${string}`) {
+  const hash = keccak256(address);
+  return BigInt(hash).toString().slice(0, 15);
 }
+
+// Return the URLSearchParams and the account (master/omnibus or ephemeral) that was used for SEP-10
+async function getUrlParams(
+  ephemeralAccount: string,
+  usesMemo: boolean,
+  supportsClientDomain: boolean,
+  address: `0x${string}`,
+): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
+  let sep10Account: string;
+  const params = new URLSearchParams();
+
+  if (usesMemo) {
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch client master SEP-10 public account.');
+    }
+
+    const { masterSep10Public } = await response.json();
+
+    if (!masterSep10Public) {
+      throw new Error('masterSep10Public not found in response.');
+    }
+
+    sep10Account = masterSep10Public;
+    params.append('account', sep10Account);
+    params.append('memo', await deriveMemoFromAddress(address));
+  } else {
+    sep10Account = ephemeralAccount;
+    params.append('account', sep10Account);
+  }
+
+  if (supportsClientDomain) {
+    params.append('client_domain', config.applicationClientDomain);
+  }
+
+  return {
+    urlParams: params,
+    sep10Account,
+  };
+}
+
+const sep10SignaturesWithLoginRefresh = async (
+  refreshFunction: () => Promise<void>,
+  args: SignerServiceSep10Request,
+) => {
+  try {
+    return await fetchSep10Signatures(args);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Invalid signature') {
+      await refreshFunction();
+      return await fetchSep10Signatures(args);
+    }
+    throw new Error('Could not fetch sep 10 signatures from backend');
+  }
+};
 
 export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
+  address: `0x${string}` | undefined,
+  checkAndWaitForSignature: () => Promise<void>,
+  forceRefreshAndWaitForSignature: () => Promise<void>,
   renderEvent: (event: string, status: EventStatus) => void,
-): Promise<string> => {
+): Promise<{ token: string; sep10Account: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
@@ -83,9 +143,10 @@ export const sep10 = async (
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
 
-  const { supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { usesMemo, supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
-  const urlParams = await getUrlParams(accountId, supportsClientDomain);
+  // will select either clientMaster or the ephemeral account
+  const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, supportsClientDomain, address!);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
@@ -105,17 +166,29 @@ export const sep10 = async (
     throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
-  const { clientSignature, clientPublic } = await fetchSep10Signatures(
-    transactionSigned.toXDR(),
-    outputToken,
-    accountId,
+  if (usesMemo) {
+    await checkAndWaitForSignature();
+  }
+
+  const { masterClientSignature, clientSignature, clientPublic } = await sep10SignaturesWithLoginRefresh(
+    forceRefreshAndWaitForSignature,
+    {
+      challengeXDR: transactionSigned.toXDR(),
+      outToken: outputToken,
+      clientPublicKey: sep10Account,
+      memo: usesMemo,
+    },
   );
 
   if (supportsClientDomain) {
     transactionSigned.addSignature(clientPublic, clientSignature);
   }
 
-  transactionSigned.sign(ephemeralKeys);
+  if (!usesMemo) {
+    transactionSigned.sign(ephemeralKeys);
+  } else {
+    transactionSigned.addSignature(sep10Account, masterClientSignature);
+  }
 
   const jwt = await fetch(webAuthEndpoint, {
     method: 'POST',
@@ -133,70 +206,8 @@ export const sep10 = async (
     `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
     EventStatus.Waiting,
   );
-  return token;
+  return { token, sep10Account };
 };
-
-// TODO modify according to the anchor's requirements and implementation
-// we should be able to do the whole flow on this function since we have all the
-// information we need
-/*
-export async function sep6First(sessionParams: IAnchorSessionParams): Promise<SepResult> {
-  const { token, tomlValues } = sessionParams;
-  const { sep6Url } = tomlValues;
-
-  return {
-    amount: '10.4',
-    memo: 'a memo',
-    memoType: 'text',
-    offrampingAccount: 'GCUHGQ6LY3L2NAB7FX2LJGUJFCG6LKAQHVIMJLZNNBMCZUQNBPJTXE6O',
-  };
-
-  const sep6Params = new URLSearchParams({
-    asset_code: sessionParams.tokenConfig.assetCode!,
-    type: 'bank_account',
-    dest: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e', // Ntokens crashes when sending destination, complains of not having it??
-  });
-
-  const fetchUrl = `${sep6Url}/withdraw?`;
-  const sep6Response = await fetch(fetchUrl + sep6Params, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
-  });
-  console.log(sep6Response);
-  if (sep6Response.status !== 200) {
-    console.log(await sep6Response.json(), sep6Response.toString());
-    throw new Error(`Failed to initiate SEP-6: ${sep6Response.statusText}`);
-  }
-
-  const { type, id } = await sep6Response.json();
-  if (type !== 'interactive_customer_info_needed') {
-    throw new Error(`Unexpected SEP-6 type: ${type}`);
-  }
-  //return { transactionId: id };
-}*/
-
-/*
-export async function sep12First(sessionParams: IAnchorSessionParams): Promise<void> {
-  const { token, tomlValues } = sessionParams;
-  const { sep6Url } = tomlValues;
-
-  const sep12Params = new URLSearchParams({
-    account: '3eE4729a-123B-45c6-8d7e-F9aD567b9c1e',
-  });
-
-  const fetchUrl = `${sep6Url}/customer`;
-  const sep12Response = await fetch(fetchUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
-    body: sep12Params.toString(),
-  });
-  console.log(sep12Response);
-  if (sep12Response.status !== 200) {
-    console.log(await sep12Response.json(), sep12Response.toString());
-    throw new Error(`Failed to initiate SEP-6: ${sep12Response.statusText}`);
-  }
-  //>????
-}*/
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
@@ -210,16 +221,18 @@ export async function sep24First(
   const { token, tomlValues } = sessionParams;
   const { sep24Url } = tomlValues;
 
+  const { usesMemo } = OUTPUT_TOKEN_CONFIG[outputToken];
+
   let sep24Params;
-  if (outputToken == 'ars') {
-    if (!sep10Account) {
-      throw new Error('Master must be defined at this point.');
-    }
+  if (usesMemo) {
     sep24Params = new URLSearchParams({
       asset_code: sessionParams.tokenConfig.stellarAsset.code.string,
       amount: sessionParams.offrampAmount,
-      account: sep10Account, // THIS is a particularity of Anclap. Should be able to work without it, or with a different one
-      // to that of the sep-10
+      account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
+      // or at least the anchor should be able to get it from the JWT.
+      // Since we signed with the master/omnibus from the service, we need to specify the corresponding public here
+      // memo: deriveMemoFromAddress(address!),
+      // memo_type: 'id',
     });
   } else {
     sep24Params = new URLSearchParams({

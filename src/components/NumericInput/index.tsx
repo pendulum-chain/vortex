@@ -10,6 +10,7 @@ interface NumericInputProps {
   defaultValue?: string;
   autoFocus?: boolean;
   disableStyles?: boolean;
+  onChange?: (e: KeyboardEvent) => void;
 }
 
 export const NumericInput = ({
@@ -20,9 +21,11 @@ export const NumericInput = ({
   defaultValue,
   autoFocus,
   disableStyles = false,
+  onChange,
 }: NumericInputProps) => {
   function handleOnChange(e: KeyboardEvent): void {
     handleOnChangeNumericInput(e, maxDecimals);
+    if (onChange) onChange(e);
     register.onChange(e);
   }
 

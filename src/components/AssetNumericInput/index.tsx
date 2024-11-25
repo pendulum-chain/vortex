@@ -9,6 +9,7 @@ interface AssetNumericInputProps {
   assetIcon: AssetIconType;
   tokenSymbol: string;
   onClick: () => void;
+  onChange?: (e: KeyboardEvent) => void;
   disabled?: boolean;
   readOnly?: boolean;
   registerInput: UseFormRegisterReturn<keyof SwapFormValues>;
