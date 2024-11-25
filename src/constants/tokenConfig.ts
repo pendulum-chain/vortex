@@ -1,6 +1,8 @@
 import { polygon } from 'wagmi/chains';
 import { AssetIconType } from '../hooks/useGetAssetIcon';
 
+export const ASSETHUB_USDC_ID = 1337;
+
 type EvmNetworkType = typeof polygon.name;
 type SubstrateNetworkType = 'AssetHub';
 export type NetworkType = EvmNetworkType | SubstrateNetworkType;

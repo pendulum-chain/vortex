@@ -6,10 +6,9 @@ import { Resolver, useForm, useWatch } from 'react-hook-form';
 import { storageKeys } from '../../constants/localStorage';
 import {
   getInputTokenDetails,
-  INPUT_TOKEN_CONFIG,
   InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
+  OUTPUT_TOKEN_CONFIG,
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
