@@ -15,11 +15,11 @@ export const walletConnectService = {
         projectId: config.walletConnect.projectId,
         relayUrl: config.walletConnect.url,
         metadata: {
-          name: 'Pendulum Portal',
+          name: 'Vortex',
           description:
-            'The Pendulum Portal allows users to interact with all features of the Pendulum-related parachains.',
-          url: 'https://portal.pendulumchain.org',
-          icons: ['https://portal.pendulumchain.org/assets/favicon.7ffed586.png'],
+            'Vortex provides a seamless solution for converting stablecoins into fiat currencies, enabling effortless offramps to EUR and ARS.',
+          url: 'https://app.vortexfinance.com',
+          icons: ['https://app.vortexfinance.com/favicon.png'],
         },
       } as UniversalProviderOpts));
     return this.provider;
