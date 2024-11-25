@@ -6,10 +6,10 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 
 import logo from '../../../assets/wallets/wallet-connect.svg';
 import { config } from '../../../config';
-import { walletConnectService } from '../../../services/walletConnect';
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { useNetwork } from '../../../contexts/network';
+import { walletConnectService } from './WalletConnectService';
 
 const assetHubId = 'polkadot:68d56f15f85d3136970ec16946040bc1'; //@todo
 

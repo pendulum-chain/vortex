@@ -55,12 +55,26 @@ export const walletConnectService = {
           },
         });
       },
+      signRaw: async (data) => {
+        const { address } = data;
+        return provider.client.request({
+          chainId,
+          topic: session.topic,
+          request: {
+            method: 'polkadot_signMessage',
+            params: {
+              address,
+              message: data.data,
+            },
+          },
+        });
+      },
     };
     return {
       address: accounts[0],
       source: 'walletConnect',
       name: 'WalletConnect',
-      signer: signer as WalletAccount['signer'], // TODO: improve - not type safe
+      signer: signer as WalletAccount['signer'],
       wallet: {
         enable: () => undefined,
         extensionName: 'WalletConnect',
