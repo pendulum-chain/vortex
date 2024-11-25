@@ -142,8 +142,7 @@ const useEvents = () => {
 
   const [_scheduledQuotes, setScheduledQuotes] = useState<
     | {
-        from_asset: string;
-        to_asset: string;
+        parameters: OfframpingParameters;
         quotes: Partial<Record<QuoteService, string>>;
       }
     | undefined
@@ -186,34 +185,30 @@ const useEvents = () => {
   const scheduleQuote = useCallback(
     (service: QuoteService, quote: string, parameters: OfframpingParameters) => {
       setScheduledQuotes((prev) => {
-        // Check if there is a mismatch in tokens used previously vs the ones passed n the latest state
+        // Do a deep comparison of the parameters to check if they are the same.
+        // If they are not, reset the quotes.
         const newQuotes =
-          prev && (prev.from_asset !== parameters.from_asset || prev.to_asset !== parameters.to_asset)
-            ? {
-                from_asset: parameters.from_asset,
-                to_asset: parameters.to_asset,
-                quotes: { [service]: quote },
-              }
-            : {
-                from_asset: parameters.from_asset,
-                to_asset: parameters.to_asset,
-                quotes: { ...prev?.quotes, [service]: quote },
-              };
+          prev && JSON.stringify(prev.parameters) !== JSON.stringify(parameters)
+            ? { [service]: quote }
+            : { ...prev?.quotes, [service]: quote };
 
         // If all quotes are ready, emit the event
-        if (Object.keys(newQuotes.quotes).length === 3) {
+        if (Object.keys(newQuotes).length === 3) {
           trackEvent({
             ...parameters,
             event: 'compare_quote',
-            transak_quote: newQuotes.quotes.transak !== '-1' ? newQuotes.quotes.transak : undefined,
-            moonpay_quote: newQuotes.quotes.moonpay !== '-1' ? newQuotes.quotes.moonpay : undefined,
-            alchemypay_quote: newQuotes.quotes.alchemypay !== '-1' ? newQuotes.quotes.alchemypay : undefined,
+            transak_quote: newQuotes.transak !== '-1' ? newQuotes.transak : undefined,
+            moonpay_quote: newQuotes.moonpay !== '-1' ? newQuotes.moonpay : undefined,
+            alchemypay_quote: newQuotes.alchemypay !== '-1' ? newQuotes.alchemypay : undefined,
           });
           // Reset the quotes
           return undefined;
         }
 
-        return newQuotes;
+        return {
+          parameters,
+          quotes: newQuotes,
+        };
       });
     },
     [trackEvent],
