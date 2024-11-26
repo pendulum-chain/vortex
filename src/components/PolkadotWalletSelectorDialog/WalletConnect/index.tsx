@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import logo from '../../../assets/wallets/wallet-connect.svg';
-import { ASSETHUB_ID } from '../../../constants/constants';
+import { WALLETCONNECT_ASSETHUB_ID } from '../../../constants/constants';
 import { useNetwork } from '../../../contexts/network';
 import { config } from '../../../config';
 import { walletConnectService } from './WalletConnectService';
@@ -17,14 +17,14 @@ export const walletConnectConfig = {
     polkadot: {
       methods: ['polkadot_signTransaction', 'polkadot_signMessage'],
       events: ['chainChanged', 'accountsChanged'],
-      chains: [ASSETHUB_ID],
+      chains: [WALLETCONNECT_ASSETHUB_ID],
     },
   },
   optionalNamespaces: {
     polkadot: {
       methods: ['polkadot_signTransaction', 'polkadot_signMessage'],
       events: ['chainChanged', 'accountsChanged'],
-      chains: [ASSETHUB_ID],
+      chains: [WALLETCONNECT_ASSETHUB_ID],
     },
   },
 };
@@ -38,7 +38,7 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
   const [provider, setProvider] = useState<Promise<UniversalProvider> | undefined>();
   const [modal, setModal] = useState<WalletConnectModal | undefined>();
   const { setWalletAccount, removeWalletAccount } = usePolkadotWalletState();
-  const { polkadotSelectedNetworkId } = useNetwork();
+  const { walletConnectPolkadotSelectedNetworkId } = useNetwork();
 
   const setupClientDisconnectListener = useCallback(
     async (provider: Promise<UniversalProvider>) => {
@@ -68,15 +68,15 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
   );
 
   const handleConnect = useCallback(async () => {
-    if (!provider || !polkadotSelectedNetworkId) return;
+    if (!provider || !walletConnectPolkadotSelectedNetworkId) return;
 
     const wcProvider = await provider;
     const { uri, approval } = await wcProvider.client.connect(walletConnectConfig);
 
     handleModal(uri);
-    handleSession(approval, polkadotSelectedNetworkId);
+    handleSession(approval, walletConnectPolkadotSelectedNetworkId);
     await setupClientDisconnectListener(provider);
-  }, [provider, polkadotSelectedNetworkId, setupClientDisconnectListener, handleModal, handleSession]);
+  }, [provider, walletConnectPolkadotSelectedNetworkId, setupClientDisconnectListener, handleModal, handleSession]);
 
   const walletConnectClick = useCallback(async () => {
     setLoading(true);
