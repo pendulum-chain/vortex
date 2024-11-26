@@ -4,7 +4,7 @@ export const HORIZON_URL = 'https://horizon.stellar.org';
 export const BASE_FEE = '1000000';
 export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 export const ASSETHUB_WSS = 'wss://polkadot-asset-hub-rpc.polkadot.io';
-export const ASSETHUB_ID = 'polkadot:68d56f15f85d3136970ec16946040bc1';
+export const WALLETCONNECT_ASSETHUB_ID = 'polkadot:68d56f15f85d3136970ec16946040bc1';
 export const NABLA_ROUTER = '6dQQoUKQ9LNDCrGMjoZjeHBXsuihSgQiQEgD9Z7VtHR82wfG'; // EURC circle instance
 
 export const SPACEWALK_REDEEM_SAFETY_MARGIN = 0.05;

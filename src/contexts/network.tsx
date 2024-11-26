@@ -4,7 +4,7 @@ import { useSwitchChain } from 'wagmi';
 
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { NetworkIconType } from '../hooks/useGetNetworkIcon';
-import { ASSETHUB_ID } from '../constants/constants';
+import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 
 export enum Networks {
   AssetHub = 'AssetHub',
@@ -12,13 +12,13 @@ export enum Networks {
 }
 
 interface NetworkContextType {
-  polkadotSelectedNetworkId: string;
+  walletConnectPolkadotSelectedNetworkId: string;
   selectedNetwork: NetworkIconType;
   setSelectedNetwork: (network: NetworkIconType) => void;
 }
 
 const NetworkContext = createContext<NetworkContextType>({
-  polkadotSelectedNetworkId: ASSETHUB_ID,
+  walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
   selectedNetwork: Networks.AssetHub,
   setSelectedNetwork: () => null,
 });
@@ -60,7 +60,7 @@ export const NetworkProvider = ({ children }: { children: preact.ComponentChildr
   return (
     <NetworkContext.Provider
       value={{
-        polkadotSelectedNetworkId: ASSETHUB_ID,
+        walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
         selectedNetwork,
         setSelectedNetwork,
       }}
