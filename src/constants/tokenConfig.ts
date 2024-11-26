@@ -76,7 +76,10 @@ const PENDULUM_USDC_ASSETHUB = {
   pendulumAssetSymbol: 'USDC',
 };
 
-export const INPUT_TOKEN_CONFIG: Record<NetworkType, Partial<Record<InputTokenType, InputTokenDetails>>> = {
+export const INPUT_TOKEN_CONFIG: Record<
+  NetworkType,
+  Record<'usdc', InputTokenDetails> & Partial<Record<Exclude<InputTokenType, 'usdc'>, InputTokenDetails>>
+> = {
   Polygon: {
     usdc: {
       assetSymbol: 'USDC',
@@ -119,7 +122,8 @@ export function getInputTokenDetails(network: NetworkType, inputTokenType: Input
   const tokenDetails =
     INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType][inputTokenType];
   if (!tokenDetails) {
-    throw new Error(`Invalid input token type: ${inputTokenType}`);
+    console.error(`Invalid input token type: ${inputTokenType}`);
+    return INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType].usdc;
   }
   return tokenDetails;
 }

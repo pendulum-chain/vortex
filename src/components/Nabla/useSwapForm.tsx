@@ -41,14 +41,8 @@ export const useSwapForm = () => {
       ...searchParamValues,
     };
 
-    const initialFromTokenIsValid = (() => {
-      try {
-        getInputTokenDetails(selectedNetwork, initialValues.from as InputTokenType);
-        return true;
-      } catch {
-        return false;
-      }
-    })();
+    const initialFromToken = getInputTokenDetails(selectedNetwork, initialValues.from as InputTokenType);
+    const initialFromTokenIsValid = initialFromToken !== getInputTokenDetails(selectedNetwork, 'usdc');
     const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;
