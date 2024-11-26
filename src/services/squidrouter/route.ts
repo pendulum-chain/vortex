@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
 import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 import erc20ABI from '../../contracts/ERC20';
 import { squidRouterConfig } from './config';
-import { InputTokenDetails } from '../../constants/tokenConfig';
+import { InputTokenDetails, isEvmInputTokenDetails } from '../../constants/tokenConfig';
 
 interface RouteParams {
   fromAddress: string;
@@ -20,7 +19,7 @@ interface RouteParams {
   enableExpress: boolean;
   postHook?: {
     chainType: string;
-    calls: any[];
+    calls: unknown[];
     provider: string;
     description: string;
     logoURI: string;
@@ -35,7 +34,10 @@ function createRouteParams(
 ): RouteParams {
   const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = squidRouterConfig;
 
-  const fromToken = inputToken.pendulumErc20WrapperAddress as `0x${string}`;
+  if (!isEvmInputTokenDetails(inputToken)) {
+    throw new Error(`Token ${inputToken.assetSymbol} is not supported on EVM chains`);
+  }
+  const fromToken = inputToken.erc20AddressSourceChain as `0x${string}`;
 
   const approvalErc20 = encodeFunctionData({
     abi: erc20ABI,
@@ -119,7 +121,7 @@ async function getRoute(params: RouteParams) {
     return { data: result.data, requestId: requestId };
   } catch (error) {
     if (error) {
-      console.error('Squidrouter API error:', (error as any).response.data);
+      console.error('Squidrouter API error:', (error as { response: { data: unknown } }).response.data);
     }
     console.error('Error with parameters:', params);
     throw error;
@@ -153,11 +155,14 @@ export async function getRouteTransactionRequest(
 
 export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: `0x${string}`) {
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
+  if (!isEvmInputTokenDetails(testingToken)) {
+    return Promise.reject(new Error(`Token ${testingToken.assetSymbol} is not supported on EVM chains`));
+  }
 
   const sharedRouteParams: RouteParams = {
     fromAddress: address,
     fromChain: fromChainId,
-    fromToken: testingToken.pendulumErc20WrapperAddress,
+    fromToken: testingToken.erc20AddressSourceChain,
     fromAmount: attemptedAmountRaw,
     toChain: toChainId,
     toToken: axlUSDC_MOONBEAM,

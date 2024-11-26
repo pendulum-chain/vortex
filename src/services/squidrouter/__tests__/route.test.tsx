@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getRouteTransactionRequest } from '../route';
+import { getRouteTransactionRequest, testRoute } from '../route';
 import { INPUT_TOKEN_CONFIG, InputTokenDetails } from '../../../constants/tokenConfig';
 import { createSquidRouterHash } from '../../../helpers/crypto';
 import { createRandomString } from '../../../helpers/crypto';
 
 // We need to add a delay to the beforeEach hook to ensure that the test does not run before the SquidRouter API is ready
 beforeEach(() => {
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     setTimeout(() => {
       resolve();
     }, 2000);
@@ -27,13 +27,22 @@ describe('Squidrouter', () => {
       return getRouteTransactionRequest(userAddress, amount, squidRouterHash, inputToken);
     }
 
+    async function testRouteForToken(inputToken: InputTokenDetails) {
+      const userAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877' as `0x${string}`;
+      const amount = '1000000000';
+      return testRoute(inputToken, amount, userAddress);
+    }
+
     it('should successfully query a route for USDC', async () => {
-      const inputToken = INPUT_TOKEN_CONFIG.Polygon.usdce;
+      const inputToken = INPUT_TOKEN_CONFIG.Polygon.usdc;
       const route = await getRouteForToken(inputToken!);
 
       expect(route).toBeDefined();
       expect(route.requestId).toBeDefined();
       expect(route.data).toBeDefined();
+
+      // Test the testRoute function
+      await expect(testRouteForToken(inputToken!)).resolves.not.toThrow();
     });
 
     it('should successfully query a route for USDC.e', async () => {
@@ -43,6 +52,9 @@ describe('Squidrouter', () => {
       expect(route).toBeDefined();
       expect(route.requestId).toBeDefined();
       expect(route.data).toBeDefined();
+
+      // Test the testRoute function
+      await expect(testRouteForToken(inputToken!)).resolves.not.toThrow();
     });
   });
 });
