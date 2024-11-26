@@ -16,6 +16,7 @@ import { SiweProvider } from './contexts/siwe';
 import { config } from './config';
 import { App } from './app';
 import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
+import { PolkadotNodeProvider } from './contexts/polkadotNode';
 
 const queryClient = new QueryClient();
 
@@ -40,15 +41,17 @@ render(
     <BrowserRouter>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <EventsProvider>
-            <SiweProvider>
-              <NetworkProvider>
-                <PolkadotWalletStateProvider>
-                  <App />
-                </PolkadotWalletStateProvider>
-              </NetworkProvider>
-            </SiweProvider>
-          </EventsProvider>
+          <PolkadotNodeProvider>
+            <EventsProvider>
+              <SiweProvider>
+                <NetworkProvider>
+                  <PolkadotWalletStateProvider>
+                    <App />
+                  </PolkadotWalletStateProvider>
+                </NetworkProvider>
+              </SiweProvider>
+            </EventsProvider>
+          </PolkadotNodeProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </BrowserRouter>

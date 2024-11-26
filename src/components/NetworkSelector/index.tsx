@@ -27,6 +27,7 @@ export const NetworkSelector = () => {
         animate={{ opacity: isOpen ? 1 : 0, y: isOpen ? 0 : -10 }}
         transition={{ duration: 0.2 }}
         className="absolute w-48 mt-2 overflow-hidden bg-white rounded-lg shadow-lg top-full dark:bg-gray-800"
+        style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
       >
         {Object.values(Networks).map((networkId) => (
           <button

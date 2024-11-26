@@ -1,6 +1,5 @@
 import { useAccount, useReadContract } from 'wagmi';
 import { useEffect, useState } from 'preact/hooks';
-import { ApiPromise, WsProvider } from '@polkadot/api';
 import Big from 'big.js';
 
 import erc20ABI from '../contracts/ERC20';
@@ -8,7 +7,7 @@ import { ASSETHUB_USDC_ID, InputTokenDetails, isEvmInputTokenDetails } from '../
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
-import { ASSETHUB_WSS } from '../constants/constants';
+import { usePolkadotNode } from '../contexts/polkadotNode';
 
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
@@ -30,20 +29,14 @@ const useEvmBalance = (
 const useAssetHubBalance = (): string | undefined => {
   const [balance, setBalance] = useState<string>();
   const { walletAccount } = usePolkadotWalletState();
+  const { api } = usePolkadotNode();
 
   useEffect(() => {
-    if (!walletAccount) return;
-
-    const wsProvider = new WsProvider(ASSETHUB_WSS);
-    let isSubscribed = true;
-    let api: ApiPromise;
+    if (!walletAccount || !api) return;
 
     const getBalance = async () => {
       try {
-        api = await ApiPromise.create({ provider: wsProvider });
         const accountInfo = await api.query.assets.account(ASSETHUB_USDC_ID, walletAccount.address);
-
-        if (!isSubscribed) return;
 
         const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
         const formattedBalance = nativeToDecimal(rawBalance, USDC_DECIMALS).toFixed(2, 0).toString();
@@ -54,15 +47,7 @@ const useAssetHubBalance = (): string | undefined => {
     };
 
     getBalance();
-
-    return () => {
-      isSubscribed = false;
-      if (api) {
-        api.disconnect();
-      }
-      wsProvider.disconnect();
-    };
-  }, [walletAccount]);
+  }, [api, walletAccount]);
 
   return balance;
 };
