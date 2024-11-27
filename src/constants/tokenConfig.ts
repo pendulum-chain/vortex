@@ -1,8 +1,6 @@
 import { polygon } from 'wagmi/chains';
 import { AssetIconType } from '../hooks/useGetAssetIcon';
 
-export const ASSETHUB_USDC_ID = 1337;
-
 type EvmNetworkType = typeof polygon.name;
 type SubstrateNetworkType = 'AssetHub';
 export type NetworkType = EvmNetworkType | SubstrateNetworkType;
@@ -15,12 +13,14 @@ export interface BaseInputTokenDetails {
   pendulumAssetSymbol: string;
   networkAssetIcon: AssetIconType;
 }
+
 type EvmInputTokenDetails = BaseInputTokenDetails & {
   erc20AddressSourceChain: `0x${string}`;
   network: EvmNetworkType;
 };
 
 type SubstrateInputTokenDetails = BaseInputTokenDetails & {
+  foreignAssetId: number;
   network: SubstrateNetworkType;
 };
 
@@ -73,6 +73,7 @@ const PENDULUM_USDC_AXL = {
 const PENDULUM_USDC_ASSETHUB = {
   pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF',
   pendulumCurrencyId: { XCM: 2 },
+  foreignAssetId: 1337, // USDC on AssetHub
   pendulumAssetSymbol: 'USDC',
 };
 
@@ -119,13 +120,19 @@ export const INPUT_TOKEN_CONFIG: Record<
 
 // Helper function to wrap the error handling for getting input token details
 export function getInputTokenDetails(network: NetworkType, inputTokenType: InputTokenType): InputTokenDetails {
-  const tokenDetails =
-    INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType][inputTokenType];
-  if (!tokenDetails) {
-    console.error(`Invalid input token type: ${inputTokenType}`);
+  try {
+    const tokenDetails =
+      INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType][inputTokenType];
+
+    if (!tokenDetails) {
+      console.error(`Invalid input token type: ${inputTokenType}`);
+      return INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType].usdc;
+    }
+    return tokenDetails;
+  } catch (error) {
+    console.error(`Invalid input token type: ${inputTokenType}: ${error}`);
     return INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType].usdc;
   }
-  return tokenDetails;
 }
 
 export type OutputTokenType = 'eurc' | 'ars';
