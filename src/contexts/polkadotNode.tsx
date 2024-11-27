@@ -2,38 +2,70 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { createContext, StateUpdater, useContext, useEffect, useState } from 'preact/compat';
 import { ToastMessage } from '../helpers/notifications';
 import { showToast } from '../helpers/notifications';
-import { ASSETHUB_WSS } from '../constants/constants';
+import { ASSETHUB_WSS, PENDULUM_WSS } from '../constants/constants';
 
-async function createApiPromise(provider: WsProvider) {
-  return ApiPromise.create({
-    provider,
-    throwOnConnect: true,
-    throwOnUnknown: true,
-  });
-}
-
-export interface PolkadotNodeProviderInterface {
-  bestNumberFinalize?: number;
+export interface ApiComponents {
+  api: ApiPromise;
+  ss58Format: number;
+  decimals: number;
   chain?: string;
   nodeName?: string;
   nodeVersion?: string;
-  ss58Format?: number;
-  tokenDecimals?: number;
+  bestNumberFinalize?: number;
   tokenSymbol?: string;
-  api?: ApiPromise;
+}
+
+interface NetworkState {
+  assetHub?: ApiComponents;
+  pendulum?: ApiComponents;
 }
 
 interface PolkadotNodeContextInterface {
-  state: Partial<PolkadotNodeProviderInterface>;
-  setState: StateUpdater<Partial<PolkadotNodeProviderInterface>>;
+  state: NetworkState;
+  setState: StateUpdater<NetworkState>;
 }
 
 const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
-  state: {} as Partial<PolkadotNodeProviderInterface>,
-  setState: {} as StateUpdater<Partial<PolkadotNodeProviderInterface>>,
+  state: {},
+  setState: {} as StateUpdater<NetworkState>,
 });
 
-const usePolkadotNode = () => {
+async function createApiComponents(socketUrl: string, autoReconnect = true): Promise<ApiComponents> {
+  const wsProvider = new WsProvider(socketUrl, autoReconnect ? 1000 : false);
+  const api = await ApiPromise.create({
+    provider: wsProvider,
+    noInitWarn: true,
+  });
+
+  await api.isReady;
+
+  const chainProperties = api.registry.getChainProperties();
+  const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
+  const decimals = Number(chainProperties?.get('tokenDecimals')?.toHuman()[0]) ?? 12;
+
+  const [chain, nodeName, nodeVersion, bestNumberFinalize] = await Promise.all([
+    api.rpc.system.chain(),
+    api.rpc.system.name(),
+    api.rpc.system.version(),
+    api.derive.chain.bestNumber(),
+  ]);
+
+  return {
+    api,
+    ss58Format,
+    decimals,
+    chain: chain.toString(),
+    nodeName: nodeName.toString(),
+    nodeVersion: nodeVersion.toString(),
+    bestNumberFinalize: Number(bestNumberFinalize),
+    tokenSymbol: chainProperties
+      ?.get('tokenSymbol')
+      ?.toString()
+      ?.replace(/[\\[\]]/g, ''),
+  };
+}
+
+const usePolkadotNodes = () => {
   const context = useContext(PolkadotNodeContext);
   if (!context) {
     throw new Error('usePolkadotNode must be used within a PolkadotNodeProvider');
@@ -41,88 +73,46 @@ const usePolkadotNode = () => {
   return context.state;
 };
 
-const PolkadotNodeProvider = ({ children, rpc = ASSETHUB_WSS }: { children: JSX.Element; rpc?: string }) => {
-  const [state, setState] = useState({} as Partial<PolkadotNodeProviderInterface>);
-  const [currentRPC, setCurrentRPC] = useState<string | undefined>(undefined);
-  const [pendingInitiationPromise, setPendingInitiationPromise] = useState<Promise<unknown> | undefined>(undefined);
+const useAssetHubNode = () => {
+  const state = usePolkadotNodes();
+  return state.assetHub;
+};
 
-  async function updateStateWithChainProperties(api: ApiPromise) {
-    const bestNumberFinalize = await api.derive.chain.bestNumber();
-    const chainProperties = await api.registry.getChainProperties();
-    const ss58Format = chainProperties?.get('ss58Format').toString();
-    const tokenDecimals = Number(
-      chainProperties
-        ?.get('tokenDecimals')
-        .toString()
-        .replace(/[\\[\]]/g, ''),
-    );
-    const tokenSymbol = chainProperties
-      ?.get('tokenSymbol')
-      .toString()
-      .replace(/[\\[\]]/g, '');
+const usePendulumNode = () => {
+  const state = usePolkadotNodes();
+  return state.pendulum;
+};
 
-    setState((prevState) => ({
-      ...prevState,
-      bestNumberFinalize: Number(bestNumberFinalize),
-      ss58Format: Number(ss58Format),
-      tokenDecimals,
-      tokenSymbol,
-      api,
-    }));
-  }
-
-  async function updateStateWithSystemInfo(api: ApiPromise) {
-    const [chain, nodeName, nodeVersion] = await Promise.all([
-      api.rpc.system.chain(),
-      api.rpc.system.name(),
-      api.rpc.system.version(),
-    ]);
-
-    setState((prevState) => ({
-      ...prevState,
-      chain: chain.toString(),
-      nodeName: nodeName.toString(),
-      nodeVersion: nodeVersion.toString(),
-    }));
-  }
-
-  async function handleConnectionError(error: Error) {
-    console.error('Error while connecting to the node:', error);
-    showToast(ToastMessage.NODE_CONNECTION_ERROR);
-  }
+const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
+  const [state, setState] = useState<NetworkState>({});
 
   useEffect(() => {
-    let disconnect: () => void = () => undefined;
+    const initializeNetworks = async () => {
+      try {
+        const [assetHub, pendulum] = await Promise.all([
+          createApiComponents(ASSETHUB_WSS),
+          createApiComponents(PENDULUM_WSS),
+        ]);
 
-    if (!rpc || (currentRPC && currentRPC === rpc)) {
-      return disconnect;
-    }
-
-    const connect = async () => {
-      const provider = new WsProvider(rpc, false);
-      await provider.connect();
-
-      const api = await createApiPromise(provider);
-      await updateStateWithChainProperties(api);
-      await updateStateWithSystemInfo(api);
-
-      disconnect = () => {
-        api.disconnect();
-      };
+        setState({
+          assetHub,
+          pendulum,
+        });
+      } catch (error) {
+        console.error('Error initializing networks:', error);
+        showToast(ToastMessage.NODE_CONNECTION_ERROR);
+      }
     };
 
-    if (!pendingInitiationPromise) {
-      const promise = connect().catch(handleConnectionError);
-      setPendingInitiationPromise(promise);
-    } else {
-      pendingInitiationPromise.then(() => {
-        setCurrentRPC(rpc);
-      });
-      return disconnect;
-    }
-  }, [currentRPC, pendingInitiationPromise, rpc]);
+    initializeNetworks();
+
+    return () => {
+      state.assetHub?.api.disconnect();
+      state.pendulum?.api.disconnect();
+    };
+  }, [state.assetHub?.api, state.pendulum?.api]);
 
   return <PolkadotNodeContext.Provider value={{ state, setState }}>{children}</PolkadotNodeContext.Provider>;
 };
 
-export { PolkadotNodeProvider, usePolkadotNode };
+export { PolkadotNodeProvider, usePolkadotNodes, useAssetHubNode, usePendulumNode };
