@@ -4,8 +4,6 @@ import { NetworkIcon } from '../NetworkIcon';
 import { NetworkIconType } from '../../hooks/useGetNetworkIcon';
 import { Networks, useNetwork } from '../../contexts/network';
 
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
-
 function networkToDisplayName(network: Networks): string {
   switch (network) {
     case Networks.AssetHub:
@@ -25,7 +23,7 @@ export const NetworkSelector = () => {
   };
 
   return (
-    <Dropdown className="mr-2 ">
+    <Dropdown className="mr-2">
       <Dropdown.Toggle className="rounded-3xl">
         <NetworkIcon chainId={selectedNetwork} className="w-5 h-5" />
         {networkToDisplayName(selectedNetwork)}

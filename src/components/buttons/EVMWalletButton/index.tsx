@@ -74,7 +74,16 @@ export function EVMWalletButton({ customStyles }: { customStyles?: string }) {
         </button>
       );
     }
-  }, [address, appkitNetwork, handleUserClickWallet, isConnected, isOnSupportedNetwork, open, switchNetwork]);
+  }, [
+    address,
+    appkitNetwork,
+    customStyles,
+    handleUserClickWallet,
+    isConnected,
+    isOnSupportedNetwork,
+    open,
+    switchNetwork,
+  ]);
 
   return <>{ConnectButton}</>;
 }
