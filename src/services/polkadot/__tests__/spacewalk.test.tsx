@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Keypair } from 'stellar-sdk';
-import { Keyring } from '@polkadot/api';
-import { getApiManagerInstance } from '../polkadotApi';
+import { ApiPromise, Keyring } from '@polkadot/api';
+import { ApiComponents } from '../../../contexts/polkadotNode';
 import { getVaultsForCurrency, VaultService } from '../spacewalk';
 import { OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../../constants/tokenConfig';
 
@@ -26,11 +26,8 @@ function checkRequirements(): boolean {
   return true;
 }
 
-async function setupTest() {
-  // Create a new instance of the PolkadotApi
-  const apiManager = await getApiManagerInstance();
-  const apiComponents = await apiManager.getApiComponents();
-  const api = apiComponents.api;
+async function setupTest(apiComponents: ApiComponents) {
+  const { api } = apiComponents;
 
   const testToken = OUTPUT_TOKEN_CONFIG[TEST_CURRENCY_SYMBOL.toLowerCase() as OutputTokenType];
   const vaultsForCurrency = await getVaultsForCurrency(
@@ -69,7 +66,13 @@ describe('VaultService', () => {
       async () => {
         if (!checkRequirements()) return;
 
-        const setupComponents = await setupTest();
+        const mockApiComponents = {
+          api: {} as ApiPromise,
+          ss58Format: 42,
+          decimals: 12,
+        };
+
+        const setupComponents = await setupTest(mockApiComponents);
         if (!setupComponents) {
           return;
         }

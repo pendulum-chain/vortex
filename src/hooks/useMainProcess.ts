@@ -8,14 +8,7 @@ import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
 import { useAccount, useConfig, useSwitchChain } from 'wagmi';
 import { polygon } from 'wagmi/chains';
-import {
-  OfframpingState,
-  advanceOfframpingState,
-  clearOfframpingState,
-  constructInitialState,
-  readCurrentState,
-  recoverFromFailure,
-} from '../services/offrampingFlow';
+import { OfframpingState, useOfframpingFlow } from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
@@ -38,18 +31,6 @@ export interface ExecutionInput {
 type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
 
 export const useMainProcess = () => {
-  // EXAMPLE mocking states
-
-  // Approval already performed (scenario: service shut down after sending approval but before getting it's confirmation)
-  // let recoveryStatus = {
-  //   approvalHash: '0xe2798e5c30915033e3d5aaecf2cb2704c31f0a68624013849729ac5c69f83048',
-  //   swapHash: undefined,
-  //   transactionRequest: {"routeType":"CALL_BRIDGE_CALL","target":"0xce16F69375520ab01377ce7B88f5BA8C48F8D666","data":"0x00","value":"511469868416439548","gasLimit":"556000","lastBaseFeePerGas":"3560652","maxFeePerGas":"1507121304","maxPriorityFeePerGas":"1500000000","gasPrice":"30003560652","requestId":"de321b5ab3f9989d67dab414b3556ece"}
-  // }
-
-  // storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE, recoveryStatus );
-  // storageService.set(storageKeys.OFFRAMP_STATUS, OperationStatus.Sep6Completed);
-
   const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
@@ -69,6 +50,9 @@ export const useMainProcess = () => {
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
+
+  const { constructInitialState, clearOfframpingState, recoverFromFailure, readCurrentState, advanceOfframpingState } =
+    useOfframpingFlow();
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
@@ -98,7 +82,7 @@ export const useMainProcess = () => {
   useEffect(() => {
     const state = readCurrentState();
     updateHookStateFromState(state);
-  }, [updateHookStateFromState]);
+  }, [updateHookStateFromState, readCurrentState]);
 
   const addEvent = (message: string, status: EventStatus) => {
     console.log('Add event', message, status);
@@ -276,6 +260,7 @@ export const useMainProcess = () => {
     trackEvent,
     selectedNetwork,
     cleanSep24FirstVariables,
+    constructInitialState,
   ]);
 
   const finishOfframping = useCallback(() => {
@@ -285,12 +270,12 @@ export const useMainProcess = () => {
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
     })();
-  }, [updateHookStateFromState, resetUniqueEvents]);
+  }, [updateHookStateFromState, resetUniqueEvents, clearOfframpingState]);
 
   const continueFailedFlow = useCallback(() => {
     const nextState = recoverFromFailure(offrampingState);
     updateHookStateFromState(nextState);
-  }, [updateHookStateFromState, offrampingState]);
+  }, [updateHookStateFromState, offrampingState, recoverFromFailure]);
 
   useEffect(() => {
     if (wagmiConfig.state.status !== 'connected') return;
@@ -310,7 +295,8 @@ export const useMainProcess = () => {
     updateHookStateFromState,
     trackEvent,
     wagmiConfig,
-    wagmiConfig.state.status, // wagmiConfig is a mutable object so we need to list wagmiConfig.state.status here
+    wagmiConfig.state.status,
+    advanceOfframpingState,
   ]);
 
   const maybeCancelSep24First = useCallback(() => {

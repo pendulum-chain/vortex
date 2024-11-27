@@ -1,51 +1,49 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
-import { useAccount } from 'wagmi';
+import { ApiPromise } from '@polkadot/api';
 import Big from 'big.js';
+import { Fragment } from 'preact';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useAccount } from 'wagmi';
 
-import { LabeledInput } from '../../components/LabeledInput';
-import { BenefitsList } from '../../components/BenefitsList';
-import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
-import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
-import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { ExchangeRate } from '../../components/ExchangeRate';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
+import { BenefitsList } from '../../components/BenefitsList';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
+import { ExchangeRate } from '../../components/ExchangeRate';
+import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
+import { FeeComparison } from '../../components/FeeComparison';
+import { LabeledInput } from '../../components/LabeledInput';
+import { useSwapForm } from '../../components/Nabla/useSwapForm';
+import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
+import { SignInModal } from '../../components/SignIn';
 import { SigningBox } from '../../components/SigningBox';
+import { TermsAndConditions } from '../../components/TermsAndConditions';
+import { UserBalance } from '../../components/UserBalance';
+
 import { config } from '../../config';
+import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import {
   getInputTokenDetails,
-  InputTokenType,
-  OutputTokenType,
   INPUT_TOKEN_CONFIG,
+  InputTokenType,
   OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
 } from '../../constants/tokenConfig';
-import { BaseLayout } from '../../layouts';
-
-import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { useMainProcess } from '../../hooks/useMainProcess';
-import { ProgressPage } from '../progress';
-import { SuccessPage } from '../success';
-import { FailurePage } from '../failure';
-import { TermsAndConditions } from '../../components/TermsAndConditions';
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
-import { UserBalance } from '../../components/UserBalance';
 import { useEventsContext } from '../../contexts/events';
+import { useNetwork } from '../../contexts/network';
+import { usePendulumNode } from '../../contexts/polkadotNode';
+import { useSiweContext } from '../../contexts/siwe';
+import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-
-import { testRoute } from '../../services/squidrouter/route';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { useMainProcess } from '../../hooks/useMainProcess';
+import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
-import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
-import { FeeComparison } from '../../components/FeeComparison';
-import { useNetwork } from '../../contexts/network';
-import { SupportedNetworks } from '../../services/quotes';
-
-import { SignInModal } from '../../components/SignIn';
-import { useSiweContext } from '../../contexts/siwe';
+import { testRoute } from '../../services/squidrouter/route';
+import { BaseLayout } from '../../layouts';
+import { FailurePage } from '../failure';
+import { ProgressPage } from '../progress';
+import { SuccessPage } from '../success';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -55,6 +53,7 @@ const Arrow = () => (
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
+  const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
@@ -65,23 +64,23 @@ export const SwapPage = () => {
   const { selectedNetwork } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
-  // Hook used for services on initialization and pre-offramp check
-  // That is why no dependencies are used
   useEffect(() => {
-    const initializeApp = async () => {
-      const manager = await getApiManagerInstance();
-      const { api } = await manager.getApiComponents();
-      setApi(api);
-      await initialChecks();
+    if (pendulumNode?.api) {
+      setApi(pendulumNode.api);
+    }
+  }, [pendulumNode]);
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        await initialChecks();
+        setIsReady(true);
+      } catch (error) {
+        setInitializeFailed(true);
+      }
     };
 
-    initializeApp()
-      .then(() => {
-        setIsReady(true);
-      })
-      .catch(() => {
-        setInitializeFailed(true);
-      });
+    initialize();
   }, []);
 
   // Main process hook
@@ -265,7 +264,7 @@ export const SwapPage = () => {
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.networkAssetIcon}
           onClick={() => setModalType('from')}
-          onChange={(e) => {
+          onChange={() => {
             // User interacted with the input field
             trackEvent({ event: 'amount_type' });
           }}
