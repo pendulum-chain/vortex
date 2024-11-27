@@ -98,7 +98,10 @@ export const SwapPage = () => {
   }, [firstSep24ResponseState?.id]);
 
   const {
-    tokensModal: [modalType, setModalType],
+    isTokenSelectModalVisible,
+    tokenSelectModalType,
+    openTokenSelectModal,
+    closeTokenSelectModal,
     onFromChange,
     onToChange,
     form,
@@ -237,14 +240,14 @@ export const SwapPage = () => {
       <AssetNumericInput
         assetIcon={toToken.fiat.assetIcon}
         tokenSymbol={toToken.fiat.symbol}
-        onClick={() => setModalType('to')}
+        onClick={() => openTokenSelectModal('to')}
         registerInput={form.register('toAmount')}
         disabled={tokenOutAmount.isLoading}
         readOnly={true}
         id="toAmount"
       />
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutAmount.isLoading, setModalType],
+    [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
   );
 
   const WithdrawNumericInput = useMemo(
@@ -254,7 +257,7 @@ export const SwapPage = () => {
           registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
-          onClick={() => setModalType('from')}
+          onClick={() => openTokenSelectModal('from')}
           onChange={(e) => {
             // User interacted with the input field
             trackEvent({ event: 'amount_type' });
@@ -264,7 +267,7 @@ export const SwapPage = () => {
         <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
-    [form, fromToken, setModalType],
+    [form, fromToken, openTokenSelectModal, trackEvent],
   );
 
   function getCurrentErrorMessage() {
@@ -303,7 +306,7 @@ export const SwapPage = () => {
   }
 
   const definitions =
-    modalType === 'from'
+    tokenSelectModalType === 'from'
       ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
@@ -319,14 +322,14 @@ export const SwapPage = () => {
     <>
       <TermsAndConditions />
       <PoolSelectorModal
-        open={!!modalType}
+        open={isTokenSelectModalVisible}
         onSelect={(token) => {
-          modalType === 'from' ? onFromChange(token) : onToChange(token);
+          tokenSelectModalType === 'from' ? onFromChange(token) : onToChange(token);
           maybeCancelSep24First();
         }}
         definitions={definitions}
-        selected={modalType === 'from' ? from : to}
-        onClose={() => setModalType(undefined)}
+        selected={tokenSelectModalType === 'from' ? from : to}
+        onClose={() => closeTokenSelectModal()}
         isLoading={false}
       />
     </>
