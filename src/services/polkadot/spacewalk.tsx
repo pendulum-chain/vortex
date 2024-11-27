@@ -3,7 +3,7 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 import { Asset } from 'stellar-sdk';
 import { stellarHexToPublic } from './convert';
 import { parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from './eventParsers';
-import { ApiComponents } from './polkadotApi';
+import { ApiComponents } from '../../contexts/polkadotNode';
 import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
 import { Buffer } from 'buffer';
 import { ISubmittableResult } from '@polkadot/types/types';
