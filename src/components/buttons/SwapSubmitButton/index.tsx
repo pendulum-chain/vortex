@@ -20,7 +20,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
 
   if (selectedNetwork === Networks.AssetHub && !walletAccount) {
     return (
-      <div className="grow">
+      <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
         <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" />
       </div>
     );
@@ -28,14 +28,14 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
 
   if (selectedNetwork === Networks.Polygon && !isConnected) {
     return (
-      <div className="grow">
+      <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
         <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" />
       </div>
     );
   }
 
   return (
-    <div className="grow">
+    <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
       <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
         {pending && <Spinner />}
         {text}
