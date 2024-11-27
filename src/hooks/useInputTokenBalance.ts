@@ -7,7 +7,7 @@ import { ASSETHUB_USDC_ID, InputTokenDetails, isEvmInputTokenDetails } from '../
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
-import { usePolkadotNode } from '../contexts/polkadotNode';
+import { useAssetHubNode } from '../contexts/polkadotNode';
 
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
@@ -29,13 +29,14 @@ const useEvmBalance = (
 const useAssetHubBalance = (): string | undefined => {
   const [balance, setBalance] = useState<string>();
   const { walletAccount } = usePolkadotWalletState();
-  const { api } = usePolkadotNode();
+  const assetHubNode = useAssetHubNode();
 
   useEffect(() => {
-    if (!walletAccount || !api) return;
+    if (!walletAccount || !assetHubNode) return;
 
     const getBalance = async () => {
       try {
+        const { api } = assetHubNode;
         const accountInfo = await api.query.assets.account(ASSETHUB_USDC_ID, walletAccount.address);
 
         const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
@@ -47,7 +48,7 @@ const useAssetHubBalance = (): string | undefined => {
     };
 
     getBalance();
-  }, [api, walletAccount]);
+  }, [assetHubNode, walletAccount]);
 
   return balance;
 };
