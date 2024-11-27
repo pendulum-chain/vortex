@@ -120,6 +120,8 @@ export const SwapPage = () => {
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
   const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
+  // The price comparison is only available for Polygon (for now)
+  const isPriceComparisonAvailable = fromToken.network === 'Polygon';
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
@@ -300,7 +302,7 @@ export const SwapPage = () => {
         }.`;
       }
 
-      if (config.test.overwriteMinimumTransferAmount === false && minAmountUnits.gt(amountOut)) {
+      if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
         trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
@@ -402,8 +404,7 @@ export const SwapPage = () => {
           )}
         </section>
         <div className="flex gap-3 mt-5">
-          {/* @todo: make it more generic than just comparing fromToken.network === 'Polygon' */}
-          {fromToken.network === 'Polygon' && (
+          {isPriceComparisonAvailable && (
             <button
               className="grow btn-vortex-secondary btn"
               disabled={!inputAmountIsStable}
@@ -440,8 +441,7 @@ export const SwapPage = () => {
           )}
         </div>
       </form>
-      {/* @todo: make it more generic than just comparing fromToken.network === 'Polygon' */}
-      {showCompareFees && fromToken && fromAmount && toToken && fromToken.network === 'Polygon' && (
+      {isPriceComparisonAvailable && showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
           amount={fromAmount}
