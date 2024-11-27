@@ -6,7 +6,7 @@
   "packageManager": "yarn@4.5.0+sha512.837566d24eec14ec0f5f1411adb544e892b3454255e61fdef8fd05f3429480102806bac7446bc9daff3896b01ae4b62d00096c7e989f1596f2af10b927532f39",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' vite build && cp -R src/assets/coins dist/assets/coins && echo '/* /index.html 200' | cat > dist/_redirects",
+    "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
