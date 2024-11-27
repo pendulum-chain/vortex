@@ -6,6 +6,17 @@ import { Networks, useNetwork } from '../../contexts/network';
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
+function networkToDisplayName(network: Networks): string {
+  switch (network) {
+    case Networks.AssetHub:
+      return 'Polkadot AssetHub';
+    case Networks.Polygon:
+      return 'Polygon';
+    default:
+      return network;
+  }
+}
+
 export const NetworkSelector = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
 
@@ -17,6 +28,7 @@ export const NetworkSelector = () => {
     <Dropdown className="mr-2 ">
       <Dropdown.Toggle className="rounded-3xl">
         <NetworkIcon chainId={selectedNetwork} className="w-5 h-5" />
+        {networkToDisplayName(selectedNetwork)}
         <ChevronDownIcon className="block w-4 h-4 ml-1" />
       </Dropdown.Toggle>
       <Dropdown.Menu className="w-48 p-2 mt-2 shadow-lg bg-base-100 rounded-box">
@@ -27,7 +39,7 @@ export const NetworkSelector = () => {
             className="flex items-center gap-2 p-2 rounded-lg hover:bg-base-200"
           >
             <NetworkIcon chainId={networkId} className="w-5 h-5" />
-            <span>{capitalize(networkId)}</span>
+            <span>{networkToDisplayName(networkId)}</span>
           </Dropdown.Item>
         ))}
       </Dropdown.Menu>
