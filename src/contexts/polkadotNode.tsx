@@ -87,12 +87,19 @@ const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
   const [state, setState] = useState<NetworkState>({});
 
   useEffect(() => {
+    let disconnect: () => void = () => undefined;
+
     const initializeNetworks = async () => {
       try {
         const [assetHub, pendulum] = await Promise.all([
           createApiComponents(ASSETHUB_WSS),
           createApiComponents(PENDULUM_WSS),
         ]);
+
+        disconnect = () => {
+          assetHub.api.disconnect();
+          pendulum.api.disconnect();
+        };
 
         setState({
           assetHub,
@@ -106,11 +113,8 @@ const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
 
     initializeNetworks();
 
-    return () => {
-      state.assetHub?.api.disconnect();
-      state.pendulum?.api.disconnect();
-    };
-  }, [state.assetHub?.api, state.pendulum?.api]);
+    return disconnect;
+  }, []);
 
   return <PolkadotNodeContext.Provider value={{ state, setState }}>{children}</PolkadotNodeContext.Provider>;
 };
