@@ -394,7 +394,8 @@ export const SwapPage = () => {
         </section>
         <div className="flex mt-5 gap-3">
           <button
-            className="grow btn-vortex-secondary btn"
+            className="btn-vortex-secondary btn"
+            style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
@@ -413,7 +414,8 @@ export const SwapPage = () => {
               href={firstSep24ResponseState.url}
               target="_blank"
               rel="opener" //noopener forbids the use of postMessages.
-              className="grow btn-vortex-primary btn rounded-xl"
+              className="btn-vortex-primary btn rounded-xl"
+              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
               onClick={handleOnAnchorWindowOpen}
               // open in a tinier window
             >
