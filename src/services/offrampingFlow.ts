@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/react';
+import { useCallback, useMemo } from 'preact/hooks';
 import { Config } from 'wagmi';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
@@ -6,27 +8,26 @@ import { storageService } from './storage/local';
 import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
 import { squidRouter } from './squidrouter/process';
 import {
-  createPendulumEphemeralSeed,
-  pendulumCleanup,
-  pendulumFundEphemeral,
-  subsidizePostSwap,
-  subsidizePreSwap,
+  useCreatePendulumEphemeralSeed,
+  usePendulumCleanup,
+  usePendulumFundEphemeral,
+  useSubsidizePostSwap,
+  useSubsidizePreSwap,
 } from './polkadot/ephemeral';
 import { SepResult } from './anchor';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { stellarCleanup, stellarOfframp } from './stellar';
-import { nablaApprove, nablaSwap } from './nabla';
+import { useNablaApprove, useNablaSwap } from './nabla';
 import { RenderEventHandler } from '../components/GenericEvent';
-import { executeSpacewalkRedeem } from './polkadot';
+import { useExecuteSpacewalkRedeem } from './polkadot';
 import { SigningPhase } from '../hooks/useMainProcess';
-import { prepareTransactions } from './signedTransactions';
+import { usePrepareTransactions } from './signedTransactions';
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
-import { executeXCM } from './moonbeam';
+import { useExecuteXCM } from './moonbeam';
 import { TrackableEvent } from '../contexts/events';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
-import * as Sentry from '@sentry/react';
 import { Networks } from '../contexts/network';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
@@ -116,21 +117,6 @@ export type StateTransitionFunction = (
   context: ExecutionContext,
 ) => Promise<OfframpingState | undefined>;
 
-const STATE_ADVANCEMENT_HANDLERS: Record<OfframpingPhase, StateTransitionFunction> = {
-  prepareTransactions,
-  squidRouter,
-  pendulumFundEphemeral,
-  executeXCM,
-  subsidizePreSwap,
-  nablaApprove,
-  nablaSwap,
-  subsidizePostSwap,
-  executeSpacewalkRedeem,
-  pendulumCleanup,
-  stellarOfframp,
-  stellarCleanup,
-};
-
 export interface ExecutionContext {
   wagmiConfig: Config;
   renderEvent: RenderEventHandler;
@@ -151,150 +137,203 @@ export interface InitiateStateArguments {
   network: Networks;
 }
 
-export async function constructInitialState({
-  sep24Id,
-  stellarEphemeralSecret,
-  inputTokenType,
-  outputTokenType,
-  amountIn,
-  amountOut,
-  sepResult,
-  network,
-}: InitiateStateArguments) {
-  const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
+export function useOfframpingFlow() {
+  const pendulumFundEphemeral = usePendulumFundEphemeral();
+  const subsidizePreSwap = useSubsidizePreSwap();
+  const subsidizePostSwap = useSubsidizePostSwap();
+  const pendulumCleanup = usePendulumCleanup();
+  const nablaApprove = useNablaApprove();
+  const nablaSwap = useNablaSwap();
+  const executeXCM = useExecuteXCM();
+  const executeSpacewalkRedeem = useExecuteSpacewalkRedeem();
+  const prepareTransactions = usePrepareTransactions();
 
-  const inputTokenDecimals = getInputTokenDetails(network, inputTokenType).decimals;
-  const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
+  const STATE_ADVANCEMENT_HANDLERS = useMemo<Record<OfframpingPhase, StateTransitionFunction>>(
+    () => ({
+      prepareTransactions,
+      squidRouter,
+      pendulumFundEphemeral,
+      executeXCM,
+      subsidizePreSwap,
+      nablaApprove,
+      nablaSwap,
+      subsidizePostSwap,
+      executeSpacewalkRedeem,
+      pendulumCleanup,
+      stellarOfframp,
+      stellarCleanup,
+    }),
+    [
+      prepareTransactions,
+      pendulumFundEphemeral,
+      executeXCM,
+      subsidizePreSwap,
+      nablaApprove,
+      nablaSwap,
+      subsidizePostSwap,
+      executeSpacewalkRedeem,
+      pendulumCleanup,
+    ],
+  );
 
-  const inputAmountBig = Big(amountIn);
-  const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();
+  const createPendulumEphemeralSeed = useCreatePendulumEphemeralSeed();
 
-  const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
+  const constructInitialState = useCallback(
+    async ({
+      sep24Id,
+      stellarEphemeralSecret,
+      inputTokenType,
+      outputTokenType,
+      amountIn,
+      amountOut,
+      sepResult,
+      network,
+    }: InitiateStateArguments) => {
+      const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed();
 
-  // nabla minimum output amounts
-  const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
-  const nablaSoftMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenDecimals).toFixed();
-  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenDecimals).toFixed();
+      const inputTokenDecimals = getInputTokenDetails(network, inputTokenType).decimals;
+      const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
 
-  const squidRouterReceiverId = createRandomString(32);
-  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
-  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
-  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
+      const inputAmountBig = Big(amountIn);
+      const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();
 
-  const now = Date.now();
-  const initialState: OfframpingState = {
-    sep24Id,
-    pendulumEphemeralSeed,
-    stellarEphemeralSecret,
-    inputTokenType,
-    outputTokenType,
-    inputAmount: {
-      units: amountIn,
-      raw: inputAmountRaw,
+      const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
+
+      // nabla minimum output amounts
+      const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
+      const nablaSoftMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+      const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenDecimals).toFixed();
+      const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenDecimals).toFixed();
+
+      const squidRouterReceiverId = createRandomString(32);
+      const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
+      const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+      const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
+
+      const now = Date.now();
+      const initialState: OfframpingState = {
+        sep24Id,
+        pendulumEphemeralSeed,
+        stellarEphemeralSecret,
+        inputTokenType,
+        outputTokenType,
+        inputAmount: {
+          units: amountIn,
+          raw: inputAmountRaw,
+        },
+        outputAmount: {
+          units: amountOut.toFixed(2, 0),
+          raw: outputAmountRaw,
+        },
+        phase: 'prepareTransactions',
+        squidRouterReceiverId,
+        squidRouterReceiverHash,
+        nablaHardMinimumOutputRaw,
+        nablaSoftMinimumOutputRaw,
+        nablaApproveNonce: 0,
+        nablaSwapNonce: 1,
+        executeSpacewalkNonce: 2,
+        createdAt: now,
+        failureTimeoutAt: now + minutesInMs(10),
+        sepResult,
+        network,
+        transactions: undefined,
+      };
+
+      storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);
+      return initialState;
     },
-    outputAmount: {
-      units: amountOut.toFixed(2, 0),
-      raw: outputAmountRaw,
-    },
-    phase: 'prepareTransactions',
-    squidRouterReceiverId,
-    squidRouterReceiverHash,
-    nablaHardMinimumOutputRaw,
-    nablaSoftMinimumOutputRaw,
-    nablaApproveNonce: 0,
-    nablaSwapNonce: 1,
-    executeSpacewalkNonce: 2,
-    createdAt: now,
-    failureTimeoutAt: now + minutesInMs(10),
-    sepResult,
-    network,
-    transactions: undefined,
-  };
+    [createPendulumEphemeralSeed],
+  );
 
-  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);
-  return initialState;
-}
-
-export async function clearOfframpingState() {
-  storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
-}
-
-export function recoverFromFailure(state: OfframpingState | undefined) {
-  if (state === undefined) {
-    console.log('No offramping in process');
-    return undefined;
-  }
-
-  if (state.failure !== undefined) {
-    console.log('Current state is not a failure.');
-    return state;
-  }
-
-  const newState = {
-    ...state,
-    failure: undefined,
-    failureTimeoutAt: Date.now() + minutesInMs(5),
-  };
-  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
-
-  console.log('Recovered from failure');
-  return newState;
-}
-
-export function readCurrentState() {
-  return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
-}
-
-export async function advanceOfframpingState(
-  state: OfframpingState | undefined,
-  context: ExecutionContext,
-): Promise<OfframpingState | undefined> {
-  if (state === undefined) {
-    console.log('No offramping in process');
-    return undefined;
-  }
-
-  const { phase, failure } = state;
-  const phaseIsFinal = phase === 'success' || failure !== undefined;
-
-  if (phaseIsFinal) {
-    console.log('Offramping is already in a final phase:', phase);
-    return state;
-  }
-
-  console.log('Advance offramping state in phase', phase);
-
-  let newState: OfframpingState | undefined;
-  try {
-    newState = await STATE_ADVANCEMENT_HANDLERS[phase](state, context);
-    if (newState) {
-      Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
-    }
-  } catch (error: unknown) {
-    if ((error as Error)?.message === 'Wallet not connected') {
-      // TODO: transmit error to caller
-      console.error('Wallet not connected. Try to connect wallet');
-      return state;
-    }
-
-    if (Date.now() < state.failureTimeoutAt) {
-      console.error('Possible transient error within 10 minutes. Reloading page in 30 seconds.', error);
-      await new Promise((resolve) => setTimeout(resolve, 30000));
-      window.location.reload();
-      return state;
-    }
-
-    console.error('Error advancing offramping state', error);
-    newState = { ...state, failure: 'recoverable' };
-  }
-
-  if (newState !== undefined) {
-    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
-  } else {
+  const clearOfframpingState = useCallback(async () => {
     storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
-  }
+  }, []);
 
-  console.log('Done advancing offramping state and advance to', newState?.phase ?? 'completed');
-  return newState;
+  const recoverFromFailure = useCallback((state: OfframpingState | undefined) => {
+    if (state === undefined) {
+      console.log('No offramping in process');
+      return undefined;
+    }
+
+    if (state.failure !== undefined) {
+      console.log('Current state is not a failure.');
+      return state;
+    }
+
+    const newState = {
+      ...state,
+      failure: undefined,
+      failureTimeoutAt: Date.now() + minutesInMs(5),
+    };
+    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
+
+    console.log('Recovered from failure');
+    return newState;
+  }, []);
+
+  const readCurrentState = useCallback(() => {
+    return storageService.getParsed<OfframpingState>(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+  }, []);
+
+  const advanceOfframpingState = useCallback(
+    async (state: OfframpingState | undefined, context: ExecutionContext): Promise<OfframpingState | undefined> => {
+      if (state === undefined) {
+        console.log('No offramping in process');
+        return undefined;
+      }
+
+      const { phase, failure } = state;
+      const phaseIsFinal = phase === 'success' || failure !== undefined;
+
+      if (phaseIsFinal) {
+        console.log('Offramping is already in a final phase:', phase);
+        return state;
+      }
+
+      console.log('Advance offramping state in phase', phase);
+
+      let newState: OfframpingState | undefined;
+      try {
+        newState = await STATE_ADVANCEMENT_HANDLERS[phase](state, context);
+        if (newState) {
+          Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
+        }
+      } catch (error: unknown) {
+        if ((error as Error)?.message === 'Wallet not connected') {
+          // TODO: transmit error to caller
+          console.error('Wallet not connected. Try to connect wallet');
+          return state;
+        }
+
+        if (Date.now() < state.failureTimeoutAt) {
+          console.error('Possible transient error within 10 minutes. Reloading page in 30 seconds.', error);
+          await new Promise((resolve) => setTimeout(resolve, 30000));
+          window.location.reload();
+          return state;
+        }
+
+        console.error('Error advancing offramping state', error);
+        newState = { ...state, failure: 'recoverable' };
+      }
+
+      if (newState !== undefined) {
+        storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
+      } else {
+        storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+      }
+
+      console.log('Done advancing offramping state and advance to', newState?.phase ?? 'completed');
+      return newState;
+    },
+    [STATE_ADVANCEMENT_HANDLERS],
+  );
+
+  return {
+    constructInitialState,
+    clearOfframpingState,
+    recoverFromFailure,
+    readCurrentState,
+    advanceOfframpingState,
+  };
 }
