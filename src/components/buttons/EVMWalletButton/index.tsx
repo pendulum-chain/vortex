@@ -8,7 +8,7 @@ import { useAccount } from 'wagmi';
 import { wagmiConfig } from '../../../wagmiConfig';
 import { trimAddress } from '../../../helpers/addressFormatter';
 
-export function EVMWalletButton() {
+export function EVMWalletButton({ customStyles }: { customStyles?: string }) {
   const { handleUserClickWallet } = useEventsContext();
 
   // walletChainId is the chainId available on the wallet level
@@ -30,7 +30,7 @@ export function EVMWalletButton() {
             open({ view: 'Connect' });
           }}
           type="button"
-          className="btn-vortex-secondary btn rounded-3xl group"
+          className={`btn-vortex-secondary btn rounded-3xl group ${customStyles}`}
         >
           <p className="flex">
             Connect <span className="hidden lg:block lg:ml-1">Wallet</span>

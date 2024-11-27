@@ -1,6 +1,9 @@
 import { FC } from 'preact/compat';
 import { Spinner } from '../../Spinner';
-import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
+import { useAppKitAccount } from '@reown/appkit/react';
+import { ConnectWalletButton } from '../ConnectWalletButton';
+import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
+import { Networks, useNetwork } from '../../../contexts/network';
 
 interface SwapSubmitButtonProps {
   text: string;
@@ -11,16 +14,22 @@ interface SwapSubmitButtonProps {
 export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => {
   const showInDisabledState = disabled || pending;
 
-  const { open: openWalletModal } = useAppKit();
-
+  const { walletAccount } = usePolkadotWalletState();
   const { isConnected } = useAppKitAccount();
+  const { selectedNetwork } = useNetwork();
 
-  if (!isConnected) {
+  if (selectedNetwork === Networks.AssetHub && !walletAccount) {
     return (
       <div className="grow">
-        <button onClick={() => openWalletModal()} type="button" className="w-full btn-vortex-primary btn rounded-xl">
-          Connect Wallet
-        </button>
+        <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" />
+      </div>
+    );
+  }
+
+  if (selectedNetwork === Networks.Polygon && !isConnected) {
+    return (
+      <div className="grow">
+        <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" />
       </div>
     );
   }

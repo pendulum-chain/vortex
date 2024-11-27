@@ -402,20 +402,23 @@ export const SwapPage = () => {
           )}
         </section>
         <div className="flex gap-3 mt-5">
-          <button
-            className="grow btn-vortex-secondary btn"
-            disabled={!inputAmountIsStable}
-            onClick={(e) => {
-              e.preventDefault();
-              setShowCompareFees(!showCompareFees);
-              // Smooth scroll to bottom of page
-              setTimeout(() => {
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-              }, 300);
-            }}
-          >
-            Compare fees
-          </button>
+          {/* @todo: make it more generic than just comparing fromToken.network === 'Polygon' */}
+          {fromToken.network === 'Polygon' && (
+            <button
+              className="grow btn-vortex-secondary btn"
+              disabled={!inputAmountIsStable}
+              onClick={(e) => {
+                e.preventDefault();
+                setShowCompareFees(!showCompareFees);
+                // Smooth scroll to bottom of page
+                setTimeout(() => {
+                  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                }, 300);
+              }}
+            >
+              Compare fees
+            </button>
+          )}
           {firstSep24ResponseState?.url !== undefined ? (
             // eslint-disable-next-line react/jsx-no-target-blank
             <a
@@ -437,6 +440,7 @@ export const SwapPage = () => {
           )}
         </div>
       </form>
+      {/* @todo: make it more generic than just comparing fromToken.network === 'Polygon' */}
       {showCompareFees && fromToken && fromAmount && toToken && fromToken.network === 'Polygon' && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
