@@ -25,7 +25,7 @@ import { SigningPhase } from '../hooks/useMainProcess';
 import { usePrepareTransactions } from './signedTransactions';
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
-import { useExecuteXCM } from './moonbeam';
+import { useExecuteMoonbeamXCM } from './moonbeam';
 import { TrackableEvent } from '../contexts/events';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 import { Networks } from '../contexts/network';
@@ -38,7 +38,7 @@ export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
   | 'pendulumFundEphemeral'
-  | 'executeXCM'
+  | 'executeMoonbeamXCM'
   | 'subsidizePreSwap'
   | 'nablaApprove'
   | 'nablaSwap'
@@ -78,7 +78,7 @@ export interface OfframpingState {
   squidRouterApproveHash?: `0x${string}`;
   squidRouterSwapHash?: `0x${string}`;
 
-  // phase executeXCM
+  // phase executeMoonbeamXCM
   moonbeamXcmTransactionHash?: `0x${string}`;
 
   // nabla minimum output amounts
@@ -144,7 +144,7 @@ export function useOfframpingFlow() {
   const pendulumCleanup = usePendulumCleanup();
   const nablaApprove = useNablaApprove();
   const nablaSwap = useNablaSwap();
-  const executeXCM = useExecuteXCM();
+  const executeMoonbeamXCM = useExecuteMoonbeamXCM();
   const executeSpacewalkRedeem = useExecuteSpacewalkRedeem();
   const prepareTransactions = usePrepareTransactions();
 
@@ -153,7 +153,7 @@ export function useOfframpingFlow() {
       prepareTransactions,
       squidRouter,
       pendulumFundEphemeral,
-      executeXCM,
+      executeMoonbeamXCM,
       subsidizePreSwap,
       nablaApprove,
       nablaSwap,
@@ -166,7 +166,7 @@ export function useOfframpingFlow() {
     [
       prepareTransactions,
       pendulumFundEphemeral,
-      executeXCM,
+      executeMoonbeamXCM,
       subsidizePreSwap,
       nablaApprove,
       nablaSwap,

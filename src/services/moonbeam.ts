@@ -21,7 +21,7 @@ export const moonbeamConfig = createConfig({
   },
 });
 
-export function useExecuteXCM() {
+export function useExecuteMoonbeamXCM() {
   const pendulumNode = usePendulumNode();
   const getRawInputBalanceHook = useGetRawInputBalance();
 
@@ -64,7 +64,7 @@ export function useExecuteXCM() {
           // and not just after this function call here would usually end (i.e. after the
           // tokens arrived on Pendulum).
           // For that reason we return early here and the outer logic of the `useMainProcess` hook
-          // will ensure that this function `executeXCM` will be called again shortly after
+          // will ensure that this function `executeMoonbeamXCM` will be called again shortly after
           // where this time `moonbeamXcmTransactionHash` is already defined right at the beginning
           // of the call
           return { ...state, moonbeamXcmTransactionHash };

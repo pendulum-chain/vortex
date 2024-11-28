@@ -16,7 +16,7 @@ function createOfframpingPhaseMessage(offrampingState: OfframpingState, network:
     case 'squidRouter':
     case 'pendulumFundEphemeral':
       return `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`;
-    case 'executeXCM':
+    case 'executeMoonbeamXCM':
       return `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`;
     case 'subsidizePreSwap':
     case 'nablaApprove':
@@ -39,7 +39,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   prepareTransactions: 1,
   squidRouter: 1,
   pendulumFundEphemeral: 80,
-  executeXCM: 40,
+  executeMoonbeamXCM: 40,
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,

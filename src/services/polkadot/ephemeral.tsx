@@ -80,7 +80,7 @@ export function usePendulumFundEphemeral() {
 
     return {
       ...state,
-      phase: 'executeXCM',
+      phase: 'executeMoonbeamXCM',
     };
   };
 }
