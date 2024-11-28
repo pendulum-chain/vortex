@@ -1,5 +1,5 @@
 import { createContext } from 'preact';
-import { PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from 'preact/compat';
+import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
 import Big from 'big.js';
 import * as Sentry from '@sentry/react';
 import { useAccount } from 'wagmi';

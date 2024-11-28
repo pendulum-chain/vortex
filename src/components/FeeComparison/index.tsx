@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { useMemo } from 'preact/hooks';
-import { useEffect, useRef, useState } from 'preact/compat';
+import { useEffect, useRef } from 'preact/compat';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Skeleton } from '../Skeleton';
