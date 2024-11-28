@@ -6,6 +6,7 @@ import { Skeleton } from '../Skeleton';
 import vortexIcon from '../../assets/logo/blue.svg';
 import { QuoteProvider, quoteProviders } from './quoteProviders';
 import { SupportedNetworks } from '../../services/quotes';
+import { Networks } from '../../contexts/network';
 
 type FeeProviderRowProps = FeeComparisonProps & { provider: QuoteProvider };
 
@@ -124,7 +125,7 @@ interface FeeComparisonProps {
   sourceAssetSymbol: string;
   targetAssetSymbol: string;
   vortexPrice: Big;
-  network: SupportedNetworks;
+  network: Networks;
 }
 
 export function FeeComparison({

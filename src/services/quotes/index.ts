@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { polygon } from 'wagmi/chains';
+import { Networks } from '../../contexts/network';
 
 const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 
@@ -24,8 +25,11 @@ async function getQuoteFromService(
   fromCrypto: string,
   toFiat: string,
   amount: Big,
-  network: SupportedNetworks,
+  network: Networks,
 ): Promise<Big> {
+  if (network !== polygon.name) {
+    throw new Error(`Network ${network} is not supported`);
+  }
   // Fetch the quote from the service with a GET request
   const params = new URLSearchParams({ provider, fromCrypto, toFiat, amount: amount.toFixed(2), network });
   const response = await fetch(`${QUOTE_ENDPOINT}?${params.toString()}`);
@@ -38,7 +42,7 @@ async function getQuoteFromService(
   return new Big(quote.fiatAmount);
 }
 
-export type QuoteQuery = (fromCrypto: string, toFiat: string, amount: Big, network: SupportedNetworks) => Promise<Big>;
+export type QuoteQuery = (fromCrypto: string, toFiat: string, amount: Big, network: Networks) => Promise<Big>;
 
 export function getQueryFnForService(quoteService: QuoteService): QuoteQuery {
   return (fromCrypto, toFiat, amount, network) =>
