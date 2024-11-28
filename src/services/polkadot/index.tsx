@@ -124,8 +124,9 @@ export async function executeSpacewalkRedeem(
   }
 
   if (!transactions) {
-    console.error('Transactions not prepared, cannot execute Spacewalk redeem');
-    return { ...state, failure: 'unrecoverable' };
+    const message = 'Transactions not prepared, cannot execute Spacewalk redeem';
+    console.error(message);
+    return { ...state, failure: { type: 'unrecoverable', message } };
   }
   let redeemRequestEvent;
 

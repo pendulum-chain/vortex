@@ -23,6 +23,8 @@ import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
 import { useSiweContext } from '../contexts/siwe';
+import { calculateTotalReceive } from '../components/FeeCollapse';
+
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
 export interface ExecutionInput {
@@ -85,6 +87,7 @@ export const useMainProcess = () => {
           event: 'transaction_failure',
           phase_name: currentPhase,
           phase_index: currentPhaseIndex,
+          error_message: state.failure.message,
         });
       }
     },
@@ -132,7 +135,7 @@ export const useMainProcess = () => {
           from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
-          to_amount: offrampAmount.toFixed(2, 0),
+          to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
         });
 
         try {
@@ -219,7 +222,10 @@ export const useMainProcess = () => {
       from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
       to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
       from_amount: executionInputState.amountInUnits,
-      to_amount: executionInputState.offrampAmount.toFixed(2, 0),
+      to_amount: calculateTotalReceive(
+        executionInputState.offrampAmount,
+        OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType],
+      ),
     });
 
     // stop fetching new sep24 url's and clean session variables from the state to be safe.

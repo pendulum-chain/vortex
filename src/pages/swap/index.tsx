@@ -114,7 +114,7 @@ export const SwapPage = () => {
   const fromToken = INPUT_TOKEN_CONFIG[from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
-  const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
+  const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
