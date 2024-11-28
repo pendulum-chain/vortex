@@ -26,6 +26,7 @@ import { usePrepareTransactions } from './signedTransactions';
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
 import encodePayload from './squidrouter/payload';
 import { useExecuteMoonbeamXCM } from './moonbeam';
+import { useExecuteAssethubXCM } from './polkadot/assethub';
 import { TrackableEvent } from '../contexts/events';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 import { Networks } from '../contexts/network';
@@ -39,6 +40,7 @@ export type OfframpingPhase =
   | 'squidRouter'
   | 'pendulumFundEphemeral'
   | 'executeMoonbeamXCM'
+  | 'executeAssetHubXCM'
   | 'subsidizePreSwap'
   | 'nablaApprove'
   | 'nablaSwap'
@@ -80,6 +82,9 @@ export interface OfframpingState {
 
   // phase executeMoonbeamXCM
   moonbeamXcmTransactionHash?: `0x${string}`;
+
+  // phase executeAssetHubXCM
+  assetHubXcmTransactionHash?: string;
 
   // nabla minimum output amounts
   nablaSoftMinimumOutputRaw: string;
@@ -145,28 +150,47 @@ export function useOfframpingFlow() {
   const nablaApprove = useNablaApprove();
   const nablaSwap = useNablaSwap();
   const executeMoonbeamXCM = useExecuteMoonbeamXCM();
+  const executeAssetHubXCM = useExecuteAssethubXCM();
   const executeSpacewalkRedeem = useExecuteSpacewalkRedeem();
   const prepareTransactions = usePrepareTransactions();
 
-  const STATE_ADVANCEMENT_HANDLERS = useMemo<Record<OfframpingPhase, StateTransitionFunction>>(
+  const STATE_ADVANCEMENT_HANDLERS = useMemo<
+    Record<Networks, Partial<Record<OfframpingPhase, StateTransitionFunction>>>
+  >(
     () => ({
-      prepareTransactions,
-      squidRouter,
-      pendulumFundEphemeral,
-      executeMoonbeamXCM,
-      subsidizePreSwap,
-      nablaApprove,
-      nablaSwap,
-      subsidizePostSwap,
-      executeSpacewalkRedeem,
-      pendulumCleanup,
-      stellarOfframp,
-      stellarCleanup,
+      Polygon: {
+        prepareTransactions,
+        squidRouter,
+        pendulumFundEphemeral,
+        executeMoonbeamXCM,
+        subsidizePreSwap,
+        nablaApprove,
+        nablaSwap,
+        subsidizePostSwap,
+        executeSpacewalkRedeem,
+        pendulumCleanup,
+        stellarOfframp,
+        stellarCleanup,
+      },
+      AssetHub: {
+        prepareTransactions,
+        pendulumFundEphemeral,
+        executeAssetHubXCM,
+        subsidizePreSwap,
+        nablaApprove,
+        nablaSwap,
+        subsidizePostSwap,
+        executeSpacewalkRedeem,
+        pendulumCleanup,
+        stellarOfframp,
+        stellarCleanup,
+      },
     }),
     [
       prepareTransactions,
       pendulumFundEphemeral,
       executeMoonbeamXCM,
+      executeAssetHubXCM,
       subsidizePreSwap,
       nablaApprove,
       nablaSwap,
@@ -295,7 +319,11 @@ export function useOfframpingFlow() {
 
       let newState: OfframpingState | undefined;
       try {
-        newState = await STATE_ADVANCEMENT_HANDLERS[phase](state, context);
+        const nextHandler = STATE_ADVANCEMENT_HANDLERS[state.network][phase];
+        if (!nextHandler) {
+          throw new Error(`No handler for phase ${phase} on network ${state.network}`);
+        }
+        newState = await nextHandler(state, context);
         if (newState) {
           Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
         }

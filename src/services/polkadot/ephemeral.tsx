@@ -4,7 +4,7 @@ import { waitForTransactionReceipt } from '@wagmi/core';
 import axios from 'axios';
 import Big from 'big.js';
 
-import { getPendulumCurrencyId, getInputTokenDetails } from '../../constants/tokenConfig';
+import { getInputTokenDetails, getPendulumCurrencyId } from '../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { multiplyByPowerOfTen } from '../../helpers/contracts';
 import { waitUntilTrue } from '../../helpers/function';
@@ -12,6 +12,7 @@ import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { isHashRegistered } from '../moonbeam';
 import { usePendulumNode } from '../../contexts/polkadotNode';
+import { Networks } from '../../contexts/network';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
 
@@ -57,11 +58,12 @@ export function usePendulumFundEphemeral() {
   return async (state: OfframpingState, { wagmiConfig }: ExecutionContext): Promise<OfframpingState> => {
     console.log('Pendulum funding ephemeral account');
     const { squidRouterSwapHash } = state;
-    if (squidRouterSwapHash === undefined) {
-      throw new Error('No squid router swap hash found');
+    if (state.network !== Networks.AssetHub) {
+      if (squidRouterSwapHash === undefined) {
+        throw new Error('No squid router swap hash found');
+      }
+      await waitForTransactionReceipt(wagmiConfig, { hash: squidRouterSwapHash });
     }
-
-    await waitForTransactionReceipt(wagmiConfig, { hash: squidRouterSwapHash });
 
     const isAlreadyFunded = await isEphemeralFundedHook(state);
 
@@ -80,7 +82,7 @@ export function usePendulumFundEphemeral() {
 
     return {
       ...state,
-      phase: 'executeMoonbeamXCM',
+      phase: state.network === Networks.AssetHub ? 'executeAssetHubXCM' : 'executeMoonbeamXCM',
     };
   };
 }

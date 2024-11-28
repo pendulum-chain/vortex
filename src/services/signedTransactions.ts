@@ -9,6 +9,7 @@ import { usePendulumNode } from '../contexts/polkadotNode';
 import { getAccount } from '@wagmi/core';
 import { ExecutionContext, OfframpingState } from './offrampingFlow';
 import { storeDataInBackend } from './storage/remote';
+import { Networks } from '../contexts/network';
 
 export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
   return extrinsic.toHex();
@@ -101,6 +102,10 @@ export function usePrepareTransactions() {
       console.error('Error storing data', error);
     }
 
-    return { ...state, transactions, phase: 'squidRouter' };
+    return {
+      ...state,
+      transactions,
+      phase: state.network === Networks.AssetHub ? 'pendulumFundEphemeral' : 'squidRouter',
+    };
   };
 }
