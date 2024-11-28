@@ -53,7 +53,7 @@ const useAssetHubBalance = (assetId?: number): string | undefined => {
     };
 
     getBalance();
-  }, [assetHubNode, walletAccount]);
+  }, [assetHubNode, assetId, walletAccount]);
 
   return balance;
 };
