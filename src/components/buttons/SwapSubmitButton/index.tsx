@@ -17,7 +17,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
 
   if (!isConnected) {
     return (
-      <div className="grow">
+      <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
         <button onClick={() => openWalletModal()} type="button" className="w-full btn-vortex-primary btn rounded-xl">
           Connect Wallet
         </button>
@@ -26,7 +26,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
   }
 
   return (
-    <div className="grow">
+    <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
       <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
         {pending && <Spinner />}
         {text}

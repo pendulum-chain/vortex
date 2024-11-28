@@ -1,12 +1,7 @@
 const siwe = require('siwe');
 const { createPublicClient, http } = require('viem');
 const { polygon } = require('viem/chains');
-const {
-  DEFAULT_LOGIN_EXPIRATION_TIME_HOURS,
-  VALID_SIWE_DOMAINS,
-  VALID_SIWE_CHAINS,
-  VALID_SIWE_LOGIN_ORIGINS,
-} = require('../../constants/constants');
+const { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, VALID_SIWE_CHAINS } = require('../../constants/constants');
 
 class ValidationError extends Error {
   constructor(message) {
@@ -78,14 +73,6 @@ const verifyInitialMessageFields = (siweMessage) => {
   const scheme = siweMessage.scheme; // must be https
   const chainId = siweMessage.chainId;
   const expirationTime = siweMessage.expirationTime;
-
-  if (!VALID_SIWE_LOGIN_ORIGINS.includes(uri)) {
-    throw new ValidationError('Origin not in the list of allowed origins');
-  }
-
-  if (!VALID_SIWE_DOMAINS.includes(domain)) {
-    throw new ValidationError('Incorrect domain');
-  }
 
   if (!VALID_SIWE_CHAINS.includes(chainId)) {
     throw new ValidationError('Incorrect chain ID');
