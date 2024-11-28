@@ -1,9 +1,5 @@
-import { polygon } from 'wagmi/chains';
 import { AssetIconType } from '../hooks/useGetAssetIcon';
-
-type EvmNetworkType = typeof polygon.name;
-type SubstrateNetworkType = 'AssetHub';
-export type NetworkType = EvmNetworkType | SubstrateNetworkType;
+import { Networks } from '../contexts/network';
 
 export interface BaseInputTokenDetails {
   assetSymbol: string;
@@ -12,16 +8,15 @@ export interface BaseInputTokenDetails {
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   networkAssetIcon: AssetIconType;
+  network: Networks;
 }
 
 type EvmInputTokenDetails = BaseInputTokenDetails & {
   erc20AddressSourceChain: `0x${string}`;
-  network: EvmNetworkType;
 };
 
 type SubstrateInputTokenDetails = BaseInputTokenDetails & {
   foreignAssetId: number;
-  network: SubstrateNetworkType;
 };
 
 // Guard function to check if the input token is an EVM token
@@ -78,7 +73,7 @@ const PENDULUM_USDC_ASSETHUB = {
 };
 
 export const INPUT_TOKEN_CONFIG: Record<
-  NetworkType,
+  Networks,
   Record<'usdc', InputTokenDetails> & Partial<Record<Exclude<InputTokenType, 'usdc'>, InputTokenDetails>>
 > = {
   Polygon: {
@@ -87,7 +82,7 @@ export const INPUT_TOKEN_CONFIG: Record<
       erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
       networkAssetIcon: 'polygonUSDC',
       decimals: 6,
-      network: polygon.name,
+      network: Networks.Polygon,
       ...PENDULUM_USDC_AXL,
     },
     usdce: {
@@ -95,7 +90,7 @@ export const INPUT_TOKEN_CONFIG: Record<
       erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
       networkAssetIcon: 'polygonUSDC',
       decimals: 6,
-      network: polygon.name,
+      network: Networks.Polygon,
       ...PENDULUM_USDC_AXL,
     },
     usdt: {
@@ -103,7 +98,7 @@ export const INPUT_TOKEN_CONFIG: Record<
       erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
       networkAssetIcon: 'polygonUSDT',
       decimals: 6,
-      network: polygon.name,
+      network: Networks.Polygon,
       ...PENDULUM_USDC_AXL,
     },
   },
@@ -111,7 +106,7 @@ export const INPUT_TOKEN_CONFIG: Record<
     usdc: {
       assetSymbol: 'USDC',
       decimals: 6,
-      network: 'AssetHub',
+      network: Networks.AssetHub,
       networkAssetIcon: 'assethubUSDC',
       ...PENDULUM_USDC_ASSETHUB,
     },
@@ -119,8 +114,9 @@ export const INPUT_TOKEN_CONFIG: Record<
 };
 
 // Helper function to wrap the error handling for getting input token details
-export function getInputTokenDetails(network: NetworkType, inputTokenType: InputTokenType): InputTokenDetails {
-  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType;
+export function getInputTokenDetails(network: Networks, inputTokenType: InputTokenType): InputTokenDetails {
+  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
+
   try {
     const tokenDetails = INPUT_TOKEN_CONFIG[networkType][inputTokenType];
 

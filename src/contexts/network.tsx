@@ -3,7 +3,6 @@ import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
 import { useSwitchChain } from 'wagmi';
 
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
-import { NetworkIconType } from '../hooks/useGetNetworkIcon';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 
 export enum Networks {
@@ -13,8 +12,8 @@ export enum Networks {
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
-  selectedNetwork: NetworkIconType;
-  setSelectedNetwork: (network: NetworkIconType) => void;
+  selectedNetwork: Networks;
+  setSelectedNetwork: (network: Networks) => void;
 }
 
 const NetworkContext = createContext<NetworkContextType>({
@@ -24,16 +23,16 @@ const NetworkContext = createContext<NetworkContextType>({
 });
 
 export const NetworkProvider = ({ children }: { children: preact.ComponentChildren }) => {
-  const { state: selectedNetworkLocalStorage, set: setSelectedNetworkLocalStorage } = useLocalStorage<NetworkIconType>({
+  const { state: selectedNetworkLocalStorage, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
     key: LocalStorageKeys.SELECTED_NETWORK,
     defaultValue: Networks.AssetHub,
   });
 
-  const [selectedNetwork, setSelectedNetworkState] = useState<NetworkIconType>(selectedNetworkLocalStorage);
+  const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(selectedNetworkLocalStorage);
   const { chains, switchChain } = useSwitchChain();
 
   const setSelectedNetwork = useCallback(
-    (networkId: NetworkIconType) => {
+    (networkId: Networks) => {
       setSelectedNetworkState(networkId);
       setSelectedNetworkLocalStorage(networkId);
       const chain = chains.find((c) => c.id === Number(networkId));

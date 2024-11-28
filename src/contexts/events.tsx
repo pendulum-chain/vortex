@@ -2,7 +2,7 @@ import { createContext } from 'preact';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
 import * as Sentry from '@sentry/react';
 import { useAccount } from 'wagmi';
-import { getInputTokenDetails, INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { Networks } from './network';
 

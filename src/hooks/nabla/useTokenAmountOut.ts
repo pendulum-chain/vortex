@@ -17,12 +17,12 @@ import { useEffect } from 'preact/hooks';
 import {
   getInputTokenDetails,
   InputTokenType,
-  NetworkType,
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { SwapFormValues } from '../../components/Nabla/schema';
 import { useEventsContext } from '../../contexts/events';
+import { Networks } from '../../contexts/network';
 
 type UseTokenOutAmountProps = {
   wantsSwap: boolean;
@@ -32,7 +32,7 @@ type UseTokenOutAmountProps = {
   outputTokenType: OutputTokenType;
   maximumFromAmount: BigNumber | undefined;
   form: UseFormReturn<SwapFormValues>;
-  network: NetworkType;
+  network: Networks;
 };
 
 export interface UseTokenOutAmountResult {
