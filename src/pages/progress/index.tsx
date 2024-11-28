@@ -13,11 +13,18 @@ function createOfframpingPhaseMessage(offrampingState: OfframpingState, network:
 
   switch (offrampingState.phase) {
     case 'prepareTransactions':
+      return offrampingState.network
+        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'squidRouter':
     case 'pendulumFundEphemeral':
-      return `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`;
+      return offrampingState.network
+        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'executeMoonbeamXCM':
       return `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`;
+    case 'executeAssetHubXCM':
+      return `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'subsidizePreSwap':
     case 'nablaApprove':
     case 'nablaSwap':
@@ -40,6 +47,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   squidRouter: 1,
   pendulumFundEphemeral: 80,
   executeMoonbeamXCM: 40,
+  executeAssetHubXCM: 24,
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,
