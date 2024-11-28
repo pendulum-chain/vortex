@@ -51,13 +51,7 @@ export interface OfframpingParameters {
 }
 
 export type TransactionEvent = OfframpingParameters & {
-  event:
-    | 'transaction_confirmation'
-    | 'kyc_started'
-    | 'kyc_completed'
-    | 'transaction_success'
-    | 'transaction_failure'
-    | 'compare_quote';
+  event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
 };
 
 export type TransactionFailedEvent = OfframpingParameters & {
@@ -69,9 +63,9 @@ export type TransactionFailedEvent = OfframpingParameters & {
 
 export type CompareQuoteEvent = OfframpingParameters & {
   event: 'compare_quote';
-  moonpay_quote: string;
-  alchemypay_quote: string;
-  transak_quote: string;
+  moonpay_quote?: string;
+  alchemypay_quote?: string;
+  transak_quote?: string;
 };
 
 export interface ProgressEvent {
@@ -140,7 +134,7 @@ const useEvents = () => {
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
-  const [_scheduledQuotes, setScheduledQuotes] = useState<
+  const scheduledQuotes = useRef<
     | {
         parameters: OfframpingParameters;
         quotes: Partial<Record<QuoteService, string>>;
@@ -184,32 +178,32 @@ const useEvents = () => {
   /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
   const scheduleQuote = useCallback(
     (service: QuoteService, quote: string, parameters: OfframpingParameters) => {
-      setScheduledQuotes((prev) => {
-        // Do a deep comparison of the parameters to check if they are the same.
-        // If they are not, reset the quotes.
-        const newQuotes =
-          prev && JSON.stringify(prev.parameters) !== JSON.stringify(parameters)
-            ? { [service]: quote }
-            : { ...prev?.quotes, [service]: quote };
+      const prev = scheduledQuotes.current;
 
-        // If all quotes are ready, emit the event
-        if (Object.keys(newQuotes).length === 3) {
-          trackEvent({
-            ...parameters,
-            event: 'compare_quote',
-            transak_quote: newQuotes.transak !== '-1' ? newQuotes.transak : undefined,
-            moonpay_quote: newQuotes.moonpay !== '-1' ? newQuotes.moonpay : undefined,
-            alchemypay_quote: newQuotes.alchemypay !== '-1' ? newQuotes.alchemypay : undefined,
-          });
-          // Reset the quotes
-          return undefined;
-        }
+      // Do a deep comparison of the parameters to check if they are the same.
+      // If they are not, reset the quotes.
+      const newQuotes =
+        prev && JSON.stringify(prev.parameters) !== JSON.stringify(parameters)
+          ? { [service]: quote }
+          : { ...prev?.quotes, [service]: quote };
 
-        return {
+      // If all quotes are ready, emit the event
+      if (Object.keys(newQuotes).length === 3) {
+        trackEvent({
+          ...parameters,
+          event: 'compare_quote',
+          transak_quote: newQuotes.transak !== '-1' ? newQuotes.transak : undefined,
+          moonpay_quote: newQuotes.moonpay !== '-1' ? newQuotes.moonpay : undefined,
+          alchemypay_quote: newQuotes.alchemypay !== '-1' ? newQuotes.alchemypay : undefined,
+        });
+        // Reset the quotes
+        scheduledQuotes.current = undefined;
+      } else {
+        scheduledQuotes.current = {
           parameters,
           quotes: newQuotes,
         };
-      });
+      }
     },
     [trackEvent],
   );
@@ -277,7 +271,6 @@ const useEvents = () => {
     scheduleQuote,
   };
 };
-
 const Context = createContext<UseEventsContext | undefined>(undefined);
 
 export const useEventsContext = () => {
