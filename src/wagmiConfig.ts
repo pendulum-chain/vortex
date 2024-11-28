@@ -1,5 +1,5 @@
-import { AppKitNetwork, polygon } from '@reown/appkit/networks';
-import { createConfig, http } from 'wagmi';
+import { polygon } from '@reown/appkit/networks';
+import { http } from 'wagmi';
 import { config } from './config';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { createAppKit } from '@reown/appkit/react';

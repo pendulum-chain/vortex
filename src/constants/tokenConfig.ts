@@ -120,18 +120,18 @@ export const INPUT_TOKEN_CONFIG: Record<
 
 // Helper function to wrap the error handling for getting input token details
 export function getInputTokenDetails(network: NetworkType, inputTokenType: InputTokenType): InputTokenDetails {
+  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType;
   try {
-    const tokenDetails =
-      INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType][inputTokenType];
+    const tokenDetails = INPUT_TOKEN_CONFIG[networkType][inputTokenType];
 
     if (!tokenDetails) {
       console.error(`Invalid input token type: ${inputTokenType}`);
-      return INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType].usdc;
+      return INPUT_TOKEN_CONFIG[networkType].usdc;
     }
     return tokenDetails;
   } catch (error) {
     console.error(`Invalid input token type: ${inputTokenType}: ${error}`);
-    return INPUT_TOKEN_CONFIG[(network.charAt(0).toUpperCase() + network.slice(1)) as NetworkType].usdc;
+    return INPUT_TOKEN_CONFIG[networkType].usdc;
   }
 }
 
