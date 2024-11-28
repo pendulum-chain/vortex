@@ -24,8 +24,8 @@ const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
 export const useSwapForm = () => {
-  const tokensModal = useState<undefined | 'from' | 'to'>();
-  const setTokenModal = tokensModal[1];
+  const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
+  const [tokenSelectModalType, setTokenModalType] = useState<'from' | 'to'>('from');
   const { selectedNetwork } = useNetwork();
 
   const initialState = useMemo(() => {
@@ -75,9 +75,9 @@ export const useSwapForm = () => {
       setStorageForSwapSettings(updated);
       setValue('from', tokenKey as InputTokenType);
 
-      setTokenModal(undefined);
+      setIsTokenSelectModalVisible(false);
     },
-    [getValues, setValue, setTokenModal],
+    [getValues, setValue],
   );
 
   const onToChange = useCallback(
@@ -93,9 +93,9 @@ export const useSwapForm = () => {
       setStorageForSwapSettings(updated);
       setValue('to', tokenKey as OutputTokenType);
 
-      setTokenModal(undefined);
+      setIsTokenSelectModalVisible(false);
     },
-    [getValues, setTokenModal, setValue],
+    [getValues, setValue],
   );
 
   const fromAmountString = useWatch({
@@ -111,11 +111,23 @@ export const useSwapForm = () => {
     // no action required
   }
 
+  const openTokenSelectModal = useCallback((type: 'from' | 'to') => {
+    setTokenModalType(type);
+    setIsTokenSelectModalVisible(true);
+  }, []);
+
+  const closeTokenSelectModal = useCallback(() => {
+    setIsTokenSelectModalVisible(false);
+  }, []);
+
   return {
     form,
     from,
     to,
-    tokensModal,
+    isTokenSelectModalVisible,
+    tokenSelectModalType,
+    openTokenSelectModal,
+    closeTokenSelectModal,
     onFromChange,
     onToChange,
     fromAmount,
