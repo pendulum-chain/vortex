@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { useMemo } from 'preact/hooks';
-import { useEffect } from 'preact/compat';
+import { useEffect, useRef, useState } from 'preact/compat';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Skeleton } from '../Skeleton';
@@ -44,10 +44,13 @@ function FeeProviderRow({
     error,
     data: providerPrice,
   } = useQuery({
-    queryKey: [sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, network],
+    queryKey: [amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, network],
     queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, network),
     retry: false, // We don't want to retry the request to avoid spamming the server
   });
+  // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
+  // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
+  const prevVortexPrice = useRef<Big | undefined>(undefined);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) {
@@ -58,16 +61,29 @@ function FeeProviderRow({
   }, [isLoading, error, providerPrice, vortexPrice]);
 
   useEffect(() => {
-    if (providerPrice || error) {
+    if (!isLoading && (providerPrice || error)) {
       const parameters: OfframpingParameters = {
         from_amount: amount.toFixed(2),
         from_asset: sourceAssetSymbol,
         to_amount: vortexPrice.toFixed(2),
         to_asset: targetAssetSymbol,
       };
-      scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
+      if (!prevVortexPrice.current || vortexPrice !== prevVortexPrice.current) {
+        scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
+        prevVortexPrice.current = vortexPrice;
+      }
     }
-  }, [amount, provider.name, scheduleQuote, sourceAssetSymbol, targetAssetSymbol, providerPrice, vortexPrice, error]);
+  }, [
+    amount,
+    provider.name,
+    isLoading,
+    scheduleQuote,
+    sourceAssetSymbol,
+    targetAssetSymbol,
+    providerPrice,
+    vortexPrice,
+    error,
+  ]);
 
   return (
     <div className="flex items-center justify-between w-full">
