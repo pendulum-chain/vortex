@@ -89,8 +89,11 @@ export const useSwapForm = () => {
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
-  const fromToken = from ? getInputTokenDetails(selectedNetwork, from) : undefined;
-  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
+  const fromToken = useMemo(
+    () => (from ? getInputTokenDetails(selectedNetwork, from) : undefined),
+    [from, selectedNetwork],
+  );
+  const toToken = useMemo(() => (to ? OUTPUT_TOKEN_CONFIG[to] : undefined), [to]);
 
   const onFromChange = useCallback(
     (tokenKey: string) => {
@@ -133,12 +136,13 @@ export const useSwapForm = () => {
     defaultValue: '0',
   });
 
-  let fromAmount: Big | undefined;
-  try {
-    fromAmount = new Big(fromAmountString);
-  } catch {
-    // no action required
-  }
+  const fromAmount: Big | undefined = useMemo(() => {
+    try {
+      return new Big(fromAmountString);
+    } catch {
+      return undefined;
+    }
+  }, [fromAmountString]);
 
   const openTokenSelectModal = useCallback((type: 'from' | 'to') => {
     setTokenModalType(type);

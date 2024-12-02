@@ -33,7 +33,10 @@ import { Networks } from '../contexts/network';
 
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
-export type FailureType = 'recoverable' | 'unrecoverable';
+export interface FailureType {
+  type: 'recoverable' | 'unrecoverable';
+  message?: string;
+}
 
 export type OfframpingPhase =
   | 'prepareTransactions'
@@ -342,7 +345,7 @@ export function useOfframpingFlow() {
         }
 
         console.error('Error advancing offramping state', error);
-        newState = { ...state, failure: 'recoverable' };
+        newState = { ...state, failure: { type: 'recoverable', message: error?.toString() } };
       }
 
       if (newState !== undefined) {

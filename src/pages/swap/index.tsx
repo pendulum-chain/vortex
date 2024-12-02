@@ -124,9 +124,9 @@ export const SwapPage = () => {
   const fromToken = getInputTokenDetails(selectedNetwork, from);
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
-  const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
   // The price comparison is only available for Polygon (for now)
   const isPriceComparisonAvailable = fromToken.network === 'Polygon';
+  const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 

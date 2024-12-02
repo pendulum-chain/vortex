@@ -152,8 +152,9 @@ export function useNablaApprove() {
     const inputToken = getInputTokenDetails(network, inputTokenType);
 
     if (!transactions) {
-      console.error('Missing transactions for nablaApprove');
-      return { ...state, failure: 'unrecoverable' };
+      const message = 'Missing transactions for nablaApprove';
+      console.error(message);
+      return { ...state, failure: { type: 'unrecoverable', message } };
     }
 
     const successorState = {
@@ -345,8 +346,9 @@ export function useNablaSwap() {
     const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
     if (transactions === undefined) {
-      console.error('Missing transactions for nablaSwap');
-      return { ...state, failure: 'unrecoverable' };
+      const message = 'Missing transactions for nablaSwap';
+      console.error(message);
+      return { ...state, failure: { type: 'unrecoverable', message } };
     }
 
     const { api, ss58Format } = pendulumNode;
