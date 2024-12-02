@@ -13,20 +13,6 @@ function getDigitCounts(variant: FormatPublicKeyVariant = 'full') {
   return digitCounts[variant];
 }
 
-export function shortenName(name: string, intendedLength: number) {
-  if (name.length <= intendedLength) {
-    return name;
-  }
-  return (
-    name.substring(0, intendedLength - 3).trim() +
-    '…' +
-    name
-      .substring(intendedLength - 3)
-      .slice(-3)
-      .trim()
-  );
-}
-
 interface PublicKeyProps {
   publicKey: string;
   variant?: FormatPublicKeyVariant;

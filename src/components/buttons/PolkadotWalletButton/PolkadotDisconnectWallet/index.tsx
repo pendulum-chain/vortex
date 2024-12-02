@@ -4,7 +4,7 @@ import { Button, Dropdown } from 'react-daisyui';
 
 import accountBalanceWalletIcon from '../../../../assets/account-balance-wallet.svg';
 import accountBalanceWalletIconPink from '../../../../assets/account-balance-wallet-pink.svg';
-import { getAddressForFormat, trimAddress } from '../../../../helpers/addressFormatter';
+import { trimAddress } from '../../../../helpers/addressFormatter';
 import { CopyablePublicKey } from '../../../PublicKey/CopyablePublicKey';
 import { usePolkadotWalletState } from '../../../../contexts/polkadotWallet';
 
@@ -28,19 +28,14 @@ interface WalletDropdownMenuProps {
   balance?: string;
   tokenSymbol?: string;
   walletAccount?: WalletAccount;
-  ss58Format?: number;
   removeWalletAccount: () => void;
 }
 
-const WalletDropdownMenu = ({ walletAccount, ss58Format, address, removeWalletAccount }: WalletDropdownMenuProps) => (
+const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: WalletDropdownMenuProps) => (
   <Dropdown.Menu className="right-0 mt-2 min-w-[240px] border border-base-300 bg-base-200 p-3 text-center shadow-lg">
     <div className="text-sm text-neutral-400">{walletAccount?.name}</div>
     <div className="text-neutral-500">
-      <CopyablePublicKey
-        publicKey={ss58Format ? getAddressForFormat(address, ss58Format) : address}
-        variant="short"
-        inline={true}
-      />
+      <CopyablePublicKey publicKey={address} variant="short" inline={true} />
     </div>
     <Button className="bg-base-300" size="sm" onClick={removeWalletAccount}>
       <ArrowLeftEndOnRectangleIcon className="w-5 mr-2" />

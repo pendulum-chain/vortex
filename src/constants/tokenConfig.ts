@@ -11,24 +11,29 @@ export interface BaseInputTokenDetails {
   network: Networks;
 }
 
+export enum InputTokenTypes {
+  Evm = 'evm',
+  Substrate = 'substrate',
+}
+
 type EvmInputTokenDetails = BaseInputTokenDetails & {
   erc20AddressSourceChain: `0x${string}`;
+  type: InputTokenTypes.Evm;
 };
 
 type SubstrateInputTokenDetails = BaseInputTokenDetails & {
   foreignAssetId: number;
+  type: InputTokenTypes.Substrate;
 };
 
 // Guard function to check if the input token is an EVM token
 export function isEvmInputTokenDetails(inputToken: InputTokenDetails): inputToken is EvmInputTokenDetails {
-  return (inputToken as EvmInputTokenDetails).erc20AddressSourceChain !== undefined;
+  return inputToken.type === InputTokenTypes.Evm;
 }
 
 export type InputTokenDetails = EvmInputTokenDetails | SubstrateInputTokenDetails;
 
-type EvmInputTokenType = 'usdc' | 'usdce' | 'usdt';
-type SubstrateInputTokenType = 'usdc';
-export type InputTokenType = EvmInputTokenType | SubstrateInputTokenType;
+export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 
 export interface Fiat {
   assetIcon: AssetIconType;
@@ -80,6 +85,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'polygonUSDC',
       decimals: 6,
       network: Networks.Polygon,
+      type: InputTokenTypes.Evm,
       ...PENDULUM_USDC_AXL,
     },
     usdce: {
@@ -88,6 +94,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'polygonUSDC',
       decimals: 6,
       network: Networks.Polygon,
+      type: InputTokenTypes.Evm,
       ...PENDULUM_USDC_AXL,
     },
     usdt: {
@@ -96,15 +103,17 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'polygonUSDT',
       decimals: 6,
       network: Networks.Polygon,
+      type: InputTokenTypes.Evm,
       ...PENDULUM_USDC_AXL,
     },
   },
   AssetHub: {
     usdc: {
       assetSymbol: 'USDC',
+      networkAssetIcon: 'assethubUSDC',
       decimals: 6,
       network: Networks.AssetHub,
-      networkAssetIcon: 'assethubUSDC',
+      type: InputTokenTypes.Substrate,
       ...PENDULUM_USDC_ASSETHUB,
     },
   },

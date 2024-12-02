@@ -67,6 +67,8 @@ export const SwapPage = () => {
   useEffect(() => {
     if (pendulumNode?.api) {
       setApi(pendulumNode.api);
+    } else {
+      setInitializeFailed(true);
     }
   }, [pendulumNode]);
 
