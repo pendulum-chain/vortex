@@ -72,10 +72,7 @@ const PENDULUM_USDC_ASSETHUB = {
   pendulumAssetSymbol: 'USDC',
 };
 
-export const INPUT_TOKEN_CONFIG: Record<
-  Networks,
-  Record<'usdc', InputTokenDetails> & Partial<Record<Exclude<InputTokenType, 'usdc'>, InputTokenDetails>>
-> = {
+export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType, InputTokenDetails>>> = {
   Polygon: {
     usdc: {
       assetSymbol: 'USDC',
@@ -113,21 +110,23 @@ export const INPUT_TOKEN_CONFIG: Record<
   },
 };
 
-// Helper function to wrap the error handling for getting input token details
 export function getInputTokenDetails(network: Networks, inputTokenType: InputTokenType): InputTokenDetails {
   const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
 
   try {
     const tokenDetails = INPUT_TOKEN_CONFIG[networkType][inputTokenType];
-
     if (!tokenDetails) {
       console.error(`Invalid input token type: ${inputTokenType}`);
-      return INPUT_TOKEN_CONFIG[networkType].usdc;
+      const firstAvailableToken = Object.values(INPUT_TOKEN_CONFIG[networkType])[0];
+      if (!firstAvailableToken) {
+        throw new Error(`No tokens configured for network ${networkType}`);
+      }
+      return firstAvailableToken;
     }
     return tokenDetails;
   } catch (error) {
-    console.error(`Invalid input token type: ${inputTokenType}: ${error}`);
-    return INPUT_TOKEN_CONFIG[networkType].usdc;
+    console.error(`Error getting input token details: ${error}`);
+    throw error;
   }
 }
 

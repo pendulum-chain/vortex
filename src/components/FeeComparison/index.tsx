@@ -2,11 +2,11 @@ import Big from 'big.js';
 import { useMemo } from 'preact/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { Skeleton } from '../Skeleton';
+
 import vortexIcon from '../../assets/logo/blue.svg';
-import { QuoteProvider, quoteProviders } from './quoteProviders';
-import { SupportedNetworks } from '../../services/quotes';
 import { Networks } from '../../contexts/network';
+import { Skeleton } from '../Skeleton';
+import { QuoteProvider, quoteProviders } from './quoteProviders';
 
 type FeeProviderRowProps = FeeComparisonProps & { provider: QuoteProvider };
 
