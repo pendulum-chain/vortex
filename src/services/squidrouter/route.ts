@@ -156,7 +156,7 @@ export async function getRouteTransactionRequest(
 export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: `0x${string}`) {
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
   if (!isEvmInputTokenDetails(testingToken)) {
-    return Promise.reject(new Error(`Token ${testingToken.assetSymbol} is not supported on EVM chains`));
+    return;
   }
 
   const sharedRouteParams: RouteParams = {
