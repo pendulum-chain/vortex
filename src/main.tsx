@@ -11,6 +11,7 @@ import { App } from './app';
 import { GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
 import { wagmiConfig } from './wagmiConfig';
 import { EventsProvider } from './contexts/events';
+import { SiweProvider } from './contexts/siwe';
 import * as Sentry from '@sentry/react';
 import { config } from './config';
 
@@ -38,13 +39,15 @@ render(
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <EventsProvider>
-            <GlobalStateProvider>
-              <GlobalStateContext.Consumer>
-                {() => {
-                  return <App />;
-                }}
-              </GlobalStateContext.Consumer>
-            </GlobalStateProvider>
+            <SiweProvider>
+              <GlobalStateProvider>
+                <GlobalStateContext.Consumer>
+                  {() => {
+                    return <App />;
+                  }}
+                </GlobalStateContext.Consumer>
+              </GlobalStateProvider>
+            </SiweProvider>
           </EventsProvider>
         </QueryClientProvider>
       </WagmiProvider>

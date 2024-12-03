@@ -61,7 +61,7 @@ export async function squidRouter(
     });
 
     console.error('Error in squidRouter: ', e);
-    return { ...state, failure: 'unrecoverable' };
+    return { ...state, failure: { type: 'unrecoverable', message: e?.toString() } };
   }
 
   setSigningPhase?.('approved');
@@ -93,7 +93,7 @@ export async function squidRouter(
     });
 
     console.error('Error in squidRouter: ', e);
-    return { ...state, failure: 'unrecoverable' };
+    return { ...state, failure: { type: 'unrecoverable', message: e?.toString() } };
   }
 
   setSigningPhase?.('signed');

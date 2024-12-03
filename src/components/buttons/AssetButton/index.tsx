@@ -1,10 +1,12 @@
 import { AssetIconType, useGetIcon } from '../../../hooks/useGetIcon';
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
 interface AssetButtonProps {
   assetIcon: AssetIconType;
   tokenSymbol: string;
   onClick: () => void;
 }
+
 export function AssetButton({ assetIcon, tokenSymbol, onClick }: AssetButtonProps) {
   const icon = useGetIcon(assetIcon);
 
@@ -18,6 +20,7 @@ export function AssetButton({ assetIcon, tokenSymbol, onClick }: AssetButtonProp
         <img src={icon} alt={assetIcon} className="w-auto h-full" />
       </span>
       <strong className="font-bold text-black">{tokenSymbol}</strong>
+      <ChevronDownIcon className="w-6" />
     </button>
   );
 }

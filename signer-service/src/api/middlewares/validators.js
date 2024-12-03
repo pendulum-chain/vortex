@@ -155,6 +155,31 @@ const validateSep10Input = (req, res, next) => {
   next();
 };
 
+const validateSiweCreate = (req, res, next) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) {
+    return res.status(400).json({ error: 'Missing param: walletAddress' });
+  }
+  next();
+};
+
+const validateSiweValidate = (req, res, next) => {
+  const { nonce, signature, siweMessage } = req.body;
+  if (!signature) {
+    return res.status(400).json({ error: 'Missing param: signature' });
+  }
+
+  if (!nonce) {
+    return res.status(400).json({ error: 'Missing param: nonce' });
+  }
+
+  if (!siweMessage) {
+    return res.status(400).json({ error: 'Missing param: siweMessage' });
+  }
+
+  next();
+};
+
 module.exports = {
   validateChangeOpInput,
   validateQuoteInput,
@@ -166,4 +191,6 @@ module.exports = {
   validateRatingInput,
   validateExecuteXCM,
   validateSep10Input,
+  validateSiweCreate,
+  validateSiweValidate,
 };

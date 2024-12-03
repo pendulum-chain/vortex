@@ -8,6 +8,9 @@ contract ReceiveCrossChainXToken {
 
     address constant public axlUSDCAddress = 0xCa01a1D0993565291051daFF390892518ACfAD3A;
     IERC20 constant axlUSDC = IERC20(axlUSDCAddress);
+
+    address constant public squidRouterMultiCallContract = 0xaD6Cea45f98444a922a2b4fE96b8C90F0862D2F4;
+
     Xtokens constant xt = Xtokens(0x0000000000000000000000000000000000000804);
 
     event ReceiveBalance(uint256 balance);
@@ -22,7 +25,7 @@ contract ReceiveCrossChainXToken {
     ) public {
         require(amount > 0, "Amount cannot be zero");
         require(xcmDataMapping[hash] == 0, "Hash already used");
-        
+
         xcmDataMapping[hash] = amount;
 
         transferApprovedTokensToSelf(amount);
@@ -52,7 +55,7 @@ contract ReceiveCrossChainXToken {
 
     function transferApprovedTokensToSelf(uint256 amount) internal {
         IERC20 token = IERC20(axlUSDCAddress);
-        bool success = token.transferFrom(0xEa749Fd6bA492dbc14c24FE8A3d08769229b896c, address(this), amount);
+        bool success = token.transferFrom(squidRouterMultiCallContract, address(this), amount);
         require(success, "Transfer failed");
     }
 }

@@ -27,7 +27,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
         <Cross />
         <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Oops! Something went wrong</h1>
         {transactionId && <TransactionInfo transactionId={transactionId} />}
-        {failure === 'recoverable' ? (
+        {failure.type === 'recoverable' ? (
           <>
             <p className="mt-6 text-center">
               Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary
@@ -36,7 +36,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
             <p>Either try to continue or start over.</p>
           </>
         ) : undefined}
-        {failure === 'recoverable' && (
+        {failure.type === 'recoverable' && (
           <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={continueFailedFlow}>
             Continue
           </button>

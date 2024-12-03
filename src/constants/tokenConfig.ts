@@ -43,6 +43,7 @@ export interface OutputTokenDetails {
   erc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
+  usesMemo: boolean;
   supportsClientDomain: boolean;
 }
 
@@ -103,6 +104,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,
+    usesMemo: false,
     supportsClientDomain: true,
   },
   ars: {
@@ -128,7 +130,8 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     maxWithdrawalAmountRaw: '500000000000000000', // 500000 ARS
     offrampFeesBasisPoints: 200, // 2%
     offrampFeesFixedComponent: 10, // 10 ARS
-    supportsClientDomain: false,
+    usesMemo: true,
+    supportsClientDomain: true,
   },
 };
 

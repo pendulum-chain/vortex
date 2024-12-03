@@ -4,7 +4,7 @@ import { polygon } from 'wagmi/chains';
 
 const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 
-type QuoteService = 'moonpay' | 'transak' | 'alchemypay';
+export type QuoteService = 'moonpay' | 'transak' | 'alchemypay';
 
 type SupportedNetworks = typeof polygon.name;
 

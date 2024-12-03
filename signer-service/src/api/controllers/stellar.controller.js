@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const { Keypair } = require('stellar-sdk');
-const { FUNDING_SECRET } = require('../../constants/constants');
+const { FUNDING_SECRET, SEP10_MASTER_SECRET } = require('../../constants/constants');
 
 const { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk } = require('../services/stellar.service');
 const { signSep10Challenge } = require('../services/sep10.service');
@@ -54,12 +54,45 @@ exports.changeOpTransaction = async (req, res, next) => {
 
 exports.signSep10Challenge = async (req, res, next) => {
   try {
-    let { clientSignature, clientPublic } = await signSep10Challenge(
+    let maybeChallengeSignature;
+    let maybeNonce;
+    if (req.cookies?.authToken) {
+      maybeChallengeSignature = req.cookies.authToken.signature;
+      maybeNonce = req.cookies.authToken.nonce;
+    }
+
+    if (Boolean(req.body.memo) && (!maybeChallengeSignature || !maybeNonce)) {
+      return res.status(401).json({
+        error: 'Missing signature or nonce',
+      });
+    }
+
+    let { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
       req.body.challengeXDR,
       req.body.outToken,
       req.body.clientPublicKey,
+      maybeChallengeSignature,
+      maybeNonce,
     );
-    return res.json({ clientSignature, clientPublic });
+    return res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
+  } catch (error) {
+    if (error.message.includes('Could not verify signature')) {
+      // Distinguish between failed signature check and other errors.
+      return res.status(401).json({
+        error: 'Signature validation failed.',
+        details: error.message,
+      });
+    }
+
+    console.error('Error in signSep10Challenge:', error);
+    return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });
+  }
+};
+
+exports.getSep10MasterPK = async (req, res, next) => {
+  try {
+    const masterSep10Public = Keypair.fromSecret(SEP10_MASTER_SECRET).publicKey();
+    return res.json({ masterSep10Public });
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
     return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });

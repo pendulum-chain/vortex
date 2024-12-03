@@ -36,6 +36,9 @@ import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import { FeeComparison } from '../../components/FeeComparison';
 
+import { SignInModal } from '../../components/SignIn';
+import { useSiweContext } from '../../contexts/siwe';
+
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
     <ArrowDownIcon className="text-blue-700 w-7" />
@@ -47,10 +50,11 @@ export const SwapPage = () => {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
+  const { signingPending, handleSign, handleCancel } = useSiweContext();
 
   // Hook used for services on initialization and pre-offramp check
   // That is why no dependencies are used
@@ -83,6 +87,7 @@ export const SwapPage = () => {
     isInitiating,
     signingPhase,
     setIsInitiating,
+    maybeCancelSep24First,
   } = useMainProcess();
 
   // Store the id as it is cleared after the user opens the anchor window
@@ -93,7 +98,10 @@ export const SwapPage = () => {
   }, [firstSep24ResponseState?.id]);
 
   const {
-    tokensModal: [modalType, setModalType],
+    isTokenSelectModalVisible,
+    tokenSelectModalType,
+    openTokenSelectModal,
+    closeTokenSelectModal,
     onFromChange,
     onToChange,
     form,
@@ -106,7 +114,7 @@ export const SwapPage = () => {
   const fromToken = INPUT_TOKEN_CONFIG[from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
-  const vortexPrice = formToAmount ? Big(formToAmount) : Big(0);
+  const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
@@ -177,6 +185,7 @@ export const SwapPage = () => {
           outputTokenType: to as OutputTokenType,
           amountInUnits: fromAmountString,
           offrampAmount: tokenOutAmountData.roundedDownQuotedAmountOut,
+          setInitializeFailed,
         });
       })
       .catch((_error) => {
@@ -231,14 +240,14 @@ export const SwapPage = () => {
       <AssetNumericInput
         assetIcon={toToken.fiat.assetIcon}
         tokenSymbol={toToken.fiat.symbol}
-        onClick={() => setModalType('to')}
+        onClick={() => openTokenSelectModal('to')}
         registerInput={form.register('toAmount')}
         disabled={tokenOutAmount.isLoading}
         readOnly={true}
         id="toAmount"
       />
     ),
-    [toToken.fiat.symbol, toToken.fiat.assetIcon, form, tokenOutAmount.isLoading, setModalType],
+    [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
   );
 
   const WithdrawNumericInput = useMemo(
@@ -248,13 +257,17 @@ export const SwapPage = () => {
           registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.polygonAssetIcon}
-          onClick={() => setModalType('from')}
+          onClick={() => openTokenSelectModal('from')}
+          onChange={(e) => {
+            // User interacted with the input field
+            trackEvent({ event: 'amount_type' });
+          }}
           id="fromAmount"
         />
         <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
-    [form, fromToken, setModalType],
+    [form, fromToken, openTokenSelectModal, trackEvent],
   );
 
   function getCurrentErrorMessage() {
@@ -293,7 +306,7 @@ export const SwapPage = () => {
   }
 
   const definitions =
-    modalType === 'from'
+    tokenSelectModalType === 'from'
       ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
@@ -309,11 +322,14 @@ export const SwapPage = () => {
     <>
       <TermsAndConditions />
       <PoolSelectorModal
-        open={!!modalType}
-        onSelect={modalType === 'from' ? onFromChange : onToChange}
+        open={isTokenSelectModalVisible}
+        onSelect={(token) => {
+          tokenSelectModalType === 'from' ? onFromChange(token) : onToChange(token);
+          maybeCancelSep24First();
+        }}
         definitions={definitions}
-        selected={modalType === 'from' ? from : to}
-        onClose={() => setModalType(undefined)}
+        selected={tokenSelectModalType === 'from' ? from : to}
+        onClose={() => closeTokenSelectModal()}
         isLoading={false}
       />
     </>
@@ -344,6 +360,7 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
+      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
@@ -380,7 +397,8 @@ export const SwapPage = () => {
         </section>
         <div className="flex mt-5 gap-3">
           <button
-            className="grow btn-vortex-secondary btn"
+            className="btn-vortex-secondary btn"
+            style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
@@ -399,7 +417,8 @@ export const SwapPage = () => {
               href={firstSep24ResponseState.url}
               target="_blank"
               rel="opener" //noopener forbids the use of postMessages.
-              className="grow btn-vortex-primary btn rounded-xl"
+              className="btn-vortex-primary btn rounded-xl"
+              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
               onClick={handleOnAnchorWindowOpen}
               // open in a tinier window
             >

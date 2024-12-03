@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'preact/compat';
+import { useState, useEffect, useCallback, useRef, StateUpdater } from 'preact/compat';
 
 // Configs, Types, constants
 import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
@@ -6,7 +6,7 @@ import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenTyp
 
 import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
-import { useConfig, useSwitchChain } from 'wagmi';
+import { useAccount, useConfig, useSwitchChain } from 'wagmi';
 import { polygon } from 'wagmi/chains';
 import {
   OfframpingState,
@@ -22,7 +22,8 @@ import { createTransactionEvent, useEventsContext } from '../contexts/events';
 import { showToast, ToastMessage } from '../helpers/notifications';
 import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
-import { Keypair } from 'stellar-sdk';
+import { useSiweContext } from '../contexts/siwe';
+import { calculateTotalReceive } from '../components/FeeCollapse';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -31,6 +32,7 @@ export interface ExecutionInput {
   outputTokenType: OutputTokenType;
   amountInUnits: string;
   offrampAmount: Big;
+  setInitializeFailed: StateUpdater<boolean>;
 }
 
 type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
@@ -60,8 +62,10 @@ export const useMainProcess = () => {
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const wagmiConfig = useConfig();
+  const { address } = useAccount();
   const { switchChain } = useSwitchChain();
   const { trackEvent, resetUniqueEvents } = useEventsContext();
+  const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
 
@@ -83,6 +87,7 @@ export const useMainProcess = () => {
           event: 'transaction_failure',
           phase_name: currentPhase,
           phase_index: currentPhaseIndex,
+          error_message: state.failure.message,
         });
       }
     },
@@ -99,7 +104,7 @@ export const useMainProcess = () => {
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
   };
 
-  const cleanSep24FirstVariables = () => {
+  const cleanSep24FirstVariables = useCallback(() => {
     if (sep24FirstIntervalRef.current !== undefined) {
       // stop executing the function, and reset the ref variable.
       clearInterval(sep24FirstIntervalRef.current);
@@ -108,12 +113,12 @@ export const useMainProcess = () => {
       setExecutionInputState(undefined);
       setAnchorSessionParams(undefined);
     }
-  };
+  }, [setFirstSep24Response, setExecutionInputState, setAnchorSessionParams]);
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
     (executionInput: ExecutionInput) => {
-      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount } = executionInput;
+      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
 
       if (offrampingStarted || offrampingState !== undefined) {
         setIsInitiating(false);
@@ -130,20 +135,27 @@ export const useMainProcess = () => {
           from_asset: INPUT_TOKEN_CONFIG[inputTokenType].assetSymbol,
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
-          to_amount: offrampAmount.toFixed(2, 0),
+          to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
         });
 
         try {
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-          const sep10Account = Keypair.fromSecret(stellarEphemeralSecret).publicKey();
 
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
-          const sep10token = await sep10(tomlValues, stellarEphemeralSecret, outputTokenType, addEvent);
+          const { token: sep10Token, sep10Account } = await sep10(
+            tomlValues,
+            stellarEphemeralSecret,
+            outputTokenType,
+            address,
+            checkAndWaitForSignature,
+            forceRefreshAndWaitForSignature,
+            addEvent,
+          );
 
           const anchorSessionParams = {
-            token: sep10token,
+            token: sep10Token,
             tomlValues: tomlValues,
             tokenConfig: outputToken,
             offrampAmount: offrampAmount.toFixed(2, 0),
@@ -169,6 +181,7 @@ export const useMainProcess = () => {
               await fetchAndUpdateSep24Url();
             } catch (error) {
               console.error('Some error occurred finalizing the initial state of the offramping process', error);
+              setInitializeFailed(true);
               setOfframpingStarted(false);
               cleanSep24FirstVariables();
             }
@@ -178,12 +191,22 @@ export const useMainProcess = () => {
           executeFinishInitialState().finally(() => setIsInitiating(false));
         } catch (error) {
           console.error('Some error occurred initializing the offramping process', error);
+          setInitializeFailed(true);
           setOfframpingStarted(false);
           setIsInitiating(false);
         }
       })();
     },
-    [offrampingStarted, offrampingState, switchChain, trackEvent],
+    [
+      offrampingStarted,
+      offrampingState,
+      switchChain,
+      trackEvent,
+      address,
+      checkAndWaitForSignature,
+      forceRefreshAndWaitForSignature,
+      cleanSep24FirstVariables,
+    ],
   );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
@@ -199,7 +222,10 @@ export const useMainProcess = () => {
       from_asset: INPUT_TOKEN_CONFIG[executionInputState.inputTokenType].assetSymbol,
       to_asset: OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType].stellarAsset.code.string,
       from_amount: executionInputState.amountInUnits,
-      to_amount: executionInputState.offrampAmount.toFixed(2, 0),
+      to_amount: calculateTotalReceive(
+        executionInputState.offrampAmount,
+        OUTPUT_TOKEN_CONFIG[executionInputState.outputTokenType],
+      ),
     });
 
     // stop fetching new sep24 url's and clean session variables from the state to be safe.
@@ -242,7 +268,14 @@ export const useMainProcess = () => {
       console.error('Some error occurred constructing initial state', error);
       setOfframpingStarted(false);
     }
-  }, [firstSep24ResponseState, anchorSessionParamsState, executionInputState, updateHookStateFromState, trackEvent]);
+  }, [
+    firstSep24ResponseState,
+    anchorSessionParamsState,
+    executionInputState,
+    updateHookStateFromState,
+    trackEvent,
+    cleanSep24FirstVariables,
+  ]);
 
   const finishOfframping = useCallback(() => {
     (async () => {
@@ -279,6 +312,15 @@ export const useMainProcess = () => {
     wagmiConfig.state.status, // wagmiConfig is a mutable object so we need to list wagmiConfig.state.status here
   ]);
 
+  const maybeCancelSep24First = useCallback(() => {
+    // Check if the SEP-24 second process is in the waiting state (user has not opened window yet)
+    // only then we allow cancelling.
+    if (sep24FirstIntervalRef.current !== undefined) {
+      setOfframpingStarted(false);
+      cleanSep24FirstVariables();
+    }
+  }, [setOfframpingStarted, cleanSep24FirstVariables]);
+
   return {
     handleOnSubmit,
     firstSep24ResponseState,
@@ -290,5 +332,6 @@ export const useMainProcess = () => {
     continueFailedFlow,
     handleOnAnchorWindowOpen,
     signingPhase,
+    maybeCancelSep24First,
   };
 };
