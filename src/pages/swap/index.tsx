@@ -29,7 +29,7 @@ import {
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
-import { useNetwork } from '../../contexts/network';
+import { Networks, useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useSiweContext } from '../../contexts/siwe';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
@@ -125,7 +125,6 @@ export const SwapPage = () => {
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
-  const isPriceComparisonAvailable = fromToken.network === 'Polygon';
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
@@ -409,23 +408,22 @@ export const SwapPage = () => {
           )}
         </section>
         <div className="flex gap-3 mt-5">
-          {isPriceComparisonAvailable && (
-            <button
-              className="btn-vortex-secondary btn"
-              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-              disabled={!inputAmountIsStable}
-              onClick={(e) => {
-                e.preventDefault();
-                setShowCompareFees(!showCompareFees);
-                // Smooth scroll to bottom of page
-                setTimeout(() => {
-                  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                }, 300);
-              }}
-            >
-              Compare fees
-            </button>
-          )}
+          <button
+            className="btn-vortex-secondary btn"
+            style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
+            disabled={!inputAmountIsStable}
+            onClick={(e) => {
+              e.preventDefault();
+              setShowCompareFees(!showCompareFees);
+              // Smooth scroll to bottom of page
+              setTimeout(() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              }, 300);
+            }}
+          >
+            Compare fees
+          </button>
+
           {firstSep24ResponseState?.url !== undefined ? (
             // eslint-disable-next-line react/jsx-no-target-blank
             <a
@@ -448,13 +446,13 @@ export const SwapPage = () => {
           )}
         </div>
       </form>
-      {isPriceComparisonAvailable && showCompareFees && fromToken && fromAmount && toToken && (
+      {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
           amount={fromAmount}
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
-          network={fromToken.network}
+          network={Networks.Polygon}
         />
       )}
     </main>
