@@ -8,7 +8,7 @@ import { useAccount } from 'wagmi';
 import { wagmiConfig } from '../../../wagmiConfig';
 import { trimAddress } from '../../../helpers/addressFormatter';
 
-export function EVMWalletButton({ customStyles }: { customStyles?: string }) {
+export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) {
   const { handleUserClickWallet } = useEventsContext();
 
   // walletChainId is the chainId available on the wallet level
@@ -30,12 +30,12 @@ export function EVMWalletButton({ customStyles }: { customStyles?: string }) {
             open({ view: 'Connect' });
           }}
           type="button"
-          className={`btn-vortex-secondary btn rounded-3xl group ${customStyles}`}
+          className={`${customStyles || 'btn-vortex-secondary'} btn rounded-3xl group`}
         >
           <p className="flex">
             Connect <span className="hidden lg:block lg:ml-1">Wallet</span>
           </p>
-          <PlayCircleIcon className="w-5 group-hover:text-pink-600" />
+          {hideIcon ? <></> : <PlayCircleIcon className="w-5 group-hover:text-pink-600" />}
         </button>
       );
     } else if (!isOnSupportedNetwork) {
@@ -51,7 +51,7 @@ export function EVMWalletButton({ customStyles }: { customStyles?: string }) {
           className="btn-vortex-secondary btn rounded-3xl group"
         >
           Wrong network
-          <PlayCircleIcon className="w-5 group-hover:text-pink-600" />
+          {hideIcon ? <></> : <PlayCircleIcon className="w-5 group-hover:text-pink-600" />}
         </button>
       );
     } else {
@@ -83,6 +83,7 @@ export function EVMWalletButton({ customStyles }: { customStyles?: string }) {
     isOnSupportedNetwork,
     open,
     switchNetwork,
+    hideIcon,
   ]);
 
   return <>{ConnectButton}</>;
