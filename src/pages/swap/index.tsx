@@ -57,6 +57,7 @@ export const SwapPage = () => {
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
+  const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
@@ -65,10 +66,9 @@ export const SwapPage = () => {
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
   useEffect(() => {
+    setApiInitializeFailed(!pendulumNode?.api && pendulumNode?.isFetched);
     if (pendulumNode?.api) {
       setApi(pendulumNode.api);
-    } else {
-      setInitializeFailed(true);
     }
   }, [pendulumNode]);
 
@@ -401,7 +401,7 @@ export const SwapPage = () => {
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
         <section className="flex justify-center w-full mt-5">
-          {initializeFailed && (
+          {(initializeFailed || apiInitializeFailed) && (
             <p className="text-red-600">
               Application initialization failed. Please reload, or try again later if the problem persists.
             </p>

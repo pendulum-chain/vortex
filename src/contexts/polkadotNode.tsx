@@ -1,5 +1,6 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { createContext, StateUpdater, useContext, useEffect, useState } from 'preact/compat';
+import { createContext, useContext } from 'preact/compat';
+import { useQuery } from '@tanstack/react-query';
 import { ToastMessage } from '../helpers/notifications';
 import { showToast } from '../helpers/notifications';
 import { ASSETHUB_WSS, PENDULUM_WSS } from '../constants/constants';
@@ -22,22 +23,17 @@ interface NetworkState {
 
 interface PolkadotNodeContextInterface {
   state: NetworkState;
-  setState: StateUpdater<NetworkState>;
+  isFetched: boolean;
 }
 
 const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
   state: {},
-  setState: {} as StateUpdater<NetworkState>,
+  isFetched: false,
 });
 
 async function createApiComponents(socketUrl: string, autoReconnect = true): Promise<ApiComponents> {
-  const wsProvider = new WsProvider(socketUrl, autoReconnect ? 1000 : false);
-  const api = await ApiPromise.create({
-    provider: wsProvider,
-    noInitWarn: true,
-  });
-
-  await api.isReady;
+  const provider = new WsProvider(socketUrl, autoReconnect ? 1000 : false);
+  const api = await ApiPromise.create({ provider });
 
   const chainProperties = api.registry.getChainProperties();
   const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
@@ -70,53 +66,53 @@ const usePolkadotNodes = () => {
   if (!context) {
     throw new Error('usePolkadotNode must be used within a PolkadotNodeProvider');
   }
-  return context.state;
+  return context;
 };
 
 const useAssetHubNode = () => {
-  const state = usePolkadotNodes();
-  return state.assetHub;
+  const { state, isFetched } = usePolkadotNodes();
+  return { ...state.assetHub, isFetched };
 };
 
 const usePendulumNode = () => {
-  const state = usePolkadotNodes();
-  return state.pendulum;
+  const { state, isFetched } = usePolkadotNodes();
+  return { ...state.pendulum, isFetched };
+};
+
+const initializeNetworks = async () => {
+  try {
+    const [assetHub, pendulum] = await Promise.all([
+      createApiComponents(ASSETHUB_WSS),
+      createApiComponents(PENDULUM_WSS),
+    ]);
+
+    return {
+      assetHub,
+      pendulum,
+    };
+  } catch (error) {
+    console.error('Error initializing networks:', error);
+    showToast(ToastMessage.NODE_CONNECTION_ERROR);
+    throw error;
+  }
 };
 
 const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
-  const [state, setState] = useState<NetworkState>({});
+  const {
+    data: state = {},
+    error,
+    isFetched,
+  } = useQuery({
+    queryKey: ['polkadot-nodes'],
+    queryFn: initializeNetworks,
+    retry: 3,
+  });
 
-  useEffect(() => {
-    let disconnect: () => void = () => undefined;
+  if (error) {
+    console.error('Failed to initialize Polkadot nodes:', error);
+  }
 
-    const initializeNetworks = async () => {
-      try {
-        const [assetHub, pendulum] = await Promise.all([
-          createApiComponents(ASSETHUB_WSS),
-          createApiComponents(PENDULUM_WSS),
-        ]);
-
-        disconnect = () => {
-          assetHub.api.disconnect();
-          pendulum.api.disconnect();
-        };
-
-        setState({
-          assetHub,
-          pendulum,
-        });
-      } catch (error) {
-        console.error('Error initializing networks:', error);
-        showToast(ToastMessage.NODE_CONNECTION_ERROR);
-      }
-    };
-
-    initializeNetworks();
-
-    return disconnect;
-  }, []);
-
-  return <PolkadotNodeContext.Provider value={{ state, setState }}>{children}</PolkadotNodeContext.Provider>;
+  return <PolkadotNodeContext.Provider value={{ state, isFetched }}>{children}</PolkadotNodeContext.Provider>;
 };
 
 export { PolkadotNodeProvider, usePolkadotNodes, useAssetHubNode, usePendulumNode };
