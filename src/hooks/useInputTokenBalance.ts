@@ -37,6 +37,7 @@ const useAssetHubBalance = (assetId?: number): string | undefined => {
     if (!assetId) {
       console.log('Invalid assetId', assetId);
       setBalance('0');
+      return;
     }
 
     const getBalance = async () => {
