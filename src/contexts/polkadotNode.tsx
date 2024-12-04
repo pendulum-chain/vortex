@@ -20,7 +20,6 @@ interface NetworkState {
   assetHub?: ApiComponents;
   pendulum?: ApiComponents;
 }
-
 interface PolkadotNodeContextInterface {
   state: NetworkState;
   isFetched: boolean;
@@ -34,6 +33,8 @@ const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
 async function createApiComponents(socketUrl: string, autoReconnect = true): Promise<ApiComponents> {
   const provider = new WsProvider(socketUrl, autoReconnect ? 1000 : false);
   const api = await ApiPromise.create({ provider });
+
+  await api.isReady;
 
   const chainProperties = api.registry.getChainProperties();
   const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
@@ -71,15 +72,15 @@ const usePolkadotNodes = () => {
 
 const useAssetHubNode = () => {
   const { state, isFetched } = usePolkadotNodes();
-  return { ...state.assetHub, isFetched };
+  return { ...(state.assetHub as ApiComponents), isFetched };
 };
 
 const usePendulumNode = () => {
   const { state, isFetched } = usePolkadotNodes();
-  return { ...state.pendulum, isFetched };
+  return { ...(state.pendulum as ApiComponents), isFetched };
 };
 
-const initializeNetworks = async () => {
+const initializeNetworks = async (): Promise<NetworkState> => {
   try {
     const [assetHub, pendulum] = await Promise.all([
       createApiComponents(ASSETHUB_WSS),
