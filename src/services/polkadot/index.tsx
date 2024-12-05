@@ -11,6 +11,7 @@ import { Extrinsic } from '@pendulum-chain/api-solang';
 import { decodeSubmittableExtrinsic } from '../signedTransactions';
 import { useGetEphemeralNonce } from './ephemeral';
 import { ApiComponents, usePendulumNode } from '../../contexts/polkadotNode';
+import { useMemo } from 'preact/hooks';
 
 async function createVaultService(
   apiComponents: ApiComponents,
@@ -73,134 +74,135 @@ export function usePrepareSpacewalkRedeemTransaction() {
   };
 }
 
-export function useExecuteSpacewalkRedeem(): (
-  state: OfframpingState,
-  { renderEvent }: ExecutionContext,
-) => Promise<OfframpingState> {
+export function useExecuteSpacewalkRedeem() {
   const pendulumNode = usePendulumNode();
   const getEphemeralNonceHook = useGetEphemeralNonce();
 
-  return async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> => {
-    if (!pendulumNode) {
-      throw new Error('Pendulum node not available');
-    }
+  return useMemo(
+    () =>
+      async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> => {
+        if (!pendulumNode) {
+          throw new Error('Pendulum node not available');
+        }
 
-    const {
-      transactions,
-      outputTokenType,
-      outputAmount,
-      pendulumEphemeralSeed,
-      stellarEphemeralSecret,
-      executeSpacewalkNonce,
-    } = state;
-    const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+        const {
+          transactions,
+          outputTokenType,
+          outputAmount,
+          pendulumEphemeralSeed,
+          stellarEphemeralSecret,
+          executeSpacewalkNonce,
+        } = state;
+        const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
-    if (!transactions) {
-      const message = 'Transactions not prepared, cannot execute Spacewalk redeem';
-      console.error(message);
-      return { ...state, failure: { type: 'unrecoverable', message } };
-    }
+        if (!transactions) {
+          const message = 'Transactions not prepared, cannot execute Spacewalk redeem';
+          console.error(message);
+          return { ...state, failure: { type: 'unrecoverable', message } };
+        }
 
-    const successorState = {
-      ...state,
-      phase: 'pendulumCleanup',
-    } as const;
+        const successorState = {
+          ...state,
+          phase: 'pendulumCleanup',
+        } as const;
 
-    // We wait for up to 10 minutes
-    const maxWaitingTimeMinutes = 10;
-    const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
+        // We wait for up to 10 minutes
+        const maxWaitingTimeMinutes = 10;
+        const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
 
-    const waitForOutputTokensToArriveOnStellar = async () => {
-      const amountUnitsBig = new Big(outputAmount.units);
-      const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
-      const stellarTargetAccountId = stellarEphemeralKeypair.publicKey();
-      const stellarPollingTimeMs = 1000;
+        const waitForOutputTokensToArriveOnStellar = async () => {
+          const amountUnitsBig = new Big(outputAmount.units);
+          const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
+          const stellarTargetAccountId = stellarEphemeralKeypair.publicKey();
+          const stellarPollingTimeMs = 1000;
 
-      try {
-        await checkBalancePeriodically(
-          stellarTargetAccountId,
-          outputToken,
-          amountUnitsBig,
-          stellarPollingTimeMs,
-          maxWaitingTimeMs,
-        );
-        console.log('Balance check completed successfully.');
-      } catch (balanceCheckError) {
-        throw new Error(`Stellar balance did not arrive on time`);
-      }
-    };
+          try {
+            await checkBalancePeriodically(
+              stellarTargetAccountId,
+              outputToken,
+              amountUnitsBig,
+              stellarPollingTimeMs,
+              maxWaitingTimeMs,
+            );
+            console.log('Balance check completed successfully.');
+          } catch (balanceCheckError) {
+            throw new Error(`Stellar balance did not arrive on time`);
+          }
+        };
 
-    const ephemeralAccountNonce = await getEphemeralNonceHook(state);
-    if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > executeSpacewalkNonce) {
-      await waitForOutputTokensToArriveOnStellar();
-      return successorState;
-    }
+        const ephemeralAccountNonce = await getEphemeralNonceHook(state);
+        if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > executeSpacewalkNonce) {
+          await waitForOutputTokensToArriveOnStellar();
+          return successorState;
+        }
 
-    if (!transactions) {
-      const message = 'Transactions not prepared, cannot execute Spacewalk redeem';
-      console.error(message);
-      return { ...state, failure: { type: 'unrecoverable', message } };
-    }
-    let redeemRequestEvent;
+        if (!transactions) {
+          const message = 'Transactions not prepared, cannot execute Spacewalk redeem';
+          console.error(message);
+          return { ...state, failure: { type: 'unrecoverable', message } };
+        }
+        let redeemRequestEvent;
 
-    const { ss58Format, api } = pendulumNode;
+        const { ss58Format, api } = pendulumNode;
 
-    // get ephemeral keypair and account
-    const keyring = new Keyring({ type: 'sr25519', ss58Format });
-    const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+        // get ephemeral keypair and account
+        const keyring = new Keyring({ type: 'sr25519', ss58Format });
+        const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
 
-    try {
-      const vaultService = await createVaultService(
-        pendulumNode,
-        outputToken.stellarAsset.code.hex,
-        outputToken.stellarAsset.issuer.hex,
-        outputAmount.raw,
-      );
-      renderEvent(
-        `Requesting redeem of ${outputAmount.units} tokens for vault ${prettyPrintVaultId(vaultService.vaultId)}`,
-        EventStatus.Waiting,
-      );
+        try {
+          const vaultService = await createVaultService(
+            pendulumNode,
+            outputToken.stellarAsset.code.hex,
+            outputToken.stellarAsset.issuer.hex,
+            outputAmount.raw,
+          );
+          renderEvent(
+            `Requesting redeem of ${outputAmount.units} tokens for vault ${prettyPrintVaultId(vaultService.vaultId)}`,
+            EventStatus.Waiting,
+          );
 
-      const redeemExtrinsic = decodeSubmittableExtrinsic(transactions.spacewalkRedeemTransaction, api);
-      redeemRequestEvent = await vaultService.submitRedeem(ephemeralKeypair.address, redeemExtrinsic);
+          const redeemExtrinsic = decodeSubmittableExtrinsic(transactions.spacewalkRedeemTransaction, api);
+          redeemRequestEvent = await vaultService.submitRedeem(ephemeralKeypair.address, redeemExtrinsic);
 
-      console.log(
-        `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(
-          vaultService.vaultId,
-        )}`,
-      );
+          console.log(
+            `Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${prettyPrintVaultId(
+              vaultService.vaultId,
+            )}`,
+          );
 
-      // Render event that the extrinsic passed, and we are now waiting for the execution of it
-      renderEvent(
-        `Redeem request passed, waiting up to ${maxWaitingTimeMinutes} minutes for redeem execution event...`,
-        EventStatus.Waiting,
-      );
+          // Render event that the extrinsic passed, and we are now waiting for the execution of it
+          renderEvent(
+            `Redeem request passed, waiting up to ${maxWaitingTimeMinutes} minutes for redeem execution event...`,
+            EventStatus.Waiting,
+          );
 
-      try {
-        const eventListener = EventListener.getEventListener(api);
-        await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
-      } catch (error) {
-        // This is a potentially recoverable error (due to network delay)
-        // in the future we should distinguish between recoverable and non-recoverable errors
-        console.log(`Failed to wait for redeem execution: ${error}`);
-        renderEvent(`Failed to wait for redeem execution: Max waiting time exceeded`, EventStatus.Error);
-        throw new Error(`Failed to wait for redeem execution`);
-      }
-    } catch (error) {
-      // This is a potentially recoverable error (due to redeem request done before app shut down, but not registered)
-      if ((error as Error).message.includes('AmountExceedsUserBalance')) {
-        console.log(`Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.`);
-        await waitForOutputTokensToArriveOnStellar();
-      } else {
-        // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
-        console.log(`Failed to request redeem: ${error}`);
-        throw new Error(`Failed to request redeem`);
-      }
-    }
+          try {
+            const eventListener = EventListener.getEventListener(api);
+            await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
+          } catch (error) {
+            // This is a potentially recoverable error (due to network delay)
+            // in the future we should distinguish between recoverable and non-recoverable errors
+            console.log(`Failed to wait for redeem execution: ${error}`);
+            renderEvent(`Failed to wait for redeem execution: Max waiting time exceeded`, EventStatus.Error);
+            throw new Error(`Failed to wait for redeem execution`);
+          }
+        } catch (error) {
+          // This is a potentially recoverable error (due to redeem request done before app shut down, but not registered)
+          if ((error as Error).message.includes('AmountExceedsUserBalance')) {
+            console.log(`Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.`);
+            await waitForOutputTokensToArriveOnStellar();
+          } else {
+            // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
+            console.log(`Failed to request redeem: ${error}`);
+            throw new Error(`Failed to request redeem`);
+          }
+        }
 
-    renderEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
-    return successorState;
-  };
+        renderEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
+        return successorState;
+      },
+    [pendulumNode, getEphemeralNonceHook],
+  );
 }
 
 function checkBalancePeriodically(

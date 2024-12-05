@@ -1,5 +1,6 @@
 import { ApiPromise } from '@polkadot/api';
 import Big from 'big.js';
+import { useMemo } from 'preact/hooks';
 
 import { OfframpingState } from '../offrampingFlow';
 import { waitUntilTrue } from '../../helpers/function';
@@ -35,30 +36,34 @@ export function useExecuteAssethubXCM() {
   const getRawInputBalanceHook = useGetRawInputBalance();
   const { walletAccount } = usePolkadotWalletState();
 
-  return async (state: OfframpingState): Promise<OfframpingState> => {
-    if (!walletAccount) {
-      throw new Error('Wallet account not available');
-    }
-    if (!assetHubNode) {
-      throw new Error('AssetHub node not available');
-    }
-    const didInputTokenArrivedOnPendulum = async () => {
-      const inputBalanceRaw = await getRawInputBalanceHook(state);
-      return inputBalanceRaw.gt(Big(0));
-    };
+  return useMemo(
+    () =>
+      async (state: OfframpingState): Promise<OfframpingState> => {
+        if (!walletAccount) {
+          throw new Error('Wallet account not available');
+        }
+        if (!assetHubNode) {
+          throw new Error('AssetHub node not available');
+        }
+        const didInputTokenArrivedOnPendulum = async () => {
+          const inputBalanceRaw = await getRawInputBalanceHook(state);
+          return inputBalanceRaw.gt(Big(0));
+        };
 
-    if (!(await didInputTokenArrivedOnPendulum())) {
-      const { assetHubXcmTransactionHash, inputAmount } = state;
+        if (!(await didInputTokenArrivedOnPendulum())) {
+          const { assetHubXcmTransactionHash, inputAmount } = state;
 
-      if (assetHubXcmTransactionHash === undefined) {
-        const tx = createAssethubAssetTransfer(assetHubNode.api, walletAccount.address, inputAmount.raw);
-        const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as any });
-        return { ...state, assetHubXcmTransactionHash: hash.toString() };
-      }
+          if (assetHubXcmTransactionHash === undefined) {
+            const tx = createAssethubAssetTransfer(assetHubNode.api, walletAccount.address, inputAmount.raw);
+            const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as any });
+            return { ...state, assetHubXcmTransactionHash: hash.toString() };
+          }
 
-      await waitUntilTrue(didInputTokenArrivedOnPendulum, 20000);
-    }
+          await waitUntilTrue(didInputTokenArrivedOnPendulum, 20000);
+        }
 
-    return { ...state, phase: 'subsidizePreSwap' };
-  };
+        return { ...state, phase: 'subsidizePreSwap' };
+      },
+    [assetHubNode, getRawInputBalanceHook, walletAccount],
+  );
 }

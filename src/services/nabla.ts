@@ -29,6 +29,7 @@ import { config } from '../config';
 import { ExecutionContext, OfframpingState } from './offrampingFlow';
 import { decodeSubmittableExtrinsic } from './signedTransactions';
 import { useGetEphemeralNonce } from './polkadot/ephemeral';
+import { useMemo } from 'preact/hooks';
 
 interface CreateAndSignApproveExtrinsicOptions {
   api: ApiPromise;
@@ -143,59 +144,63 @@ export function useNablaApprove() {
   const pendulumNode = usePendulumNode();
   const getEphemeralNonceHook = useGetEphemeralNonce();
 
-  return async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> => {
-    if (!pendulumNode) {
-      throw new Error('Pendulum node not available');
-    }
+  return useMemo(
+    () =>
+      async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> => {
+        if (!pendulumNode) {
+          throw new Error('Pendulum node not available');
+        }
 
-    const { transactions, inputAmount, inputTokenType, nablaApproveNonce, network } = state;
-    const inputToken = getInputTokenDetails(network, inputTokenType);
+        const { transactions, inputAmount, inputTokenType, nablaApproveNonce, network } = state;
+        const inputToken = getInputTokenDetails(network, inputTokenType);
 
-    if (!transactions) {
-      const message = 'Missing transactions for nablaApprove';
-      console.error(message);
-      return { ...state, failure: { type: 'unrecoverable', message } };
-    }
+        if (!transactions) {
+          const message = 'Missing transactions for nablaApprove';
+          console.error(message);
+          return { ...state, failure: { type: 'unrecoverable', message } };
+        }
 
-    const successorState = {
-      ...state,
-      phase: 'nablaSwap',
-    } as const;
+        const successorState = {
+          ...state,
+          phase: 'nablaSwap',
+        } as const;
 
-    const ephemeralAccountNonce = await getEphemeralNonceHook(state);
-    if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > nablaApproveNonce) {
-      return successorState;
-    }
+        const ephemeralAccountNonce = await getEphemeralNonceHook(state);
+        if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > nablaApproveNonce) {
+          return successorState;
+        }
 
-    try {
-      renderEvent(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
+        try {
+          renderEvent(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
 
-      const { api } = pendulumNode;
+          const { api } = pendulumNode;
 
-      const approvalExtrinsic = decodeSubmittableExtrinsic(transactions.nablaApproveTransaction, api);
+          const approvalExtrinsic = decodeSubmittableExtrinsic(transactions.nablaApproveTransaction, api);
 
-      const result = await submitExtrinsic(approvalExtrinsic);
+          const result = await submitExtrinsic(approvalExtrinsic);
 
-      if (result.status.type === 'error') {
-        renderEvent(`Could not approve token: ${result.status.error.toString()}`, EventStatus.Error);
-        return Promise.reject('Could not approve token');
-      }
-    } catch (e) {
-      let errorMessage = '';
-      const result = (e as ExecuteMessageResult).result;
-      if (result?.type === 'reverted') {
-        errorMessage = result.description;
-      } else if (result?.type === 'error') {
-        errorMessage = result.error;
-      } else {
-        errorMessage = 'Something went wrong';
-      }
-      renderEvent(`Could not approve the required amount of token: ${errorMessage}`, EventStatus.Error);
-      return Promise.reject('Could not approve token');
-    }
+          if (result.status.type === 'error') {
+            renderEvent(`Could not approve token: ${result.status.error.toString()}`, EventStatus.Error);
+            return Promise.reject('Could not approve token');
+          }
+        } catch (e) {
+          let errorMessage = '';
+          const result = (e as ExecuteMessageResult).result;
+          if (result?.type === 'reverted') {
+            errorMessage = result.description;
+          } else if (result?.type === 'error') {
+            errorMessage = result.error;
+          } else {
+            errorMessage = 'Something went wrong';
+          }
+          renderEvent(`Could not approve the required amount of token: ${errorMessage}`, EventStatus.Error);
+          return Promise.reject('Could not approve token');
+        }
 
-    return successorState;
-  };
+        return successorState;
+      },
+    [pendulumNode, getEphemeralNonceHook],
+  );
 }
 
 interface CreateAndSignSwapExtrinsicOptions {
@@ -249,181 +254,192 @@ export async function createAndSignSwapExtrinsic({
 export function usePrepareNablaSwapTransaction() {
   const pendulumNode = usePendulumNode();
 
-  return async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<Extrinsic> => {
-    if (!pendulumNode) {
-      throw new Error('Pendulum node not available');
-    }
+  return useMemo(
+    () =>
+      async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<Extrinsic> => {
+        if (!pendulumNode) {
+          throw new Error('Pendulum node not available');
+        }
 
-    const {
-      inputTokenType,
-      outputTokenType,
-      inputAmount,
-      outputAmount,
-      nablaHardMinimumOutputRaw,
-      pendulumEphemeralSeed,
-      nablaSwapNonce,
-      network,
-    } = state;
+        const {
+          inputTokenType,
+          outputTokenType,
+          inputAmount,
+          outputAmount,
+          nablaHardMinimumOutputRaw,
+          pendulumEphemeralSeed,
+          nablaSwapNonce,
+          network,
+        } = state;
 
-    // event attempting swap
-    const inputToken = getInputTokenDetails(network, inputTokenType);
-    const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+        // event attempting swap
+        const inputToken = getInputTokenDetails(network, inputTokenType);
+        const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
-    const { ss58Format, api } = pendulumNode;
-    const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
+        const { ss58Format, api } = pendulumNode;
+        const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
 
-    // get ephemeral keypair and account
-    const keyring = new Keyring({ type: 'sr25519', ss58Format });
-    const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+        // get ephemeral keypair and account
+        const keyring = new Keyring({ type: 'sr25519', ss58Format });
+        const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
 
-    // balance before the swap. Important for recovery process.
-    // if transaction was able to get in, but we failed on the listening
-    const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
-    const responseBalanceBefore = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
-    const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
+        // balance before the swap. Important for recovery process.
+        // if transaction was able to get in, but we failed on the listening
+        const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
+        const responseBalanceBefore = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
+        const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
 
-    // Since this is an ephemeral account, balanceBefore being greater than the minimum amount means that the swap was successful
-    // but we missed the event. This is important for recovery process.
-    if (rawBalanceBefore.lt(Big(nablaHardMinimumOutputRaw))) {
-      // Try swap
-      try {
-        renderEvent(
-          `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
-          EventStatus.Waiting,
-        );
+        // Since this is an ephemeral account, balanceBefore being greater than the minimum amount means that the swap was successful
+        // but we missed the event. This is important for recovery process.
+        if (rawBalanceBefore.lt(Big(nablaHardMinimumOutputRaw))) {
+          // Try swap
+          try {
+            renderEvent(
+              `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+              EventStatus.Waiting,
+            );
 
-        return createAndSignSwapExtrinsic({
-          api: api,
-          amount: inputAmount.raw,
-          amountMin: nablaHardMinimumOutputRaw,
-          tokenIn: inputToken.pendulumErc20WrapperAddress,
-          tokenOut: outputToken.erc20WrapperAddress,
-          contractAbi: routerAbiObject,
-          keypairEphemeral: ephemeralKeypair,
-          nonce: nablaSwapNonce,
-        });
-      } catch (e) {
-        return Promise.reject('Could not create swap transaction' + e?.toString());
-      }
-    }
+            return createAndSignSwapExtrinsic({
+              api: api,
+              amount: inputAmount.raw,
+              amountMin: nablaHardMinimumOutputRaw,
+              tokenIn: inputToken.pendulumErc20WrapperAddress,
+              tokenOut: outputToken.erc20WrapperAddress,
+              contractAbi: routerAbiObject,
+              keypairEphemeral: ephemeralKeypair,
+              nonce: nablaSwapNonce,
+            });
+          } catch (e) {
+            return Promise.reject('Could not create swap transaction' + e?.toString());
+          }
+        }
 
-    throw Error("Couldn't create swap extrinsic");
-  };
+        throw Error("Couldn't create swap extrinsic");
+      },
+    [pendulumNode],
+  );
 }
 
 export function useNablaSwap() {
   const pendulumNode = usePendulumNode();
   const getEphemeralNonceHook = useGetEphemeralNonce();
 
-  return async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> => {
-    if (!pendulumNode) {
-      throw new Error('Pendulum node not available');
-    }
+  return useMemo(
+    () =>
+      async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<OfframpingState> => {
+        if (!pendulumNode) {
+          throw new Error('Pendulum node not available');
+        }
 
-    const {
-      transactions,
-      inputAmount,
-      inputTokenType,
-      outputAmount,
-      outputTokenType,
-      pendulumEphemeralSeed,
-      nablaSwapNonce,
-      nablaSoftMinimumOutputRaw,
-      network,
-    } = state;
+        const {
+          transactions,
+          inputAmount,
+          inputTokenType,
+          outputAmount,
+          outputTokenType,
+          pendulumEphemeralSeed,
+          nablaSwapNonce,
+          nablaSoftMinimumOutputRaw,
+          network,
+        } = state;
 
-    const successorState = {
-      ...state,
-      phase: 'subsidizePostSwap',
-    } as const;
+        const successorState = {
+          ...state,
+          phase: 'subsidizePostSwap',
+        } as const;
 
-    const ephemeralAccountNonce = await getEphemeralNonceHook(state);
-    if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > nablaSwapNonce) {
-      return successorState;
-    }
+        const ephemeralAccountNonce = await getEphemeralNonceHook(state);
+        if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > nablaSwapNonce) {
+          return successorState;
+        }
 
-    const inputToken = getInputTokenDetails(network, inputTokenType);
-    const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+        const inputToken = getInputTokenDetails(network, inputTokenType);
+        const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
-    if (transactions === undefined) {
-      const message = 'Missing transactions for nablaSwap';
-      console.error(message);
-      return { ...state, failure: { type: 'unrecoverable', message } };
-    }
+        if (transactions === undefined) {
+          const message = 'Missing transactions for nablaSwap';
+          console.error(message);
+          return { ...state, failure: { type: 'unrecoverable', message } };
+        }
 
-    const { api, ss58Format } = pendulumNode;
+        const { api, ss58Format } = pendulumNode;
 
-    // get ephemeral keypair and account
-    const keyring = new Keyring({ type: 'sr25519', ss58Format });
-    const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-    // balance before the swap. Important for recovery process.
-    // if transaction was able to get in, but we failed on the listening
-    const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
-    const responseBalanceBefore = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
-    const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
+        // get ephemeral keypair and account
+        const keyring = new Keyring({ type: 'sr25519', ss58Format });
+        const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+        // balance before the swap. Important for recovery process.
+        // if transaction was able to get in, but we failed on the listening
+        const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
+        const responseBalanceBefore = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
+        const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
 
-    try {
-      renderEvent(
-        `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
-        EventStatus.Waiting,
-      );
+        try {
+          renderEvent(
+            `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+            EventStatus.Waiting,
+          );
 
-      // get an up to date quote for the AMM
-      const response = await readMessage({
-        abi: new Abi(routerAbi),
-        api,
-        contractDeploymentAddress: NABLA_ROUTER,
-        callerAddress: ephemeralKeypair.address,
-        messageName: 'getAmountOut',
-        messageArguments: [inputAmount.raw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
-        limits: defaultReadLimits,
-      });
+          // get an up to date quote for the AMM
+          const response = await readMessage({
+            abi: new Abi(routerAbi),
+            api,
+            contractDeploymentAddress: NABLA_ROUTER,
+            callerAddress: ephemeralKeypair.address,
+            messageName: 'getAmountOut',
+            messageArguments: [
+              inputAmount.raw,
+              [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress],
+            ],
+            limits: defaultReadLimits,
+          });
 
-      if (response.type !== 'success') {
-        throw new Error("Couldn't get a quote from the AMM");
-      }
+          if (response.type !== 'success') {
+            throw new Error("Couldn't get a quote from the AMM");
+          }
 
-      const ouputAmountQuoteRaw = Big(response.value[0].toString());
-      if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
-        throw new Error("Won't execute the swap now. The estimated output amount is too low.");
-      }
+          const ouputAmountQuoteRaw = Big(response.value[0].toString());
+          if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
+            throw new Error("Won't execute the swap now. The estimated output amount is too low.");
+          }
 
-      const swapExtrinsic = decodeSubmittableExtrinsic(transactions.nablaSwapTransaction, api);
-      const result = await submitExtrinsic(swapExtrinsic);
+          const swapExtrinsic = decodeSubmittableExtrinsic(transactions.nablaSwapTransaction, api);
+          const result = await submitExtrinsic(swapExtrinsic);
 
-      if (result.status.type === 'error') {
-        renderEvent(`Could not swap token: ${result.status.error.toString()}`, EventStatus.Error);
-        return Promise.reject('Could not swap token');
-      }
-    } catch (e) {
-      let errorMessage = '';
-      const result = (e as ExecuteMessageResult).result;
-      if (result?.type === 'reverted') {
-        errorMessage = result.description;
-      } else if (result?.type === 'error') {
-        errorMessage = result.error;
-      } else {
-        errorMessage = 'Something went wrong';
-      }
-      renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
-      return Promise.reject('Could not swap token');
-    }
-    //verify token balance before releasing this process.
-    const responseBalanceAfter = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
-    const rawBalanceAfter = Big(responseBalanceAfter?.free?.toString() ?? '0');
+          if (result.status.type === 'error') {
+            renderEvent(`Could not swap token: ${result.status.error.toString()}`, EventStatus.Error);
+            return Promise.reject('Could not swap token');
+          }
+        } catch (e) {
+          let errorMessage = '';
+          const result = (e as ExecuteMessageResult).result;
+          if (result?.type === 'reverted') {
+            errorMessage = result.description;
+          } else if (result?.type === 'error') {
+            errorMessage = result.error;
+          } else {
+            errorMessage = 'Something went wrong';
+          }
+          renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
+          return Promise.reject('Could not swap token');
+        }
+        //verify token balance before releasing this process.
+        const responseBalanceAfter = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
+        const rawBalanceAfter = Big(responseBalanceAfter?.free?.toString() ?? '0');
 
-    const actualOfframpValueRaw = rawBalanceAfter.sub(rawBalanceBefore);
-    const actualOfframpValue = multiplyByPowerOfTen(actualOfframpValueRaw, -outputToken.decimals);
+        const actualOfframpValueRaw = rawBalanceAfter.sub(rawBalanceBefore);
+        const actualOfframpValue = multiplyByPowerOfTen(actualOfframpValueRaw, -outputToken.decimals);
 
-    renderEvent(
-      `Swap successful. Amount received: ${stringifyBigWithSignificantDecimals(actualOfframpValue, 2)}`,
-      EventStatus.Success,
-    );
+        renderEvent(
+          `Swap successful. Amount received: ${stringifyBigWithSignificantDecimals(actualOfframpValue, 2)}`,
+          EventStatus.Success,
+        );
 
-    console.log('Swap successful');
+        console.log('Swap successful');
 
-    return successorState;
-  };
+        return successorState;
+      },
+    [pendulumNode, getEphemeralNonceHook],
+  );
 }
 
 const calcDeadline = (min: number) => `${Math.floor(Date.now() / 1000) + min * 60}`;

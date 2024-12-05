@@ -157,9 +157,7 @@ export function useOfframpingFlow() {
   const executeSpacewalkRedeem = useExecuteSpacewalkRedeem();
   const prepareTransactions = usePrepareTransactions();
 
-  const STATE_ADVANCEMENT_HANDLERS = useMemo<
-    Record<Networks, Partial<Record<OfframpingPhase, StateTransitionFunction>>>
-  >(
+  const STATE_ADVANCEMENT_HANDLERS = useMemo(
     () => ({
       Polygon: {
         prepareTransactions,
@@ -322,6 +320,7 @@ export function useOfframpingFlow() {
 
       let newState: OfframpingState | undefined;
       try {
+        // @ts-ignore
         const nextHandler = STATE_ADVANCEMENT_HANDLERS[state.network][phase];
         if (!nextHandler) {
           throw new Error(`No handler for phase ${phase} on network ${state.network}`);
