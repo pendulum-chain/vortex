@@ -24,7 +24,7 @@ export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPro
 // The transactions are stored in the state and the phase is updated to 'squidRouter'.
 // The transactions are also dumped to a Google Spreadsheet.
 export function usePrepareTransactions() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
   const prepareSpacewalkRedeemTransaction = usePrepareSpacewalkRedeemTransaction();
   const prepareNablaApproveTransaction = usePrepareNablaApproveTransaction();
   const prepareNablaSwapTransaction = usePrepareNablaSwapTransaction();

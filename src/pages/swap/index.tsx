@@ -66,9 +66,9 @@ export const SwapPage = () => {
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
   useEffect(() => {
-    setApiInitializeFailed(!pendulumNode?.api && pendulumNode?.isFetched);
-    if (pendulumNode?.api) {
-      setApi(pendulumNode.api);
+    setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
+    if (pendulumNode.apiComponents?.api) {
+      setApi(pendulumNode.apiComponents.api);
     }
   }, [pendulumNode]);
 

@@ -75,7 +75,7 @@ async function createAndSignApproveExtrinsic({
 }
 
 export function usePrepareNablaApproveTransaction() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
 
   return async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<Extrinsic> => {
     const { inputTokenType, inputAmount, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
@@ -141,7 +141,7 @@ export function usePrepareNablaApproveTransaction() {
 // Since this operation reads first from chain the current approval, there is no need to
 // save any state for potential recovery.
 export function useNablaApprove() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
   const getEphemeralNonceHook = useGetEphemeralNonce();
 
   return useMemo(
@@ -252,7 +252,7 @@ export async function createAndSignSwapExtrinsic({
 }
 
 export function usePrepareNablaSwapTransaction() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
 
   return useMemo(
     () =>
@@ -321,7 +321,7 @@ export function usePrepareNablaSwapTransaction() {
 }
 
 export function useNablaSwap() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
   const getEphemeralNonceHook = useGetEphemeralNonce();
 
   return useMemo(

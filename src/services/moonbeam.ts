@@ -23,7 +23,7 @@ export const moonbeamConfig = createConfig({
 });
 
 export function useExecuteMoonbeamXCM() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
   const getRawInputBalanceHook = useGetRawInputBalance();
 
   return useMemo(

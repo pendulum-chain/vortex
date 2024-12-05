@@ -27,7 +27,7 @@ async function createVaultService(
 }
 
 export function usePrepareSpacewalkRedeemTransaction() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
 
   return async (state: OfframpingState, { renderEvent }: ExecutionContext): Promise<Extrinsic> => {
     if (!pendulumNode) {
@@ -75,7 +75,7 @@ export function usePrepareSpacewalkRedeemTransaction() {
 }
 
 export function useExecuteSpacewalkRedeem() {
-  const pendulumNode = usePendulumNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
   const getEphemeralNonceHook = useGetEphemeralNonce();
 
   return useMemo(
