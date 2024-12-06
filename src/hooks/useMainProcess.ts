@@ -8,7 +8,14 @@ import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
 // Utils
 import { useAccount, useConfig, useSwitchChain } from 'wagmi';
 import { polygon } from 'wagmi/chains';
-import { OfframpingState, useOfframpingFlow } from '../services/offrampingFlow';
+import {
+  clearOfframpingState,
+  recoverFromFailure,
+  readCurrentState,
+  advanceOfframpingState,
+  constructInitialState,
+  OfframpingState,
+} from '../services/offrampingFlow';
 import { EventStatus, GenericEvent } from '../components/GenericEvent';
 import Big from 'big.js';
 import { createTransactionEvent, useEventsContext } from '../contexts/events';
@@ -19,6 +26,8 @@ import { useNetwork } from '../contexts/network';
 
 import { useSiweContext } from '../contexts/siwe';
 import { calculateTotalReceive } from '../components/FeeCollapse';
+import { useAssetHubNode, usePendulumNode } from '../contexts/polkadotNode';
+import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -40,6 +49,10 @@ export const useMainProcess = () => {
   const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
   const [executionInputState, setExecutionInputState] = useState<ExtendedExecutionInput | undefined>(undefined);
   const { selectedNetwork } = useNetwork();
+  const { walletAccount } = usePolkadotWalletState();
+
+  const pendulumNode = usePendulumNode();
+  const assetHubNode = useAssetHubNode();
 
   const sep24FirstIntervalRef = useRef<number | undefined>(undefined);
 
@@ -53,14 +66,12 @@ export const useMainProcess = () => {
 
   const [, setEvents] = useState<GenericEvent[]>([]);
 
-  const { constructInitialState, clearOfframpingState, recoverFromFailure, readCurrentState, advanceOfframpingState } =
-    useOfframpingFlow();
-
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
       if (state === undefined || state.phase === 'success' || state.failure !== undefined) {
         setSigningPhase(undefined);
       }
+
       setOfframpingState(state);
 
       if (state?.phase === 'success') {
@@ -85,7 +96,7 @@ export const useMainProcess = () => {
   useEffect(() => {
     const state = readCurrentState();
     updateHookStateFromState(state);
-  }, [updateHookStateFromState, readCurrentState]);
+  }, [updateHookStateFromState]);
 
   const addEvent = (message: string, status: EventStatus) => {
     console.log('Add event', message, status);
@@ -250,6 +261,7 @@ export const useMainProcess = () => {
         amountOut: executionInputState.offrampAmount,
         sepResult: secondSep24Response,
         network: selectedNetwork,
+        pendulumNode,
       });
 
       trackEvent(createTransactionEvent('kyc_completed', initialState, selectedNetwork));
@@ -266,7 +278,7 @@ export const useMainProcess = () => {
     trackEvent,
     selectedNetwork,
     cleanSep24FirstVariables,
-    constructInitialState,
+    pendulumNode,
   ]);
 
   const finishOfframping = useCallback(() => {
@@ -276,12 +288,12 @@ export const useMainProcess = () => {
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
     })();
-  }, [updateHookStateFromState, resetUniqueEvents, clearOfframpingState]);
+  }, [updateHookStateFromState, resetUniqueEvents]);
 
   const continueFailedFlow = useCallback(() => {
     const nextState = recoverFromFailure(offrampingState);
     updateHookStateFromState(nextState);
-  }, [updateHookStateFromState, offrampingState, recoverFromFailure]);
+  }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
     if (wagmiConfig.state.status !== 'connected') return;
@@ -292,18 +304,19 @@ export const useMainProcess = () => {
         wagmiConfig,
         setSigningPhase,
         trackEvent,
+        pendulumNode,
+        assetHubNode,
+        walletAccount,
       });
 
-      if (offrampingState !== nextState) updateHookStateFromState(nextState);
+      console.log('nextState', nextState);
+      console.log('offrampingState', offrampingState);
+
+      if (offrampingState !== nextState) {
+        updateHookStateFromState(nextState);
+      }
     })();
-  }, [
-    offrampingState,
-    updateHookStateFromState,
-    trackEvent,
-    wagmiConfig,
-    wagmiConfig.state.status,
-    advanceOfframpingState,
-  ]);
+  }, []);
 
   const maybeCancelSep24First = useCallback(() => {
     // Check if the SEP-24 second process is in the waiting state (user has not opened window yet)
