@@ -17,6 +17,7 @@
     "postinstall": "husky install"
   },
   "dependencies": {
+    "@ballerine/web-ui-sdk": "file:/Users/gianni/root/Pendulum/ballerine/sdks/web-ui-sdk",
     "@fontsource/roboto": "^5.0.8",
     "@heroicons/react": "^2.1.3",
     "@hookform/resolvers": "^3.4.2",

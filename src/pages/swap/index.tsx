@@ -38,6 +38,7 @@ import { FeeComparison } from '../../components/FeeComparison';
 
 import { SignInModal } from '../../components/SignIn';
 import { useSiweContext } from '../../contexts/siwe';
+import { Kyc } from '../../components/KYC';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -360,6 +361,7 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
+      <Kyc></Kyc>
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={signingPhase} />
       <form
