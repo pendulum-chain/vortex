@@ -230,6 +230,7 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
       body: JSON.stringify({
         address: await getEphemeralAddress(state, context),
         amountRaw: requiredAmount.toFixed(0, 0),
+        tokenToSubsidize: getInputTokenDetails(state.network, state.inputTokenType).pendulumAssetSymbol,
       }),
     });
 
