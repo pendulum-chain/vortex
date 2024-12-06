@@ -102,6 +102,8 @@ export async function prepareNablaApproveTransaction(
     limits: defaultReadLimits,
   });
 
+  console.log('prepareNablaApproveTransaction', response);
+
   if (response.type !== 'success') {
     const message = 'Could not load token allowance';
     renderEvent(message, EventStatus.Error);
@@ -152,6 +154,8 @@ export async function nablaApprove(state: OfframpingState, context: ExecutionCon
     ...state,
     phase: 'nablaSwap',
   } as const;
+
+  console.log('successorState', successorState);
 
   const ephemeralAccountNonce = await getEphemeralNonce(state, context);
   if (ephemeralAccountNonce !== undefined && ephemeralAccountNonce > nablaApproveNonce) {
@@ -346,6 +350,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
       EventStatus.Waiting,
     );
 
+    console.log('before RESPONSE prepareNablaSwapTransaction');
     // get an up to date quote for the AMM
     const response = await readMessage({
       abi: new Abi(routerAbi),
@@ -356,6 +361,8 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
       messageArguments: [inputAmount.raw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
       limits: defaultReadLimits,
     });
+
+    console.log('prepareNablaSwapTransaction', response);
 
     if (response.type !== 'success') {
       throw new Error("Couldn't get a quote from the AMM");

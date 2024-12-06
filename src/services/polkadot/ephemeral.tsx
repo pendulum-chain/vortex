@@ -23,7 +23,9 @@ export async function getEphemeralAddress(state: OfframpingState, context: Execu
     throw new Error('Pendulum node not available');
   }
 
-  const keyring = new Keyring({ type: 'sr25519', ss58Format: pendulumNode.ss58Format });
+  const { ss58Format } = pendulumNode;
+
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
   const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
   return ephemeralKeypair.address;
 }
@@ -178,6 +180,7 @@ export async function getRawInputBalance(state: OfframpingState, context: Execut
 
   const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
 
+  console.log('getRawInputBalance address: ', await getEphemeralAddress(state, context));
   const balanceResponse = await api.query.tokens.accounts(
     await getEphemeralAddress(state, context),
     inputToken.pendulumCurrencyId,
@@ -235,7 +238,9 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
     }
 
     await waitUntilTrue(async () => {
+      console.log('waiting for input balance to be enough');
       const currentBalance = await getRawInputBalance(state, context);
+      console.log('currentBalance', currentBalance, Big(state.inputAmount.raw));
       return currentBalance.gte(Big(state.inputAmount.raw));
     });
   }

@@ -80,6 +80,7 @@ export interface InitiateStateArguments {
 export interface OfframpingState {
   sep24Id: string;
   pendulumEphemeralSeed: string;
+  pendulumEphemeralAddress: string;
   stellarEphemeralSecret: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
@@ -207,6 +208,7 @@ export async function constructInitialState({
     failureTimeoutAt: now + minutesInMs(10),
     sepResult,
     network,
+    pendulumEphemeralAddress,
   };
 
   storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);

@@ -31,6 +31,7 @@ export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAdd
 
 export async function executeAssetHubXCM(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
   const { assetHubNode, walletAccount } = context;
+  const { pendulumEphemeralAddress } = state;
 
   if (!walletAccount) {
     throw new Error('Wallet account not available');
@@ -48,12 +49,12 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
     const { assetHubXcmTransactionHash, inputAmount } = state;
 
     if (assetHubXcmTransactionHash === undefined) {
-      const tx = createAssethubAssetTransfer(assetHubNode.api, walletAccount.address, inputAmount.raw);
+      const tx = createAssethubAssetTransfer(assetHubNode.api, pendulumEphemeralAddress, inputAmount.raw);
       const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as Signer });
       return { ...state, assetHubXcmTransactionHash: hash.toString() };
     }
 
-    await waitUntilTrue(didInputTokenArrivedOnPendulum, 20000);
+    await waitUntilTrue(didInputTokenArrivedOnPendulum, 1000);
   }
 
   return { ...state, phase: 'subsidizePreSwap' };

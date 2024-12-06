@@ -6,14 +6,12 @@ const { PENDULUM_WSS, PENDULUM_FUNDING_SEED } = require('../../constants/constan
 
 const { TOKEN_CONFIG, getPaddedAssetCode } = require('../../constants/tokenConfig');
 
-const TOKEN_TO_SWAP = 'usdc.axl';
-
 exports.subsidizePreSwap = async (req, res) => {
   try {
-    const { pendulumCurrencyId, maximumSubsidyAmountRaw } = TOKEN_CONFIG[TOKEN_TO_SWAP];
-
     const { address, amountRaw } = req.body;
     console.log('Subsidize pre swap', address, amountRaw);
+
+    const { pendulumCurrencyId, maximumSubsidyAmountRaw } = TOKEN_CONFIG['usdc'];
 
     if (Big(amountRaw).gt(Big(maximumSubsidyAmountRaw))) {
       throw new Error('Amount exceeds maximum subsidy amount');
@@ -23,10 +21,13 @@ exports.subsidizePreSwap = async (req, res) => {
     const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED);
 
     const wsProvider = new WsProvider(PENDULUM_WSS);
+    console.log(111);
     const api = await ApiPromise.create({ provider: wsProvider });
+    console.log(222);
     await api.isReady;
-
+    console.log(333);
     await api.tx.tokens.transfer(address, pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
+    console.log(444);
 
     return res.status(200).json({ message: 'Subsidy transferred successfully' });
   } catch (error) {

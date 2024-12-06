@@ -72,6 +72,7 @@ export const useMainProcess = () => {
         setSigningPhase(undefined);
       }
 
+      console.log('\x1b[33m2>>>>> state', state, '\x1b');
       setOfframpingState(state);
 
       if (state?.phase === 'success') {
@@ -264,6 +265,8 @@ export const useMainProcess = () => {
         pendulumNode,
       });
 
+      console.log('\x1b[34m1>>>>> initialState', initialState, '\x1b[0m');
+
       trackEvent(createTransactionEvent('kyc_completed', initialState, selectedNetwork));
       updateHookStateFromState(initialState);
     } catch (error) {
@@ -292,6 +295,7 @@ export const useMainProcess = () => {
 
   const continueFailedFlow = useCallback(() => {
     const nextState = recoverFromFailure(offrampingState);
+    console.log('\x1b[35m3>>>>> recoveredState', nextState, '\x1b[0m');
     updateHookStateFromState(nextState);
   }, [updateHookStateFromState, offrampingState]);
 
@@ -309,14 +313,21 @@ export const useMainProcess = () => {
         walletAccount,
       });
 
-      console.log('nextState', nextState);
-      console.log('offrampingState', offrampingState);
+      console.log('\x1b[36m>>>>> nextState', nextState, '\x1b', offrampingState !== nextState);
+      console.log(
+        '\x1b[36m>>>>> offrampingState',
+        offrampingState,
+        '\x1b',
+        JSON.stringify(offrampingState) !== JSON.stringify(nextState),
+      );
 
-      if (offrampingState !== nextState) {
+      if (JSON.stringify(offrampingState) !== JSON.stringify(nextState)) {
         updateHookStateFromState(nextState);
       }
     })();
-  }, []);
+    // @todo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offrampingState, trackEvent, updateHookStateFromState, wagmiConfig]);
 
   const maybeCancelSep24First = useCallback(() => {
     // Check if the SEP-24 second process is in the waiting state (user has not opened window yet)
