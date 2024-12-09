@@ -51,8 +51,8 @@ export const useMainProcess = () => {
   const { selectedNetwork } = useNetwork();
   const { walletAccount } = usePolkadotWalletState();
 
-  const pendulumNode = usePendulumNode();
-  const assetHubNode = useAssetHubNode();
+  const { apiComponents: pendulumNode } = usePendulumNode();
+  const { apiComponents: assetHubNode } = useAssetHubNode();
 
   const sep24FirstIntervalRef = useRef<number | undefined>(undefined);
 
@@ -252,6 +252,10 @@ export const useMainProcess = () => {
     }
 
     try {
+      if (!pendulumNode) {
+        throw new Error('Pendulum node not initialized');
+      }
+
       const initialState = await constructInitialState({
         sep24Id: firstSep24Response.id,
         stellarEphemeralSecret: executionInputState.stellarEphemeralSecret,
@@ -302,6 +306,11 @@ export const useMainProcess = () => {
     if (wagmiConfig.state.status !== 'connected') return;
 
     (async () => {
+      if (!pendulumNode || !assetHubNode) {
+        console.error('Polkadot nodes not initialized');
+        return;
+      }
+
       const nextState = await advanceOfframpingState(offrampingState, {
         renderEvent: addEvent,
         wagmiConfig,
