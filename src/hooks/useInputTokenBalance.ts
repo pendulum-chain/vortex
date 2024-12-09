@@ -29,7 +29,7 @@ const useEvmBalance = (
 const useAssetHubBalance = (assetId?: number): string | undefined => {
   const [balance, setBalance] = useState<string>();
   const { walletAccount } = usePolkadotWalletState();
-  const assetHubNode = useAssetHubNode();
+  const { apiComponents: assetHubNode } = useAssetHubNode();
 
   useEffect(() => {
     if (!walletAccount || !assetHubNode) return;

@@ -23,10 +23,6 @@ export const moonbeamConfig = createConfig({
 export async function executeMoonbeamXCM(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
   const { pendulumNode } = context;
 
-  if (!pendulumNode) {
-    throw new Error('Pendulum node not available');
-  }
-
   const { ss58Format } = pendulumNode;
 
   const keyring = new Keyring({ type: 'sr25519', ss58Format });

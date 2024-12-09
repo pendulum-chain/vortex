@@ -20,6 +20,7 @@ interface NetworkState {
   assetHub?: ApiComponents;
   pendulum?: ApiComponents;
 }
+
 interface PolkadotNodeContextInterface {
   state: NetworkState;
   isFetched: boolean;
@@ -72,12 +73,12 @@ const usePolkadotNodes = () => {
 
 const useAssetHubNode = () => {
   const { state, isFetched } = usePolkadotNodes();
-  return { ...(state.assetHub as ApiComponents), isFetched };
+  return { apiComponents: state.assetHub, isFetched };
 };
 
 const usePendulumNode = () => {
   const { state, isFetched } = usePolkadotNodes();
-  return { ...(state.pendulum as ApiComponents), isFetched };
+  return { apiComponents: state.pendulum, isFetched };
 };
 
 const initializeNetworks = async (): Promise<NetworkState> => {
