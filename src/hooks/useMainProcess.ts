@@ -72,7 +72,6 @@ export const useMainProcess = () => {
         setSigningPhase(undefined);
       }
 
-      console.log('\x1b[33m2>>>>> state', state, '\x1b');
       setOfframpingState(state);
 
       if (state?.phase === 'success') {
@@ -313,19 +312,13 @@ export const useMainProcess = () => {
         walletAccount,
       });
 
-      console.log('\x1b[36m>>>>> nextState', nextState, '\x1b', offrampingState !== nextState);
-      console.log(
-        '\x1b[36m>>>>> offrampingState',
-        offrampingState,
-        '\x1b',
-        JSON.stringify(offrampingState) !== JSON.stringify(nextState),
-      );
-
       if (JSON.stringify(offrampingState) !== JSON.stringify(nextState)) {
         updateHookStateFromState(nextState);
       }
     })();
-    // @todo
+    // This effect has dependencies that are used inside the async function (pendulumNode, assetHubNode, walletAccount)
+    // but we intentionally exclude them from the dependency array to prevent unnecessary re-renders.
+    // These dependencies are stable and won't change during the lifecycle of this hook.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offrampingState, trackEvent, updateHookStateFromState, wagmiConfig]);
 

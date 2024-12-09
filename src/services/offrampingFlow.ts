@@ -121,7 +121,6 @@ export type StateTransitionFunction = (
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
-// State handlers by network
 const STATE_ADVANCEMENT_HANDLERS: Record<keyof typeof Networks, Record<OfframpingPhase, StateTransitionFunction>> = {
   Polygon: {
     prepareTransactions,
