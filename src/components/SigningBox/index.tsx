@@ -2,7 +2,7 @@ import { Progress } from 'react-daisyui';
 import { FC } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
-import { SigningPhase } from '../../hooks/useMainProcess';
+import { SigningPhase } from '../../hooks/offramp/useMainProcess';
 import { Networks, useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 

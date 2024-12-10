@@ -8,7 +8,7 @@ import { ApiPromise } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
 
 import { RenderEventHandler } from '../components/GenericEvent';
-import { SigningPhase } from '../hooks/useMainProcess';
+import { SigningPhase } from '../hooks/offramp/useMainProcess';
 import { TrackableEvent } from '../contexts/events';
 import { Networks } from '../contexts/network';
 import { SepResult } from './anchor';

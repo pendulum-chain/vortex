@@ -40,7 +40,7 @@ import { showToast, ToastMessage } from '../../helpers/notifications';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
-import { useMainProcess } from '../../hooks/useMainProcess';
+import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 
 import { getVaultsForCurrency } from '../../services/phases/polkadot/spacewalk';
 import { testRoute } from '../../services/phases/squidrouter/route';
