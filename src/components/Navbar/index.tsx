@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import whiteLogo from '../../assets/logo/white.png';
 import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
 import { NetworkSelector } from '../NetworkSelector';
+import { useNetwork } from '../../contexts/network';
 
 const links = [
   { title: 'Offramp', href: '/' },
@@ -93,6 +94,7 @@ const Links = () => (
 
 export const Navbar = () => {
   const [showMenu, setShowMenu] = useState(false);
+  const { networkSelectorDisabled } = useNetwork();
 
   return (
     <header className="flex items-center justify-between px-4 py-4 bg-blue-950 lg:py-7 lg:px-10">
@@ -106,7 +108,7 @@ export const Navbar = () => {
         </nav>
       </div>
       <div className="flex items-center">
-        <NetworkSelector />
+        <NetworkSelector disabled={networkSelectorDisabled} />
         <ConnectWalletButton />
         <MobileMenu onClick={() => setShowMenu(true)} />
         <MobileMenuList showMenu={showMenu} closeMenu={() => setShowMenu(false)} />

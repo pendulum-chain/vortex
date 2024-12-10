@@ -62,7 +62,7 @@ export const SwapPage = () => {
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
-  const { selectedNetwork } = useNetwork();
+  const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
   useEffect(() => {
@@ -247,6 +247,12 @@ export const SwapPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (offrampingState?.phase !== undefined) {
+      setNetworkSelectorDisabled(true);
+    }
+  }, [offrampingState, setNetworkSelectorDisabled]);
+
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
@@ -363,8 +369,13 @@ export const SwapPage = () => {
   }
 
   if (offrampingState !== undefined || offrampingStarted) {
+    const isAssetHubFlow =
+      selectedNetwork === Networks.AssetHub &&
+      (offrampingState?.phase === 'pendulumFundEphemeral' || offrampingState?.phase === 'executeAssetHubXCM');
     const showMainScreenAnyway =
-      offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
+      offrampingState === undefined ||
+      ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase) ||
+      isAssetHubFlow;
     if (!showMainScreenAnyway) {
       return <ProgressPage offrampingState={offrampingState} />;
     }

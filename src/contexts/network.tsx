@@ -14,25 +14,40 @@ interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
   selectedNetwork: Networks;
   setSelectedNetwork: (network: Networks) => void;
+  setOnSelectedNetworkChange: (callback: (network: Networks) => void) => void;
+  networkSelectorDisabled: boolean;
+  setNetworkSelectorDisabled: (disabled: boolean) => void;
 }
 
 const NetworkContext = createContext<NetworkContextType>({
   walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
   selectedNetwork: Networks.AssetHub,
   setSelectedNetwork: () => null,
+  setOnSelectedNetworkChange: () => null,
+  networkSelectorDisabled: false,
+  setNetworkSelectorDisabled: () => null,
 });
 
-export const NetworkProvider = ({ children }: { children: preact.ComponentChildren }) => {
+interface NetworkProviderProps {
+  children: preact.ComponentChildren;
+}
+
+export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { state: selectedNetworkLocalStorage, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
     key: LocalStorageKeys.SELECTED_NETWORK,
     defaultValue: Networks.AssetHub,
   });
 
   const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(selectedNetworkLocalStorage);
+  const [onNetworkChange, setOnSelectedNetworkChange] = useState<((network: Networks) => void) | undefined>();
+  const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
   const { chains, switchChain } = useSwitchChain();
 
   const setSelectedNetwork = useCallback(
     (networkId: Networks) => {
+      if (onNetworkChange) {
+        onNetworkChange(networkId);
+      }
       setSelectedNetworkState(networkId);
       setSelectedNetworkLocalStorage(networkId);
       const chain = chains.find((c) => c.id === Number(networkId));
@@ -40,7 +55,7 @@ export const NetworkProvider = ({ children }: { children: preact.ComponentChildr
         switchChain({ chainId: chain.id });
       }
     },
-    [switchChain, chains, setSelectedNetworkLocalStorage],
+    [switchChain, chains, setSelectedNetworkLocalStorage, onNetworkChange],
   );
 
   useEffect(() => {
@@ -62,6 +77,9 @@ export const NetworkProvider = ({ children }: { children: preact.ComponentChildr
         walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
         selectedNetwork,
         setSelectedNetwork,
+        networkSelectorDisabled,
+        setNetworkSelectorDisabled,
+        setOnSelectedNetworkChange,
       }}
     >
       {children}

@@ -48,7 +48,7 @@ export const useMainProcess = () => {
   const [anchorSessionParamsState, setAnchorSessionParams] = useState<IAnchorSessionParams | undefined>(undefined);
   const [firstSep24ResponseState, setFirstSep24Response] = useState<ISep24Intermediate | undefined>(undefined);
   const [executionInputState, setExecutionInputState] = useState<ExtendedExecutionInput | undefined>(undefined);
-  const { selectedNetwork } = useNetwork();
+  const { selectedNetwork, setOnSelectedNetworkChange } = useNetwork();
   const { walletAccount } = usePolkadotWalletState();
 
   const { apiComponents: pendulumNode } = usePendulumNode();
@@ -113,6 +113,31 @@ export const useMainProcess = () => {
       setAnchorSessionParams(undefined);
     }
   }, [setFirstSep24Response, setExecutionInputState, setAnchorSessionParams]);
+
+  const resetOfframpingState = useCallback(() => {
+    setOfframpingState(undefined);
+    setOfframpingStarted(false);
+    setIsInitiating(false);
+    setAnchorSessionParams(undefined);
+    setFirstSep24Response(undefined);
+    setExecutionInputState(undefined);
+    cleanSep24FirstVariables();
+    clearOfframpingState();
+    setSigningPhase(undefined);
+  }, [
+    setOfframpingState,
+    setOfframpingStarted,
+    setIsInitiating,
+    setAnchorSessionParams,
+    setFirstSep24Response,
+    setExecutionInputState,
+    cleanSep24FirstVariables,
+    setSigningPhase,
+  ]);
+
+  useEffect(() => {
+    setOnSelectedNetworkChange(resetOfframpingState);
+  }, [setOnSelectedNetworkChange, resetOfframpingState]);
 
   // Main submit handler. Offramp button.
   const handleOnSubmit = useCallback(
@@ -268,8 +293,6 @@ export const useMainProcess = () => {
         pendulumNode,
       });
 
-      console.log('\x1b[34m1>>>>> initialState', initialState, '\x1b[0m');
-
       trackEvent(createTransactionEvent('kyc_completed', initialState, selectedNetwork));
       updateHookStateFromState(initialState);
     } catch (error) {
@@ -298,7 +321,6 @@ export const useMainProcess = () => {
 
   const continueFailedFlow = useCallback(() => {
     const nextState = recoverFromFailure(offrampingState);
-    console.log('\x1b[35m3>>>>> recoveredState', nextState, '\x1b[0m');
     updateHookStateFromState(nextState);
   }, [updateHookStateFromState, offrampingState]);
 

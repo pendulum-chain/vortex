@@ -3,8 +3,8 @@ import { FC } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { SigningPhase } from '../../hooks/useMainProcess';
-import { Spinner } from '../Spinner';
 import { Networks, useNetwork } from '../../contexts/network';
+import { Spinner } from '../Spinner';
 
 interface ProgressConfig {
   started: string;
@@ -16,8 +16,8 @@ interface ProgressConfig {
 const PROGRESS_CONFIG: Record<Networks, ProgressConfig> = {
   [Networks.AssetHub]: {
     started: '33',
-    signed: '66',
     finished: '100',
+    signed: '0',
     approved: '0',
   },
   [Networks.Polygon]: {
@@ -48,7 +48,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
 
   if (!step) return null;
   if (!['started', 'approved', 'signed'].includes(step)) return null;
-  if (selectedNetwork === Networks.AssetHub && step === 'approved') return null;
+  if (selectedNetwork === Networks.AssetHub && (step === 'approved' || step === 'signed')) return null;
 
   const progressValue = PROGRESS_CONFIG[selectedNetwork][step] || '0';
   const { maxSignatures, getSignatureNumber } = SIGNATURE_CONFIG[selectedNetwork];

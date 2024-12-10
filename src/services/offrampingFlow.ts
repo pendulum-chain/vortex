@@ -139,9 +139,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<keyof typeof Networks, Record<Offrampin
   },
   AssetHub: {
     prepareTransactions,
-    squidRouter,
     pendulumFundEphemeral,
-    executeMoonbeamXCM,
     executeAssetHubXCM,
     subsidizePreSwap,
     nablaApprove,
