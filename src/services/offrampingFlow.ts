@@ -121,13 +121,15 @@ export type StateTransitionFunction = (
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
-const STATE_ADVANCEMENT_HANDLERS: Record<keyof typeof Networks, Record<OfframpingPhase, StateTransitionFunction>> = {
+const STATE_ADVANCEMENT_HANDLERS: Record<
+  keyof typeof Networks,
+  Partial<Record<OfframpingPhase, StateTransitionFunction>>
+> = {
   Polygon: {
     prepareTransactions,
     squidRouter,
     pendulumFundEphemeral,
     executeMoonbeamXCM,
-    executeAssetHubXCM,
     subsidizePreSwap,
     nablaApprove,
     nablaSwap,

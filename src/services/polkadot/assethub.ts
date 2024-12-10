@@ -52,6 +52,7 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
 
     if (assetHubXcmTransactionHash === undefined) {
       const tx = createAssethubAssetTransfer(assetHubNode.api, pendulumEphemeralAddress, inputAmount.raw);
+      context.setSigningPhase('started');
       const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as Signer });
       setSigningPhase?.('finished');
       return { ...state, assetHubXcmTransactionHash: hash.toString() };
