@@ -1,19 +1,23 @@
+// @todo: remove no-explicit-any
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ApiPromise, Keyring } from '@polkadot/api';
-import { Asset } from 'stellar-sdk';
-import { stellarHexToPublic } from './convert';
-import { parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from './eventParsers';
-import { ApiComponents } from '../../contexts/polkadotNode';
-import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
-import { Buffer } from 'buffer';
-import { ISubmittableResult } from '@polkadot/types/types';
+
 import { WalletAccount } from '@talismn/connect-wallets';
-import { getAddressForFormat } from '../../helpers/addressFormatter';
-import { KeyringPair } from '@polkadot/keyring/types';
-import { SpacewalkPrimitivesCurrencyId } from '@pendulum-chain/types/interfaces';
-import { SubmittableExtrinsic } from '@polkadot/api/types';
-import { SignerOptions } from '@polkadot/api-base/types';
+import { Asset } from 'stellar-sdk';
+import { Buffer } from 'buffer';
 import { Big } from 'big.js';
+
+import { SpacewalkPrimitivesCurrencyId } from '@pendulum-chain/types/interfaces';
+import { SpacewalkPrimitivesVaultId } from '@polkadot/types/lookup';
+import { SubmittableExtrinsic } from '@polkadot/api/types';
+import { ISubmittableResult } from '@polkadot/types/types';
+import { SignerOptions } from '@polkadot/api-base/types';
+import { KeyringPair } from '@polkadot/keyring/types';
+import { ApiPromise, Keyring } from '@polkadot/api';
+
+import { ApiComponents } from '../../../contexts/polkadotNode';
+import { getAddressForFormat } from '../../../helpers/addressFormatter';
+import { parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from './eventParsers';
+import { stellarHexToPublic } from './convert';
 
 export function extractAssetFromWrapped(wrapped: SpacewalkPrimitivesCurrencyId) {
   if (!wrapped.isStellar) {

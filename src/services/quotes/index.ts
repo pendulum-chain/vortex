@@ -1,6 +1,7 @@
-import Big from 'big.js';
-import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { polygon } from 'wagmi/chains';
+import Big from 'big.js';
+
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { Networks } from '../../contexts/network';
 
 const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;

@@ -1,25 +1,25 @@
-import { ArrowDownIcon } from '@heroicons/react/20/solid';
-import { ApiPromise } from '@polkadot/api';
-import Big from 'big.js';
-import { Fragment } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Fragment } from 'preact';
 import { useAccount } from 'wagmi';
+import { ArrowDownIcon } from '@heroicons/react/20/solid';
+import Big from 'big.js';
 
-import { AssetNumericInput } from '../../components/AssetNumericInput';
-import { BenefitsList } from '../../components/BenefitsList';
-import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
-import { ExchangeRate } from '../../components/ExchangeRate';
+import { ApiPromise } from '@polkadot/api';
+
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
-import { FeeComparison } from '../../components/FeeComparison';
-import { LabeledInput } from '../../components/LabeledInput';
-import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { SignInModal } from '../../components/SignIn';
-import { SigningBox } from '../../components/SigningBox';
+import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { TermsAndConditions } from '../../components/TermsAndConditions';
+import { AssetNumericInput } from '../../components/AssetNumericInput';
+import { useSwapForm } from '../../components/Nabla/useSwapForm';
+import { FeeComparison } from '../../components/FeeComparison';
+import { BenefitsList } from '../../components/BenefitsList';
+import { ExchangeRate } from '../../components/ExchangeRate';
+import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
+import { SigningBox } from '../../components/SigningBox';
+import { SignInModal } from '../../components/SignIn';
 
-import { config } from '../../config';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import {
   getInputTokenDetails,
@@ -28,21 +28,27 @@ import {
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
 } from '../../constants/tokenConfig';
+import { config } from '../../config';
+
 import { useEventsContext } from '../../contexts/events';
 import { Networks, useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useSiweContext } from '../../contexts/siwe';
+
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
+
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
-import { useMainProcess } from '../../hooks/useMainProcess';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
+import { useMainProcess } from '../../hooks/useMainProcess';
+
+import { getVaultsForCurrency } from '../../services/phases/polkadot/spacewalk';
+import { testRoute } from '../../services/phases/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
-import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
-import { testRoute } from '../../services/squidrouter/route';
+
 import { BaseLayout } from '../../layouts';
-import { FailurePage } from '../failure';
 import { ProgressPage } from '../progress';
+import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
 
 const Arrow = () => (

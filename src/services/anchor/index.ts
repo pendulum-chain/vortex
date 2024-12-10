@@ -1,12 +1,13 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
-import { EventStatus } from '../../components/GenericEvent';
-import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
-import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
 import { keccak256 } from 'viem/utils';
 
-import { config } from '../../config';
+import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
+import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
+import { EventStatus } from '../../components/GenericEvent';
+
 import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { config } from '../../config';
 
 interface TomlValues {
   signingKey?: string;

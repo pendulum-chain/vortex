@@ -1,6 +1,7 @@
 import { Horizon } from 'stellar-sdk';
-import { HORIZON_URL } from '../../constants/constants';
 import Big from 'big.js';
+
+import { HORIZON_URL } from '../../../constants/constants';
 
 export const getStellarBalanceUnits = async (publicKey: string, assetCode: string): Promise<Big> => {
   try {

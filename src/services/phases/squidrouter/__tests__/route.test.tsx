@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { getRouteTransactionRequest, testRoute } from '../route';
-import { INPUT_TOKEN_CONFIG, InputTokenDetails } from '../../../constants/tokenConfig';
-import { createSquidRouterHash } from '../../../helpers/crypto';
-import { createRandomString } from '../../../helpers/crypto';
+
+import { INPUT_TOKEN_CONFIG } from '../../../../constants/tokenConfig';
+import { InputTokenDetails } from '../../../../constants/tokenConfig';
+import { createSquidRouterHash } from '../../../../helpers/crypto';
+import { createRandomString } from '../../../../helpers/crypto';
 
 // We need to add a delay to the beforeEach hook to ensure that the test does not run before the SquidRouter API is ready
 beforeEach(() => {

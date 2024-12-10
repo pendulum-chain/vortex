@@ -1,38 +1,41 @@
 import { WalletAccount } from '@talismn/connect-wallets';
 import * as Sentry from '@sentry/react';
-import Big from 'big.js';
 import { Config } from 'wagmi';
+import Big from 'big.js';
+
+import { decodeAddress } from '@polkadot/util-crypto';
 import { ApiPromise } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
-import { decodeAddress } from '@polkadot/util-crypto';
 
-import { storageService } from './storage/local';
-import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
-import { squidRouter } from './squidrouter/process';
-import { SepResult } from './anchor';
-import { multiplyByPowerOfTen } from '../helpers/contracts';
-import { stellarCleanup, stellarOfframp } from './stellar';
-import { nablaApprove, nablaSwap } from './nabla';
 import { RenderEventHandler } from '../components/GenericEvent';
-import { executeSpacewalkRedeem } from './polkadot';
 import { SigningPhase } from '../hooks/useMainProcess';
-import { prepareTransactions } from './signedTransactions';
-import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
-import encodePayload from './squidrouter/payload';
-import { executeMoonbeamXCM } from './moonbeam';
-import { executeAssetHubXCM } from './polkadot/assethub';
 import { TrackableEvent } from '../contexts/events';
-import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 import { Networks } from '../contexts/network';
+import { SepResult } from './anchor';
+
+import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
+import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
+
+import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
+import { multiplyByPowerOfTen } from '../helpers/contracts';
+import { storageService } from './storage/local';
+
+import encodePayload from './phases/squidrouter/payload';
+import { squidRouter } from './phases/squidrouter/process';
+import { prepareTransactions } from './phases/signedTransactions';
+import { stellarCleanup, stellarOfframp } from './phases/stellar';
+import { executeMoonbeamXCM } from './phases/moonbeam';
+import { nablaApprove, nablaSwap } from './phases/nabla';
+import { executeAssetHubXCM } from './phases/polkadot/assethub';
+import { executeSpacewalkRedeem } from './phases/polkadot';
 import {
   pendulumFundEphemeral,
   subsidizePreSwap,
   subsidizePostSwap,
   pendulumCleanup,
   createPendulumEphemeralSeed,
-} from './polkadot/ephemeral';
+} from './phases/polkadot/ephemeral';
 
-// Types
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
   message?: string;

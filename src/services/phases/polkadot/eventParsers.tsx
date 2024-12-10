@@ -1,6 +1,8 @@
+// @todo: remove no-explicit-any
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { stellarHexToPublic, hexToString } from './convert';
 import Big from 'big.js';
+
+import { stellarHexToPublic, hexToString } from './convert';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
 

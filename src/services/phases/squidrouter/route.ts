@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { encodeFunctionData } from 'viem';
-import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
-import erc20ABI from '../../contracts/ERC20';
+
+import squidReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
+import { InputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
+import erc20ABI from '../../../contracts/ERC20';
 import { squidRouterConfig } from './config';
-import { InputTokenDetails, isEvmInputTokenDetails } from '../../constants/tokenConfig';
 
 interface RouteParams {
   fromAddress: string;

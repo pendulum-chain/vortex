@@ -1,17 +1,19 @@
-import { u8aToHex } from '@polkadot/util';
-import { decodeAddress } from '@polkadot/util-crypto';
-import { Keyring } from '@polkadot/api';
 import { http, createConfig, readContract, waitForTransactionReceipt } from '@wagmi/core';
 import { moonbeam } from '@wagmi/core/chains';
-
-import { ExecutionContext, OfframpingState } from './offrampingFlow';
-import encodePayload from './squidrouter/payload';
-import { SIGNING_SERVICE_URL } from '../constants/constants';
-import squidReceiverABI from '../../mooncontracts/splitReceiverABI.json';
-import { squidRouterConfig } from './squidrouter/config';
-import { waitUntilTrue } from '../helpers/function';
 import Big from 'big.js';
+
+import { decodeAddress } from '@polkadot/util-crypto';
+import { u8aToHex } from '@polkadot/util';
+import { Keyring } from '@polkadot/api';
+
+import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { waitUntilTrue } from '../../helpers/function';
+import encodePayload from './squidrouter/payload';
+import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+
 import { getRawInputBalance } from './polkadot/ephemeral';
+import { squidRouterConfig } from './squidrouter/config';
 
 export const moonbeamConfig = createConfig({
   chains: [moonbeam],

@@ -1,19 +1,42 @@
-import { ApiPromise, Keyring } from '@polkadot/api';
-import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { waitForTransactionReceipt } from '@wagmi/core';
 import axios from 'axios';
 import Big from 'big.js';
 
-import { getInputTokenDetails, getPendulumCurrencyId } from '../../constants/tokenConfig';
-import { SIGNING_SERVICE_URL } from '../../constants/constants';
-import { multiplyByPowerOfTen } from '../../helpers/contracts';
-import { waitUntilTrue } from '../../helpers/function';
-import { ExecutionContext, OfframpingState } from '../offrampingFlow';
-import { fetchSigningServiceAccountId } from '../signingService';
+import { mnemonicGenerate } from '@polkadot/util-crypto';
+import { ApiPromise, Keyring } from '@polkadot/api';
+
+import { getInputTokenDetails, getPendulumCurrencyId } from '../../../constants/tokenConfig';
+import { SIGNING_SERVICE_URL } from '../../../constants/constants';
+
+import { multiplyByPowerOfTen } from '../../../helpers/contracts';
+import { waitUntilTrue } from '../../../helpers/function';
+
+import { Networks } from '../../../contexts/network';
+import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
+import { fetchSigningServiceAccountId } from '../../signingService';
 import { isHashRegistered } from '../moonbeam';
-import { Networks } from '../../contexts/network';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
+
+async function isEphemeralFunded(state: OfframpingState, context: ExecutionContext) {
+  const { pendulumNode } = context;
+  const { pendulumEphemeralSeed } = state;
+  if (!pendulumNode) {
+    throw new Error('Pendulum node not available');
+  }
+
+  const keyring = new Keyring({ type: 'sr25519', ss58Format: pendulumNode.ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
+  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();
+
+  const { data: balance } = await pendulumNode.api.query.system.account(ephemeralKeypair.address);
+  console.log('Funding amount', balance, balance.free.toString());
+
+  // check if balance is higher than minimum required, then we consider the account ready
+  return Big(balance.free.toString()).gte(fundingAmountRaw);
+}
 
 export async function getEphemeralAddress(state: OfframpingState, context: ExecutionContext) {
   const { pendulumNode } = context;
@@ -89,26 +112,6 @@ export async function pendulumFundEphemeral(
     ...state,
     phase: state.network === Networks.AssetHub ? 'executeAssetHubXCM' : 'executeMoonbeamXCM',
   };
-}
-
-export async function isEphemeralFunded(state: OfframpingState, context: ExecutionContext) {
-  const { pendulumNode } = context;
-  const { pendulumEphemeralSeed } = state;
-  if (!pendulumNode) {
-    throw new Error('Pendulum node not available');
-  }
-
-  const keyring = new Keyring({ type: 'sr25519', ss58Format: pendulumNode.ss58Format });
-  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
-
-  const fundingAmountUnits = Big(FUNDING_AMOUNT_UNITS);
-  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();
-
-  const { data: balance } = await pendulumNode.api.query.system.account(ephemeralKeypair.address);
-  console.log('Funding amount', balance, balance.free.toString());
-
-  // check if balance is higher than minimum required, then we consider the account ready
-  return Big(balance.free.toString()).gte(fundingAmountRaw);
 }
 
 export async function createPendulumEphemeralSeed(pendulumNode: {

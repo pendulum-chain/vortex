@@ -4,8 +4,8 @@ import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import Big from 'big.js';
 
-import { ExecutionContext, OfframpingState } from '../offrampingFlow';
-import { waitUntilTrue } from '../../helpers/function';
+import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
+import { waitUntilTrue } from '../../../helpers/function';
 import { getRawInputBalance } from './ephemeral';
 
 export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {

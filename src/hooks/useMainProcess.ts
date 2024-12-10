@@ -1,13 +1,22 @@
 import { useState, useEffect, useCallback, useRef, StateUpdater } from 'preact/compat';
-
-// Configs, Types, constants
-import { createStellarEphemeralSecret, sep24First } from '../services/anchor';
-import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
-
-import { fetchTomlValues, sep10, sep24Second } from '../services/anchor';
-// Utils
 import { useAccount, useConfig, useSwitchChain } from 'wagmi';
 import { polygon } from 'wagmi/chains';
+import Big from 'big.js';
+
+import { EventStatus, GenericEvent } from '../components/GenericEvent';
+import { calculateTotalReceive } from '../components/FeeCollapse';
+
+import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
+import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
+
+import { createTransactionEvent, useEventsContext } from '../contexts/events';
+import { useAssetHubNode, usePendulumNode } from '../contexts/polkadotNode';
+import { usePolkadotWalletState } from '../contexts/polkadotWallet';
+import { useSiweContext } from '../contexts/siwe';
+import { useNetwork } from '../contexts/network';
+
+import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First, sep24Second } from '../services/anchor';
+import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
 import {
   clearOfframpingState,
   recoverFromFailure,
@@ -16,18 +25,8 @@ import {
   constructInitialState,
   OfframpingState,
 } from '../services/offrampingFlow';
-import { EventStatus, GenericEvent } from '../components/GenericEvent';
-import Big from 'big.js';
-import { createTransactionEvent, useEventsContext } from '../contexts/events';
-import { showToast, ToastMessage } from '../helpers/notifications';
-import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
-import { OFFRAMPING_PHASE_SECONDS } from '../pages/progress';
-import { useNetwork } from '../contexts/network';
 
-import { useSiweContext } from '../contexts/siwe';
-import { calculateTotalReceive } from '../components/FeeCollapse';
-import { useAssetHubNode, usePendulumNode } from '../contexts/polkadotNode';
-import { usePolkadotWalletState } from '../contexts/polkadotWallet';
+import { showToast, ToastMessage } from '../helpers/notifications';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
