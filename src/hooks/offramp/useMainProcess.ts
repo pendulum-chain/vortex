@@ -1,26 +1,17 @@
 import { useState, useEffect, useCallback, StateUpdater } from 'preact/compat';
-import { useAccount, useConfig, useSwitchChain } from 'wagmi';
-import { polygon } from 'wagmi/chains';
+import { useConfig } from 'wagmi';
 import Big from 'big.js';
 
 import { EventStatus, GenericEvent } from '../../components/GenericEvent';
-import { calculateTotalReceive } from '../../components/FeeCollapse';
 
-import {
-  getInputTokenDetails,
-  InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
-  OutputTokenType,
-} from '../../constants/tokenConfig';
+import { getInputTokenDetails, InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
 
 import { createTransactionEvent, useEventsContext } from '../../contexts/events';
 import { useAssetHubNode, usePendulumNode } from '../../contexts/polkadotNode';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-import { useSiweContext } from '../../contexts/siwe';
 import { useNetwork } from '../../contexts/network';
 
-import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First } from '../../services/anchor';
 import {
   clearOfframpingState,
   recoverFromFailure,
@@ -30,6 +21,7 @@ import {
 } from '../../services/offrampingFlow';
 
 import { useSEP24 } from './useSEP24';
+import { useSubmitOfframp } from './useSubmitOfframp';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -46,6 +38,7 @@ export const useMainProcess = () => {
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
+
   const { selectedNetwork, setOnSelectedNetworkChange } = useNetwork();
   const { walletAccount } = usePolkadotWalletState();
 
@@ -53,10 +46,7 @@ export const useMainProcess = () => {
   const { apiComponents: assetHubNode } = useAssetHubNode();
 
   const wagmiConfig = useConfig();
-  const { address } = useAccount();
-  const { switchChain } = useSwitchChain();
   const { trackEvent, resetUniqueEvents } = useEventsContext();
-  const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
 
   const [, setEvents] = useState<GenericEvent[]>([]);
   const {
@@ -68,6 +58,18 @@ export const useMainProcess = () => {
     cleanSep24FirstVariables,
     handleOnAnchorWindowOpen: sep24HandleOnAnchorWindowOpen,
   } = useSEP24();
+
+  const handleOnSubmit = useSubmitOfframp({
+    firstSep24IntervalRef,
+    setFirstSep24Response,
+    setExecutionInput,
+    setAnchorSessionParams,
+    cleanSep24FirstVariables,
+    offrampingStarted,
+    offrampingState,
+    setOfframpingStarted,
+    setIsInitiating,
+  });
 
   const updateHookStateFromState = useCallback(
     (state: OfframpingState | undefined) => {
@@ -130,105 +132,6 @@ export const useMainProcess = () => {
   useEffect(() => {
     setOnSelectedNetworkChange(resetOfframpingState);
   }, [setOnSelectedNetworkChange, resetOfframpingState]);
-
-  // Main submit handler. Offramp button.
-  const handleOnSubmit = useCallback(
-    (executionInput: ExecutionInput) => {
-      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
-
-      if (offrampingStarted || offrampingState !== undefined) {
-        setIsInitiating(false);
-        return;
-      }
-
-      (async () => {
-        // If we already are on the polygon chain, we don't need to switch and this will be a no-op
-        switchChain({ chainId: polygon.id });
-
-        setOfframpingStarted(true);
-        trackEvent({
-          event: 'transaction_confirmation',
-          from_asset: getInputTokenDetails(selectedNetwork, inputTokenType).assetSymbol,
-          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-          from_amount: amountInUnits,
-          to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
-        });
-
-        try {
-          const stellarEphemeralSecret = createStellarEphemeralSecret();
-
-          const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
-          const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
-
-          const { token: sep10Token, sep10Account } = await sep10(
-            tomlValues,
-            stellarEphemeralSecret,
-            outputTokenType,
-            address,
-            checkAndWaitForSignature,
-            forceRefreshAndWaitForSignature,
-            addEvent,
-          );
-
-          const anchorSessionParams = {
-            token: sep10Token,
-            tomlValues: tomlValues,
-            tokenConfig: outputToken,
-            offrampAmount: offrampAmount.toFixed(2, 0),
-          };
-          setExecutionInput({
-            ...executionInput,
-            stellarEphemeralSecret,
-          });
-          setAnchorSessionParams(anchorSessionParams);
-
-          const fetchAndUpdateSep24Url = async () => {
-            const firstSep24Response = await sep24First(anchorSessionParams, sep10Account, outputTokenType);
-            const url = new URL(firstSep24Response.url);
-            url.searchParams.append('callback', 'postMessage');
-            firstSep24Response.url = url.toString();
-            setFirstSep24Response(firstSep24Response);
-
-            console.log('SEP24 url:', firstSep24Response.url);
-          };
-
-          const executeFinishInitialState = async () => {
-            try {
-              await fetchAndUpdateSep24Url();
-            } catch (error) {
-              console.error('Some error occurred finalizing the initial state of the offramping process', error);
-              setInitializeFailed(true);
-              setOfframpingStarted(false);
-              cleanSep24FirstVariables();
-            }
-          };
-
-          firstSep24IntervalRef.current = window.setInterval(fetchAndUpdateSep24Url, 20000);
-          executeFinishInitialState().finally(() => setIsInitiating(false));
-        } catch (error) {
-          console.error('Some error occurred initializing the offramping process', error);
-          setInitializeFailed(true);
-          setOfframpingStarted(false);
-          setIsInitiating(false);
-        }
-      })();
-    },
-    [
-      offrampingStarted,
-      offrampingState,
-      switchChain,
-      trackEvent,
-      selectedNetwork,
-      address,
-      checkAndWaitForSignature,
-      forceRefreshAndWaitForSignature,
-      setExecutionInput,
-      setAnchorSessionParams,
-      firstSep24IntervalRef,
-      setFirstSep24Response,
-      cleanSep24FirstVariables,
-    ],
-  );
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
     if (!pendulumNode) {
