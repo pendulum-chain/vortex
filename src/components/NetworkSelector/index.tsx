@@ -100,11 +100,15 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
     setIsOpen(false);
   };
 
+  const wrapperProps = disabled
+    ? {
+        className: 'tooltip tooltip-primary tooltip-bottom before:whitespace-pre-wrap before:content-[attr(data-tip)]',
+        'data-tip': 'The offramp is in progress. Cannot switch networks.',
+      }
+    : {};
+
   return (
-    <div
-      className="tooltip tooltip-primary tooltip-bottom before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-      data-tip="The offramp is in progress. Cannot switch networks."
-    >
+    <div {...wrapperProps}>
       <div className={`relative mr-2 ${disabled ? 'pointer-events-none' : ''}`} ref={dropdownRef}>
         <NetworkButton
           selectedNetwork={selectedNetwork}
