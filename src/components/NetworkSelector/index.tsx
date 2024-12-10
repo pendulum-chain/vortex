@@ -18,18 +18,26 @@ interface NetworkButtonProps {
   selectedNetwork: Networks;
   isOpen: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }
 
-const NetworkButton = ({ selectedNetwork, isOpen, onClick }: NetworkButtonProps) => (
+const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkButtonProps) => (
   <motion.button
-    className="flex items-center gap-2 px-4 py-2 rounded-full bg-base-100"
+    className={`flex items-center gap-2 px-4 py-2 rounded-full bg-base-100 ${
+      disabled ? 'opacity-50 cursor-not-allowed' : ''
+    }`}
     onClick={onClick}
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
+    whileHover={{ scale: disabled ? 1 : 1.02 }}
+    whileTap={{ scale: disabled ? 1 : 0.98 }}
+    disabled={disabled}
   >
-    <NetworkIcon chainId={selectedNetwork} className="w-5 h-5" />
-    {networkToDisplayName(selectedNetwork)}
-    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+    <NetworkIcon chainId={selectedNetwork} className={`w-5 h-5 ${disabled ? 'opacity-50' : ''}`} />
+    <span className={disabled ? 'opacity-50' : ''}>{networkToDisplayName(selectedNetwork)}</span>
+    <motion.div
+      animate={{ rotate: isOpen ? 180 : 0 }}
+      transition={{ duration: 0.2 }}
+      className={disabled ? 'opacity-50' : ''}
+    >
       <ChevronDownIcon className="block w-4 h-4 ml-1" />
     </motion.div>
   </motion.button>
@@ -38,11 +46,12 @@ const NetworkButton = ({ selectedNetwork, isOpen, onClick }: NetworkButtonProps)
 interface NetworkDropdownProps {
   isOpen: boolean;
   onNetworkSelect: (networkId: NetworkIconType) => void;
+  disabled?: boolean;
 }
 
-const NetworkDropdown = ({ isOpen, onNetworkSelect }: NetworkDropdownProps) => (
+const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownProps) => (
   <AnimatePresence>
-    {isOpen && (
+    {isOpen && !disabled && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -79,7 +88,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement>, callback: () => void
   }, [callback, ref]);
 }
 
-export const NetworkSelector = () => {
+export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -92,9 +101,19 @@ export const NetworkSelector = () => {
   };
 
   return (
-    <div className="relative mr-2" ref={dropdownRef}>
-      <NetworkButton selectedNetwork={selectedNetwork} isOpen={isOpen} onClick={() => setIsOpen(!isOpen)} />
-      <NetworkDropdown isOpen={isOpen} onNetworkSelect={handleNetworkSelect} />
+    <div
+      className="tooltip tooltip-primary tooltip-bottom before:whitespace-pre-wrap before:content-[attr(data-tip)]"
+      data-tip="The offramp is in progress. Cannot switch networks."
+    >
+      <div className={`relative mr-2 ${disabled ? 'pointer-events-none' : ''}`} ref={dropdownRef}>
+        <NetworkButton
+          selectedNetwork={selectedNetwork}
+          isOpen={isOpen}
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={disabled}
+        />
+        <NetworkDropdown isOpen={isOpen} onNetworkSelect={handleNetworkSelect} disabled={disabled} />
+      </div>
     </div>
   );
 };
