@@ -3,7 +3,7 @@ import { SendTransactionErrorType, WriteContractErrorType } from 'viem';
 import * as Sentry from '@sentry/react';
 
 import { showToast, ToastMessage } from '../../../helpers/notifications';
-import { getInputTokenDetails } from '../../../constants/tokenConfig';
+import { getInputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
 import erc20ABI from '../../../contracts/ERC20';
 
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
@@ -14,6 +14,9 @@ export async function squidRouter(
   { wagmiConfig, setSigningPhase, trackEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
+  if (!isEvmInputTokenDetails(inputToken)) {
+    throw new Error('Invalid input token type for squidRouter. Expected EVM token.');
+  }
 
   const accountData = getAccount(wagmiConfig);
   if (accountData?.address === undefined) {
@@ -30,7 +33,7 @@ export async function squidRouter(
   console.log(
     'Asking for approval of',
     transactionRequest?.target,
-    inputToken.pendulumErc20WrapperAddress,
+    inputToken.erc20AddressSourceChain,
     state.inputAmount.units,
   );
 
@@ -41,7 +44,7 @@ export async function squidRouter(
     trackEvent({ event: 'signing_requested', index: 1 });
     approvalHash = await writeContract(wagmiConfig, {
       abi: erc20ABI,
-      address: inputToken.pendulumErc20WrapperAddress as `0x${string}`,
+      address: inputToken.erc20AddressSourceChain,
       functionName: 'approve',
       args: [transactionRequest?.target, state.inputAmount.raw],
     });
