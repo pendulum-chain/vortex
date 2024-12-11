@@ -4,7 +4,6 @@ import { Buffer } from 'buffer';
 import {
   Account,
   Asset,
-  BASE_FEE,
   Horizon,
   Keypair,
   Memo,
@@ -15,7 +14,7 @@ import {
 } from 'stellar-sdk';
 
 import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails, OutputTokenType } from '../../../constants/tokenConfig';
-import { HORIZON_URL, SIGNING_SERVICE_URL } from '../../../constants/constants';
+import { HORIZON_URL, SIGNING_SERVICE_URL, STELLAR_BASE_FEE } from '../../../constants/constants';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { OfframpingState } from '../../offrampingFlow';
 import { SepResult } from '../../anchor';
@@ -96,6 +95,8 @@ async function setupStellarAccount(
   // We set the max time to 10 minutes from now
   const maxTime = Date.now() + 1000 * 60 * 10;
 
+  const baseFee = STELLAR_BASE_FEE;
+
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/create`, {
     method: 'POST',
     headers: {
@@ -105,6 +106,7 @@ async function setupStellarAccount(
       accountId: ephemeralAccountId,
       maxTime,
       assetCode: outputToken.stellarAsset.code.string,
+      baseFee,
     }),
   });
 
@@ -118,12 +120,12 @@ async function setupStellarAccount(
   // a transaction in the meantime
   const fundingAccount = new Account(fundingAccountId, responseData.sequence);
 
-  // add a setOption oeration in order to make this a 2-of-2 multisig account where the
+  // add a setOption operation in order to make this a 2-of-2 multisig account where the
   // funding account is a cosigner
   let createAccountTransaction: Transaction;
   try {
     createAccountTransaction = new TransactionBuilder(fundingAccount, {
-      fee: BASE_FEE,
+      fee: baseFee,
       networkPassphrase: NETWORK_PASSPHRASE,
     })
       .addOperation(
@@ -195,11 +197,12 @@ async function createOfframpAndMergeTransaction(
   }
 
   const stellarAsset = new Asset(code.string, issuer.stellarEncoding);
+  const baseFee = STELLAR_BASE_FEE;
 
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added
   const offrampingTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: BASE_FEE,
+    fee: baseFee,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(
@@ -216,7 +219,7 @@ async function createOfframpAndMergeTransaction(
   // this operation would run completely in the browser
   // that is where the signature of the ephemeral account is added
   const mergeAccountTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: BASE_FEE,
+    fee: baseFee,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(
@@ -250,6 +253,7 @@ async function createOfframpAndMergeTransaction(
       sequence,
       maxTime,
       assetCode: code.string,
+      baseFee,
     }),
   });
 
