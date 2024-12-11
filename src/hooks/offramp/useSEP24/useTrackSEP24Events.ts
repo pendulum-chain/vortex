@@ -5,7 +5,7 @@ import { calculateTotalReceive } from '../../../components/FeeCollapse';
 import { OfframpingState } from '../../../services/offrampingFlow';
 import { Networks } from '../../../contexts/network';
 import {
-  getInputTokenDetails,
+  getInputTokenDetailsOrDefault,
   OUTPUT_TOKEN_CONFIG,
   InputTokenType,
   OutputTokenType,
@@ -24,7 +24,7 @@ export const useTrackSEP24Events = () => {
   const trackKYCStarted = (executionInput: ExecutionInput, selectedNetwork: Networks) => {
     trackEvent({
       event: 'kyc_started',
-      from_asset: getInputTokenDetails(selectedNetwork, executionInput.inputTokenType).assetSymbol,
+      from_asset: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType).assetSymbol,
       to_asset: OUTPUT_TOKEN_CONFIG[executionInput.outputTokenType].stellarAsset.code.string,
       from_amount: executionInput.amountInUnits,
       to_amount: calculateTotalReceive(

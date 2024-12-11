@@ -14,7 +14,7 @@ export async function squidRouter(
   { wagmiConfig, setSigningPhase, trackEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
-  if (!isEvmInputTokenDetails(inputToken)) {
+  if (!inputToken || !isEvmInputTokenDetails(inputToken)) {
     throw new Error('Invalid input token type for squidRouter. Expected EVM token.');
   }
 

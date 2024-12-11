@@ -4,11 +4,11 @@ import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow'
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
-import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { Networks, useNetwork } from '../../contexts/network';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
-  const inputToken = getInputTokenDetails(network, offrampingState.inputTokenType);
+  const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
 
   switch (offrampingState.phase) {

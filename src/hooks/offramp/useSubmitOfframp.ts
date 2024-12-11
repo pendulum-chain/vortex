@@ -6,7 +6,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
-import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import {
   createStellarEphemeralSecret,
   fetchTomlValues,
@@ -68,7 +68,7 @@ export const useSubmitOfframp = ({
 
         trackEvent({
           event: 'transaction_confirmation',
-          from_asset: getInputTokenDetails(selectedNetwork, inputTokenType).assetSymbol,
+          from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
           from_amount: amountInUnits,
           to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),

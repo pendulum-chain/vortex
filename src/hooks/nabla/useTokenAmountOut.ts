@@ -15,7 +15,7 @@ import { useDebouncedValue } from '../useDebouncedValue';
 import { ApiPromise } from '@polkadot/api';
 import { useEffect } from 'preact/hooks';
 import {
-  getInputTokenDetails,
+  getInputTokenDetailsOrDefault,
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
@@ -69,7 +69,7 @@ export function useTokenOutAmount({
     // no action required
   }
 
-  const inputToken = getInputTokenDetails(network, inputTokenType);
+  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   const fromTokenDecimals = inputToken?.decimals;

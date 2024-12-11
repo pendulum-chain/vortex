@@ -14,7 +14,7 @@ import {
 import Big from 'big.js';
 
 import { EventStatus } from '../../components/GenericEvent';
-import { getInputTokenDetails, getPendulumCurrencyId, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getPendulumCurrencyId, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { erc20WrapperAbi } from '../../contracts/ERC20Wrapper';
 import { routerAbi } from '../../contracts/Router';
@@ -84,7 +84,7 @@ export async function prepareNablaApproveTransaction(
 
   const { ss58Format, api } = pendulumNode;
   // event attempting swap
-  const inputToken = getInputTokenDetails(network, inputTokenType);
+  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
 
   console.log('swap', 'Preparing the signed extrinsic for the approval of swap', inputAmount.units, inputTokenType);
 
@@ -145,7 +145,7 @@ export async function nablaApprove(state: OfframpingState, context: ExecutionCon
 
   const { api } = pendulumNode;
 
-  const inputToken = getInputTokenDetails(network, inputTokenType);
+  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
 
   if (!transactions) {
     const message = 'Missing transactions for nablaApprove';
@@ -260,7 +260,7 @@ export async function prepareNablaSwapTransaction(
   const { renderEvent } = context;
 
   // event attempting swap
-  const inputToken = getInputTokenDetails(network, inputTokenType);
+  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
@@ -329,7 +329,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     return successorState;
   }
 
-  const inputToken = getInputTokenDetails(network, inputTokenType);
+  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
   if (transactions === undefined) {

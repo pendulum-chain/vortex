@@ -13,7 +13,12 @@ import { TrackableEvent } from '../contexts/events';
 import { Networks } from '../contexts/network';
 import { SepResult } from './anchor';
 
-import { getInputTokenDetails, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
+import {
+  getInputTokenDetailsOrDefault,
+  InputTokenType,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
+} from '../constants/tokenConfig';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
@@ -172,7 +177,7 @@ export async function constructInitialState({
     pendulumNode,
   );
 
-  const inputTokenDecimals = getInputTokenDetails(network, inputTokenType).decimals;
+  const inputTokenDecimals = getInputTokenDetailsOrDefault(network, inputTokenType).decimals;
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
 
   const inputAmountBig = Big(amountIn);

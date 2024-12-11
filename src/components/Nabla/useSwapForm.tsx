@@ -71,7 +71,7 @@ export const useSwapForm = () => {
     }
 
     const initialFromToken = getInputTokenDetails(network, initialValues.from as InputTokenType);
-    const initialFromTokenIsValid = initialFromToken !== getInputTokenDetails(network, 'usdc');
+    const initialFromTokenIsValid = initialFromToken !== undefined;
     const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;

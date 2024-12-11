@@ -4,7 +4,7 @@ import Big from 'big.js';
 
 import { EventStatus, GenericEvent } from '../../components/GenericEvent';
 
-import { getInputTokenDetails, InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
 
 import { createTransactionEvent, useEventsContext } from '../../contexts/events';
@@ -90,7 +90,7 @@ export const useMainProcess = () => {
           event: 'transaction_failure',
           phase_name: currentPhase,
           phase_index: currentPhaseIndex,
-          from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType).assetSymbol,
+          from_asset: getInputTokenDetailsOrDefault(selectedNetwork, state.inputTokenType).assetSymbol,
           error_message: state.failure.message,
         });
       }

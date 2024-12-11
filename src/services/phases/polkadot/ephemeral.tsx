@@ -5,7 +5,11 @@ import Big from 'big.js';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { ApiPromise, Keyring } from '@polkadot/api';
 
-import { getInputTokenDetails, getPendulumCurrencyId } from '../../../constants/tokenConfig';
+import {
+  getInputTokenDetails,
+  getInputTokenDetailsOrDefault,
+  getPendulumCurrencyId,
+} from '../../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 
 import { multiplyByPowerOfTen } from '../../../helpers/contracts';
@@ -140,7 +144,7 @@ export async function pendulumCleanup(state: OfframpingState, context: Execution
 
   try {
     const { pendulumEphemeralSeed, inputTokenType, outputTokenType, network } = state;
-    const inputToken = getInputTokenDetails(network, inputTokenType);
+    const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
 
     if (!pendulumNode) {
       throw new Error('Pendulum node not available');
@@ -181,7 +185,7 @@ export async function getRawInputBalance(state: OfframpingState, context: Execut
 
   const { api } = pendulumNode;
 
-  const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
+  const inputToken = getInputTokenDetailsOrDefault(state.network, state.inputTokenType);
 
   console.log('getRawInputBalance address: ', await getEphemeralAddress(state, context));
   const balanceResponse = await api.query.tokens.accounts(
@@ -220,6 +224,10 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
   if (currentBalance.eq(Big(0))) {
     throw new Error('Invalid phase: input token did not arrive yet on pendulum');
   }
+  const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
+  if (!inputToken) {
+    throw new Error('Invalid input token');
+  }
 
   const requiredAmount = Big(state.inputAmount.raw).sub(currentBalance);
   if (requiredAmount.gt(Big(0))) {
@@ -233,7 +241,7 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
       body: JSON.stringify({
         address: await getEphemeralAddress(state, context),
         amountRaw: requiredAmount.toFixed(0, 0),
-        tokenToSubsidize: getInputTokenDetails(state.network, state.inputTokenType).pendulumAssetSymbol,
+        tokenToSubsidize: inputToken.pendulumAssetSymbol,
       }),
     });
 

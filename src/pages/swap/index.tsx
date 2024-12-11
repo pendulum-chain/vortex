@@ -22,7 +22,7 @@ import { SignInModal } from '../../components/SignIn';
 
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import {
-  getInputTokenDetails,
+  getInputTokenDetailsOrDefault,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
@@ -127,7 +127,7 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const fromToken = getInputTokenDetails(selectedNetwork, from);
+  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
@@ -175,7 +175,7 @@ export const SwapPage = () => {
     setIsInitiating(true);
 
     const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = getInputTokenDetails(selectedNetwork, from);
+    const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
 
     // both route and stellar vault checks must be valid to proceed
     const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal

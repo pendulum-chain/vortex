@@ -119,20 +119,26 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
   },
 };
 
-export function getInputTokenDetails(network: Networks, inputTokenType: InputTokenType): InputTokenDetails {
+export function getInputTokenDetailsOrDefault(network: Networks, inputTokenType: InputTokenType): InputTokenDetails {
+  const maybeInputTokenDetails = getInputTokenDetails(network, inputTokenType);
+  if (maybeInputTokenDetails) {
+    return maybeInputTokenDetails;
+  }
+
+  console.error(`Invalid input token type: ${inputTokenType}`);
+  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
+  const firstAvailableToken = Object.values(INPUT_TOKEN_CONFIG[networkType])[0];
+  if (!firstAvailableToken) {
+    throw new Error(`No tokens configured for network ${networkType}`);
+  }
+  return firstAvailableToken;
+}
+
+export function getInputTokenDetails(network: Networks, inputTokenType: InputTokenType): InputTokenDetails | undefined {
   const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
 
   try {
-    const tokenDetails = INPUT_TOKEN_CONFIG[networkType][inputTokenType];
-    if (!tokenDetails) {
-      console.error(`Invalid input token type: ${inputTokenType}`);
-      const firstAvailableToken = Object.values(INPUT_TOKEN_CONFIG[networkType])[0];
-      if (!firstAvailableToken) {
-        throw new Error(`No tokens configured for network ${networkType}`);
-      }
-      return firstAvailableToken;
-    }
-    return tokenDetails;
+    return INPUT_TOKEN_CONFIG[networkType][inputTokenType];
   } catch (error) {
     console.error(`Error getting input token details: ${error}`);
     throw error;
