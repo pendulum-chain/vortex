@@ -29,6 +29,25 @@ export function isNetworkEVM(network: Networks): boolean {
   }
 }
 
+export function getNetworkId(network: Networks): number | undefined {
+  switch (network) {
+    case Networks.Polygon:
+      return 137;
+    case Networks.Ethereum:
+      return 1;
+    case Networks.BSC:
+      return 56;
+    case Networks.Arbitrum:
+      return 42161;
+    case Networks.Base:
+      return 8453;
+    case Networks.Avalanche:
+      return 43114;
+    default:
+      return undefined;
+  }
+}
+
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
   selectedNetwork: Networks;
@@ -63,13 +82,16 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { chains, switchChain } = useSwitchChain();
 
   const setSelectedNetwork = useCallback(
-    (networkId: Networks) => {
+    (network: Networks) => {
       if (onNetworkChange) {
-        onNetworkChange(networkId);
+        onNetworkChange(network);
       }
-      setSelectedNetworkState(networkId);
-      setSelectedNetworkLocalStorage(networkId);
-      const chain = chains.find((c) => c.id === Number(networkId));
+      console.log('setSelectedNetwork', network);
+      setSelectedNetworkState(network);
+      setSelectedNetworkLocalStorage(network);
+
+      // Will only switch chain on the EVM conneted wallet, if chain id has been defined in wagmi config.
+      const chain = chains.find((c) => c.id === getNetworkId(network));
       if (chain) {
         switchChain({ chainId: chain.id });
       }
@@ -77,6 +99,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
     [switchChain, chains, setSelectedNetworkLocalStorage, onNetworkChange],
   );
 
+  // Only run on first render
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const networkParam = params.get('network')?.toLowerCase();

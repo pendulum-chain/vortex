@@ -22,7 +22,7 @@ const useEvmBalance = (
     args: [address],
   });
 
-  if (!fromToken || !balance) return undefined;
+  if (!fromToken || (!balance && balance !== BigInt(0))) return undefined;
   return multiplyByPowerOfTen(Big(balance.toString()), -fromToken.decimals).toFixed(2, 0);
 };
 

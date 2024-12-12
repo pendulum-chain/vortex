@@ -4,7 +4,8 @@ import { encodeFunctionData } from 'viem';
 import squidReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
 import { InputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
 import erc20ABI from '../../../contracts/ERC20';
-import { squidRouterConfig } from './config';
+import { getSquidRouterConfig, squidRouterConfigBase } from './config';
+import { Networks } from '../../../contexts/network';
 
 interface RouteParams {
   fromAddress: string;
@@ -32,8 +33,9 @@ function createRouteParams(
   amount: string,
   squidRouterReceiverHash: `0x${string}`,
   inputToken: InputTokenDetails,
+  fromNetwork: Networks,
 ): RouteParams {
-  const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = squidRouterConfig;
+  const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
 
   if (!isEvmInputTokenDetails(inputToken)) {
     throw new Error(`Token ${inputToken.assetSymbol} is not supported on EVM chains`);
@@ -107,7 +109,7 @@ function createRouteParams(
 
 async function getRoute(params: RouteParams) {
   // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
-  const { integratorId } = squidRouterConfig;
+  const { integratorId } = squidRouterConfigBase;
   const url = 'https://apiplus.squidrouter.com/v2/route';
 
   try {
@@ -134,8 +136,9 @@ export async function getRouteTransactionRequest(
   amount: string,
   squidRouterReceiverHash: `0x${string}`,
   inputToken: InputTokenDetails,
+  fromNetwork: Networks,
 ) {
-  const routeParams = createRouteParams(userAddress, amount, squidRouterReceiverHash, inputToken);
+  const routeParams = createRouteParams(userAddress, amount, squidRouterReceiverHash, inputToken, fromNetwork);
 
   // Get the swap route using Squid API
   const routeResult = await getRoute(routeParams);
@@ -154,8 +157,13 @@ export async function getRouteTransactionRequest(
   };
 }
 
-export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: `0x${string}`) {
-  const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
+export async function testRoute(
+  testingToken: InputTokenDetails,
+  attemptedAmountRaw: string,
+  address: `0x${string}`,
+  fromNetwork: Networks,
+) {
+  const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
   if (!isEvmInputTokenDetails(testingToken)) {
     return;
   }

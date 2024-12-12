@@ -194,7 +194,7 @@ export const SwapPage = () => {
         outputToken.stellarAsset.issuer.hex,
         expectedRedeemAmountRaw,
       ),
-      testRoute(fromToken, inputAmountRaw, address!), // Address is both sender and receiver (in different chains)
+      testRoute(fromToken, inputAmountRaw, address!, selectedNetwork), // Address is both sender and receiver (in different chains)
     ])
       .then(() => {
         console.log('Initial checks completed. Starting process..');
