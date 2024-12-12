@@ -8,6 +8,25 @@ import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 export enum Networks {
   AssetHub = 'AssetHub',
   Polygon = 'Polygon',
+  Ethereum = 'Ethereum',
+  BSC = 'BSC',
+  Arbitrum = 'Arbitrum',
+  Base = 'Base',
+  Avalanche = 'Avalanche',
+}
+
+export function isNetworkEVM(network: Networks): boolean {
+  switch (network) {
+    case Networks.Polygon:
+    case Networks.Ethereum:
+    case Networks.BSC:
+    case Networks.Arbitrum:
+    case Networks.Base:
+    case Networks.Avalanche:
+      return true;
+    default:
+      return false;
+  }
 }
 
 interface NetworkContextType {

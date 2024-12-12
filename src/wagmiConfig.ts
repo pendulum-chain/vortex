@@ -1,4 +1,4 @@
-import { polygon } from '@reown/appkit/networks';
+import { polygon, bsc, arbitrum, base, avalanche } from '@reown/appkit/networks';
 import { http } from 'wagmi';
 import { config } from './config';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
@@ -22,7 +22,7 @@ const metadata = {
 };
 
 // 3. Set the networks
-const networks = [polygon];
+const networks = [polygon, bsc, arbitrum, base, avalanche];
 
 const projectId = '495a5f574d57e27fd65caa26d9ea4f10';
 // 4. Create Wagmi Adapter

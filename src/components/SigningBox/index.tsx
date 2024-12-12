@@ -3,7 +3,7 @@ import { FC } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { SigningPhase } from '../../hooks/offramp/useMainProcess';
-import { Networks, useNetwork } from '../../contexts/network';
+import { isNetworkEVM, Networks, useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 
 interface ProgressConfig {
@@ -13,31 +13,37 @@ interface ProgressConfig {
   approved: string;
 }
 
-const PROGRESS_CONFIG: Record<Networks, ProgressConfig> = {
-  [Networks.AssetHub]: {
-    started: '33',
-    finished: '100',
-    signed: '0',
-    approved: '0',
-  },
-  [Networks.Polygon]: {
-    started: '25',
-    approved: '50',
-    signed: '75',
-    finished: '100',
-  },
-};
+function getProgressConfig(network: Networks, step: SigningPhase): ProgressConfig {
+  if (isNetworkEVM(network)) {
+    return {
+      started: '25',
+      approved: '50',
+      signed: '75',
+      finished: '100',
+    };
+  } else {
+    return {
+      started: '33',
+      finished: '100',
+      signed: '0',
+      approved: '0',
+    };
+  }
+}
 
-const SIGNATURE_CONFIG = {
-  [Networks.AssetHub]: {
-    maxSignatures: 1,
-    getSignatureNumber: () => '1',
-  },
-  [Networks.Polygon]: {
-    maxSignatures: 2,
-    getSignatureNumber: (step: SigningPhase) => (step === 'started' ? '1' : '2'),
-  },
-};
+function getSignatureConfig(network: Networks): any {
+  if (isNetworkEVM(network)) {
+    return {
+      maxSignatures: 2,
+      getSignatureNumber: (step: SigningPhase) => (step === 'started' ? '1' : '2'),
+    };
+  } else {
+    return {
+      maxSignatures: 1,
+      getSignatureNumber: () => '1',
+    };
+  }
+}
 
 interface SigningBoxProps {
   step?: SigningPhase;
@@ -50,8 +56,8 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   if (!['started', 'approved', 'signed'].includes(step)) return null;
   if (selectedNetwork === Networks.AssetHub && (step === 'approved' || step === 'signed')) return null;
 
-  const progressValue = PROGRESS_CONFIG[selectedNetwork][step] || '0';
-  const { maxSignatures, getSignatureNumber } = SIGNATURE_CONFIG[selectedNetwork];
+  const progressValue = getProgressConfig(selectedNetwork, step) || '0';
+  const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);
 
   return (
     <section className="z-50 toast toast-end">

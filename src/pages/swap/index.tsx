@@ -469,7 +469,7 @@ export const SwapPage = () => {
           amount={fromAmount}
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
-          network={Networks.Polygon}
+          network={Networks.Polygon} // TODO, need to pass the proper selected network, unless it is substrate. Also, assuming it works with all supported EVMs
         />
       )}
     </main>

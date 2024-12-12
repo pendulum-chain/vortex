@@ -8,6 +8,11 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 const NETWORK_DISPLAY_NAMES: Record<Networks, string> = {
   [Networks.AssetHub]: 'Polkadot AssetHub',
   [Networks.Polygon]: 'Polygon',
+  [Networks.Ethereum]: 'Ethereum',
+  [Networks.BSC]: 'Binance Smart Chain',
+  [Networks.Arbitrum]: 'Arbitrum',
+  [Networks.Base]: 'Base',
+  [Networks.Avalanche]: 'Avalanche',
 };
 
 function networkToDisplayName(network: Networks): string {

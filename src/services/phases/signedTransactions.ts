@@ -3,7 +3,7 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
 
-import { Networks } from '../../contexts/network';
+import { isNetworkEVM, Networks } from '../../contexts/network';
 
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../signingService';
@@ -99,6 +99,6 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   return {
     ...state,
     transactions,
-    phase: state.network === Networks.AssetHub ? 'pendulumFundEphemeral' : 'squidRouter',
+    phase: isNetworkEVM(state.network) ? 'pendulumFundEphemeral' : 'squidRouter',
   };
 }

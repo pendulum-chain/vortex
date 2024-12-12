@@ -23,14 +23,27 @@ interface SwapSettings {
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
-function getCaseSensitiveNetwork(network: string): Networks {
-  if (network.toLowerCase() === 'assethub') {
-    return Networks.AssetHub;
-  } else if (network.toLowerCase() === 'polygon') {
-    return Networks.Polygon;
-  } else {
-    console.warn('Invalid network type');
-    return Networks.AssetHub;
+export function getCaseSensitiveNetwork(network: string): Networks {
+  const lowercasedNetwork = network.toLowerCase();
+
+  switch (lowercasedNetwork) {
+    case 'assethub':
+      return Networks.AssetHub;
+    case 'polygon':
+      return Networks.Polygon;
+    case 'ethereum':
+      return Networks.Ethereum;
+    case 'bsc':
+      return Networks.BSC;
+    case 'arbitrum':
+      return Networks.Arbitrum;
+    case 'base':
+      return Networks.Base;
+    case 'avalanche':
+      return Networks.Avalanche;
+    default:
+      console.warn('getCaseSensitiveNetwork: Invalid network type');
+      return Networks.AssetHub;
   }
 }
 

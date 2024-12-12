@@ -15,7 +15,7 @@ import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../../../helpers/contracts';
 import { waitUntilTrue } from '../../../helpers/function';
 
-import { Networks } from '../../../contexts/network';
+import { isNetworkEVM, Networks } from '../../../contexts/network';
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { isHashRegistered } from '../moonbeam';
@@ -88,7 +88,7 @@ export async function pendulumFundEphemeral(
   const { squidRouterSwapHash } = state;
   const { wagmiConfig } = context;
 
-  if (state.network !== Networks.AssetHub) {
+  if (isNetworkEVM(state.network)) {
     if (squidRouterSwapHash === undefined) {
       throw new Error('No squid router swap hash found');
     }
@@ -108,13 +108,13 @@ export async function pendulumFundEphemeral(
     await waitUntilTrue(() => isEphemeralFunded(state, context));
   }
 
-  if (state.network !== Networks.AssetHub) {
+  if (isNetworkEVM(state.network)) {
     await waitUntilTrue(() => isHashRegistered(state.squidRouterReceiverHash));
   }
 
   return {
     ...state,
-    phase: state.network === Networks.AssetHub ? 'executeAssetHubXCM' : 'executeMoonbeamXCM',
+    phase: isNetworkEVM(state.network) ? 'executeAssetHubXCM' : 'executeMoonbeamXCM',
   };
 }
 
