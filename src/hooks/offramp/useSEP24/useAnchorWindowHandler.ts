@@ -1,5 +1,4 @@
 import { useCallback } from 'preact/compat';
-import { ApiPromise } from '@polkadot/api';
 import Big from 'big.js';
 
 import { Networks } from '../../../contexts/network';
@@ -11,6 +10,7 @@ import { showToast, ToastMessage } from '../../../helpers/notifications';
 
 import { UseSEP24StateReturn } from './useSEP24State';
 import { useTrackSEP24Events } from './useTrackSEP24Events';
+import { usePendulumNode } from '../../../contexts/polkadotNode';
 
 const handleAmountMismatch = (setOfframpingStarted: (started: boolean) => void): void => {
   setOfframpingStarted(false);
@@ -24,6 +24,7 @@ const handleError = (error: unknown, setOfframpingStarted: (started: boolean) =>
 
 export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupFn: () => void) => {
   const { trackKYCStarted, trackKYCCompleted } = useTrackSEP24Events();
+  const { apiComponents: pendulumNode } = usePendulumNode();
   const { firstSep24Response, anchorSessionParams, executionInput } = sep24State;
 
   return useCallback(
@@ -31,9 +32,13 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
       selectedNetwork: Networks,
       setOfframpingStarted: (started: boolean) => void,
       updateHookStateFromState: (state: OfframpingState | undefined) => void,
-      pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number },
     ) => {
       if (!firstSep24Response || !anchorSessionParams || !executionInput) {
+        return;
+      }
+
+      if (!pendulumNode) {
+        console.error('Pendulum node not initialized');
         return;
       }
 
@@ -66,6 +71,14 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
         handleError(error, setOfframpingStarted);
       }
     },
-    [firstSep24Response, anchorSessionParams, executionInput, trackKYCStarted, cleanupFn, trackKYCCompleted],
+    [
+      firstSep24Response,
+      anchorSessionParams,
+      executionInput,
+      pendulumNode,
+      trackKYCStarted,
+      cleanupFn,
+      trackKYCCompleted,
+    ],
   );
 };
