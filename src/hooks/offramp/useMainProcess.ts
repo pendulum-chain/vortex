@@ -1,22 +1,21 @@
 import { useState, useEffect, useCallback, StateUpdater } from 'preact/compat';
-import { useConfig } from 'wagmi';
 import Big from 'big.js';
 
 import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
-import { useAssetHubNode, usePendulumNode } from '../../contexts/polkadotNode';
-import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useNetwork } from '../../contexts/network';
 import {
   clearOfframpingState,
   recoverFromFailure,
   readCurrentState,
-  advanceOfframpingState,
   OfframpingState,
 } from '../../services/offrampingFlow';
 
 import { useSEP24 } from './useSEP24';
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpingEvents } from './useOfframpingEvents';
+import { useOfframpingReset } from './useOfframpingReset';
+import { useOfframpingAdvancement } from './useOfframpingAdvancement';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -35,14 +34,10 @@ export const useMainProcess = () => {
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
 
   const { selectedNetwork, setOnSelectedNetworkChange } = useNetwork();
-  const { walletAccount } = usePolkadotWalletState();
 
   const { apiComponents: pendulumNode } = usePendulumNode();
-  const { apiComponents: assetHubNode } = useAssetHubNode();
 
-  const wagmiConfig = useConfig();
-
-  const { addEvent, trackOfframpingEvent, trackEvent, resetUniqueEvents } = useOfframpingEvents(selectedNetwork);
+  const { addEvent, trackOfframpingEvent, resetUniqueEvents } = useOfframpingEvents(selectedNetwork);
 
   const {
     firstSep24IntervalRef,
@@ -73,7 +68,6 @@ export const useMainProcess = () => {
       }
 
       setOfframpingState(state);
-
       trackOfframpingEvent(state);
     },
     [trackOfframpingEvent],
@@ -84,17 +78,7 @@ export const useMainProcess = () => {
     updateHookStateFromState(state);
   }, [updateHookStateFromState]);
 
-  const resetOfframpingState = useCallback(() => {
-    setOfframpingState(undefined);
-    setOfframpingStarted(false);
-    setIsInitiating(false);
-    setAnchorSessionParams(undefined);
-    setFirstSep24Response(undefined);
-    setExecutionInput(undefined);
-    cleanSep24FirstVariables();
-    clearOfframpingState();
-    setSigningPhase(undefined);
-  }, [
+  const resetOfframpingState = useOfframpingReset({
     setOfframpingState,
     setOfframpingStarted,
     setIsInitiating,
@@ -103,7 +87,7 @@ export const useMainProcess = () => {
     setExecutionInput,
     cleanSep24FirstVariables,
     setSigningPhase,
-  ]);
+  });
 
   useEffect(() => {
     setOnSelectedNetworkChange(resetOfframpingState);
@@ -132,34 +116,12 @@ export const useMainProcess = () => {
     updateHookStateFromState(nextState);
   }, [updateHookStateFromState, offrampingState]);
 
-  useEffect(() => {
-    if (wagmiConfig.state.status !== 'connected') return;
-
-    (async () => {
-      if (!pendulumNode || !assetHubNode) {
-        console.error('Polkadot nodes not initialized');
-        return;
-      }
-
-      const nextState = await advanceOfframpingState(offrampingState, {
-        renderEvent: addEvent,
-        wagmiConfig,
-        setSigningPhase,
-        trackEvent,
-        pendulumNode,
-        assetHubNode,
-        walletAccount,
-      });
-
-      if (JSON.stringify(offrampingState) !== JSON.stringify(nextState)) {
-        updateHookStateFromState(nextState);
-      }
-    })();
-    // This effect has dependencies that are used inside the async function (assetHubNode, pendulumNode, walletAccount)
-    // but we intentionally exclude them from the dependency array to prevent unnecessary re-renders.
-    // These dependencies are stable and won't change during the lifecycle of this hook.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offrampingState, trackEvent, updateHookStateFromState, wagmiConfig]);
+  useOfframpingAdvancement({
+    offrampingState,
+    updateHookStateFromState,
+    addEvent,
+    setSigningPhase,
+  });
 
   const maybeCancelSep24First = useCallback(() => {
     if (firstSep24IntervalRef.current !== undefined) {
