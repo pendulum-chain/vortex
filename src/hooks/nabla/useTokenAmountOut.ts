@@ -72,7 +72,7 @@ export function useTokenOutAmount({
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
-  const fromTokenDecimals = inputToken?.decimals;
+  const fromTokenDecimals = inputToken?.pendulumDecimals;
 
   const amountIn =
     fromTokenDecimals !== undefined && debouncedAmountBigDecimal !== undefined

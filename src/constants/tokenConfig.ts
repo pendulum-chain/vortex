@@ -7,6 +7,7 @@ export interface BaseInputTokenDetails {
   pendulumErc20WrapperAddress: string;
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
+  pendulumDecimals: number;
   networkAssetIcon: AssetIconType;
   network: Networks;
 }
@@ -68,6 +69,7 @@ const PENDULUM_USDC_AXL = {
   pendulumErc20WrapperAddress: '6eMCHeByJ3m2yPsXFkezBfCQtMs3ymUPqtAyCA41mNWmbNJe',
   pendulumCurrencyId: { XCM: 12 },
   pendulumAssetSymbol: 'USDC.axl',
+  pendulumDecimals: 6,
 };
 
 const PENDULUM_USDC_ASSETHUB = {
@@ -75,6 +77,7 @@ const PENDULUM_USDC_ASSETHUB = {
   pendulumCurrencyId: { XCM: 2 },
   foreignAssetId: 1337, // USDC on AssetHub
   pendulumAssetSymbol: 'USDC',
+  pendulumDecimals: 6,
 };
 
 export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType, InputTokenDetails>>> = {

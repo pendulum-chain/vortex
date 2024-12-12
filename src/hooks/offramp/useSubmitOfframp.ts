@@ -1,7 +1,7 @@
 import { MutableRefObject, useCallback } from 'preact/compat';
 import { polygon } from 'wagmi/chains';
 import { useAccount, useSwitchChain } from 'wagmi';
-import { useNetwork } from '../../contexts/network';
+import { getNetworkId, useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
@@ -18,7 +18,7 @@ import {
 
 import { OfframpingState } from '../../services/offrampingFlow';
 import { ExtendedExecutionInput } from './useSEP24/useSEP24State';
-import { ExecutionInput } from './useSEP24';
+import { ExecutionInput } from './useMainProcess';
 
 interface UseSubmitOfframpProps {
   firstSep24IntervalRef: MutableRefObject<number | undefined>;
@@ -44,7 +44,7 @@ export const useSubmitOfframp = ({
   setIsInitiating,
 }: UseSubmitOfframpProps) => {
   const { selectedNetwork } = useNetwork();
-  const { switchChain } = useSwitchChain();
+  const { switchChainAsync, switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
   const { address } = useAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
@@ -63,18 +63,27 @@ export const useSubmitOfframp = ({
       }
 
       (async () => {
-        switchChain({ chainId: polygon.id });
-        setOfframpingStarted(true);
-
-        trackEvent({
-          event: 'transaction_confirmation',
-          from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-          from_amount: amountInUnits,
-          to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
-        });
+        let chainId = getNetworkId(selectedNetwork);
+        if (!chainId) {
+          setInitializeFailed();
+          setOfframpingStarted(false);
+          setIsInitiating(false);
+          return;
+        }
 
         try {
+          await switchChainAsync({ chainId: chainId! });
+
+          setOfframpingStarted(true);
+
+          trackEvent({
+            event: 'transaction_confirmation',
+            from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
+            to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
+            from_amount: amountInUnits,
+            to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
+          });
+
           const stellarEphemeralSecret = createStellarEphemeralSecret();
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
@@ -116,7 +125,7 @@ export const useSubmitOfframp = ({
             await fetchAndUpdateSep24Url();
           } catch (error) {
             console.error('Error finalizing the initial state of the offramping process', error);
-            setInitializeFailed(true);
+            setInitializeFailed();
             setOfframpingStarted(false);
             cleanSep24FirstVariables();
           } finally {
@@ -124,7 +133,12 @@ export const useSubmitOfframp = ({
           }
         } catch (error) {
           console.error('Error initializing the offramping process', error);
-          setInitializeFailed(true);
+          // Display error message, differentiating between user rejection and other errors
+          if ((error as Error).message.includes('User rejected the request')) {
+            setInitializeFailed('Please switch to the correct network and try again.');
+          } else {
+            setInitializeFailed();
+          }
           setOfframpingStarted(false);
           setIsInitiating(false);
         }

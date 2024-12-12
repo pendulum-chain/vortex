@@ -113,7 +113,7 @@ export async function prepareNablaApproveTransaction(
     throw new Error(message);
   }
 
-  const currentAllowance = parseContractBalanceResponse(inputToken.decimals, response.value);
+  const currentAllowance = parseContractBalanceResponse(inputToken.pendulumDecimals, response.value);
 
   //maybe do allowance
   if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmount.raw))) {

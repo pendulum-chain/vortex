@@ -4,13 +4,7 @@ import Big from 'big.js';
 import { IAnchorSessionParams, ISep24Intermediate } from '../../../services/anchor';
 import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
 
-export interface ExecutionInput {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
-  amountInUnits: string;
-  offrampAmount: Big;
-  setInitializeFailed: StateUpdater<boolean>;
-}
+import { ExecutionInput } from '../useMainProcess';
 
 export type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
 

@@ -11,12 +11,7 @@ import {
   OutputTokenType,
 } from '../../../constants/tokenConfig';
 
-interface ExecutionInput {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
-  amountInUnits: string;
-  offrampAmount: Big;
-}
+import { ExecutionInput } from '../useMainProcess';
 
 export const useTrackSEP24Events = () => {
   const { trackEvent } = useEventsContext();

@@ -30,7 +30,7 @@ export interface ExecutionInput {
   outputTokenType: OutputTokenType;
   amountInUnits: string;
   offrampAmount: Big;
-  setInitializeFailed: StateUpdater<boolean>;
+  setInitializeFailed: (message?: string | null) => void;
 }
 
 export const useMainProcess = () => {

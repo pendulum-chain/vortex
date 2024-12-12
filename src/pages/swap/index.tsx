@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { Fragment } from 'preact';
 import { useAccount } from 'wagmi';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
@@ -62,7 +62,7 @@ export const SwapPage = () => {
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
-  const [initializeFailed, setInitializeFailed] = useState(false);
+  const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
@@ -84,12 +84,22 @@ export const SwapPage = () => {
         await initialChecks();
         setIsReady(true);
       } catch (error) {
-        setInitializeFailed(true);
+        setInitializeFailed();
       }
     };
 
     initialize();
   }, []);
+
+  // Define the function using useCallback
+  const setInitializeFailed = useCallback(
+    (message?: string | null) => {
+      setInitializeFailedMessage(
+        message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
+      );
+    },
+    [], // No dependencies, so the function remains stable
+  );
 
   // Main process hook
   const {
@@ -208,7 +218,7 @@ export const SwapPage = () => {
       })
       .catch((_error) => {
         setIsInitiating(false);
-        setInitializeFailed(true);
+        setInitializeFailed();
       });
   }
 
@@ -298,12 +308,12 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
+    // if (typeof userInputTokenBalance === 'string') {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+    //     trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+    //   }
+    // }
 
     const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
 
@@ -418,10 +428,8 @@ export const SwapPage = () => {
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
         <section className="flex justify-center w-full mt-5">
-          {(initializeFailed || apiInitializeFailed) && (
-            <p className="text-red-600">
-              Application initialization failed. Please reload, or try again later if the problem persists.
-            </p>
+          {(initializeFailedMessage || apiInitializeFailed) && (
+            <p className="text-red-600">{initializeFailedMessage}</p>
           )}
         </section>
         <div className="flex gap-3 mt-5">

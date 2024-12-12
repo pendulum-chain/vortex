@@ -9,14 +9,6 @@ import { useAnchorWindowHandler } from './useAnchorWindowHandler';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
-export interface ExecutionInput {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
-  amountInUnits: string;
-  offrampAmount: Big;
-  setInitializeFailed: StateUpdater<boolean>;
-}
-
 export const useSEP24 = () => {
   const sep24State = useSEP24State();
   const cleanSep24FirstVariables = useSEP24Cleanup(sep24State);
