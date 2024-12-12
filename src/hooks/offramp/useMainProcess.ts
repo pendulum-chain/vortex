@@ -2,16 +2,10 @@ import { useState, useEffect, useCallback, StateUpdater } from 'preact/compat';
 import { useConfig } from 'wagmi';
 import Big from 'big.js';
 
-import { EventStatus, GenericEvent } from '../../components/GenericEvent';
-
-import { getInputTokenDetailsOrDefault, InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
-import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
-
-import { createTransactionEvent, useEventsContext } from '../../contexts/events';
+import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { useAssetHubNode, usePendulumNode } from '../../contexts/polkadotNode';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { useNetwork } from '../../contexts/network';
-
 import {
   clearOfframpingState,
   recoverFromFailure,
@@ -22,6 +16,7 @@ import {
 
 import { useSEP24 } from './useSEP24';
 import { useSubmitOfframp } from './useSubmitOfframp';
+import { useOfframpingEvents } from './useOfframpingEvents';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -46,9 +41,9 @@ export const useMainProcess = () => {
   const { apiComponents: assetHubNode } = useAssetHubNode();
 
   const wagmiConfig = useConfig();
-  const { trackEvent, resetUniqueEvents } = useEventsContext();
 
-  const [, setEvents] = useState<GenericEvent[]>([]);
+  const { addEvent, trackOfframpingEvent, trackEvent, resetUniqueEvents } = useOfframpingEvents(selectedNetwork);
+
   const {
     firstSep24IntervalRef,
     firstSep24Response,
@@ -79,34 +74,15 @@ export const useMainProcess = () => {
 
       setOfframpingState(state);
 
-      if (state?.phase === 'success') {
-        trackEvent(createTransactionEvent('transaction_success', state, selectedNetwork));
-      } else if (state?.failure !== undefined) {
-        const currentPhase = state?.phase;
-        const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-
-        trackEvent({
-          ...createTransactionEvent('transaction_failure', state, selectedNetwork),
-          event: 'transaction_failure',
-          phase_name: currentPhase,
-          phase_index: currentPhaseIndex,
-          from_asset: getInputTokenDetailsOrDefault(selectedNetwork, state.inputTokenType).assetSymbol,
-          error_message: state.failure.message,
-        });
-      }
+      trackOfframpingEvent(state);
     },
-    [trackEvent, selectedNetwork],
+    [trackOfframpingEvent],
   );
 
   useEffect(() => {
     const state = readCurrentState();
     updateHookStateFromState(state);
   }, [updateHookStateFromState]);
-
-  const addEvent = (message: string, status: EventStatus) => {
-    console.log('Add event', message, status);
-    setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
-  };
 
   const resetOfframpingState = useCallback(() => {
     setOfframpingState(undefined);
