@@ -9,7 +9,6 @@ import { ApiPromise } from '@polkadot/api';
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
-import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { FeeComparison } from '../../components/FeeComparison';
@@ -344,7 +343,6 @@ export const SwapPage = () => {
 
   const modals = (
     <>
-      <TermsAndConditions />
       <PoolSelectorModal
         open={isTokenSelectModalVisible}
         onSelect={(token) => {
