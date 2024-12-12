@@ -99,6 +99,6 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   return {
     ...state,
     transactions,
-    phase: isNetworkEVM(state.network) ? 'pendulumFundEphemeral' : 'squidRouter',
+    phase: isNetworkEVM(state.network) ? 'squidRouter' : 'pendulumFundEphemeral',
   };
 }

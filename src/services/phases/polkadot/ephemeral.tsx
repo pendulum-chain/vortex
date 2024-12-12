@@ -114,7 +114,7 @@ export async function pendulumFundEphemeral(
 
   return {
     ...state,
-    phase: isNetworkEVM(state.network) ? 'executeAssetHubXCM' : 'executeMoonbeamXCM',
+    phase: isNetworkEVM(state.network) ? 'executeMoonbeamXCM' : 'executeAssetHubXCM',
   };
 }
 
