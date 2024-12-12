@@ -9,6 +9,7 @@ import { ApiPromise } from '@polkadot/api';
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
+import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { FeeComparison } from '../../components/FeeComparison';
@@ -19,7 +20,6 @@ import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { SignInModal } from '../../components/SignIn';
 
-import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import {
   getInputTokenDetailsOrDefault,
   INPUT_TOKEN_CONFIG,
@@ -41,14 +41,14 @@ import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 
-import { getVaultsForCurrency } from '../../services/phases/polkadot/spacewalk';
-import { testRoute } from '../../services/phases/squidrouter/route';
 import { initialChecks } from '../../services/initialChecks';
 
 import { BaseLayout } from '../../layouts';
 import { ProgressPage } from '../progress';
 import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
+import { swapConfirm } from './helpers/swapConfirm';
+import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -70,6 +70,8 @@ export const SwapPage = () => {
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
+  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted } = useTermsAndConditions();
+
   useEffect(() => {
     setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
     if (pendulumNode.apiComponents?.api) {
@@ -90,7 +92,6 @@ export const SwapPage = () => {
     initialize();
   }, []);
 
-  // Main process hook
   const {
     handleOnSubmit,
     finishOfframping,
@@ -149,67 +150,6 @@ export const SwapPage = () => {
     tokenOutAmount.stableAmountInUnits !== undefined &&
     tokenOutAmount.stableAmountInUnits != '' &&
     Big(tokenOutAmount.stableAmountInUnits).gt(Big(0));
-
-  function onConfirm(e: Event) {
-    e.preventDefault();
-
-    if (!inputAmountIsStable) return;
-    if (!address) return; // Address must exist as this point.
-
-    if (fromAmount === undefined) {
-      console.log('Input amount is undefined');
-      return;
-    }
-
-    const tokenOutAmountData = tokenOutAmount.data;
-    if (!tokenOutAmountData) {
-      console.log('Output amount is undefined');
-      return;
-    }
-
-    const preciseQuotedAmountOut = tokenOutAmountData.preciseQuotedAmountOut;
-
-    // test the route for starting token, then proceed
-    // will disable the confirm button
-    setIsInitiating(true);
-
-    const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-
-    // both route and stellar vault checks must be valid to proceed
-    const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
-      .round(2, 0)
-      .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
-    const expectedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
-
-    const inputAmountBig = Big(fromAmount);
-    const inputAmountBigMargin = inputAmountBig.mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN);
-    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBigMargin, inputToken.decimals).toFixed();
-
-    Promise.all([
-      getVaultsForCurrency(
-        api!,
-        outputToken.stellarAsset.code.hex,
-        outputToken.stellarAsset.issuer.hex,
-        expectedRedeemAmountRaw,
-      ),
-      testRoute(fromToken, inputAmountRaw, address!), // Address is both sender and receiver (in different chains)
-    ])
-      .then(() => {
-        console.log('Initial checks completed. Starting process..');
-        handleOnSubmit({
-          inputTokenType: from as InputTokenType,
-          outputTokenType: to as OutputTokenType,
-          amountInUnits: fromAmountString,
-          offrampAmount: tokenOutAmountData.roundedDownQuotedAmountOut,
-          setInitializeFailed,
-        });
-      })
-      .catch((_error) => {
-        setIsInitiating(false);
-        setInitializeFailed(true);
-      });
-  }
 
   useEffect(() => {
     if (tokenOutAmount.data) {
@@ -385,13 +325,36 @@ export const SwapPage = () => {
     }
   }
 
+  const onSwapConfirm = (e: Event) => {
+    e.preventDefault();
+
+    swapConfirm(e, {
+      inputAmountIsStable,
+      address,
+      fromAmount,
+      tokenOutAmount,
+      api,
+      to,
+      from,
+      selectedNetwork,
+      fromAmountString,
+      setIsInitiating,
+      setInitializeFailed,
+      handleOnSubmit,
+      setTermsAccepted,
+    });
+  };
+
+  const isTermsAndConditionsSatisfied = termsAccepted || termsChecked;
+  const isSwapDisabled = Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !isTermsAndConditionsSatisfied;
+
   const main = (
     <main ref={formRef}>
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={signingPhase} />
       <form
         className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
-        onSubmit={onConfirm}
+        onSubmit={onSwapConfirm}
       >
         <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
         <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
@@ -421,6 +384,9 @@ export const SwapPage = () => {
               Application initialization failed. Please reload, or try again later if the problem persists.
             </p>
           )}
+        </section>
+        <section className="w-full mt-5">
+          <TermsAndConditions {...{ toggleTermsChecked, termsChecked, termsAccepted }} />
         </section>
         <div className="flex gap-3 mt-5">
           <button
@@ -455,7 +421,7 @@ export const SwapPage = () => {
           ) : (
             <SwapSubmitButton
               text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
+              disabled={isSwapDisabled}
               pending={isInitiating || offrampingStarted || offrampingState !== undefined}
             />
           )}

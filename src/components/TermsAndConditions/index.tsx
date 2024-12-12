@@ -1,50 +1,34 @@
-import { useState } from 'preact/compat';
-import { Button, Checkbox, Link } from 'react-daisyui';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { Dialog } from '../Dialog';
+import { Checkbox, Link } from 'react-daisyui';
 
-export const TermsAndConditions = () => {
-  const { set, state } = useLocalStorage<string | undefined>({ key: 'TERMS_AND_CONDITIONS' });
-  const [checked, setChecked] = useState<boolean>(false);
+interface TermsAndConditionsProps {
+  toggleTermsChecked: (accepted: boolean) => void;
+  termsChecked: boolean;
+  termsAccepted: boolean;
+}
 
-  const acceptTerms = () => {
-    set('accepted');
-  };
-
-  const content = (
-    <>
-      <div className="mb-5 text-lg">
-        <Link
-          style={{ textDecoration: 'underline' }}
-          color="accent"
-          target="_blank"
-          rel="noreferrer"
-          href="https://www.vortexfinance.co/terms-conditions"
-        >
-          View Terms and Conditions
-        </Link>
-      </div>
-      <div className="flex text-lg">
-        <Checkbox checked={checked} onClick={() => setChecked(!checked)} color="primary" size="md" />
-        <span className="pl-2">I have read and accept the terms and conditions</span>
-      </div>
-    </>
-  );
-
-  const actions = (
-    <Button className="w-full px-12 text-thin" color="primary" onClick={acceptTerms} disabled={!checked}>
-      Agree
-    </Button>
-  );
+export const TermsAndConditions = ({ toggleTermsChecked, termsChecked, termsAccepted }: TermsAndConditionsProps) => {
+  if (termsAccepted) {
+    return <></>;
+  }
 
   return (
-    <Dialog
-      content={content}
-      headerText="T&Cs"
-      visible={!state}
-      actions={actions}
-      hideCloseButton={true}
-      disableNativeEvents={true}
-    />
+    <>
+      <div className="mb-5 text-sm"></div>
+      <div className="flex text-sm">
+        <Checkbox checked={termsChecked} onClick={toggleTermsChecked} color="primary" size="sm" />
+        <span className="pl-2">
+          I have read and accept the{' '}
+          <Link
+            style={{ textDecoration: 'underline' }}
+            color="accent"
+            target="_blank"
+            rel="noreferrer"
+            href="https://www.vortexfinance.co/terms-conditions"
+          >
+            Terms and Conditions
+          </Link>
+        </span>
+      </div>
+    </>
   );
 };
