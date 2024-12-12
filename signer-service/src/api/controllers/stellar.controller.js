@@ -27,6 +27,7 @@ exports.createStellarTransaction = async (req, res, next) => {
       req.body.accountId,
       req.body.maxTime,
       req.body.assetCode,
+      req.body.baseFee,
     );
     return res.json({ signature, sequence, public: FUNDING_PUBLIC_KEY });
   } catch (error) {
@@ -44,6 +45,7 @@ exports.changeOpTransaction = async (req, res, next) => {
       req.body.paymentData,
       req.body.maxTime,
       req.body.assetCode,
+      req.body.baseFee,
     );
     return res.json({ signature, public: FUNDING_PUBLIC_KEY });
   } catch (error) {

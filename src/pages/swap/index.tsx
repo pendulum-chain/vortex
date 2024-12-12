@@ -1,43 +1,55 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Fragment } from 'preact';
-import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import { useAccount } from 'wagmi';
+import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
 
-import { LabeledInput } from '../../components/LabeledInput';
-import { BenefitsList } from '../../components/BenefitsList';
+import { ApiPromise } from '@polkadot/api';
+
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
-import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { ApiPromise, getApiManagerInstance } from '../../services/polkadot/polkadotApi';
-import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { ExchangeRate } from '../../components/ExchangeRate';
-import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
+import { TermsAndConditions } from '../../components/TermsAndConditions';
+import { AssetNumericInput } from '../../components/AssetNumericInput';
+import { useSwapForm } from '../../components/Nabla/useSwapForm';
+import { FeeComparison } from '../../components/FeeComparison';
+import { BenefitsList } from '../../components/BenefitsList';
+import { ExchangeRate } from '../../components/ExchangeRate';
+import { LabeledInput } from '../../components/LabeledInput';
+import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
+import { SignInModal } from '../../components/SignIn';
+
+import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
+import {
+  getInputTokenDetailsOrDefault,
+  INPUT_TOKEN_CONFIG,
+  InputTokenType,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
+} from '../../constants/tokenConfig';
 import { config } from '../../config';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
-import { BaseLayout } from '../../layouts';
+
+import { useEventsContext } from '../../contexts/events';
+import { Networks, useNetwork } from '../../contexts/network';
+import { usePendulumNode } from '../../contexts/polkadotNode';
+import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { useMainProcess } from '../../hooks/useMainProcess';
-import { ProgressPage } from '../progress';
-import { SuccessPage } from '../success';
-import { FailurePage } from '../failure';
-import { TermsAndConditions } from '../../components/TermsAndConditions';
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
-import { UserBalance } from '../../components/UserBalance';
-import { useEventsContext } from '../../contexts/events';
 import { showToast, ToastMessage } from '../../helpers/notifications';
 
-import { testRoute } from '../../services/squidrouter/route';
-import { initialChecks } from '../../services/initialChecks';
-import { getVaultsForCurrency } from '../../services/polkadot/spacewalk';
-import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
-import { FeeComparison } from '../../components/FeeComparison';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
+import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 
-import { SignInModal } from '../../components/SignIn';
-import { useSiweContext } from '../../contexts/siwe';
+import { getVaultsForCurrency } from '../../services/phases/polkadot/spacewalk';
+import { testRoute } from '../../services/phases/squidrouter/route';
+import { initialChecks } from '../../services/initialChecks';
+
+import { BaseLayout } from '../../layouts';
+import { ProgressPage } from '../progress';
+import { FailurePage } from '../failure';
+import { SuccessPage } from '../success';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -47,32 +59,36 @@ const Arrow = () => (
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
+  const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
-  const [, setIsReady] = useState(false);
+  const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
+  const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
+  const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
-  // Hook used for services on initialization and pre-offramp check
-  // That is why no dependencies are used
   useEffect(() => {
-    const initializeApp = async () => {
-      const manager = await getApiManagerInstance();
-      const { api } = await manager.getApiComponents();
-      setApi(api);
-      await initialChecks();
+    setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
+    if (pendulumNode.apiComponents?.api) {
+      setApi(pendulumNode.apiComponents.api);
+    }
+  }, [pendulumNode]);
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        await initialChecks();
+        setIsReady(true);
+      } catch (error) {
+        setInitializeFailed(true);
+      }
     };
 
-    initializeApp()
-      .then(() => {
-        setIsReady(true);
-      })
-      .catch(() => {
-        setInitializeFailed(true);
-      });
+    initialize();
   }, []);
 
   // Main process hook
@@ -111,9 +127,10 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const fromToken = INPUT_TOKEN_CONFIG[from];
+  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
+  // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
@@ -126,6 +143,7 @@ export const SwapPage = () => {
     maximumFromAmount: undefined,
     fromAmountString,
     form,
+    network: selectedNetwork,
   });
 
   const inputAmountIsStable =
@@ -157,7 +175,7 @@ export const SwapPage = () => {
     setIsInitiating(true);
 
     const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = INPUT_TOKEN_CONFIG[from];
+    const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
 
     // both route and stellar vault checks must be valid to proceed
     const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
@@ -209,7 +227,7 @@ export const SwapPage = () => {
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
-    const handleMessage = (event: any) => {
+    const handleMessage = (event: MessageEvent) => {
       if (event.origin != 'https://circle.anchor.mykobo.co') {
         return;
       }
@@ -235,6 +253,12 @@ export const SwapPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (offrampingState?.phase !== undefined) {
+      setNetworkSelectorDisabled(true);
+    }
+  }, [offrampingState, setNetworkSelectorDisabled]);
+
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
@@ -256,9 +280,9 @@ export const SwapPage = () => {
         <AssetNumericInput
           registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
-          assetIcon={fromToken.polygonAssetIcon}
+          assetIcon={fromToken.networkAssetIcon}
           onClick={() => openTokenSelectModal('from')}
-          onChange={(e) => {
+          onChange={() => {
             // User interacted with the input field
             trackEvent({ event: 'amount_type' });
           }}
@@ -294,7 +318,7 @@ export const SwapPage = () => {
         }.`;
       }
 
-      if (config.test.overwriteMinimumTransferAmount === false && minAmountUnits.gt(amountOut)) {
+      if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
         trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
@@ -307,10 +331,10 @@ export const SwapPage = () => {
 
   const definitions =
     tokenSelectModalType === 'from'
-      ? Object.entries(INPUT_TOKEN_CONFIG).map(([key, value]) => ({
+      ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
-          assetIcon: value.polygonAssetIcon,
+          assetIcon: value.networkAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: key as OutputTokenType,
@@ -351,8 +375,13 @@ export const SwapPage = () => {
   }
 
   if (offrampingState !== undefined || offrampingStarted) {
+    const isAssetHubFlow =
+      selectedNetwork === Networks.AssetHub &&
+      (offrampingState?.phase === 'pendulumFundEphemeral' || offrampingState?.phase === 'executeAssetHubXCM');
     const showMainScreenAnyway =
-      offrampingState === undefined || ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase);
+      offrampingState === undefined ||
+      ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase) ||
+      isAssetHubFlow;
     if (!showMainScreenAnyway) {
       return <ProgressPage offrampingState={offrampingState} />;
     }
@@ -389,13 +418,13 @@ export const SwapPage = () => {
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
         <section className="flex justify-center w-full mt-5">
-          {initializeFailed && (
+          {(initializeFailed || apiInitializeFailed) && (
             <p className="text-red-600">
               Application initialization failed. Please reload, or try again later if the problem persists.
             </p>
           )}
         </section>
-        <div className="flex mt-5 gap-3">
+        <div className="flex gap-3 mt-5">
           <button
             className="btn-vortex-secondary btn"
             style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
@@ -411,6 +440,7 @@ export const SwapPage = () => {
           >
             Compare fees
           </button>
+
           {firstSep24ResponseState?.url !== undefined ? (
             // eslint-disable-next-line react/jsx-no-target-blank
             <a
@@ -439,7 +469,7 @@ export const SwapPage = () => {
           amount={fromAmount}
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
-          network={fromToken.network}
+          network={Networks.Polygon}
         />
       )}
     </main>

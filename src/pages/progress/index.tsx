@@ -4,19 +4,27 @@ import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow'
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
-import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { Networks, useNetwork } from '../../contexts/network';
 
-function createOfframpingPhaseMessage(offrampingState: OfframpingState): string {
-  const inputToken = INPUT_TOKEN_CONFIG[offrampingState.inputTokenType];
+function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
+  const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
 
   switch (offrampingState.phase) {
     case 'prepareTransactions':
+      return offrampingState.network
+        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'squidRouter':
     case 'pendulumFundEphemeral':
-      return `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`;
-    case 'executeXCM':
+      return offrampingState.network
+        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
+    case 'executeMoonbeamXCM':
       return `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`;
+    case 'executeAssetHubXCM':
+      return `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
     case 'subsidizePreSwap':
     case 'nablaApprove':
     case 'nablaSwap':
@@ -38,7 +46,8 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   prepareTransactions: 1,
   squidRouter: 1,
   pendulumFundEphemeral: 80,
-  executeXCM: 40,
+  executeMoonbeamXCM: 40,
+  executeAssetHubXCM: 24,
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,
@@ -111,7 +120,7 @@ const ProgressContent: FC<{
     <Box className="flex flex-col items-center justify-center mt-4">
       <div className="flex flex-col items-center justify-center max-w-[400px]">
         <WarningSection />
-        <div className="relative  mt-12">
+        <div className="relative mt-12">
           <svg
             className="w-[200px] h-[200px] dark:text-white"
             style={{ transform: 'scale()' }}
@@ -143,7 +152,7 @@ const ProgressContent: FC<{
               strokeWidth={CIRCLE_STROKE_WIDTH}
             ></circle>
           </svg>
-          <div className="absolute w-full h-full top-0 left-0 flex justify-center items-center text-4xl">
+          <div className="absolute top-0 left-0 flex items-center justify-center w-full h-full text-4xl">
             {currentPercentage}%
           </div>
         </div>
@@ -157,10 +166,11 @@ const ProgressContent: FC<{
 
 export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   const { trackEvent } = useEventsContext();
+  const { selectedNetwork } = useNetwork();
 
   const currentPhase = offrampingState.phase as OfframpingPhase; // this component will not be shown if the phase is 'success'
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-  const message = createOfframpingPhaseMessage(offrampingState);
+  const message = createOfframpingPhaseMessage(offrampingState, selectedNetwork);
 
   useEffect(() => {
     trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });

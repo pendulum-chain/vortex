@@ -25,11 +25,12 @@ export interface SignerServiceSep10Request {
   memo?: boolean;
 }
 
+// @todo: implement @tanstack/react-query
 export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStatus> => {
   try {
     const serviceResponse: SigningServiceStatus = await (await fetch(`${SIGNING_SERVICE_URL}/v1/status`)).json();
-
     const allServicesActive = Object.values(serviceResponse).every((service: AccountStatusResponse) => service.status);
+
     if (allServicesActive) {
       return {
         stellar: serviceResponse.stellar,

@@ -23,6 +23,11 @@ const TOKEN_CONFIG = {
     decimals: 6,
     maximumSubsidyAmountRaw: '1000000', // 1 unit
   },
+  usdc: {
+    pendulumCurrencyId: { XCM: 2 },
+    decimals: 6,
+    maximumSubsidyAmountRaw: '1000000', // 1 unit
+  },
   ars: {
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
     assetCode: 'ARS',

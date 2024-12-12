@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from 'preact/compat';
 import { useSignMessage } from 'wagmi';
+import { polygon } from 'wagmi/chains';
+import { SiweMessage } from 'siwe';
+
+import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
-import { SiweMessage } from 'siwe';
-import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
-import { polygon } from 'wagmi/chains';
 
 export interface SiweSignatureData {
   signatureSet: boolean;

@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC } from 'preact/compat';
 import { Modal } from 'react-daisyui';
 
 interface SignInModalProps {
@@ -14,7 +14,7 @@ export const SignInModal: FC<SignInModalProps> = ({ signingPending, closeModal, 
 
   return (
     <Modal open={signingPending} onClickBackdrop={closeModal}>
-      <Modal.Header className="font-bold text-xl flex justify-between">
+      <Modal.Header className="flex justify-between text-xl font-bold">
         Sign In
         <button onClick={closeModal} className="btn btn-sm btn-circle">
           ✕

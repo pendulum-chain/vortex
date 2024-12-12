@@ -5,15 +5,18 @@ import '@fontsource/roboto/700.css';
 
 import { render } from 'preact';
 import { BrowserRouter } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { App } from './app';
-import { GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
-import { wagmiConfig } from './wagmiConfig';
+
 import { EventsProvider } from './contexts/events';
+import { NetworkProvider } from './contexts/network';
+import { wagmiConfig } from './wagmiConfig';
 import { SiweProvider } from './contexts/siwe';
-import * as Sentry from '@sentry/react';
 import { config } from './config';
+import { App } from './app';
+import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
+import { PolkadotNodeProvider } from './contexts/polkadotNode';
 
 const queryClient = new QueryClient();
 
@@ -38,17 +41,17 @@ render(
     <BrowserRouter>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <EventsProvider>
-            <SiweProvider>
-              <GlobalStateProvider>
-                <GlobalStateContext.Consumer>
-                  {() => {
-                    return <App />;
-                  }}
-                </GlobalStateContext.Consumer>
-              </GlobalStateProvider>
-            </SiweProvider>
-          </EventsProvider>
+          <PolkadotNodeProvider>
+            <EventsProvider>
+              <SiweProvider>
+                <NetworkProvider>
+                  <PolkadotWalletStateProvider>
+                    <App />
+                  </PolkadotWalletStateProvider>
+                </NetworkProvider>
+              </SiweProvider>
+            </EventsProvider>
+          </PolkadotNodeProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </BrowserRouter>

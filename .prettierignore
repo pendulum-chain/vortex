@@ -14,10 +14,17 @@ package-lock.json
 package.json
 yarn.lock
 favicon.png
-.prettierignore 
+.prettierignore
 
 CHANGELOG.md
 **/*.svg
 .prettierignore
 .gitignore
+*.png
+*.svg
+*.webp
+*.jpg
+*.jpeg
+*.gif
 _redirects
+LICENSE

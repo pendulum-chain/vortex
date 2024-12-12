@@ -1,5 +1,4 @@
 const HORIZON_URL = 'https://horizon.stellar.org';
-const BASE_FEE = '1000000';
 const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 const NETWORK = 'Pendulum';
 const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN. Minimum balance of funding account
@@ -21,7 +20,6 @@ const SEP10_MASTER_SECRET = FUNDING_SECRET;
 const CLIENT_DOMAIN_SECRET = process.env.CLIENT_DOMAIN_SECRET;
 
 module.exports = {
-  BASE_FEE,
   HORIZON_URL,
   PENDULUM_WSS,
   NETWORK,
