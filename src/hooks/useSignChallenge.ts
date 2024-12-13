@@ -1,11 +1,16 @@
 import { useState, useCallback } from 'preact/compat';
 import { useSignMessage } from 'wagmi';
+import { getWalletBySource } from '@talismn/connect-wallets';
 import { polygon } from 'wagmi/chains';
 import { SiweMessage } from 'siwe';
+import { u8aToHex } from '@polkadot/util';
+import { Signer } from '@polkadot/types/types';
 
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
+import { useVortexAccount } from './useVortexAccount';
+import { useMemo } from 'react';
 
 export interface SiweSignatureData {
   signatureSet: boolean;
@@ -17,7 +22,7 @@ function createSiweMessage(address: string, nonce: string) {
   const siweMessage = new SiweMessage({
     scheme: 'https',
     domain: window.location.host,
-    address,
+    address: '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877',
     statement: 'Please sign the message to login!',
     uri: window.location.origin,
     version: '1',
@@ -25,12 +30,14 @@ function createSiweMessage(address: string, nonce: string) {
     nonce,
     expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).toISOString(), // Constructor in ms.
   });
+
   return siweMessage.toMessage();
 }
 
-export function useSiweSignature(address?: string) {
+export function useSiweSignature(_address?: string) {
   const { signMessageAsync } = useSignMessage();
   const [signingPending, setSigningPending] = useState(false);
+  const { address, chainId, polkadotWalletAccount } = useVortexAccount();
 
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
@@ -55,6 +62,23 @@ export function useSiweSignature(address?: string) {
       return null;
     }
   }, [address, storageKey]);
+
+  async function getMessageSignature(address: string, siweMessage: string): Promise<string> {
+    let signature;
+    console.log('address is: ', address);
+    if (address.startsWith('0x')) {
+      signature = await signMessageAsync({ message: siweMessage });
+    } else {
+      const { signature: substrateSignature } = await (polkadotWalletAccount!.signer as Signer).signRaw!({
+        type: 'payload',
+        data: siweMessage,
+        address,
+      });
+      signature = substrateSignature;
+    }
+
+    return signature;
+  }
 
   const signMessage = useCallback((): Promise<void> | undefined => {
     if (signPromise) return;
@@ -81,7 +105,8 @@ export function useSiweSignature(address?: string) {
       const siweMessage = createSiweMessage(address, nonce);
 
       const message = new SiweMessage(siweMessage);
-      const signature = await signMessageAsync({ message: siweMessage });
+      const signature = await getMessageSignature(address, siweMessage);
+      console.log('raw signature is: ', signature);
 
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
         method: 'POST',
@@ -106,7 +131,7 @@ export function useSiweSignature(address?: string) {
       setSigningPending(false);
       setSignPromise(null);
     }
-  }, [address, storageKey, signMessageAsync, signPromise, setSigningPending, setSignPromise]);
+  }, [address, chainId, storageKey, signMessageAsync, signPromise, setSigningPending, setSignPromise]);
 
   // Handler for modal cancellation
   const handleCancel = useCallback(() => {

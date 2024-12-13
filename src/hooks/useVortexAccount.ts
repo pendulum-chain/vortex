@@ -52,5 +52,6 @@ export const useVortexAccount = () => {
     chainId,
     address,
     type,
+    polkadotWalletAccount,
   };
 };
