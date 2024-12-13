@@ -14,11 +14,7 @@ const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
   fromToken: InputTokenDetails | undefined,
 ): string | undefined => {
-  const { address, type } = useVortexAccount();
-
-  if (type !== 'evm') {
-    return undefined;
-  }
+  const { address } = useVortexAccount();
 
   const { data: balance } = useReadContract({
     address: tokenAddress,
