@@ -39,9 +39,11 @@ export interface UseTokenOutAmountResult {
   isLoading: boolean;
   enabled: boolean;
   data: TokenOutData | undefined;
+  error: string | null;
+  stableAmountInUnits: string | undefined;
 }
 
-interface TokenOutData {
+export interface TokenOutData {
   preciseQuotedAmountOut: ContractBalance;
   roundedDownQuotedAmountOut: Big;
   swapFee: ContractBalance;
