@@ -331,7 +331,7 @@ export const SwapPage = () => {
   const onSwapConfirm = (e: Event) => {
     e.preventDefault();
 
-    if (!termsChecked) {
+    if (!termsAccepted && !termsChecked) {
       setTermsError(true);
 
       // We need to trigger a re-render of the TermsAndConditions component to animate
