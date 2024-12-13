@@ -1,18 +1,22 @@
-import { EventStatus } from '../../components/GenericEvent';
-import { createTransactionEvent } from '../../contexts/events';
-
 import { useCallback, useState } from 'preact/compat';
-import { Networks } from '../../contexts/network';
-import { useEventsContext } from '../../contexts/events';
-import { OfframpingState } from '../../services/offrampingFlow';
-import { GenericEvent } from '../../components/GenericEvent';
-import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
-import { getInputTokenDetailsOrDefault } from '../../constants/tokenConfig';
 
-export const useOfframpingEvents = (selectedNetwork: Networks) => {
+import { EventStatus } from '../../components/GenericEvent';
+import { GenericEvent } from '../../components/GenericEvent';
+
+import { createTransactionEvent } from '../../contexts/events';
+import { useEventsContext } from '../../contexts/events';
+import { useNetwork } from '../../contexts/network';
+
+import { getInputTokenDetailsOrDefault } from '../../constants/tokenConfig';
+import { OfframpingState } from '../../services/offrampingFlow';
+import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
+
+export const useOfframpingEvents = () => {
   const { trackEvent, resetUniqueEvents } = useEventsContext();
+  const { selectedNetwork } = useNetwork();
   const [_, setEvents] = useState<GenericEvent[]>([]);
 
+  // @todo: why do we need this?
   const addEvent = (message: string, status: EventStatus) => {
     setEvents((prevEvents) => [...prevEvents, { value: message, status }]);
   };

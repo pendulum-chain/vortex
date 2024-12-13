@@ -1,28 +1,29 @@
-import { StateUpdater } from 'preact/hooks';
-
-import { useAssetHubNode } from '../../contexts/polkadotNode';
-
-import { EventStatus } from '../../components/GenericEvent';
-import { usePendulumNode } from '../../contexts/polkadotNode';
-import { advanceOfframpingState, OfframpingState } from '../../services/offrampingFlow';
-import { SigningPhase } from './useMainProcess';
-import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-import { useConfig } from 'wagmi';
 import { useEffect } from 'preact/hooks';
+import { useConfig } from 'wagmi';
+
+import { advanceOfframpingState } from '../../services/offrampingFlow';
+import { EventStatus } from '../../components/GenericEvent';
+
+import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import { useAssetHubNode } from '../../contexts/polkadotNode';
+import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useEventsContext } from '../../contexts/events';
 
-export const useOfframpingAdvancement = (deps: {
-  offrampingState: OfframpingState | undefined;
-  updateHookStateFromState: (state: OfframpingState | undefined) => void;
+import { useOfframpStore } from '../../stores/offrampStore';
+
+interface AdvancementDeps {
   addEvent: (message: string, status: EventStatus) => void;
-  setSigningPhase: StateUpdater<SigningPhase | undefined>;
-}) => {
-  const { offrampingState, updateHookStateFromState, addEvent, setSigningPhase } = deps;
+}
+
+export const useOfframpingAdvancement = ({ addEvent }: AdvancementDeps) => {
+  const { walletAccount } = usePolkadotWalletState();
   const { trackEvent } = useEventsContext();
   const wagmiConfig = useConfig();
+
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { apiComponents: assetHubNode } = useAssetHubNode();
-  const { walletAccount } = usePolkadotWalletState();
+
+  const { offrampingState, updateHookStateFromState, setSigningPhase } = useOfframpStore();
 
   useEffect(() => {
     if (wagmiConfig.state.status !== 'connected') return;
