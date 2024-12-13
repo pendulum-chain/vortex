@@ -70,7 +70,10 @@ export const SwapPage = () => {
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
-  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted } = useTermsAndConditions();
+  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+
+  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
+    useTermsAndConditions();
 
   useEffect(() => {
     setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
@@ -328,6 +331,14 @@ export const SwapPage = () => {
   const onSwapConfirm = (e: Event) => {
     e.preventDefault();
 
+    if (!termsChecked) {
+      setTermsError(true);
+
+      // We need to trigger a re-render of the TermsAndConditions component to animate
+      setTermsAnimationKey((prev) => prev + 1);
+      return;
+    }
+
     swapConfirm(e, {
       inputAmountIsStable,
       address,
@@ -344,9 +355,6 @@ export const SwapPage = () => {
       setTermsAccepted,
     });
   };
-
-  const isTermsAndConditionsSatisfied = termsAccepted || termsChecked;
-  const isSwapDisabled = Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !isTermsAndConditionsSatisfied;
 
   const main = (
     <main ref={formRef}>
@@ -386,7 +394,10 @@ export const SwapPage = () => {
           )}
         </section>
         <section className="w-full mt-5">
-          <TermsAndConditions {...{ toggleTermsChecked, termsChecked, termsAccepted }} />
+          <TermsAndConditions
+            key={termsAnimationKey}
+            {...{ toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError }}
+          />
         </section>
         <div className="flex gap-3 mt-5">
           <button
@@ -421,7 +432,7 @@ export const SwapPage = () => {
           ) : (
             <SwapSubmitButton
               text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
-              disabled={isSwapDisabled}
+              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable}
               pending={isInitiating || offrampingStarted || offrampingState !== undefined}
             />
           )}

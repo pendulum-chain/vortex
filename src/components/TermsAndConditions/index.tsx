@@ -1,10 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { StateUpdater } from 'preact/hooks';
 import { Checkbox, Link } from 'react-daisyui';
 
 interface TermsAndConditionsProps {
-  toggleTermsChecked: (accepted: boolean) => void;
+  toggleTermsChecked: () => void;
+  setTermsError: StateUpdater<boolean>;
   termsChecked: boolean;
   termsAccepted: boolean;
+  termsError: boolean;
 }
 
 const fadeOutAnimation = {
@@ -19,32 +22,44 @@ export const TermsAndConditions = (props: TermsAndConditionsProps) => {
   return <AnimatePresence mode="wait">{!termsAccepted && <TermsAndConditionsContent {...props} />}</AnimatePresence>;
 };
 
-const TermsAndConditionsContent = ({ toggleTermsChecked, termsChecked }: TermsAndConditionsProps) => (
-  <motion.div
-    key="terms-conditions"
-    initial={{ opacity: 0, scale: 0.8 }}
-    animate={{ opacity: 1, scale: 1 }}
-    exit={fadeOutAnimation}
-  >
+const TermsAndConditionsContent = ({
+  toggleTermsChecked,
+  setTermsError,
+  termsChecked,
+  termsError,
+}: TermsAndConditionsProps) => (
+  <motion.div key="terms-conditions" exit={fadeOutAnimation}>
     <div className="mb-5 text-sm" />
     <div className="flex text-sm">
-      <Checkbox checked={termsChecked} onClick={toggleTermsChecked} color="primary" size="sm" />
-      <TermsText />
+      <Checkbox
+        checked={termsChecked}
+        onClick={() => {
+          toggleTermsChecked();
+          setTermsError(false);
+        }}
+        color="primary"
+        size="sm"
+      />
+      <TermsText error={termsError} />
     </div>
   </motion.div>
 );
 
-const TermsText = () => (
-  <span className="pl-2">
+const TermsText = ({ error }: { error: boolean }) => (
+  <motion.span
+    className={`pl-2 ${error ? 'text-red-600' : ''}`}
+    animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
+  >
     I have read and accept the{' '}
     <Link
       href="https://www.vortexfinance.co/terms-conditions"
-      color="accent"
+      color={error ? 'error' : 'accent'}
+      className={`transition-all duration-300 ${error ? 'text-red-600 font-bold' : ''}`}
       target="_blank"
       rel="noreferrer"
       style={{ textDecoration: 'underline' }}
     >
       Terms and Conditions
     </Link>
-  </span>
+  </motion.span>
 );

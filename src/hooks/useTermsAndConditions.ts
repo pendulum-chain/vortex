@@ -10,6 +10,8 @@ export const useTermsAndConditions = () => {
   // termsChecked is used to determine if the Terms and Conditions checkbox is checked and the Swap form can be submitted in `swap/index.tsx`
   const [termsChecked, setTermsChecked] = useState<boolean>(false);
 
+  const [termsError, setTermsError] = useState<boolean>(false);
+
   const toggleTermsChecked = () => {
     setTermsChecked((state) => !state);
   };
@@ -22,5 +24,7 @@ export const useTermsAndConditions = () => {
       set(accepted ? 'accepted' : undefined);
       setTermsAccepted(accepted);
     },
+    termsError,
+    setTermsError,
   };
 };
