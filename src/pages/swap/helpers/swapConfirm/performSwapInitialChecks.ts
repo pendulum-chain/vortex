@@ -10,7 +10,8 @@ export const performSwapInitialChecks = async (
   fromToken: InputTokenDetails,
   expectedRedeemAmountRaw: string,
   inputAmountRaw: string,
-  address: `0x${string}`,
+  address: string,
+  requiresSquidRouter: boolean,
 ) => {
   await Promise.all([
     getVaultsForCurrency(
@@ -19,6 +20,6 @@ export const performSwapInitialChecks = async (
       outputToken.stellarAsset.issuer.hex,
       expectedRedeemAmountRaw,
     ),
-    testRoute(fromToken, inputAmountRaw, address),
+    requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address) : Promise.resolve(),
   ]);
 };

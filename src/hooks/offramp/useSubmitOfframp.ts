@@ -1,6 +1,6 @@
 import { MutableRefObject, useCallback } from 'preact/compat';
 import { polygon } from 'wagmi/chains';
-import { useAccount, useSwitchChain } from 'wagmi';
+import { useSwitchChain } from 'wagmi';
 import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
@@ -19,6 +19,7 @@ import {
 import { OfframpingState } from '../../services/offrampingFlow';
 import { ExtendedExecutionInput } from './useSEP24/useSEP24State';
 import { ExecutionInput } from './useSEP24';
+import { useVortexAccount } from '../useVortexAccount';
 
 interface UseSubmitOfframpProps {
   firstSep24IntervalRef: MutableRefObject<number | undefined>;
@@ -46,7 +47,7 @@ export const useSubmitOfframp = ({
   const { selectedNetwork } = useNetwork();
   const { switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
-  const { address } = useAccount();
+  const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
 
   const addEvent = (message: string, status: string) => {

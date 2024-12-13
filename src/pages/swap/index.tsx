@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Fragment } from 'preact';
-import { useAccount } from 'wagmi';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
 
@@ -49,6 +48,7 @@ import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
 import { swapConfirm } from './helpers/swapConfirm';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -60,7 +60,7 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { isDisconnected, address } = useAccount();
+  const { isDisconnected, address } = useVortexAccount();
   const [initializeFailed, setInitializeFailed] = useState(false);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
@@ -331,7 +331,7 @@ export const SwapPage = () => {
   const onSwapConfirm = (e: Event) => {
     e.preventDefault();
 
-    if (!termsChecked) {
+    if (!termsAccepted && !termsChecked) {
       setTermsError(true);
 
       // We need to trigger a re-render of the TermsAndConditions component to animate
@@ -349,6 +349,7 @@ export const SwapPage = () => {
       from,
       selectedNetwork,
       fromAmountString,
+      requiresSquidRouter: selectedNetwork === Networks.Polygon,
       setIsInitiating,
       setInitializeFailed,
       handleOnSubmit,
