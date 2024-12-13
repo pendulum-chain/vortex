@@ -231,9 +231,6 @@ export async function sep24First(
       amount: sessionParams.offrampAmount,
       account: sep10Account, // THIS is a particularity of Anclap. Should be able to work just with the epmhemeral account
       // or at least the anchor should be able to get it from the JWT.
-      // Since we signed with the master/omnibus from the service, we need to specify the corresponding public here
-      // memo: deriveMemoFromAddress(address!),
-      // memo_type: 'id',
     });
   } else {
     sep24Params = new URLSearchParams({

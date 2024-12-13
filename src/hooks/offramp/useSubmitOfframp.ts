@@ -1,7 +1,7 @@
 import { MutableRefObject, useCallback } from 'preact/compat';
 import { polygon } from 'wagmi/chains';
 import { useAccount, useSwitchChain } from 'wagmi';
-import { getNetworkId, useNetwork } from '../../contexts/network';
+import { getNetworkId, isNetworkEVM, useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
@@ -63,16 +63,18 @@ export const useSubmitOfframp = ({
       }
 
       (async () => {
-        let chainId = getNetworkId(selectedNetwork);
-        if (!chainId) {
-          setInitializeFailed();
-          setOfframpingStarted(false);
-          setIsInitiating(false);
-          return;
-        }
-
         try {
-          await switchChainAsync({ chainId: chainId! });
+          let chainId = getNetworkId(selectedNetwork);
+          if (!chainId && isNetworkEVM(selectedNetwork)) {
+            setInitializeFailed();
+            setOfframpingStarted(false);
+            setIsInitiating(false);
+            return;
+          }
+
+          if (isNetworkEVM(selectedNetwork)) {
+            await switchChainAsync({ chainId: chainId! });
+          }
 
           setOfframpingStarted(true);
 

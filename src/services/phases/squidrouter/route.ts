@@ -163,10 +163,10 @@ export async function testRoute(
   address: `0x${string}`,
   fromNetwork: Networks,
 ) {
-  const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
   if (!isEvmInputTokenDetails(testingToken)) {
     return;
   }
+  const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
 
   const sharedRouteParams: RouteParams = {
     fromAddress: address,

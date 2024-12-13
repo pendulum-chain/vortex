@@ -217,6 +217,7 @@ export const SwapPage = () => {
         });
       })
       .catch((_error) => {
+        console.log('Initial checks failed. Aborting process..', _error);
         setIsInitiating(false);
         setInitializeFailed();
       });
