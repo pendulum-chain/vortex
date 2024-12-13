@@ -14,22 +14,10 @@ export const useTermsAndConditions = () => {
     setTermsChecked((state) => !state);
   };
 
-  const acceptTerms = () => {
-    set('accepted');
-    setTermsAccepted(true);
-  };
-
-  const rejectTerms = () => {
-    set(undefined);
-    setTermsAccepted(false);
-  };
-
   return {
     termsChecked,
     toggleTermsChecked,
     termsAccepted,
-    acceptTerms,
-    rejectTerms,
     setTermsAccepted: (accepted: boolean) => {
       set(accepted ? 'accepted' : undefined);
       setTermsAccepted(accepted);

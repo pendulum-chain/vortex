@@ -18,40 +18,39 @@ import { performSwapInitialChecks } from './performSwapInitialChecks';
 import { validateSwapInputs } from './validateSwapInputs';
 
 interface SwapConfirmParams {
-  inputAmountIsStable: boolean;
   address: `0x${string}` | undefined;
-  fromAmount: Big | undefined;
-  tokenOutAmount: { data: TokenOutData | undefined };
   api: ApiPromise | null;
-  to: OutputTokenType;
   from: InputTokenType;
-  selectedNetwork: Networks;
+  fromAmount: Big | undefined;
   fromAmountString: string;
-  setIsInitiating: StateUpdater<boolean>;
-  setInitializeFailed: StateUpdater<boolean>;
   handleOnSubmit: (executionInput: ExecutionInput) => void;
+  inputAmountIsStable: boolean;
+  selectedNetwork: Networks;
+  setInitializeFailed: StateUpdater<boolean>;
+  setIsInitiating: StateUpdater<boolean>;
   setTermsAccepted: (accepted: boolean) => void;
+  to: OutputTokenType;
+  tokenOutAmount: { data: TokenOutData | undefined };
 }
 
-export function swapConfirm(
-  e: Event,
-  {
-    inputAmountIsStable,
-    address,
-    fromAmount,
-    tokenOutAmount,
-    api,
-    to,
-    from,
-    selectedNetwork,
-    fromAmountString,
-    setIsInitiating,
-    setInitializeFailed,
-    handleOnSubmit,
-    setTermsAccepted,
-  }: SwapConfirmParams,
-) {
+export function swapConfirm(e: Event, params: SwapConfirmParams) {
   e.preventDefault();
+
+  const {
+    address,
+    api,
+    from,
+    fromAmount,
+    fromAmountString,
+    handleOnSubmit,
+    inputAmountIsStable,
+    selectedNetwork,
+    setInitializeFailed,
+    setIsInitiating,
+    setTermsAccepted,
+    to,
+    tokenOutAmount,
+  } = params;
 
   const validInputs = validateSwapInputs(inputAmountIsStable, address, fromAmount, tokenOutAmount.data);
   if (!validInputs) {
@@ -86,6 +85,7 @@ export function swapConfirm(
       });
     })
     .catch((_error) => {
+      console.error('Error during swap confirmation:', _error);
       setIsInitiating(false);
       setInitializeFailed(true);
     });
