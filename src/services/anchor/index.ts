@@ -1,5 +1,6 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { keccak256 } from 'viem/utils';
+import { Keyring } from '@polkadot/api';
 
 import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
@@ -64,9 +65,20 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
+// Returns the hash value for the address. If it's a polkadot address, it will return raw data of the address.
+function getHashValueForAddress(address: string) {
+  if (address.startsWith('0x')) {
+    return address as `0x${string}`;
+  } else {
+    const keyring = new Keyring({ type: 'sr25519' });
+    return keyring.decodeAddress(address);
+  }
+}
+
 //A memo derivation. TODO: Secure? how to check for collisions?
-async function deriveMemoFromAddress(address: `0x${string}`) {
-  const hash = keccak256(address);
+async function deriveMemoFromAddress(address: string) {
+  const hashValue = getHashValueForAddress(address);
+  const hash = keccak256(hashValue);
   return BigInt(hash).toString().slice(0, 15);
 }
 
@@ -75,7 +87,7 @@ async function getUrlParams(
   ephemeralAccount: string,
   usesMemo: boolean,
   supportsClientDomain: boolean,
-  address: `0x${string}`,
+  address: string,
 ): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
   let sep10Account: string;
   const params = new URLSearchParams();
@@ -130,7 +142,7 @@ export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
-  address: `0x${string}` | undefined,
+  address: string | undefined,
   checkAndWaitForSignature: () => Promise<void>,
   forceRefreshAndWaitForSignature: () => Promise<void>,
   renderEvent: (event: string, status: EventStatus) => void,

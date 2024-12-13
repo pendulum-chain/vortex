@@ -17,7 +17,6 @@ const useEvmBalance = (
   const { address, type } = useVortexAccount();
 
   if (type !== 'evm') {
-    console.log(`Cannot fetch EVM balance for ${fromToken?.assetSymbol} from ${type} account`);
     return undefined;
   }
 

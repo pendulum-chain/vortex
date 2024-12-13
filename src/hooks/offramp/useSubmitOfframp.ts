@@ -19,6 +19,7 @@ import {
 import { OfframpingState } from '../../services/offrampingFlow';
 import { ExtendedExecutionInput } from './useSEP24/useSEP24State';
 import { ExecutionInput } from './useSEP24';
+import { useVortexAccount } from '../useVortexAccount';
 
 interface UseSubmitOfframpProps {
   firstSep24IntervalRef: MutableRefObject<number | undefined>;
