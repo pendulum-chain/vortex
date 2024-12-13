@@ -80,8 +80,9 @@ const ProgressContent: FC<{
   currentPhase: OfframpingPhase;
   currentPhaseIndex: number;
   message: string;
-  network: Networks;
-}> = ({ currentPhase, currentPhaseIndex, message, network }) => {
+}> = ({ currentPhase, currentPhaseIndex, message }) => {
+  const { selectedNetwork } = useNetwork();
+
   const [currentPercentage, setCurrentPercentage] = useState<number>(
     Math.round((100 / numberOfPhases) * currentPhaseIndex),
   );
@@ -159,7 +160,9 @@ const ProgressContent: FC<{
         </div>
         <h1 className="my-3 text-base font-bold text-blue-700">Your transaction is in progress.</h1>
         <h1 className="mb-3 text-base text-blue-700">
-          {network === Networks.AssetHub ? 'This usually takes 4-6 minutes.' : 'This usually takes 6-8 minutes.'}
+          {selectedNetwork === Networks.AssetHub
+            ? 'This usually takes 4-6 minutes.'
+            : 'This usually takes 6-8 minutes.'}
         </h1>
         <div>{message}</div>
       </div>
@@ -183,12 +186,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
     <BaseLayout
       main={
         <main>
-          <ProgressContent
-            currentPhase={currentPhase}
-            currentPhaseIndex={currentPhaseIndex}
-            message={message}
-            network={selectedNetwork}
-          />
+          <ProgressContent currentPhase={currentPhase} currentPhaseIndex={currentPhaseIndex} message={message} />
         </main>
       }
     />
