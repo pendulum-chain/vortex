@@ -18,13 +18,14 @@ import { performSwapInitialChecks } from './performSwapInitialChecks';
 import { validateSwapInputs } from './validateSwapInputs';
 
 interface SwapConfirmParams {
-  address: `0x${string}` | undefined;
+  address: string | undefined;
   api: ApiPromise | null;
   from: InputTokenType;
   fromAmount: Big | undefined;
   fromAmountString: string;
   handleOnSubmit: (executionInput: ExecutionInput) => void;
   inputAmountIsStable: boolean;
+  requiresSquidRouter: boolean;
   selectedNetwork: Networks;
   setInitializeFailed: StateUpdater<boolean>;
   setIsInitiating: StateUpdater<boolean>;
@@ -44,6 +45,7 @@ export function swapConfirm(e: Event, params: SwapConfirmParams) {
     fromAmountString,
     handleOnSubmit,
     inputAmountIsStable,
+    requiresSquidRouter,
     selectedNetwork,
     setInitializeFailed,
     setIsInitiating,
@@ -69,7 +71,15 @@ export function swapConfirm(e: Event, params: SwapConfirmParams) {
     outputToken,
   );
 
-  performSwapInitialChecks(api!, outputToken, inputToken, expectedRedeemAmountRaw, inputAmountRaw, address!)
+  performSwapInitialChecks(
+    api!,
+    outputToken,
+    inputToken,
+    expectedRedeemAmountRaw,
+    inputAmountRaw,
+    address!,
+    requiresSquidRouter,
+  )
     .then(() => {
       console.log('Initial checks completed. Starting process..');
 
