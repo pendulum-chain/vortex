@@ -2,7 +2,6 @@ import { createContext } from 'preact';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
 import Big from 'big.js';
 import * as Sentry from '@sentry/react';
-import { useAccount } from 'wagmi';
 import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
@@ -130,7 +129,7 @@ type EventType = TrackableEvent['event'];
 type UseEventsContext = ReturnType<typeof useEvents>;
 
 const useEvents = () => {
-  const { address, chainId } = useAccount();
+  const { address, chainId } = useVortexAccount();
   const previousAddress = useRef<`0x${string}` | undefined>(undefined);
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);

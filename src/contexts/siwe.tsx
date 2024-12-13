@@ -1,4 +1,3 @@
-import { useAccount } from 'wagmi';
 import { useSiweSignature } from '../hooks/useSignChallenge';
 import { createContext } from 'preact';
 import { PropsWithChildren, useContext } from 'preact/compat';
@@ -16,7 +15,7 @@ export const useSiweContext = () => {
 };
 
 export const SiweProvider = ({ children }: PropsWithChildren) => {
-  const { address } = useAccount();
+  const { address } = useVortexAccount();
   const siweSignature = useSiweSignature(address);
 
   return <SiweContext.Provider value={siweSignature}>{children}</SiweContext.Provider>;

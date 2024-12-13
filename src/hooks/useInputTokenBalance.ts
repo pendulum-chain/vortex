@@ -1,4 +1,4 @@
-import { useAccount, useReadContract } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { useEffect, useState } from 'preact/hooks';
 import Big from 'big.js';
 
@@ -8,12 +8,18 @@ import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
+import { useVortexAccount } from './useVortexAccount';
 
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
   fromToken: InputTokenDetails | undefined,
 ): string | undefined => {
-  const { address } = useAccount();
+  const { address, type } = useVortexAccount();
+
+  if (type !== 'evm') {
+    console.log(`Cannot fetch EVM balance for ${fromToken?.assetSymbol} from ${type} account`);
+    return undefined;
+  }
 
   const { data: balance } = useReadContract({
     address: tokenAddress,
