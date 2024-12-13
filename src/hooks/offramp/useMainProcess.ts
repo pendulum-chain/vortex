@@ -9,7 +9,7 @@ import { useSEP24 } from './useSEP24';
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpingEvents } from './useOfframpingEvents';
 import { useOfframpingAdvancement } from './useOfframpingAdvancement';
-import { useOfframpStatus, useOfframpStore } from '../../stores/offrampStore';
+import { useOfframpStore } from '../../stores/offrampStore';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -22,11 +22,17 @@ export interface ExecutionInput {
 }
 
 export const useMainProcess = () => {
-  // State
-  const { offrampingStarted, isInitiating, offrampingState, signingPhase } = useOfframpStatus();
-
   // State updater
-  const { setOfframpingStarted, setIsInitiating, resetState, updateHookStateFromState } = useOfframpStore();
+  const {
+    setOfframpingStarted,
+    setIsInitiating,
+    resetState,
+    updateHookStateFromState,
+    offrampingStarted,
+    isInitiating,
+    offrampingState,
+    signingPhase,
+  } = useOfframpStore();
 
   // Contexts
   const { setOnSelectedNetworkChange } = useNetwork();
@@ -55,10 +61,6 @@ export const useMainProcess = () => {
   return {
     handleOnSubmit: useSubmitOfframp({
       ...sep24,
-      offrampingStarted,
-      offrampingState,
-      setOfframpingStarted,
-      setIsInitiating,
     }),
     firstSep24ResponseState: sep24.firstSep24Response,
     offrampingState,

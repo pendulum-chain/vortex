@@ -16,7 +16,7 @@ import {
   sep24First,
 } from '../../services/anchor';
 
-import { OfframpingState } from '../../services/offrampingFlow';
+import { useOfframpStore } from '../../stores/offrampStore';
 import { ExtendedExecutionInput } from './useSEP24/useSEP24State';
 import { ExecutionInput } from './useSEP24';
 
@@ -26,10 +26,6 @@ interface UseSubmitOfframpProps {
   setExecutionInput: (input: ExtendedExecutionInput | undefined) => void;
   setAnchorSessionParams: (params: IAnchorSessionParams | undefined) => void;
   cleanSep24FirstVariables: () => void;
-  offrampingStarted: boolean;
-  offrampingState: OfframpingState | undefined;
-  setOfframpingStarted: (started: boolean) => void;
-  setIsInitiating: (isInitiating: boolean) => void;
 }
 
 export const useSubmitOfframp = ({
@@ -38,16 +34,13 @@ export const useSubmitOfframp = ({
   setExecutionInput,
   setAnchorSessionParams,
   cleanSep24FirstVariables,
-  offrampingStarted,
-  offrampingState,
-  setOfframpingStarted,
-  setIsInitiating,
 }: UseSubmitOfframpProps) => {
   const { selectedNetwork } = useNetwork();
   const { switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
   const { address } = useAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
+  const { offrampingStarted, offrampingState, setOfframpingStarted, setIsInitiating } = useOfframpStore();
 
   const addEvent = (message: string, status: string) => {
     console.log('Add event', message, status);

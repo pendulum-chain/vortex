@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { OfframpState, OfframpActions } from '../types/offramp';
-import { clearOfframpingState, recoverFromFailure, readCurrentState } from '../services/offrampingFlow';
+import { clearOfframpingState } from '../services/offrampingFlow';
 
 interface OfframpStore extends OfframpState, OfframpActions {}
 
-export const useOfframpStore = create<OfframpStore>()((set, get) => ({
+export const useOfframpStore = create<OfframpStore>()((set) => ({
   // Initial state
   offrampingStarted: false,
   isInitiating: false,
@@ -44,15 +44,6 @@ export const useOfframpStore = create<OfframpStore>()((set, get) => ({
     });
   },
 }));
-
-// Selector hooks for better performance
-export const useOfframpStatus = () =>
-  useOfframpStore((state) => ({
-    offrampingStarted: state.offrampingStarted,
-    isInitiating: state.isInitiating,
-    offrampingState: state.offrampingState,
-    signingPhase: state.signingPhase,
-  }));
 
 export const useSep24State = () =>
   useOfframpStore((state) => ({

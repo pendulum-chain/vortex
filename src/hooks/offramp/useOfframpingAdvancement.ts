@@ -48,6 +48,8 @@ export const useOfframpingAdvancement = ({ addEvent }: AdvancementDeps) => {
         updateHookStateFromState(nextState);
       }
     })();
+
+    // @todo: investigate and remove this
     // This effect has dependencies that are used inside the async function (assetHubNode, pendulumNode, walletAccount)
     // but we intentionally exclude them from the dependency array to prevent unnecessary re-renders.
     // These dependencies are stable and won't change during the lifecycle of this hook.
