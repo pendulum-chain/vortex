@@ -17,7 +17,6 @@ export const useSiweContext = () => {
 
 export const SiweProvider = ({ children }: PropsWithChildren) => {
   const { address } = useVortexAccount();
-  console.log('SiweProvider: address is: ', address);
   const siweSignature = useSiweSignature(address);
 
   return <SiweContext.Provider value={siweSignature}>{children}</SiweContext.Provider>;

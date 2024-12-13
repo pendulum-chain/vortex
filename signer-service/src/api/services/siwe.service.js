@@ -1,6 +1,10 @@
 const siwe = require('siwe');
 const { createPublicClient, http } = require('viem');
 const { polygon } = require('viem/chains');
+const { Keyring } = require('@polkadot/api');
+const { SignInMessage } = require('../helpers/siweMessageFormatter.js');
+const { signatureVerify } = require('@polkadot/util-crypto');
+const { deriveMemoFromAddress } = require('../helpers/memoDerivation');
 const { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, VALID_SIWE_CHAINS } = require('../../constants/constants');
 
 class ValidationError extends Error {
@@ -30,29 +34,34 @@ const verifySiweMessage = async (nonce, signature, initialSiweMessage) => {
 
   const siweMessage = existingSiweDataForNonce.siweMessage
     ? existingSiweDataForNonce.siweMessage
-    : new siwe.SiweMessage(initialSiweMessage);
+    : SignInMessage.fromMessage(initialSiweMessage);
   const address = existingSiweDataForNonce.address;
 
   if (!siweMessage) {
     throw new Error('Message must be provided as a parameter if it has not been initially validated.');
   }
 
-  // Verify the integrity of the message
-  const publicClient = createPublicClient({
-    chain: polygon,
-    transport: http(),
-  });
-
-  const valid = await publicClient.verifyMessage({
-    address: address,
-    message: siweMessage.toMessage(), // Validation must be done on the message as string
-    signature,
-  });
+  // verify with substrate (generic) or evm generic (using polygon public client)
+  let valid = false;
+  if (address.startsWith('0x')) {
+    const publicClient = createPublicClient({
+      chain: polygon,
+      transport: http(),
+    });
+    valid = await publicClient.verifyMessage({
+      address: address,
+      message: siweMessage.toMessage(), // Validation must be done on the message as string
+      signature,
+    });
+  } else if (address.startsWith('5')) {
+    valid = signatureVerify(siweMessage.toMessage(), signature, address);
+  } else {
+    throw new ValidationError(`verifySiweMessage: Invalid address format: ${address}`);
+  }
 
   if (!valid) {
     throw new ValidationError('Invalid signature');
   }
-
   // Perform additional checks to ensure message fields
   if (siweMessage.nonce !== nonce) {
     throw new ValidationError('Nonce mismatch');
@@ -68,6 +77,7 @@ const verifySiweMessage = async (nonce, signature, initialSiweMessage) => {
 // Since the message is created in the UI, we need to verify the fields of the message
 const verifyInitialMessageFields = (siweMessage) => {
   // Fields we validate on initial
+  console.log(siweMessage);
   const domain = siweMessage.domain;
   const uri = siweMessage.uri;
   const scheme = siweMessage.scheme; // must be https
@@ -122,6 +132,25 @@ const verifyAndStoreSiweMessage = async (nonce, signature, siweMessage) => {
       siweMessagesMap.delete(nonce);
     }
   });
+  return siweData.address;
 };
 
-module.exports = { verifySiweMessage, verifyAndStoreSiweMessage, createAndSendNonce };
+const validateSignatureAndGetMemo = async (nonce, userChallengeSignature) => {
+  if (!userChallengeSignature || !nonce) {
+    return null; // Default memo value when single stellar account is used
+  }
+
+  let message;
+  try {
+    // initialSiweMessage must be undefined after an initial check,
+    // message must exist on the map.
+    message = await verifySiweMessage(nonce, userChallengeSignature, undefined);
+  } catch (e) {
+    throw new Error(`Could not verify signature: ${e.message}`);
+  }
+
+  const memo = await deriveMemoFromAddress(message.address);
+  return memo;
+};
+
+module.exports = { verifySiweMessage, verifyAndStoreSiweMessage, createAndSendNonce, validateSignatureAndGetMemo };

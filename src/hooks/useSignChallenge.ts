@@ -2,7 +2,7 @@ import { useState, useCallback } from 'preact/compat';
 import { useSignMessage } from 'wagmi';
 import { getWalletBySource } from '@talismn/connect-wallets';
 import { polygon } from 'wagmi/chains';
-import { SiweMessage } from 'siwe';
+import { SignInMessage } from '../helpers/siweMessageFormatter';
 import { u8aToHex } from '@polkadot/util';
 import { Signer } from '@polkadot/types/types';
 
@@ -18,11 +18,10 @@ export interface SiweSignatureData {
 }
 
 function createSiweMessage(address: string, nonce: string) {
-  // Make constants on config
-  const siweMessage = new SiweMessage({
+  const siweMessage = new SignInMessage({
     scheme: 'https',
     domain: window.location.host,
-    address: '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877',
+    address: address,
     statement: 'Please sign the message to login!',
     uri: window.location.origin,
     version: '1',
@@ -65,7 +64,6 @@ export function useSiweSignature(_address?: string) {
 
   async function getMessageSignature(address: string, siweMessage: string): Promise<string> {
     let signature;
-    console.log('address is: ', address);
     if (address.startsWith('0x')) {
       signature = await signMessageAsync({ message: siweMessage });
     } else {
@@ -102,11 +100,11 @@ export function useSiweSignature(_address?: string) {
       if (!messageResponse.ok) throw new Error('Failed to create message');
       const { nonce } = await messageResponse.json();
 
+      // Message in both string and object form
       const siweMessage = createSiweMessage(address, nonce);
+      const message = SignInMessage.fromMessage(siweMessage);
 
-      const message = new SiweMessage(siweMessage);
       const signature = await getMessageSignature(address, siweMessage);
-      console.log('raw signature is: ', signature);
 
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
         method: 'POST',

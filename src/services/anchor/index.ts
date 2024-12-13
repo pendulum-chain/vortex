@@ -190,6 +190,7 @@ export const sep10 = async (
       outToken: outputToken,
       clientPublicKey: sep10Account,
       memo: usesMemo,
+      address: address!,
     },
   );
 

@@ -22,6 +22,7 @@ export interface SignerServiceSep10Request {
   challengeXDR: string;
   outToken: OutputTokenType;
   clientPublicKey: string;
+  address: string;
   memo?: boolean;
 }
 
@@ -52,12 +53,13 @@ export const fetchSep10Signatures = async ({
   outToken,
   clientPublicKey,
   memo,
+  address,
 }: SignerServiceSep10Request): Promise<SignerServiceSep10Response> => {
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, memo }),
+    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, memo, address }),
   });
   if (response.status !== 200) {
     if (response.status === 401) {
