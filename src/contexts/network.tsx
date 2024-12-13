@@ -86,7 +86,6 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
       if (onNetworkChange) {
         onNetworkChange(network);
       }
-      console.log('setSelectedNetwork', network);
       setSelectedNetworkState(network);
       setSelectedNetworkLocalStorage(network);
 

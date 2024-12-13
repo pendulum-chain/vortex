@@ -35,7 +35,6 @@ const useAssetHubBalance = (assetId?: number): string | undefined => {
     if (!walletAccount || !assetHubNode) return;
 
     if (!assetId) {
-      console.log('Invalid assetId', assetId);
       setBalance('0');
       return;
     }
