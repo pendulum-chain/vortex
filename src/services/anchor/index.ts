@@ -282,6 +282,8 @@ export async function sep24Second(
   const { sep24Url } = tomlValues;
 
   if (config.test.mockSep24) {
+    // sleep 10 secs
+    await new Promise((resolve) => setTimeout(resolve, 10000));
     return {
       amount: sessionParams.offrampAmount,
       memo: 'MYK1722323689',
