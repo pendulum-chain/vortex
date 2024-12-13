@@ -6,6 +6,7 @@ import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenCon
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
+import { useVortexAccount } from '../hooks/useVortexAccount';
 import { Networks } from './network';
 
 declare global {
@@ -130,7 +131,7 @@ type UseEventsContext = ReturnType<typeof useEvents>;
 
 const useEvents = () => {
   const { address, chainId } = useVortexAccount();
-  const previousAddress = useRef<`0x${string}` | undefined>(undefined);
+  const previousAddress = useRef<string | undefined>(undefined);
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 

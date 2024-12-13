@@ -26,7 +26,7 @@ interface EmailData {
 
 interface RatingData {
   rating: number;
-  walletAddress: `0x${string}`;
+  walletAddress: string;
 }
 
 async function sendRequestToBackend(endpoint: string, data: EmailData | DumpData | RatingData) {

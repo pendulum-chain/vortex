@@ -5,6 +5,7 @@ import { validator } from 'web3';
 
 import { storeUserRatingInBackend } from '../../services/storage/remote';
 import { CloseButton } from '../buttons/CloseButton';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useRatingVisibility } from './useRatingVisibility';
 import RatingForm from './RatingForm';
 import './index.css';
