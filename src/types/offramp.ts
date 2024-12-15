@@ -4,9 +4,9 @@ import { OfframpingState } from '../services/offrampingFlow';
 import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
 import { ISep24Intermediate, IAnchorSessionParams } from '../services/anchor';
 
-export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
+export type OfframpSigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
-export interface ExecutionInput {
+export interface OfframpExecutionInput {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   amountInUnits: string;
@@ -16,25 +16,27 @@ export interface ExecutionInput {
 
 export interface OfframpState {
   // Core state
-  offrampingStarted: boolean;
-  isInitiating: boolean;
-  offrampingState: OfframpingState | undefined;
-  signingPhase: SigningPhase | undefined;
+  offrampStarted: boolean;
+  offrampInitiating: boolean;
+  offrampState: OfframpingState | undefined;
+  offrampSigningPhase: OfframpSigningPhase | undefined;
 
-  // SEP24 related state
-  anchorSessionParams: IAnchorSessionParams | undefined;
-  firstSep24Response: ISep24Intermediate | undefined;
-  executionInput: ExecutionInput | undefined;
+  // SEP24 related state @todo move to separate store
+  offrampAnchorSessionParams: IAnchorSessionParams | undefined;
+  offrampFirstSep24Response: ISep24Intermediate | undefined;
+  offrampExecutionInput: OfframpExecutionInput | undefined;
 }
 
 export interface OfframpActions {
-  setOfframpingStarted: (started: boolean) => void;
-  setIsInitiating: (initiating: boolean) => void;
-  setOfframpingState: (state: OfframpingState | undefined) => void;
-  setSigningPhase: (phase: SigningPhase | undefined) => void;
-  setSep24Params: (
-    params: Partial<Pick<OfframpState, 'anchorSessionParams' | 'firstSep24Response' | 'executionInput'>>,
+  setOfframpStarted: (started: boolean) => void;
+  setOfframpInitiating: (initiating: boolean) => void;
+  setOfframpState: (state: OfframpingState | undefined) => void;
+  setOfframpSigningPhase: (phase: OfframpSigningPhase | undefined) => void;
+  setOfframpSep24Params: (
+    params: Partial<
+      Pick<OfframpState, 'offrampAnchorSessionParams' | 'offrampFirstSep24Response' | 'offrampExecutionInput'>
+    >,
   ) => void;
-  updateHookStateFromState: (state: OfframpingState | undefined) => void;
-  resetState: () => void;
+  updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
+  resetOfframpState: () => void;
 }

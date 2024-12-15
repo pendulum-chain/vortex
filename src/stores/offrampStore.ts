@@ -2,52 +2,59 @@ import { create } from 'zustand';
 import { OfframpState, OfframpActions } from '../types/offramp';
 import { clearOfframpingState } from '../services/offrampingFlow';
 
-interface OfframpStore extends OfframpState, OfframpActions {}
+interface OfframpStore extends OfframpState {
+  actions: OfframpActions;
+}
 
-export const useOfframpStore = create<OfframpStore>()((set) => ({
+const useOfframpStore = create<OfframpStore>()((set) => ({
   // Initial state
-  offrampingStarted: false,
-  isInitiating: false,
-  offrampingState: undefined,
-  signingPhase: undefined,
-  anchorSessionParams: undefined,
-  firstSep24Response: undefined,
-  executionInput: undefined,
+  offrampStarted: false,
+  offrampInitiating: false,
+  offrampState: undefined,
+  offrampSigningPhase: undefined,
+  offrampAnchorSessionParams: undefined,
+  offrampFirstSep24Response: undefined,
+  offrampExecutionInput: undefined,
 
-  // Simple setters
-  setOfframpingStarted: (started) => set({ offrampingStarted: started }),
-  setIsInitiating: (initiating) => set({ isInitiating: initiating }),
-  setOfframpingState: (state) => set({ offrampingState: state }),
-  setSigningPhase: (phase) => set({ signingPhase: phase }),
+  actions: {
+    // Simple setters
+    setOfframpStarted: (started) => set({ offrampStarted: started }),
+    setOfframpInitiating: (initiating) => set({ offrampInitiating: initiating }),
+    setOfframpState: (state) => set({ offrampState: state }),
+    setOfframpSigningPhase: (phase) => set({ offrampSigningPhase: phase }),
 
-  // Complex setters
-  setSep24Params: (params) => set((state) => ({ ...state, ...params })),
+    // Complex setters
+    setOfframpSep24Params: (params) => set((state) => ({ ...state, ...params })),
 
-  // Business logic
-  updateHookStateFromState: (state) => {
-    if (!state || state.phase === 'success' || state.failure !== undefined) {
-      set({ signingPhase: undefined });
-    }
-    set({ offrampingState: state });
-  },
+    // Business logic
+    updateOfframpHookStateFromState: (state) => {
+      if (!state || state.phase === 'success' || state.failure !== undefined) {
+        set({ offrampSigningPhase: undefined });
+      }
+      set({ offrampState: state });
+    },
 
-  resetState: async () => {
-    await clearOfframpingState();
-    set({
-      offrampingStarted: false,
-      isInitiating: false,
-      offrampingState: undefined,
-      signingPhase: undefined,
-      anchorSessionParams: undefined,
-      firstSep24Response: undefined,
-      executionInput: undefined,
-    });
+    resetOfframpState: async () => {
+      await clearOfframpingState();
+      set({
+        offrampStarted: false,
+        offrampInitiating: false,
+        offrampState: undefined,
+        offrampSigningPhase: undefined,
+        offrampAnchorSessionParams: undefined,
+        offrampFirstSep24Response: undefined,
+        offrampExecutionInput: undefined,
+      });
+    },
   },
 }));
 
-export const useSep24State = () =>
-  useOfframpStore((state) => ({
-    anchorSessionParams: state.anchorSessionParams,
-    firstSep24Response: state.firstSep24Response,
-    executionInput: state.executionInput,
-  }));
+export const useOfframpSigningPhase = () => useOfframpStore((state) => state.offrampSigningPhase);
+export const useOfframpState = () => useOfframpStore((state) => state.offrampState);
+export const useOfframpStarted = () => useOfframpStore((state) => state.offrampStarted);
+export const useOfframpInitiating = () => useOfframpStore((state) => state.offrampInitiating);
+export const useOfframpFirstSep24Response = () => useOfframpStore((state) => state.offrampFirstSep24Response);
+export const useOfframpExecutionInput = () => useOfframpStore((state) => state.offrampExecutionInput);
+export const useOfframpAnchorSessionParams = () => useOfframpStore((state) => state.offrampAnchorSessionParams);
+
+export const useOfframpActions = () => useOfframpStore((state) => state.actions);
