@@ -16,7 +16,7 @@ import {
   sep24First,
 } from '../../services/anchor';
 
-import { useOfframpStore } from '../../stores/offrampStore';
+import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { ExtendedExecutionInput } from './useSEP24/useSEP24State';
 import { ExecutionInput } from './useSEP24';
 
@@ -40,7 +40,9 @@ export const useSubmitOfframp = ({
   const { trackEvent } = useEventsContext();
   const { address } = useAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
-  const { offrampingStarted, offrampingState, setOfframpingStarted, setIsInitiating } = useOfframpStore();
+  const offrampStarted = useOfframpStarted();
+  const offrampState = useOfframpState();
+  const { setOfframpStarted, setOfframpInitiating } = useOfframpActions();
 
   const addEvent = (message: string, status: string) => {
     console.log('Add event', message, status);
@@ -50,14 +52,14 @@ export const useSubmitOfframp = ({
     (executionInput: ExecutionInput) => {
       const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
 
-      if (offrampingStarted || offrampingState !== undefined) {
-        setIsInitiating(false);
+      if (offrampStarted || offrampState !== undefined) {
+        setOfframpInitiating(false);
         return;
       }
 
       (async () => {
         switchChain({ chainId: polygon.id });
-        setOfframpingStarted(true);
+        setOfframpStarted(true);
 
         trackEvent({
           event: 'transaction_confirmation',
@@ -110,25 +112,25 @@ export const useSubmitOfframp = ({
           } catch (error) {
             console.error('Error finalizing the initial state of the offramping process', error);
             setInitializeFailed(true);
-            setOfframpingStarted(false);
+            setOfframpStarted(false);
             cleanSep24FirstVariables();
           } finally {
-            setIsInitiating(false);
+            setOfframpInitiating(false);
           }
         } catch (error) {
           console.error('Error initializing the offramping process', error);
           setInitializeFailed(true);
-          setOfframpingStarted(false);
-          setIsInitiating(false);
+          setOfframpStarted(false);
+          setOfframpInitiating(false);
         }
       })();
     },
     [
-      offrampingStarted,
-      offrampingState,
-      setIsInitiating,
+      offrampStarted,
+      offrampState,
+      setOfframpInitiating,
       switchChain,
-      setOfframpingStarted,
+      setOfframpStarted,
       trackEvent,
       selectedNetwork,
       address,

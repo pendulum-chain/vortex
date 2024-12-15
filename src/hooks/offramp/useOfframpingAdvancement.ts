@@ -9,7 +9,7 @@ import { useAssetHubNode } from '../../contexts/polkadotNode';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useEventsContext } from '../../contexts/events';
 
-import { useOfframpStore } from '../../stores/offrampStore';
+import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 
 interface AdvancementDeps {
   addEvent: (message: string, status: EventStatus) => void;
@@ -23,7 +23,8 @@ export const useOfframpingAdvancement = ({ addEvent }: AdvancementDeps) => {
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { apiComponents: assetHubNode } = useAssetHubNode();
 
-  const { offrampingState, updateHookStateFromState, setSigningPhase } = useOfframpStore();
+  const offrampState = useOfframpState();
+  const { updateOfframpHookStateFromState, setOfframpSigningPhase } = useOfframpActions();
 
   useEffect(() => {
     if (wagmiConfig.state.status !== 'connected') return;
@@ -34,18 +35,18 @@ export const useOfframpingAdvancement = ({ addEvent }: AdvancementDeps) => {
         return;
       }
 
-      const nextState = await advanceOfframpingState(offrampingState, {
+      const nextState = await advanceOfframpingState(offrampState, {
         renderEvent: addEvent,
         wagmiConfig,
-        setSigningPhase,
+        setOfframpSigningPhase,
         trackEvent,
         pendulumNode,
         assetHubNode,
         walletAccount,
       });
 
-      if (JSON.stringify(offrampingState) !== JSON.stringify(nextState)) {
-        updateHookStateFromState(nextState);
+      if (JSON.stringify(offrampState) !== JSON.stringify(nextState)) {
+        updateOfframpHookStateFromState(nextState);
       }
     })();
 
@@ -54,5 +55,5 @@ export const useOfframpingAdvancement = ({ addEvent }: AdvancementDeps) => {
     // but we intentionally exclude them from the dependency array to prevent unnecessary re-renders.
     // These dependencies are stable and won't change during the lifecycle of this hook.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offrampingState, trackEvent, updateHookStateFromState, wagmiConfig]);
+  }, [offrampState, trackEvent, updateOfframpHookStateFromState, wagmiConfig]);
 };

@@ -9,7 +9,7 @@ import { useSEP24 } from './useSEP24';
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpingEvents } from './useOfframpingEvents';
 import { useOfframpingAdvancement } from './useOfframpingAdvancement';
-import { useOfframpStore } from '../../stores/offrampStore';
+import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
@@ -22,17 +22,9 @@ export interface ExecutionInput {
 }
 
 export const useMainProcess = () => {
-  // State updater
-  const {
-    setOfframpingStarted,
-    setIsInitiating,
-    resetState,
-    updateHookStateFromState,
-    offrampingStarted,
-    isInitiating,
-    offrampingState,
-    signingPhase,
-  } = useOfframpStore();
+  const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();
+
+  const offrampState = useOfframpState();
 
   // Contexts
   const { setOnSelectedNetworkChange } = useNetwork();
@@ -44,14 +36,14 @@ export const useMainProcess = () => {
   // Initialize state from storage
   useEffect(() => {
     const recoveryState = readCurrentState();
-    updateHookStateFromState(recoveryState);
+    updateOfframpHookStateFromState(recoveryState);
     events.trackOfframpingEvent(recoveryState);
-  }, [updateHookStateFromState, events]);
+  }, [updateOfframpHookStateFromState, events]);
 
   // Reset offramping state when the network is changed
   useEffect(() => {
-    setOnSelectedNetworkChange(resetState);
-  }, [setOnSelectedNetworkChange, resetState]);
+    setOnSelectedNetworkChange(resetOfframpState);
+  }, [setOnSelectedNetworkChange, resetOfframpState]);
 
   // Determines the current offramping phase
   useOfframpingAdvancement({
@@ -63,23 +55,18 @@ export const useMainProcess = () => {
       ...sep24,
     }),
     firstSep24ResponseState: sep24.firstSep24Response,
-    offrampingState,
-    offrampingStarted,
-    isInitiating,
-    setIsInitiating,
     finishOfframping: () => {
       events.resetUniqueEvents();
-      resetState();
+      resetOfframpState();
     },
     continueFailedFlow: () => {
-      updateHookStateFromState(recoverFromFailure(offrampingState));
+      updateOfframpHookStateFromState(recoverFromFailure(offrampState));
     },
     handleOnAnchorWindowOpen: sep24.handleOnAnchorWindowOpen,
-    signingPhase,
     // @todo: why do we need this?
     maybeCancelSep24First: () => {
       if (sep24.firstSep24IntervalRef.current !== undefined) {
-        setOfframpingStarted(false);
+        setOfframpStarted(false);
         sep24.cleanSep24FirstVariables();
       }
     },

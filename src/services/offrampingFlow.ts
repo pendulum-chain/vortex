@@ -66,7 +66,7 @@ export type FinalOfframpingPhase = 'success';
 export interface ExecutionContext {
   wagmiConfig: Config;
   renderEvent: RenderEventHandler;
-  setSigningPhase: (n: SigningPhase) => void;
+  setOfframpSigningPhase: (n: SigningPhase) => void;
   trackEvent: (event: TrackableEvent) => void;
   pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
   assetHubNode: { api: ApiPromise };

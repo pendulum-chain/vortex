@@ -11,7 +11,7 @@ import { showToast, ToastMessage } from '../../../helpers/notifications';
 import { UseSEP24StateReturn } from './useSEP24State';
 import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
-import { useOfframpStore } from '../../../stores/offrampStore';
+import { useOfframpActions } from '../../../stores/offrampStore';
 
 const handleAmountMismatch = (setOfframpingStarted: (started: boolean) => void): void => {
   setOfframpingStarted(false);
@@ -27,7 +27,7 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
   const { trackKYCStarted, trackKYCCompleted } = useTrackSEP24Events();
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
-  const { setOfframpingStarted, updateHookStateFromState } = useOfframpStore();
+  const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
 
   const { firstSep24Response, anchorSessionParams, executionInput } = sep24State;
 
@@ -48,7 +48,7 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
       const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
 
       if (!Big(secondSep24Response.amount).eq(executionInput.offrampAmount)) {
-        handleAmountMismatch(setOfframpingStarted);
+        handleAmountMismatch(setOfframpStarted);
         return;
       }
 
@@ -65,9 +65,9 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
       });
 
       trackKYCCompleted(initialState, selectedNetwork);
-      updateHookStateFromState(initialState);
+      updateOfframpHookStateFromState(initialState);
     } catch (error) {
-      handleError(error, setOfframpingStarted);
+      handleError(error, setOfframpStarted);
     }
   }, [
     firstSep24Response,
@@ -78,7 +78,7 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
     cleanupFn,
     trackKYCCompleted,
     selectedNetwork,
-    setOfframpingStarted,
-    updateHookStateFromState,
+    setOfframpStarted,
+    updateOfframpHookStateFromState,
   ]);
 };
