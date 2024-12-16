@@ -2,8 +2,9 @@ const { validateSignatureAndGetMemo } = require('../services/siwe.service');
 
 const getMemoFromCookiesMiddleware = async (req, res, next) => {
   // If the client didn't specify, we don't want to pass a derived memo even if a cookie was sent.
+
+  req.derivedMemo = null; // Explicit overwrite to avoid tampering, defensive.
   if (!Boolean(req.body.memo)) {
-    req.derivedMemo = null;
     return next();
   }
   try {
@@ -52,7 +53,6 @@ const getMemoFromCookiesMiddleware = async (req, res, next) => {
     }
 
     req.derivedMemo = resultMemo;
-    console.log('derived memo', req.derivedMemo);
 
     next();
   } catch (err) {
