@@ -25,7 +25,7 @@ const colors = {
   },
 };
 // eslint-disable-next-line no-undef
-module.exports = {
+export default {
   darkMode: 'class',
   content: [
     './src/**/*.{js,ts,jsx,tsx}',
