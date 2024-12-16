@@ -1,16 +1,12 @@
 import { useState, useCallback } from 'preact/compat';
 import { useSignMessage } from 'wagmi';
-import { getWalletBySource } from '@talismn/connect-wallets';
-import { polygon } from 'wagmi/chains';
 import { SignInMessage } from '../helpers/siweMessageFormatter';
-import { u8aToHex } from '@polkadot/util';
 import { Signer } from '@polkadot/types/types';
 
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
 import { useVortexAccount } from './useVortexAccount';
-import { useMemo } from 'react';
 
 export interface SiweSignatureData {
   signatureSet: boolean;
@@ -22,10 +18,6 @@ function createSiweMessage(address: string, nonce: string) {
     scheme: 'https',
     domain: window.location.host,
     address: address,
-    statement: 'Please sign the message to login!',
-    uri: window.location.origin,
-    version: '1',
-    chainId: polygon.id,
     nonce,
     expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).toISOString(), // Constructor in ms.
   });
@@ -105,7 +97,9 @@ export function useSiweSignature(_address?: string) {
       const message = SignInMessage.fromMessage(siweMessage);
 
       const signature = await getMessageSignature(address, siweMessage);
-
+      if (siweMessage !== message.toMessage()) {
+        throw new Error('Message has been tampered with');
+      }
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

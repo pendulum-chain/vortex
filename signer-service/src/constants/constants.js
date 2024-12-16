@@ -9,7 +9,6 @@ const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = '0x2AB52086e8edaB28193172209407FF9df1
 const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the new stellar ephemeral account created
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new pendulum ephemeral account created
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
-const VALID_SIWE_CHAINS = ['137']; // 137: Polygon
 
 require('dotenv').config();
 
@@ -36,5 +35,4 @@ module.exports = {
   SEP10_MASTER_SECRET,
   CLIENT_DOMAIN_SECRET,
   DEFAULT_LOGIN_EXPIRATION_TIME_HOURS,
-  VALID_SIWE_CHAINS,
 };

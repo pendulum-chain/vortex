@@ -5,7 +5,7 @@ const { Keyring } = require('@polkadot/api');
 const { SignInMessage } = require('../helpers/siweMessageFormatter.js');
 const { signatureVerify } = require('@polkadot/util-crypto');
 const { deriveMemoFromAddress } = require('../helpers/memoDerivation');
-const { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS, VALID_SIWE_CHAINS } = require('../../constants/constants');
+const { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } = require('../../constants/constants');
 
 class ValidationError extends Error {
   constructor(message) {
@@ -77,16 +77,8 @@ const verifySiweMessage = async (nonce, signature, initialSiweMessage) => {
 // Since the message is created in the UI, we need to verify the fields of the message
 const verifyInitialMessageFields = (siweMessage) => {
   // Fields we validate on initial
-  console.log(siweMessage);
-  const domain = siweMessage.domain;
-  const uri = siweMessage.uri;
   const scheme = siweMessage.scheme; // must be https
-  const chainId = siweMessage.chainId;
   const expirationTime = siweMessage.expirationTime;
-
-  if (!VALID_SIWE_CHAINS.includes(chainId)) {
-    throw new ValidationError('Incorrect chain ID');
-  }
 
   if (scheme !== 'https') {
     throw new ValidationError('Scheme must be https');
