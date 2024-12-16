@@ -1,3 +1,5 @@
+import daisyui from 'daisyui';
+
 const colors = {
   whiteAlpha: {
     50: 'rgba(255, 255, 255, 0.04)',
@@ -33,7 +35,7 @@ export default {
     'node_modules/react-daisyui/dist/**/*.js',
   ],
   // eslint-disable-next-line no-undef
-  plugins: [require('daisyui')],
+  plugins: [daisyui],
   themes: ['pendulum', 'amplitude'],
   theme: {
     extend: {
