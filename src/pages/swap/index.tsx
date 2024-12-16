@@ -24,7 +24,6 @@ import { useMainProcess } from '../../hooks/useMainProcess';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { FailurePage } from '../failure';
-import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { UserBalance } from '../../components/UserBalance';
 import { useEventsContext } from '../../contexts/events';
@@ -320,7 +319,6 @@ export const SwapPage = () => {
 
   const modals = (
     <>
-      <TermsAndConditions />
       <PoolSelectorModal
         open={isTokenSelectModalVisible}
         onSelect={(token) => {
