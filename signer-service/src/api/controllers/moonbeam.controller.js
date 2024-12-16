@@ -72,7 +72,7 @@ exports.sendStatusWithPk = async () => {
 
     if (balance < minimumBalance) {
       slackService.sendMessage({
-        text: `Current balance of funding account is ${balance} GLMR please charge this account ${moonbeamExecutorAccount.address}.`,
+        text: `Current balance of funding account is ${balance} GLMR please charge the account ${moonbeamExecutorAccount.address}.`,
       });
       return { status: false, public: moonbeamExecutorAccount.address };
     }

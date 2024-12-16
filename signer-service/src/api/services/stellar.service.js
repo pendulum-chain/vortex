@@ -145,7 +145,7 @@ async function sendStatusWithPk() {
     // ensure we have at the very least 10 XLM in the account
     if (Number(stellarBalance.balance) < STELLAR_FUNDING_AMOUNT_UNITS) {
       slackNotifier.sendMessage({
-        text: `Current balance of funding account is ${stellarBalance.balance} XLM please charge this account ${FUNDING_PUBLIC_KEY}.`,
+        text: `Current balance of funding account is ${stellarBalance.balance} XLM please charge the account ${FUNDING_PUBLIC_KEY}.`,
       });
       return { status: false, public: FUNDING_PUBLIC_KEY };
     }

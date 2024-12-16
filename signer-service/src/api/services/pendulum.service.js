@@ -129,8 +129,8 @@ exports.sendStatusWithPk = async () => {
 
         slackNotifier.sendMessage({
           text: `Current balance of funding account is ${nativeToDecimal(
-            remainingMaxSubsidiesAvailable,
-          ).toString()} ${token} please charge this account ${fundingAccountKeypair.address}.`,
+            tokenBalance,
+          ).toString()} ${token} please charge the account ${fundingAccountKeypair.address}.`,
         });
       }
     }),
@@ -142,10 +142,13 @@ exports.sendStatusWithPk = async () => {
   if (nativeBalance.gte(minimumBalanceFundingAccount) && isTokensSufficient) {
     return { status: true, public: fundingAccountKeypair.address };
   }
-  slackNotifier.sendMessage({
-    text: `Current balance of funding account is ${divideByPowerOfTen(
-      nativeBalance,
-    ).toString()} PEN please charge this account ${fundingAccountKeypair.address}.`,
-  });
+  if (nativeBalance.lt(minimumBalanceFundingAccount)) {
+    slackNotifier.sendMessage({
+      text: `Current balance of funding account is ${divideByPowerOfTen(
+        nativeBalance,
+        apiData.decimals,
+      ).toString()} PEN please charge the account ${fundingAccountKeypair.address}.`,
+    });
+  }
   return { status: false, public: fundingAccountKeypair.address };
 };
