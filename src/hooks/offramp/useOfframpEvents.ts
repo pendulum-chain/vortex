@@ -11,7 +11,7 @@ import { getInputTokenDetailsOrDefault } from '../../constants/tokenConfig';
 import { OfframpingState } from '../../services/offrampingFlow';
 import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
 
-export const useOfframpingEvents = () => {
+export const useOfframpEvents = () => {
   const { trackEvent, resetUniqueEvents } = useEventsContext();
   const { selectedNetwork } = useNetwork();
   const [_, setEvents] = useState<GenericEvent[]>([]);

@@ -15,7 +15,7 @@ interface AdvancementDeps {
   addEvent: (message: string, status: EventStatus) => void;
 }
 
-export const useOfframpingAdvancement = ({ addEvent }: AdvancementDeps) => {
+export const useOfframpAdvancement = ({ addEvent }: AdvancementDeps) => {
   const { walletAccount } = usePolkadotWalletState();
   const { trackEvent } = useEventsContext();
   const wagmiConfig = useConfig();

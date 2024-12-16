@@ -7,8 +7,8 @@ import { recoverFromFailure, readCurrentState } from '../../services/offrampingF
 
 import { useSEP24 } from './useSEP24';
 import { useSubmitOfframp } from './useSubmitOfframp';
-import { useOfframpingEvents } from './useOfframpingEvents';
-import { useOfframpingAdvancement } from './useOfframpingAdvancement';
+import { useOfframpEvents } from './useOfframpEvents';
+import { useOfframpAdvancement } from './useOfframpAdvancement';
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
@@ -30,7 +30,7 @@ export const useMainProcess = () => {
   const { setOnSelectedNetworkChange } = useNetwork();
 
   // Custom hooks
-  const events = useOfframpingEvents();
+  const events = useOfframpEvents();
   const sep24 = useSEP24();
 
   // Initialize state from storage
@@ -46,7 +46,7 @@ export const useMainProcess = () => {
   }, [setOnSelectedNetworkChange, resetOfframpState]);
 
   // Determines the current offramping phase
-  useOfframpingAdvancement({
+  useOfframpAdvancement({
     addEvent: events.addEvent,
   });
 
