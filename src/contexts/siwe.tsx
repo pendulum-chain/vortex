@@ -1,6 +1,5 @@
 import { createContext } from 'preact';
 import { PropsWithChildren, useContext } from 'preact/compat';
-import { useVortexAccount } from '../hooks/useVortexAccount';
 import { useSiweSignature } from '../hooks/useSignChallenge';
 
 type UseSiweContext = ReturnType<typeof useSiweSignature>;
@@ -16,8 +15,7 @@ export const useSiweContext = () => {
 };
 
 export const SiweProvider = ({ children }: PropsWithChildren) => {
-  const { address } = useVortexAccount();
-  const siweSignature = useSiweSignature(address);
+  const siweSignature = useSiweSignature();
 
   return <SiweContext.Provider value={siweSignature}>{children}</SiweContext.Provider>;
 };

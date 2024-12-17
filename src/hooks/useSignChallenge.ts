@@ -25,10 +25,10 @@ function createSiweMessage(address: string, nonce: string) {
   return siweMessage.toMessage();
 }
 
-export function useSiweSignature(_address?: string) {
+export function useSiweSignature() {
   const { signMessageAsync } = useSignMessage();
   const [signingPending, setSigningPending] = useState(false);
-  const { address, chainId, polkadotWalletAccount } = useVortexAccount();
+  const { address, polkadotWalletAccount } = useVortexAccount();
 
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
@@ -97,9 +97,7 @@ export function useSiweSignature(_address?: string) {
       const message = SignInMessage.fromMessage(siweMessage);
 
       const signature = await getMessageSignature(address, siweMessage);
-      if (siweMessage !== message.toMessage()) {
-        throw new Error('Message has been tampered with');
-      }
+
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,7 +121,7 @@ export function useSiweSignature(_address?: string) {
       setSigningPending(false);
       setSignPromise(null);
     }
-  }, [address, chainId, storageKey, signMessageAsync, signPromise, setSigningPending, setSignPromise]);
+  }, [address, storageKey, signMessageAsync, signPromise, setSigningPending, setSignPromise]);
 
   // Handler for modal cancellation
   const handleCancel = useCallback(() => {
