@@ -48,7 +48,7 @@ const getMemoFromCookiesMiddleware = async (req, res, next) => {
     // Client declared usage of memo, but it could not be derived from provided signatures.
     if (Boolean(req.body.memo) && !resultMemo) {
       return res.status(401).json({
-        error: 'Missing signature or nonce',
+        error: 'Missing or invalid authentication token',
       });
     }
 

@@ -11,7 +11,7 @@ function getHashValueForAddress(address) {
   }
 }
 
-//A memo derivation. TODO: Secure? how to check for collisions?
+//A memo derivation.
 async function deriveMemoFromAddress(address) {
   const hashValue = getHashValueForAddress(address);
   const hash = keccak256(hashValue);
