@@ -60,11 +60,37 @@ async function isEphemeralCreated(stellarEphemeralSecret: string): Promise<boole
   const ephemeralAccountId = ephemeralKeypair.publicKey();
 
   try {
-    await horizonServer.loadAccount(ephemeralAccountId);
-    return true;
-  } catch {
-    return false;
+    const result = await loadAccountWithRetry(horizonServer, ephemeralAccountId);
+    // If result is null, the account does not exist
+    return result !== null;
+  } catch (error) {
+    throw new Error('Error while checking if ephemeral account exists: ' + error?.toString());
   }
+}
+
+async function loadAccountWithRetry(
+  horizonServer: Horizon.Server,
+  ephemeralAccountId: string,
+  retries = 3,
+): Promise<Horizon.AccountResponse | null> {
+  let lastError: Error | null = null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await Promise.race([
+        horizonServer.loadAccount(ephemeralAccountId),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000)),
+      ]);
+    } catch (err: any) {
+      if (err?.toString().includes('NotFoundError')) {
+        // The account does not exist
+        return null;
+      }
+      console.log(`Attempt ${i + 1} to load account ${ephemeralAccountId} failed: ${err}`);
+      lastError = err;
+    }
+  }
+
+  throw new Error(`Failed to load account ${ephemeralAccountId} after ${retries} attempts: ` + lastError?.toString());
 }
 
 export async function setUpAccountAndOperations(
@@ -165,8 +191,7 @@ async function setupStellarAccount(
     await horizonServer.submitTransaction(createAccountTransaction);
   } catch (error: unknown) {
     const horizonError = error as { response: { data: { extras: any } } };
-    console.log(horizonError.response.data.extras);
-    console.error(horizonError.response.data.extras.toString());
+    console.error('Transaction submission to horizon failed', horizonError.toString());
     throw new Error('Could not submit the account creation transaction');
   }
 }
