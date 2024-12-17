@@ -14,7 +14,12 @@ import {
 } from 'stellar-sdk';
 
 import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails, OutputTokenType } from '../../../constants/tokenConfig';
-import { HORIZON_URL, SIGNING_SERVICE_URL, STELLAR_BASE_FEE } from '../../../constants/constants';
+import {
+  HORIZON_URL,
+  SIGNING_SERVICE_URL,
+  STELLAR_BASE_FEE,
+  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
+} from '../../../constants/constants';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { OfframpingState } from '../../offrampingFlow';
 import { SepResult } from '../../anchor';
@@ -92,9 +97,9 @@ async function isEphemeralCreated(stellarEphemeralSecret: string): Promise<boole
   const ephemeralAccountId = ephemeralKeypair.publicKey();
 
   try {
-    const result = await loadAccountWithRetry(ephemeralAccountId);
-    // If result is null, the account does not exist
-    return result !== null;
+    const accountOrNull = await loadAccountWithRetry(ephemeralAccountId);
+    // If result is null, the account does not exist yet meaning
+    return accountOrNull !== null;
   } catch (error) {
     throw new Error('Error while checking if ephemeral account exists: ' + error?.toString());
   }
@@ -170,7 +175,7 @@ async function setupStellarAccount(
       .addOperation(
         Operation.createAccount({
           destination: ephemeralAccountId,
-          startingBalance: '2.5',
+          startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
         }),
       )
       .addOperation(
