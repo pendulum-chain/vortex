@@ -14,13 +14,50 @@ import {
 } from 'stellar-sdk';
 
 import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails, OutputTokenType } from '../../../constants/tokenConfig';
-import { HORIZON_URL, SIGNING_SERVICE_URL, STELLAR_BASE_FEE } from '../../../constants/constants';
+import {
+  HORIZON_URL,
+  SIGNING_SERVICE_URL,
+  STELLAR_BASE_FEE,
+  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
+} from '../../../constants/constants';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { OfframpingState } from '../../offrampingFlow';
 import { SepResult } from '../../anchor';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
+
+// This is a helper function to add a timeout to the loadAccount function and retry it.
+// The Horizon.Server class does not allow defining a custom timeout for network queries.
+async function loadAccountWithRetry(
+  ephemeralAccountId: string,
+  retries = 3,
+  timeout = 15000,
+): Promise<Horizon.AccountResponse | null> {
+  let lastError: Error | null = null;
+
+  const loadAccountWithTimeout = (accountId: string, timeout: number): Promise<Horizon.AccountResponse> => {
+    return Promise.race([
+      horizonServer.loadAccount(accountId),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout)),
+    ]);
+  };
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await loadAccountWithTimeout(ephemeralAccountId, timeout);
+    } catch (err: any) {
+      if (err?.toString().includes('NotFoundError')) {
+        // The account does not exist
+        return null;
+      }
+      console.log(`Attempt ${i + 1} to load account ${ephemeralAccountId} failed: ${err}`);
+      lastError = err;
+    }
+  }
+
+  throw new Error(`Failed to load account ${ephemeralAccountId} after ${retries} attempts: ` + lastError?.toString());
+}
 
 export interface StellarOperations {
   offrampingTransaction: Transaction;
@@ -58,10 +95,11 @@ async function isEphemeralCreated(stellarEphemeralSecret: string): Promise<boole
   const ephemeralAccountId = ephemeralKeypair.publicKey();
 
   try {
-    await horizonServer.loadAccount(ephemeralAccountId);
-    return true;
-  } catch {
-    return false;
+    const accountOrNull = await loadAccountWithRetry(ephemeralAccountId);
+    // If result is null, the account does not exist yet meaning
+    return accountOrNull !== null;
+  } catch (error) {
+    throw new Error('Error while checking if ephemeral account exists: ' + error?.toString());
   }
 }
 
@@ -71,7 +109,11 @@ export async function setUpAccountAndOperations(
   sepResult: SepResult,
   outputTokenType: OutputTokenType,
 ): Promise<StellarOperations> {
-  const ephemeralAccount = await horizonServer.loadAccount(ephemeralKeypair.publicKey());
+  const ephemeralAccount = await loadAccountWithRetry(ephemeralKeypair.publicKey());
+  if (!ephemeralAccount) {
+    throw new Error('Ephemeral account does not exist on network.');
+  }
+
   const { offrampingTransaction, mergeAccountTransaction } = await createOfframpAndMergeTransaction(
     fundingAccountId,
     sepResult,
@@ -131,7 +173,7 @@ async function setupStellarAccount(
       .addOperation(
         Operation.createAccount({
           destination: ephemeralAccountId,
-          startingBalance: '2.5',
+          startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
         }),
       )
       .addOperation(
@@ -163,8 +205,7 @@ async function setupStellarAccount(
     await horizonServer.submitTransaction(createAccountTransaction);
   } catch (error: unknown) {
     const horizonError = error as { response: { data: { extras: any } } };
-    console.log(horizonError.response.data.extras);
-    console.error(horizonError.response.data.extras.toString());
+    console.error('Transaction submission to horizon failed', horizonError.toString());
     throw new Error('Could not submit the account creation transaction');
   }
 }
