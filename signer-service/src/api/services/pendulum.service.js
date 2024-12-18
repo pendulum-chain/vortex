@@ -114,6 +114,7 @@ exports.sendStatusWithPk = async () => {
       if (!tokenConfig.pendulumCurrencyId) {
         throw new Error(`Token ${token} does not have a currency id.`);
       }
+
       const tokenBalanceResponse = await apiData.api.query.tokens.accounts(
         fundingAccountKeypair.address,
         tokenConfig.pendulumCurrencyId,

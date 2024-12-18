@@ -1,17 +1,48 @@
 const { Keypair } = require('stellar-sdk');
 const { TransactionBuilder, Networks } = require('stellar-sdk');
 const { fetchTomlValues } = require('../helpers/anchors');
+const { verifySiweMessage } = require('./siwe.service');
+const { keccak256 } = require('viem/utils');
 
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
-const { CLIENT_DOMAIN_SECRET } = require('../../constants/constants');
+const { SEP10_MASTER_SECRET, CLIENT_DOMAIN_SECRET } = require('../../constants/constants');
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => {
+async function deriveMemoFromAddress(address) {
+  const hash = keccak256(address);
+  return BigInt(hash).toString().slice(0, 15);
+}
+
+// we validate a challenge for a given nonce. From it we obtain the address and derive the memo
+// we can then ensure that the memo is the same as the one we expect from the anchor challenge
+const validateSignatureAndGetMemo = async (nonce, userChallengeSignature, memoEnabled) => {
+  if (!userChallengeSignature || !nonce || !memoEnabled) {
+    return null; // Default memo value when single stellar account is used
+  }
+
+  let message;
+  try {
+    // initialSiweMessage must be undefined after an initial check,
+    // message must exist on the map.
+    message = await verifySiweMessage(nonce, userChallengeSignature, undefined);
+  } catch (e) {
+    throw new Error(`Could not verify signature: ${e.message}`);
+  }
+
+  const memo = await deriveMemoFromAddress(message.address);
+  return memo;
+};
+
+exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, userChallengeSignature, nonce) => {
+  const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
-  const { homeDomain, clientDomainEnabled } = TOKEN_CONFIG[outToken];
+  const { homeDomain, clientDomainEnabled, memoEnabled } = TOKEN_CONFIG[outToken];
+
+  // Expected memo based on user's signature and nonce.
+  const memo = await validateSignatureAndGetMemo(nonce, userChallengeSignature, memoEnabled);
 
   const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== anchorSigningKey) {
@@ -22,10 +53,10 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
   }
 
   // See https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md#success
-  // memo field should be empty as we assume (in this implementation) that we use the ephemeral
-  // to authenticate. But no memo sub account derivation.
-  if (transactionSigned.memo.value !== null) {
-    throw new Error('Memo does not match');
+  // memo field should be empty for the ephemeral case, or the corresponding one based on evm address
+  // derivation.
+  if (transactionSigned.memo.value !== memo) {
+    throw new Error('Memo does not match with specified user signature or address. Could not validate.');
   }
 
   const { operations } = transactionSigned;
@@ -35,9 +66,17 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     throw new Error('The first operation should be manageData');
   }
 
-  // Only authorize a session that corresponds with the ephemeral client account
+  // clientPublicKey is either: the ephemeral, or the master account
   if (firstOp.source !== clientPublicKey) {
     throw new Error('First manageData operation must have the client account as the source');
+  }
+
+  if (memo !== null && memoEnabled) {
+    if (firstOp.source !== masterStellarKeypair.publicKey()) {
+      throw new Error(
+        'First manageData operation must have the master signing key as the source when memo is being used.',
+      );
+    }
   }
 
   if (firstOp.name !== `${homeDomain} auth`) {
@@ -47,11 +86,9 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     throw new Error('First manageData operation should have a 64-byte random nonce as value');
   }
 
-  // Flags to check presence of required operations
   let hasWebAuthDomain = false;
   let hasClientDomain = false;
 
-  // Verify extra manage_data operations, web_auth and proper client domain.
   for (let i = 1; i < operations.length; i++) {
     const op = operations[i];
 
@@ -88,8 +125,15 @@ exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey) => 
     clientDomainSignature = transactionSigned.getKeypairSignature(clientDomainStellarKeypair);
   }
 
+  let masterClientSignature;
+  if (memo !== null && memoEnabled) {
+    masterClientSignature = transactionSigned.getKeypairSignature(masterStellarKeypair);
+  }
+
   return {
     clientSignature: clientDomainSignature,
     clientPublic: clientDomainStellarKeypair.publicKey(),
+    masterClientSignature,
+    masterClientPublic: masterStellarKeypair.publicKey(),
   };
 };

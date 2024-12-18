@@ -7,6 +7,7 @@ const storageRoutes = require('./storage.route');
 const emailRoutes = require('./email.route');
 const ratingRoutes = require('./rating.route');
 const subsidizeRoutes = require('./subsidize.route');
+const siweRoutes = require('./siwe.route');
 const quoteRoutes = require('./quote.route');
 
 const router = express.Router({ mergeParams: true });
@@ -75,5 +76,10 @@ router.use('/subsidize', subsidizeRoutes);
  * POST v1/rating
  */
 router.use('/rating', ratingRoutes);
+
+/**
+ * POST v1/siwe
+ */
+router.use('/siwe', siweRoutes);
 
 module.exports = router;

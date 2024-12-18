@@ -1,6 +1,9 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { FC } from 'preact/compat';
 import { Spinner } from '../../Spinner';
+import { useAppKitAccount } from '@reown/appkit/react';
+import { ConnectWalletButton } from '../ConnectWalletButton';
+import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
+import { Networks, useNetwork } from '../../../contexts/network';
 
 interface SwapSubmitButtonProps {
   text: string;
@@ -8,35 +11,35 @@ interface SwapSubmitButtonProps {
   pending: boolean;
 }
 
-export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => (
-  <ConnectButton.Custom>
-    {({ account, chain, openConnectModal, authenticationStatus, mounted }) => {
-      const ready = mounted && authenticationStatus !== 'loading';
-      const connected =
-        ready && account && chain && (!authenticationStatus || authenticationStatus === 'authenticated');
+export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => {
+  const showInDisabledState = disabled || pending;
 
-      const showInDisabledState = disabled || pending;
+  const { walletAccount } = usePolkadotWalletState();
+  const { isConnected } = useAppKitAccount();
+  const { selectedNetwork } = useNetwork();
 
-      return (
-        <div className="grow">
-          {(() => {
-            if (!connected) {
-              return (
-                <button onClick={openConnectModal} type="button" className="w-full btn-vortex-primary btn rounded-xl">
-                  Connect Wallet
-                </button>
-              );
-            }
+  if (selectedNetwork === Networks.AssetHub && !walletAccount) {
+    return (
+      <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
+        <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon />
+      </div>
+    );
+  }
 
-            return (
-              <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
-                {pending && <Spinner />}
-                {text}
-              </button>
-            );
-          })()}
-        </div>
-      );
-    }}
-  </ConnectButton.Custom>
-);
+  if (selectedNetwork === Networks.Polygon && !isConnected) {
+    return (
+      <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
+        <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
+      <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
+        {pending && <Spinner />}
+        {text}
+      </button>
+    </div>
+  );
+};

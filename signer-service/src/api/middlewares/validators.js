@@ -9,13 +9,17 @@ const {
 } = require('../controllers/quote.controller');
 
 const validateCreationInput = (req, res, next) => {
-  const { accountId, maxTime, assetCode } = req.body;
+  const { accountId, maxTime, assetCode, baseFee } = req.body;
   if (!accountId || !maxTime) {
     return res.status(400).json({ error: 'Missing accountId or maxTime parameter' });
   }
 
   if (!assetCode) {
     return res.status(400).json({ error: 'Missing assetCode parameter' });
+  }
+
+  if (!baseFee) {
+    return res.status(400).json({ error: 'Missing baseFee parameter' });
   }
 
   if (typeof maxTime !== 'number') {
@@ -61,13 +65,17 @@ const validateQuoteInput = (req, res, next) => {
 };
 
 const validateChangeOpInput = (req, res, next) => {
-  const { accountId, sequence, paymentData, maxTime, assetCode } = req.body;
+  const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body;
   if (!accountId || !sequence || !paymentData || !maxTime) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
 
   if (!assetCode) {
     return res.status(400).json({ error: 'Missing assetCode parameter' });
+  }
+
+  if (!baseFee) {
+    return res.status(400).json({ error: 'Missing baseFee parameter' });
   }
 
   if (typeof sequence !== 'string' || typeof maxTime !== 'number') {
@@ -155,6 +163,31 @@ const validateSep10Input = (req, res, next) => {
   next();
 };
 
+const validateSiweCreate = (req, res, next) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) {
+    return res.status(400).json({ error: 'Missing param: walletAddress' });
+  }
+  next();
+};
+
+const validateSiweValidate = (req, res, next) => {
+  const { nonce, signature, siweMessage } = req.body;
+  if (!signature) {
+    return res.status(400).json({ error: 'Missing param: signature' });
+  }
+
+  if (!nonce) {
+    return res.status(400).json({ error: 'Missing param: nonce' });
+  }
+
+  if (!siweMessage) {
+    return res.status(400).json({ error: 'Missing param: siweMessage' });
+  }
+
+  next();
+};
+
 module.exports = {
   validateChangeOpInput,
   validateQuoteInput,
@@ -166,4 +199,6 @@ module.exports = {
   validateRatingInput,
   validateExecuteXCM,
   validateSep10Input,
+  validateSiweCreate,
+  validateSiweValidate,
 };

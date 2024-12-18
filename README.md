@@ -1,10 +1,11 @@
 # Vortex
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/aa69406a-f4a1-4693-aed0-8478f1d1fabd/deploy-status)](https://app.netlify.com/sites/pendulum-portal-alpha/deploys)
-&nbsp; ![TypeScript](https://img.shields.io/badge/-TypeSript-05122A?style=flat&logo=typescript)&nbsp;
+[![Netlify Status](https://api.netlify.com/api/v1/badges/27783b79-512d-4205-89c1-d3ead6e3ed46/deploy-status)](https://app.netlify.com/sites/pendulum-pay/deploys)&nbsp;
+![TypeScript](https://img.shields.io/badge/-TypeSript-05122A?style=flat&logo=typescript)&nbsp;
 ![Preact](https://img.shields.io/badge/-Preact-05122A?style=flat&logo=preact)&nbsp;
 ![Vite](https://img.shields.io/badge/-Vite-05122A?style=flat&logo=vite)&nbsp;
 ![Polkadot](https://img.shields.io/badge/-Polkadot-05122A?style=flat&logo=polkadot)&nbsp;
+![Ethereum](https://img.shields.io/badge/-Ethereum-05122A?style=flat&logo=ethereum)&nbsp;
 
 ---
 
@@ -37,10 +38,15 @@ matter what URL the browser requests.
 
 ## Env Variables
 
-- `VITE_SIGNING_SERVICE_URL`: Optional variable to point to a specific signing backend service URL. If undefined, it
+- `VITE_SIGNING_SERVICE_PATH`: Optional variable to point to a specific signing backend service URL. If undefined, it
   will default to either:
-  - http://localhost:3000 (if in development mode)
-  - https://prototype-signer-service-polygon.pendulumchain.tech (if in production mode)
+  - `http://localhost:3000` (if in development mode)
+  - `/api/production` (if in production mode)
+    - this will use the `_redirects` file to direct Netlify to proxy all requests to `/api/production` to
+      `https://prototype-signer-service-polygon.pendulumchain.tech`
+  - `/api/staging` (if in staging mode)
+    - this will use the `_redirects` file to direct Netlify to proxy all requests to `/api/staging` to
+      `https://prototype-signer-service-polygon-staging.pendulumchain.tech`
 - `VITE_ALCHEMY_API_KEY`: Optional variable to set the Alchemy API key for the custom RPC provider. If undefined, it
   will use dhe default endpoint.
 

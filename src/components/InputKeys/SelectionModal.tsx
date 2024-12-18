@@ -4,7 +4,7 @@ import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { Dialog } from '../Dialog';
 import { Skeleton } from '../Skeleton';
 import { PoolListItem } from './PoolListItem';
-import { AssetIconType } from '../../hooks/useGetIcon';
+import { AssetIconType } from '../../hooks/useGetAssetIcon';
 
 interface PoolSelectorModalProps<T extends InputTokenType | OutputTokenType> extends PoolListProps<T> {
   isLoading?: boolean;

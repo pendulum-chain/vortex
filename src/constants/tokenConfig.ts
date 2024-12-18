@@ -1,21 +1,39 @@
-import { AssetIconType } from '../hooks/useGetIcon';
+import { AssetIconType } from '../hooks/useGetAssetIcon';
+import { Networks } from '../contexts/network';
 
-export type NetworkType = 'polygon';
-
-export interface InputTokenDetails {
+export interface BaseInputTokenDetails {
   assetSymbol: string;
-  erc20AddressSourceChain: `0x${string}`;
-  axelarEquivalent: {
-    pendulumErc20WrapperAddress: string;
-    pendulumCurrencyId: { XCM: number };
-    pendulumAssetSymbol: string;
-  };
-  polygonAssetIcon: AssetIconType;
   decimals: number;
-  network: NetworkType;
+  pendulumErc20WrapperAddress: string;
+  pendulumCurrencyId: { XCM: number };
+  pendulumAssetSymbol: string;
+  networkAssetIcon: AssetIconType;
+  network: Networks;
 }
 
-export type InputTokenType = 'usdc' | 'usdce';
+export enum InputTokenTypes {
+  Evm = 'evm',
+  Substrate = 'substrate',
+}
+
+type EvmInputTokenDetails = BaseInputTokenDetails & {
+  erc20AddressSourceChain: `0x${string}`;
+  type: InputTokenTypes.Evm;
+};
+
+type SubstrateInputTokenDetails = BaseInputTokenDetails & {
+  foreignAssetId: number;
+  type: InputTokenTypes.Substrate;
+};
+
+// Guard function to check if the input token is an EVM token
+export function isEvmInputTokenDetails(inputToken: InputTokenDetails): inputToken is EvmInputTokenDetails {
+  return inputToken.type === InputTokenTypes.Evm;
+}
+
+export type InputTokenDetails = EvmInputTokenDetails | SubstrateInputTokenDetails;
+
+export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 
 export interface Fiat {
   assetIcon: AssetIconType;
@@ -42,34 +60,90 @@ export interface OutputTokenDetails {
   erc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
+  usesMemo: boolean;
   supportsClientDomain: boolean;
 }
-export const INPUT_TOKEN_CONFIG: Record<InputTokenType, InputTokenDetails> = {
-  usdc: {
-    assetSymbol: 'USDC',
-    erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
-    axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
-      pendulumCurrencyId: { XCM: 12 },
-      pendulumAssetSymbol: 'USDC.axl',
+
+const PENDULUM_USDC_AXL = {
+  pendulumErc20WrapperAddress: '6eMCHeByJ3m2yPsXFkezBfCQtMs3ymUPqtAyCA41mNWmbNJe',
+  pendulumCurrencyId: { XCM: 12 },
+  pendulumAssetSymbol: 'USDC.axl',
+};
+
+const PENDULUM_USDC_ASSETHUB = {
+  pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF',
+  pendulumCurrencyId: { XCM: 2 },
+  foreignAssetId: 1337, // USDC on AssetHub
+  pendulumAssetSymbol: 'USDC',
+};
+
+export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType, InputTokenDetails>>> = {
+  Polygon: {
+    usdc: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+      networkAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: Networks.Polygon,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
     },
-    polygonAssetIcon: 'polygonUSDC',
-    decimals: 6,
-    network: 'polygon',
+    usdce: {
+      assetSymbol: 'USDC.e',
+      erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
+      networkAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: Networks.Polygon,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+    usdt: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
+      networkAssetIcon: 'polygonUSDT',
+      decimals: 6,
+      network: Networks.Polygon,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
   },
-  usdce: {
-    assetSymbol: 'USDC.e',
-    erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
-    axelarEquivalent: {
-      pendulumErc20WrapperAddress: '6dhRvkn4FheTeSHuNdAA2bxgEWbKRo6vrLaibTENk5e8kBUo',
-      pendulumCurrencyId: { XCM: 12 },
-      pendulumAssetSymbol: 'USDC.axl',
+  AssetHub: {
+    usdc: {
+      assetSymbol: 'USDC',
+      networkAssetIcon: 'assethubUSDC',
+      decimals: 6,
+      network: Networks.AssetHub,
+      type: InputTokenTypes.Substrate,
+      ...PENDULUM_USDC_ASSETHUB,
     },
-    polygonAssetIcon: 'polygonUSDC',
-    decimals: 6,
-    network: 'polygon',
   },
 };
+
+export function getInputTokenDetailsOrDefault(network: Networks, inputTokenType: InputTokenType): InputTokenDetails {
+  const maybeInputTokenDetails = getInputTokenDetails(network, inputTokenType);
+  if (maybeInputTokenDetails) {
+    return maybeInputTokenDetails;
+  }
+
+  console.error(`Invalid input token type: ${inputTokenType}`);
+  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
+  const firstAvailableToken = Object.values(INPUT_TOKEN_CONFIG[networkType])[0];
+  if (!firstAvailableToken) {
+    throw new Error(`No tokens configured for network ${networkType}`);
+  }
+  return firstAvailableToken;
+}
+
+export function getInputTokenDetails(network: Networks, inputTokenType: InputTokenType): InputTokenDetails | undefined {
+  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
+
+  try {
+    return INPUT_TOKEN_CONFIG[networkType][inputTokenType];
+  } catch (error) {
+    console.error(`Error getting input token details: ${error}`);
+    throw error;
+  }
+}
 
 export type OutputTokenType = 'eurc' | 'ars';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
@@ -91,10 +165,11 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
       },
     },
     vaultAccountId: '6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh',
-    erc20WrapperAddress: '6eEEZCxJB8YstEEGjkacneHUjd2XzHTht7rwNu6evv4VSC2w',
+    erc20WrapperAddress: '6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 125,
+    usesMemo: false,
     supportsClientDomain: true,
   },
   ars: {
@@ -115,12 +190,13 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
       },
     },
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
-    erc20WrapperAddress: '6cNENXUqHUeEGSm4psQCeykZiLXJL9VzMQnvSoouyeEEoJpe',
+    erc20WrapperAddress: '6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj',
     minWithdrawalAmountRaw: '11000000000000', // 11 ARS
     maxWithdrawalAmountRaw: '500000000000000000', // 500000 ARS
     offrampFeesBasisPoints: 200, // 2%
     offrampFeesFixedComponent: 10, // 10 ARS
-    supportsClientDomain: false,
+    usesMemo: true,
+    supportsClientDomain: true,
   },
 };
 

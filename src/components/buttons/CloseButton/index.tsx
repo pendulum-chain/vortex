@@ -1,6 +1,6 @@
 import { Button } from 'react-daisyui';
 import { ButtonProps } from 'react-daisyui/dist/Button/Button';
-import { CloseIcon } from '../../../assets/CloseIcon';
+import closeIcon from '../../../assets/close-icon.svg';
 
 export const CloseButton = (props: ButtonProps) => (
   <Button
@@ -13,7 +13,7 @@ export const CloseButton = (props: ButtonProps) => (
     {...props}
   >
     <span className="text-[1.25em]">
-      <CloseIcon />
+      <img src={closeIcon} alt="Close" />
     </span>
   </Button>
 );

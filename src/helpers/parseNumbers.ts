@@ -1,8 +1,9 @@
-import { u128 } from '@polkadot/types-codec';
+import { u128, UInt } from '@polkadot/types-codec';
 import BigNumber from 'big.js';
 
 // These are the decimals used for the native currency on the Amplitude network
 export const ChainDecimals = 12;
+export const USDC_DECIMALS = 6;
 
 // These are the decimals used by the Stellar network
 // We actually up-scale the amounts on Stellar now to match the expected decimals of the other tokens.
@@ -52,13 +53,19 @@ export const fixedPointToDecimal = (value: BigNumber | number | string) => {
   return bigIntValue.div(divisor);
 };
 
-export const nativeToDecimal = (value: BigNumber | number | string | u128) => {
-  if (typeof value === 'string' || value instanceof u128) {
+export const sanitizeNative = (value: BigNumber | number | string | u128 | UInt) => {
+  if (!value) return new BigNumber(0);
+
+  if (typeof value === 'string' || value instanceof u128 || value instanceof UInt) {
     // Replace the unnecessary ',' with '' to prevent BigNumber from throwing an error
-    value = new BigNumber(value.toString().replaceAll(',', ''));
+    return new BigNumber(value.toString().replaceAll(',', ''));
   }
-  const bigIntValue = new BigNumber(value);
-  const divisor = new BigNumber(10).pow(ChainDecimals);
+  return new BigNumber(value);
+};
+
+export const nativeToDecimal = (value: BigNumber | number | string | u128 | UInt, decimals: number = ChainDecimals) => {
+  const bigIntValue = sanitizeNative(value);
+  const divisor = new BigNumber(10).pow(decimals);
 
   return bigIntValue.div(divisor);
 };

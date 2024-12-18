@@ -6,8 +6,9 @@ const TOKEN_CONFIG = {
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     minWithdrawalAmount: '10000000000000',
     maximumSubsidyAmountRaw: '1000000000000', // 1 unit
-    homeDomain: 'mykobo.co',
+    homeDomain: 'circle.anchor.mykobo.co',
     clientDomainEnabled: true,
+    memoEnabled: false,
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {
@@ -22,6 +23,11 @@ const TOKEN_CONFIG = {
     decimals: 6,
     maximumSubsidyAmountRaw: '1000000', // 1 unit
   },
+  usdc: {
+    pendulumCurrencyId: { XCM: 2 },
+    decimals: 6,
+    maximumSubsidyAmountRaw: '1000000', // 1 unit
+  },
   ars: {
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
     assetCode: 'ARS',
@@ -30,7 +36,8 @@ const TOKEN_CONFIG = {
     minWithdrawalAmount: '11000000000000', //  11 ARS. Anchor minimum limit.
     maximumSubsidyAmountRaw: '100000000000000', // Defined by us:  100 unit ~ 0.1 USD @ Oct/2024
     homeDomain: 'api.anclap.com',
-    clientDomainEnabled: false,
+    clientDomainEnabled: true,
+    memoEnabled: true,
     pendulumCurrencyId: {
       Stellar: {
         AlphaNum4: {

@@ -4,6 +4,9 @@ export enum ToastMessage {
   AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
   KYC_COMPLETED = 'KYC_COMPLETED',
   SIGNING_FAILED = 'SIGNING_FAILED',
+  POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = 'POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION',
+  ERROR = 'ERROR',
+  NODE_CONNECTION_ERROR = 'NODE_CONNECTION_ERROR',
 }
 
 type ToastSettings = {
@@ -30,6 +33,26 @@ const ToastProperties: Record<ToastMessage, ToastSettings> = {
     message: 'Signing failed. Please try again.',
     options: {
       toastId: ToastMessage.SIGNING_FAILED,
+      type: 'error',
+    },
+  },
+  [ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION]: {
+    message: 'Wallet already open pending connection. Please try again.',
+    options: {
+      toastId: ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION,
+      type: 'error',
+    },
+  },
+  [ToastMessage.NODE_CONNECTION_ERROR]: {
+    message: 'Error while connecting to the node. Refresh the page to re-connect.',
+    options: {
+      toastId: ToastMessage.NODE_CONNECTION_ERROR,
+      type: 'error',
+    },
+  },
+  [ToastMessage.ERROR]: {
+    message: 'An error occurred',
+    options: {
       type: 'error',
     },
   },

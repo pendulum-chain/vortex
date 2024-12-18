@@ -1,6 +1,6 @@
-import { Avatar, AvatarProps, Button } from 'react-daisyui';
+import { Button } from 'react-daisyui';
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { AssetIconType, useGetIcon } from '../../../hooks/useGetIcon';
+import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
 
 interface PoolListItemProps<T extends InputTokenType | OutputTokenType> {
@@ -18,7 +18,7 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
   onSelect,
   assetIcon,
 }: PoolListItemProps<T>) {
-  const tokenIcon = useGetIcon(assetIcon);
+  const tokenIcon = useGetAssetIcon(assetIcon);
 
   return (
     <Button
@@ -30,7 +30,11 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
       className="items-center justify-start w-full h-auto gap-4 px-3 py-2 text-left border-0 bg-blackAlpha-200 hover:opacity-80 dark:bg-whiteAlpha-200"
     >
       <span className="relative">
-        <Avatar size={'xs' as AvatarProps['size']} letters={tokenSymbol} src={tokenIcon} className="text-xs" />
+        <div className="text-xs ">
+          <div className="w-10">
+            <img src={tokenIcon} alt={tokenSymbol} className="object-contain w-full h-full" />
+          </div>
+        </div>
         {isSelected && (
           <CheckIcon className="absolute -right-1 -top-1 w-5 h-5 p-[3px] text-white bg-green-600 rounded-full" />
         )}

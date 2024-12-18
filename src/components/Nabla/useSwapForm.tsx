@@ -4,10 +4,16 @@ import { useCallback, useMemo, useState } from 'preact/compat';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../constants/tokenConfig';
+import {
+  getInputTokenDetails,
+  InputTokenType,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenType,
+} from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
+import { Networks, useNetwork } from '../../contexts/network';
 
 interface SwapSettings {
   from: string;
@@ -17,31 +23,62 @@ interface SwapSettings {
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
+function getCaseSensitiveNetwork(network: string): Networks {
+  if (network.toLowerCase() === 'assethub') {
+    return Networks.AssetHub;
+  } else if (network.toLowerCase() === 'polygon') {
+    return Networks.Polygon;
+  } else {
+    console.warn('Invalid network type');
+    return Networks.AssetHub;
+  }
+}
+
+// Helper function to merge values if they are defined
+function mergeIfDefined(target: any, source: any) {
+  for (const key in source) {
+    if (source[key] !== undefined && source[key] !== null) {
+      target[key] = source[key];
+    }
+  }
+}
+
 export const useSwapForm = () => {
-  const tokensModal = useState<undefined | 'from' | 'to'>();
-  const setTokenModal = tokensModal[1];
+  const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
+  const [tokenSelectModalType, setTokenModalType] = useState<'from' | 'to'>('from');
+  const { selectedNetwork, setSelectedNetwork } = useNetwork();
 
   const initialState = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
 
-    const defaultValues = { from: 'usdc', to: 'eurc' };
+    const defaultValues = { from: 'usdc', to: 'eurc', network: selectedNetwork };
     const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
-    const searchParamValues = { from: searchParams.get('from'), to: searchParams.get('to') };
+    const searchParamValues = {
+      from: searchParams.get('from'),
+      to: searchParams.get('to'),
+      network: searchParams.get('network'),
+    };
 
     const initialValues = {
       ...defaultValues,
-      ...storageValues,
-      ...searchParamValues,
     };
+    mergeIfDefined(initialValues, storageValues);
+    mergeIfDefined(initialValues, searchParamValues);
 
-    const initialFromTokenIsValid = INPUT_TOKEN_CONFIG[initialValues.from as InputTokenType] !== undefined;
+    const network = getCaseSensitiveNetwork(initialValues.network);
+    if (network !== selectedNetwork) {
+      setSelectedNetwork(network);
+    }
+
+    const initialFromToken = getInputTokenDetails(network, initialValues.from as InputTokenType);
+    const initialFromTokenIsValid = initialFromToken !== undefined;
     const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;
     const to = (initialToTokenIsValid ? initialValues.to : defaultValues.to) as OutputTokenType;
 
     return { from, to };
-  }, []);
+  }, [selectedNetwork, setSelectedNetwork]);
 
   const form = useForm<SwapFormValues>({
     resolver: yupResolver(schema) as Resolver<SwapFormValues>,
@@ -52,8 +89,11 @@ export const useSwapForm = () => {
   const from = useWatch({ control, name: 'from' });
   const to = useWatch({ control, name: 'to' });
 
-  const fromToken = from ? INPUT_TOKEN_CONFIG[from] : undefined;
-  const toToken = to ? OUTPUT_TOKEN_CONFIG[to] : undefined;
+  const fromToken = useMemo(
+    () => (from ? getInputTokenDetails(selectedNetwork, from) : undefined),
+    [from, selectedNetwork],
+  );
+  const toToken = useMemo(() => (to ? OUTPUT_TOKEN_CONFIG[to] : undefined), [to]);
 
   const onFromChange = useCallback(
     (tokenKey: string) => {
@@ -67,9 +107,9 @@ export const useSwapForm = () => {
       setStorageForSwapSettings(updated);
       setValue('from', tokenKey as InputTokenType);
 
-      setTokenModal(undefined);
+      setIsTokenSelectModalVisible(false);
     },
-    [getValues, setValue, setTokenModal],
+    [getValues, setValue],
   );
 
   const onToChange = useCallback(
@@ -85,9 +125,9 @@ export const useSwapForm = () => {
       setStorageForSwapSettings(updated);
       setValue('to', tokenKey as OutputTokenType);
 
-      setTokenModal(undefined);
+      setIsTokenSelectModalVisible(false);
     },
-    [getValues, setTokenModal, setValue],
+    [getValues, setValue],
   );
 
   const fromAmountString = useWatch({
@@ -96,18 +136,31 @@ export const useSwapForm = () => {
     defaultValue: '0',
   });
 
-  let fromAmount: Big | undefined;
-  try {
-    fromAmount = new Big(fromAmountString);
-  } catch {
-    // no action required
-  }
+  const fromAmount: Big | undefined = useMemo(() => {
+    try {
+      return new Big(fromAmountString);
+    } catch {
+      return undefined;
+    }
+  }, [fromAmountString]);
+
+  const openTokenSelectModal = useCallback((type: 'from' | 'to') => {
+    setTokenModalType(type);
+    setIsTokenSelectModalVisible(true);
+  }, []);
+
+  const closeTokenSelectModal = useCallback(() => {
+    setIsTokenSelectModalVisible(false);
+  }, []);
 
   return {
     form,
     from,
     to,
-    tokensModal,
+    isTokenSelectModalVisible,
+    tokenSelectModalType,
+    openTokenSelectModal,
+    closeTokenSelectModal,
     onFromChange,
     onToChange,
     fromAmount,

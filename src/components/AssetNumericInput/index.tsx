@@ -3,12 +3,13 @@ import { UseFormRegisterReturn } from 'react-hook-form';
 import { AssetButton } from '../buttons/AssetButton';
 import { SwapFormValues } from '../Nabla/schema';
 import { NumericInput } from '../NumericInput';
-import { AssetIconType } from '../../hooks/useGetIcon';
+import { AssetIconType } from '../../hooks/useGetAssetIcon';
 
 interface AssetNumericInputProps {
   assetIcon: AssetIconType;
   tokenSymbol: string;
   onClick: () => void;
+  onChange?: (e: KeyboardEvent) => void;
   disabled?: boolean;
   readOnly?: boolean;
   registerInput: UseFormRegisterReturn<keyof SwapFormValues>;

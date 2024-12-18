@@ -1,7 +1,6 @@
 const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
 const {
   HORIZON_URL,
-  BASE_FEE,
   FUNDING_SECRET,
   STELLAR_FUNDING_AMOUNT_UNITS,
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
@@ -14,7 +13,7 @@ const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetCode) {
+async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetCode, baseFee) {
   const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
   if (tokenConfig === undefined) {
     console.error('ERROR: Invalid asset id or configuration not found');
@@ -28,7 +27,7 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
   // add a setOption oeration in order to make this a 2-of-2 multisig account where the
   // funding account is a cosigner
   const createAccountTransaction = new TransactionBuilder(fundingAccount, {
-    fee: BASE_FEE,
+    fee: baseFee,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(
@@ -68,6 +67,7 @@ async function buildPaymentAndMergeTx(
   paymentData,
   maxTime,
   assetCode,
+  baseFee,
 ) {
   const ephemeralAccount = new Account(ephemeralAccountId, ephemeralSequence);
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
@@ -93,7 +93,7 @@ async function buildPaymentAndMergeTx(
   }
 
   const paymentTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: BASE_FEE,
+    fee: baseFee,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(
@@ -108,7 +108,7 @@ async function buildPaymentAndMergeTx(
     .build();
 
   const mergeAccountTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: BASE_FEE,
+    fee: baseFee,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(

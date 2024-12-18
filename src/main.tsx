@@ -2,19 +2,21 @@ import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
-import '@rainbow-me/rainbowkit/styles.css';
 
 import { render } from 'preact';
 import { BrowserRouter } from 'react-router-dom';
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import * as Sentry from '@sentry/react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { App } from './app';
-import { GlobalStateContext, GlobalStateProvider } from './GlobalStateProvider';
-import { wagmiConfig } from './wagmiConfig';
+
 import { EventsProvider } from './contexts/events';
-import * as Sentry from '@sentry/react';
+import { NetworkProvider } from './contexts/network';
+import { wagmiConfig } from './wagmiConfig';
+import { SiweProvider } from './contexts/siwe';
 import { config } from './config';
+import { App } from './app';
+import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
+import { PolkadotNodeProvider } from './contexts/polkadotNode';
 
 const queryClient = new QueryClient();
 
@@ -39,17 +41,17 @@ render(
     <BrowserRouter>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider>
-            <EventsProvider>
-              <GlobalStateProvider>
-                <GlobalStateContext.Consumer>
-                  {() => {
-                    return <App />;
-                  }}
-                </GlobalStateContext.Consumer>
-              </GlobalStateProvider>
-            </EventsProvider>
-          </RainbowKitProvider>
+          <PolkadotNodeProvider>
+            <PolkadotWalletStateProvider>
+              <EventsProvider>
+                <SiweProvider>
+                  <NetworkProvider>
+                    <App />
+                  </NetworkProvider>
+                </SiweProvider>
+              </EventsProvider>
+            </PolkadotWalletStateProvider>
+          </PolkadotNodeProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </BrowserRouter>
