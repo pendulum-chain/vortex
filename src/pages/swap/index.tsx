@@ -104,15 +104,11 @@ export const SwapPage = () => {
     initialize();
   }, []);
 
-  // Define the function using useCallback
-  const setInitializeFailed = useCallback(
-    (message?: string | null) => {
-      setInitializeFailedMessage(
-        message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
-      );
-    },
-    [], // No dependencies, so the function remains stable
-  );
+  const setInitializeFailed = useCallback((message?: string | null) => {
+    setInitializeFailedMessage(
+      message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
+    );
+  }, []);
 
   // Main process hook
   const {
