@@ -75,7 +75,6 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
     executionInput,
     pendulumNode,
     trackKYCStarted,
-    cleanupFn,
     trackKYCCompleted,
     selectedNetwork,
     setOfframpStarted,

@@ -1,9 +1,10 @@
 import { createContext } from 'preact';
 import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
 import { useSwitchChain } from 'wagmi';
-
+import { polygon, bsc, arbitrum, base, avalanche, mainnet as ethereum } from '@reown/appkit/networks';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
+import { AssetHubChainId } from '../hooks/useVortexAccount';
 
 export enum Networks {
   AssetHub = 'AssetHub',
@@ -29,22 +30,24 @@ export function isNetworkEVM(network: Networks): boolean {
   }
 }
 
-export function getNetworkId(network: Networks): number | undefined {
+export function getNetworkId(network: Networks): number {
   switch (network) {
     case Networks.Polygon:
-      return 137;
+      return polygon.id;
     case Networks.Ethereum:
-      return 1;
+      return ethereum.id;
     case Networks.BSC:
-      return 56;
+      return bsc.id;
     case Networks.Arbitrum:
-      return 42161;
+      return arbitrum.id;
     case Networks.Base:
-      return 8453;
+      return base.id;
     case Networks.Avalanche:
-      return 43114;
+      return avalanche.id;
+    case Networks.AssetHub:
+      return AssetHubChainId;
     default:
-      return undefined;
+      throw new Error('getNetworkId: unsupported network');
   }
 }
 
@@ -89,10 +92,9 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
       setSelectedNetworkState(network);
       setSelectedNetworkLocalStorage(network);
 
-      // Will only switch chain on the EVM conneted wallet, if chain id has been defined in wagmi config.
-      const chain = chains.find((c) => c.id === getNetworkId(network));
-      if (chain) {
-        switchChain({ chainId: chain.id });
+      // Will only switch chain on the EVM conneted wallet case.
+      if (isNetworkEVM(network)) {
+        switchChain({ chainId: getNetworkId(network) });
       }
     },
     [switchChain, chains, setSelectedNetworkLocalStorage, onNetworkChange],

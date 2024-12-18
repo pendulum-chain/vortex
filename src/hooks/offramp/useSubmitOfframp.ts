@@ -71,16 +71,9 @@ export const useSubmitOfframp = ({
         });
 
         try {
-          let chainId = getNetworkId(selectedNetwork);
-          if (!chainId && isNetworkEVM(selectedNetwork)) {
-            setInitializeFailed();
-            setOfframpStarted(false);
-            setOfframpInitiating(false);
-            return;
-          }
-
+          // For substrate, we only have AssetHub only now. Thus no need to change.
           if (isNetworkEVM(selectedNetwork)) {
-            await switchChainAsync({ chainId: chainId! });
+            await switchChainAsync({ chainId: getNetworkId(selectedNetwork) });
           }
 
           setOfframpStarted(true);
@@ -146,7 +139,12 @@ export const useSubmitOfframp = ({
           }
         } catch (error) {
           console.error('Error initializing the offramping process', error);
-          setInitializeFailed();
+          // Display error message, differentiating between user rejection and other errors
+          if ((error as Error).message.includes('User rejected the request')) {
+            setInitializeFailed('Please switch to the correct network and try again.');
+          } else {
+            setInitializeFailed();
+          }
           setOfframpStarted(false);
           setOfframpInitiating(false);
         }
