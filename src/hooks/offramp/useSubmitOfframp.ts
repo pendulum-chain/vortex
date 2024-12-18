@@ -80,6 +80,10 @@ export const useSubmitOfframp = ({
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
+          if (!address) {
+            throw new Error('useSubmitOfframp: Address must be defined at this stage');
+          }
+
           const { token: sep10Token, sep10Account } = await sep10(
             tomlValues,
             stellarEphemeralSecret,

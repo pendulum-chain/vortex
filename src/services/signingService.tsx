@@ -23,7 +23,7 @@ export interface SignerServiceSep10Request {
   outToken: OutputTokenType;
   clientPublicKey: string;
   address: string;
-  memo?: boolean;
+  usesMemo?: boolean;
 }
 
 // @todo: implement @tanstack/react-query
@@ -52,14 +52,14 @@ export const fetchSep10Signatures = async ({
   challengeXDR,
   outToken,
   clientPublicKey,
-  memo,
+  usesMemo,
   address,
 }: SignerServiceSep10Request): Promise<SignerServiceSep10Response> => {
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, memo, address }),
+    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, usesMemo, address }),
   });
   if (response.status !== 200) {
     if (response.status === 401) {

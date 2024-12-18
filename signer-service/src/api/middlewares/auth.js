@@ -4,7 +4,7 @@ const getMemoFromCookiesMiddleware = async (req, res, next) => {
   // If the client didn't specify, we don't want to pass a derived memo even if a cookie was sent.
 
   req.derivedMemo = null; // Explicit overwrite to avoid tampering, defensive.
-  if (!Boolean(req.body.memo)) {
+  if (!Boolean(req.body.usesMemo)) {
     return next();
   }
   try {
@@ -46,7 +46,7 @@ const getMemoFromCookiesMiddleware = async (req, res, next) => {
     }
 
     // Client declared usage of memo, but it could not be derived from provided signatures.
-    if (Boolean(req.body.memo) && !resultMemo) {
+    if (Boolean(req.body.usesMemo) && !resultMemo) {
       return res.status(401).json({
         error: 'Missing or invalid authentication token',
       });

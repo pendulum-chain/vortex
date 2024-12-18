@@ -148,7 +148,7 @@ const validatePostSwapSubsidizationInput = (req, res, next) => {
 };
 
 const validateSep10Input = (req, res, next) => {
-  const { challengeXDR, outToken, clientPublicKey, address } = req.body;
+  const { challengeXDR, outToken, clientPublicKey } = req.body;
   if (!challengeXDR) {
     return res.status(400).json({ error: 'Missing Anchor challenge: challengeXDR' });
   }

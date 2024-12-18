@@ -8,13 +8,13 @@ class SignInMessage {
     this.address = fields.address;
     this.nonce = fields.nonce;
     this.expirationTime = fields.expirationTime;
-    this.issuedAt = fields.issuedAt ?? new Date().toISOString();
+    this.issuedAt = fields.issuedAt ? new Date(fields.issuedAt).toISOString() : new Date().toISOString();
   }
 
   toMessage() {
-    let header = `${this.domain}${SignInMessage.LOGIN_MESSAGE}${this.address}`;
+    const header = `${this.domain}${SignInMessage.LOGIN_MESSAGE}${this.address}`;
 
-    let body = `\nNonce: ${this.nonce}\nIssued At: ${this.issuedAt}\nExpiration Time: ${this.expirationTime}`;
+    const body = `\nNonce: ${this.nonce}\nIssued At: ${this.issuedAt}\nExpiration Time: ${this.expirationTime}`;
 
     return `${header}\n\n${body}`;
   }
@@ -32,7 +32,8 @@ class SignInMessage {
     const nonce = nonceLine.split('Nonce:')[1]?.trim() || '';
 
     const issuedAtLine = lines.find((line) => line.startsWith('Issued At:')) || '';
-    const issuedAt = issuedAtLine.split('Issued At:')[1]?.trim() || '';
+    const issuedAt = issuedAtLine.split('Issued At:')[1]?.trim(); // Can't really be empty. Constructor will default to current date if not defined.
+    const issuedAtMilis = new Date(issuedAt).getTime();
 
     const expirationTimeLine = lines.find((line) => line.startsWith('Expiration Time:')) || '';
     const expirationTime = expirationTimeLine.split('Expiration Time:')[1]?.trim() || '';
@@ -43,7 +44,7 @@ class SignInMessage {
       address,
       nonce,
       expirationTime,
-      issuedAt,
+      issuedAt: issuedAtMilis,
     });
   }
 }

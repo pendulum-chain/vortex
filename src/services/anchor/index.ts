@@ -142,7 +142,7 @@ export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
-  address: string | undefined,
+  address: string,
   checkAndWaitForSignature: () => Promise<void>,
   forceRefreshAndWaitForSignature: () => Promise<void>,
   renderEvent: (event: string, status: EventStatus) => void,
@@ -151,9 +151,6 @@ export const sep10 = async (
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
     throw new Error('sep10: Missing values in TOML file');
-  }
-  if (!address) {
-    throw new Error('sep10: Address must be defined at this stage');
   }
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
@@ -192,7 +189,7 @@ export const sep10 = async (
       challengeXDR: transactionSigned.toXDR(),
       outToken: outputToken,
       clientPublicKey: sep10Account,
-      memo: usesMemo,
+      usesMemo,
       address: address,
     },
   );

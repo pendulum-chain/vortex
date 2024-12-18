@@ -1,7 +1,5 @@
 import { useState, useCallback } from 'preact/compat';
-import { useSignMessage } from 'wagmi';
 import { SignInMessage } from '../helpers/siweMessageFormatter';
-import { Signer } from '@polkadot/types/types';
 
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
@@ -26,9 +24,8 @@ function createSiweMessage(address: string, nonce: string) {
 }
 
 export function useSiweSignature() {
-  const { signMessageAsync } = useSignMessage();
   const [signingPending, setSigningPending] = useState(false);
-  const { address, polkadotWalletAccount } = useVortexAccount();
+  const { address, getMessageSignature } = useVortexAccount();
 
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
@@ -53,22 +50,6 @@ export function useSiweSignature() {
       return null;
     }
   }, [address, storageKey]);
-
-  async function getMessageSignature(address: string, siweMessage: string): Promise<string> {
-    let signature;
-    if (address.startsWith('0x')) {
-      signature = await signMessageAsync({ message: siweMessage });
-    } else {
-      const { signature: substrateSignature } = await (polkadotWalletAccount!.signer as Signer).signRaw!({
-        type: 'payload',
-        data: siweMessage,
-        address,
-      });
-      signature = substrateSignature;
-    }
-
-    return signature;
-  }
 
   const signMessage = useCallback((): Promise<void> | undefined => {
     if (signPromise) return;
@@ -96,7 +77,7 @@ export function useSiweSignature() {
       const siweMessage = createSiweMessage(address, nonce);
       const message = SignInMessage.fromMessage(siweMessage);
 
-      const signature = await getMessageSignature(address, siweMessage);
+      const signature = await getMessageSignature(siweMessage);
 
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
         method: 'POST',
@@ -121,7 +102,7 @@ export function useSiweSignature() {
       setSigningPending(false);
       setSignPromise(null);
     }
-  }, [address, storageKey, signMessageAsync, signPromise, setSigningPending, setSignPromise]);
+  }, [address, storageKey, signPromise, setSigningPending, setSignPromise, getMessageSignature]);
 
   // Handler for modal cancellation
   const handleCancel = useCallback(() => {
