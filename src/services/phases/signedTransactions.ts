@@ -39,22 +39,15 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
 
   const { pendulumNode } = context;
 
-  console.log('prepareTransactions', state, context);
   const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
   const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
   const nablaSwapTransaction = await prepareNablaSwapTransaction(state, context);
 
-  console.log('after preparing some transactions');
-
   // Fund Stellar ephemeral only after all other transactions are prepared
   await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
-  console.log('after stellarCreateEphemeral');
   const stellarFundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
-  console.log('after fetchSigningServiceAccountId');
   const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
   const stellarEphemeralPublicKey = stellarEphemeralKeypair.publicKey();
-
-  console.log('after stellar transactions');
 
   const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
     stellarFundingAccountId,
@@ -62,8 +55,6 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
     sepResult,
     outputTokenType,
   );
-
-  console.log('after setting up account and operations');
 
   const transactions = {
     stellarOfframpingTransaction: offrampingTransaction.toEnvelope().toXDR().toString('base64'),
