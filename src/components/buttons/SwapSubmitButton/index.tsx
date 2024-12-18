@@ -18,7 +18,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
   const { isConnected } = useAppKitAccount();
   const { selectedNetwork } = useNetwork();
 
-  if (selectedNetwork === Networks.AssetHub && !walletAccount) {
+  if (!isNetworkEVM(selectedNetwork) && !walletAccount) {
     return (
       <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
         <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon />

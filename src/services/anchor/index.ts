@@ -1,5 +1,6 @@
 import { Transaction, Keypair, Networks } from 'stellar-sdk';
 import { keccak256 } from 'viem/utils';
+import { Keyring } from '@polkadot/api';
 
 import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
@@ -64,9 +65,20 @@ export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues
   };
 };
 
-//A memo derivation. TODO: Secure? how to check for collisions?
-async function deriveMemoFromAddress(address: `0x${string}`) {
-  const hash = keccak256(address);
+// Returns the hash value for the address. If it's a polkadot address, it will return raw data of the address.
+function getHashValueForAddress(address: string) {
+  if (address.startsWith('0x')) {
+    return address as `0x${string}`;
+  } else {
+    const keyring = new Keyring({ type: 'sr25519' });
+    return keyring.decodeAddress(address);
+  }
+}
+
+//A memo derivation.
+async function deriveMemoFromAddress(address: string) {
+  const hashValue = getHashValueForAddress(address);
+  const hash = keccak256(hashValue);
   return BigInt(hash).toString().slice(0, 15);
 }
 
@@ -75,7 +87,7 @@ async function getUrlParams(
   ephemeralAccount: string,
   usesMemo: boolean,
   supportsClientDomain: boolean,
-  address: `0x${string}`,
+  address: string,
 ): Promise<{ urlParams: URLSearchParams; sep10Account: string }> {
   let sep10Account: string;
   const params = new URLSearchParams();
@@ -130,7 +142,7 @@ export const sep10 = async (
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
   outputToken: OutputTokenType,
-  address: `0x${string}` | undefined,
+  address: string,
   checkAndWaitForSignature: () => Promise<void>,
   forceRefreshAndWaitForSignature: () => Promise<void>,
   renderEvent: (event: string, status: EventStatus) => void,
@@ -138,7 +150,7 @@ export const sep10 = async (
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
-    throw new Error('Missing values in TOML file');
+    throw new Error('sep10: Missing values in TOML file');
   }
   const NETWORK_PASSPHRASE = Networks.PUBLIC;
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
@@ -147,24 +159,24 @@ export const sep10 = async (
   const { usesMemo, supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
 
   // will select either clientMaster or the ephemeral account
-  const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, supportsClientDomain, address!);
+  const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, supportsClientDomain, address);
 
   const challenge = await fetch(`${webAuthEndpoint}?${urlParams.toString()}`);
   if (challenge.status !== 200) {
-    throw new Error(`Failed to fetch SEP-10 challenge: ${challenge.statusText}`);
+    throw new Error(`sep10: Failed to fetch SEP-10 challenge: ${challenge.statusText}`);
   }
 
   const { transaction, network_passphrase } = await challenge.json();
   if (network_passphrase !== NETWORK_PASSPHRASE) {
-    throw new Error(`Invalid network passphrase: ${network_passphrase}`);
+    throw new Error(`sep10: Invalid network passphrase: ${network_passphrase}`);
   }
 
   const transactionSigned = new Transaction(transaction, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== signingKey) {
-    throw new Error(`Invalid source account: ${transactionSigned.source}`);
+    throw new Error(`sep10: Invalid source account: ${transactionSigned.source}`);
   }
   if (transactionSigned.sequence !== '0') {
-    throw new Error(`Invalid sequence number: ${transactionSigned.sequence}`);
+    throw new Error(`sep10: Invalid sequence number: ${transactionSigned.sequence}`);
   }
 
   if (usesMemo) {
@@ -177,7 +189,8 @@ export const sep10 = async (
       challengeXDR: transactionSigned.toXDR(),
       outToken: outputToken,
       clientPublicKey: sep10Account,
-      memo: usesMemo,
+      usesMemo,
+      address: address,
     },
   );
 

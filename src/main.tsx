@@ -41,17 +41,17 @@ render(
     <BrowserRouter>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <PolkadotNodeProvider>
-            <EventsProvider>
-              <SiweProvider>
-                <NetworkProvider>
-                  <PolkadotWalletStateProvider>
+          <NetworkProvider>
+            <PolkadotNodeProvider>
+              <PolkadotWalletStateProvider>
+                <EventsProvider>
+                  <SiweProvider>
                     <App />
-                  </PolkadotWalletStateProvider>
-                </NetworkProvider>
-              </SiweProvider>
-            </EventsProvider>
-          </PolkadotNodeProvider>
+                  </SiweProvider>
+                </EventsProvider>
+              </PolkadotWalletStateProvider>
+            </PolkadotNodeProvider>
+          </NetworkProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </BrowserRouter>

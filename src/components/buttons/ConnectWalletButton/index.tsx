@@ -1,11 +1,11 @@
-import { Networks, useNetwork } from '../../../contexts/network';
+import { isNetworkEVM, Networks, useNetwork } from '../../../contexts/network';
 import { EVMWalletButton } from '../EVMWalletButton';
 import { PolkadotWalletButton } from '../PolkadotWalletButton';
 
 export const ConnectWalletButton = ({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) => {
   const { selectedNetwork } = useNetwork();
 
-  if (selectedNetwork === Networks.AssetHub) {
+  if (!isNetworkEVM(selectedNetwork)) {
     return <PolkadotWalletButton customStyles={customStyles} hideIcon={hideIcon} />;
   }
 

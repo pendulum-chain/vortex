@@ -54,7 +54,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
 
   if (!step) return null;
   if (!['started', 'approved', 'signed'].includes(step)) return null;
-  if (selectedNetwork === Networks.AssetHub && (step === 'approved' || step === 'signed')) return null;
+  if (!isNetworkEVM(selectedNetwork) && (step === 'approved' || step === 'signed')) return null;
 
   const progressValue = getProgressConfig(selectedNetwork, step) || '0';
   const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);

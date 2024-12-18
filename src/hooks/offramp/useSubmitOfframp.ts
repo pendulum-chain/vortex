@@ -1,6 +1,7 @@
 import { MutableRefObject, useCallback } from 'preact/compat';
 import { polygon } from 'wagmi/chains';
-import { useAccount, useSwitchChain } from 'wagmi';
+import { useSwitchChain } from 'wagmi';
+import { useVortexAccount } from '../useVortexAccount';
 import { getNetworkId, isNetworkEVM, useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
@@ -38,7 +39,7 @@ export const useSubmitOfframp = ({
   const { selectedNetwork } = useNetwork();
   const { switchChainAsync, switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
-  const { address } = useAccount();
+  const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
@@ -95,6 +96,10 @@ export const useSubmitOfframp = ({
           const stellarEphemeralSecret = createStellarEphemeralSecret();
           const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
+
+          if (!address) {
+            throw new Error('useSubmitOfframp: Address must be defined at this stage');
+          }
 
           const { token: sep10Token, sep10Account } = await sep10(
             tomlValues,

@@ -5,7 +5,7 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { Networks, useNetwork } from '../../contexts/network';
+import { isNetworkEVM, Networks, useNetwork } from '../../contexts/network';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
   const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
@@ -81,6 +81,8 @@ const ProgressContent: FC<{
   currentPhaseIndex: number;
   message: string;
 }> = ({ currentPhase, currentPhaseIndex, message }) => {
+  const { selectedNetwork } = useNetwork();
+
   const [currentPercentage, setCurrentPercentage] = useState<number>(
     Math.round((100 / numberOfPhases) * currentPhaseIndex),
   );
@@ -157,7 +159,9 @@ const ProgressContent: FC<{
           </div>
         </div>
         <h1 className="my-3 text-base font-bold text-blue-700">Your transaction is in progress.</h1>
-        <h1 className="mb-3 text-base text-blue-700">This usually takes 6-8 minutes.</h1>
+        <h1 className="mb-3 text-base text-blue-700">
+          {!isNetworkEVM(selectedNetwork) ? 'This usually takes 4-6 minutes.' : 'This usually takes 6-8 minutes.'}
+        </h1>
         <div>{message}</div>
       </div>
     </Box>

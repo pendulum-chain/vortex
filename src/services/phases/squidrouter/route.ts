@@ -160,7 +160,7 @@ export async function getRouteTransactionRequest(
 export async function testRoute(
   testingToken: InputTokenDetails,
   attemptedAmountRaw: string,
-  address: `0x${string}`,
+  address: string,
   fromNetwork: Networks,
 ) {
   if (!isEvmInputTokenDetails(testingToken)) {

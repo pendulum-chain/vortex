@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { Fragment } from 'preact';
-import { useAccount } from 'wagmi';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
 
@@ -19,8 +18,8 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { SignInModal } from '../../components/SignIn';
-
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
+
 import {
   getInputTokenDetailsOrDefault,
   INPUT_TOKEN_CONFIG,
@@ -31,7 +30,7 @@ import {
 import { config } from '../../config';
 
 import { useEventsContext } from '../../contexts/events';
-import { Networks, useNetwork } from '../../contexts/network';
+import { isNetworkEVM, Networks, useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useSiweContext } from '../../contexts/siwe';
 
@@ -42,9 +41,9 @@ import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 
+import { initialChecks } from '../../services/initialChecks';
 import { getVaultsForCurrency } from '../../services/phases/polkadot/spacewalk';
 import { testRoute } from '../../services/phases/squidrouter/route';
-import { initialChecks } from '../../services/initialChecks';
 
 import { BaseLayout } from '../../layouts';
 import { ProgressPage } from '../progress';
@@ -57,6 +56,8 @@ import {
   useOfframpStarted,
   useOfframpInitiating,
 } from '../../stores/offrampStore';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -68,7 +69,7 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { isDisconnected, address } = useAccount();
+  const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
@@ -77,6 +78,11 @@ export const SwapPage = () => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
+
+  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+
+  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
+    useTermsAndConditions();
 
   useEffect(() => {
     setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
@@ -364,7 +370,6 @@ export const SwapPage = () => {
 
   const modals = (
     <>
-      <TermsAndConditions />
       <PoolSelectorModal
         open={isTokenSelectModalVisible}
         onSelect={(token) => {
@@ -396,7 +401,7 @@ export const SwapPage = () => {
 
   if (offrampState !== undefined || offrampStarted) {
     const isAssetHubFlow =
-      selectedNetwork === Networks.AssetHub &&
+      !isNetworkEVM(selectedNetwork) &&
       (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubXCM');
     const showMainScreenAnyway =
       offrampState === undefined ||
@@ -441,6 +446,12 @@ export const SwapPage = () => {
           {(initializeFailedMessage || apiInitializeFailed) && (
             <p className="text-red-600">{initializeFailedMessage}</p>
           )}
+        </section>
+        <section className="w-full mt-5">
+          <TermsAndConditions
+            key={termsAnimationKey}
+            {...{ toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError }}
+          />
         </section>
         <div className="flex gap-3 mt-5">
           <button

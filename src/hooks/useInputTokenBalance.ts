@@ -1,4 +1,4 @@
-import { useAccount, useReadContract } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { useEffect, useState } from 'preact/hooks';
 import Big from 'big.js';
 
@@ -8,13 +8,14 @@ import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
+import { useVortexAccount } from './useVortexAccount';
 
 // TODO maybe improve: if the user switches the network in the selector and REJECTS the switch in wallet, then balance will be 0.
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
   fromToken: InputTokenDetails | undefined,
 ): string | undefined => {
-  const { address } = useAccount();
+  const { address } = useVortexAccount();
 
   const { data: balance } = useReadContract({
     address: tokenAddress,
