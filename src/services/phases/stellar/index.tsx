@@ -31,8 +31,8 @@ const NETWORK_PASSPHRASE = Networks.PUBLIC;
 // The Horizon.Server class does not allow defining a custom timeout for network queries.
 async function loadAccountWithRetry(
   ephemeralAccountId: string,
-  retries = 5,
-  timeout = 10000,
+  retries = 3,
+  timeout = 15000,
 ): Promise<Horizon.AccountResponse | null> {
   let lastError: Error | null = null;
 
@@ -74,7 +74,6 @@ export async function stellarCreateEphemeral(
   stellarEphemeralSecret: string,
   outputTokenType: OutputTokenType,
 ): Promise<void> {
-  console.log('in stellarCreateEphemeral');
   const fundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const ephemeralAccountExists = await isEphemeralCreated(stellarEphemeralSecret);
 
@@ -83,7 +82,6 @@ export async function stellarCreateEphemeral(
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      console.log('waiting for ephemeral account to be created in loop');
       if (await isEphemeralCreated(stellarEphemeralSecret)) {
         break;
       }
