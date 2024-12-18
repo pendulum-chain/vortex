@@ -7,7 +7,7 @@ class SignInMessage {
     this.domain = fields.domain;
     this.address = fields.address;
     this.nonce = fields.nonce;
-    this.expirationTime = fields.expirationTime;
+    this.expirationTime = new Date(fields.expirationTime).toISOString();
     this.issuedAt = fields.issuedAt ? new Date(fields.issuedAt).toISOString() : new Date().toISOString();
   }
 
@@ -36,14 +36,15 @@ class SignInMessage {
     const issuedAtMilis = new Date(issuedAt).getTime();
 
     const expirationTimeLine = lines.find((line) => line.startsWith('Expiration Time:')) || '';
-    const expirationTime = expirationTimeLine.split('Expiration Time:')[1]?.trim() || '';
+    const expirationTime = expirationTimeLine.split('Expiration Time:')[1]?.trim();
+    const expirationTimeMilis = new Date(expirationTime).getTime();
 
     return new SignInMessage({
       scheme: 'https',
       domain,
       address,
       nonce,
-      expirationTime,
+      expirationTime: expirationTimeMilis,
       issuedAt: issuedAtMilis,
     });
   }

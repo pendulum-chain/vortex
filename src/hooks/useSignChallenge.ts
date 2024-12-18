@@ -17,7 +17,7 @@ function createSiweMessage(address: string, nonce: string) {
     domain: window.location.host,
     address: address,
     nonce,
-    expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).toISOString(), // Constructor in ms.
+    expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).getTime(), // Constructor in ms.
   });
 
   return siweMessage.toMessage();
