@@ -12,7 +12,7 @@ export interface SiweSignatureData {
   expirationDate: string;
 }
 
-function createSiweMessage(address: `0x${string}`, nonce: string) {
+function createSiweMessage(address: string, nonce: string) {
   // Make constants on config
   const siweMessage = new SiweMessage({
     scheme: 'https',
@@ -28,7 +28,7 @@ function createSiweMessage(address: `0x${string}`, nonce: string) {
   return siweMessage.toMessage();
 }
 
-export function useSiweSignature(address?: `0x${string}`) {
+export function useSiweSignature(address?: string) {
   const { signMessageAsync } = useSignMessage();
   const [signingPending, setSigningPending] = useState(false);
 

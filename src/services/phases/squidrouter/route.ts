@@ -154,7 +154,7 @@ export async function getRouteTransactionRequest(
   };
 }
 
-export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: `0x${string}`) {
+export async function testRoute(testingToken: InputTokenDetails, attemptedAmountRaw: string, address: string) {
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = squidRouterConfig;
   if (!isEvmInputTokenDetails(testingToken)) {
     return;

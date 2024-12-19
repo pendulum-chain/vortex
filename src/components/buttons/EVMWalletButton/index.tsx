@@ -4,15 +4,15 @@ import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg
 import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet-pink.svg';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useMemo } from 'preact/hooks';
-import { useAccount } from 'wagmi';
 import { wagmiConfig } from '../../../wagmiConfig';
 import { trimAddress } from '../../../helpers/addressFormatter';
+import { useVortexAccount } from '../../../hooks/useVortexAccount';
 
 export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) {
   const { handleUserClickWallet } = useEventsContext();
 
   // walletChainId is the chainId available on the wallet level
-  const { address, chainId: walletChainId } = useAccount();
+  const { address, chainId: walletChainId } = useVortexAccount();
   const { isConnected } = useAppKitAccount();
   // appkitNetwork contains the chainId currently configured on the app level
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
