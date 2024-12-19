@@ -111,9 +111,7 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  const [showFeeCollapse, setShowFeeCollapse] = useState(false);
-
-  useSwapUrlParams({ form, setShowFeeCollapse, setShowCompareFees });
+  useSwapUrlParams({ form, setShowCompareFees });
 
   const fromToken = INPUT_TOKEN_CONFIG[from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
@@ -375,7 +373,6 @@ export const SwapPage = () => {
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
-          expanded={showFeeCollapse}
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
           toToken={toToken}
