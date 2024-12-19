@@ -8,34 +8,13 @@ import { useSiweContext } from '../../contexts/siwe';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
-import {
-  createStellarEphemeralSecret,
-  fetchTomlValues,
-  IAnchorSessionParams,
-  ISep24Intermediate,
-  sep10,
-  sep24First,
-} from '../../services/anchor';
+import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First } from '../../services/anchor';
 
 import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
-import { ExtendedExecutionInput } from './useSEP24/useSEP24State';
 import { ExecutionInput } from './useMainProcess';
+import { useSep24Actions } from '../../stores/sep24Store';
 
-interface UseSubmitOfframpProps {
-  firstSep24IntervalRef: MutableRefObject<number | undefined>;
-  setFirstSep24Response: (response: ISep24Intermediate | undefined) => void;
-  setExecutionInput: (input: ExtendedExecutionInput | undefined) => void;
-  setAnchorSessionParams: (params: IAnchorSessionParams | undefined) => void;
-  cleanSep24FirstVariables: () => void;
-}
-
-export const useSubmitOfframp = ({
-  firstSep24IntervalRef,
-  setFirstSep24Response,
-  setExecutionInput,
-  setAnchorSessionParams,
-  cleanSep24FirstVariables,
-}: UseSubmitOfframpProps) => {
+export const useSubmitOfframp = () => {
   const { selectedNetwork } = useNetwork();
   const { switchChainAsync, switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
@@ -44,10 +23,8 @@ export const useSubmitOfframp = ({
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
   const { setOfframpStarted, setOfframpInitiating } = useOfframpActions();
-
-  const addEvent = (message: string, status: string) => {
-    console.log('Add event', message, status);
-  };
+  const { setAnchorSessionParams, setFirstSep24Response, setExecutionInput, cleanupSep24State, setFirstSep24Interval } =
+    useSep24Actions();
 
   return useCallback(
     (executionInput: ExecutionInput) => {
@@ -101,7 +78,6 @@ export const useSubmitOfframp = ({
             address,
             checkAndWaitForSignature,
             forceRefreshAndWaitForSignature,
-            addEvent,
           );
 
           const anchorSessionParams = {
@@ -125,7 +101,7 @@ export const useSubmitOfframp = ({
             setFirstSep24Response(firstSep24Response);
           };
 
-          firstSep24IntervalRef.current = window.setInterval(fetchAndUpdateSep24Url, 20000);
+          setFirstSep24Interval(window.setInterval(fetchAndUpdateSep24Url, 20000));
 
           try {
             await fetchAndUpdateSep24Url();
@@ -133,7 +109,7 @@ export const useSubmitOfframp = ({
             console.error('Error finalizing the initial state of the offramping process', error);
             setInitializeFailed();
             setOfframpStarted(false);
-            cleanSep24FirstVariables();
+            cleanupSep24State();
           } finally {
             setOfframpInitiating(false);
           }
@@ -163,9 +139,9 @@ export const useSubmitOfframp = ({
       forceRefreshAndWaitForSignature,
       setExecutionInput,
       setAnchorSessionParams,
-      firstSep24IntervalRef,
       setFirstSep24Response,
-      cleanSep24FirstVariables,
+      setFirstSep24Interval,
+      cleanupSep24State,
     ],
   );
 };

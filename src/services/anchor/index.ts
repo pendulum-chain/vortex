@@ -145,7 +145,6 @@ export const sep10 = async (
   address: string,
   checkAndWaitForSignature: () => Promise<void>,
   forceRefreshAndWaitForSignature: () => Promise<void>,
-  renderEvent: (event: string, status: EventStatus) => void,
 ): Promise<{ token: string; sep10Account: string }> => {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
@@ -215,11 +214,6 @@ export const sep10 = async (
   }
 
   const { token } = await jwt.json();
-  // print the ephemeral secret, for testing
-  renderEvent(
-    `Unique recovery code (Please keep safe in case something fails): ${ephemeralKeys.secret()}`,
-    EventStatus.Waiting,
-  );
   return { token, sep10Account };
 };
 

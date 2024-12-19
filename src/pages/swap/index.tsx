@@ -104,6 +104,7 @@ export const SwapPage = () => {
     initialize();
   }, []);
 
+  // Maybe go into a state of UI errors??
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
       message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
