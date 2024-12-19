@@ -440,9 +440,9 @@ export const SwapPage = () => {
             </a>
           ) : (
             <SwapSubmitButton
-              text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
+              text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
               disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || initializeFailed}
-              pending={isInitiating || offrampingStarted || offrampingState !== undefined}
+              pending={offrampInitiating || offrampStarted || offrampState !== undefined}
             />
           )}
         </div>
