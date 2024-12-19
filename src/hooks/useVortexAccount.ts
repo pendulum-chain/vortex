@@ -1,7 +1,9 @@
 import { Networks, useNetwork } from '../contexts/network';
-import { useMemo } from 'preact/compat';
+import { useMemo, useCallback } from 'preact/compat';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAccount } from 'wagmi';
+import { Signer } from '@polkadot/types/types';
+import { useSignMessage } from 'wagmi';
 
 // For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
 // but we just use it to differentiate between the EVM and Polkadot accounts.
@@ -14,6 +16,7 @@ export const useVortexAccount = () => {
 
   const { walletAccount: polkadotWalletAccount } = usePolkadotWalletState();
   const { isDisconnected: isEvmAccountDisconnected, chainId: evmChainId, address: evmAccountAddress } = useAccount();
+  const { signMessageAsync } = useSignMessage();
 
   const address = useMemo(() => {
     if (selectedNetwork === Networks.AssetHub) {
@@ -47,10 +50,36 @@ export const useVortexAccount = () => {
     }
   }, [selectedNetwork]);
 
+  const getMessageSignature = useCallback(
+    async (siweMessage: string) => {
+      let signature;
+
+      if (selectedNetwork === Networks.Polygon) {
+        signature = await signMessageAsync({ message: siweMessage });
+      } else if (selectedNetwork === Networks.AssetHub) {
+        if (!polkadotWalletAccount) {
+          throw new Error('getMessageSignature: Polkadot wallet account not found. Wallet must be connected to sign.');
+        }
+        const { signature: substrateSignature } = await (polkadotWalletAccount.signer as Signer).signRaw!({
+          type: 'payload',
+          data: siweMessage,
+          address: polkadotWalletAccount.address,
+        });
+        signature = substrateSignature;
+      } else {
+        throw new Error('getMessageSignature: Unsupported network.');
+      }
+
+      return signature;
+    },
+    [polkadotWalletAccount, selectedNetwork, signMessageAsync],
+  );
+
   return {
     isDisconnected,
     chainId,
     address,
     type,
+    getMessageSignature,
   };
 };

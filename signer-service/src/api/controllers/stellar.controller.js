@@ -56,36 +56,14 @@ exports.changeOpTransaction = async (req, res, next) => {
 
 exports.signSep10Challenge = async (req, res, next) => {
   try {
-    let maybeChallengeSignature;
-    let maybeNonce;
-    if (req.cookies?.authToken) {
-      maybeChallengeSignature = req.cookies.authToken.signature;
-      maybeNonce = req.cookies.authToken.nonce;
-    }
-
-    if (Boolean(req.body.memo) && (!maybeChallengeSignature || !maybeNonce)) {
-      return res.status(401).json({
-        error: 'Missing signature or nonce',
-      });
-    }
-
     let { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
       req.body.challengeXDR,
       req.body.outToken,
       req.body.clientPublicKey,
-      maybeChallengeSignature,
-      maybeNonce,
+      req.derivedMemo, // Derived in middleware
     );
     return res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
   } catch (error) {
-    if (error.message.includes('Could not verify signature')) {
-      // Distinguish between failed signature check and other errors.
-      return res.status(401).json({
-        error: 'Signature validation failed.',
-        details: error.message,
-      });
-    }
-
     console.error('Error in signSep10Challenge:', error);
     return res.status(500).json({ error: 'Failed to sign challenge', details: error.message });
   }

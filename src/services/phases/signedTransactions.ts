@@ -48,6 +48,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   const stellarFundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
   const stellarEphemeralPublicKey = stellarEphemeralKeypair.publicKey();
+
   const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
     stellarFundingAccountId,
     stellarEphemeralKeypair,
