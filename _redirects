@@ -1,0 +1,3 @@
+/api/production/*  https://prototype-signer-service-polygon.pendulumchain.tech/:splat  200
+/api/staging/*  https://prototype-signer-service-polygon-staging.pendulumchain.tech/:splat  200
+/* /index.html 200
