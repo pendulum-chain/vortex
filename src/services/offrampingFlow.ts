@@ -7,7 +7,6 @@ import { decodeAddress } from '@polkadot/util-crypto';
 import { ApiPromise } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
 
-import { RenderEventHandler } from '../components/GenericEvent';
 import { SigningPhase } from '../hooks/offramp/useMainProcess';
 import { TrackableEvent } from '../contexts/events';
 import { Networks } from '../contexts/network';
@@ -65,7 +64,6 @@ export type FinalOfframpingPhase = 'success';
 
 export interface ExecutionContext {
   wagmiConfig: Config;
-  renderEvent: RenderEventHandler;
   setOfframpSigningPhase: (n: SigningPhase) => void;
   trackEvent: (event: TrackableEvent) => void;
   pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };

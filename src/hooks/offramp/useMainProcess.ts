@@ -46,9 +46,7 @@ export const useMainProcess = () => {
   }, [setOnSelectedNetworkChange, resetOfframpState]);
 
   // Determines the current offramping phase
-  useOfframpAdvancement({
-    addEvent: events.addEvent,
-  });
+  useOfframpAdvancement();
 
   return {
     handleOnSubmit: useSubmitOfframp({
