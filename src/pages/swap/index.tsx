@@ -113,7 +113,7 @@ export const SwapPage = () => {
 
   const [showFeeCollapse, setShowFeeCollapse] = useState(false);
 
-  useSwapUrlParams({ form, setShowFeeCollapse });
+  useSwapUrlParams({ form, setShowFeeCollapse, setShowCompareFees });
 
   const fromToken = INPUT_TOKEN_CONFIG[from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
