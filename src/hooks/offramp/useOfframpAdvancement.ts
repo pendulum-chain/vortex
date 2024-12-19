@@ -9,6 +9,7 @@ import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useEventsContext } from '../../contexts/events';
 
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
+import { EventStatus } from '../../components/GenericEvent';
 
 export const useOfframpAdvancement = () => {
   const { walletAccount } = usePolkadotWalletState();
@@ -37,6 +38,9 @@ export const useOfframpAdvancement = () => {
         pendulumNode,
         assetHubNode,
         walletAccount,
+        renderEvent: (message: string, status: EventStatus) => {
+          console.log('renderEvent: ', message, status);
+        },
       });
 
       if (JSON.stringify(offrampState) !== JSON.stringify(nextState)) {

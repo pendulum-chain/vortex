@@ -39,6 +39,7 @@ import {
   pendulumCleanup,
   createPendulumEphemeralSeed,
 } from './phases/polkadot/ephemeral';
+import { RenderEventHandler } from '../components/GenericEvent';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -64,6 +65,7 @@ export type FinalOfframpingPhase = 'success';
 
 export interface ExecutionContext {
   wagmiConfig: Config;
+  renderEvent: RenderEventHandler;
   setOfframpSigningPhase: (n: SigningPhase) => void;
   trackEvent: (event: TrackableEvent) => void;
   pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
