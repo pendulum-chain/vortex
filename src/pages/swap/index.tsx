@@ -178,8 +178,6 @@ export const SwapPage = () => {
 
     const preciseQuotedAmountOut = tokenOutAmountData.preciseQuotedAmountOut;
 
-    // @todo: why do we need offrampInitiating? offrampStarted is not enough?
-
     // test the route for starting token, then proceed
     // will disable the confirm button
     setOfframpInitiating(true);
