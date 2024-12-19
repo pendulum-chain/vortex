@@ -5,6 +5,7 @@ import { polygon, bsc, arbitrum, base, avalanche, mainnet as ethereum } from '@r
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 import { AssetHubChainId } from '../hooks/useVortexAccount';
+import { useOfframpActions } from '../stores/offrampStore';
 
 export enum Networks {
   AssetHub = 'AssetHub',
@@ -55,7 +56,6 @@ interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
   selectedNetwork: Networks;
   setSelectedNetwork: (network: Networks) => void;
-  setOnSelectedNetworkChange: (callback: (network: Networks) => void) => void;
   networkSelectorDisabled: boolean;
   setNetworkSelectorDisabled: (disabled: boolean) => void;
 }
@@ -64,7 +64,6 @@ const NetworkContext = createContext<NetworkContextType>({
   walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
   selectedNetwork: Networks.AssetHub,
   setSelectedNetwork: () => null,
-  setOnSelectedNetworkChange: () => null,
   networkSelectorDisabled: false,
   setNetworkSelectorDisabled: () => null,
 });
@@ -80,15 +79,14 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   });
 
   const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(selectedNetworkLocalStorage);
-  const [onNetworkChange, setOnSelectedNetworkChange] = useState<((network: Networks) => void) | undefined>();
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
+
+  const { resetOfframpState } = useOfframpActions();
   const { chains, switchChain } = useSwitchChain();
 
   const setSelectedNetwork = useCallback(
     (network: Networks) => {
-      if (onNetworkChange) {
-        onNetworkChange(network);
-      }
+      resetOfframpState();
       setSelectedNetworkState(network);
       setSelectedNetworkLocalStorage(network);
 
@@ -97,7 +95,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         switchChain({ chainId: getNetworkId(network) });
       }
     },
-    [switchChain, chains, setSelectedNetworkLocalStorage, onNetworkChange],
+    [switchChain, chains, setSelectedNetworkLocalStorage],
   );
 
   // Only run on first render
@@ -122,7 +120,6 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         setSelectedNetwork,
         networkSelectorDisabled,
         setNetworkSelectorDisabled,
-        setOnSelectedNetworkChange,
       }}
     >
       {children}

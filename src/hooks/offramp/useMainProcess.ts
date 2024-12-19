@@ -1,8 +1,7 @@
-import { useEffect, StateUpdater } from 'preact/compat';
+import { useEffect } from 'preact/compat';
 import Big from 'big.js';
 
 import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
-import { useNetwork } from '../../contexts/network';
 import { recoverFromFailure, readCurrentState } from '../../services/offrampingFlow';
 
 import { useSubmitOfframp } from './useSubmitOfframp';
@@ -30,9 +29,6 @@ export const useMainProcess = () => {
   const { firstSep24Response, firstSep24Interval } = useSep24Store.getState();
   const { cleanupSep24State } = useSep24Actions();
 
-  // Contexts
-  const { setOnSelectedNetworkChange } = useNetwork();
-
   // Custom hooks
   const events = useOfframpEvents();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
@@ -42,12 +38,7 @@ export const useMainProcess = () => {
     const recoveryState = readCurrentState();
     updateOfframpHookStateFromState(recoveryState);
     events.trackOfframpingEvent(recoveryState);
-  }, [updateOfframpHookStateFromState, events]);
-
-  // Reset offramping state when the network is changed
-  useEffect(() => {
-    setOnSelectedNetworkChange(resetOfframpState);
-  }, [setOnSelectedNetworkChange, resetOfframpState]);
+  }, [updateOfframpHookStateFromState, events.trackOfframpingEvent]);
 
   // Determines the current offramping phase
   useOfframpAdvancement({
