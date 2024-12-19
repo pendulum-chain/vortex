@@ -17,14 +17,14 @@ exports.sendSiweMessage = async (req, res) => {
 exports.validateSiweSignature = async (req, res) => {
   const { nonce, signature, siweMessage } = req.body;
   try {
-    await verifyAndStoreSiweMessage(nonce, signature, siweMessage);
+    const address = await verifyAndStoreSiweMessage(nonce, signature, siweMessage);
 
     const token = {
       nonce,
       signature,
     };
 
-    res.cookie('authToken', token, {
+    res.cookie(`authToken_${address}`, token, {
       httpOnly: true,
       secure: true,
       sameSite: 'Strict',

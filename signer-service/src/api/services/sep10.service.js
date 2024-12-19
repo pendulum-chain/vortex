@@ -1,48 +1,18 @@
 const { Keypair } = require('stellar-sdk');
 const { TransactionBuilder, Networks } = require('stellar-sdk');
 const { fetchTomlValues } = require('../helpers/anchors');
-const { verifySiweMessage } = require('./siwe.service');
-const { keccak256 } = require('viem/utils');
 
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
 const { SEP10_MASTER_SECRET, CLIENT_DOMAIN_SECRET } = require('../../constants/constants');
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-async function deriveMemoFromAddress(address) {
-  const hash = keccak256(address);
-  return BigInt(hash).toString().slice(0, 15);
-}
-
-// we validate a challenge for a given nonce. From it we obtain the address and derive the memo
-// we can then ensure that the memo is the same as the one we expect from the anchor challenge
-const validateSignatureAndGetMemo = async (nonce, userChallengeSignature, memoEnabled) => {
-  if (!userChallengeSignature || !nonce || !memoEnabled) {
-    return null; // Default memo value when single stellar account is used
-  }
-
-  let message;
-  try {
-    // initialSiweMessage must be undefined after an initial check,
-    // message must exist on the map.
-    message = await verifySiweMessage(nonce, userChallengeSignature, undefined);
-  } catch (e) {
-    throw new Error(`Could not verify signature: ${e.message}`);
-  }
-
-  const memo = await deriveMemoFromAddress(message.address);
-  return memo;
-};
-
-exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, userChallengeSignature, nonce) => {
+exports.signSep10Challenge = async (challengeXDR, outToken, clientPublicKey, memo) => {
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
 
   const { signingKey: anchorSigningKey } = await fetchTomlValues(TOKEN_CONFIG[outToken].tomlFileUrl);
   const { homeDomain, clientDomainEnabled, memoEnabled } = TOKEN_CONFIG[outToken];
-
-  // Expected memo based on user's signature and nonce.
-  const memo = await validateSignatureAndGetMemo(nonce, userChallengeSignature, memoEnabled);
 
   const transactionSigned = new TransactionBuilder.fromXDR(challengeXDR, NETWORK_PASSPHRASE);
   if (transactionSigned.source !== anchorSigningKey) {
