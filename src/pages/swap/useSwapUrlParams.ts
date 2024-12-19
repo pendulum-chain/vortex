@@ -14,7 +14,7 @@ export const useSwapUrlParams = ({ form, setShowFeeCollapse }: UseSwapUrlParamsP
     const fromAmountParam = params.get('fromAmount');
     if (fromAmountParam) {
       const parsedAmount = Number(fromAmountParam);
-      if (!isNaN(parsedAmount)) {
+      if (!isNaN(parsedAmount) && parsedAmount >= 0) {
         form.setValue('fromAmount', parsedAmount.toFixed(2));
       }
     }
