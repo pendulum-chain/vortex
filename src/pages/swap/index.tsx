@@ -37,6 +37,7 @@ import { FeeComparison } from '../../components/FeeComparison';
 
 import { SignInModal } from '../../components/SignIn';
 import { useSiweContext } from '../../contexts/siwe';
+import { useSwapUrlParams } from './useSwapUrlParams';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -109,6 +110,10 @@ export const SwapPage = () => {
     from,
     to,
   } = useSwapForm();
+
+  const [showFeeCollapse, setShowFeeCollapse] = useState(false);
+
+  useSwapUrlParams({ form, setShowFeeCollapse });
 
   const fromToken = INPUT_TOKEN_CONFIG[from];
   const toToken = OUTPUT_TOKEN_CONFIG[to];
@@ -370,6 +375,7 @@ export const SwapPage = () => {
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
+          expanded={showFeeCollapse}
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
           toToken={toToken}
@@ -393,7 +399,7 @@ export const SwapPage = () => {
             </p>
           )}
         </section>
-        <div className="flex mt-5 gap-3">
+        <div className="flex gap-3 mt-5">
           <button
             className="btn-vortex-secondary btn"
             style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}

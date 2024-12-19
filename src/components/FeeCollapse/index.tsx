@@ -22,9 +22,10 @@ interface CollapseProps {
   toAmount?: Big;
   toToken: OutputTokenDetails;
   exchangeRate?: JSX.Element;
+  expanded?: boolean;
 }
 
-export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exchangeRate }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exchangeRate, expanded = false }) => {
   const { trackEvent } = useEventsContext();
   const toTokenSymbol = toToken.fiat.symbol;
 
@@ -39,7 +40,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
 
   return (
     <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>
-      <input type="checkbox" />
+      <input type="checkbox" checked={expanded} />
       <div className="min-h-0 px-4 py-2 collapse-title">
         <div className="flex items-center justify-between">
           <p>Details</p>
