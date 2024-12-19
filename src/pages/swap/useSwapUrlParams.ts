@@ -11,12 +11,11 @@ interface UseSwapUrlParamsProps {
 export const useSwapUrlParams = ({ form, setShowFeeCollapse }: UseSwapUrlParamsProps) => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-
     const fromAmountParam = params.get('fromAmount');
     if (fromAmountParam) {
       const parsedAmount = Number(fromAmountParam);
       if (!isNaN(parsedAmount)) {
-        form.setValue('fromAmount', parsedAmount.toString());
+        form.setValue('fromAmount', parsedAmount.toFixed(2));
       }
     }
 
