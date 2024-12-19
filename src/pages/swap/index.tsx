@@ -431,6 +431,8 @@ export const SwapPage = () => {
             />
           )}
         </div>
+        <hr className="mt-6 mb-3" />
+        <PoweredBy />
       </form>
       {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
@@ -441,7 +443,6 @@ export const SwapPage = () => {
           network={fromToken.network}
         />
       )}
-      <PoweredBy />
     </main>
   );
 
