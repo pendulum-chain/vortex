@@ -157,7 +157,7 @@ export const useMainProcess = () => {
   }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
-    if (wagmiConfig.state.status !== 'connected') return;
+    //if (wagmiConfig.state.status !== 'connected') return;
 
     (async () => {
       if (!pendulumNode || !assetHubNode) {
