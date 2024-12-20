@@ -129,10 +129,6 @@ export const useMainProcess = () => {
     setSigningPhase,
   ]);
 
-  // useEffect(() => {
-  //   setOnSelectedNetworkChange(resetOfframpingState);
-  // }, [setOnSelectedNetworkChange, resetOfframpingState]);
-
   const handleOnAnchorWindowOpen = useCallback(async () => {
     if (!pendulumNode) {
       console.error('Pendulum node not initialized');
