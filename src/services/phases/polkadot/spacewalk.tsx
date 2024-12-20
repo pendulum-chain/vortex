@@ -86,6 +86,7 @@ export async function getVaultsForCurrency(
   assetIssuerHex: string,
   redeemableAmountRaw: string,
 ) {
+  console.log('Getting vaults for currency', assetCodeHex, assetIssuerHex, redeemableAmountRaw);
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([_, value]) => value.unwrap());
 
@@ -151,7 +152,7 @@ export class VaultService {
     options.era = 0;
 
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
-
+    console.log('Creating redeem tx for vault', prettyPrintVaultId(this.vaultId));
     return this.apiComponents!.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!).signAsync(
       addressOrPair,
       options,
