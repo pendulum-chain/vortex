@@ -51,7 +51,6 @@ export async function prepareSpacewalkRedeemTransaction(
   const stellarTargetAccountIdRaw = stellarTargetKeypair.rawPublicKey();
 
   try {
-    console.log('Creating vault service');
     const vaultService = await createVaultService(
       pendulumNode,
       outputToken.stellarAsset.code.hex,

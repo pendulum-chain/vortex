@@ -295,7 +295,6 @@ export async function sep24Second(
 
   let status;
   do {
-    console.log('Waiting for the anchor pending flag');
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const idParam = new URLSearchParams({ id });
     const statusResponse = await fetch(`${sep24Url}/transaction?${idParam.toString()}`, {
@@ -307,7 +306,6 @@ export async function sep24Second(
     }
 
     const { transaction } = await statusResponse.json();
-    console.log('Transaction status:', transaction);
     status = transaction;
   } while (status.status !== 'pending_user_transfer_start');
 

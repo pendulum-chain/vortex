@@ -10,7 +10,7 @@ import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
 import { createTransactionEvent, useEventsContext } from '../../contexts/events';
 import { useAssetHubNode, usePendulumNode } from '../../contexts/polkadotNode';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-import { useNetwork } from '../../contexts/network';
+import { Networks, useNetwork } from '../../contexts/network';
 
 import {
   clearOfframpingState,
@@ -157,7 +157,8 @@ export const useMainProcess = () => {
   }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
-    //if (wagmiConfig.state.status !== 'connected') return;
+    if (selectedNetwork == Networks.Polygon && wagmiConfig.state.status !== 'connected') return;
+    if (selectedNetwork == Networks.AssetHub && !walletAccount?.address) return;
 
     (async () => {
       if (!pendulumNode || !assetHubNode) {
@@ -191,6 +192,7 @@ export const useMainProcess = () => {
     pendulumNode,
     assetHubNode,
     wagmiConfig.state.status,
+    walletAccount?.address,
   ]);
 
   const maybeCancelSep24First = useCallback(() => {

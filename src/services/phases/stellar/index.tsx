@@ -202,7 +202,7 @@ async function setupStellarAccount(
   createAccountTransaction.sign(ephemeralKeypair);
 
   try {
-    //await horizonServer.submitTransaction(createAccountTransaction);
+    await horizonServer.submitTransaction(createAccountTransaction);
   } catch (error: unknown) {
     const horizonError = error as { response: { data: { extras: any } } };
     console.error('Transaction submission to horizon failed', horizonError.toString());

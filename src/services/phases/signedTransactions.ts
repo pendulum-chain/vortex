@@ -38,7 +38,6 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   } = state;
 
   const { pendulumNode } = context;
-  console.log('Preparing transactions....');
   const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
   const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
   const nablaSwapTransaction = await prepareNablaSwapTransaction(state, context);
