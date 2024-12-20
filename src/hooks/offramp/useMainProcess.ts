@@ -129,9 +129,9 @@ export const useMainProcess = () => {
     setSigningPhase,
   ]);
 
-  useEffect(() => {
-    setOnSelectedNetworkChange(resetOfframpingState);
-  }, [setOnSelectedNetworkChange, resetOfframpingState]);
+  // useEffect(() => {
+  //   setOnSelectedNetworkChange(resetOfframpingState);
+  // }, [setOnSelectedNetworkChange, resetOfframpingState]);
 
   const handleOnAnchorWindowOpen = useCallback(async () => {
     if (!pendulumNode) {
@@ -144,7 +144,7 @@ export const useMainProcess = () => {
 
   const finishOfframping = useCallback(() => {
     (async () => {
-      await clearOfframpingState();
+      clearOfframpingState();
       resetUniqueEvents();
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
@@ -183,7 +183,15 @@ export const useMainProcess = () => {
     // but we intentionally exclude them from the dependency array to prevent unnecessary re-renders.
     // These dependencies are stable and won't change during the lifecycle of this hook.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offrampingState, trackEvent, updateHookStateFromState, wagmiConfig]);
+  }, [
+    offrampingState,
+    trackEvent,
+    updateHookStateFromState,
+    wagmiConfig,
+    pendulumNode,
+    assetHubNode,
+    wagmiConfig.state.status,
+  ]);
 
   const maybeCancelSep24First = useCallback(() => {
     if (firstSep24IntervalRef.current !== undefined) {
