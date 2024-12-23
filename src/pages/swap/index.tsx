@@ -1,8 +1,6 @@
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
-import { Fragment } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-
 import { ApiPromise } from '@polkadot/api';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
@@ -18,6 +16,7 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { SignInModal } from '../../components/SignIn';
+import { PoweredBy } from '../../components/PoweredBy';
 
 import {
   getInputTokenDetailsOrDefault,
@@ -39,6 +38,9 @@ import { showToast, ToastMessage } from '../../helpers/notifications';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
+import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { initialChecks } from '../../services/initialChecks';
 
@@ -47,10 +49,6 @@ import { ProgressPage } from '../progress';
 import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
 import { swapConfirm } from './helpers/swapConfirm';
-import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
-import { useVortexAccount } from '../../hooks/useVortexAccount';
-import { useSwapUrlParams } from './useSwapUrlParams';
-import { PoweredBy } from '../../components/PoweredBy';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
