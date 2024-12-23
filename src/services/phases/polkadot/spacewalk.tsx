@@ -151,7 +151,6 @@ export class VaultService {
     options.era = 0;
 
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
-
     return this.apiComponents!.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!).signAsync(
       addressOrPair,
       options,

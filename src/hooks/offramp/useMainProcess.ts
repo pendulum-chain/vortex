@@ -10,7 +10,7 @@ import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
 import { createTransactionEvent, useEventsContext } from '../../contexts/events';
 import { useAssetHubNode, usePendulumNode } from '../../contexts/polkadotNode';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-import { useNetwork } from '../../contexts/network';
+import { Networks, useNetwork } from '../../contexts/network';
 
 import {
   clearOfframpingState,
@@ -129,10 +129,6 @@ export const useMainProcess = () => {
     setSigningPhase,
   ]);
 
-  useEffect(() => {
-    setOnSelectedNetworkChange(resetOfframpingState);
-  }, [setOnSelectedNetworkChange, resetOfframpingState]);
-
   const handleOnAnchorWindowOpen = useCallback(async () => {
     if (!pendulumNode) {
       console.error('Pendulum node not initialized');
@@ -144,7 +140,7 @@ export const useMainProcess = () => {
 
   const finishOfframping = useCallback(() => {
     (async () => {
-      await clearOfframpingState();
+      clearOfframpingState();
       resetUniqueEvents();
       setOfframpingStarted(false);
       updateHookStateFromState(undefined);
@@ -157,7 +153,8 @@ export const useMainProcess = () => {
   }, [updateHookStateFromState, offrampingState]);
 
   useEffect(() => {
-    if (wagmiConfig.state.status !== 'connected') return;
+    if (selectedNetwork == Networks.Polygon && wagmiConfig.state.status !== 'connected') return;
+    if (selectedNetwork == Networks.AssetHub && !walletAccount?.address) return;
 
     (async () => {
       if (!pendulumNode || !assetHubNode) {
@@ -179,11 +176,17 @@ export const useMainProcess = () => {
         updateHookStateFromState(nextState);
       }
     })();
-    // This effect has dependencies that are used inside the async function (assetHubNode, pendulumNode, walletAccount)
-    // but we intentionally exclude them from the dependency array to prevent unnecessary re-renders.
-    // These dependencies are stable and won't change during the lifecycle of this hook.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offrampingState, trackEvent, updateHookStateFromState, wagmiConfig]);
+  }, [
+    offrampingState,
+    trackEvent,
+    updateHookStateFromState,
+    wagmiConfig,
+    pendulumNode,
+    assetHubNode,
+    wagmiConfig.state.status,
+    walletAccount?.address,
+  ]);
 
   const maybeCancelSep24First = useCallback(() => {
     if (firstSep24IntervalRef.current !== undefined) {
