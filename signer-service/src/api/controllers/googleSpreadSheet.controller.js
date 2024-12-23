@@ -13,7 +13,6 @@ async function storeDataInGoogleSpreadsheet(req, res, spreadsheetId, sheetHeader
       getOrCreateSheet(doc, sheetHeaderValues),
     );
     if (sheet) {
-      console.log('Appending data to sheet');
       await appendData(sheet, data);
       return res.status(200).json({ message: 'Data stored successfully' });
     }
