@@ -55,7 +55,6 @@ export function Footer() {
           ))}
         </div>
       </div>
-      <PoweredBy />
     </footer>
   );
 }
