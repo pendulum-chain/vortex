@@ -42,7 +42,7 @@ const Copyright = () => (
 
 export function Footer() {
   return (
-    <footer className="items-end justify-between px-4 pt-2 pb-4 md:px-12 footer">
+    <footer className="footer fixed bottom-0 left-0 w-full px-4 pt-2 pb-4 md:px-12 flex items-end justify-between">
       <div className="flex flex-col gap-2">
         <Copyright />
         <div className="flex gap-4">
