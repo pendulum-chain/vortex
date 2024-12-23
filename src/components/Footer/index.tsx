@@ -3,9 +3,6 @@ import { Telegram } from '../../assets/SocialsTelegram';
 import { Github } from '../../assets/SocialsGithub';
 import { X } from '../../assets/SocialsX';
 
-import BlueLogo from '../../assets/logo/blue.svg';
-import { PoweredBy } from '../PoweredBy';
-
 interface SocialLink {
   name: string;
   icon: ComponentType<{ className?: string }>;
@@ -47,7 +44,6 @@ export function Footer() {
   return (
     <footer className="items-end justify-between px-12 pt-2 pb-4 footer">
       <div className="flex flex-col gap-2">
-        {/* <img src={BlueLogo} alt="Vortex" className="h-8" /> */}
         <Copyright />
         <div className="flex gap-4">
           {SOCIALS.map((social) => (
