@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useMutation } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useAccount } from 'wagmi';
 import { validator } from 'web3';
 
 import { storeUserRatingInBackend } from '../../services/storage/remote';
 import { CloseButton } from '../buttons/CloseButton';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useRatingVisibility } from './useRatingVisibility';
 import RatingForm from './RatingForm';
 import './index.css';
 
 export function Rating() {
   const { isVisible, onClose } = useRatingVisibility();
-  const { address: walletAddress } = useAccount();
+  const { address: walletAddress } = useVortexAccount();
   const [rating, setRating] = useState(0);
 
   const isValidAddress = !!walletAddress && validator.isAddress(walletAddress);

@@ -2,11 +2,12 @@ import { createContext } from 'preact';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
 import Big from 'big.js';
 import * as Sentry from '@sentry/react';
-import { useAccount } from 'wagmi';
-import { INPUT_TOKEN_CONFIG, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
+import { useVortexAccount } from '../hooks/useVortexAccount';
+import { Networks } from './network';
 
 declare global {
   interface Window {
@@ -129,8 +130,8 @@ type EventType = TrackableEvent['event'];
 type UseEventsContext = ReturnType<typeof useEvents>;
 
 const useEvents = () => {
-  const { address, chainId } = useAccount();
-  const previousAddress = useRef<`0x${string}` | undefined>(undefined);
+  const { address, chainId } = useVortexAccount();
+  const previousAddress = useRef<string | undefined>(undefined);
   const previousChainId = useRef<number | undefined>(undefined);
   const userClickedState = useRef<boolean>(false);
 
@@ -288,11 +289,15 @@ export function EventsProvider({ children }: PropsWithChildren) {
   return <Context.Provider value={useEventsResult}>{children}</Context.Provider>;
 }
 
-export function createTransactionEvent(type: TransactionEvent['event'], state: OfframpingState) {
+export function createTransactionEvent(
+  type: TransactionEvent['event'],
+  state: OfframpingState,
+  selectedNetwork: Networks,
+) {
   return {
     event: type,
-    from_asset: INPUT_TOKEN_CONFIG[state.inputTokenType].assetSymbol,
-    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType].stellarAsset.code.string,
+    from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType)?.assetSymbol ?? 'unknown',
+    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType]?.stellarAsset?.code?.string,
     from_amount: state.inputAmount.units,
     to_amount: calculateTotalReceive(Big(state.outputAmount.units), OUTPUT_TOKEN_CONFIG[state.outputTokenType]),
   };

@@ -3,7 +3,7 @@ import { SIGNING_SERVICE_URL } from '../../constants/constants';
 // These are the headers for the Google Spreadsheet
 interface DumpData {
   timestamp: string;
-  polygonAddress: string;
+  offramperAddress: string;
   stellarEphemeralPublicKey: string;
   pendulumEphemeralPublicKey: string;
   nablaApprovalTx: string;
@@ -26,7 +26,7 @@ interface EmailData {
 
 interface RatingData {
   rating: number;
-  walletAddress: `0x${string}`;
+  walletAddress: string;
 }
 
 async function sendRequestToBackend(endpoint: string, data: EmailData | DumpData | RatingData) {

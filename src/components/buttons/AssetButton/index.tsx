@@ -1,4 +1,4 @@
-import { AssetIconType, useGetIcon } from '../../../hooks/useGetIcon';
+import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
 interface AssetButtonProps {
@@ -8,7 +8,7 @@ interface AssetButtonProps {
 }
 
 export function AssetButton({ assetIcon, tokenSymbol, onClick }: AssetButtonProps) {
-  const icon = useGetIcon(assetIcon);
+  const icon = useGetAssetIcon(assetIcon);
 
   return (
     <button

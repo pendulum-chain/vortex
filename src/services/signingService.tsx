@@ -22,14 +22,16 @@ export interface SignerServiceSep10Request {
   challengeXDR: string;
   outToken: OutputTokenType;
   clientPublicKey: string;
-  memo?: boolean;
+  address: string;
+  usesMemo?: boolean;
 }
 
+// @todo: implement @tanstack/react-query
 export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStatus> => {
   try {
     const serviceResponse: SigningServiceStatus = await (await fetch(`${SIGNING_SERVICE_URL}/v1/status`)).json();
-
     const allServicesActive = Object.values(serviceResponse).every((service: AccountStatusResponse) => service.status);
+
     if (allServicesActive) {
       return {
         stellar: serviceResponse.stellar,
@@ -50,13 +52,14 @@ export const fetchSep10Signatures = async ({
   challengeXDR,
   outToken,
   clientPublicKey,
-  memo,
+  usesMemo,
+  address,
 }: SignerServiceSep10Request): Promise<SignerServiceSep10Response> => {
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, memo }),
+    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, usesMemo, address }),
   });
   if (response.status !== 200) {
     if (response.status === 401) {

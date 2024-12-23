@@ -7,7 +7,7 @@ import { useMemo } from 'preact/compat';
 import { defaultReadLimits, emptyCacheKey, QueryOptions } from '../../helpers/contracts';
 import { config } from '../../config';
 import { readMessage, ReadMessageResult } from '@pendulum-chain/api-solang';
-import { ApiPromise } from '../../services/polkadot/polkadotApi';
+import { ApiPromise } from '@polkadot/api';
 
 const isDevelopment = config.isDev;
 const ALICE = '6mfqoTMHrMeVMyKwjqomUjVomPMJ4AjdCm1VReFtk7Be8wqr';

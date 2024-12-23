@@ -1,50 +1,65 @@
-import { useState } from 'preact/compat';
-import { Button, Checkbox, Link } from 'react-daisyui';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { Dialog } from '../Dialog';
+import { AnimatePresence, motion } from 'framer-motion';
+import { StateUpdater } from 'preact/hooks';
+import { Checkbox, Link } from 'react-daisyui';
 
-export const TermsAndConditions = () => {
-  const { set, state } = useLocalStorage<string | undefined>({ key: 'TERMS_AND_CONDITIONS' });
-  const [checked, setChecked] = useState<boolean>(false);
+interface TermsAndConditionsProps {
+  toggleTermsChecked: () => void;
+  setTermsError: StateUpdater<boolean>;
+  termsChecked: boolean;
+  termsAccepted: boolean;
+  termsError: boolean;
+}
 
-  const acceptTerms = () => {
-    set('accepted');
-  };
-
-  const content = (
-    <>
-      <div className="mb-5 text-lg">
-        <Link
-          style={{ textDecoration: 'underline' }}
-          color="accent"
-          target="_blank"
-          rel="noreferrer"
-          href="https://www.vortexfinance.co/terms-conditions"
-        >
-          View Terms and Conditions
-        </Link>
-      </div>
-      <div className="flex text-lg">
-        <Checkbox checked={checked} onClick={() => setChecked(!checked)} color="primary" size="md" />
-        <span className="pl-2">I have read and accept the terms and conditions</span>
-      </div>
-    </>
-  );
-
-  const actions = (
-    <Button className="w-full px-12 text-thin" color="primary" onClick={acceptTerms} disabled={!checked}>
-      Agree
-    </Button>
-  );
-
-  return (
-    <Dialog
-      content={content}
-      headerText="T&Cs"
-      visible={!state}
-      actions={actions}
-      hideCloseButton={true}
-      disableNativeEvents={true}
-    />
-  );
+const fadeOutAnimation = {
+  scale: [1, 1.05, 0],
+  opacity: [1, 1, 0],
+  transition: { duration: 0.3 },
 };
+
+export const TermsAndConditions = (props: TermsAndConditionsProps) => {
+  const { termsAccepted } = props;
+
+  return <AnimatePresence mode="wait">{!termsAccepted && <TermsAndConditionsContent {...props} />}</AnimatePresence>;
+};
+
+const TermsAndConditionsContent = ({
+  toggleTermsChecked,
+  setTermsError,
+  termsChecked,
+  termsError,
+}: TermsAndConditionsProps) => (
+  <motion.div key="terms-conditions" exit={fadeOutAnimation}>
+    <div className="mb-5 text-sm" />
+    <div className="flex text-sm">
+      <Checkbox
+        checked={termsChecked}
+        onClick={() => {
+          toggleTermsChecked();
+          setTermsError(false);
+        }}
+        color="primary"
+        size="sm"
+      />
+      <TermsText error={termsError} />
+    </div>
+  </motion.div>
+);
+
+const TermsText = ({ error }: { error: boolean }) => (
+  <motion.span
+    className={`pl-2 ${error ? 'text-red-600' : ''}`}
+    animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
+  >
+    I have read and accept the{' '}
+    <Link
+      href="https://www.vortexfinance.co/terms-conditions"
+      color={error ? 'error' : 'accent'}
+      className={`transition-all duration-300 ${error ? 'text-red-600 font-bold' : ''}`}
+      target="_blank"
+      rel="noreferrer"
+      style={{ textDecoration: 'underline' }}
+    >
+      Terms and Conditions
+    </Link>
+  </motion.span>
+);

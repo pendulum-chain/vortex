@@ -1,35 +1,31 @@
-import { useState, useCallback } from 'react';
-import { useSignMessage } from 'wagmi';
+import { useState, useCallback } from 'preact/compat';
+import { SignInMessage } from '../helpers/siweMessageFormatter';
+
+import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
-import { SiweMessage } from 'siwe';
-import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
-import { polygon } from 'wagmi/chains';
+import { useVortexAccount } from './useVortexAccount';
 
 export interface SiweSignatureData {
   signatureSet: boolean;
   expirationDate: string;
 }
 
-function createSiweMessage(address: `0x${string}`, nonce: string) {
-  // Make constants on config
-  const siweMessage = new SiweMessage({
+function createSiweMessage(address: string, nonce: string) {
+  const siweMessage = new SignInMessage({
     scheme: 'https',
     domain: window.location.host,
-    address,
-    statement: 'Please sign the message to login!',
-    uri: window.location.origin,
-    version: '1',
-    chainId: polygon.id,
+    address: address,
     nonce,
-    expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).toISOString(), // Constructor in ms.
+    expirationTime: new Date(Date.now() + DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000).getTime(), // Constructor in ms.
   });
+
   return siweMessage.toMessage();
 }
 
-export function useSiweSignature(address?: `0x${string}`) {
-  const { signMessageAsync } = useSignMessage();
+export function useSiweSignature() {
   const [signingPending, setSigningPending] = useState(false);
+  const { address, getMessageSignature } = useVortexAccount();
 
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
@@ -77,10 +73,11 @@ export function useSiweSignature(address?: `0x${string}`) {
       if (!messageResponse.ok) throw new Error('Failed to create message');
       const { nonce } = await messageResponse.json();
 
+      // Message in both string and object form
       const siweMessage = createSiweMessage(address, nonce);
+      const message = SignInMessage.fromMessage(siweMessage);
 
-      const message = new SiweMessage(siweMessage);
-      const signature = await signMessageAsync({ message: siweMessage });
+      const signature = await getMessageSignature(siweMessage);
 
       const validationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/siwe/validate`, {
         method: 'POST',
@@ -105,7 +102,7 @@ export function useSiweSignature(address?: `0x${string}`) {
       setSigningPending(false);
       setSignPromise(null);
     }
-  }, [address, storageKey, signMessageAsync, signPromise, setSigningPending, setSignPromise]);
+  }, [address, storageKey, signPromise, setSigningPending, setSignPromise, getMessageSignature]);
 
   // Handler for modal cancellation
   const handleCancel = useCallback(() => {
