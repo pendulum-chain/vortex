@@ -362,10 +362,10 @@ export const SwapPage = () => {
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={signingPhase} />
       <form
-        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="max-w-2xl px-4 py-4 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onConfirm}
       >
-        <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
         <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />

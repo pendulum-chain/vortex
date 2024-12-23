@@ -45,9 +45,9 @@ const Copyright = () => (
 
 export function Footer() {
   return (
-    <footer className="items-end justify-between px-12 pt-12 pb-4 footer">
-      <div className="flex flex-col gap-6">
-        <img src={BlueLogo} alt="Vortex" className="h-8" />
+    <footer className="items-end justify-between px-12 pt-2 pb-4 footer">
+      <div className="flex flex-col gap-2">
+        {/* <img src={BlueLogo} alt="Vortex" className="h-8" /> */}
         <Copyright />
         <div className="flex gap-4">
           {SOCIALS.map((social) => (
