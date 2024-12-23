@@ -1,7 +1,10 @@
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
-const { DUMP_SHEET_HEADER_VALUES } = require('../controllers/storage.controller');
 const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
 const { RATING_SHEET_HEADER_VALUES } = require('../controllers/rating.controller');
+const {
+  DUMP_SHEET_HEADER_VALUES_ASSETHUB,
+  DUMP_SHEET_HEADER_VALUES_EVM,
+} = require('../controllers/storage.controller');
 const {
   SUPPORTED_PROVIDERS,
   SUPPORTED_CRYPTO_CURRENCIES,
@@ -84,8 +87,16 @@ const validateChangeOpInput = (req, res, next) => {
   next();
 };
 
-const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) => {
+const validateRequestBodyValues = () => (req, res, next) => {
   const data = req.body;
+  const offramperAddress = data.offramperAddress;
+  if (!offramperAddress) {
+    return res.status(400).json({ error: 'Missing offramperAddress parameter' });
+  }
+
+  const requiredRequestBodyKeys = offramperAddress.includes('0x')
+    ? DUMP_SHEET_HEADER_VALUES_EVM
+    : DUMP_SHEET_HEADER_VALUES_ASSETHUB;
 
   if (!requiredRequestBodyKeys.every((key) => data[key])) {
     const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
@@ -97,7 +108,7 @@ const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) 
   next();
 };
 
-const validateStorageInput = validateRequestBodyValues(DUMP_SHEET_HEADER_VALUES);
+const validateStorageInput = validateRequestBodyValues();
 const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
 const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);

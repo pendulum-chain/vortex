@@ -11,6 +11,7 @@ import { showToast, ToastMessage } from '../../../helpers/notifications';
 
 import { UseSEP24StateReturn } from './useSEP24State';
 import { useTrackSEP24Events } from './useTrackSEP24Events';
+import { useVortexAccount } from '../../useVortexAccount';
 
 const handleAmountMismatch = (setOfframpingStarted: (started: boolean) => void): void => {
   setOfframpingStarted(false);
@@ -25,6 +26,7 @@ const handleError = (error: unknown, setOfframpingStarted: (started: boolean) =>
 export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupFn: () => void) => {
   const { trackKYCStarted, trackKYCCompleted } = useTrackSEP24Events();
   const { firstSep24Response, anchorSessionParams, executionInput } = sep24State;
+  const { address } = useVortexAccount();
 
   return useCallback(
     async (
@@ -58,6 +60,7 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
           sepResult: secondSep24Response,
           network: selectedNetwork,
           pendulumNode,
+          offramperAddress: address!,
         });
 
         trackKYCCompleted(initialState, selectedNetwork);
