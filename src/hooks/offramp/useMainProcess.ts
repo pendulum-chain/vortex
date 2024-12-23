@@ -38,7 +38,7 @@ export const useMainProcess = () => {
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
-  const isAdvanceProcessing = useRef(false);
+  const isProcessingAdvance = useRef(false);
 
   const { selectedNetwork, setOnSelectedNetworkChange } = useNetwork();
   const { walletAccount } = usePolkadotWalletState();
@@ -159,8 +159,8 @@ export const useMainProcess = () => {
 
     (async () => {
       try {
-        if (isAdvanceProcessing.current) return;
-        isAdvanceProcessing.current = true;
+        if (isProcessingAdvance.current) return;
+        isProcessingAdvance.current = true;
 
         if (!pendulumNode || !assetHubNode) {
           console.error('Polkadot nodes not initialized');
@@ -183,7 +183,7 @@ export const useMainProcess = () => {
       } catch (error) {
         console.error('Error advancing offramping state:', error);
       } finally {
-        isAdvanceProcessing.current = false;
+        isProcessingAdvance.current = false;
       }
     })();
   }, [
