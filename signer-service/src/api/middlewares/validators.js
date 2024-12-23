@@ -67,6 +67,26 @@ const validateQuoteInput = (req, res, next) => {
   next();
 };
 
+const validateChangeOpInput = (req, res, next) => {
+  const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body;
+  if (!accountId || !sequence || !paymentData || !maxTime) {
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+
+  if (!assetCode) {
+    return res.status(400).json({ error: 'Missing assetCode parameter' });
+  }
+
+  if (!baseFee) {
+    return res.status(400).json({ error: 'Missing baseFee parameter' });
+  }
+
+  if (typeof sequence !== 'string' || typeof maxTime !== 'number') {
+    return res.status(400).json({ error: 'Invalid input types' });
+  }
+  next();
+};
+
 const validateRequestBodyValuesForTransactionStore = () => (req, res, next) => {
   const data = req.body;
   const offramperAddress = data.offramperAddress;
