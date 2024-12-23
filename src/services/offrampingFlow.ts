@@ -83,6 +83,7 @@ export interface InitiateStateArguments {
   sepResult: SepResult;
   network: Networks;
   pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  offramperAddress: string;
 }
 
 export interface OfframpingState {
@@ -118,6 +119,7 @@ export interface OfframpingState {
     nablaSwapTransaction: string;
   };
   network: Networks;
+  offramperAddress: string;
 }
 
 export type StateTransitionFunction = (
@@ -172,6 +174,7 @@ export async function constructInitialState({
   sepResult,
   network,
   pendulumNode,
+  offramperAddress,
 }: InitiateStateArguments) {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed(
     pendulumNode,
@@ -216,6 +219,7 @@ export async function constructInitialState({
     sepResult,
     network,
     pendulumEphemeralAddress,
+    offramperAddress,
   };
 
   storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);
