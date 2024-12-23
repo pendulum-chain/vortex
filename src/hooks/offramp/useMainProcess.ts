@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, StateUpdater } from 'preact/compat';
+import { useState, useEffect, useCallback, StateUpdater, useRef } from 'preact/compat';
 import { useConfig } from 'wagmi';
 import Big from 'big.js';
 
@@ -38,6 +38,7 @@ export const useMainProcess = () => {
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
   const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
+  const isAdvanceProcessing = useRef(false);
 
   const { selectedNetwork, setOnSelectedNetworkChange } = useNetwork();
   const { walletAccount } = usePolkadotWalletState();
@@ -157,26 +158,34 @@ export const useMainProcess = () => {
     if (selectedNetwork == Networks.AssetHub && !walletAccount?.address) return;
 
     (async () => {
-      if (!pendulumNode || !assetHubNode) {
-        console.error('Polkadot nodes not initialized');
-        return;
-      }
+      try {
+        if (isAdvanceProcessing.current) return;
+        isAdvanceProcessing.current = true;
 
-      const nextState = await advanceOfframpingState(offrampingState, {
-        renderEvent: addEvent,
-        wagmiConfig,
-        setSigningPhase,
-        trackEvent,
-        pendulumNode,
-        assetHubNode,
-        walletAccount,
-      });
+        if (!pendulumNode || !assetHubNode) {
+          console.error('Polkadot nodes not initialized');
+          return;
+        }
 
-      if (JSON.stringify(offrampingState) !== JSON.stringify(nextState)) {
-        updateHookStateFromState(nextState);
+        const nextState = await advanceOfframpingState(offrampingState, {
+          renderEvent: addEvent,
+          wagmiConfig,
+          setSigningPhase,
+          trackEvent,
+          pendulumNode,
+          assetHubNode,
+          walletAccount,
+        });
+
+        if (JSON.stringify(offrampingState) !== JSON.stringify(nextState)) {
+          updateHookStateFromState(nextState);
+        }
+      } catch (error) {
+        console.error('Error advancing offramping state:', error);
+      } finally {
+        isAdvanceProcessing.current = false;
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     offrampingState,
     trackEvent,
