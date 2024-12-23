@@ -134,7 +134,7 @@ export const SwapPage = () => {
 
   useSwapUrlParams({ form, setShowCompareFees });
 
-  const fromToken = INPUT_TOKEN_CONFIG[from];
+  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = OUTPUT_TOKEN_CONFIG[to];
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
