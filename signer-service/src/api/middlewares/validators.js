@@ -67,27 +67,7 @@ const validateQuoteInput = (req, res, next) => {
   next();
 };
 
-const validateChangeOpInput = (req, res, next) => {
-  const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body;
-  if (!accountId || !sequence || !paymentData || !maxTime) {
-    return res.status(400).json({ error: 'Missing required parameters' });
-  }
-
-  if (!assetCode) {
-    return res.status(400).json({ error: 'Missing assetCode parameter' });
-  }
-
-  if (!baseFee) {
-    return res.status(400).json({ error: 'Missing baseFee parameter' });
-  }
-
-  if (typeof sequence !== 'string' || typeof maxTime !== 'number') {
-    return res.status(400).json({ error: 'Invalid input types' });
-  }
-  next();
-};
-
-const validateRequestBodyValues = () => (req, res, next) => {
+const validateRequestBodyValuesForTransactionStore = () => (req, res, next) => {
   const data = req.body;
   const offramperAddress = data.offramperAddress;
   if (!offramperAddress) {
@@ -97,6 +77,12 @@ const validateRequestBodyValues = () => (req, res, next) => {
   const requiredRequestBodyKeys = offramperAddress.includes('0x')
     ? DUMP_SHEET_HEADER_VALUES_EVM
     : DUMP_SHEET_HEADER_VALUES_ASSETHUB;
+
+  validateRequestBodyValues(requiredRequestBodyKeys)(req, res, next);
+};
+
+const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) => {
+  const data = req.body;
 
   if (!requiredRequestBodyKeys.every((key) => data[key])) {
     const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
@@ -108,7 +94,7 @@ const validateRequestBodyValues = () => (req, res, next) => {
   next();
 };
 
-const validateStorageInput = validateRequestBodyValues();
+const validateStorageInput = validateRequestBodyValuesForTransactionStore();
 const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
 const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
