@@ -94,7 +94,7 @@ export const Navbar = () => {
   const [showMenu, setShowMenu] = useState(false);
 
   return (
-    <header className="flex items-center justify-between px-4 py-4 bg-blue-950 md:py-7 md:px-10">
+    <header className="flex items-center justify-between px-4 py-4 bg-blue-950 md:py-5 md:px-10">
       <div className="flex">
         <a href="https://www.vortexfinance.co/" target="_blank" rel="noreferrer" className="flex text-slate-400">
           <img src={whiteLogo} alt="Vortex Logo" className="mr-1 max-w-26 max-h-6 md:max-w-52 md:max-h-12" />
