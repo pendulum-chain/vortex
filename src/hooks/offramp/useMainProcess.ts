@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'preact/compat';
+import { useEffect } from 'preact/compat';
 import Big from 'big.js';
 
-import { recoverFromFailure, readCurrentState, OfframpingState } from '../../services/offrampingFlow';
+import { recoverFromFailure, readCurrentState } from '../../services/offrampingFlow';
 
 import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 
@@ -25,11 +25,6 @@ export interface ExecutionInput {
 export const useMainProcess = () => {
   const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();
   const offrampState = useOfframpState();
-  const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
-  const [isInitiating, setIsInitiating] = useState<boolean>(false);
-  const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
-  const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
-  const isProcessingAdvance = useRef(false);
 
   // Sep 24 states
   const { firstSep24Response, firstSep24Interval } = useSep24Store.getState();
@@ -44,6 +39,8 @@ export const useMainProcess = () => {
     const recoveryState = readCurrentState();
     updateOfframpHookStateFromState(recoveryState);
     events.trackOfframpingEvent(recoveryState);
+    // Previously, adding events to the array was causeing a re-rendering loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateOfframpHookStateFromState, events.trackOfframpingEvent]);
 
   // Determines the current offramping phase

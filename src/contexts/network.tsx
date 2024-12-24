@@ -95,7 +95,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         switchChain({ chainId: getNetworkId(network) });
       }
     },
-    [switchChain, chains, setSelectedNetworkLocalStorage],
+    [switchChain, setSelectedNetworkLocalStorage, resetOfframpState],
   );
 
   // Only run on first render

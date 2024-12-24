@@ -20,7 +20,6 @@ import USDT_POLYGON from '../assets/coins/USDT_POLYGON.svg';
 import USDC_ASSETHUB from '../assets/coins/USDC_ASSETHUB.svg';
 
 import ARS from '../assets/coins/ARS.png';
-import { i } from 'vite/dist/node/types.d-aGj9QkWt';
 
 const ICONS = {
   eur: EUR,

@@ -19,7 +19,7 @@ export const squidRouterConfigBase: ConfigBase = {
 };
 
 export function getSquidRouterConfig(network: Networks): Config {
-  let networkId = getNetworkId(network);
+  const networkId = getNetworkId(network);
   if (!networkId) {
     throw new Error('getSquidRouterConfig: Network must be EVM to support SquidRouter');
   }

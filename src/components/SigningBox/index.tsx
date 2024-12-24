@@ -13,7 +13,7 @@ interface ProgressConfig {
   approved: string;
 }
 
-function getProgressConfig(network: Networks, step: SigningPhase): ProgressConfig {
+function getProgressConfig(network: Networks): ProgressConfig {
   if (isNetworkEVM(network)) {
     return {
       started: '25',

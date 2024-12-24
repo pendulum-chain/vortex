@@ -3,7 +3,7 @@ import { Spinner } from '../../Spinner';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { ConnectWalletButton } from '../ConnectWalletButton';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
-import { Networks, useNetwork, isNetworkEVM } from '../../../contexts/network';
+import { useNetwork, isNetworkEVM } from '../../../contexts/network';
 
 interface SwapSubmitButtonProps {
   text: string;

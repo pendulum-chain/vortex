@@ -37,7 +37,6 @@ import { useSiweContext } from '../../contexts/siwe';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
 
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import { useSwapUrlParams } from './useSwapUrlParams';
@@ -80,10 +79,9 @@ export const SwapPage = () => {
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
-  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+  const [termsAnimationKey] = useState(0);
 
-  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
-    useTermsAndConditions();
+  const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
 
   useEffect(() => {
     setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
@@ -156,8 +154,6 @@ export const SwapPage = () => {
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
-
-  const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
   const tokenOutAmount = useTokenOutAmount({
     wantsSwap: true,

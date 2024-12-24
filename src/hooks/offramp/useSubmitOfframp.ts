@@ -1,4 +1,4 @@
-import { MutableRefObject, useCallback } from 'preact/compat';
+import { useCallback } from 'preact/compat';
 import { polygon } from 'wagmi/chains';
 import { useSwitchChain } from 'wagmi';
 import { useVortexAccount } from '../useVortexAccount';
@@ -142,6 +142,7 @@ export const useSubmitOfframp = () => {
       setFirstSep24Response,
       setFirstSep24Interval,
       cleanupSep24State,
+      switchChainAsync,
     ],
   );
 };

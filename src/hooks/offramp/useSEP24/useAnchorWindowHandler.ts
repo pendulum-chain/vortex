@@ -74,6 +74,8 @@ export const useAnchorWindowHandler = () => {
       handleError(error, setOfframpStarted);
     }
   }, [
+    address,
+    cleanupSep24State,
     firstSep24Response,
     anchorSessionParams,
     executionInput,

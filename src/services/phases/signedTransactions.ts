@@ -1,9 +1,8 @@
-import { getAccount } from '@wagmi/core';
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
 
-import { isNetworkEVM, Networks } from '../../contexts/network';
+import { isNetworkEVM } from '../../contexts/network';
 
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../signingService';

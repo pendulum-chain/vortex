@@ -4,7 +4,6 @@ import { Keyring } from '@polkadot/api';
 
 import { fetchSep10Signatures, fetchSigningServiceAccountId, SignerServiceSep10Request } from '../signingService';
 import { OutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
-import { EventStatus } from '../../components/GenericEvent';
 
 import { OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';

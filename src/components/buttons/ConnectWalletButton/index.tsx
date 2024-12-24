@@ -1,4 +1,4 @@
-import { isNetworkEVM, Networks, useNetwork } from '../../../contexts/network';
+import { isNetworkEVM, useNetwork } from '../../../contexts/network';
 import { EVMWalletButton } from '../EVMWalletButton';
 import { PolkadotWalletButton } from '../PolkadotWalletButton';
 
