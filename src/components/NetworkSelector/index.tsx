@@ -28,7 +28,7 @@ interface NetworkButtonProps {
 
 const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkButtonProps) => (
   <motion.button
-    className={`flex items-center gap-2 px-4 py-2 rounded-full bg-base-100 ${
+    className={`flex items-center gap-2 px-2 sm:px-4 py-2 rounded-full bg-base-100 ${
       disabled ? 'opacity-50 cursor-not-allowed' : ''
     }`}
     onClick={onClick}
@@ -37,7 +37,7 @@ const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkBu
     disabled={disabled}
   >
     <NetworkIcon chainId={selectedNetwork} className={`w-5 h-5 ${disabled ? 'opacity-50' : ''}`} />
-    <span className={disabled ? 'opacity-50' : ''}>{networkToDisplayName(selectedNetwork)}</span>
+    <span className={`hidden sm:block ${disabled ? 'opacity-50' : ''}`}>{networkToDisplayName(selectedNetwork)}</span>
     <motion.div
       animate={{ rotate: isOpen ? 180 : 0 }}
       transition={{ duration: 0.2 }}

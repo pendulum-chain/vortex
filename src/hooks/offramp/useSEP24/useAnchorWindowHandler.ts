@@ -12,6 +12,7 @@ import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
 import { useOfframpActions } from '../../../stores/offrampStore';
 import { useSep24Store, useSep24Actions } from '../../../stores/sep24Store';
+import { useVortexAccount } from '../../useVortexAccount';
 
 const handleAmountMismatch = (setOfframpingStarted: (started: boolean) => void): void => {
   setOfframpingStarted(false);
@@ -28,6 +29,7 @@ export const useAnchorWindowHandler = () => {
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
+  const { address } = useVortexAccount();
 
   const { firstSep24Response, anchorSessionParams, executionInput } = useSep24Store.getState();
   const { cleanupSep24State } = useSep24Actions();
@@ -63,6 +65,7 @@ export const useAnchorWindowHandler = () => {
         sepResult: secondSep24Response,
         network: selectedNetwork,
         pendulumNode,
+        offramperAddress: address!,
       });
 
       trackKYCCompleted(initialState, selectedNetwork);

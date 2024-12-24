@@ -1,3 +1,5 @@
+import daisyui from 'daisyui';
+
 const colors = {
   whiteAlpha: {
     50: 'rgba(255, 255, 255, 0.04)',

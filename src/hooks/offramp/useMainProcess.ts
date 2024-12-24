@@ -1,8 +1,9 @@
-import { useEffect } from 'preact/compat';
+import { useState, useEffect, useRef } from 'preact/compat';
 import Big from 'big.js';
 
+import { recoverFromFailure, readCurrentState, OfframpingState } from '../../services/offrampingFlow';
+
 import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
-import { recoverFromFailure, readCurrentState } from '../../services/offrampingFlow';
 
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
@@ -24,6 +25,11 @@ export interface ExecutionInput {
 export const useMainProcess = () => {
   const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();
   const offrampState = useOfframpState();
+  const [offrampingStarted, setOfframpingStarted] = useState<boolean>(false);
+  const [isInitiating, setIsInitiating] = useState<boolean>(false);
+  const [offrampingState, setOfframpingState] = useState<OfframpingState | undefined>(undefined);
+  const [signingPhase, setSigningPhase] = useState<SigningPhase | undefined>(undefined);
+  const isProcessingAdvance = useRef(false);
 
   // Sep 24 states
   const { firstSep24Response, firstSep24Interval } = useSep24Store.getState();

@@ -48,6 +48,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   const stellarFundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const stellarEphemeralKeypair = Keypair.fromSecret(stellarEphemeralSecret);
   const stellarEphemeralPublicKey = stellarEphemeralKeypair.publicKey();
+
   const { offrampingTransaction, mergeAccountTransaction } = await setUpAccountAndOperations(
     stellarFundingAccountId,
     stellarEphemeralKeypair,
@@ -68,15 +69,11 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   const pendulumEphemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
   const pendulumEphemeralPublicKey = pendulumEphemeralKeypair.address;
 
-  // Get the Polygon account connected by the user
-  const polygonAccount = getAccount(context.wagmiConfig);
-  const polygonAddress = polygonAccount.address;
-
   // Try to store the data in the backend
   try {
     const data = {
       timestamp: new Date().toISOString(),
-      polygonAddress: polygonAddress || '',
+      offramperAddress: state.offramperAddress,
       stellarEphemeralPublicKey,
       pendulumEphemeralPublicKey,
       nablaApprovalTx: transactions.nablaApproveTransaction,
