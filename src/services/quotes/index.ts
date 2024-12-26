@@ -2,7 +2,7 @@ import { polygon } from 'wagmi/chains';
 import Big from 'big.js';
 
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
-import { Networks } from '../../contexts/network';
+import { isNetworkEVM, Networks } from '../../contexts/network';
 
 const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 
@@ -28,7 +28,7 @@ async function getQuoteFromService(
   amount: Big,
   network: Networks,
 ): Promise<Big> {
-  if (network !== polygon.name) {
+  if (!isNetworkEVM(network)) {
     throw new Error(`Network ${network} is not supported`);
   }
   // Fetch the quote from the service with a GET request

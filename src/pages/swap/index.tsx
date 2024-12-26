@@ -276,8 +276,13 @@ export const SwapPage = () => {
   }, []);
 
   useEffect(() => {
-    if (offrampState?.phase !== undefined) {
-      setNetworkSelectorDisabled(true);
+    switch (offrampState?.phase) {
+      case undefined:
+        setNetworkSelectorDisabled(false);
+        break;
+      default:
+        setNetworkSelectorDisabled(true);
+        break;
     }
   }, [offrampState, setNetworkSelectorDisabled]);
 
@@ -496,7 +501,7 @@ export const SwapPage = () => {
           amount={fromAmount}
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
-          network={Networks.Polygon} // TODO, need to pass the proper selected network, unless it is substrate. Also, assuming it works with all supported EVMs
+          network={selectedNetwork}
         />
       )}
     </main>
