@@ -145,9 +145,8 @@ exports.sendStatusWithPk = async () => {
   }
   if (nativeBalance.lt(minimumBalanceFundingAccount)) {
     slackNotifier.sendMessage({
-      text: `Current balance of funding account is ${divideByPowerOfTen(
+      text: `Current balance of funding account is ${nativeToDecimal(
         nativeBalance,
-        apiData.decimals,
       ).toString()} PEN please charge the account ${fundingAccountKeypair.address}.`,
     });
   }
