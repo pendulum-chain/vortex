@@ -31,26 +31,37 @@ exports.initGoogleSpreadsheet = async (sheetId, googleCredentials) => {
 
 // doc: GoogleSpreadsheet, headerValues: string[]
 exports.getOrCreateSheet = async (doc, headerValues) => {
-  let sheet = doc.sheetsByIndex[0];
-  try {
-    await sheet.loadHeaderRow();
-    const sheetHeaders = sheet.headerValues;
+  let matchingSheet = null;
 
-    // Compare the header values to the expected header values
-    if (
-      sheetHeaders.length !== headerValues.length &&
-      sheetHeaders.every((value, index) => value === headerValues[index])
-    ) {
-      // Create a new sheet if the headers don't match
-      console.log('Creating new sheet');
-      sheet = await doc.addSheet({ headerValues });
+  try {
+    for (let i = 0; i < Math.min(doc.sheetsByIndex.length, 10); i++) {
+      const sheet = doc.sheetsByIndex[i];
+      try {
+        await sheet.loadHeaderRow();
+        const sheetHeaders = sheet.headerValues;
+
+        if (
+          sheetHeaders.length === headerValues.length &&
+          sheetHeaders.every((value, index) => value === headerValues[index])
+        ) {
+          matchingSheet = sheet;
+          break;
+        }
+      } catch (error) {
+        continue;
+      }
+    }
+
+    if (!matchingSheet) {
+      console.log(' Creating a new sheet.');
+      matchingSheet = await doc.addSheet({ headerValues });
     }
   } catch (error) {
-    // Assume the error is due to the sheet not having any rows
-    await sheet.setHeaderRow(headerValues);
+    console.error('Error iterating sheets:', error.message);
+    throw error;
   }
 
-  return sheet;
+  return matchingSheet;
 };
 
 // sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>

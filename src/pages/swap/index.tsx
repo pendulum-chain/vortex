@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
-
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
@@ -18,6 +16,7 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { SignInModal } from '../../components/SignIn';
+import { PoweredBy } from '../../components/PoweredBy';
 
 import {
   getInputTokenDetailsOrDefault,
@@ -39,6 +38,9 @@ import { showToast, ToastMessage } from '../../helpers/notifications';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
+import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { initialChecks } from '../../services/initialChecks';
 
@@ -54,8 +56,6 @@ import {
   useOfframpInitiating,
 } from '../../stores/offrampStore';
 import { swapConfirm } from './helpers/swapConfirm';
-import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
-import { useVortexAccount } from '../../hooks/useVortexAccount';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -137,6 +137,8 @@ export const SwapPage = () => {
     from,
     to,
   } = useSwapForm();
+
+  useSwapUrlParams({ form, setShowCompareFees });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = OUTPUT_TOKEN_CONFIG[to];
@@ -370,10 +372,10 @@ export const SwapPage = () => {
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={offrampSigningPhase} />
       <form
-        className="max-w-2xl px-4 py-8 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="max-w-2xl px-4 py-4 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSwapConfirm}
       >
-        <h1 className="mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
         <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
@@ -446,6 +448,8 @@ export const SwapPage = () => {
             />
           )}
         </div>
+        <hr className="mt-6 mb-3" />
+        <PoweredBy />
       </form>
       {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
