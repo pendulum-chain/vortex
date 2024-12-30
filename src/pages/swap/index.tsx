@@ -49,6 +49,7 @@ import { ProgressPage } from '../progress';
 import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
 import { swapConfirm } from './helpers/swapConfirm';
+import { TrustedBy } from '../../components/TrustedBy';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -364,7 +365,7 @@ export const SwapPage = () => {
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={signingPhase} />
       <form
-        className="max-w-2xl px-4 py-4 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+        className="max-w-2xl px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSwapConfirm}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
@@ -452,6 +453,7 @@ export const SwapPage = () => {
           network={Networks.Polygon}
         />
       )}
+      <TrustedBy />
     </main>
   );
 
