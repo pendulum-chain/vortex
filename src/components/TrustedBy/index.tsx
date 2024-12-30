@@ -28,28 +28,28 @@ export const TrustedBy = () => {
   );
 
   const TrustedByList = () => (
-    <div className="flex items-center justify-center gap-12">
+    <>
       {trustedByImages.map((img) => (
         <Image key={img.id} src={img.src} alt={img.alt} />
       ))}
-    </div>
+    </>
   );
 
   const PaymentList = () => (
-    <div className="flex items-center justify-center gap-12">
+    <>
       {paymentImages.map((img) => (
-        <div key={img.id} className="flex items-center">
+        <div key={img.id} className="relative flex items-center pt-4">
           <Image src={img.src} alt={img.alt} />
-          {img.comingSoon && <div className="text-xs text-right text-blue-700">Coming soon</div>}
+          {img.comingSoon && <div className="absolute top-0 right-0 text-xs text-right text-blue-700">Coming soon</div>}
         </div>
       ))}
-    </div>
+    </>
   );
 
   return (
     <section className="container mx-auto">
       <h1 className="mb-4 text-4xl text-center text-black">Trusted by</h1>
-      <div className="grid grid-rows-2 gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-12">
         <TrustedByList />
         <PaymentList />
       </div>
