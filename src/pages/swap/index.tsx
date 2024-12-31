@@ -50,6 +50,7 @@ import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
 import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
+import { WhyVortex } from '../../components/WhyVortex';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -454,6 +455,7 @@ export const SwapPage = () => {
         />
       )}
       <TrustedBy />
+      <WhyVortex />
     </main>
   );
 
