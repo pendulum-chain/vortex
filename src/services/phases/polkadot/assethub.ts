@@ -30,7 +30,7 @@ export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAdd
 }
 
 export async function executeAssetHubXCM(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
-  const { assetHubNode, walletAccount, setSigningPhase } = context;
+  const { assetHubNode, walletAccount, setOfframpSigningPhase } = context;
   const { pendulumEphemeralAddress } = state;
 
   if (!walletAccount) {
@@ -40,7 +40,7 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
     throw new Error('AssetHub node not available');
   }
 
-  setSigningPhase?.('started');
+  setOfframpSigningPhase?.('started');
 
   const didInputTokenArrivedOnPendulum = async () => {
     const inputBalanceRaw = await getRawInputBalance(state, context);
@@ -52,9 +52,9 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
 
     if (assetHubXcmTransactionHash === undefined) {
       const tx = createAssethubAssetTransfer(assetHubNode.api, pendulumEphemeralAddress, inputAmount.raw);
-      context.setSigningPhase('started');
+      context.setOfframpSigningPhase('started');
       const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as Signer });
-      setSigningPhase?.('finished');
+      setOfframpSigningPhase?.('finished');
       return { ...state, assetHubXcmTransactionHash: hash.toString() };
     }
 

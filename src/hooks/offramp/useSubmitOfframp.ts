@@ -16,7 +16,7 @@ import {
   sep24First,
 } from '../../services/anchor';
 
-import { OfframpingState } from '../../services/offrampingFlow';
+import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { ExtendedExecutionInput } from './useSEP24/useSEP24State';
 import { ExecutionInput } from './useSEP24';
 import { useVortexAccount } from '../useVortexAccount';
@@ -27,10 +27,6 @@ interface UseSubmitOfframpProps {
   setExecutionInput: (input: ExtendedExecutionInput | undefined) => void;
   setAnchorSessionParams: (params: IAnchorSessionParams | undefined) => void;
   cleanSep24FirstVariables: () => void;
-  offrampingStarted: boolean;
-  offrampingState: OfframpingState | undefined;
-  setOfframpingStarted: (started: boolean) => void;
-  setIsInitiating: (isInitiating: boolean) => void;
 }
 
 export const useSubmitOfframp = ({
@@ -39,16 +35,15 @@ export const useSubmitOfframp = ({
   setExecutionInput,
   setAnchorSessionParams,
   cleanSep24FirstVariables,
-  offrampingStarted,
-  offrampingState,
-  setOfframpingStarted,
-  setIsInitiating,
 }: UseSubmitOfframpProps) => {
   const { selectedNetwork } = useNetwork();
   const { switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
+  const offrampStarted = useOfframpStarted();
+  const offrampState = useOfframpState();
+  const { setOfframpStarted, setOfframpInitiating } = useOfframpActions();
 
   const addEvent = (message: string, status: string) => {
     console.log('Add event', message, status);
@@ -58,14 +53,14 @@ export const useSubmitOfframp = ({
     (executionInput: ExecutionInput) => {
       const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
 
-      if (offrampingStarted || offrampingState !== undefined) {
-        setIsInitiating(false);
+      if (offrampStarted || offrampState !== undefined) {
+        setOfframpInitiating(false);
         return;
       }
 
       (async () => {
         switchChain({ chainId: polygon.id });
-        setOfframpingStarted(true);
+        setOfframpStarted(true);
 
         trackEvent({
           event: 'transaction_confirmation',
@@ -122,25 +117,25 @@ export const useSubmitOfframp = ({
           } catch (error) {
             console.error('Error finalizing the initial state of the offramping process', error);
             setInitializeFailed(true);
-            setOfframpingStarted(false);
+            setOfframpStarted(false);
             cleanSep24FirstVariables();
           } finally {
-            setIsInitiating(false);
+            setOfframpInitiating(false);
           }
         } catch (error) {
           console.error('Error initializing the offramping process', error);
           setInitializeFailed(true);
-          setOfframpingStarted(false);
-          setIsInitiating(false);
+          setOfframpStarted(false);
+          setOfframpInitiating(false);
         }
       })();
     },
     [
-      offrampingStarted,
-      offrampingState,
-      setIsInitiating,
+      offrampStarted,
+      offrampState,
+      setOfframpInitiating,
       switchChain,
-      setOfframpingStarted,
+      setOfframpStarted,
       trackEvent,
       selectedNetwork,
       address,

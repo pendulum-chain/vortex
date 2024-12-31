@@ -7,7 +7,6 @@ import { decodeAddress } from '@polkadot/util-crypto';
 import { ApiPromise } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
 
-import { RenderEventHandler } from '../components/GenericEvent';
 import { SigningPhase } from '../hooks/offramp/useMainProcess';
 import { TrackableEvent } from '../contexts/events';
 import { Networks } from '../contexts/network';
@@ -40,6 +39,7 @@ import {
   pendulumCleanup,
   createPendulumEphemeralSeed,
 } from './phases/polkadot/ephemeral';
+import { RenderEventHandler } from '../components/GenericEvent';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -66,7 +66,7 @@ export type FinalOfframpingPhase = 'success';
 export interface ExecutionContext {
   wagmiConfig: Config;
   renderEvent: RenderEventHandler;
-  setSigningPhase: (n: SigningPhase) => void;
+  setOfframpSigningPhase: (n: SigningPhase) => void;
   trackEvent: (event: TrackableEvent) => void;
   pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
   assetHubNode: { api: ApiPromise };

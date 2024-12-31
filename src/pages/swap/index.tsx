@@ -48,6 +48,13 @@ import { BaseLayout } from '../../layouts';
 import { ProgressPage } from '../progress';
 import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
+import {
+  useOfframpActions,
+  useOfframpSigningPhase,
+  useOfframpState,
+  useOfframpStarted,
+  useOfframpInitiating,
+} from '../../stores/offrampStore';
 import { swapConfirm } from './helpers/swapConfirm';
 
 const Arrow = () => (
@@ -99,15 +106,16 @@ export const SwapPage = () => {
     handleOnSubmit,
     finishOfframping,
     continueFailedFlow,
-    offrampingStarted,
     firstSep24ResponseState,
     handleOnAnchorWindowOpen,
-    offrampingState,
-    isInitiating,
-    signingPhase,
-    setIsInitiating,
     maybeCancelSep24First,
   } = useMainProcess();
+
+  const offrampStarted = useOfframpStarted();
+  const offrampState = useOfframpState();
+  const offrampSigningPhase = useOfframpSigningPhase();
+  const offrampInitiating = useOfframpInitiating();
+  const { setOfframpInitiating } = useOfframpActions();
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
@@ -198,10 +206,10 @@ export const SwapPage = () => {
   }, []);
 
   useEffect(() => {
-    if (offrampingState?.phase !== undefined) {
+    if (offrampState?.phase !== undefined) {
       setNetworkSelectorDisabled(true);
     }
-  }, [offrampingState, setNetworkSelectorDisabled]);
+  }, [offrampState, setNetworkSelectorDisabled]);
 
   const ReceiveNumericInput = useMemo(
     () => (
@@ -302,31 +310,31 @@ export const SwapPage = () => {
     </>
   );
 
-  if (offrampingState?.phase === 'success') {
+  if (offrampState?.phase === 'success') {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} toToken={to} />;
   }
 
-  if (offrampingState?.failure !== undefined) {
+  if (offrampState?.failure !== undefined) {
     return (
       <FailurePage
         finishOfframping={finishOfframping}
         continueFailedFlow={continueFailedFlow}
         transactionId={cachedId}
-        failure={offrampingState.failure}
+        failure={offrampState.failure}
       />
     );
   }
 
-  if (offrampingState !== undefined || offrampingStarted) {
+  if (offrampState !== undefined || offrampStarted) {
     const isAssetHubFlow =
       selectedNetwork === Networks.AssetHub &&
-      (offrampingState?.phase === 'pendulumFundEphemeral' || offrampingState?.phase === 'executeAssetHubXCM');
+      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubXCM');
     const showMainScreenAnyway =
-      offrampingState === undefined ||
-      ['prepareTransactions', 'squidRouter'].includes(offrampingState.phase) ||
+      offrampState === undefined ||
+      ['prepareTransactions', 'squidRouter'].includes(offrampState.phase) ||
       isAssetHubFlow;
     if (!showMainScreenAnyway) {
-      return <ProgressPage offrampingState={offrampingState} />;
+      return <ProgressPage offrampingState={offrampState} />;
     }
   }
 
@@ -352,7 +360,7 @@ export const SwapPage = () => {
       selectedNetwork,
       fromAmountString,
       requiresSquidRouter: selectedNetwork === Networks.Polygon,
-      setIsInitiating,
+      setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
       setTermsAccepted,
@@ -362,7 +370,7 @@ export const SwapPage = () => {
   const main = (
     <main ref={formRef}>
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
-      <SigningBox step={signingPhase} />
+      <SigningBox step={offrampSigningPhase} />
       <form
         className="max-w-2xl px-4 py-4 mx-4 mt-12 mb-4 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSwapConfirm}
@@ -434,9 +442,9 @@ export const SwapPage = () => {
             </a>
           ) : (
             <SwapSubmitButton
-              text={isInitiating ? 'Confirming' : offrampingStarted ? 'Processing Details' : 'Confirm'}
+              text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
               disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || initializeFailed}
-              pending={isInitiating || offrampingStarted || offrampingState !== undefined}
+              pending={offrampInitiating || offrampStarted || offrampState !== undefined}
             />
           )}
         </div>

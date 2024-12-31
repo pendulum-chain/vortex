@@ -28,7 +28,7 @@ interface SwapConfirmParams {
   requiresSquidRouter: boolean;
   selectedNetwork: Networks;
   setInitializeFailed: StateUpdater<boolean>;
-  setIsInitiating: StateUpdater<boolean>;
+  setOfframpInitiating: (initiating: boolean) => void;
   setTermsAccepted: (accepted: boolean) => void;
   to: OutputTokenType;
   tokenOutAmount: { data: TokenOutData | undefined };
@@ -48,7 +48,7 @@ export function swapConfirm(e: Event, params: SwapConfirmParams) {
     requiresSquidRouter,
     selectedNetwork,
     setInitializeFailed,
-    setIsInitiating,
+    setOfframpInitiating,
     setTermsAccepted,
     to,
     tokenOutAmount,
@@ -59,7 +59,7 @@ export function swapConfirm(e: Event, params: SwapConfirmParams) {
     return;
   }
 
-  setIsInitiating(true);
+  setOfframpInitiating(true);
 
   const outputToken = OUTPUT_TOKEN_CONFIG[to];
   const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
@@ -96,7 +96,7 @@ export function swapConfirm(e: Event, params: SwapConfirmParams) {
     })
     .catch((_error) => {
       console.error('Error during swap confirmation:', _error);
-      setIsInitiating(false);
+      setOfframpInitiating(false);
       setInitializeFailed(true);
     });
 }
