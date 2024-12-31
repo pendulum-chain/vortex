@@ -1,4 +1,3 @@
-import { Fragment } from 'preact';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
@@ -17,7 +16,6 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { SignInModal } from '../../components/SignIn';
-import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../constants/constants';
 import { PoweredBy } from '../../components/PoweredBy';
 
 import {
@@ -37,13 +35,12 @@ import { useSiweContext } from '../../contexts/siwe';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
 
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { initialChecks } from '../../services/initialChecks';
-import { getVaultsForCurrency } from '../../services/phases/polkadot/spacewalk';
-import { testRoute } from '../../services/phases/squidrouter/route';
 
 import { BaseLayout } from '../../layouts';
 import { ProgressPage } from '../progress';
@@ -58,6 +55,7 @@ import {
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
+import { swapConfirm } from './helpers/swapConfirm';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -79,9 +77,10 @@ export const SwapPage = () => {
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
 
-  const [termsAnimationKey] = useState(0);
+  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
 
-  const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
+  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
+    useTermsAndConditions();
 
   useEffect(() => {
     setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
@@ -155,6 +154,8 @@ export const SwapPage = () => {
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
+  const userInputTokenBalance = useInputTokenBalance({ fromToken });
+
   const tokenOutAmount = useTokenOutAmount({
     wantsSwap: true,
     api,
@@ -170,69 +171,6 @@ export const SwapPage = () => {
     tokenOutAmount.stableAmountInUnits !== undefined &&
     tokenOutAmount.stableAmountInUnits != '' &&
     Big(tokenOutAmount.stableAmountInUnits).gt(Big(0));
-
-  function onSwapConfirm(e: Event) {
-    e.preventDefault();
-
-    if (!inputAmountIsStable) return;
-    if (!address) return; // Address must exist as this point.
-
-    if (fromAmount === undefined) {
-      console.log('Input amount is undefined');
-      return;
-    }
-
-    const tokenOutAmountData = tokenOutAmount.data;
-    if (!tokenOutAmountData) {
-      console.log('Output amount is undefined');
-      return;
-    }
-
-    const preciseQuotedAmountOut = tokenOutAmountData.preciseQuotedAmountOut;
-
-    // @todo: why do we need offrampInitiating? offrampStarted is not enough?
-
-    // test the route for starting token, then proceed
-    // will disable the confirm button
-    setOfframpInitiating(true);
-
-    const outputToken = OUTPUT_TOKEN_CONFIG[to];
-    const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-
-    // both route and stellar vault checks must be valid to proceed
-    const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
-      .round(2, 0)
-      .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN); // add an X percent margin to be sure
-    const expectedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, outputToken.decimals).toFixed();
-
-    const inputAmountBig = Big(fromAmount);
-    const inputAmountBigMargin = inputAmountBig.mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN);
-    const inputAmountRaw = multiplyByPowerOfTen(inputAmountBigMargin, inputToken.decimals).toFixed();
-
-    Promise.all([
-      getVaultsForCurrency(
-        api!,
-        outputToken.stellarAsset.code.hex,
-        outputToken.stellarAsset.issuer.hex,
-        expectedRedeemAmountRaw,
-      ),
-      testRoute(fromToken, inputAmountRaw, address!, selectedNetwork), // Address is both sender and receiver (in different chains)
-    ])
-      .then(() => {
-        console.log('Initial checks completed. Starting process..');
-        handleOnSubmit({
-          inputTokenType: from as InputTokenType,
-          outputTokenType: to as OutputTokenType,
-          amountInUnits: fromAmountString,
-          offrampAmount: tokenOutAmountData.roundedDownQuotedAmountOut,
-          setInitializeFailed,
-        });
-      })
-      .catch((_error) => {
-        setOfframpInitiating(false);
-        setInitializeFailed();
-      });
-  }
 
   useEffect(() => {
     if (tokenOutAmount.data) {
@@ -325,12 +263,12 @@ export const SwapPage = () => {
     // Do not show any error if the user is disconnected
     if (isDisconnected) return;
 
-    // if (typeof userInputTokenBalance === 'string') {
-    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-    //     trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
-    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-    //   }
-    // }
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+      }
+    }
 
     const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
 
@@ -413,6 +351,35 @@ export const SwapPage = () => {
     }
   }
 
+  const onSwapConfirm = (e: Event) => {
+    e.preventDefault();
+
+    if (!termsAccepted && !termsChecked) {
+      setTermsError(true);
+
+      // We need to trigger a re-render of the TermsAndConditions component to animate
+      setTermsAnimationKey((prev) => prev + 1);
+      return;
+    }
+
+    swapConfirm(e, {
+      inputAmountIsStable,
+      address,
+      fromAmount,
+      tokenOutAmount,
+      api,
+      to,
+      from,
+      selectedNetwork,
+      fromAmountString,
+      requiresSquidRouter: selectedNetwork === Networks.Polygon,
+      setOfframpInitiating,
+      setInitializeFailed,
+      handleOnSubmit,
+      setTermsAccepted,
+    });
+  };
+
   const main = (
     <main ref={formRef}>
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
@@ -487,7 +454,7 @@ export const SwapPage = () => {
           ) : (
             <SwapSubmitButton
               text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
+              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
               pending={offrampInitiating || offrampStarted || offrampState !== undefined}
             />
           )}

@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useConfig } from 'wagmi';
 
 import { advanceOfframpingState } from '../../services/offrampingFlow';
-import { EventStatus } from '../../components/GenericEvent';
 
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
@@ -12,11 +11,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 import { isNetworkEVM, useNetwork } from '../../contexts/network';
 
-interface AdvancementDeps {
-  addEvent: (message: string, status: EventStatus) => void;
-}
-
-export const useOfframpAdvancement = ({ addEvent }: AdvancementDeps) => {
+export const useOfframpAdvancement = () => {
   const { walletAccount } = usePolkadotWalletState();
   const { trackEvent } = useEventsContext();
   const wagmiConfig = useConfig();
@@ -44,7 +39,6 @@ export const useOfframpAdvancement = ({ addEvent }: AdvancementDeps) => {
         }
 
         const nextState = await advanceOfframpingState(offrampState, {
-          renderEvent: addEvent,
           wagmiConfig,
           setOfframpSigningPhase,
           trackEvent,

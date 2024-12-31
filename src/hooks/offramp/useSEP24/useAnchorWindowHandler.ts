@@ -85,5 +85,6 @@ export const useAnchorWindowHandler = () => {
     selectedNetwork,
     setOfframpStarted,
     updateOfframpHookStateFromState,
+    address,
   ]);
 };

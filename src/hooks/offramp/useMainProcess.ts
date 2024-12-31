@@ -44,9 +44,7 @@ export const useMainProcess = () => {
   }, [updateOfframpHookStateFromState, events.trackOfframpingEvent]);
 
   // Determines the current offramping phase
-  useOfframpAdvancement({
-    addEvent: events.addEvent,
-  });
+  useOfframpAdvancement();
 
   return {
     handleOnSubmit: useSubmitOfframp(),
