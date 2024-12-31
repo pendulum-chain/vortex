@@ -11,7 +11,13 @@ import { showToast, ToastMessage } from '../../../helpers/notifications';
 import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
 import { useOfframpActions } from '../../../stores/offrampStore';
-import { useSep24Store, useSep24Actions } from '../../../stores/sep24Store';
+import {
+  useSep24Store,
+  useSep24Actions,
+  useFirstSep24Response,
+  useAnchorSessionParams,
+  useExecutionInput,
+} from '../../../stores/sep24Store';
 import { useVortexAccount } from '../../useVortexAccount';
 
 const handleAmountMismatch = (setOfframpingStarted: (started: boolean) => void): void => {
@@ -31,7 +37,10 @@ export const useAnchorWindowHandler = () => {
   const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
   const { address } = useVortexAccount();
 
-  const { firstSep24Response, anchorSessionParams, executionInput } = useSep24Store.getState();
+  const firstSep24Response = useFirstSep24Response();
+  const anchorSessionParams = useAnchorSessionParams();
+
+  const executionInput = useExecutionInput();
   const { cleanupSep24State } = useSep24Actions();
 
   return useCallback(async () => {

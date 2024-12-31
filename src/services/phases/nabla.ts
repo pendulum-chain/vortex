@@ -79,7 +79,7 @@ export async function prepareNablaApproveTransaction(
   state: OfframpingState,
   context: ExecutionContext,
 ): Promise<Extrinsic> {
-  const { inputTokenType, inputAmount, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
+  const { inputTokenType, inputAmount, pendulumAmountRaw, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
   const { pendulumNode } = context;
 
   const { ss58Format, api } = pendulumNode;
@@ -116,12 +116,12 @@ export async function prepareNablaApproveTransaction(
   const currentAllowance = parseContractBalanceResponse(inputToken.pendulumDecimals, response.value);
 
   //maybe do allowance
-  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmount.raw))) {
+  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(pendulumAmountRaw))) {
     try {
       console.log(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
       return createAndSignApproveExtrinsic({
         api: api,
-        amount: inputAmount.raw,
+        amount: pendulumAmountRaw,
         token: inputToken.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
@@ -251,6 +251,7 @@ export async function prepareNablaSwapTransaction(
     inputTokenType,
     outputTokenType,
     inputAmount,
+    pendulumAmountRaw,
     outputAmount,
     nablaHardMinimumOutputRaw,
     pendulumEphemeralSeed,
@@ -286,7 +287,7 @@ export async function prepareNablaSwapTransaction(
 
       return createAndSignSwapExtrinsic({
         api: api,
-        amount: inputAmount.raw,
+        amount: pendulumAmountRaw,
         amountMin: nablaHardMinimumOutputRaw,
         tokenIn: inputToken.pendulumErc20WrapperAddress,
         tokenOut: outputToken.erc20WrapperAddress,
@@ -307,6 +308,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     transactions,
     inputAmount,
     inputTokenType,
+    pendulumAmountRaw,
     outputAmount,
     outputTokenType,
     pendulumEphemeralSeed,
@@ -360,7 +362,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
       contractDeploymentAddress: NABLA_ROUTER,
       callerAddress: ephemeralKeypair.address,
       messageName: 'getAmountOut',
-      messageArguments: [inputAmount.raw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
+      messageArguments: [pendulumAmountRaw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
       limits: defaultReadLimits,
     });
 

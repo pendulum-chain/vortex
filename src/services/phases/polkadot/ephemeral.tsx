@@ -229,7 +229,7 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
     throw new Error('Invalid input token');
   }
 
-  const requiredAmount = Big(state.inputAmount.raw).sub(currentBalance);
+  const requiredAmount = Big(state.pendulumAmountRaw).sub(currentBalance);
   if (requiredAmount.gt(Big(0))) {
     console.log('Subsidizing pre-swap with', requiredAmount.toString());
 
@@ -252,8 +252,8 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
     await waitUntilTrue(async () => {
       console.log('waiting for input balance to be enough');
       const currentBalance = await getRawInputBalance(state, context);
-      console.log('currentBalance', currentBalance, Big(state.inputAmount.raw));
-      return currentBalance.gte(Big(state.inputAmount.raw));
+      console.log('currentBalance', currentBalance, Big(state.pendulumAmountRaw));
+      return currentBalance.gte(Big(state.pendulumAmountRaw));
     });
   }
 

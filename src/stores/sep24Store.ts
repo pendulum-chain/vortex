@@ -65,3 +65,7 @@ export const useSep24Store = create<Sep24Store>()((set, get) => ({
 
 // Selector hooks
 export const useSep24Actions = () => useSep24Store((state) => state.actions);
+export const useFirstSep24Response = () => useSep24Store((state) => state.firstSep24Response);
+export const useFirstSep24Interval = () => useSep24Store((state) => state.firstSep24Interval);
+export const useAnchorSessionParams = () => useSep24Store((state) => state.anchorSessionParams);
+export const useExecutionInput = () => useSep24Store((state) => state.executionInput);

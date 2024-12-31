@@ -92,6 +92,7 @@ export interface OfframpingState {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   inputAmount: { units: string; raw: string };
+  pendulumAmountRaw: string;
   outputAmount: { units: string; raw: string };
   phase: OfframpingPhase | FinalOfframpingPhase;
   failure?: FailureType;
@@ -186,11 +187,13 @@ export async function constructInitialState({
     pendulumNode,
   );
 
-  const inputTokenDecimals = getInputTokenDetailsOrDefault(network, inputTokenType).decimals;
+  const { decimals: inputTokenDecimals, pendulumDecimals } = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
 
   const inputAmountBig = Big(amountIn);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();
+  const pendulumAmountRaw = multiplyByPowerOfTen(inputAmountBig, pendulumDecimals || 0).toFixed();
+
   const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
 
   const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
@@ -211,6 +214,7 @@ export async function constructInitialState({
     inputTokenType,
     outputTokenType,
     inputAmount: { units: amountIn, raw: inputAmountRaw },
+    pendulumAmountRaw,
     outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },
     phase: 'prepareTransactions',
     squidRouterReceiverId,

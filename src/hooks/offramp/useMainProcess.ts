@@ -9,7 +9,7 @@ import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
 import { useOfframpAdvancement } from './useOfframpAdvancement';
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
-import { useSep24Store } from '../../stores/sep24Store';
+import { useFirstSep24Interval, useFirstSep24Response, useSep24Store } from '../../stores/sep24Store';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
@@ -27,7 +27,9 @@ export const useMainProcess = () => {
   const offrampState = useOfframpState();
 
   // Sep 24 states
-  const { firstSep24Response, firstSep24Interval } = useSep24Store.getState();
+  const firstSep24Response = useFirstSep24Response();
+  const firstSep24Interval = useFirstSep24Interval();
+
   const { cleanupSep24State } = useSep24Actions();
 
   // Custom hooks
