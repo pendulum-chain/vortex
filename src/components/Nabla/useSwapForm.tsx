@@ -15,50 +15,46 @@ import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
 import { Networks, useNetwork } from '../../contexts/network';
 
-interface SwapSettings {
+type SwapSettings = {
   from: string;
   to: string;
-}
+};
+
+type TokenSelectType = 'from' | 'to';
+
+type NetworkMap = Record<Lowercase<Networks>, Networks>;
+
+const NETWORK_MAPPING: NetworkMap = {
+  assethub: Networks.AssetHub,
+  polygon: Networks.Polygon,
+  ethereum: Networks.Ethereum,
+  bsc: Networks.BSC,
+  arbitrum: Networks.Arbitrum,
+  base: Networks.Base,
+  avalanche: Networks.Avalanche,
+};
 
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
 export function getCaseSensitiveNetwork(network: string): Networks {
-  const lowercasedNetwork = network.toLowerCase();
-
-  switch (lowercasedNetwork) {
-    case 'assethub':
-      return Networks.AssetHub;
-    case 'polygon':
-      return Networks.Polygon;
-    case 'ethereum':
-      return Networks.Ethereum;
-    case 'bsc':
-      return Networks.BSC;
-    case 'arbitrum':
-      return Networks.Arbitrum;
-    case 'base':
-      return Networks.Base;
-    case 'avalanche':
-      return Networks.Avalanche;
-    default:
-      console.warn('getCaseSensitiveNetwork: Invalid network type');
-      return Networks.AssetHub;
-  }
+  const lowercasedNetwork = network.toLowerCase() as keyof typeof NETWORK_MAPPING;
+  return NETWORK_MAPPING[lowercasedNetwork] ?? Networks.AssetHub;
 }
 
-// Helper function to merge values if they are defined
-function mergeIfDefined(target: any, source: any) {
-  for (const key in source) {
-    if (source[key] !== undefined && source[key] !== null) {
-      target[key] = source[key];
+function mergeIfDefined<T>(target: T, source: Nullable<T> | undefined): void {
+  if (!source) return;
+
+  Object.entries(source).forEach(([key, value]) => {
+    if (value != null) {
+      target[key as keyof T] = value as T[keyof T];
     }
-  }
+  });
 }
 
 export const useSwapForm = () => {
   const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
-  const [tokenSelectModalType, setTokenModalType] = useState<'from' | 'to'>('from');
+  const [tokenSelectModalType, setTokenModalType] = useState<TokenSelectType>('from');
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
 
   const initialState = useMemo(() => {
@@ -112,14 +108,13 @@ export const useSwapForm = () => {
     (tokenKey: string) => {
       const prev = getValues();
 
-      const updated = {
+      const updated: SwapSettings = {
         from: tokenKey,
         to: prev?.to,
       };
 
       setStorageForSwapSettings(updated);
       setValue('from', tokenKey as InputTokenType);
-
       setIsTokenSelectModalVisible(false);
     },
     [getValues, setValue],
@@ -130,14 +125,13 @@ export const useSwapForm = () => {
       const prev = getValues();
       if (!tokenKey) return;
 
-      const updated = {
+      const updated: SwapSettings = {
         to: tokenKey,
         from: prev?.from,
       };
 
       setStorageForSwapSettings(updated);
       setValue('to', tokenKey as OutputTokenType);
-
       setIsTokenSelectModalVisible(false);
     },
     [getValues, setValue],
@@ -157,7 +151,7 @@ export const useSwapForm = () => {
     }
   }, [fromAmountString]);
 
-  const openTokenSelectModal = useCallback((type: 'from' | 'to') => {
+  const openTokenSelectModal = useCallback((type: TokenSelectType) => {
     setTokenModalType(type);
     setIsTokenSelectModalVisible(true);
   }, []);
