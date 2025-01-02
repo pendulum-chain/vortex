@@ -6,57 +6,67 @@ import { SigningPhase } from '../../hooks/offramp/useMainProcess';
 import { isNetworkEVM, Networks, useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 
-interface ProgressConfig {
+type ProgressStep = {
   started: string;
   signed: string;
   finished: string;
   approved: string;
-}
+};
 
-function getProgressConfig(network: Networks): ProgressConfig {
-  if (isNetworkEVM(network)) {
-    return {
-      started: '25',
-      approved: '50',
-      signed: '75',
-      finished: '100',
-    };
-  } else {
-    return {
-      started: '33',
-      finished: '100',
-      signed: '0',
-      approved: '0',
-    };
-  }
-}
+type SignatureConfig = {
+  maxSignatures: number;
+  getSignatureNumber: (step: SigningPhase) => string;
+};
 
-function getSignatureConfig(network: Networks): any {
-  if (isNetworkEVM(network)) {
-    return {
-      maxSignatures: 2,
-      getSignatureNumber: (step: SigningPhase) => (step === 'started' ? '1' : '2'),
-    };
-  } else {
-    return {
-      maxSignatures: 1,
-      getSignatureNumber: () => '1',
-    };
-  }
-}
+const EVM_PROGRESS_CONFIG: ProgressStep = {
+  started: '25',
+  approved: '50',
+  signed: '75',
+  finished: '100',
+};
+
+const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
+  started: '33',
+  finished: '100',
+  signed: '0',
+  approved: '0',
+};
+
+const EVM_SIGNATURE_CONFIG: SignatureConfig = {
+  maxSignatures: 2,
+  getSignatureNumber: (step: SigningPhase) => (step === 'started' ? '1' : '2'),
+};
+
+const NON_EVM_SIGNATURE_CONFIG: SignatureConfig = {
+  maxSignatures: 1,
+  getSignatureNumber: () => '1',
+};
+
+const getProgressConfig = (network: Networks): ProgressStep => {
+  return isNetworkEVM(network) ? EVM_PROGRESS_CONFIG : NON_EVM_PROGRESS_CONFIG;
+};
+
+const getSignatureConfig = (network: Networks): SignatureConfig => {
+  return isNetworkEVM(network) ? EVM_SIGNATURE_CONFIG : NON_EVM_SIGNATURE_CONFIG;
+};
 
 interface SigningBoxProps {
   step?: SigningPhase;
 }
 
+const isValidStep = (step: SigningPhase | undefined, network: Networks): step is SigningPhase => {
+  if (!step) return false;
+  if (!['started', 'approved', 'signed'].includes(step)) return false;
+  if (!isNetworkEVM(network) && (step === 'approved' || step === 'signed')) return false;
+  return true;
+};
+
 export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const { selectedNetwork } = useNetwork();
 
-  if (!step) return null;
-  if (!['started', 'approved', 'signed'].includes(step)) return null;
-  if (!isNetworkEVM(selectedNetwork) && (step === 'approved' || step === 'signed')) return null;
+  if (!isValidStep(step, selectedNetwork)) return null;
 
-  const progressValue = getProgressConfig(selectedNetwork)[step] || '0';
+  const progressValue = getProgressConfig(selectedNetwork)[step];
   const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);
 
   return (
