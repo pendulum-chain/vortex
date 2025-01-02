@@ -44,10 +44,15 @@ const useAssetHubBalance = (assetId?: number): string | undefined => {
     const getBalance = async () => {
       try {
         const { api } = assetHubNode;
+        const assetInfo = await api.query.assets.asset(assetId);
+        const { minBalance: rawMinBalance } = assetInfo.toJSON() as { minBalance: number };
+
         const accountInfo = await api.query.assets.account(assetId, walletAccount.address);
 
         const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
-        const formattedBalance = nativeToDecimal(rawBalance, USDC_DECIMALS).toFixed(2, 0).toString();
+
+        const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
+        const formattedBalance = nativeToDecimal(offrampableBalance, USDC_DECIMALS).toFixed(2, 0).toString();
         setBalance(formattedBalance);
       } catch (error) {
         console.error('Failed to fetch AssetHub balance:', error);
