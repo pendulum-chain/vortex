@@ -5,6 +5,7 @@ import { INPUT_TOKEN_CONFIG } from '../../../../constants/tokenConfig';
 import { InputTokenDetails } from '../../../../constants/tokenConfig';
 import { createSquidRouterHash } from '../../../../helpers/crypto';
 import { createRandomString } from '../../../../helpers/crypto';
+import { Networks } from '../../../../contexts/network';
 
 // We need to add a delay to the beforeEach hook to ensure that the test does not run before the SquidRouter API is ready
 beforeEach(() => {
@@ -26,13 +27,13 @@ describe('Squidrouter', () => {
       const squidRouterHash = createSquidRouterHash(squidRouterReceiverId, somePayload);
       const amount = '1000000000';
 
-      return getRouteTransactionRequest(userAddress, amount, squidRouterHash, inputToken);
+      return getRouteTransactionRequest(userAddress, amount, squidRouterHash, inputToken, Networks.Polygon);
     }
 
     async function testRouteForToken(inputToken: InputTokenDetails) {
       const userAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877' as `0x${string}`;
       const amount = '1000000000';
-      return testRoute(inputToken, amount, userAddress);
+      return testRoute(inputToken, amount, userAddress, Networks.Polygon);
     }
 
     it('should successfully query a route for USDC', async () => {

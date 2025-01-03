@@ -3,7 +3,7 @@ import { Spinner } from '../../Spinner';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { ConnectWalletButton } from '../ConnectWalletButton';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
-import { Networks, useNetwork } from '../../../contexts/network';
+import { useNetwork, isNetworkEVM } from '../../../contexts/network';
 
 interface SwapSubmitButtonProps {
   text: string;
@@ -18,7 +18,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
   const { isConnected } = useAppKitAccount();
   const { selectedNetwork } = useNetwork();
 
-  if (selectedNetwork === Networks.AssetHub && !walletAccount) {
+  if (!isNetworkEVM(selectedNetwork) && !walletAccount) {
     return (
       <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
         <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon />
@@ -26,7 +26,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
     );
   }
 
-  if (selectedNetwork === Networks.Polygon && !isConnected) {
+  if (isNetworkEVM(selectedNetwork) && !isConnected) {
     return (
       <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
         <ConnectWalletButton customStyles="w-full btn-vortex-primary btn rounded-xl" hideIcon />

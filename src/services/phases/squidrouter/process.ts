@@ -28,6 +28,7 @@ export async function squidRouter(
     state.inputAmount.raw,
     state.squidRouterReceiverHash,
     inputToken,
+    state.network,
   );
 
   console.log(

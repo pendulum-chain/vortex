@@ -10,6 +10,7 @@ import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
 import { useVortexAccount } from './useVortexAccount';
 
+// TODO maybe improve: if the user switches the network in the selector and REJECTS the switch in wallet, then balance will be 0.
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
   fromToken: InputTokenDetails | undefined,
@@ -22,8 +23,7 @@ const useEvmBalance = (
     functionName: 'balanceOf',
     args: [address],
   });
-
-  if (!fromToken || !balance) return undefined;
+  if (!fromToken || (!balance && balance !== BigInt(0))) return undefined;
   return multiplyByPowerOfTen(Big(balance.toString()), -fromToken.decimals).toFixed(2, 0);
 };
 
@@ -36,7 +36,6 @@ const useAssetHubBalance = (assetId?: number): string | undefined => {
     if (!walletAccount || !assetHubNode) return;
 
     if (!assetId) {
-      console.log('Invalid assetId', assetId);
       setBalance('0');
       return;
     }

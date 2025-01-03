@@ -1,4 +1,4 @@
-import { Networks, useNetwork } from '../contexts/network';
+import { isNetworkEVM, useNetwork } from '../contexts/network';
 import { useMemo, useCallback } from 'preact/compat';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAccount } from 'wagmi';
@@ -7,7 +7,7 @@ import { useSignMessage } from 'wagmi';
 
 // For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
 // but we just use it to differentiate between the EVM and Polkadot accounts.
-const AssetHubChainId = -1;
+export const AssetHubChainId = -1;
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.
@@ -19,7 +19,7 @@ export const useVortexAccount = () => {
   const { signMessageAsync } = useSignMessage();
 
   const address = useMemo(() => {
-    if (selectedNetwork === Networks.AssetHub) {
+    if (!isNetworkEVM(selectedNetwork)) {
       return polkadotWalletAccount?.address;
     } else {
       return evmAccountAddress;
@@ -27,7 +27,7 @@ export const useVortexAccount = () => {
   }, [evmAccountAddress, polkadotWalletAccount, selectedNetwork]);
 
   const isDisconnected = useMemo(() => {
-    if (selectedNetwork === Networks.AssetHub) {
+    if (!isNetworkEVM(selectedNetwork)) {
       return !polkadotWalletAccount;
     } else {
       return isEvmAccountDisconnected;
@@ -35,7 +35,7 @@ export const useVortexAccount = () => {
   }, [selectedNetwork, polkadotWalletAccount, isEvmAccountDisconnected]);
 
   const chainId = useMemo(() => {
-    if (selectedNetwork === Networks.AssetHub) {
+    if (!isNetworkEVM(selectedNetwork)) {
       return AssetHubChainId;
     } else {
       return evmChainId;
@@ -43,7 +43,7 @@ export const useVortexAccount = () => {
   }, [selectedNetwork, evmChainId]);
 
   const type = useMemo(() => {
-    if (selectedNetwork === Networks.AssetHub) {
+    if (!isNetworkEVM(selectedNetwork)) {
       return 'substrate';
     } else {
       return 'evm';
@@ -54,9 +54,9 @@ export const useVortexAccount = () => {
     async (siweMessage: string) => {
       let signature;
 
-      if (selectedNetwork === Networks.Polygon) {
+      if (isNetworkEVM(selectedNetwork)) {
         signature = await signMessageAsync({ message: siweMessage });
-      } else if (selectedNetwork === Networks.AssetHub) {
+      } else {
         if (!polkadotWalletAccount) {
           throw new Error('getMessageSignature: Polkadot wallet account not found. Wallet must be connected to sign.');
         }
@@ -66,8 +66,6 @@ export const useVortexAccount = () => {
           address: polkadotWalletAccount.address,
         });
         signature = substrateSignature;
-      } else {
-        throw new Error('getMessageSignature: Unsupported network.');
       }
 
       return signature;
