@@ -1,5 +1,5 @@
 import { AssetIconType } from '../hooks/useGetAssetIcon';
-import { Networks } from '../contexts/network';
+import { Networks } from '../helpers/networks';
 
 export interface BaseInputTokenDetails {
   assetSymbol: string;

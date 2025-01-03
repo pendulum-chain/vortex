@@ -5,7 +5,7 @@ import squidReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
 import { InputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
 import erc20ABI from '../../../contracts/ERC20';
 import { getSquidRouterConfig, squidRouterConfigBase } from './config';
-import { Networks } from '../../../contexts/network';
+import { Networks } from '../../../helpers/networks';
 
 interface RouteParams {
   fromAddress: string;

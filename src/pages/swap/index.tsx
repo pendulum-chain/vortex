@@ -28,12 +28,13 @@ import {
 import { config } from '../../config';
 
 import { useEventsContext } from '../../contexts/events';
-import { isNetworkEVM, Networks, useNetwork } from '../../contexts/network';
+import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
+import { isNetworkEVM, Networks } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -91,6 +92,13 @@ export const SwapPage = () => {
     }
   }, [pendulumNode]);
 
+  // Maybe go into a state of UI errors??
+  const setInitializeFailed = useCallback((message?: string | null) => {
+    setInitializeFailedMessage(
+      message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
+    );
+  }, []);
+
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -102,14 +110,7 @@ export const SwapPage = () => {
     };
 
     initialize();
-  }, []);
-
-  // Maybe go into a state of UI errors??
-  const setInitializeFailed = useCallback((message?: string | null) => {
-    setInitializeFailedMessage(
-      message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
-    );
-  }, []);
+  }, [setInitializeFailed]);
 
   // Main process hook
   const {
@@ -216,14 +217,8 @@ export const SwapPage = () => {
   }, []);
 
   useEffect(() => {
-    switch (offrampState?.phase) {
-      case undefined:
-        setNetworkSelectorDisabled(false);
-        break;
-      default:
-        setNetworkSelectorDisabled(true);
-        break;
-    }
+    const isNetworkSelectorDisabled = offrampState?.phase !== undefined;
+    setNetworkSelectorDisabled(isNetworkSelectorDisabled);
   }, [offrampState, setNetworkSelectorDisabled]);
 
   const ReceiveNumericInput = useMemo(

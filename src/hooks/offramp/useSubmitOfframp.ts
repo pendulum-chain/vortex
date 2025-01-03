@@ -1,8 +1,10 @@
 import { useCallback } from 'preact/compat';
 import { polygon } from 'wagmi/chains';
 import { useSwitchChain } from 'wagmi';
+
+import { getNetworkId, isNetworkEVM } from '../../helpers/networks';
 import { useVortexAccount } from '../useVortexAccount';
-import { getNetworkId, isNetworkEVM, useNetwork } from '../../contexts/network';
+import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 

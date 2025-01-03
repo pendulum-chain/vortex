@@ -5,7 +5,7 @@ import { INPUT_TOKEN_CONFIG } from '../../../../constants/tokenConfig';
 import { InputTokenDetails } from '../../../../constants/tokenConfig';
 import { createSquidRouterHash } from '../../../../helpers/crypto';
 import { createRandomString } from '../../../../helpers/crypto';
-import { Networks } from '../../../../contexts/network';
+import { Networks } from '../../../../helpers/networks';
 
 // We need to add a delay to the beforeEach hook to ensure that the test does not run before the SquidRouter API is ready
 beforeEach(() => {

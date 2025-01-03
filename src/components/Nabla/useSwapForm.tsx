@@ -13,7 +13,8 @@ import {
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
-import { Networks, useNetwork } from '../../contexts/network';
+import { getCaseSensitiveNetwork } from '../../helpers/networks';
+import { useNetwork } from '../../contexts/network';
 
 type SwapSettings = {
   from: string;
@@ -22,25 +23,8 @@ type SwapSettings = {
 
 type TokenSelectType = 'from' | 'to';
 
-type NetworkMap = Record<Lowercase<Networks>, Networks>;
-
-const NETWORK_MAPPING: NetworkMap = {
-  assethub: Networks.AssetHub,
-  polygon: Networks.Polygon,
-  ethereum: Networks.Ethereum,
-  bsc: Networks.BSC,
-  arbitrum: Networks.Arbitrum,
-  base: Networks.Base,
-  avalanche: Networks.Avalanche,
-};
-
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
-
-export function getCaseSensitiveNetwork(network: string): Networks {
-  const lowercasedNetwork = network.toLowerCase() as keyof typeof NETWORK_MAPPING;
-  return NETWORK_MAPPING[lowercasedNetwork] ?? Networks.AssetHub;
-}
 
 function mergeIfDefined<T>(target: T, source: Nullable<T> | undefined): void {
   if (!source) return;

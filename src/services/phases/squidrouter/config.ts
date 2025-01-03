@@ -1,4 +1,4 @@
-import { getNetworkId, Networks } from '../../../contexts/network';
+import { getNetworkId, Networks } from '../../../helpers/networks';
 
 interface ConfigBase {
   toChainId: string;

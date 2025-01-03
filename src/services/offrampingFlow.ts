@@ -9,7 +9,7 @@ import { u8aToHex } from '@polkadot/util';
 
 import { SigningPhase } from '../hooks/offramp/useMainProcess';
 import { TrackableEvent } from '../contexts/events';
-import { isNetworkEVM, Networks } from '../contexts/network';
+import { isNetworkEVM, Networks } from '../helpers/networks';
 import { SepResult } from '../types/sep';
 
 import {
@@ -130,8 +130,13 @@ export type StateTransitionFunction = (
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
-const STATE_ADVANCEMENT_HANDLERS: Record<string, Partial<Record<OfframpingPhase, StateTransitionFunction>>> = {
-  squidrouter: {
+enum HandlerType {
+  SQUIDROUTER = 'squidrouter',
+  XCM = 'xcm',
+}
+
+const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingPhase, StateTransitionFunction>>> = {
+  [HandlerType.SQUIDROUTER]: {
     prepareTransactions,
     squidRouter,
     pendulumFundEphemeral,
@@ -145,7 +150,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<string, Partial<Record<OfframpingPhase,
     stellarOfframp,
     stellarCleanup,
   },
-  xcm: {
+  [HandlerType.XCM]: {
     prepareTransactions,
     pendulumFundEphemeral,
     executeAssetHubXCM,
@@ -165,10 +170,9 @@ function selectNextStateAdvancementHandler(
   phase: OfframpingPhase,
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
-    return STATE_ADVANCEMENT_HANDLERS['squidrouter'][phase];
-  } else {
-    return STATE_ADVANCEMENT_HANDLERS['xcm'][phase];
+    return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];
   }
+  return STATE_ADVANCEMENT_HANDLERS[HandlerType.XCM][phase];
 }
 
 export async function constructInitialState({

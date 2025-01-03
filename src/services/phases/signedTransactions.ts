@@ -2,8 +2,7 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
 
-import { isNetworkEVM } from '../../contexts/network';
-
+import { isNetworkEVM, Networks } from '../../helpers/networks';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { storeDataInBackend } from '../storage/remote';
@@ -11,6 +10,11 @@ import { storeDataInBackend } from '../storage/remote';
 import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './nabla';
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { prepareSpacewalkRedeemTransaction } from './polkadot';
+
+const getNextPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
+  // For AssetHub we skip the squidRouter and go straight to the pendulumFundEphemeral phase
+  return isNetworkEVM(network) ? 'squidRouter' : 'pendulumFundEphemeral';
+};
 
 export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
   return extrinsic.toHex();
@@ -95,6 +99,6 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   return {
     ...state,
     transactions,
-    phase: isNetworkEVM(state.network) ? 'squidRouter' : 'pendulumFundEphemeral',
+    phase: getNextPhase(state.network),
   };
 }
