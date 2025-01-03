@@ -34,9 +34,6 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
   const { assetHubNode, walletAccount, setOfframpSigningPhase } = context;
   const { pendulumEphemeralAddress } = state;
 
-  const { pendulumNode } = context;
-  const { ss58Format, api } = pendulumNode;
-
   // We wait for up to 1 minute. XCM event should appear on the same block.
   const maxWaitingTimeMinutes = 1;
   const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
@@ -61,13 +58,16 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
     if (assetHubXcmTransactionHash === undefined) {
       const tx = createAssethubAssetTransfer(assetHubNode.api, pendulumEphemeralAddress, inputAmount.raw);
       context.setOfframpSigningPhase('started');
-      const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as Signer });
 
-      const eventListener = EventListener.getEventListener(api);
-      await eventListener.waitForXcmSentEvent(walletAccount.address, maxWaitingTimeMs);
+      const eventListener = EventListener.getEventListener(assetHubNode.api);
+      const xcmSentEventPromise = eventListener.waitForXcmSentEvent(walletAccount.address, maxWaitingTimeMs);
+
+      const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as Signer });
+      setOfframpSigningPhase?.('finished');
+
+      await xcmSentEventPromise;
       eventListener.unsubscribe();
 
-      setOfframpSigningPhase?.('finished');
       return { ...state, assetHubXcmTransactionHash: hash.toString() };
     }
 

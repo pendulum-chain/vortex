@@ -57,9 +57,8 @@ export function parseEventRedeemExecution(event: any) {
 
 export function parseEventXcmSent(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
-  const PENDULUM_ADDRESS_PREFIX = 56;
   const mappedData = {
-    originAddress: encodeAddress(rawEventData[0].interior.X1[0].AccountId32.id.toString(), PENDULUM_ADDRESS_PREFIX),
+    originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId32.id.toString()),
   };
   return mappedData;
 }

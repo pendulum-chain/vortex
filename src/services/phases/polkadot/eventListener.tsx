@@ -40,6 +40,7 @@ export class EventListener {
       events.forEach((event) => {
         this.processEvents(event, this.pendingIssueEvents);
         this.processEvents(event, this.pendingRedeemEvents);
+        this.processEvents(event, this.pendingXcmSentEvents);
       });
     });
   }
@@ -75,7 +76,6 @@ export class EventListener {
       if (event.event.section === 'polkadotXcm' && event.event.method === 'Sent') {
         const eventParsed = parseEventXcmSent(event);
         if (eventParsed.originAddress == originAddress) {
-          console.log('event', event);
           return eventParsed;
         }
       }
