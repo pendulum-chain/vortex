@@ -11,7 +11,7 @@ import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './n
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { prepareSpacewalkRedeemTransaction } from './polkadot';
 
-export const getTransactionPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
+const getNextPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
   // For AssetHub we skip the squidRouter and go straight to the pendulumFundEphemeral phase
   return isNetworkEVM(network) ? 'squidRouter' : 'pendulumFundEphemeral';
 };
@@ -99,6 +99,6 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   return {
     ...state,
     transactions,
-    phase: getTransactionPhase(state.network),
+    phase: getNextPhase(state.network),
   };
 }
