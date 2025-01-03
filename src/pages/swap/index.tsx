@@ -215,14 +215,8 @@ export const SwapPage = () => {
   }, []);
 
   useEffect(() => {
-    switch (offrampState?.phase) {
-      case undefined:
-        setNetworkSelectorDisabled(false);
-        break;
-      default:
-        setNetworkSelectorDisabled(true);
-        break;
-    }
+    const isNetworkSelectorDisabled = offrampState?.phase !== undefined;
+    setNetworkSelectorDisabled(isNetworkSelectorDisabled);
   }, [offrampState, setNetworkSelectorDisabled]);
 
   const ReceiveNumericInput = useMemo(
