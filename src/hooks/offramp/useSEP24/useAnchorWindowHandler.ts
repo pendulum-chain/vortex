@@ -4,7 +4,7 @@ import Big from 'big.js';
 import { useNetwork } from '../../../contexts/network';
 
 import { constructInitialState } from '../../../services/offrampingFlow';
-import { sep24Second } from '../../../services/anchor/sep24/first';
+import { sep24Second } from '../../../services/anchor/sep24/second';
 
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 
@@ -12,11 +12,10 @@ import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
 import { useOfframpActions } from '../../../stores/offrampStore';
 import {
-  useSep24Store,
   useSep24Actions,
-  useFirstSep24Response,
-  useAnchorSessionParams,
-  useExecutionInput,
+  useSep24InitialResponse,
+  useSep24AnchorSessionParams,
+  useSep24ExecutionInput,
 } from '../../../stores/sep24Store';
 import { useVortexAccount } from '../../useVortexAccount';
 
@@ -37,11 +36,11 @@ export const useAnchorWindowHandler = () => {
   const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
   const { address } = useVortexAccount();
 
-  const firstSep24Response = useFirstSep24Response();
-  const anchorSessionParams = useAnchorSessionParams();
+  const firstSep24Response = useSep24InitialResponse();
+  const anchorSessionParams = useSep24AnchorSessionParams();
 
-  const executionInput = useExecutionInput();
-  const { cleanupSep24State } = useSep24Actions();
+  const executionInput = useSep24ExecutionInput();
+  const { cleanup: cleanupSep24State } = useSep24Actions();
 
   return useCallback(async () => {
     if (!firstSep24Response || !anchorSessionParams || !executionInput) {
@@ -83,17 +82,16 @@ export const useAnchorWindowHandler = () => {
       handleError(error, setOfframpStarted);
     }
   }, [
-    address,
-    cleanupSep24State,
     firstSep24Response,
     anchorSessionParams,
     executionInput,
     pendulumNode,
     trackKYCStarted,
-    trackKYCCompleted,
     selectedNetwork,
-    setOfframpStarted,
-    updateOfframpHookStateFromState,
+    cleanupSep24State,
     address,
+    trackKYCCompleted,
+    updateOfframpHookStateFromState,
+    setOfframpStarted,
   ]);
 };

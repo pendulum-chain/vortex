@@ -24,7 +24,7 @@ interface Sep24Store extends Sep24State {
   actions: Sep24Actions;
 }
 
-export const useSep24Store = create<Sep24Store>()((set, get) => ({
+const useSep24Store = create<Sep24Store>()((set, get) => ({
   anchorSessionParams: undefined,
   initialResponse: undefined,
   executionInput: undefined,
