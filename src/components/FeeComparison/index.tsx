@@ -136,7 +136,7 @@ function FeeComparisonTable({
               >
                 (Polygon)
               </div>
-            )}
+            )}{' '}
             with
           </span>
         </div>

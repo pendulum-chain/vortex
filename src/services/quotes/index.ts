@@ -28,11 +28,20 @@ async function getQuoteFromService(
   amount: Big,
   network: Networks,
 ): Promise<Big> {
+  let compatibleNetwork = network;
   if (!isNetworkEVM(network)) {
-    throw new Error(`Network ${network} is not supported`);
+    console.error(`Network ${network} is not supported`);
+    compatibleNetwork = Networks.Polygon;
   }
+
   // Fetch the quote from the service with a GET request
-  const params = new URLSearchParams({ provider, fromCrypto, toFiat, amount: amount.toFixed(2), network });
+  const params = new URLSearchParams({
+    provider,
+    fromCrypto,
+    toFiat,
+    amount: amount.toFixed(2),
+    network: compatibleNetwork,
+  });
   const response = await fetch(`${QUOTE_ENDPOINT}?${params.toString()}`);
 
   if (!response.ok) {
