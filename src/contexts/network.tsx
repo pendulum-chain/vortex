@@ -46,7 +46,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const setSelectedNetwork = useCallback(
     (networkId: Networks) => {
       if (onNetworkChange) {
-        onNetworkChange(networkId);
+        //onNetworkChange(networkId);
       }
       setSelectedNetworkState(networkId);
       setSelectedNetworkLocalStorage(networkId);
