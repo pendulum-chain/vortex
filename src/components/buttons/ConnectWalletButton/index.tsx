@@ -6,9 +6,9 @@ import { PolkadotWalletButton } from '../PolkadotWalletButton';
 export const ConnectWalletButton = ({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) => {
   const { selectedNetwork } = useNetwork();
 
-  if (!isNetworkEVM(selectedNetwork)) {
-    return <PolkadotWalletButton customStyles={customStyles} hideIcon={hideIcon} />;
+  if (isNetworkEVM(selectedNetwork)) {
+    return <EVMWalletButton customStyles={customStyles} hideIcon={hideIcon} />;
   }
 
-  return <EVMWalletButton customStyles={customStyles} hideIcon={hideIcon} />;
+  return <PolkadotWalletButton customStyles={customStyles} hideIcon={hideIcon} />;
 };

@@ -5,9 +5,7 @@ import { polygon, bsc, arbitrum, base, avalanche, mainnet as ethereum } from '@r
 export const ASSETHUB_CHAIN_ID = -1;
 
 export enum Networks {
-  // Polkadot networks
   AssetHub = 'AssetHub',
-  // EVM networks
   Arbitrum = 'Arbitrum',
   Avalanche = 'Avalanche',
   Base = 'Base',
@@ -18,48 +16,65 @@ export enum Networks {
 
 type EVMNetworks = Exclude<Networks, Networks.AssetHub>;
 
-const EVM_NETWORKS: Set<Networks> = new Set([
-  Networks.Polygon,
-  Networks.Ethereum,
-  Networks.BSC,
-  Networks.Arbitrum,
-  Networks.Base,
-  Networks.Avalanche,
-]);
-
-export function isNetworkEVM(network: Networks): network is EVMNetworks {
-  return EVM_NETWORKS.has(network);
+interface NetworkMetadata {
+  id: number;
+  displayName: string;
+  isEVM: boolean;
 }
 
-const NETWORK_CONFIG: Record<Networks, { id: number }> = {
-  [Networks.Polygon]: polygon,
-  [Networks.Ethereum]: ethereum,
-  [Networks.BSC]: bsc,
-  [Networks.Arbitrum]: arbitrum,
-  [Networks.Base]: base,
-  [Networks.Avalanche]: avalanche,
-  [Networks.AssetHub]: { id: ASSETHUB_CHAIN_ID },
+const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
+  [Networks.AssetHub]: {
+    id: ASSETHUB_CHAIN_ID,
+    displayName: 'Polkadot AssetHub',
+    isEVM: false,
+  },
+  [Networks.Polygon]: {
+    id: polygon.id,
+    displayName: 'Polygon',
+    isEVM: true,
+  },
+  [Networks.Ethereum]: {
+    id: ethereum.id,
+    displayName: 'Ethereum',
+    isEVM: true,
+  },
+  [Networks.BSC]: {
+    id: bsc.id,
+    displayName: 'BNB Smart Chain',
+    isEVM: true,
+  },
+  [Networks.Arbitrum]: {
+    id: arbitrum.id,
+    displayName: 'Arbitrum One',
+    isEVM: true,
+  },
+  [Networks.Base]: {
+    id: base.id,
+    displayName: 'Base',
+    isEVM: true,
+  },
+  [Networks.Avalanche]: {
+    id: avalanche.id,
+    displayName: 'Avalanche',
+    isEVM: true,
+  },
 };
 
-export function getNetworkId(network: Networks): number {
-  return NETWORK_CONFIG[network].id;
+export function isNetworkEVM(network: Networks): network is EVMNetworks {
+  return NETWORK_METADATA[network].isEVM;
 }
+
+export function getNetworkId(network: Networks): number {
+  return NETWORK_METADATA[network].id;
+}
+
+export function getNetworkDisplayName(network: Networks): string {
+  return NETWORK_METADATA[network].displayName;
+}
+
+const DEFAULT_NETWORK = Networks.AssetHub;
 
 export function getCaseSensitiveNetwork(network: string): Networks {
   const normalized = network.toLowerCase();
-  return Object.values(Networks).find((n) => n.toLowerCase() === normalized) ?? Networks.AssetHub;
-}
-
-const NETWORK_DISPLAY_NAMES: Record<Networks, string> = {
-  [Networks.AssetHub]: 'Polkadot AssetHub',
-  [Networks.Polygon]: 'Polygon',
-  [Networks.Ethereum]: 'Ethereum',
-  [Networks.BSC]: 'BNB Smart Chain',
-  [Networks.Arbitrum]: 'Arbitrum One',
-  [Networks.Base]: 'Base',
-  [Networks.Avalanche]: 'Avalanche',
-};
-
-export function getNetworkDisplayName(network: Networks): string {
-  return NETWORK_DISPLAY_NAMES[network] ?? network;
+  return Object.values(Networks).find((n) => n.toLowerCase() === normalized) ?? DEFAULT_NETWORK;
 }
