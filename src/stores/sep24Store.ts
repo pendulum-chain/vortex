@@ -1,23 +1,23 @@
 import { create } from 'zustand';
-import { IAnchorSessionParams, ISep24Intermediate } from '../services/anchor';
+import { IAnchorSessionParams, ISep24Intermediate } from '../types/sep';
 import { ExecutionInput } from '../hooks/offramp/useMainProcess';
 
 export type ExtendedExecutionInput = ExecutionInput & { stellarEphemeralSecret: string };
 
 export interface Sep24State {
   anchorSessionParams: IAnchorSessionParams | undefined;
-  firstSep24Response: ISep24Intermediate | undefined;
+  initialResponse: ISep24Intermediate | undefined;
   executionInput: ExtendedExecutionInput | undefined;
-  firstSep24Interval: number | undefined;
+  urlInterval: number | undefined;
 }
 
 export interface Sep24Actions {
   setAnchorSessionParams: (params: IAnchorSessionParams | undefined) => void;
-  setFirstSep24Response: (response: ISep24Intermediate | undefined) => void;
+  setInitialResponse: (response: ISep24Intermediate | undefined) => void;
   setExecutionInput: (input: ExtendedExecutionInput | undefined) => void;
-  setFirstSep24Interval: (interval: number | undefined) => void;
-  resetSep24State: () => void;
-  cleanupSep24State: () => void;
+  setUrlInterval: (interval: number | undefined) => void;
+  reset: () => void;
+  cleanup: () => void;
 }
 
 interface Sep24Store extends Sep24State {
@@ -25,37 +25,33 @@ interface Sep24Store extends Sep24State {
 }
 
 export const useSep24Store = create<Sep24Store>()((set, get) => ({
-  // Initial state
   anchorSessionParams: undefined,
-  firstSep24Response: undefined,
+  initialResponse: undefined,
   executionInput: undefined,
-  firstSep24Interval: undefined,
+  urlInterval: undefined,
 
   actions: {
-    // Setters
     setAnchorSessionParams: (params) => set({ anchorSessionParams: params }),
-    setFirstSep24Response: (response) => set({ firstSep24Response: response }),
+    setInitialResponse: (response) => set({ initialResponse: response }),
     setExecutionInput: (input) => set({ executionInput: input }),
-    setFirstSep24Interval: (interval) => set({ firstSep24Interval: interval }),
+    setUrlInterval: (interval) => set({ urlInterval: interval }),
 
-    // Reset all state
-    resetSep24State: () =>
+    reset: () =>
       set({
         anchorSessionParams: undefined,
-        firstSep24Response: undefined,
+        initialResponse: undefined,
         executionInput: undefined,
-        firstSep24Interval: undefined,
+        urlInterval: undefined,
       }),
 
-    // Cleanup action
-    cleanupSep24State: () => {
-      const { firstSep24Interval } = get();
+    cleanup: () => {
+      const { urlInterval } = get();
       const actions = get().actions;
 
-      if (firstSep24Interval !== undefined) {
-        clearInterval(firstSep24Interval);
-        actions.setFirstSep24Interval(undefined);
-        actions.setFirstSep24Response(undefined);
+      if (urlInterval !== undefined) {
+        clearInterval(urlInterval);
+        actions.setUrlInterval(undefined);
+        actions.setInitialResponse(undefined);
         actions.setExecutionInput(undefined);
         actions.setAnchorSessionParams(undefined);
       }
@@ -63,9 +59,8 @@ export const useSep24Store = create<Sep24Store>()((set, get) => ({
   },
 }));
 
-// Selector hooks
 export const useSep24Actions = () => useSep24Store((state) => state.actions);
-export const useFirstSep24Response = () => useSep24Store((state) => state.firstSep24Response);
-export const useFirstSep24Interval = () => useSep24Store((state) => state.firstSep24Interval);
-export const useAnchorSessionParams = () => useSep24Store((state) => state.anchorSessionParams);
-export const useExecutionInput = () => useSep24Store((state) => state.executionInput);
+export const useSep24InitialResponse = () => useSep24Store((state) => state.initialResponse);
+export const useSep24UrlInterval = () => useSep24Store((state) => state.urlInterval);
+export const useSep24AnchorSessionParams = () => useSep24Store((state) => state.anchorSessionParams);
+export const useSep24ExecutionInput = () => useSep24Store((state) => state.executionInput);

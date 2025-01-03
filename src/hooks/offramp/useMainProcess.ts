@@ -9,7 +9,7 @@ import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
 import { useOfframpAdvancement } from './useOfframpAdvancement';
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
-import { useFirstSep24Interval, useFirstSep24Response, useSep24Store } from '../../stores/sep24Store';
+import { useSep24UrlInterval, useSep24InitialResponse } from '../../stores/sep24Store';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
 export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
@@ -27,10 +27,10 @@ export const useMainProcess = () => {
   const offrampState = useOfframpState();
 
   // Sep 24 states
-  const firstSep24Response = useFirstSep24Response();
-  const firstSep24Interval = useFirstSep24Interval();
+  const firstSep24Response = useSep24InitialResponse();
+  const firstSep24Interval = useSep24UrlInterval();
 
-  const { cleanupSep24State } = useSep24Actions();
+  const { cleanup: cleanupSep24 } = useSep24Actions();
 
   // Custom hooks
   const events = useOfframpEvents();
@@ -59,11 +59,10 @@ export const useMainProcess = () => {
       updateOfframpHookStateFromState(recoverFromFailure(offrampState));
     },
     handleOnAnchorWindowOpen: handleOnAnchorWindowOpen,
-    // @todo: why do we need this?
     maybeCancelSep24First: () => {
       if (firstSep24Interval !== undefined) {
         setOfframpStarted(false);
-        cleanupSep24State();
+        cleanupSep24();
       }
     },
   };

@@ -4,7 +4,7 @@ import Big from 'big.js';
 import { useNetwork } from '../../../contexts/network';
 
 import { constructInitialState } from '../../../services/offrampingFlow';
-import { sep24Second } from '../../../services/anchor';
+import { sep24Second } from '../../../services/anchor/sep24/first';
 
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 

@@ -1,8 +1,9 @@
 import { StateUpdater } from 'preact/hooks';
 import Big from 'big.js';
+
 import { OfframpingState } from '../services/offrampingFlow';
 import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
-import { ISep24Intermediate, IAnchorSessionParams } from '../services/anchor';
+import { ISep24Intermediate, IAnchorSessionParams } from './sep';
 
 export type OfframpSigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 

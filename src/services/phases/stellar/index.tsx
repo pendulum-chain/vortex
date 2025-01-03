@@ -22,7 +22,7 @@ import {
 } from '../../../constants/constants';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { OfframpingState } from '../../offrampingFlow';
-import { SepResult } from '../../anchor';
+import { SepResult } from '../../anchor/sep24/first';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;

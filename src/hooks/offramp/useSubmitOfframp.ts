@@ -8,7 +8,10 @@ import { useSiweContext } from '../../contexts/siwe';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { createStellarEphemeralSecret, fetchTomlValues, sep10, sep24First } from '../../services/anchor';
+import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
+
+import { sep24First } from '../../services/anchor/sep24/first';
+import { sep10 } from '../../services/anchor/sep10';
 
 import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { ExecutionInput } from './useMainProcess';
@@ -23,8 +26,13 @@ export const useSubmitOfframp = () => {
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
   const { setOfframpStarted, setOfframpInitiating } = useOfframpActions();
-  const { setAnchorSessionParams, setFirstSep24Response, setExecutionInput, cleanupSep24State, setFirstSep24Interval } =
-    useSep24Actions();
+  const {
+    setAnchorSessionParams,
+    setExecutionInput,
+    setInitialResponse: setInitialResponseSEP24,
+    setUrlInterval: setUrlIntervalSEP24,
+    cleanup: cleanupSEP24,
+  } = useSep24Actions();
 
   return useCallback(
     (executionInput: ExecutionInput) => {
@@ -98,10 +106,10 @@ export const useSubmitOfframp = () => {
             const url = new URL(firstSep24Response.url);
             url.searchParams.append('callback', 'postMessage');
             firstSep24Response.url = url.toString();
-            setFirstSep24Response(firstSep24Response);
+            setInitialResponseSEP24(firstSep24Response);
           };
 
-          setFirstSep24Interval(window.setInterval(fetchAndUpdateSep24Url, 20000));
+          setUrlIntervalSEP24(window.setInterval(fetchAndUpdateSep24Url, 20000));
 
           try {
             await fetchAndUpdateSep24Url();
@@ -109,7 +117,7 @@ export const useSubmitOfframp = () => {
             console.error('Error finalizing the initial state of the offramping process', error);
             setInitializeFailed();
             setOfframpStarted(false);
-            cleanupSep24State();
+            cleanupSEP24();
           } finally {
             setOfframpInitiating(false);
           }
@@ -139,9 +147,9 @@ export const useSubmitOfframp = () => {
       forceRefreshAndWaitForSignature,
       setExecutionInput,
       setAnchorSessionParams,
-      setFirstSep24Response,
-      setFirstSep24Interval,
-      cleanupSep24State,
+      setInitialResponseSEP24,
+      setUrlIntervalSEP24,
+      cleanupSEP24,
       switchChainAsync,
     ],
   );
