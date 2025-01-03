@@ -9,7 +9,7 @@ import { u8aToHex } from '@polkadot/util';
 
 import { SigningPhase } from '../hooks/offramp/useMainProcess';
 import { TrackableEvent } from '../contexts/events';
-import { isNetworkEVM, Networks } from '../contexts/network';
+import { isNetworkEVM, Networks } from '../helpers/networks';
 import { SepResult } from '../types/sep';
 
 import {

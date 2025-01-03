@@ -14,8 +14,8 @@ import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 
 import { multiplyByPowerOfTen } from '../../../helpers/contracts';
 import { waitUntilTrue } from '../../../helpers/function';
+import { isNetworkEVM } from '../../../helpers/networks';
 
-import { isNetworkEVM } from '../../../contexts/network';
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { isHashRegistered } from '../moonbeam';

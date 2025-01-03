@@ -9,7 +9,8 @@ import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useEventsContext } from '../../contexts/events';
 
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
-import { isNetworkEVM, useNetwork } from '../../contexts/network';
+import { useNetwork } from '../../contexts/network';
+import { isNetworkEVM } from '../../helpers/networks';
 
 export const useOfframpAdvancement = () => {
   const { walletAccount } = usePolkadotWalletState();
@@ -65,5 +66,8 @@ export const useOfframpAdvancement = () => {
     pendulumNode,
     assetHubNode,
     walletAccount?.address,
+    wagmiConfig,
+    walletAccount,
+    setOfframpSigningPhase,
   ]);
 };

@@ -3,7 +3,8 @@ import { FC } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { SigningPhase } from '../../hooks/offramp/useMainProcess';
-import { isNetworkEVM, Networks, useNetwork } from '../../contexts/network';
+import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 
 type ProgressStep = {

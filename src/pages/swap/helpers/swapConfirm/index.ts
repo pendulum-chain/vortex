@@ -1,4 +1,3 @@
-import { StateUpdater } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
 import Big from 'big.js';
 
@@ -11,7 +10,7 @@ import {
 
 import { ExecutionInput } from '../../../../hooks/offramp/useMainProcess';
 import { TokenOutData } from '../../../../hooks/nabla/useTokenAmountOut';
-import { Networks } from '../../../../contexts/network';
+import { Networks } from '../../../../helpers/networks';
 
 import { calculateSwapAmountsWithMargin } from './calculateSwapAmountsWithMargin';
 import { performSwapInitialChecks } from './performSwapInitialChecks';

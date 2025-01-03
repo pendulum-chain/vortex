@@ -1,7 +1,7 @@
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { calculateTotalReceive } from '../../../components/FeeCollapse';
 import { OfframpingState } from '../../../services/offrampingFlow';
-import { Networks } from '../../../contexts/network';
+import { Networks } from '../../../helpers/networks';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../../constants/tokenConfig';
 
 import { ExecutionInput } from '../useMainProcess';

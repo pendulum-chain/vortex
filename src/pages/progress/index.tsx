@@ -5,41 +5,39 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { isNetworkEVM, Networks, useNetwork } from '../../contexts/network';
+import { useNetwork } from '../../contexts/network';
+import { Networks, isNetworkEVM } from '../../helpers/networks';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
   const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
+  const { phase, network: isEVMNetwork } = offrampingState;
 
-  switch (offrampingState.phase) {
-    case 'prepareTransactions':
-      return offrampingState.network
-        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
-        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
-    case 'squidRouter':
-    case 'pendulumFundEphemeral':
-      return offrampingState.network
-        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
-        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
-    case 'executeMoonbeamXCM':
-      return `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`;
-    case 'executeAssetHubXCM':
-      return `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
-    case 'subsidizePreSwap':
-    case 'nablaApprove':
-    case 'nablaSwap':
-    case 'subsidizePostSwap':
-      return `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`;
-    case 'executeSpacewalkRedeem':
-      return `Bridging ${outputToken.stellarAsset.code.string} to Stellar via Spacewalk`;
-    case 'pendulumCleanup':
-    case 'stellarOfframp':
-    case 'stellarCleanup':
-      return 'Transferring to local partner for bank transfer';
+  if (phase === 'success') return 'Transaction completed successfully';
 
-    default:
-      return '';
-  }
+  const messages: Record<OfframpingPhase, string> = {
+    prepareTransactions: isEVMNetwork
+      ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    squidRouter: isEVMNetwork
+      ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    pendulumFundEphemeral: isEVMNetwork
+      ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    executeMoonbeamXCM: `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`,
+    executeAssetHubXCM: `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    subsidizePreSwap: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    nablaApprove: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    nablaSwap: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    subsidizePostSwap: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    executeSpacewalkRedeem: `Bridging ${outputToken.stellarAsset.code.string} to Stellar via Spacewalk`,
+    pendulumCleanup: 'Transferring to local partner for bank transfer',
+    stellarOfframp: 'Transferring to local partner for bank transfer',
+    stellarCleanup: 'Transferring to local partner for bank transfer',
+  };
+
+  return messages[phase as OfframpingPhase];
 }
 
 export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {

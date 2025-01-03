@@ -2,8 +2,7 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
 
-import { isNetworkEVM } from '../../contexts/network';
-
+import { isNetworkEVM } from '../../helpers/networks';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { storeDataInBackend } from '../storage/remote';

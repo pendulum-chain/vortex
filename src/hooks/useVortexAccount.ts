@@ -1,13 +1,10 @@
-import { isNetworkEVM, useNetwork } from '../contexts/network';
+import { useNetwork } from '../contexts/network';
 import { useMemo, useCallback } from 'preact/compat';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAccount } from 'wagmi';
 import { Signer } from '@polkadot/types/types';
 import { useSignMessage } from 'wagmi';
-
-// For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
-// but we just use it to differentiate between the EVM and Polkadot accounts.
-export const AssetHubChainId = -1;
+import { isNetworkEVM, ASSETHUB_CHAIN_ID } from '../helpers/networks';
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.
@@ -36,7 +33,7 @@ export const useVortexAccount = () => {
 
   const chainId = useMemo(() => {
     if (!isNetworkEVM(selectedNetwork)) {
-      return AssetHubChainId;
+      return ASSETHUB_CHAIN_ID;
     } else {
       return evmChainId;
     }

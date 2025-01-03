@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
 import vortexIcon from '../../assets/logo/blue.svg';
-import { Networks } from '../../contexts/network';
+import { Networks } from '../../helpers/networks';
 import { Skeleton } from '../Skeleton';
 import { QuoteProvider, quoteProviders } from './quoteProviders';
 import { OfframpingParameters, useEventsContext } from '../../contexts/events';
