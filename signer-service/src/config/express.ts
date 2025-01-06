@@ -1,15 +1,19 @@
-const express = require('express');
-const morgan = require('morgan');
-const bodyParser = require('body-parser');
-const compress = require('compression');
-const methodOverride = require('method-override');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const routes = require('../api/routes/v1');
-const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = require('./vars');
-const error = require('../api/middlewares/error');
-const cookieParser = require('cookie-parser');
+import express from 'express';
+import morgan from 'morgan';
+import bodyParser from 'body-parser';
+import compress from 'compression';
+import methodOverride from 'method-override';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
+
+import routes from '../api/routes/v1';
+import error from '../api/middlewares/error';
+
+import { config } from './vars';
+
+const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
 
 /**
  * Express instance
@@ -21,13 +25,14 @@ const app = express();
 app.use(
   cors({
     origin: [
-      'http://localhost:5173',
-      'https://polygon-prototype-staging--pendulum-pay.netlify.app',
       'https://app.vortexfinance.co',
-    ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      'https://polygon-prototype-staging--pendulum-pay.netlify.app',
+      process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : null,
+    ].filter(Boolean) as string[],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // Explicitly list allowed methods
     credentials: true,
-    allowedHeaders: 'Content-Type,Authorization',
+    allowedHeaders: ['Content-Type', 'Authorization'], // Explicitly list allowed headers
+    maxAge: 86400, // Cache preflight requests for 24 hours
   }),
 );
 
@@ -36,8 +41,8 @@ app.use(
 app.set('trust proxy', rateLimitNumberOfProxies);
 // Define rate limiter
 const limiter = rateLimit({
-  windowMs: rateLimitWindowMinutes * 60 * 1000,
-  max: rateLimitMaxRequests, // Limit each IP to <amount> requests per `window`
+  windowMs: Number(rateLimitWindowMinutes) * 60 * 1000,
+  max: Number(rateLimitMaxRequests), // Limit each IP to <amount> requests per `window`
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
@@ -75,4 +80,4 @@ app.use(error.notFound);
 // error handler, send stacktrace only during development
 app.use(error.handler);
 
-module.exports = app;
+export default app;
