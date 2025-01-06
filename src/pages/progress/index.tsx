@@ -6,24 +6,24 @@ import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { useNetwork } from '../../contexts/network';
-import { Networks, isNetworkEVM } from '../../helpers/networks';
+import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
   const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
-  const { phase, network: isEVMNetwork } = offrampingState;
+  const { phase } = offrampingState;
 
   if (phase === 'success') return 'Transaction completed successfully';
 
   const messages: Record<OfframpingPhase, string> = {
-    prepareTransactions: isEVMNetwork
-      ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+    prepareTransactions: isNetworkEVM(network)
+      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
       : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
-    squidRouter: isEVMNetwork
-      ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+    squidRouter: isNetworkEVM(network)
+      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
       : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
-    pendulumFundEphemeral: isEVMNetwork
-      ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
+    pendulumFundEphemeral: isNetworkEVM(network)
+      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
       : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
     executeMoonbeamXCM: `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`,
     executeAssetHubXCM: `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
