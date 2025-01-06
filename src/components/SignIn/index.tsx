@@ -1,5 +1,5 @@
-import { FC, useState } from 'preact/compat';
-import { useEffect } from 'react';
+import { FC } from 'preact/compat';
+import { useEffect, useState } from 'preact/hooks';
 import { Modal } from 'react-daisyui';
 
 interface SignInModalProps {
