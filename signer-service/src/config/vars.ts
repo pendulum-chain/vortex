@@ -1,11 +1,49 @@
-const path = require('path');
+import path from 'path';
+import dotenv from 'dotenv';
 
 // import .env variables
-require('dotenv').config({
+dotenv.config({
   path: path.join(__dirname, '../../.env'),
 });
 
-module.exports = {
+interface QuoteProvider {
+  baseUrl: string;
+  appId?: string;
+  secretKey?: string;
+  partnerApiKey?: string;
+  apiKey?: string;
+}
+
+interface GoogleCredentials {
+  email: string | undefined;
+  key: string | undefined;
+}
+
+interface SpreadsheetConfig {
+  googleCredentials: GoogleCredentials;
+  storageSheetId: string | undefined;
+  emailSheetId: string | undefined;
+  ratingSheetId: string | undefined;
+}
+
+interface Config {
+  env: string;
+  port: string | number;
+  amplitudeWss: string;
+  pendulumWss: string;
+  rateLimitMaxRequests: string | number;
+  rateLimitWindowMinutes: string | number;
+  rateLimitNumberOfProxies: string | number;
+  logs: string;
+  quoteProviders: {
+    alchemyPay: QuoteProvider;
+    transak: QuoteProvider;
+    moonpay: QuoteProvider;
+  };
+  spreadsheet: SpreadsheetConfig;
+}
+
+export const config: Config = {
   env: process.env.NODE_ENV || 'production',
   port: process.env.PORT || 3000,
   amplitudeWss: process.env.AMPLITUDE_WSS || 'wss://rpc-amplitude.pendulumchain.tech',
