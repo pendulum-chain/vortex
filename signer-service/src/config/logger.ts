@@ -1,4 +1,5 @@
-const winston = require('winston');
+import { StreamOptions } from 'morgan';
+import winston from 'winston';
 
 const logger = winston.createLogger({
   level: 'info',
@@ -25,10 +26,13 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
-logger.stream = {
-  write: (message) => {
+const stream: StreamOptions = {
+  write: (message: string) => {
     logger.info(message.trim());
   },
 };
 
-module.exports = logger;
+// @ts-ignore 'morgan'
+logger.stream = stream;
+
+export default logger;
