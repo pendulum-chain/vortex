@@ -10,7 +10,9 @@ const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new pendulum ephemeral account created
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 
-require('dotenv').config();
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
@@ -18,7 +20,7 @@ const MOONBEAM_EXECUTOR_PRIVATE_KEY = process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY;
 const SEP10_MASTER_SECRET = FUNDING_SECRET;
 const CLIENT_DOMAIN_SECRET = process.env.CLIENT_DOMAIN_SECRET;
 
-module.exports = {
+export {
   HORIZON_URL,
   PENDULUM_WSS,
   NETWORK,
