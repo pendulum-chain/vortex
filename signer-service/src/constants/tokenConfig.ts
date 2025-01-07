@@ -1,4 +1,4 @@
-interface StellarTokenConfig {
+export interface StellarTokenConfig {
   tomlFileUrl: string;
   assetCode: string;
   assetIssuer: string;
@@ -18,13 +18,13 @@ interface StellarTokenConfig {
   };
 }
 
-interface XCMTokenConfig {
+export interface XCMTokenConfig {
   pendulumCurrencyId: { XCM: number };
   decimals: number;
   maximumSubsidyAmountRaw: string;
 }
 
-type TokenConfig = {
+export type TokenConfig = {
   ars: StellarTokenConfig;
   eurc: StellarTokenConfig;
   usdc: XCMTokenConfig;
