@@ -426,10 +426,6 @@ export const SwapPage = () => {
             onClick={(e) => {
               e.preventDefault();
               setShowCompareFees(!showCompareFees);
-              // Smooth scroll to bottom of page
-              setTimeout(() => {
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-              }, 300);
             }}
           >
             Compare fees
@@ -466,6 +462,7 @@ export const SwapPage = () => {
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
           network={selectedNetwork}
+          enabled={showCompareFees}
         />
       )}
       <TrustedBy />

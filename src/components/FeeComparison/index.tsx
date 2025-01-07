@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { useMemo } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import { useEffect, useRef } from 'preact/compat';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
@@ -10,7 +10,7 @@ import { Skeleton } from '../Skeleton';
 import { QuoteProvider, quoteProviders } from './quoteProviders';
 import { OfframpingParameters, useEventsContext } from '../../contexts/events';
 
-type FeeProviderRowProps = FeeComparisonProps & { provider: QuoteProvider };
+type FeeProviderRowProps = Omit<FeeComparisonProps, 'enabled'> & { provider: QuoteProvider };
 
 function VortexRow({
   targetAssetSymbol,
@@ -112,7 +112,7 @@ function FeeProviderRow({
   );
 }
 
-type FeeComparisonTableProps = FeeComparisonProps;
+type FeeComparisonTableProps = Omit<FeeComparisonProps, 'enabled'>;
 
 function FeeComparisonTable({
   amount,
@@ -171,6 +171,7 @@ interface FeeComparisonProps {
   targetAssetSymbol: string;
   vortexPrice: Big;
   network: Networks;
+  enabled: boolean;
 }
 
 export function FeeComparison({
@@ -179,9 +180,28 @@ export function FeeComparison({
   targetAssetSymbol,
   vortexPrice,
   network,
+  enabled,
 }: FeeComparisonProps) {
+  useEffect(() => {
+    if (enabled) {
+      const feeComparissonElement = document.getElementById('feeComparisson');
+      if (feeComparissonElement) {
+        setTimeout(() => {
+          window.scrollTo({ top: feeComparissonElement.offsetTop, behavior: 'smooth' });
+        }, 300);
+      }
+    }
+  }, [enabled]);
+
+  if (!enabled) {
+    return null;
+  }
+
   return (
-    <div className="flex flex-col items-center max-w-4xl px-4 py-8 rounded-lg md:flex-row gap-x-8 gap-y-8 md:mx-auto md:w-3/4">
+    <div
+      id="feeComparisson"
+      className="flex flex-col items-center max-w-4xl px-4 py-8 rounded-lg md:flex-row gap-x-8 gap-y-8 md:mx-auto md:w-3/4"
+    >
       <div className="w-full gap-6 overflow-auto grow">
         <h1 className="text-2xl font-bold">Save on exchange rate markups</h1>
         <p className="mt-4 text-lg">
