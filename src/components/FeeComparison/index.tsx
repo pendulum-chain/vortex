@@ -184,7 +184,7 @@ export function FeeComparison({
 }: FeeComparisonProps) {
   useEffect(() => {
     if (enabled) {
-      const feeComparissonElement = document.getElementById('feeComparisson');
+      const feeComparisonElement = document.getElementById('feeComparison');
       if (feeComparissonElement) {
         setTimeout(() => {
           window.scrollTo({ top: feeComparissonElement.offsetTop, behavior: 'smooth' });
