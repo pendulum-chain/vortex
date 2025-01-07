@@ -1,4 +1,3 @@
-import { StateUpdater } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
 import Big from 'big.js';
 
@@ -11,7 +10,7 @@ import {
 
 import { ExecutionInput } from '../../../../hooks/offramp/useMainProcess';
 import { TokenOutData } from '../../../../hooks/nabla/useTokenAmountOut';
-import { Networks } from '../../../../contexts/network';
+import { Networks } from '../../../../helpers/networks';
 
 import { calculateSwapAmountsWithMargin } from './calculateSwapAmountsWithMargin';
 import { performSwapInitialChecks } from './performSwapInitialChecks';
@@ -27,7 +26,7 @@ interface SwapConfirmParams {
   inputAmountIsStable: boolean;
   requiresSquidRouter: boolean;
   selectedNetwork: Networks;
-  setInitializeFailed: StateUpdater<boolean>;
+  setInitializeFailed: (message?: string | null) => void;
   setOfframpInitiating: (initiating: boolean) => void;
   setTermsAccepted: (accepted: boolean) => void;
   to: OutputTokenType;
@@ -79,6 +78,7 @@ export function swapConfirm(e: Event, params: SwapConfirmParams) {
     inputAmountRaw,
     address!,
     requiresSquidRouter,
+    selectedNetwork,
   )
     .then(() => {
       console.log('Initial checks completed. Starting process..');
@@ -97,6 +97,6 @@ export function swapConfirm(e: Event, params: SwapConfirmParams) {
     .catch((_error) => {
       console.error('Error during swap confirmation:', _error);
       setOfframpInitiating(false);
-      setInitializeFailed(true);
+      setInitializeFailed();
     });
 }

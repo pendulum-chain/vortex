@@ -5,41 +5,39 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
-import { Networks, useNetwork } from '../../contexts/network';
+import { useNetwork } from '../../contexts/network';
+import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
   const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
+  const { phase } = offrampingState;
 
-  switch (offrampingState.phase) {
-    case 'prepareTransactions':
-      return offrampingState.network
-        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
-        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
-    case 'squidRouter':
-    case 'pendulumFundEphemeral':
-      return offrampingState.network
-        ? `Bridging ${inputToken.assetSymbol} from Polygon --> Moonbeam`
-        : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
-    case 'executeMoonbeamXCM':
-      return `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`;
-    case 'executeAssetHubXCM':
-      return `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`;
-    case 'subsidizePreSwap':
-    case 'nablaApprove':
-    case 'nablaSwap':
-    case 'subsidizePostSwap':
-      return `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`;
-    case 'executeSpacewalkRedeem':
-      return `Bridging ${outputToken.stellarAsset.code.string} to Stellar via Spacewalk`;
-    case 'pendulumCleanup':
-    case 'stellarOfframp':
-    case 'stellarCleanup':
-      return 'Transferring to local partner for bank transfer';
+  if (phase === 'success') return 'Transaction completed successfully';
 
-    default:
-      return '';
-  }
+  const messages: Record<OfframpingPhase, string> = {
+    prepareTransactions: isNetworkEVM(network)
+      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
+      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    squidRouter: isNetworkEVM(network)
+      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
+      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    pendulumFundEphemeral: isNetworkEVM(network)
+      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
+      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    executeMoonbeamXCM: `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`,
+    executeAssetHubXCM: `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    subsidizePreSwap: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    nablaApprove: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    nablaSwap: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    subsidizePostSwap: `Swapping to ${outputToken.stellarAsset.code.string} on Vortex DEX`,
+    executeSpacewalkRedeem: `Bridging ${outputToken.stellarAsset.code.string} to Stellar via Spacewalk`,
+    pendulumCleanup: 'Transferring to local partner for bank transfer',
+    stellarOfframp: 'Transferring to local partner for bank transfer',
+    stellarCleanup: 'Transferring to local partner for bank transfer',
+  };
+
+  return messages[phase as OfframpingPhase];
 }
 
 export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
@@ -160,9 +158,7 @@ const ProgressContent: FC<{
         </div>
         <h1 className="my-3 text-base font-bold text-blue-700">Your transaction is in progress.</h1>
         <h1 className="mb-3 text-base text-blue-700">
-          {selectedNetwork === Networks.AssetHub
-            ? 'This usually takes 4-6 minutes.'
-            : 'This usually takes 6-8 minutes.'}
+          {!isNetworkEVM(selectedNetwork) ? 'This usually takes 4-6 minutes.' : 'This usually takes 6-8 minutes.'}
         </h1>
         <div>{message}</div>
       </div>

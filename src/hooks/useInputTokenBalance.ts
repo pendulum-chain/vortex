@@ -9,21 +9,24 @@ import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
 import { useVortexAccount } from './useVortexAccount';
+import { useNetwork } from '../contexts/network';
+import { getNetworkId } from '../helpers/networks';
 
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
   fromToken: InputTokenDetails | undefined,
 ): string | undefined => {
   const { address } = useVortexAccount();
+  const { selectedNetwork } = useNetwork();
 
   const { data: balance } = useReadContract({
     address: tokenAddress,
     abi: erc20ABI,
     functionName: 'balanceOf',
     args: [address],
+    chainId: getNetworkId(selectedNetwork),
   });
-
-  if (!fromToken || !balance) return undefined;
+  if (!fromToken || (!balance && balance !== BigInt(0))) return undefined;
   return multiplyByPowerOfTen(Big(balance.toString()), -fromToken.decimals).toFixed(2, 0);
 };
 
@@ -36,7 +39,6 @@ const useAssetHubBalance = (assetId?: number): string | undefined => {
     if (!walletAccount || !assetHubNode) return;
 
     if (!assetId) {
-      console.log('Invalid assetId', assetId);
       setBalance('0');
       return;
     }

@@ -3,55 +3,72 @@ import { FC } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { SigningPhase } from '../../hooks/offramp/useMainProcess';
-import { Networks, useNetwork } from '../../contexts/network';
+import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 
-interface ProgressConfig {
+type ProgressStep = {
   started: string;
   signed: string;
   finished: string;
   approved: string;
-}
-
-const PROGRESS_CONFIG: Record<Networks, ProgressConfig> = {
-  [Networks.AssetHub]: {
-    started: '33',
-    finished: '100',
-    signed: '0',
-    approved: '0',
-  },
-  [Networks.Polygon]: {
-    started: '25',
-    approved: '50',
-    signed: '75',
-    finished: '100',
-  },
 };
 
-const SIGNATURE_CONFIG = {
-  [Networks.AssetHub]: {
-    maxSignatures: 1,
-    getSignatureNumber: () => '1',
-  },
-  [Networks.Polygon]: {
-    maxSignatures: 2,
-    getSignatureNumber: (step: SigningPhase) => (step === 'started' ? '1' : '2'),
-  },
+type SignatureConfig = {
+  maxSignatures: number;
+  getSignatureNumber: (step: SigningPhase) => string;
+};
+
+const EVM_PROGRESS_CONFIG: ProgressStep = {
+  started: '25',
+  approved: '50',
+  signed: '75',
+  finished: '100',
+};
+
+const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
+  started: '33',
+  finished: '100',
+  signed: '0',
+  approved: '0',
+};
+
+const EVM_SIGNATURE_CONFIG: SignatureConfig = {
+  maxSignatures: 2,
+  getSignatureNumber: (step: SigningPhase) => (step === 'started' ? '1' : '2'),
+};
+
+const NON_EVM_SIGNATURE_CONFIG: SignatureConfig = {
+  maxSignatures: 1,
+  getSignatureNumber: () => '1',
+};
+
+const getProgressConfig = (network: Networks): ProgressStep => {
+  return isNetworkEVM(network) ? EVM_PROGRESS_CONFIG : NON_EVM_PROGRESS_CONFIG;
+};
+
+const getSignatureConfig = (network: Networks): SignatureConfig => {
+  return isNetworkEVM(network) ? EVM_SIGNATURE_CONFIG : NON_EVM_SIGNATURE_CONFIG;
 };
 
 interface SigningBoxProps {
   step?: SigningPhase;
 }
 
+const isValidStep = (step: SigningPhase | undefined, network: Networks): step is SigningPhase => {
+  if (!step) return false;
+  if (!['started', 'approved', 'signed'].includes(step)) return false;
+  if (!isNetworkEVM(network) && (step === 'approved' || step === 'signed')) return false;
+  return true;
+};
+
 export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const { selectedNetwork } = useNetwork();
 
-  if (!step) return null;
-  if (!['started', 'approved', 'signed'].includes(step)) return null;
-  if (selectedNetwork === Networks.AssetHub && (step === 'approved' || step === 'signed')) return null;
+  if (!isValidStep(step, selectedNetwork)) return null;
 
-  const progressValue = PROGRESS_CONFIG[selectedNetwork][step] || '0';
-  const { maxSignatures, getSignatureNumber } = SIGNATURE_CONFIG[selectedNetwork];
+  const progressValue = getProgressConfig(selectedNetwork)[step];
+  const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);
 
   return (
     <section className="z-50 toast toast-end">

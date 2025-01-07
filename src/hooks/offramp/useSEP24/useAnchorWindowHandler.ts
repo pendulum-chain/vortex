@@ -4,14 +4,19 @@ import Big from 'big.js';
 import { useNetwork } from '../../../contexts/network';
 
 import { constructInitialState } from '../../../services/offrampingFlow';
-import { sep24Second } from '../../../services/anchor';
+import { sep24Second } from '../../../services/anchor/sep24/second';
 
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 
-import { UseSEP24StateReturn } from './useSEP24State';
 import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
 import { useOfframpActions } from '../../../stores/offrampStore';
+import {
+  useSep24Actions,
+  useSep24InitialResponse,
+  useSep24AnchorSessionParams,
+  useSep24ExecutionInput,
+} from '../../../stores/sep24Store';
 import { useVortexAccount } from '../../useVortexAccount';
 
 const handleAmountMismatch = (setOfframpingStarted: (started: boolean) => void): void => {
@@ -24,14 +29,18 @@ const handleError = (error: unknown, setOfframpingStarted: (started: boolean) =>
   setOfframpingStarted(false);
 };
 
-export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupFn: () => void) => {
+export const useAnchorWindowHandler = () => {
   const { trackKYCStarted, trackKYCCompleted } = useTrackSEP24Events();
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
-
-  const { firstSep24Response, anchorSessionParams, executionInput } = sep24State;
   const { address } = useVortexAccount();
+
+  const firstSep24Response = useSep24InitialResponse();
+  const anchorSessionParams = useSep24AnchorSessionParams();
+
+  const executionInput = useSep24ExecutionInput();
+  const { cleanup: cleanupSep24State } = useSep24Actions();
 
   return useCallback(async () => {
     if (!firstSep24Response || !anchorSessionParams || !executionInput) {
@@ -44,7 +53,7 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
     }
 
     trackKYCStarted(executionInput, selectedNetwork);
-    cleanupFn();
+    cleanupSep24State();
 
     try {
       const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
@@ -78,11 +87,11 @@ export const useAnchorWindowHandler = (sep24State: UseSEP24StateReturn, cleanupF
     executionInput,
     pendulumNode,
     trackKYCStarted,
-    cleanupFn,
-    trackKYCCompleted,
     selectedNetwork,
-    setOfframpStarted,
-    updateOfframpHookStateFromState,
+    cleanupSep24State,
     address,
+    trackKYCCompleted,
+    updateOfframpHookStateFromState,
+    setOfframpStarted,
   ]);
 };

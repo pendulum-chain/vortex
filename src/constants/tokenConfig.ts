@@ -1,5 +1,5 @@
 import { AssetIconType } from '../hooks/useGetAssetIcon';
-import { Networks } from '../contexts/network';
+import { Networks } from '../helpers/networks';
 
 export interface BaseInputTokenDetails {
   assetSymbol: string;
@@ -7,6 +7,7 @@ export interface BaseInputTokenDetails {
   pendulumErc20WrapperAddress: string;
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
+  pendulumDecimals: number;
   networkAssetIcon: AssetIconType;
   network: Networks;
 }
@@ -68,6 +69,7 @@ const PENDULUM_USDC_AXL = {
   pendulumErc20WrapperAddress: '6eMCHeByJ3m2yPsXFkezBfCQtMs3ymUPqtAyCA41mNWmbNJe',
   pendulumCurrencyId: { XCM: 12 },
   pendulumAssetSymbol: 'USDC.axl',
+  pendulumDecimals: 6,
 };
 
 const PENDULUM_USDC_ASSETHUB = {
@@ -75,6 +77,7 @@ const PENDULUM_USDC_ASSETHUB = {
   pendulumCurrencyId: { XCM: 2 },
   foreignAssetId: 1337, // USDC on AssetHub
   pendulumAssetSymbol: 'USDC',
+  pendulumDecimals: 6,
 };
 
 export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType, InputTokenDetails>>> = {
@@ -103,6 +106,111 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'polygonUSDT',
       decimals: 6,
       network: Networks.Polygon,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  Ethereum: {
+    usdc: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC on Ethereum
+      networkAssetIcon: 'ethereumUSDC',
+      decimals: 6,
+      network: Networks.Ethereum,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+
+    usdt: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT on Ethereum
+      networkAssetIcon: 'ethereumUSDT',
+      decimals: 6,
+      network: Networks.Ethereum,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  BSC: {
+    usdc: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC on BSC
+      networkAssetIcon: 'bscUSDC',
+      decimals: 18,
+      network: Networks.BSC,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+
+    usdt: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC
+      networkAssetIcon: 'bscUSDT',
+      decimals: 18,
+      network: Networks.BSC,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  Arbitrum: {
+    usdc: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // USDC on Arbitrum
+      networkAssetIcon: 'arbitrumUSDC',
+      decimals: 6,
+      network: Networks.Arbitrum,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+
+    usdt: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', // USDT on Arbitrum
+      networkAssetIcon: 'arbitrumUSDT',
+      decimals: 6,
+      network: Networks.Arbitrum,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  Base: {
+    usdc: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+      networkAssetIcon: 'baseUSDC',
+      decimals: 6,
+      network: Networks.Base,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+
+    usdt: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2', // USDT on Base
+      networkAssetIcon: 'baseUSDT',
+      decimals: 6,
+      network: Networks.Base,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  Avalanche: {
+    usdc: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', // USDC on Avalanche
+      networkAssetIcon: 'avalancheUSDC',
+      decimals: 6,
+      network: Networks.Avalanche,
+      type: InputTokenTypes.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+
+    usdt: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7', // USDT on Avalanche
+      networkAssetIcon: 'avalancheUSDT',
+      decimals: 6,
+      network: Networks.Avalanche,
       type: InputTokenTypes.Evm,
       ...PENDULUM_USDC_AXL,
     },

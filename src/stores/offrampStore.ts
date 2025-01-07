@@ -34,8 +34,8 @@ const useOfframpStore = create<OfframpStore>()((set) => ({
       set({ offrampState: state });
     },
 
-    resetOfframpState: async () => {
-      await clearOfframpingState();
+    resetOfframpState: () => {
+      clearOfframpingState();
       set({
         offrampStarted: false,
         offrampInitiating: false,

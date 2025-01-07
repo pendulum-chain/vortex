@@ -1,18 +1,10 @@
-import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { NetworkIcon } from '../NetworkIcon';
-import { NetworkIconType } from '../../hooks/useGetNetworkIcon';
-import { Networks, useNetwork } from '../../contexts/network';
 import { useState, useRef, useEffect } from 'preact/hooks';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const NETWORK_DISPLAY_NAMES: Record<Networks, string> = {
-  [Networks.AssetHub]: 'Polkadot AssetHub',
-  [Networks.Polygon]: 'Polygon',
-};
-
-function networkToDisplayName(network: Networks): string {
-  return NETWORK_DISPLAY_NAMES[network] ?? network;
-}
+import { Networks, getNetworkDisplayName, getNetworkId } from '../../helpers/networks';
+import { useNetwork } from '../../contexts/network';
+import { NetworkIcon } from '../NetworkIcon';
 
 interface NetworkButtonProps {
   selectedNetwork: Networks;
@@ -31,8 +23,8 @@ const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkBu
     whileTap={{ scale: disabled ? 1 : 0.98 }}
     disabled={disabled}
   >
-    <NetworkIcon chainId={selectedNetwork} className={`w-5 h-5 ${disabled ? 'opacity-50' : ''}`} />
-    <span className={`hidden sm:block ${disabled ? 'opacity-50' : ''}`}>{networkToDisplayName(selectedNetwork)}</span>
+    <NetworkIcon network={selectedNetwork} className={`w-5 h-5 ${disabled ? 'opacity-50' : ''}`} />
+    <span className={`hidden sm:block ${disabled ? 'opacity-50' : ''}`}>{getNetworkDisplayName(selectedNetwork)}</span>
     <motion.div
       animate={{ rotate: isOpen ? 180 : 0 }}
       transition={{ duration: 0.2 }}
@@ -45,7 +37,7 @@ const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkBu
 
 interface NetworkDropdownProps {
   isOpen: boolean;
-  onNetworkSelect: (networkId: NetworkIconType) => void;
+  onNetworkSelect: (network: Networks) => void;
   disabled?: boolean;
 }
 
@@ -60,16 +52,19 @@ const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownP
         className="absolute z-50 w-48 p-2 mt-2 shadow-lg bg-base-100 rounded-box whitespace-nowrap"
         layout
       >
-        {Object.values(Networks).map((networkId) => (
-          <button
-            key={networkId}
-            onClick={() => onNetworkSelect(networkId)}
-            className="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-base-200"
-          >
-            <NetworkIcon chainId={networkId} className="w-5 h-5" />
-            <span>{networkToDisplayName(networkId)}</span>
-          </button>
-        ))}
+        {Object.values(Networks).map((network) => {
+          const networkId = getNetworkId(network);
+          return (
+            <button
+              key={networkId}
+              onClick={() => onNetworkSelect(network)}
+              className="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-base-200"
+            >
+              <NetworkIcon network={network} className="w-5 h-5" />
+              <span>{getNetworkDisplayName(network)}</span>
+            </button>
+          );
+        })}
       </motion.div>
     )}
   </AnimatePresence>
@@ -95,8 +90,8 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
 
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
-  const handleNetworkSelect = (networkId: NetworkIconType) => {
-    setSelectedNetwork(networkId);
+  const handleNetworkSelect = (network: Networks) => {
+    setSelectedNetwork(network);
     setIsOpen(false);
   };
 
