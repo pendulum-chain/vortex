@@ -9,20 +9,24 @@ interface SignInModalProps {
 }
 
 export const SignInModal: FC<SignInModalProps> = ({ signingPending, closeModal, handleSignIn }) => {
-  const [waitingForWallet, setWaitingForWallet] = useState(false);
+  const [waitingForWallet, setWaitingForWallet] = useState(true);
 
-  const onSignMessage = () => {
-    setWaitingForWallet(true);
-    handleSignIn();
-  };
+  // const onSignMessage = () => {
+  //   setWaitingForWallet(true);
+  //   handleSignIn();
+  // };
 
   if (!signingPending) {
     return null;
   }
 
-  // We reset the waiting state when the signing process is finished, or failed.
+  // Legacy setWaitingForWallet to true on signingPending change.
+  // Confirm button then triggers immediate handleSignIn.
   useEffect(() => {
-    setWaitingForWallet(false);
+    setWaitingForWallet(true);
+    if (signingPending) {
+      handleSignIn();
+    }
   }, [signingPending]);
 
   return (
@@ -43,7 +47,7 @@ export const SignInModal: FC<SignInModalProps> = ({ signingPending, closeModal, 
         )}
       </Modal.Body>
       <Modal.Actions className="justify-end">
-        <button
+        {/* <button
           className={`btn btn-primary flex items-center justify-center gap-2`}
           onClick={onSignMessage}
           disabled={waitingForWallet}
@@ -55,7 +59,7 @@ export const SignInModal: FC<SignInModalProps> = ({ signingPending, closeModal, 
             ></div>
           )}
           {waitingForWallet ? 'Awaiting Wallet' : 'Sign Message'}
-        </button>
+        </button> */}
         <button className="btn" onClick={closeModal}>
           Cancel
         </button>
