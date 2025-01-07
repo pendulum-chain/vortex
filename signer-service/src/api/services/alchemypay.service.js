@@ -190,6 +190,14 @@ function getAlchemyPayNetworkCode(network) {
   switch (network.toUpperCase()) {
     case 'POLYGON':
       return 'MATIC';
+    case 'BSC':
+      return 'BSC';
+    case 'ARBITRUM':
+      return 'ARBITRUM';
+    case 'AVALANCHE':
+      return 'AVAX';
+    case 'ETHEREUM':
+      return 'ETH';
     default:
       return network;
   }

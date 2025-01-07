@@ -1,6 +1,6 @@
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
@@ -28,18 +28,17 @@ import {
 import { config } from '../../config';
 
 import { useEventsContext } from '../../contexts/events';
-import { Networks, useNetwork } from '../../contexts/network';
+import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
+import { isNetworkEVM, Networks } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
-import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
-import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { initialChecks } from '../../services/initialChecks';
@@ -55,6 +54,8 @@ import {
   useOfframpStarted,
   useOfframpInitiating,
 } from '../../stores/offrampStore';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
@@ -70,7 +71,7 @@ export const SwapPage = () => {
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
-  const [initializeFailed, setInitializeFailed] = useState(false);
+  const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
@@ -91,19 +92,27 @@ export const SwapPage = () => {
     }
   }, [pendulumNode]);
 
+  // Maybe go into a state of UI errors??
+  const setInitializeFailed = useCallback((message?: string | null) => {
+    setInitializeFailedMessage(
+      message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
+    );
+  }, []);
+
   useEffect(() => {
     const initialize = async () => {
       try {
         await initialChecks();
         setIsReady(true);
       } catch (error) {
-        setInitializeFailed(true);
+        setInitializeFailed();
       }
     };
 
     initialize();
-  }, []);
+  }, [setInitializeFailed]);
 
+  // Main process hook
   const {
     handleOnSubmit,
     finishOfframping,
@@ -208,9 +217,8 @@ export const SwapPage = () => {
   }, []);
 
   useEffect(() => {
-    if (offrampState?.phase !== undefined) {
-      setNetworkSelectorDisabled(true);
-    }
+    const isNetworkSelectorDisabled = offrampState?.phase !== undefined;
+    setNetworkSelectorDisabled(isNetworkSelectorDisabled);
   }, [offrampState, setNetworkSelectorDisabled]);
 
   const ReceiveNumericInput = useMemo(
@@ -329,7 +337,7 @@ export const SwapPage = () => {
 
   if (offrampState !== undefined || offrampStarted) {
     const isAssetHubFlow =
-      selectedNetwork === Networks.AssetHub &&
+      !isNetworkEVM(selectedNetwork) &&
       (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubXCM');
     const showMainScreenAnyway =
       offrampState === undefined ||
@@ -400,10 +408,8 @@ export const SwapPage = () => {
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
         <section className="flex justify-center w-full mt-5">
-          {(initializeFailed || apiInitializeFailed) && (
-            <p className="text-red-600">
-              Application initialization failed. Please reload, or try again later if the problem persists.
-            </p>
+          {(initializeFailedMessage || apiInitializeFailed) && (
+            <p className="text-red-600">{initializeFailedMessage}</p>
           )}
         </section>
         <section className="w-full mt-5">
@@ -445,7 +451,7 @@ export const SwapPage = () => {
           ) : (
             <SwapSubmitButton
               text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || initializeFailed}
+              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
               pending={offrampInitiating || offrampStarted || offrampState !== undefined}
             />
           )}
@@ -459,7 +465,7 @@ export const SwapPage = () => {
           amount={fromAmount}
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
-          network={Networks.Polygon}
+          network={selectedNetwork}
         />
       )}
       <TrustedBy />

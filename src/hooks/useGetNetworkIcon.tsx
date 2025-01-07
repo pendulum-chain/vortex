@@ -1,14 +1,23 @@
 import ASSET_HUB from '../assets/chains/assetHub.svg';
 import POLYGON from '../assets/chains/polygon.svg';
-import { Networks } from '../contexts/network';
+import ETHEREUM from '../assets/chains/ethereum.svg';
+import BSC from '../assets/chains/bsc.svg';
+import ARBITRUM from '../assets/chains/arbitrum.svg';
+import BASE from '../assets/chains/base.svg';
+import AVALANCHE from '../assets/chains/avalanche.svg';
 
-export const NETWORK_ICONS = {
+import { Networks } from '../helpers/networks';
+
+export const NETWORK_ICONS: Record<Networks, string> = {
   [Networks.AssetHub]: ASSET_HUB,
   [Networks.Polygon]: POLYGON,
+  [Networks.Ethereum]: ETHEREUM,
+  [Networks.BSC]: BSC,
+  [Networks.Arbitrum]: ARBITRUM,
+  [Networks.Base]: BASE,
+  [Networks.Avalanche]: AVALANCHE,
 };
 
-export type NetworkIconType = keyof typeof NETWORK_ICONS;
-
-export function useGetNetworkIcon(networkIcon: NetworkIconType) {
-  return NETWORK_ICONS[networkIcon];
+export function useGetNetworkIcon(network: Networks) {
+  return NETWORK_ICONS[network];
 }

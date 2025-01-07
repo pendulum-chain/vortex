@@ -3,6 +3,7 @@ import { ApiPromise } from '@polkadot/api';
 import { InputTokenDetails, OutputTokenDetails } from '../../../../constants/tokenConfig';
 import { getVaultsForCurrency } from '../../../../services/phases/polkadot/spacewalk';
 import { testRoute } from '../../../../services/phases/squidrouter/route';
+import { Networks } from '../../../../helpers/networks';
 
 export const performSwapInitialChecks = async (
   api: ApiPromise,
@@ -12,6 +13,7 @@ export const performSwapInitialChecks = async (
   inputAmountRaw: string,
   address: string,
   requiresSquidRouter: boolean,
+  selectedNetwork: Networks,
 ) => {
   await Promise.all([
     getVaultsForCurrency(
@@ -20,6 +22,6 @@ export const performSwapInitialChecks = async (
       outputToken.stellarAsset.issuer.hex,
       expectedRedeemAmountRaw,
     ),
-    requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address) : Promise.resolve(),
+    requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address, selectedNetwork) : Promise.resolve(),
   ]);
 };

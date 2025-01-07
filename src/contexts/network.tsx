@@ -1,20 +1,15 @@
 import { createContext } from 'preact';
 import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
 import { useSwitchChain } from 'wagmi';
-
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
-
-export enum Networks {
-  AssetHub = 'AssetHub',
-  Polygon = 'Polygon',
-}
+import { useOfframpActions } from '../stores/offrampStore';
+import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
   selectedNetwork: Networks;
   setSelectedNetwork: (network: Networks) => void;
-  setOnSelectedNetworkChange: (callback: (network: Networks) => void) => void;
   networkSelectorDisabled: boolean;
   setNetworkSelectorDisabled: (disabled: boolean) => void;
 }
@@ -23,7 +18,6 @@ const NetworkContext = createContext<NetworkContextType>({
   walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
   selectedNetwork: Networks.AssetHub,
   setSelectedNetwork: () => null,
-  setOnSelectedNetworkChange: () => null,
   networkSelectorDisabled: false,
   setNetworkSelectorDisabled: () => null,
 });
@@ -39,25 +33,26 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   });
 
   const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(selectedNetworkLocalStorage);
-  const [onNetworkChange, setOnSelectedNetworkChange] = useState<((network: Networks) => void) | undefined>();
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
-  const { chains, switchChain } = useSwitchChain();
+
+  const { resetOfframpState } = useOfframpActions();
+  const { switchChain } = useSwitchChain();
 
   const setSelectedNetwork = useCallback(
-    (networkId: Networks) => {
-      if (onNetworkChange) {
-        //onNetworkChange(networkId);
-      }
-      setSelectedNetworkState(networkId);
-      setSelectedNetworkLocalStorage(networkId);
-      const chain = chains.find((c) => c.id === Number(networkId));
-      if (chain) {
-        switchChain({ chainId: chain.id });
+    (network: Networks) => {
+      resetOfframpState();
+      setSelectedNetworkState(network);
+      setSelectedNetworkLocalStorage(network);
+
+      // Will only switch chain on the EVM conneted wallet case.
+      if (isNetworkEVM(network)) {
+        switchChain({ chainId: getNetworkId(network) });
       }
     },
-    [switchChain, chains, setSelectedNetworkLocalStorage, onNetworkChange],
+    [switchChain, setSelectedNetworkLocalStorage, resetOfframpState],
   );
 
+  // Only run on first render
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const networkParam = params.get('network')?.toLowerCase();
@@ -79,7 +74,6 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         setSelectedNetwork,
         networkSelectorDisabled,
         setNetworkSelectorDisabled,
-        setOnSelectedNetworkChange,
       }}
     >
       {children}

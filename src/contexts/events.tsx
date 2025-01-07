@@ -7,12 +7,11 @@ import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
 import { useVortexAccount } from '../hooks/useVortexAccount';
-import { Networks } from './network';
+import { Networks } from '../helpers/networks';
 
 declare global {
   interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dataLayer: Record<string, any>[];
+    dataLayer: TrackableEvent[];
   }
 }
 

@@ -19,8 +19,12 @@ interface MobileMenuProps {
 }
 
 const MobileMenu: FC<MobileMenuProps> = ({ onClick }) => (
-  <button className="ml-2 bg-pink-600 btn btn-square btn-ghost lg:hidden" type="button" onClick={onClick}>
-    <Bars4Icon className="w-8 text-white" />
+  <button
+    className="ml-2 bg-pink-600 group btn-vortex-secondary btn btn-circle lg:hidden"
+    type="button"
+    onClick={onClick}
+  >
+    <Bars4Icon className="w-6 text-white group-hover:text-pink-600" />
   </button>
 );
 
@@ -59,7 +63,7 @@ const MobileMenuList: FC<MobileMenuListProps> = ({ showMenu, closeMenu }) => (
         exit="exit"
         variants={menuVariants}
       >
-        <button onClick={closeMenu} className="absolute right-6 top-8">
+        <button onClick={closeMenu} className="absolute right-12 top-7">
           <XMarkIcon className="w-8 text-white" />
         </button>
         <nav>
@@ -83,7 +87,7 @@ const Links = () => (
           href={link.href}
           target={link.href.startsWith('https') ? '_blank' : ''}
           rel={link.href.startsWith('https') ? 'noreferrer' : ''}
-          className="px-3 text-lg font-thin text-white lg:px-4 lg:text-xl lg:px-7 hover:text-amber-500 hover:underline"
+          className="px-3 text-lg font-thin text-white lg:px-4 xl:px-7 hover:text-amber-500 hover:underline"
         >
           {link.title}
         </a>
@@ -100,7 +104,7 @@ export const Navbar = () => {
     <header className="flex items-center justify-between px-4 py-4 bg-blue-950 md:py-5 md:px-10">
       <div className="flex">
         <a href="https://www.vortexfinance.co/" target="_blank" rel="noreferrer" className="flex text-slate-400">
-          <img src={whiteLogo} alt="Vortex Logo" className="mr-1 max-w-26 max-h-6 lg:max-w-52 lg:max-h-12" />
+          <img src={whiteLogo} alt="Vortex Logo" className="mr-1 max-h-6 lg:max-h-8 xl:max-h-12" />
           Alpha
         </a>
         <nav className="hidden m-auto lg:block">
