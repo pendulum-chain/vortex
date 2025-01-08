@@ -4,19 +4,17 @@ import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 
 const { spreadsheet } = config;
 
-// Define header values as a const enum for type safety and zero runtime overhead
 const enum EmailSheetHeaders {
   Timestamp = 'timestamp',
   Email = 'email',
   TransactionId = 'transactionId',
 }
 
-// Type-safe array of header values
 const EMAIL_SHEET_HEADER_VALUES = [
   EmailSheetHeaders.Timestamp,
   EmailSheetHeaders.Email,
   EmailSheetHeaders.TransactionId,
-] as const;
+];
 
 export { EMAIL_SHEET_HEADER_VALUES };
 

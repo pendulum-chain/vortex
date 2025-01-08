@@ -18,10 +18,6 @@ interface XcmPayload {
   payload: string;
 }
 
-interface ExecuteXcmResponse {
-  hash: Hash;
-}
-
 interface StatusResponse {
   status: boolean;
   public: Address | undefined;
