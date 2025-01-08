@@ -1,22 +1,48 @@
-const { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } = require('stellar-sdk');
-const {
+import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } from 'stellar-sdk';
+import {
   HORIZON_URL,
   FUNDING_SECRET,
   STELLAR_FUNDING_AMOUNT_UNITS,
   STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
-} = require('../../constants/constants');
-const { TOKEN_CONFIG, getTokenConfigByAssetCode } = require('../../constants/tokenConfig');
-const { SlackNotifier } = require('./slack.service');
+} from '../../constants/constants';
+import { StellarTokenConfig, TOKEN_CONFIG, getTokenConfigByAssetCode } from '../../constants/tokenConfig';
+import { SlackNotifier } from './slack.service';
 
-// Derive funding pk
-const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET).publicKey();
+interface PaymentData {
+  amount: string;
+  memo: string;
+  memoType: 'text' | 'hash';
+  offrampingAccount: string;
+}
+
+interface CreationTxResult {
+  signature: string[];
+  sequence: string;
+}
+
+interface PaymentTxResult {
+  signature: string[];
+}
+
+interface StatusResult {
+  status: boolean;
+  public: string;
+}
+
+// Constants
+const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET || '').publicKey();
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime, assetCode, baseFee) {
-  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
-  if (tokenConfig === undefined) {
-    console.error('ERROR: Invalid asset id or configuration not found');
+async function buildCreationStellarTx(
+  fundingSecret: string,
+  ephemeralAccountId: string,
+  maxTime: number,
+  assetCode: string,
+  baseFee: string,
+): Promise<CreationTxResult> {
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode) as StellarTokenConfig;
+  if (!tokenConfig) {
     throw new Error('Invalid asset id or configuration not found');
   }
 
@@ -61,36 +87,24 @@ async function buildCreationStellarTx(fundingSecret, ephemeralAccountId, maxTime
 }
 
 async function buildPaymentAndMergeTx(
-  fundingSecret,
-  ephemeralAccountId,
-  ephemeralSequence,
-  paymentData,
-  maxTime,
-  assetCode,
-  baseFee,
-) {
+  fundingSecret: string,
+  ephemeralAccountId: string,
+  ephemeralSequence: string,
+  paymentData: PaymentData,
+  maxTime: number,
+  assetCode: string,
+  baseFee: string,
+): Promise<PaymentTxResult> {
   const ephemeralAccount = new Account(ephemeralAccountId, ephemeralSequence);
   const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
   const { amount, memo, memoType, offrampingAccount } = paymentData;
 
-  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode);
-  if (tokenConfig === undefined) {
+  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode) as StellarTokenConfig;
+  if (!tokenConfig) {
     throw new Error('Invalid asset id or configuration not found');
   }
 
-  let transactionMemo;
-  switch (memoType) {
-    case 'text':
-      transactionMemo = Memo.text(memo);
-      break;
-
-    case 'hash':
-      transactionMemo = Memo.hash(Buffer.from(memo, 'base64'));
-      break;
-
-    default:
-      throw new Error(`Unexpected offramp memo type: ${memoType}`);
-  }
+  const transactionMemo = memoType === 'text' ? Memo.text(memo) : Memo.hash(Buffer.from(memo, 'base64'));
 
   const paymentTransaction = new TransactionBuilder(ephemeralAccount, {
     fee: baseFee,
@@ -133,28 +147,29 @@ async function buildPaymentAndMergeTx(
   };
 }
 
-async function sendStatusWithPk() {
+async function sendStatusWithPk(): Promise<StatusResult> {
   const slackNotifier = new SlackNotifier();
-  let stellarBalance = null;
 
   try {
-    // ensure the funding account exists
     const account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
-    stellarBalance = account.balances.find((balance) => balance.asset_type === 'native');
+    const stellarBalance = account.balances.find(
+      (balance: { asset_type: string; balance: string }) => balance.asset_type === 'native',
+    );
 
-    // ensure we have at the very least 10 XLM in the account
-    if (Number(stellarBalance.balance) < STELLAR_FUNDING_AMOUNT_UNITS) {
-      slackNotifier.sendMessage({
-        text: `Current balance of funding account is ${stellarBalance.balance} XLM please charge the account ${FUNDING_PUBLIC_KEY}.`,
+    if (!stellarBalance || Number(stellarBalance.balance) < Number(STELLAR_FUNDING_AMOUNT_UNITS)) {
+      await slackNotifier.sendMessage({
+        text: `Current balance of funding account is ${
+          stellarBalance?.balance ?? 0
+        } XLM please charge the account ${FUNDING_PUBLIC_KEY}.`,
       });
       return { status: false, public: FUNDING_PUBLIC_KEY };
     }
 
     return { status: true, public: FUNDING_PUBLIC_KEY };
   } catch (error) {
-    console.error("Couldn't load Stellar account: ", error);
+    console.error("Couldn't load Stellar account:", error);
     return { status: false, public: FUNDING_PUBLIC_KEY };
   }
 }
 
-module.exports = { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };
+export { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };
