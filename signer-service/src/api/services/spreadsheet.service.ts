@@ -3,7 +3,7 @@ import { JWT } from 'google-auth-library';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
-interface GoogleCredentials {
+export interface GoogleCredentials {
   email: string;
   key: string;
 }
@@ -14,7 +14,10 @@ interface SpreadsheetService {
   appendData: (sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>) => Promise<void>;
 }
 
-const initGoogleSpreadsheet = async (sheetId: string, credentials: GoogleCredentials): Promise<GoogleSpreadsheet> => {
+export const initGoogleSpreadsheet = async (
+  sheetId: string,
+  credentials: GoogleCredentials,
+): Promise<GoogleSpreadsheet> => {
   if (!credentials.email || !credentials.key) {
     throw new Error('Missing required Google credentials');
   }
@@ -36,7 +39,7 @@ const initGoogleSpreadsheet = async (sheetId: string, credentials: GoogleCredent
   }
 };
 
-const getOrCreateSheet = async (
+export const getOrCreateSheet = async (
   doc: GoogleSpreadsheet,
   headerValues: string[],
 ): Promise<GoogleSpreadsheetWorksheet> => {
@@ -64,7 +67,7 @@ const getOrCreateSheet = async (
   }
 };
 
-const appendData = async (sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>): Promise<void> => {
+export const appendData = async (sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>): Promise<void> => {
   await sheet.addRow(data);
 };
 

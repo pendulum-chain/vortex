@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { config } from '../../config/vars';
 import { initGoogleSpreadsheet, getOrCreateSheet, appendData } from '../services/spreadsheet.service';
 import APIError from '../errors/api-error';
+import { GoogleCredentials } from '../services/spreadsheet.service';
 
 type SheetHeaderValues = readonly string[];
 
@@ -22,8 +23,14 @@ export async function storeDataInGoogleSpreadsheet(
   sheetHeaderValues: SheetHeaderValues,
 ): Promise<Response<SpreadsheetResponse | SpreadsheetErrorResponse>> {
   try {
-    const sheet = await initGoogleSpreadsheet(spreadsheetId, config.spreadsheet.googleCredentials).then((doc) =>
-      getOrCreateSheet(doc, sheetHeaderValues),
+    // Ensure credentials are fully defined
+    const credentials: GoogleCredentials = {
+      email: config.spreadsheet.googleCredentials.email ?? '',
+      key: config.spreadsheet.googleCredentials.key ?? '',
+    };
+
+    const sheet = await initGoogleSpreadsheet(spreadsheetId, credentials).then((doc) =>
+      getOrCreateSheet(doc, [...sheetHeaderValues]),
     );
 
     if (!sheet) {

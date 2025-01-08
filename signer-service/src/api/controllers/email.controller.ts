@@ -21,5 +21,8 @@ const EMAIL_SHEET_HEADER_VALUES = [
 export { EMAIL_SHEET_HEADER_VALUES };
 
 export const storeEmail = async (req: Request, res: Response): Promise<void> => {
+  if (!spreadsheet.emailSheetId) {
+    throw new Error('Email sheet ID is not configured');
+  }
   await storeDataInGoogleSpreadsheet(req, res, spreadsheet.emailSheetId, EMAIL_SHEET_HEADER_VALUES);
 };
