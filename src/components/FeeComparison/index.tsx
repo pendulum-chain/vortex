@@ -185,9 +185,9 @@ export function FeeComparison({
   useEffect(() => {
     if (enabled) {
       const feeComparisonElement = document.getElementById('feeComparison');
-      if (feeComparissonElement) {
+      if (feeComparisonElement) {
         setTimeout(() => {
-          window.scrollTo({ top: feeComparissonElement.offsetTop, behavior: 'smooth' });
+          window.scrollTo({ top: feeComparisonElement.offsetTop, behavior: 'smooth' });
         }, 300);
       }
     }
@@ -199,7 +199,7 @@ export function FeeComparison({
 
   return (
     <div
-      id="feeComparisson"
+      id="feeComparison"
       className="flex flex-col items-center max-w-4xl px-4 py-8 rounded-lg md:flex-row gap-x-8 gap-y-8 md:mx-auto md:w-3/4"
     >
       <div className="w-full gap-6 overflow-auto grow">
