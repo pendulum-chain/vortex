@@ -1,5 +1,13 @@
-const httpStatus = require('http-status');
-const ExtendableError = require('./extendable-error');
+import httpStatus from 'http-status';
+import ExtendableError from './extendable-error';
+
+interface APIErrorParams {
+  message: string;
+  errors?: unknown[];
+  stack?: string;
+  status?: number;
+  isPublic?: boolean;
+}
 
 /**
  * Class representing an API error.
@@ -12,7 +20,7 @@ class APIError extends ExtendableError {
    * @param {number} status - HTTP status code of error.
    * @param {boolean} isPublic - Whether the message should be visible to user or not.
    */
-  constructor({ message, errors, stack, status = httpStatus.INTERNAL_SERVER_ERROR, isPublic = false }) {
+  constructor({ message, errors, stack, status = httpStatus.INTERNAL_SERVER_ERROR, isPublic = false }: APIErrorParams) {
     super({
       message,
       errors,
@@ -23,4 +31,4 @@ class APIError extends ExtendableError {
   }
 }
 
-module.exports = APIError;
+export default APIError;
