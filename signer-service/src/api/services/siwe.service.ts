@@ -42,7 +42,10 @@ const verifySiweMessage = async (
 
   const siweMessage = existingSiweDataForNonce.siweMessage
     ? existingSiweDataForNonce.siweMessage
-    : SignInMessage.fromMessage(initialSiweMessage);
+    : initialSiweMessage
+    ? SignInMessage.fromMessage(initialSiweMessage)
+    : undefined;
+
   const { address } = existingSiweDataForNonce;
 
   if (!siweMessage) {
