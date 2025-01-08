@@ -1,6 +1,5 @@
 import Big from 'big.js';
-import { useMemo, useState } from 'preact/hooks';
-import { useEffect, useRef } from 'preact/compat';
+import { useEffect, useRef, useMemo } from 'preact/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
@@ -10,12 +9,21 @@ import { Skeleton } from '../Skeleton';
 import { QuoteProvider, quoteProviders } from './quoteProviders';
 import { OfframpingParameters, useEventsContext } from '../../contexts/events';
 
-type FeeProviderRowProps = Omit<FeeComparisonProps, 'enabled'> & { provider: QuoteProvider };
+interface BaseComparisonProps {
+  amount: Big;
+  sourceAssetSymbol: string;
+  targetAssetSymbol: string;
+  vortexPrice: Big;
+  network: Networks;
+}
 
-function VortexRow({
-  targetAssetSymbol,
-  vortexPrice,
-}: Omit<FeeProviderRowProps, 'provider' | 'sourceAssetSymbol' | 'amount'>) {
+interface FeeComparisonProps extends BaseComparisonProps {
+  enabled: boolean;
+}
+
+type VortexRowProps = Pick<BaseComparisonProps, 'targetAssetSymbol' | 'vortexPrice'>;
+
+function VortexRow({ targetAssetSymbol, vortexPrice }: VortexRowProps) {
   return (
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center w-full gap-4 ml-4 grow">
@@ -23,11 +31,15 @@ function VortexRow({
       </div>
       <div className="flex items-center justify-center w-full gap-4 grow">
         <div className="flex flex-col items-center">
-          <span className="font-bold text-md">{vortexPrice.toFixed(2) + ' ' + targetAssetSymbol}</span>
+          <span className="font-bold text-md">{`${vortexPrice.toFixed(2)} ${targetAssetSymbol}`}</span>
         </div>
       </div>
     </div>
   );
+}
+
+interface FeeProviderRowProps extends BaseComparisonProps {
+  provider: QuoteProvider;
 }
 
 function FeeProviderRow({
@@ -39,6 +51,9 @@ function FeeProviderRow({
   network,
 }: FeeProviderRowProps) {
   const { scheduleQuote } = useEventsContext();
+  // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
+  // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
+  const prevVortexPrice = useRef<Big>();
 
   const {
     isLoading,
@@ -49,31 +64,26 @@ function FeeProviderRow({
     queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, network),
     retry: false, // We don't want to retry the request to avoid spamming the server
   });
-  // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
-  // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
-  const prevVortexPrice = useRef<Big | undefined>(undefined);
 
   const priceDiff = useMemo(() => {
-    if (isLoading || error || !providerPrice) {
-      return undefined;
-    }
-
+    if (isLoading || error || !providerPrice) return undefined;
     return providerPrice.minus(vortexPrice);
   }, [isLoading, error, providerPrice, vortexPrice]);
 
   useEffect(() => {
-    if (!isLoading && (providerPrice || error)) {
-      const parameters: OfframpingParameters = {
-        from_amount: amount.toFixed(2),
-        from_asset: sourceAssetSymbol,
-        to_amount: vortexPrice.toFixed(2),
-        to_asset: targetAssetSymbol,
-      };
-      if (!prevVortexPrice.current || vortexPrice !== prevVortexPrice.current) {
-        scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
-        prevVortexPrice.current = vortexPrice;
-      }
-    }
+    if (isLoading || (!providerPrice && !error)) return;
+
+    const parameters: OfframpingParameters = {
+      from_amount: amount.toFixed(2),
+      from_asset: sourceAssetSymbol,
+      to_amount: vortexPrice.toFixed(2),
+      to_asset: targetAssetSymbol,
+    };
+
+    if (prevVortexPrice.current?.eq(vortexPrice)) return;
+
+    scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
+    prevVortexPrice.current = vortexPrice;
   }, [
     amount,
     provider.name,
@@ -97,12 +107,12 @@ function FeeProviderRow({
         ) : (
           <div className="flex flex-col items-center">
             <span className="font-bold text-md">
-              {error || !providerPrice ? 'N/A' : providerPrice.toFixed(2) + ' ' + targetAssetSymbol}
+              {error || !providerPrice ? 'N/A' : `${providerPrice.toFixed(2)} ${targetAssetSymbol}`}
             </span>
             {priceDiff && (
               <span className={`flex items-center ${priceDiff.gt(0) ? 'text-green-600' : 'text-red-600'}`}>
-                <ChevronDownIcon className={`w-5 h-5 ${priceDiff.gt(0) ? 'rotate-180' : ''}`} /> {priceDiff.toFixed(2)}{' '}
-                {targetAssetSymbol}
+                <ChevronDownIcon className={`w-5 h-5 ${priceDiff.gt(0) ? 'rotate-180' : ''}`} />
+                {`${priceDiff.toFixed(2)} ${targetAssetSymbol}`}
               </span>
             )}
           </div>
@@ -112,15 +122,9 @@ function FeeProviderRow({
   );
 }
 
-type FeeComparisonTableProps = Omit<FeeComparisonProps, 'enabled'>;
+function FeeComparisonTable(props: BaseComparisonProps) {
+  const { amount, sourceAssetSymbol, network, targetAssetSymbol, vortexPrice } = props;
 
-function FeeComparisonTable({
-  amount,
-  sourceAssetSymbol,
-  targetAssetSymbol,
-  vortexPrice,
-  network,
-}: FeeComparisonTableProps) {
   return (
     <div className="w-full p-4 grow rounded-3xl shadow-custom">
       <div className="flex items-center justify-center w-full mb-3">
@@ -146,60 +150,39 @@ function FeeComparisonTable({
         </div>
       </div>
       <div className="w-full my-4 border-b border-gray-200" />
-      <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} network={network} />
-      {quoteProviders.map((provider, index) => (
-        <>
+      <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
+      {quoteProviders.map((provider) => (
+        <div key={provider.name}>
           <div className="w-full my-4 border-b border-gray-200" />
-          <FeeProviderRow
-            key={index}
-            amount={amount}
-            provider={provider}
-            sourceAssetSymbol={sourceAssetSymbol}
-            targetAssetSymbol={targetAssetSymbol}
-            vortexPrice={vortexPrice}
-            network={network}
-          />
-        </>
+          <FeeProviderRow {...props} provider={provider} />
+        </div>
       ))}
     </div>
   );
 }
 
-interface FeeComparisonProps {
-  amount: Big;
-  sourceAssetSymbol: string;
-  targetAssetSymbol: string;
-  vortexPrice: Big;
-  network: Networks;
-  enabled: boolean;
-}
+export function FeeComparison({ enabled, ...props }: FeeComparisonProps) {
+  const feeComparisonRef = useRef<HTMLDivElement>(null);
 
-export function FeeComparison({
-  amount,
-  sourceAssetSymbol,
-  targetAssetSymbol,
-  vortexPrice,
-  network,
-  enabled,
-}: FeeComparisonProps) {
   useEffect(() => {
-    if (enabled) {
-      const feeComparisonElement = document.getElementById('feeComparison');
-      if (feeComparisonElement) {
-        setTimeout(() => {
-          window.scrollTo({ top: feeComparisonElement.offsetTop, behavior: 'smooth' });
-        }, 300);
-      }
-    }
+    if (!enabled) return;
+    if (!feeComparisonRef.current) return;
+
+    const timer = setTimeout(() => {
+      window.scrollTo({
+        top: feeComparisonRef.current!.offsetTop,
+        behavior: 'smooth',
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [enabled]);
 
-  if (!enabled) {
-    return null;
-  }
+  if (!enabled) return null;
 
   return (
     <div
-      id="feeComparison"
+      ref={feeComparisonRef}
       className="flex flex-col items-center max-w-4xl px-4 py-8 rounded-lg md:flex-row gap-x-8 gap-y-8 md:mx-auto md:w-3/4"
     >
       <div className="w-full gap-6 overflow-auto grow">
@@ -210,13 +193,7 @@ export function FeeComparison({
         </p>
         <p className="mt-4 text-lg">At Vortex, we’ll never do that and show our fees upfront.</p>
       </div>
-      <FeeComparisonTable
-        amount={amount}
-        sourceAssetSymbol={sourceAssetSymbol}
-        targetAssetSymbol={targetAssetSymbol}
-        vortexPrice={vortexPrice}
-        network={network}
-      />
+      <FeeComparisonTable {...props} />
     </div>
   );
 }
