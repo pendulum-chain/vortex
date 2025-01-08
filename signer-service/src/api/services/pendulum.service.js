@@ -8,6 +8,7 @@ const {
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
 } = require('../../constants/constants');
 const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
+const { SlackNotifier } = require('./slack.service');
 
 require('dotenv').config();
 
@@ -18,6 +19,14 @@ function multiplyByPowerOfTen(bigDecimal, power) {
   if (newBigDecimal.c[0] === 0) return newBigDecimal;
 
   newBigDecimal.e += power;
+  return newBigDecimal;
+}
+
+function divideByPowerOfTen(bigDecimal, power) {
+  const newBigDecimal = new Big(bigDecimal);
+  if (newBigDecimal.c[0] === 0) return newBigDecimal;
+
+  newBigDecimal.e -= power;
   return newBigDecimal;
 }
 
@@ -82,7 +91,16 @@ exports.fundEphemeralAccount = async (ephemeralAddress) => {
   }
 };
 
+const ChainDecimals = 12;
+
+const nativeToDecimal = (value, decimals = ChainDecimals) => {
+  const divisor = new Big(10).pow(decimals);
+
+  return value.div(divisor);
+};
+
 exports.sendStatusWithPk = async () => {
+  const slackNotifier = new SlackNotifier();
   const apiData = await createPolkadotApi();
   const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = await apiData.api.query.system.account(fundingAccountKeypair.address);
@@ -109,14 +127,28 @@ exports.sendStatusWithPk = async () => {
       if (remainingMaxSubsidiesAvailable.lt(SUBSIDY_MINIMUM_RATIO_FUND_UNITS)) {
         isTokensSufficient = false;
         console.log(`Token ${token} balance is insufficient.`);
+
+        slackNotifier.sendMessage({
+          text: `Current balance of funding account is ${nativeToDecimal(
+            tokenBalance,
+          ).toString()} ${token} please charge the account ${fundingAccountKeypair.address}.`,
+        });
       }
     }),
   );
 
   const minimumBalanceFundingAccount = multiplyByPowerOfTen(Big(PENDULUM_FUNDING_AMOUNT_UNITS), apiData.decimals);
   const nativeBalance = Big(balance?.free?.toString() ?? '0');
+
   if (nativeBalance.gte(minimumBalanceFundingAccount) && isTokensSufficient) {
     return { status: true, public: fundingAccountKeypair.address };
+  }
+  if (nativeBalance.lt(minimumBalanceFundingAccount)) {
+    slackNotifier.sendMessage({
+      text: `Current balance of funding account is ${nativeToDecimal(
+        nativeBalance,
+      ).toString()} PEN please charge the account ${fundingAccountKeypair.address}.`,
+    });
   }
   return { status: false, public: fundingAccountKeypair.address };
 };

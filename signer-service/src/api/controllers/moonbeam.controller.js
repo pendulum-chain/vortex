@@ -8,6 +8,7 @@ const {
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
 } = require('../../constants/constants');
+const { SlackNotifier } = require('../services/slack.service');
 const splitReceiverABI = require('../../../../mooncontracts/splitReceiverABI.json');
 
 exports.executeXcmController = async (req, res) => {
@@ -54,6 +55,7 @@ exports.executeXcmController = async (req, res) => {
 };
 
 exports.sendStatusWithPk = async () => {
+  const slackService = new SlackNotifier();
   let moonbeamExecutorAccount;
 
   try {
@@ -66,12 +68,16 @@ exports.sendStatusWithPk = async () => {
     const balance = await publicClient.getBalance({ address: moonbeamExecutorAccount.address });
 
     // We are checking if the balance is less than 10 GLMR
-    const minimum_balance = Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18));
-    if (balance < minimum_balance) {
+    const minimumBalance = Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18));
+
+    if (balance < minimumBalance) {
+      slackService.sendMessage({
+        text: `Current balance of funding account is ${balance} GLMR please charge the account ${moonbeamExecutorAccount.address}.`,
+      });
       return { status: false, public: moonbeamExecutorAccount.address };
-    } else {
-      return { status: true, public: moonbeamExecutorAccount.address };
     }
+
+    return { status: true, public: moonbeamExecutorAccount.address };
   } catch (error) {
     console.error('Error fetching Moonbeam executor balance:', error);
     return { status: false, public: moonbeamExecutorAccount?.address };

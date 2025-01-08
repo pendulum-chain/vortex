@@ -9,6 +9,7 @@ docs/
 .lighthouseci/
 **/coins/*
 *.yml
+*.sol
 
 package-lock.json
 package.json
