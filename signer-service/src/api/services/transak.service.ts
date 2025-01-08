@@ -109,11 +109,12 @@ function getFiatCode(toFiat: string): string {
 export const getQuoteFor = (
   fromCrypto: SupportedCrypto,
   toFiat: string,
-  amount: number,
-  network: string,
+  amount: string | number,
+  network?: string,
 ): Promise<QuoteResult> => {
-  const networkCode = getTransakNetworkCode(network);
+  const DEFAULT_NETWORK = 'POLYGON';
+  const networkCode = getTransakNetworkCode(network || DEFAULT_NETWORK);
   const side: Side = 'SELL'; // We always sell our crypto for fiat
 
-  return priceQuery(getCryptoCode(fromCrypto), getFiatCode(toFiat), amount, networkCode, side);
+  return priceQuery(getCryptoCode(fromCrypto), getFiatCode(toFiat), Number(amount), networkCode, side);
 };

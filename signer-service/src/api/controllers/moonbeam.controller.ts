@@ -42,7 +42,7 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
   return { walletClient, publicClient };
 };
 
-export const executeXcmController = async (req: Request<{}, {}, XcmPayload>, res: Response): Promise<void> => {
+export const executeXcmController = async (req: Request<{}, {}, XcmPayload>, res: Response) => {
   const { id, payload } = req.body;
 
   try {
@@ -67,14 +67,14 @@ export const executeXcmController = async (req: Request<{}, {}, XcmPayload>, res
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
-      res.json({ hash });
+      return res.json({ hash });
     } catch (error) {
       console.error('Error executing XCM:', error);
-      res.status(400).json({ error: 'Invalid transaction' });
+      return res.status(400).json({ error: 'Invalid transaction' });
     }
   } catch (error) {
     console.error('Error executing XCM:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 

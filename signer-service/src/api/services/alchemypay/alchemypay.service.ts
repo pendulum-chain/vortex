@@ -161,9 +161,10 @@ export const getQuoteFor = (
   fromCrypto: string,
   toFiat: string,
   amount: string,
-  network: string,
+  network?: string,
 ): Promise<AlchemyPayQuote> => {
-  const networkCode = getAlchemyPayNetworkCode(network);
+  const DEFAULT_NETWORK = 'POLYGON';
+  const networkCode = getAlchemyPayNetworkCode(network || DEFAULT_NETWORK);
   const side = 'SELL';
 
   return priceQuery(getCryptoCurrencyCode(fromCrypto), getFiatCode(toFiat), amount, networkCode, side);
