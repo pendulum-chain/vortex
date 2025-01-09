@@ -45,7 +45,7 @@ export const TrustedBy = () => {
   ];
 
   return (
-    <section className="container mx-auto">
+    <section className="container mt-12 mx-auto">
       <h1 className="mb-4 text-4xl text-center text-black">Trusted by</h1>
       <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-12">
         <ImageList images={trustedByImages} />
