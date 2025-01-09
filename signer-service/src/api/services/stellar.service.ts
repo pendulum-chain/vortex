@@ -8,7 +8,7 @@ import {
 import { StellarTokenConfig, TOKEN_CONFIG, getTokenConfigByAssetCode } from '../../constants/tokenConfig';
 import { SlackNotifier } from './slack.service';
 
-interface PaymentData {
+export interface PaymentData {
   amount: string;
   memo: string;
   memoType: 'text' | 'hash';

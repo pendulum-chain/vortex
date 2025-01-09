@@ -1,4 +1,3 @@
-import { getAccount } from '@wagmi/core';
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
