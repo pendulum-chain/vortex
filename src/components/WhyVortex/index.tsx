@@ -40,7 +40,7 @@ const FeatureCard = ({ icon, title, description, subtext }: Feature) => (
 );
 
 export const WhyVortex = () => (
-  <section className="container py-12 mx-auto mt-12">
+  <section className="container py-12 mx-auto mt-6">
     <h1 className="mb-6 text-4xl text-center text-black">Why Vortex?</h1>
     <div className="grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-3">
       {features.map((feature) => (
