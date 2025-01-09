@@ -13,39 +13,32 @@ import {
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
-import { Networks, useNetwork } from '../../contexts/network';
+import { getCaseSensitiveNetwork } from '../../helpers/networks';
+import { useNetwork } from '../../contexts/network';
 
-interface SwapSettings {
+type SwapSettings = {
   from: string;
   to: string;
-}
+};
+
+type TokenSelectType = 'from' | 'to';
 
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
-function getCaseSensitiveNetwork(network: string): Networks {
-  if (network.toLowerCase() === 'assethub') {
-    return Networks.AssetHub;
-  } else if (network.toLowerCase() === 'polygon') {
-    return Networks.Polygon;
-  } else {
-    console.warn('Invalid network type');
-    return Networks.AssetHub;
-  }
-}
+function mergeIfDefined<T>(target: T, source: Nullable<T> | undefined): void {
+  if (!source) return;
 
-// Helper function to merge values if they are defined
-function mergeIfDefined(target: any, source: any) {
-  for (const key in source) {
-    if (source[key] !== undefined && source[key] !== null) {
-      target[key] = source[key];
+  Object.entries(source).forEach(([key, value]) => {
+    if (value != null) {
+      target[key as keyof T] = value as T[keyof T];
     }
-  }
+  });
 }
 
 export const useSwapForm = () => {
   const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
-  const [tokenSelectModalType, setTokenModalType] = useState<'from' | 'to'>('from');
+  const [tokenSelectModalType, setTokenModalType] = useState<TokenSelectType>('from');
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
 
   const initialState = useMemo(() => {
@@ -99,14 +92,13 @@ export const useSwapForm = () => {
     (tokenKey: string) => {
       const prev = getValues();
 
-      const updated = {
+      const updated: SwapSettings = {
         from: tokenKey,
         to: prev?.to,
       };
 
       setStorageForSwapSettings(updated);
       setValue('from', tokenKey as InputTokenType);
-
       setIsTokenSelectModalVisible(false);
     },
     [getValues, setValue],
@@ -117,14 +109,13 @@ export const useSwapForm = () => {
       const prev = getValues();
       if (!tokenKey) return;
 
-      const updated = {
+      const updated: SwapSettings = {
         to: tokenKey,
         from: prev?.from,
       };
 
       setStorageForSwapSettings(updated);
       setValue('to', tokenKey as OutputTokenType);
-
       setIsTokenSelectModalVisible(false);
     },
     [getValues, setValue],
@@ -144,7 +135,7 @@ export const useSwapForm = () => {
     }
   }, [fromAmountString]);
 
-  const openTokenSelectModal = useCallback((type: 'from' | 'to') => {
+  const openTokenSelectModal = useCallback((type: TokenSelectType) => {
     setTokenModalType(type);
     setIsTokenSelectModalVisible(true);
   }, []);

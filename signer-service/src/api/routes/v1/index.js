@@ -15,7 +15,7 @@ const { sendStatusWithPk: sendStellarStatusWithPk } = require('../../services/st
 const { sendStatusWithPk: sendPendulumStatusWithPk } = require('../../services/pendulum.service');
 const { sendStatusWithPk: sendMoonbeamStatusWithPk } = require('../../controllers/moonbeam.controller');
 
-async function sendStatusWithPk(req, res, next) {
+async function sendStatusWithPk(_, res) {
   const stellar = await sendStellarStatusWithPk();
   const pendulum = await sendPendulumStatusWithPk();
   const moonbeam = await sendMoonbeamStatusWithPk();

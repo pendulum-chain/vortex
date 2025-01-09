@@ -45,12 +45,7 @@ async function priceQuery(cryptoCurrency, fiatCurrency, cryptoAmount, network, i
 // Helper function to get the network code for Transak. It seems like Transak just uses the commonly known network names
 // as the code for the network parameter in their API so we just return the network as is.
 function getTransakNetworkCode(network) {
-  switch (network.toUpperCase()) {
-    case 'POLYGON':
-      return 'polygon';
-    default:
-      return network;
-  }
+  return network.toLowerCase();
 }
 
 function getCryptoCode(fromCrypto) {

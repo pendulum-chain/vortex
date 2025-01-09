@@ -7,11 +7,10 @@ import { decodeAddress } from '@polkadot/util-crypto';
 import { ApiPromise } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
 
-import { RenderEventHandler } from '../components/GenericEvent';
 import { SigningPhase } from '../hooks/offramp/useMainProcess';
 import { TrackableEvent } from '../contexts/events';
-import { Networks } from '../contexts/network';
-import { SepResult } from './anchor';
+import { isNetworkEVM, Networks } from '../helpers/networks';
+import { SepResult } from '../types/sep';
 
 import {
   getInputTokenDetailsOrDefault,
@@ -65,8 +64,7 @@ export type FinalOfframpingPhase = 'success';
 
 export interface ExecutionContext {
   wagmiConfig: Config;
-  renderEvent: RenderEventHandler;
-  setSigningPhase: (n: SigningPhase) => void;
+  setOfframpSigningPhase: (n: SigningPhase) => void;
   trackEvent: (event: TrackableEvent) => void;
   pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
   assetHubNode: { api: ApiPromise };
@@ -94,6 +92,7 @@ export interface OfframpingState {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   inputAmount: { units: string; raw: string };
+  pendulumAmountRaw: string;
   outputAmount: { units: string; raw: string };
   phase: OfframpingPhase | FinalOfframpingPhase;
   failure?: FailureType;
@@ -131,11 +130,13 @@ export type StateTransitionFunction = (
 const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
-const STATE_ADVANCEMENT_HANDLERS: Record<
-  keyof typeof Networks,
-  Partial<Record<OfframpingPhase, StateTransitionFunction>>
-> = {
-  Polygon: {
+enum HandlerType {
+  SQUIDROUTER = 'squidrouter',
+  XCM = 'xcm',
+}
+
+const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingPhase, StateTransitionFunction>>> = {
+  [HandlerType.SQUIDROUTER]: {
     prepareTransactions,
     squidRouter,
     pendulumFundEphemeral,
@@ -149,7 +150,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<
     stellarOfframp,
     stellarCleanup,
   },
-  AssetHub: {
+  [HandlerType.XCM]: {
     prepareTransactions,
     pendulumFundEphemeral,
     executeAssetHubXCM,
@@ -163,6 +164,16 @@ const STATE_ADVANCEMENT_HANDLERS: Record<
     stellarCleanup,
   },
 };
+
+function selectNextStateAdvancementHandler(
+  network: Networks,
+  phase: OfframpingPhase,
+): StateTransitionFunction | undefined {
+  if (isNetworkEVM(network)) {
+    return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];
+  }
+  return STATE_ADVANCEMENT_HANDLERS[HandlerType.XCM][phase];
+}
 
 export async function constructInitialState({
   sep24Id,
@@ -180,11 +191,13 @@ export async function constructInitialState({
     pendulumNode,
   );
 
-  const inputTokenDecimals = getInputTokenDetailsOrDefault(network, inputTokenType).decimals;
+  const { decimals: inputTokenDecimals, pendulumDecimals } = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
 
   const inputAmountBig = Big(amountIn);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();
+  const pendulumAmountRaw = multiplyByPowerOfTen(inputAmountBig, pendulumDecimals || 0).toFixed();
+
   const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
 
   const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
@@ -205,6 +218,7 @@ export async function constructInitialState({
     inputTokenType,
     outputTokenType,
     inputAmount: { units: amountIn, raw: inputAmountRaw },
+    pendulumAmountRaw,
     outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },
     phase: 'prepareTransactions',
     squidRouterReceiverId,
@@ -276,7 +290,7 @@ export const advanceOfframpingState = async (
 
   let newState: OfframpingState | undefined;
   try {
-    const nextHandler = STATE_ADVANCEMENT_HANDLERS[state.network][phase];
+    const nextHandler = selectNextStateAdvancementHandler(state.network, phase);
     if (!nextHandler) {
       throw new Error(`No handler for phase ${phase} on network ${state.network}`);
     }

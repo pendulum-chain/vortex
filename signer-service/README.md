@@ -25,6 +25,7 @@ The following environment variables are available to configure the service.
 - `FUNDING_SECRET`: Secret key to sign the funding transactions on Stellar.
 - `PENDULUM_FUNDING_SEED`: Seed phrase to sign the funding transactions on Pendulum.
 - `MOONBEAM_EXECUTOR_PRIVATE_KEY`: Private key to sign the transactions on Moonbeam.
+- `SLACK_WEB_HOOK_TOKEN` - Slack web hook token for error reporting.
 
 ### Optional
 

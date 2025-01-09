@@ -20,9 +20,9 @@ import {
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
 } from '../../constants/tokenConfig';
+import { Networks } from '../../helpers/networks';
 import { SwapFormValues } from '../../components/Nabla/schema';
 import { useEventsContext } from '../../contexts/events';
-import { Networks } from '../../contexts/network';
 
 type UseTokenOutAmountProps = {
   wantsSwap: boolean;
@@ -74,7 +74,7 @@ export function useTokenOutAmount({
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
-  const fromTokenDecimals = inputToken?.decimals;
+  const fromTokenDecimals = inputToken?.pendulumDecimals;
 
   const amountIn =
     fromTokenDecimals !== undefined && debouncedAmountBigDecimal !== undefined

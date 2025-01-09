@@ -11,7 +11,7 @@ import { getRouteTransactionRequest } from './route';
 
 export async function squidRouter(
   state: OfframpingState,
-  { wagmiConfig, setSigningPhase, trackEvent }: ExecutionContext,
+  { wagmiConfig, setOfframpSigningPhase, trackEvent }: ExecutionContext,
 ): Promise<OfframpingState> {
   const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
   if (!inputToken || !isEvmInputTokenDetails(inputToken)) {
@@ -28,6 +28,7 @@ export async function squidRouter(
     state.inputAmount.raw,
     state.squidRouterReceiverHash,
     inputToken,
+    state.network,
   );
 
   console.log(
@@ -37,7 +38,7 @@ export async function squidRouter(
     state.inputAmount.units,
   );
 
-  setSigningPhase?.('started');
+  setOfframpSigningPhase?.('started');
 
   let approvalHash;
   try {
@@ -68,7 +69,7 @@ export async function squidRouter(
     return { ...state, failure: { type: 'unrecoverable', message: e?.toString() } };
   }
 
-  setSigningPhase?.('approved');
+  setOfframpSigningPhase?.('approved');
 
   await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash });
 
@@ -100,12 +101,12 @@ export async function squidRouter(
     return { ...state, failure: { type: 'unrecoverable', message: e?.toString() } };
   }
 
-  setSigningPhase?.('signed');
+  setOfframpSigningPhase?.('signed');
 
   const axelarScanLink = 'https://axelarscan.io/gmp/' + swapHash;
   console.log(`Squidrouter Swap Initiated! Check Axelarscan for details: ${axelarScanLink}`);
 
-  setSigningPhase?.('finished');
+  setOfframpSigningPhase?.('finished');
 
   return {
     ...state,
