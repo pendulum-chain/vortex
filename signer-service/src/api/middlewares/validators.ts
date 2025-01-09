@@ -1,18 +1,64 @@
-const { TOKEN_CONFIG } = require('../../constants/tokenConfig');
-const { EMAIL_SHEET_HEADER_VALUES } = require('../controllers/email.controller');
-const { RATING_SHEET_HEADER_VALUES } = require('../controllers/rating.controller');
-const {
-  DUMP_SHEET_HEADER_VALUES_ASSETHUB,
-  DUMP_SHEET_HEADER_VALUES_EVM,
-} = require('../controllers/storage.controller');
-const {
+import { Request, Response, NextFunction } from 'express';
+import { isStellarTokenConfig, TOKEN_CONFIG, TokenConfig } from '../../constants/tokenConfig';
+import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
+import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
+import { DUMP_SHEET_HEADER_VALUES_ASSETHUB, DUMP_SHEET_HEADER_VALUES_EVM } from '../controllers/storage.controller';
+import {
   SUPPORTED_PROVIDERS,
   SUPPORTED_CRYPTO_CURRENCIES,
   SUPPORTED_FIAT_CURRENCIES,
-} = require('../controllers/quote.controller');
+  Provider,
+  FiatCurrency,
+  CryptoCurrency,
+} from '../controllers/quote.controller';
 
-const validateCreationInput = (req, res, next) => {
-  const { accountId, maxTime, assetCode, baseFee } = req.body;
+interface CreationBody {
+  accountId: string;
+  maxTime: number;
+  assetCode: string;
+  baseFee: string;
+}
+
+interface QuoteQuery {
+  provider: Provider;
+  fromCrypto: CryptoCurrency;
+  toFiat: FiatCurrency;
+  amount: string;
+  network?: string;
+}
+
+interface ChangeOpBody extends CreationBody {
+  sequence: string;
+  paymentData: unknown;
+}
+
+interface SwapBody {
+  amountRaw: string;
+  address: string;
+  token?: keyof TokenConfig;
+}
+
+interface Sep10Body {
+  challengeXDR: string;
+  outToken: string;
+  clientPublicKey: string;
+}
+
+interface SiweCreateBody {
+  walletAddress: string;
+}
+
+interface SiweValidateBody {
+  nonce: string;
+  signature: string;
+  siweMessage: string;
+}
+
+type ValidatorFn = (req: Request, res: Response, next: NextFunction) => void | Response;
+
+const validateCreationInput: ValidatorFn = (req, res, next) => {
+  const { accountId, maxTime, assetCode, baseFee } = req.body as CreationBody;
+
   if (!accountId || !maxTime) {
     return res.status(400).json({ error: 'Missing accountId or maxTime parameter' });
   }
@@ -31,25 +77,25 @@ const validateCreationInput = (req, res, next) => {
   next();
 };
 
-const validateQuoteInput = (req, res, next) => {
-  const { provider, fromCrypto, toFiat, amount, network } = req.query;
+const validateQuoteInput: ValidatorFn = (req, res, next) => {
+  const { provider, fromCrypto, toFiat, amount, network } = req.query as unknown as QuoteQuery;
 
-  if (!provider || SUPPORTED_PROVIDERS.indexOf(provider.toLowerCase()) === -1) {
+  if (!provider || !SUPPORTED_PROVIDERS.includes(provider.toLowerCase() as Provider)) {
     return res
       .status(400)
-      .json({ error: 'Invalid provider. Supported providers are: ' + SUPPORTED_PROVIDERS.join(', ') });
+      .json({ error: `Invalid provider. Supported providers are: ${SUPPORTED_PROVIDERS.join(', ')}` });
   }
 
-  if (!fromCrypto || SUPPORTED_CRYPTO_CURRENCIES.indexOf(fromCrypto.toLowerCase()) === -1) {
+  if (!fromCrypto || !SUPPORTED_CRYPTO_CURRENCIES.includes(fromCrypto.toLowerCase() as CryptoCurrency)) {
     return res
       .status(400)
-      .json({ error: 'Invalid fromCrypto. Supported currencies are: ' + SUPPORTED_CRYPTO_CURRENCIES.join(', ') });
+      .json({ error: `Invalid fromCrypto. Supported currencies are: ${SUPPORTED_CRYPTO_CURRENCIES.join(', ')}` });
   }
 
-  if (!toFiat || SUPPORTED_FIAT_CURRENCIES.indexOf(toFiat.toLowerCase()) === -1) {
+  if (!toFiat || !SUPPORTED_FIAT_CURRENCIES.includes(toFiat.toLowerCase() as FiatCurrency)) {
     return res
       .status(400)
-      .json({ error: 'Invalid toFiat. Supported currencies are: ' + SUPPORTED_FIAT_CURRENCIES.join(', ') });
+      .json({ error: `Invalid toFiat. Supported currencies are: ${SUPPORTED_FIAT_CURRENCIES.join(', ')}` });
   }
 
   if (!amount) {
@@ -67,8 +113,9 @@ const validateQuoteInput = (req, res, next) => {
   next();
 };
 
-const validateChangeOpInput = (req, res, next) => {
-  const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body;
+const validateChangeOpInput: ValidatorFn = (req, res, next) => {
+  const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body as ChangeOpBody;
+
   if (!accountId || !sequence || !paymentData || !maxTime) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
@@ -87,9 +134,9 @@ const validateChangeOpInput = (req, res, next) => {
   next();
 };
 
-const validateRequestBodyValuesForTransactionStore = () => (req, res, next) => {
-  const data = req.body;
-  const offramperAddress = data.offramperAddress;
+const validateRequestBodyValuesForTransactionStore = (): ValidatorFn => (req, res, next) => {
+  const { offramperAddress } = req.body;
+
   if (!offramperAddress) {
     return res.status(400).json({ error: 'Missing offramperAddress parameter' });
   }
@@ -101,26 +148,28 @@ const validateRequestBodyValuesForTransactionStore = () => (req, res, next) => {
   validateRequestBodyValues(requiredRequestBodyKeys)(req, res, next);
 };
 
-const validateRequestBodyValues = (requiredRequestBodyKeys) => (req, res, next) => {
-  const data = req.body;
+const validateRequestBodyValues =
+  (requiredRequestBodyKeys: string[]): ValidatorFn =>
+  (req, res, next) => {
+    const data = req.body;
 
-  if (!requiredRequestBodyKeys.every((key) => data[key])) {
-    const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
-    const errorMessage = 'Request body data does not match schema. Missing items: ' + missingItems.join(', ');
-    console.error(errorMessage);
-    return res.status(400).json({ error: errorMessage });
-  }
+    if (!requiredRequestBodyKeys.every((key) => data[key])) {
+      const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
+      const errorMessage = `Request body data does not match schema. Missing items: ${missingItems.join(', ')}`;
+      console.error(errorMessage);
+      return res.status(400).json({ error: errorMessage });
+    }
 
-  next();
-};
+    next();
+  };
 
 const validateStorageInput = validateRequestBodyValuesForTransactionStore();
 const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
 const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
 
-const validatePreSwapSubsidizationInput = (req, res, next) => {
-  const { amountRaw, address } = req.body;
+const validatePreSwapSubsidizationInput: ValidatorFn = (req, res, next) => {
+  const { amountRaw, address } = req.body as SwapBody;
 
   if (amountRaw === undefined) {
     return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
@@ -137,8 +186,8 @@ const validatePreSwapSubsidizationInput = (req, res, next) => {
   next();
 };
 
-const validatePostSwapSubsidizationInput = (req, res, next) => {
-  const { amountRaw, address, token } = req.body;
+const validatePostSwapSubsidizationInput: ValidatorFn = (req, res, next) => {
+  const { amountRaw, address, token } = req.body as Required<SwapBody>;
 
   if (amountRaw === undefined) {
     return res.status(400).json({ error: 'Missing "amountRaw" parameter' });
@@ -157,15 +206,16 @@ const validatePostSwapSubsidizationInput = (req, res, next) => {
   }
 
   const tokenConfig = TOKEN_CONFIG[token];
-  if (tokenConfig === undefined || tokenConfig.assetCode === undefined || tokenConfig.assetIssuer === undefined) {
-    return res.status(400).json({ error: 'Invalid "token" parameter' });
+  if (!isStellarTokenConfig(tokenConfig)) {
+    return res.status(400).json({ error: 'Invalid "token" parameter - must be a Stellar token' });
   }
 
   next();
 };
 
-const validateSep10Input = (req, res, next) => {
-  const { challengeXDR, outToken, clientPublicKey } = req.body;
+const validateSep10Input: ValidatorFn = (req, res, next) => {
+  const { challengeXDR, outToken, clientPublicKey } = req.body as Sep10Body;
+
   if (!challengeXDR) {
     return res.status(400).json({ error: 'Missing Anchor challenge: challengeXDR' });
   }
@@ -180,16 +230,18 @@ const validateSep10Input = (req, res, next) => {
   next();
 };
 
-const validateSiweCreate = (req, res, next) => {
-  const { walletAddress } = req.body;
+const validateSiweCreate: ValidatorFn = (req, res, next) => {
+  const { walletAddress } = req.body as SiweCreateBody;
+
   if (!walletAddress) {
     return res.status(400).json({ error: 'Missing param: walletAddress' });
   }
   next();
 };
 
-const validateSiweValidate = (req, res, next) => {
-  const { nonce, signature, siweMessage } = req.body;
+const validateSiweValidate: ValidatorFn = (req, res, next) => {
+  const { nonce, signature, siweMessage } = req.body as SiweValidateBody;
+
   if (!signature) {
     return res.status(400).json({ error: 'Missing param: signature' });
   }
@@ -205,7 +257,7 @@ const validateSiweValidate = (req, res, next) => {
   next();
 };
 
-module.exports = {
+export {
   validateChangeOpInput,
   validateQuoteInput,
   validateCreationInput,
