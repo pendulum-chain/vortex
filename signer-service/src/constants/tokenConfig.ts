@@ -1,13 +1,11 @@
 export interface StellarTokenConfig {
-  tomlFileUrl: string;
   assetCode: string;
   assetIssuer: string;
-  vaultAccountId: string;
-  minWithdrawalAmount: string;
-  maximumSubsidyAmountRaw: string;
-  homeDomain: string;
   clientDomainEnabled: boolean;
+  homeDomain: string;
+  maximumSubsidyAmountRaw: string;
   memoEnabled: boolean;
+  minWithdrawalAmount: string;
   pendulumCurrencyId: {
     Stellar: {
       AlphaNum4: {
@@ -16,12 +14,33 @@ export interface StellarTokenConfig {
       };
     };
   };
+  tomlFileUrl: string;
+  vaultAccountId: string;
 }
 
 export interface XCMTokenConfig {
-  pendulumCurrencyId: { XCM: number };
   decimals: number;
   maximumSubsidyAmountRaw: string;
+  pendulumCurrencyId: { XCM: number };
+}
+
+export function isStellarTokenConfig(config: StellarTokenConfig | XCMTokenConfig): config is StellarTokenConfig {
+  return (
+    'assetCode' in config &&
+    'assetIssuer' in config &&
+    'clientDomainEnabled' in config &&
+    'homeDomain' in config &&
+    'maximumSubsidyAmountRaw' in config &&
+    'memoEnabled' in config &&
+    'minWithdrawalAmount' in config &&
+    'pendulumCurrencyId' in config &&
+    'tomlFileUrl' in config &&
+    'vaultAccountId' in config
+  );
+}
+
+export function isXCMTokenConfig(config: StellarTokenConfig | XCMTokenConfig): config is XCMTokenConfig {
+  return 'decimals' in config && 'maximumSubsidyAmountRaw' in config && 'pendulumCurrencyId' in config;
 }
 
 export type TokenConfig = {
