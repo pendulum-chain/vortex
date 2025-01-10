@@ -59,6 +59,7 @@ import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
+import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -70,7 +71,7 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { isDisconnected, address } = useVortexAccount();
+  const { address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
@@ -79,6 +80,7 @@ export const SwapPage = () => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
+  const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
 
@@ -95,7 +97,7 @@ export const SwapPage = () => {
   // Maybe go into a state of UI errors??
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
-      message ?? 'Application initialization failed. Please reload, or try again later if the problem persists.',
+      message ?? "We're stuck in the digital equivalent of rush hour traffic. Hang tight, we'll get moving again!",
     );
   }, []);
 
@@ -257,11 +259,8 @@ export const SwapPage = () => {
   );
 
   function getCurrentErrorMessage() {
-    // Do not show any error if the user is disconnected
-    if (isDisconnected) return;
-
     if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
         trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
