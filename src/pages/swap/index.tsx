@@ -70,7 +70,7 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { isDisconnected, address } = useVortexAccount();
+  const { address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
@@ -257,9 +257,6 @@ export const SwapPage = () => {
   );
 
   function getCurrentErrorMessage() {
-    // Do not show any error if the user is disconnected
-    if (isDisconnected) return;
-
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
         trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
