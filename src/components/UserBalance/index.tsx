@@ -1,4 +1,5 @@
 import { InputTokenDetails } from '../../constants/tokenConfig';
+import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 
 interface UserBalanceProps {
@@ -7,9 +8,10 @@ interface UserBalanceProps {
 }
 
 export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
+  const { walletAccount } = usePolkadotWalletState();
   const inputTokenBalance = useInputTokenBalance({ fromToken: token });
 
-  if (inputTokenBalance === undefined) {
+  if (!walletAccount || inputTokenBalance === undefined) {
     return <></>;
   }
 
