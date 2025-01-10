@@ -1,4 +1,4 @@
-import { createWalletClient, createPublicClient, http, encodeFunctionData, Hash, Address } from 'viem';
+import { createWalletClient, createPublicClient, http, encodeFunctionData, Address } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import Big from 'big.js';
@@ -12,11 +12,6 @@ import {
 import { SlackNotifier } from '../services/slack.service';
 // @ts-ignore
 import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
-
-interface XcmPayload {
-  id: string;
-  payload: string;
-}
 
 interface StatusResponse {
   status: boolean;
@@ -38,7 +33,7 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
   return { walletClient, publicClient };
 };
 
-export const executeXcmController = async (req: Request<{}, {}, XcmPayload>, res: Response) => {
+export const executeXcmController = async (req: Request, res: Response): Promise<void> => {
   const { id, payload } = req.body;
 
   try {
@@ -63,14 +58,17 @@ export const executeXcmController = async (req: Request<{}, {}, XcmPayload>, res
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
-      return res.json({ hash });
+      res.json({ hash });
+      return;
     } catch (error) {
       console.error('Error executing XCM:', error);
-      return res.status(400).json({ error: 'Invalid transaction' });
+      res.status(400).json({ error: 'Invalid transaction' });
+      return;
     }
   } catch (error) {
     console.error('Error executing XCM:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: 'Internal Server Error' });
+    return;
   }
 };
 
