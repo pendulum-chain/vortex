@@ -261,6 +261,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     fiat: {
       assetIcon: 'eur',
       symbol: 'EUR',
+      name: 'Euro',
     },
     stellarAsset: {
       code: {
@@ -286,6 +287,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     fiat: {
       assetIcon: 'ars',
       symbol: 'ARS',
+      name: 'Argentine Peso',
     },
     stellarAsset: {
       code: {
