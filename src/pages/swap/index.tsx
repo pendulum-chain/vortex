@@ -59,6 +59,7 @@ import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
+import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 
 const Arrow = () => (
   <div className="flex justify-center w-full my-5">
@@ -79,6 +80,7 @@ export const SwapPage = () => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { signingPending, handleSign, handleCancel } = useSiweContext();
+  const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
 
@@ -258,7 +260,7 @@ export const SwapPage = () => {
 
   function getCurrentErrorMessage() {
     if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
         trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
