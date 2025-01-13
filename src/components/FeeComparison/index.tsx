@@ -1,5 +1,6 @@
 import Big from 'big.js';
-import { useEffect, useRef, useMemo } from 'preact/hooks';
+import { useEffect, useRef, useMemo, useImperativeHandle } from 'preact/hooks';
+import { forwardRef } from 'preact/compat';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
@@ -161,24 +162,18 @@ function FeeComparisonTable(props: BaseComparisonProps) {
   );
 }
 
-export function FeeComparison({ enabled, ...props }: FeeComparisonProps) {
+export interface FeeComparisonRef {
+  scrollIntoView: (options?: ScrollIntoViewOptions) => void;
+}
+
+export const FeeComparison = forwardRef<FeeComparisonRef, FeeComparisonProps>(function FeeComparison(props, ref) {
   const feeComparisonRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!enabled) return;
-    if (!feeComparisonRef.current) return;
-
-    const timer = setTimeout(() => {
-      window.scrollTo({
-        top: feeComparisonRef.current!.offsetTop,
-        behavior: 'smooth',
-      });
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [enabled]);
-
-  if (!enabled) return null;
+  useImperativeHandle(ref, () => ({
+    scrollIntoView: (options?: ScrollIntoViewOptions) => {
+      feeComparisonRef.current?.scrollIntoView(options || { block: 'start', behavior: 'smooth' });
+    },
+  }));
 
   return (
     <div
@@ -196,4 +191,4 @@ export function FeeComparison({ enabled, ...props }: FeeComparisonProps) {
       <FeeComparisonTable {...props} />
     </div>
   );
-}
+});
