@@ -1,6 +1,6 @@
 import { InputTokenDetails } from '../../constants/tokenConfig';
-import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
 
 interface UserBalanceProps {
   token: InputTokenDetails;
@@ -8,10 +8,10 @@ interface UserBalanceProps {
 }
 
 export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
-  const { walletAccount } = usePolkadotWalletState();
+  const { isDisconnected } = useVortexAccount();
   const inputTokenBalance = useInputTokenBalance({ fromToken: token });
 
-  if (!walletAccount || inputTokenBalance === undefined) {
+  if (isDisconnected || inputTokenBalance === undefined) {
     return <></>;
   }
 
