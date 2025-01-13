@@ -18,10 +18,6 @@ interface BaseComparisonProps {
   network: Networks;
 }
 
-interface FeeComparisonProps extends BaseComparisonProps {
-  enabled: boolean;
-}
-
 type VortexRowProps = Pick<BaseComparisonProps, 'targetAssetSymbol' | 'vortexPrice'>;
 
 function VortexRow({ targetAssetSymbol, vortexPrice }: VortexRowProps) {
@@ -166,7 +162,7 @@ export interface FeeComparisonRef {
   scrollIntoView: (options?: ScrollIntoViewOptions) => void;
 }
 
-export const FeeComparison = forwardRef<FeeComparisonRef, FeeComparisonProps>(function FeeComparison(props, ref) {
+export const FeeComparison = forwardRef<FeeComparisonRef, BaseComparisonProps>(function FeeComparison(props, ref) {
   const feeComparisonRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(ref, () => ({

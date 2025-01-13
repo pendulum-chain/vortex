@@ -467,7 +467,6 @@ export const SwapPage = () => {
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
           network={selectedNetwork}
-          enabled={showCompareFees}
           ref={feeComparisonRef}
         />
       )}
