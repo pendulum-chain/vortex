@@ -127,7 +127,9 @@ export const useSubmitOfframp = () => {
           console.error('Error initializing the offramping process', error);
           // Display error message, differentiating between user rejection and other errors
           if ((error as Error).message.includes('User rejected the request')) {
-            setInitializeFailed('Please switch to the correct network and try again.');
+            setInitializeFailed('Please switch to the correct network and try again.'); // Case: User rejected switching the network, relevant in Metamask.
+          } else if ((error as Error).message.includes('User rejected sign request')) {
+            setInitializeFailed('Please sign the login message to continue.'); // Case: User rejected signing the login challenge.
           } else {
             setInitializeFailed();
           }

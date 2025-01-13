@@ -56,7 +56,15 @@ export async function sep10(
   const transactionSigned = await fetchAndValidateChallenge(webAuthEndpoint, urlParams, signingKey);
 
   if (usesMemo) {
-    await checkAndWaitForSignature();
+    try {
+      await checkAndWaitForSignature();
+    } catch (error) {
+      // We must differentiate between user driven rejection and other errors
+      if ((error as Error).message.includes('User rejected the request')) {
+        throw new Error('User rejected sign request');
+      }
+      throw new Error('Failed to sign login challenge');
+    }
   }
 
   const { masterClientSignature, clientSignature, clientPublic } = await sep10SignaturesWithLoginRefresh(

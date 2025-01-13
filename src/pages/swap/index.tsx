@@ -96,6 +96,15 @@ export const SwapPage = () => {
     );
   }, []);
 
+  const clearInitializeErrors = useCallback(() => {
+    if (!initializeFailedMessage) return;
+    if (initializeFailedMessage.includes('Please reload')) {
+      return window.location.reload();
+    } else {
+      setInitializeFailedMessage(null);
+    }
+  }, [initializeFailedMessage, setInitializeFailedMessage]);
+
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -405,7 +414,12 @@ export const SwapPage = () => {
         </section>
         <section className="flex justify-center w-full mt-5">
           {(initializeFailedMessage || apiInitializeFailed) && (
-            <p className="text-red-600">{initializeFailedMessage}</p>
+            <div className="flex items-center gap-4">
+              <p className="text-red-600">{initializeFailedMessage}</p>
+              <button className="btn btn-vortex-primary px-4 py-2 text-xs" onClick={() => clearInitializeErrors()}>
+                Retry
+              </button>
+            </div>
           )}
         </section>
         <section className="w-full mt-5">
