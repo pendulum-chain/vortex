@@ -2,7 +2,7 @@ import { Progress } from 'react-daisyui';
 import { FC } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
-import { SigningPhase } from '../../hooks/offramp/useMainProcess';
+import { OfframpSigningPhase } from '../../types/offramp';
 import { isNetworkEVM, Networks } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
@@ -12,11 +12,12 @@ type ProgressStep = {
   signed: string;
   finished: string;
   approved: string;
+  login: string;
 };
 
 type SignatureConfig = {
   maxSignatures: number;
-  getSignatureNumber: (step: SigningPhase) => string;
+  getSignatureNumber: (step: OfframpSigningPhase) => string;
 };
 
 const EVM_PROGRESS_CONFIG: ProgressStep = {
@@ -24,6 +25,7 @@ const EVM_PROGRESS_CONFIG: ProgressStep = {
   approved: '50',
   signed: '75',
   finished: '100',
+  login: '0',
 };
 
 const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
@@ -31,11 +33,12 @@ const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
   finished: '100',
   signed: '0',
   approved: '0',
+  login: '0',
 };
 
 const EVM_SIGNATURE_CONFIG: SignatureConfig = {
   maxSignatures: 2,
-  getSignatureNumber: (step: SigningPhase) => (step === 'started' ? '1' : '2'),
+  getSignatureNumber: (step: OfframpSigningPhase) => (step === 'started' ? '1' : '2'),
 };
 
 const NON_EVM_SIGNATURE_CONFIG: SignatureConfig = {
@@ -52,12 +55,12 @@ const getSignatureConfig = (network: Networks): SignatureConfig => {
 };
 
 interface SigningBoxProps {
-  step?: SigningPhase;
+  step?: OfframpSigningPhase;
 }
 
-const isValidStep = (step: SigningPhase | undefined, network: Networks): step is SigningPhase => {
+const isValidStep = (step: OfframpSigningPhase | undefined, network: Networks): step is OfframpSigningPhase => {
   if (!step) return false;
-  if (!['started', 'approved', 'signed'].includes(step)) return false;
+  if (step === 'finished') return false;
   if (!isNetworkEVM(network) && (step === 'approved' || step === 'signed')) return false;
   return true;
 };
@@ -88,17 +91,25 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
             </div>
           </div>
 
-          <div className="w-full pb-2.5">
-            <Progress value={progressValue} max="100" className="h-4 bg-white border progress-primary border-primary" />
-          </div>
+          {step !== 'login' && (
+            <div className="w-full pb-2.5">
+              <Progress
+                value={progressValue}
+                max="100"
+                className="h-4 bg-white border progress-primary border-primary"
+              />
+            </div>
+          )}
         </main>
 
-        <footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
-          <Spinner />
-          <p className="ml-2.5 my-2 text-xs">
-            Waiting for signature {getSignatureNumber(step)}/{maxSignatures}
-          </p>
-        </footer>
+        {step !== 'login' && (
+          <footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
+            <Spinner />
+            <p className="ml-2.5 my-2 text-xs">
+              Waiting for signature {getSignatureNumber(step)}/{maxSignatures}
+            </p>
+          </footer>
+        )}
       </div>
     </section>
   );

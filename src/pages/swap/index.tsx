@@ -15,7 +15,6 @@ import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
-import { SignInModal } from '../../components/SignIn';
 import { PoweredBy } from '../../components/PoweredBy';
 
 import {
@@ -30,11 +29,10 @@ import { config } from '../../config';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
-import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -78,7 +76,6 @@ export const SwapPage = () => {
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
-  const { signingPending, handleSign, handleCancel } = useSiweContext();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
 
@@ -369,7 +366,7 @@ export const SwapPage = () => {
       from,
       selectedNetwork,
       fromAmountString,
-      requiresSquidRouter: selectedNetwork === Networks.Polygon,
+      requiresSquidRouter: isNetworkEVM(selectedNetwork),
       setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
@@ -379,7 +376,6 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
-      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={offrampSigningPhase} />
       <form
         className="max-w-2xl px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"

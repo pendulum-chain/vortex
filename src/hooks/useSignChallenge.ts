@@ -5,6 +5,8 @@ import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
 import { useVortexAccount } from './useVortexAccount';
+import { useOfframpActions } from '../stores/offrampStore';
+import { useEffect } from 'react';
 
 export interface SiweSignatureData {
   signatureSet: boolean;
@@ -24,9 +26,8 @@ function createSiweMessage(address: string, nonce: string) {
 }
 
 export function useSiweSignature() {
-  const [signingPending, setSigningPending] = useState(false);
   const { address, getMessageSignature } = useVortexAccount();
-
+  const { setOfframpSigningPhase } = useOfframpActions();
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
   const [signPromise, setSignPromise] = useState<{
@@ -55,9 +56,9 @@ export function useSiweSignature() {
     if (signPromise) return;
     return new Promise((resolve, reject) => {
       setSignPromise({ resolve, reject });
-      setSigningPending(true);
+      setOfframpSigningPhase?.('login');
     });
-  }, [setSigningPending, setSignPromise, signPromise]);
+  }, [setSignPromise, signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
@@ -99,19 +100,14 @@ export function useSiweSignature() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       signPromise.reject(new Error('Signing failed: ' + errorMessage));
     } finally {
-      setSigningPending(false);
       setSignPromise(null);
+      setOfframpSigningPhase?.(undefined);
     }
-  }, [address, storageKey, signPromise, setSigningPending, setSignPromise, getMessageSignature]);
+  }, [address, storageKey, signPromise, setSignPromise, getMessageSignature]);
 
-  // Handler for modal cancellation
-  const handleCancel = useCallback(() => {
-    if (signPromise) {
-      signPromise.reject(new Error('User cancelled'));
-      setSignPromise(null);
-    }
-    setSigningPending(false);
-  }, [signPromise, setSigningPending, setSignPromise]);
+  useEffect(() => {
+    if (signPromise) handleSign();
+  }, [signPromise, handleSign]);
 
   const checkAndWaitForSignature = useCallback(async (): Promise<void> => {
     const stored = checkStoredSignature();
@@ -125,9 +121,6 @@ export function useSiweSignature() {
   }, [storageKey, signMessage]);
 
   return {
-    signingPending,
-    handleSign,
-    handleCancel,
     checkAndWaitForSignature,
     forceRefreshAndWaitForSignature,
   };
