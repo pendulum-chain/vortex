@@ -1,6 +1,7 @@
 import { InputTokenDetails } from '../../constants/tokenConfig';
-import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
+import wallet from '../../assets/wallet.svg';
 
 interface UserBalanceProps {
   token: InputTokenDetails;
@@ -8,22 +9,32 @@ interface UserBalanceProps {
 }
 
 export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
-  const { walletAccount } = usePolkadotWalletState();
+  const { isDisconnected } = useVortexAccount();
   const inputTokenBalance = useInputTokenBalance({ fromToken: token });
 
-  if (!walletAccount || inputTokenBalance === undefined) {
+  if (isDisconnected || inputTokenBalance === undefined) {
     return <></>;
   }
+
+  const showMaxButton = Number(inputTokenBalance) !== 0;
 
   return (
     <p className="flex items-end justify-end mt-1">
       <>
-        <p className="mr-0.5">Available:</p>
-        <div
-          className="font-medium transition cursor-pointer hover:underline hover:text-black"
-          onClick={() => onClick(inputTokenBalance)}
-        >
-          {inputTokenBalance} {token.assetSymbol}
+        <div className="flex align-center font-medium transition">
+          <img src={wallet} alt="Available" className="w-5 h-5 mr-1" />
+          <span>
+            {inputTokenBalance} {token.assetSymbol}
+          </span>
+          {showMaxButton && (
+            <button
+              className="text-primary hover:underline rounded-md ml-1 bg-base-100 px-1"
+              type="button"
+              onClick={() => onClick(inputTokenBalance)}
+            >
+              Max
+            </button>
+          )}
         </div>
       </>
     </p>
