@@ -9,7 +9,7 @@ import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { FeeComparison } from '../../components/FeeComparison';
+import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
 import { BenefitsList } from '../../components/BenefitsList';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
@@ -69,6 +69,7 @@ const Arrow = () => (
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
+  const feeComparisonRef = useRef<FeeComparisonRef>(null);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { address } = useVortexAccount();
@@ -424,7 +425,12 @@ export const SwapPage = () => {
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
-              setShowCompareFees(!showCompareFees);
+              // We always show the fees comparison when the user clicks on the button. It will not be hidden again.
+              if (!showCompareFees) setShowCompareFees(true);
+              // Scroll to the comparison fees section (with a small delay to allow the component to render first)
+              setTimeout(() => {
+                feeComparisonRef.current?.scrollIntoView();
+              }, 200);
             }}
           >
             Compare fees
@@ -461,7 +467,7 @@ export const SwapPage = () => {
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
           network={selectedNetwork}
-          enabled={showCompareFees}
+          ref={feeComparisonRef}
         />
       )}
       <TrustedBy />
