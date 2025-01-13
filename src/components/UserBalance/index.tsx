@@ -1,6 +1,7 @@
 import { InputTokenDetails } from '../../constants/tokenConfig';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
+import wallet from '../../assets/wallet.svg';
 
 interface UserBalanceProps {
   token: InputTokenDetails;
@@ -18,12 +19,14 @@ export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
   return (
     <p className="flex items-end justify-end mt-1">
       <>
-        <p className="mr-0.5">Available:</p>
         <div
-          className="font-medium transition cursor-pointer hover:underline hover:text-black"
+          className="flex align-center font-medium transition cursor-pointer hover:underline hover:text-black"
           onClick={() => onClick(inputTokenBalance)}
         >
-          {inputTokenBalance} {token.assetSymbol}
+          <img src={wallet} alt="Available" className="w-5 h-5 mr-1" />
+          <span>
+            {inputTokenBalance} {token.assetSymbol}
+          </span>
         </div>
       </>
     </p>
