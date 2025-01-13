@@ -12,7 +12,7 @@ export const useVortexAccount = () => {
   const { selectedNetwork } = useNetwork();
 
   const { walletAccount: polkadotWalletAccount } = usePolkadotWalletState();
-  const { isDisconnected: isEvmAccountDisconnected, chainId: evmChainId, address: evmAccountAddress } = useAccount();
+  const { chainId: evmChainId, address: evmAccountAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
 
   const address = useMemo(() => {
@@ -27,9 +27,9 @@ export const useVortexAccount = () => {
     if (!isNetworkEVM(selectedNetwork)) {
       return !polkadotWalletAccount;
     } else {
-      return isEvmAccountDisconnected;
+      return !evmAccountAddress;
     }
-  }, [selectedNetwork, polkadotWalletAccount, isEvmAccountDisconnected]);
+  }, [evmAccountAddress, selectedNetwork, polkadotWalletAccount]);
 
   const chainId = useMemo(() => {
     if (!isNetworkEVM(selectedNetwork)) {
