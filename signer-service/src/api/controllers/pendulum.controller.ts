@@ -22,32 +22,38 @@ export const fundEphemeralAccountController = async (
   const { ephemeralAddress } = req.body;
 
   if (!ephemeralAddress) {
-    return res.status(400).send({ error: 'Invalid request parameters' });
+    res.status(400).send({ error: 'Invalid request parameters' });
+    return;
   }
 
   try {
     const result = await fundEphemeralAccount(ephemeralAddress);
     if (result) {
-      return res.json({ status: 'success', data: undefined });
+      res.json({ status: 'success', data: undefined });
+      return;
     } else {
-      return res.status(500).send({ error: 'Funding error' });
+      res.status(500).send({ error: 'Funding error' });
+      return;
     }
   } catch (error) {
     console.error('Error funding ephemeral account:', error);
-    return res.status(500).send({ error: 'Internal Server Error' });
+    res.status(500).send({ error: 'Internal Server Error' });
+    return;
   }
 };
 
 export const sendStatusWithPkController = async (_req: Request, res: Response, _next: NextFunction) => {
   try {
     const result = await sendStatusWithPk();
-    return res.json(result);
+    res.json(result);
+    return;
   } catch (err) {
     const error = err as Error;
     console.error('Server error:', error);
-    return res.status(500).json({
+    res.status(500).json({
       error: 'Server error',
       details: error.message,
     });
+    return;
   }
 };
