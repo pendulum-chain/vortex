@@ -61,7 +61,11 @@ export async function sep10(
     } catch (error) {
       // We must differentiate between user driven rejection and other errors
       console.log((error as Error).message);
-      if ((error as Error).message.includes('User rejected the request')) {
+      if (
+        (error as Error).message.includes('User rejected the request') ||
+        (error as Error).message.includes('Signing failed: Cancelled')
+      ) {
+        // First case Assethub, second case EVM
         throw new Error('User rejected sign request');
       }
       throw new Error('Failed to sign login challenge');

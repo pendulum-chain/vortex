@@ -100,7 +100,7 @@ export const SwapPage = () => {
 
   const clearInitializeErrors = useCallback(() => {
     if (!initializeFailedMessage) return;
-    if (initializeFailedMessage.includes('Please reload')) {
+    if (initializeFailedMessage.includes('Hang tight')) {
       return window.location.reload();
     } else {
       setInitializeFailedMessage(null);
