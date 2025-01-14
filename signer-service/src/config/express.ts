@@ -9,7 +9,7 @@ import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 
 import routes from '../api/routes/v1';
-import error from '../api/middlewares/error';
+import { converter, handler, notFound } from '../api/middlewares/error';
 
 import { config } from './vars';
 
@@ -72,12 +72,12 @@ app.use(helmet());
 app.use('/v1', routes);
 
 // if error is not an instanceOf APIError, convert it.
-app.use(error.converter);
+app.use(converter);
 
 // catch 404 and forward to error handler
-app.use(error.notFound);
+app.use(notFound);
 
 // error handler, send stacktrace only during development
-app.use(error.handler);
+app.use(handler);
 
 export default app;

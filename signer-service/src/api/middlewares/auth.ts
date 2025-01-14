@@ -1,27 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import { validateSignatureAndGetMemo } from '../services/siwe.service';
 
-interface AuthToken {
-  signature: string;
-  nonce: string;
+declare global {
+  namespace Express {
+    interface Request {
+      derivedMemo: string | null;
+    }
+  }
 }
 
-interface RequestWithMemo extends Request {
-  derivedMemo: string | null;
-  body: {
-    usesMemo?: boolean;
-    address: string;
-  };
-  cookies: {
-    [key: string]: AuthToken;
-  };
-}
-
-async function getMemoFromCookiesMiddleware(req: RequestWithMemo, res: Response, next: NextFunction) {
+async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   req.derivedMemo = null;
 
   if (!req.body.usesMemo) {
-    return next();
+    next();
+    return;
   }
 
   try {
@@ -34,17 +27,19 @@ async function getMemoFromCookiesMiddleware(req: RequestWithMemo, res: Response,
     const authToken = cookies[cookieKey];
 
     if (!authToken?.signature || !authToken?.nonce) {
-      return res.status(401).json({
+      res.status(401).json({
         error: 'Missing or invalid authentication token',
       });
+      return;
     }
 
     const memo = await validateSignatureAndGetMemo(authToken.nonce, authToken.signature);
 
     if (!memo) {
-      return res.status(401).json({
+      res.status(401).json({
         error: 'Missing or invalid authentication token',
       });
+      return;
     }
 
     req.derivedMemo = memo;
@@ -52,17 +47,19 @@ async function getMemoFromCookiesMiddleware(req: RequestWithMemo, res: Response,
   } catch (error) {
     const err = error as Error;
     if (err.message.includes('Could not verify signature')) {
-      return res.status(401).json({
+      res.status(401).json({
         error: 'Signature validation failed.',
         details: err.message,
       });
+      return;
     }
 
     console.error(`Error in getMemoFromCookiesMiddleware: ${err.message}`);
-    return res.status(500).json({
+    res.status(500).json({
       error: 'Error while verifying signature',
       details: err.message,
     });
+    return;
   }
 }
 

@@ -57,7 +57,7 @@ const getPendulumCurrencyConfig = (token: string): StellarTokenConfig | XCMToken
   return config;
 };
 
-export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequest>, res: Response) => {
+export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequest>, res: Response): Promise<void> => {
   try {
     const { address, amountRaw, tokenToSubsidize } = req.body;
     console.log('Subsidize pre swap', address, amountRaw, tokenToSubsidize);
@@ -71,17 +71,22 @@ export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequ
 
     await api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
 
-    return res.status(200).json({ message: 'Subsidy transferred successfully' });
+    res.json({ message: 'Subsidy transferred successfully' });
+    return;
   } catch (error) {
     console.error('Error in subsidizePreSwap::', error);
-    return res.status(500).json({
+    res.status(500).json({
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
+    return;
   }
 };
 
-export const subsidizePostSwap = async (req: Request<{}, {}, SubsidizePostSwapRequest>, res: Response) => {
+export const subsidizePostSwap = async (
+  req: Request<{}, {}, SubsidizePostSwapRequest>,
+  res: Response,
+): Promise<void> => {
   try {
     const { address, amountRaw, token } = req.body;
     console.log('Subsidize post swap', address, amountRaw, token);
@@ -106,12 +111,14 @@ export const subsidizePostSwap = async (req: Request<{}, {}, SubsidizePostSwapRe
 
     await api.tx.tokens.transfer(address, pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
 
-    return res.status(200).json({ message: 'Subsidy transferred successfully' });
+    res.json({ message: 'Subsidy transferred successfully' });
+    return;
   } catch (error) {
     console.error('Error in subsidizePostSwap::', error);
-    return res.status(500).json({
+    res.status(500).json({
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
+    return;
   }
 };

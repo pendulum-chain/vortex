@@ -13,7 +13,7 @@ export type CryptoCurrency = (typeof SUPPORTED_CRYPTO_CURRENCIES)[number];
 export const SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars'] as const;
 export type FiatCurrency = (typeof SUPPORTED_FIAT_CURRENCIES)[number];
 
-interface QuoteRequest {
+export interface QuoteRequest {
   provider: Provider;
   fromCrypto: CryptoCurrency;
   toFiat: FiatCurrency;
@@ -70,27 +70,56 @@ const getQuoteFromProvider = async (
   return await providerHandlers[provider](fromCrypto, toFiat, amount, network);
 };
 
-export const getQuoteForProvider = async (
-  req: Request<{}, {}, {}, QuoteRequest>,
-  res: Response,
-  _next: NextFunction,
-) => {
+export const getQuoteForProvider = async (req: Request, res: Response, next: NextFunction) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
+
+  if (!provider || typeof provider !== 'string') {
+    res.status(400).json({ error: 'Invalid provider parameter' });
+    return;
+  }
+
   const providerLower = provider.toLowerCase() as Provider;
+
+  if (!fromCrypto || typeof fromCrypto !== 'string') {
+    res.status(400).json({ error: 'Invalid fromCrypto parameter' });
+    return;
+  }
+
+  if (!toFiat || typeof toFiat !== 'string') {
+    res.status(400).json({ error: 'Invalid toFiat parameter' });
+    return;
+  }
+
+  if (!amount || typeof amount !== 'string') {
+    res.status(400).json({ error: 'Invalid amount parameter' });
+    return;
+  }
+
+  const networkParam = network && typeof network === 'string' ? network : undefined;
 
   try {
     if (!providerHandlers[providerLower]) {
-      return res.status(400).json({ error: 'Invalid provider' });
+      res.status(400).json({ error: 'Invalid provider' });
+      return;
     }
 
-    const quote = await getQuoteFromProvider(providerLower, fromCrypto, toFiat, amount, network);
-    return res.json(quote);
+    const quote = await getQuoteFromProvider(
+      providerLower,
+      fromCrypto.toLowerCase() as CryptoCurrency,
+      toFiat.toLowerCase() as FiatCurrency,
+      amount,
+      networkParam,
+    );
+    res.json(quote);
+    return;
   } catch (err) {
     const error = err as Error;
     if (error.message === 'Token not supported') {
-      return res.status(404).json({ error: 'Token not supported' });
+      res.status(404).json({ error: 'Token not supported' });
+      return;
     }
     console.error('Server error:', error);
-    return res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
+    return;
   }
 };

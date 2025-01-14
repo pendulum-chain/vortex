@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { createAndSendNonce, verifyAndStoreSiweMessage } from '../services/siwe.service';
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
 
@@ -15,30 +15,31 @@ type SiweResponse = {
   error?: string;
 };
 
-export const sendSiweMessage = async (req: Request, res: Response<SiweResponse>): Promise<Response<SiweResponse>> => {
+export const sendSiweMessage = async (req: Request, res: Response<SiweResponse>): Promise<void> => {
   const { walletAddress } = req.body;
 
   if (!walletAddress) {
-    return res.status(400).json({ error: 'Wallet address is required' });
+    res.status(400).json({ error: 'Wallet address is required' });
+    return;
   }
 
   try {
     const { nonce } = await createAndSendNonce(walletAddress);
-    return res.json({ nonce });
+    res.json({ nonce });
+    return;
   } catch (error) {
     console.error('Nonce generation error:', error);
-    return res.status(500).json({ error: 'Error while generating nonce' });
+    res.status(500).json({ error: 'Error while generating nonce' });
+    return;
   }
 };
 
-export const validateSiweSignature = async (
-  req: Request<{}, {}, SiweRequestBody>,
-  res: Response<SiweResponse>,
-): Promise<Response<SiweResponse>> => {
+export const validateSiweSignature = async (req: Request, res: Response<SiweResponse>): Promise<void> => {
   const { nonce, signature, siweMessage } = req.body;
 
   if (!nonce || !signature || !siweMessage) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    res.status(400).json({ error: 'Missing required fields' });
+    return;
   }
 
   try {
@@ -53,15 +54,18 @@ export const validateSiweSignature = async (
       maxAge: DEFAULT_LOGIN_EXPIRATION_TIME_HOURS * 60 * 60 * 1000,
     });
 
-    return res.status(200).json({ message: 'Signature is valid' });
+    res.json({ message: 'Signature is valid' });
+    return;
   } catch (error) {
     console.error('Signature validation error:', error);
 
     if (error instanceof Error && error.name === 'SiweValidationError') {
-      return res.status(401).json({ error: `Siwe validation error: ${error.message}` });
+      res.status(401).json({ error: `Siwe validation error: ${error.message}` });
+      return;
     }
 
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return res.status(500).json({ error: `Could not validate signature: ${message}` });
+    res.status(500).json({ error: `Could not validate signature: ${message}` });
+    return;
   }
 };

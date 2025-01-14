@@ -10,7 +10,7 @@ import {
   MOONBEAM_FUNDING_AMOUNT_UNITS,
 } from '../../constants/constants';
 import { SlackNotifier } from '../services/slack.service';
-// @ts-ignore
+
 import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
 
 interface StatusResponse {

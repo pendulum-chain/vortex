@@ -32,13 +32,15 @@ interface Sep10Request {
   derivedMemo: string;
 }
 
-export const sendStatusWithPkHandler = async (_: Request, res: Response, next: NextFunction) => {
+export const sendStatusWithPkHandler = async (_: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await sendStatusWithPk();
-    return res.json(result);
+    res.json(result);
+    return;
   } catch (error) {
     console.error('Server error:', error);
-    return res.status(500).json({ error: 'Server error', details: (error as Error).message });
+    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+    return;
   }
 };
 
@@ -46,7 +48,7 @@ export const createStellarTransactionHandler = async (
   req: Request<{}, {}, CreateTxRequest>,
   res: Response,
   next: NextFunction,
-) => {
+): Promise<void> => {
   try {
     if (!FUNDING_SECRET) {
       throw new Error('FUNDING_SECRET is not configured');
@@ -58,10 +60,12 @@ export const createStellarTransactionHandler = async (
       req.body.assetCode,
       req.body.baseFee,
     );
-    return res.json({ signature, sequence, public: FUNDING_PUBLIC_KEY });
+    res.json({ signature, sequence, public: FUNDING_PUBLIC_KEY });
+    return;
   } catch (error) {
     console.error('Error in createStellarTransaction:', error);
-    return res.status(500).json({ error: 'Failed to create transaction', details: (error as Error).message });
+    res.status(500).json({ error: 'Failed to create transaction', details: (error as Error).message });
+    return;
   }
 };
 
@@ -69,7 +73,7 @@ export const changeOpTransactionHandler = async (
   req: Request<{}, {}, ChangeOpRequest>,
   res: Response,
   next: NextFunction,
-) => {
+): Promise<void> => {
   try {
     if (!FUNDING_SECRET) {
       throw new Error('FUNDING_SECRET is not configured');
@@ -83,10 +87,12 @@ export const changeOpTransactionHandler = async (
       req.body.assetCode,
       req.body.baseFee,
     );
-    return res.json({ signature, public: FUNDING_PUBLIC_KEY });
+    res.json({ signature, public: FUNDING_PUBLIC_KEY });
+    return;
   } catch (error) {
     console.error('Error in changeOpTransaction:', error);
-    return res.status(500).json({ error: 'Failed to process transaction', details: (error as Error).message });
+    res.status(500).json({ error: 'Failed to process transaction', details: (error as Error).message });
+    return;
   }
 };
 
@@ -94,7 +100,7 @@ export const signSep10ChallengeHandler = async (
   req: Request<{}, {}, Sep10Request>,
   res: Response,
   next: NextFunction,
-) => {
+): Promise<void> => {
   try {
     const { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
       req.body.challengeXDR,
@@ -102,22 +108,26 @@ export const signSep10ChallengeHandler = async (
       req.body.clientPublicKey,
       req.body.derivedMemo,
     );
-    return res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
+    res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
+    return;
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
-    return res.status(500).json({ error: 'Failed to sign challenge', details: (error as Error).message });
+    res.status(500).json({ error: 'Failed to sign challenge', details: (error as Error).message });
+    return;
   }
 };
 
-export const getSep10MasterPKHandler = async (_: Request, res: Response, next: NextFunction) => {
+export const getSep10MasterPKHandler = async (_: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!SEP10_MASTER_SECRET) {
       throw new Error('SEP10_MASTER_SECRET is not configured');
     }
     const masterSep10Public = Keypair.fromSecret(SEP10_MASTER_SECRET).publicKey();
-    return res.json({ masterSep10Public });
+    res.json({ masterSep10Public });
+    return;
   } catch (error) {
     console.error('Error in getSep10MasterPK:', error);
-    return res.status(500).json({ error: 'Failed to get master public key', details: (error as Error).message });
+    res.status(500).json({ error: 'Failed to get master public key', details: (error as Error).message });
+    return;
   }
 };

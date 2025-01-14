@@ -8,36 +8,32 @@ export async function createPolkadotApi(): Promise<{
   decimals: number;
   ss58Format: number;
 }> {
-  let api: ApiPromise;
-  let previousSpecVersion: number;
-
-  const getSpecVersion = async (): Promise<number> => {
-    if (!api) throw new Error('API not initialized');
-    const runtimeVersion = await api.call.core.version();
+  const getSpecVersion = async (apiInstance: ApiPromise): Promise<number> => {
+    const runtimeVersion = await apiInstance.call.core.version();
     const human = runtimeVersion.toHuman() as { specVersion: number };
     return human.specVersion;
   };
 
-  const initiateApi = async (): Promise<void> => {
+  const initiateApi = async (): Promise<{ api: ApiPromise; previousSpecVersion: number }> => {
     const wsProvider = new WsProvider(PENDULUM_WSS);
     const options: ApiOptions = {
       provider: wsProvider,
       rpc,
     };
-    api = await ApiPromise.create(options);
+    const api = await ApiPromise.create(options);
     await api.isReady;
 
-    previousSpecVersion = await getSpecVersion();
+    const previousSpecVersion = await getSpecVersion(api);
+
+    return { api, previousSpecVersion };
   };
 
-  if (!api) {
-    await initiateApi();
-  }
+  const { api, previousSpecVersion } = await initiateApi();
 
   if (!api.isConnected) await api.connect();
   await api.isReady;
 
-  const currentSpecVersion = await getSpecVersion();
+  const currentSpecVersion = await getSpecVersion(api);
   if (currentSpecVersion !== previousSpecVersion) {
     await initiateApi();
   }

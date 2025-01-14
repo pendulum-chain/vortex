@@ -6,11 +6,13 @@ import {
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
 } from '../../../constants/constants';
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '../../../constants/tokenConfig';
-import { SlackNotifier } from '../slack.service';
+import { SlackNotifier } from '../../services/slack.service';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { AccountInfo } from '@polkadot/types/interfaces';
 
 import dotenv from 'dotenv';
+import { multiplyByPowerOfTen, nativeToDecimal } from './helpers';
+import { createPolkadotApi } from './createPolkadotApi';
 dotenv.config();
 
 const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;

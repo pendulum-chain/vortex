@@ -54,7 +54,7 @@ interface SiweValidateBody {
   siweMessage: string;
 }
 
-const validateCreationInput: RequestHandler = async (req, res, next) => {
+const validateCreationInput: RequestHandler = (req, res, next) => {
   const { accountId, maxTime, assetCode, baseFee } = req.body as CreationBody;
 
   if (!accountId || !maxTime) {
@@ -79,7 +79,7 @@ const validateCreationInput: RequestHandler = async (req, res, next) => {
   next();
 };
 
-const validateQuoteInput: RequestHandler = async (req, res, next) => {
+const validateQuoteInput: RequestHandler = (req, res, next) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query as unknown as QuoteQuery;
 
   if (!provider || !SUPPORTED_PROVIDERS.includes(provider.toLowerCase() as Provider)) {
@@ -119,7 +119,7 @@ const validateQuoteInput: RequestHandler = async (req, res, next) => {
   next();
 };
 
-const validateChangeOpInput: RequestHandler = async (req, res, next) => {
+const validateChangeOpInput: RequestHandler = (req, res, next) => {
   const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body as ChangeOpBody;
 
   if (!accountId || !sequence || !paymentData || !maxTime) {
@@ -144,7 +144,7 @@ const validateChangeOpInput: RequestHandler = async (req, res, next) => {
   next();
 };
 
-const validateRequestBodyValuesForTransactionStore = (): RequestHandler => async (req, res, next) => {
+const validateRequestBodyValuesForTransactionStore = (): RequestHandler => (req, res, next) => {
   const { offramperAddress } = req.body;
 
   if (!offramperAddress) {
@@ -161,7 +161,7 @@ const validateRequestBodyValuesForTransactionStore = (): RequestHandler => async
 
 const validateRequestBodyValues =
   (requiredRequestBodyKeys: string[]): RequestHandler =>
-  async (req, res, next) => {
+  (req, res, next) => {
     const data = req.body;
 
     if (!requiredRequestBodyKeys.every((key) => data[key])) {
@@ -180,7 +180,7 @@ const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
 const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
 const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
 
-const validatePreSwapSubsidizationInput: RequestHandler = async (req, res, next) => {
+const validatePreSwapSubsidizationInput: RequestHandler = (req, res, next) => {
   const { amountRaw, address } = req.body as SwapBody;
 
   if (amountRaw === undefined) {
@@ -201,7 +201,7 @@ const validatePreSwapSubsidizationInput: RequestHandler = async (req, res, next)
   next();
 };
 
-const validatePostSwapSubsidizationInput: RequestHandler = async (req, res, next) => {
+const validatePostSwapSubsidizationInput: RequestHandler = (req, res, next) => {
   const { amountRaw, address, token } = req.body as Required<SwapBody>;
 
   if (amountRaw === undefined) {
@@ -233,7 +233,7 @@ const validatePostSwapSubsidizationInput: RequestHandler = async (req, res, next
   next();
 };
 
-const validateSep10Input: RequestHandler = async (req, res, next) => {
+const validateSep10Input: RequestHandler = (req, res, next) => {
   const { challengeXDR, outToken, clientPublicKey } = req.body as Sep10Body;
 
   if (!challengeXDR) {
@@ -253,7 +253,7 @@ const validateSep10Input: RequestHandler = async (req, res, next) => {
   next();
 };
 
-const validateSiweCreate: RequestHandler = async (req, res, next) => {
+const validateSiweCreate: RequestHandler = (req, res, next) => {
   const { walletAddress } = req.body as SiweCreateBody;
 
   if (!walletAddress) {
@@ -263,7 +263,7 @@ const validateSiweCreate: RequestHandler = async (req, res, next) => {
   next();
 };
 
-const validateSiweValidate: RequestHandler = async (req, res, next) => {
+const validateSiweValidate: RequestHandler = (req, res, next) => {
   const { nonce, signature, siweMessage } = req.body as SiweValidateBody;
 
   if (!signature) {
