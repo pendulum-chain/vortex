@@ -13,6 +13,5 @@
   "module": {
     "type": "commonjs"
   },
-  "sourceMaps": true,
   "exclude": ["node_modules"]
 }

@@ -6,10 +6,7 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "Node",
-    "isolatedModules": true,
-    "sourceMap": true
+    "resolveJsonModule": true
   },
   "include": ["src"],
   "exclude": ["dist", "node_modules"]
