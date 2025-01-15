@@ -1,12 +1,12 @@
 // 6 hours in milliseconds
 const COOLDOWN_PERIOD_MS = 6 * 60 * 60 * 1000;
 
-interface SlackMessage {
+export interface SlackMessage {
   text: string;
   [key: string]: unknown;
 }
 
-class SlackNotifier {
+export class SlackNotifier {
   private readonly webhookUrl: string;
   private readonly messageHistory: Map<string, number>;
 
@@ -56,5 +56,3 @@ class SlackNotifier {
     this.messageHistory.set(signature, Date.now());
   }
 }
-
-export { SlackNotifier, SlackMessage };

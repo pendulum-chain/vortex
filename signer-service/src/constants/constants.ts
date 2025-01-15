@@ -10,7 +10,9 @@ const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new pendulum ephemeral account created
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 
-import dotenv from 'dotenv';
+console.log('before dotenv');
+import * as dotenv from 'dotenv';
+console.log('after dotenv');
 
 dotenv.config();
 

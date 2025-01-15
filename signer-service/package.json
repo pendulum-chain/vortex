@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "author": "Pendulum Chain",
-  "main": "dist/index.js",
   "license": "MIT",
   "engines": {
     "node": ">=12",
@@ -12,11 +11,11 @@
   "scripts": {
     "lint": "eslint ./src/**/*.{js,ts} --ignore-path .gitignore --ignore-pattern internals/scripts",
     "lint-staged": "prettier --write",
-    "type-check": "tsc --noEmit",
     "test": "vitest",
-    "build": "swc src -d .",
-    "dev": "swc src -d . --watch",
-    "start": "node dist/src/index.js"
+    "build": "swc src -d dist --strip-leading-paths",
+    "start": "node dist/index.js",
+    "build:start": "yarn build && yarn start",
+    "dev": "nodemon --ext ts --watch src --exec \"node -r @swc-node/register src/index.ts\""
   },
   "dependencies": {
     "@polkadot/api": "^13.2.1",
@@ -47,6 +46,7 @@
   "devDependencies": {
     "@pendulum-chain/types": "^1.1.1",
     "@stellar/stellar-sdk": "^13.1.0",
+    "@swc-node/register": "^1.10.9",
     "@swc/cli": "^0.5.2",
     "@swc/core": "^1.10.4",
     "@types/body-parser": "^1.19.5",
