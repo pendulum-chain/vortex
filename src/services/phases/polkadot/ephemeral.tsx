@@ -14,8 +14,8 @@ import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 
 import { multiplyByPowerOfTen } from '../../../helpers/contracts';
 import { waitUntilTrue } from '../../../helpers/function';
+import { isNetworkEVM } from '../../../helpers/networks';
 
-import { Networks } from '../../../contexts/network';
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { isHashRegistered } from '../moonbeam';
@@ -88,7 +88,7 @@ export async function pendulumFundEphemeral(
   const { squidRouterSwapHash } = state;
   const { wagmiConfig } = context;
 
-  if (state.network !== Networks.AssetHub) {
+  if (isNetworkEVM(state.network)) {
     if (squidRouterSwapHash === undefined) {
       throw new Error('No squid router swap hash found');
     }
@@ -108,13 +108,13 @@ export async function pendulumFundEphemeral(
     await waitUntilTrue(() => isEphemeralFunded(state, context));
   }
 
-  if (state.network !== Networks.AssetHub) {
+  if (isNetworkEVM(state.network)) {
     await waitUntilTrue(() => isHashRegistered(state.squidRouterReceiverHash));
   }
 
   return {
     ...state,
-    phase: state.network === Networks.AssetHub ? 'executeAssetHubXCM' : 'executeMoonbeamXCM',
+    phase: isNetworkEVM(state.network) ? 'executeMoonbeamXCM' : 'executeAssetHubXCM',
   };
 }
 
@@ -229,7 +229,7 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
     throw new Error('Invalid input token');
   }
 
-  const requiredAmount = Big(state.inputAmount.raw).sub(currentBalance);
+  const requiredAmount = Big(state.pendulumAmountRaw).sub(currentBalance);
   if (requiredAmount.gt(Big(0))) {
     console.log('Subsidizing pre-swap with', requiredAmount.toString());
 
@@ -252,8 +252,8 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
     await waitUntilTrue(async () => {
       console.log('waiting for input balance to be enough');
       const currentBalance = await getRawInputBalance(state, context);
-      console.log('currentBalance', currentBalance, Big(state.inputAmount.raw));
-      return currentBalance.gte(Big(state.inputAmount.raw));
+      console.log('currentBalance', currentBalance, Big(state.pendulumAmountRaw));
+      return currentBalance.gte(Big(state.pendulumAmountRaw));
     });
   }
 

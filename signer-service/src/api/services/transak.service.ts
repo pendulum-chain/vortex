@@ -83,12 +83,7 @@ async function priceQuery(
 type SupportedCrypto = 'USDC' | 'USDC.E' | 'USDCE' | 'USDT' | string;
 
 function getTransakNetworkCode(network: string): Network {
-  switch (network.toUpperCase()) {
-    case 'POLYGON':
-      return 'polygon';
-    default:
-      return network;
-  }
+  return network.toLowerCase();
 }
 
 function getCryptoCode(fromCrypto: SupportedCrypto): string {

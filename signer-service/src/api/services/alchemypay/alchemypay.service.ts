@@ -129,27 +129,27 @@ async function priceQuery(
   };
 }
 
-// see https://alchemypay.readme.io/docs/network-code
+const NETWORK_MAP: Record<string, string> = {
+  POLYGON: 'MATIC',
+  BSC: 'BSC',
+  ARBITRUM: 'ARBITRUM',
+  AVALANCHE: 'AVAX',
+  ETHEREUM: 'ETH',
+};
+
+const CRYPTO_MAP: Record<string, string> = {
+  usdc: 'USDC',
+  'usdc.e': 'USDC.e',
+  usdce: 'USDC.e',
+  usdt: 'USDT',
+};
+
 function getAlchemyPayNetworkCode(network: string): string {
-  switch (network.toUpperCase()) {
-    case 'POLYGON':
-      return 'MATIC';
-    default:
-      return network;
-  }
+  return NETWORK_MAP[network.toUpperCase()] ?? network;
 }
 
 function getCryptoCurrencyCode(fromCrypto: string): string {
-  if (fromCrypto.toLowerCase() === 'usdc') {
-    return 'USDC';
-  } else if (fromCrypto.toLowerCase() === 'usdce' || fromCrypto.toLowerCase() === 'usdc.e') {
-    return 'USDC.e';
-  } else if (fromCrypto.toLowerCase() === 'usdt') {
-    return 'USDT';
-  }
-
-  // The currencies need to be in uppercase
-  return fromCrypto.toUpperCase();
+  return CRYPTO_MAP[fromCrypto.toLowerCase()] ?? fromCrypto.toUpperCase();
 }
 
 function getFiatCode(toFiat: string): string {

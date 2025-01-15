@@ -1,14 +1,15 @@
 import { FC, HTMLAttributes } from 'preact/compat';
-import { useGetNetworkIcon, NetworkIconType } from '../../hooks/useGetNetworkIcon';
+import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
+import { getNetworkDisplayName, Networks } from '../../helpers/networks';
 
 interface Props extends HTMLAttributes<HTMLImageElement> {
-  chainId: NetworkIconType;
+  network: Networks;
 }
 
-export const NetworkIcon: FC<Props> = ({ chainId, ...props }) => {
-  const iconSrc = useGetNetworkIcon(chainId);
+export const NetworkIcon: FC<Props> = ({ network, ...props }) => {
+  const iconSrc = useGetNetworkIcon(network);
 
-  if (iconSrc) return <img src={iconSrc} alt={chainId} {...props} />;
+  if (iconSrc) return <img src={iconSrc} alt={getNetworkDisplayName(network)} {...props} />;
 
   return <></>;
 };

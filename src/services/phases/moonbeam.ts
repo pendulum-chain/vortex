@@ -13,7 +13,7 @@ import encodePayload from './squidrouter/payload';
 import { ExecutionContext, OfframpingState } from '../offrampingFlow';
 
 import { getRawInputBalance } from './polkadot/ephemeral';
-import { squidRouterConfig } from './squidrouter/config';
+import { squidRouterConfigBase } from './squidrouter/config';
 
 export const moonbeamConfig = createConfig({
   chains: [moonbeam],
@@ -81,7 +81,7 @@ export async function isHashRegistered(hash: `0x${string}`): Promise<boolean> {
   const result = (await readContract(moonbeamConfig, {
     abi: squidReceiverABI,
     chainId: moonbeam.id,
-    address: squidRouterConfig.receivingContractAddress,
+    address: squidRouterConfigBase.receivingContractAddress,
     functionName: 'xcmDataMapping',
     args: [hash],
   })) as bigint;

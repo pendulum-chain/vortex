@@ -79,8 +79,8 @@ export async function prepareNablaApproveTransaction(
   state: OfframpingState,
   context: ExecutionContext,
 ): Promise<Extrinsic> {
-  const { inputTokenType, inputAmount, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
-  const { pendulumNode, renderEvent } = context;
+  const { inputTokenType, inputAmount, pendulumAmountRaw, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
+  const { pendulumNode } = context;
 
   const { ss58Format, api } = pendulumNode;
   // event attempting swap
@@ -109,19 +109,19 @@ export async function prepareNablaApproveTransaction(
 
   if (response.type !== 'success') {
     const message = 'Could not load token allowance';
-    renderEvent(message, EventStatus.Error);
+    console.log(message, EventStatus.Error);
     throw new Error(message);
   }
 
-  const currentAllowance = parseContractBalanceResponse(inputToken.decimals, response.value);
+  const currentAllowance = parseContractBalanceResponse(inputToken.pendulumDecimals, response.value);
 
   //maybe do allowance
-  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(inputAmount.raw))) {
+  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(pendulumAmountRaw))) {
     try {
-      renderEvent(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
+      console.log(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
       return createAndSignApproveExtrinsic({
         api: api,
-        amount: inputAmount.raw,
+        amount: pendulumAmountRaw,
         token: inputToken.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
@@ -129,7 +129,7 @@ export async function prepareNablaApproveTransaction(
         nonce: nablaApproveNonce,
       });
     } catch (e) {
-      renderEvent(`Could not approve token: ${e}`, EventStatus.Error);
+      console.log(`Could not approve token: ${e}`, EventStatus.Error);
       return Promise.reject('Could not approve token');
     }
   }
@@ -141,7 +141,7 @@ export async function prepareNablaApproveTransaction(
 // save any state for potential recovery.
 export async function nablaApprove(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
   const { transactions, inputAmount, inputTokenType, nablaApproveNonce, network } = state;
-  const { renderEvent, pendulumNode } = context;
+  const { pendulumNode } = context;
 
   const { api } = pendulumNode;
 
@@ -166,14 +166,14 @@ export async function nablaApprove(state: OfframpingState, context: ExecutionCon
   }
 
   try {
-    renderEvent(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
+    console.log(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
 
     const approvalExtrinsic = decodeSubmittableExtrinsic(transactions.nablaApproveTransaction, api);
 
     const result = await submitExtrinsic(approvalExtrinsic);
 
     if (result.status.type === 'error') {
-      renderEvent(`Could not approve token: ${result.status.error.toString()}`, EventStatus.Error);
+      console.log(`Could not approve token: ${result.status.error.toString()}`, EventStatus.Error);
       return Promise.reject('Could not approve token');
     }
   } catch (e) {
@@ -186,7 +186,7 @@ export async function nablaApprove(state: OfframpingState, context: ExecutionCon
     } else {
       errorMessage = 'Something went wrong';
     }
-    renderEvent(`Could not approve the required amount of token: ${errorMessage}`, EventStatus.Error);
+    console.log(`Could not approve the required amount of token: ${errorMessage}`, EventStatus.Error);
     return Promise.reject('Could not approve token');
   }
 
@@ -251,13 +251,13 @@ export async function prepareNablaSwapTransaction(
     inputTokenType,
     outputTokenType,
     inputAmount,
+    pendulumAmountRaw,
     outputAmount,
     nablaHardMinimumOutputRaw,
     pendulumEphemeralSeed,
     nablaSwapNonce,
     network,
   } = state;
-  const { renderEvent } = context;
 
   // event attempting swap
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
@@ -280,14 +280,14 @@ export async function prepareNablaSwapTransaction(
   if (rawBalanceBefore.lt(Big(nablaHardMinimumOutputRaw))) {
     // Try swap
     try {
-      renderEvent(
+      console.log(
         `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
         EventStatus.Waiting,
       );
 
       return createAndSignSwapExtrinsic({
         api: api,
-        amount: inputAmount.raw,
+        amount: pendulumAmountRaw,
         amountMin: nablaHardMinimumOutputRaw,
         tokenIn: inputToken.pendulumErc20WrapperAddress,
         tokenOut: outputToken.erc20WrapperAddress,
@@ -308,6 +308,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     transactions,
     inputAmount,
     inputTokenType,
+    pendulumAmountRaw,
     outputAmount,
     outputTokenType,
     pendulumEphemeralSeed,
@@ -315,7 +316,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     nablaSoftMinimumOutputRaw,
     network,
   } = state;
-  const { renderEvent, pendulumNode } = context;
+  const { pendulumNode } = context;
 
   const { api, ss58Format } = pendulumNode;
 
@@ -348,7 +349,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
   const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
 
   try {
-    renderEvent(
+    console.log(
       `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
       EventStatus.Waiting,
     );
@@ -361,7 +362,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
       contractDeploymentAddress: NABLA_ROUTER,
       callerAddress: ephemeralKeypair.address,
       messageName: 'getAmountOut',
-      messageArguments: [inputAmount.raw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
+      messageArguments: [pendulumAmountRaw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
       limits: defaultReadLimits,
     });
 
@@ -380,7 +381,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     const result = await submitExtrinsic(swapExtrinsic);
 
     if (result.status.type === 'error') {
-      renderEvent(`Could not swap token: ${result.status.error.toString()}`, EventStatus.Error);
+      console.log(`Could not swap token: ${result.status.error.toString()}`, EventStatus.Error);
       return Promise.reject('Could not swap token');
     }
   } catch (e) {
@@ -393,7 +394,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     } else {
       errorMessage = 'Something went wrong';
     }
-    renderEvent(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
+    console.log(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
     return Promise.reject('Could not swap token');
   }
   //verify token balance before releasing this process.
@@ -403,7 +404,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
   const actualOfframpValueRaw = rawBalanceAfter.sub(rawBalanceBefore);
   const actualOfframpValue = multiplyByPowerOfTen(actualOfframpValueRaw, -outputToken.decimals);
 
-  renderEvent(
+  console.log(
     `Swap successful. Amount received: ${stringifyBigWithSignificantDecimals(actualOfframpValue, 2)}`,
     EventStatus.Success,
   );

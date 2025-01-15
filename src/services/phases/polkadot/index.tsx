@@ -30,7 +30,7 @@ export async function prepareSpacewalkRedeemTransaction(
   state: OfframpingState,
   context: ExecutionContext,
 ): Promise<Extrinsic> {
-  const { pendulumNode, renderEvent } = context;
+  const { pendulumNode } = context;
 
   if (!pendulumNode) {
     throw new Error('Pendulum node not available');
@@ -57,7 +57,7 @@ export async function prepareSpacewalkRedeemTransaction(
       outputToken.stellarAsset.issuer.hex,
       outputAmount.raw,
     );
-    renderEvent(
+    console.log(
       `Requesting redeem of ${outputAmount.units} tokens for vault ${prettyPrintVaultId(vaultService.vaultId)}`,
       EventStatus.Waiting,
     );
@@ -78,7 +78,7 @@ export async function executeSpacewalkRedeem(
   state: OfframpingState,
   context: ExecutionContext,
 ): Promise<OfframpingState> {
-  const { pendulumNode, renderEvent } = context;
+  const { pendulumNode } = context;
 
   if (!pendulumNode) {
     throw new Error('Pendulum node not available');
@@ -155,7 +155,7 @@ export async function executeSpacewalkRedeem(
       outputToken.stellarAsset.issuer.hex,
       outputAmount.raw,
     );
-    renderEvent(
+    console.log(
       `Requesting redeem of ${outputAmount.units} tokens for vault ${prettyPrintVaultId(vaultService.vaultId)}`,
       EventStatus.Waiting,
     );
@@ -170,7 +170,7 @@ export async function executeSpacewalkRedeem(
     );
 
     // Render event that the extrinsic passed, and we are now waiting for the execution of it
-    renderEvent(
+    console.log(
       `Redeem request passed, waiting up to ${maxWaitingTimeMinutes} minutes for redeem execution event...`,
       EventStatus.Waiting,
     );
@@ -182,7 +182,7 @@ export async function executeSpacewalkRedeem(
       // This is a potentially recoverable error (due to network delay)
       // in the future we should distinguish between recoverable and non-recoverable errors
       console.log(`Failed to wait for redeem execution: ${error}`);
-      renderEvent(`Failed to wait for redeem execution: Max waiting time exceeded`, EventStatus.Error);
+      console.log(`Failed to wait for redeem execution: Max waiting time exceeded`, EventStatus.Error);
       throw new Error(`Failed to wait for redeem execution`);
     }
   } catch (error) {
@@ -197,7 +197,7 @@ export async function executeSpacewalkRedeem(
     }
   }
 
-  renderEvent('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
+  console.log('Redeem process completed, executing offramp transaction', EventStatus.Waiting);
   return successorState;
 }
 

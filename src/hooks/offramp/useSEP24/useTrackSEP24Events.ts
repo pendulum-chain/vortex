@@ -1,22 +1,10 @@
-import Big from 'big.js';
-
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { calculateTotalReceive } from '../../../components/FeeCollapse';
 import { OfframpingState } from '../../../services/offrampingFlow';
-import { Networks } from '../../../contexts/network';
-import {
-  getInputTokenDetailsOrDefault,
-  OUTPUT_TOKEN_CONFIG,
-  InputTokenType,
-  OutputTokenType,
-} from '../../../constants/tokenConfig';
+import { Networks } from '../../../helpers/networks';
+import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../../constants/tokenConfig';
 
-interface ExecutionInput {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
-  amountInUnits: string;
-  offrampAmount: Big;
-}
+import { ExecutionInput } from '../useMainProcess';
 
 export const useTrackSEP24Events = () => {
   const { trackEvent } = useEventsContext();
