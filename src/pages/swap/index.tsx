@@ -385,8 +385,8 @@ export const SwapPage = () => {
         className="max-w-2xl px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
         onSubmit={onSwapConfirm}
       >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
+        <LabeledInput label="Sell Crypto" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <Arrow />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
