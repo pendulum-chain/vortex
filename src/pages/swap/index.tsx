@@ -1,4 +1,4 @@
-import { ArrowDownIcon } from '@heroicons/react/20/solid';
+
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
@@ -61,11 +61,7 @@ import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 
-const Arrow = () => (
-  <div className="flex justify-center w-full my-5">
-    <ArrowDownIcon className="text-blue-700 w-7" />
-  </div>
-);
+
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -387,7 +383,6 @@ export const SwapPage = () => {
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
         <LabeledInput label="Sell Crypto" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-        <Arrow />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
