@@ -383,7 +383,7 @@ export const SwapPage = () => {
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
         <LabeledInput label="Sell Crypto" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-        <div className="mt-10 mb-10"></div>
+        <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
