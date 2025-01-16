@@ -101,7 +101,7 @@ export function useSiweSignature() {
       signPromise.reject(new Error('Signing failed: ' + errorMessage));
     } finally {
       setSignPromise(null);
-      setOfframpSigningPhase?.(undefined);
+      setOfframpSigningPhase?.('finished');
     }
   }, [address, storageKey, signPromise, setSignPromise, getMessageSignature]);
 
