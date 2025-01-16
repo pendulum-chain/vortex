@@ -1,4 +1,3 @@
-
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
@@ -60,8 +59,6 @@ import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-
-
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -378,10 +375,7 @@ export const SwapPage = () => {
     <main ref={formRef}>
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={offrampSigningPhase} />
-      <form
-        className="max-w-2xl px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
-        onSubmit={onSwapConfirm}
-      >
+      <form className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96" onSubmit={onSwapConfirm}>
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
         <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <div className="my-10" />
