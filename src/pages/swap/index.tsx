@@ -94,7 +94,8 @@ export const SwapPage = () => {
   // Maybe go into a state of UI errors??
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
-      message ?? "We're stuck in the digital equivalent of rush hour traffic. Hang tight, we'll get moving again!",
+      message ??
+        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
     );
   }, []);
 
