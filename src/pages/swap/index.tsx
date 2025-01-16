@@ -1,4 +1,3 @@
-import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
@@ -9,7 +8,7 @@ import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { FeeComparison } from '../../components/FeeComparison';
+import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
 import { BenefitsList } from '../../components/BenefitsList';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
@@ -59,14 +58,9 @@ import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 
-const Arrow = () => (
-  <div className="flex justify-center w-full my-5">
-    <ArrowDownIcon className="text-blue-700 w-7" />
-  </div>
-);
-
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
+  const feeComparisonRef = useRef<FeeComparisonRef>(null);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { address } = useVortexAccount();
@@ -94,7 +88,8 @@ export const SwapPage = () => {
   // Maybe go into a state of UI errors??
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
-      message ?? "We're stuck in the digital equivalent of rush hour traffic. Hang tight, we'll get moving again!",
+      message ??
+        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
     );
   }, []);
 
@@ -385,13 +380,10 @@ export const SwapPage = () => {
   const main = (
     <main ref={formRef}>
       <SigningBox step={offrampSigningPhase} />
-      <form
-        className="max-w-2xl px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
-        onSubmit={onSwapConfirm}
-      >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-        <Arrow />
+      <form className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96" onSubmit={onSwapConfirm}>
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
+        <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
+        <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
@@ -434,7 +426,12 @@ export const SwapPage = () => {
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
-              setShowCompareFees(!showCompareFees);
+              // We always show the fees comparison when the user clicks on the button. It will not be hidden again.
+              if (!showCompareFees) setShowCompareFees(true);
+              // Scroll to the comparison fees section (with a small delay to allow the component to render first)
+              setTimeout(() => {
+                feeComparisonRef.current?.scrollIntoView();
+              }, 200);
             }}
           >
             Compare fees
@@ -471,7 +468,7 @@ export const SwapPage = () => {
           targetAssetSymbol={toToken.fiat.symbol}
           vortexPrice={vortexPrice}
           network={selectedNetwork}
-          enabled={showCompareFees}
+          ref={feeComparisonRef}
         />
       )}
       <TrustedBy />

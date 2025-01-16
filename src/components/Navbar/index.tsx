@@ -9,7 +9,7 @@ import { NetworkSelector } from '../NetworkSelector';
 import { useNetwork } from '../../contexts/network';
 
 const links = [
-  { title: 'Offramp', href: '/' },
+  { title: 'Sell Crypto', href: '/' },
   { title: 'How it works', href: 'https://www.vortexfinance.co/#lowest-code' },
   { title: 'Community', href: 'https://www.vortexfinance.co/#call-to-action' },
 ];
