@@ -13,7 +13,7 @@ export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
   const inputTokenBalance = useInputTokenBalance({ fromToken: token });
 
   if (isDisconnected || inputTokenBalance === undefined) {
-    return <></>;
+    return <div className="h-6 mt-1" />;
   }
 
   const showMaxButton = Number(inputTokenBalance) !== 0;

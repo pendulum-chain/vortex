@@ -6,24 +6,27 @@ import vortexLogo from '../../assets/logo/blue.svg';
 interface ImageProps {
   src: string;
   alt: string;
+  additionalClass?: string;
   comingSoon?: boolean;
 }
 
 const paymentImages = [
-  { src: SEPA, alt: 'SEPA logo' },
+  { src: SEPA, alt: 'SEPA logo', additionalClass: 'h-6' },
   { src: MASTERCARD, alt: 'Mastercard logo', comingSoon: true },
   { src: VISA, alt: 'Visa logo', comingSoon: true },
 ];
 
-const Image = ({ src, alt, comingSoon }: ImageProps) => (
-  <div className="relative flex items-center">
-    <img src={src} alt={alt} className="h-[18px]" />
-    {/* {comingSoon && <div className="absolute top-0 right-0 text-xs text-right text-blue-700">Coming soon</div>} */}
+const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
+  <div className="relative">
+    <img src={src} alt={alt} className={`h-[18px] ${additionalClass}`} />
+    {comingSoon && (
+      <div className="absolute bottom-[-10px] right-[-8px] text-[8px] w-12 text-blue-700">Coming soon</div>
+    )}
   </div>
 );
 
 const ImageList = ({ images }: { images: ImageProps[] }) => (
-  <div className="flex flex-wrap items-center justify-center gap-x-2">
+  <div className="flex flex-wrap items-start justify-center gap-x-4">
     {images.map((img) => (
       <Image key={img.alt} {...img} />
     ))}
@@ -34,12 +37,11 @@ export function PoweredBy() {
   return (
     <section>
       <ImageList images={paymentImages} />
-      <div className="flex items-center justify-center mt-2">
+      <div className="flex items-center justify-center mt-3">
         <p className="mr-1 text-sm text-gray-500">Powered by</p>
         <Image src={vortexLogo} alt="Satoshipay" />
       </div>
-      <p className="flex items-center justify-center mr-1 text-sm text-gray-500">
-        A
+      <p className="flex items-center justify-center mt-3 mr-1 text-sm text-gray-500">
         <a
           href="https://satoshipay.io"
           target="_blank"
@@ -48,7 +50,6 @@ export function PoweredBy() {
         >
           <img src={satoshipayLogo} alt="Satoshipay" />
         </a>
-        Company
       </p>
     </section>
   );
