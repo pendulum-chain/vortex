@@ -1,4 +1,3 @@
-
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
@@ -60,8 +59,6 @@ import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-
-
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
