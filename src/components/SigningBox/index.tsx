@@ -25,7 +25,7 @@ const EVM_PROGRESS_CONFIG: ProgressStep = {
   approved: '50',
   signed: '75',
   finished: '100',
-  login: '0',
+  login: '15',
 };
 
 const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
@@ -33,7 +33,7 @@ const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
   finished: '100',
   signed: '0',
   approved: '0',
-  login: '0',
+  login: '15',
 };
 
 const EVM_SIGNATURE_CONFIG: SignatureConfig = {
@@ -91,25 +91,17 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
             </div>
           </div>
 
-          {step !== 'login' && (
-            <div className="w-full pb-2.5">
-              <Progress
-                value={progressValue}
-                max="100"
-                className="h-4 bg-white border progress-primary border-primary"
-              />
-            </div>
-          )}
+          <div className="w-full pb-2.5">
+            <Progress value={progressValue} max="100" className="h-4 bg-white border progress-primary border-primary" />
+          </div>
         </main>
 
-        {step !== 'login' && (
-          <footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
-            <Spinner />
-            <p className="ml-2.5 my-2 text-xs">
-              Waiting for signature {getSignatureNumber(step)}/{maxSignatures}
-            </p>
-          </footer>
-        )}
+        <footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
+          <Spinner />
+          <p className="ml-2.5 my-2 text-xs">
+            Waiting for signature {getSignatureNumber(step)}/{maxSignatures}
+          </p>
+        </footer>
       </div>
     </section>
   );
