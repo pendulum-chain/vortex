@@ -5,6 +5,7 @@ import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 import { useOfframpActions } from '../stores/offrampStore';
 import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
+import { useSep24Actions } from '../stores/sep24Store';
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
@@ -36,11 +37,13 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
 
   const { resetOfframpState } = useOfframpActions();
+  const { cleanup: cleanupSep24Variables } = useSep24Actions();
   const { switchChain } = useSwitchChain();
 
   const setSelectedNetwork = useCallback(
     (network: Networks) => {
       resetOfframpState();
+      cleanupSep24Variables();
       setSelectedNetworkState(network);
       setSelectedNetworkLocalStorage(network);
 

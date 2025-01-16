@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
+import { Fragment } from 'preact';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';

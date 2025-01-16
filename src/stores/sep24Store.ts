@@ -36,13 +36,14 @@ const useSep24Store = create<Sep24Store>()((set, get) => ({
     setExecutionInput: (input) => set({ executionInput: input }),
     setUrlInterval: (interval) => set({ urlInterval: interval }),
 
-    reset: () =>
+    reset: () => {
       set({
         anchorSessionParams: undefined,
         initialResponse: undefined,
         executionInput: undefined,
         urlInterval: undefined,
-      }),
+      });
+    },
 
     cleanup: () => {
       const { urlInterval } = get();
