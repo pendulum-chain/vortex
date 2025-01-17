@@ -129,7 +129,7 @@ export const useSubmitOfframp = () => {
           console.error('Error initializing the offramping process', (error as Error).message);
           // Display error message, differentiating between user rejection and other errors
           if ((error as Error).message.includes('User rejected')) {
-            showToast(ToastMessage.ERROR, 'You must sign the login request to offramp Agentinian Peso');
+            showToast(ToastMessage.ERROR, 'You must sign the login request to offramp Argentine Peso');
           } else {
             setInitializeFailed();
           }

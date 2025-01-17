@@ -40,8 +40,6 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
     throw new Error('AssetHub node not available');
   }
 
-  setOfframpSigningPhase?.('started');
-
   const didInputTokenArrivedOnPendulum = async () => {
     const inputBalanceRaw = await getRawInputBalance(state, context);
     return inputBalanceRaw.gt(Big(0));
