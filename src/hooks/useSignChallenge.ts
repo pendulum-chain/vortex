@@ -58,7 +58,7 @@ export function useSiweSignature() {
       setSignPromise({ resolve, reject });
       setOfframpSigningPhase?.('login');
     });
-  }, [setSignPromise, signPromise]);
+  }, [setOfframpSigningPhase, setSignPromise, signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
@@ -104,7 +104,7 @@ export function useSiweSignature() {
     } finally {
       setSignPromise(null);
     }
-  }, [address, storageKey, signPromise, setSignPromise, getMessageSignature]);
+  }, [address, storageKey, signPromise, setSignPromise, getMessageSignature, setOfframpSigningPhase]);
 
   useEffect(() => {
     if (signPromise) handleSign();

@@ -94,15 +94,6 @@ export const SwapPage = () => {
     );
   }, []);
 
-  const clearInitializeErrors = useCallback(() => {
-    if (!initializeFailedMessage) return;
-    if (initializeFailedMessage.includes('Hang tight')) {
-      return window.location.reload();
-    } else {
-      setInitializeFailedMessage(null);
-    }
-  }, [initializeFailedMessage, setInitializeFailedMessage]);
-
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -408,9 +399,6 @@ export const SwapPage = () => {
           {(initializeFailedMessage || apiInitializeFailed) && (
             <div className="flex items-center gap-4">
               <p className="text-red-600">{initializeFailedMessage}</p>
-              <button className="btn btn-vortex-primary px-4 py-2 text-xs" onClick={() => clearInitializeErrors()}>
-                Retry
-              </button>
             </div>
           )}
         </section>

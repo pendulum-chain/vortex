@@ -52,7 +52,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         switchChain({ chainId: getNetworkId(network) });
       }
     },
-    [switchChain, setSelectedNetworkLocalStorage, resetOfframpState],
+    [switchChain, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
   );
 
   // Only run on first render

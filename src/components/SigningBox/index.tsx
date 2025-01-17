@@ -1,5 +1,5 @@
 import { Progress } from 'react-daisyui';
-import { FC, StateUpdater, useRef, useState } from 'preact/compat';
+import { FC, useRef, useState } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { OfframpSigningPhase } from '../../types/offramp';
@@ -39,7 +39,7 @@ const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
 
 const EVM_SIGNATURE_CONFIG: SignatureConfig = {
   maxSignatures: (step: OfframpSigningPhase) => (step === 'login' ? 1 : 2),
-  getSignatureNumber: (step: OfframpSigningPhase) => (step === 'started' || 'login' ? 1 : 2),
+  getSignatureNumber: (step: OfframpSigningPhase) => (step === 'started' || step === 'login' ? 1 : 2),
 };
 
 const NON_EVM_SIGNATURE_CONFIG: SignatureConfig = {
@@ -72,7 +72,14 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const initialMaxSignaturesRef = useRef<number>(0);
   const initialSignatureNumberRef = useRef<number>(0);
 
-  if (!isValidStep(step, selectedNetwork)) return null;
+  const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);
+
+  useEffect(() => {
+    if (step !== 'finished' && isValidStep(step, selectedNetwork)) {
+      initialMaxSignaturesRef.current = maxSignatures(step);
+      initialSignatureNumberRef.current = getSignatureNumber(step);
+    }
+  }, [step, selectedNetwork, maxSignatures, getSignatureNumber]);
 
   useEffect(() => {
     if (step === 'finished') {
@@ -86,20 +93,13 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
       const intervalId = setInterval(animateProgress, 5);
       return () => clearInterval(intervalId);
     } else {
+      if (!isValidStep(step, selectedNetwork)) return;
       setProgressValue(Number(getProgressConfig(selectedNetwork)[step]));
     }
   }, [step, selectedNetwork]);
 
+  if (!isValidStep(step, selectedNetwork)) return null;
   if (progressValue === 100) return null;
-
-  const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);
-
-  useEffect(() => {
-    if (step !== 'finished') {
-      initialMaxSignaturesRef.current = maxSignatures(step);
-      initialSignatureNumberRef.current = getSignatureNumber(step);
-    }
-  }, [step, maxSignatures, getSignatureNumber]);
 
   const signatureNumber = step === 'finished' ? initialSignatureNumberRef.current : Number(getSignatureNumber(step));
 
