@@ -1,11 +1,12 @@
 import { Progress } from 'react-daisyui';
-import { FC, useRef, useState } from 'preact/compat';
+import { FC, StateUpdater, useRef, useState } from 'preact/compat';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
 
 import { OfframpSigningPhase } from '../../types/offramp';
 import { isNetworkEVM, Networks } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
+import { useEffect } from 'react';
 
 type ProgressStep = {
   started: string;
@@ -16,8 +17,8 @@ type ProgressStep = {
 };
 
 type SignatureConfig = {
-  maxSignatures: number;
-  getSignatureNumber: (step: OfframpSigningPhase) => string;
+  maxSignatures: (step: OfframpSigningPhase) => number;
+  getSignatureNumber: (step: OfframpSigningPhase) => number;
 };
 
 const EVM_PROGRESS_CONFIG: ProgressStep = {
@@ -37,13 +38,13 @@ const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
 };
 
 const EVM_SIGNATURE_CONFIG: SignatureConfig = {
-  maxSignatures: 2,
-  getSignatureNumber: (step: OfframpSigningPhase) => (step === 'started' ? '1' : '2'),
+  maxSignatures: (step: OfframpSigningPhase) => (step === 'login' ? 1 : 2),
+  getSignatureNumber: (step: OfframpSigningPhase) => (step === 'started' || 'login' ? 1 : 2),
 };
 
 const NON_EVM_SIGNATURE_CONFIG: SignatureConfig = {
-  maxSignatures: 1,
-  getSignatureNumber: () => '1',
+  maxSignatures: () => 1,
+  getSignatureNumber: () => 1,
 };
 
 const getProgressConfig = (network: Networks): ProgressStep => {
@@ -65,43 +66,44 @@ const isValidStep = (step: OfframpSigningPhase | undefined, network: Networks): 
   return true;
 };
 
-const increaseProgressValueTo = (from: number, to: number, setProgressValueDisplay: (value: number) => void) => {
-  setProgressValueDisplay(from);
-  if (from === to) return;
-
-  setTimeout(() => {
-    increaseProgressValueTo(from + 1, to, setProgressValueDisplay);
-  }, 10);
-};
-
 export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const { selectedNetwork } = useNetwork();
-  const [progressValueDisplay, setProgressValueDisplay] = useState(0);
+  const [progressValue, setProgressValue] = useState<number>(0);
   const initialMaxSignaturesRef = useRef<number>(0);
   const initialSignatureNumberRef = useRef<number>(0);
 
   if (!isValidStep(step, selectedNetwork)) return null;
 
-  if (step === 'finished') {
-    increaseProgressValueTo(progressValueDisplay, 100, setProgressValueDisplay);
-  } else {
-    setProgressValueDisplay(Number(getProgressConfig(selectedNetwork)[step]));
-  }
+  useEffect(() => {
+    if (step === 'finished') {
+      const animateProgress = () => {
+        setProgressValue((prev) => {
+          if (prev >= 100) return 100;
+          return prev + 1;
+        });
+      };
 
-  if (progressValueDisplay == 100) {
-    return null;
-  }
+      const intervalId = setInterval(animateProgress, 5);
+      return () => clearInterval(intervalId);
+    } else {
+      setProgressValue(Number(getProgressConfig(selectedNetwork)[step]));
+    }
+  }, [step, selectedNetwork]);
+
+  if (progressValue === 100) return null;
 
   const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);
 
-  // If it is login step, signatureNumber is 0 and maxSignatures is 1, for any network
-  // Finished will display the last signature number and maxSignatures
-  const signatureNumber =
-    step === 'login' ? 1 : step === 'finished' ? initialMaxSignaturesRef.current : Number(getSignatureNumber(step));
-  initialSignatureNumberRef.current = signatureNumber;
-  const maxSignaturesDisplay =
-    step === 'login' ? 1 : step === 'finished' ? initialMaxSignaturesRef.current : maxSignatures;
-  initialMaxSignaturesRef.current = maxSignaturesDisplay;
+  useEffect(() => {
+    if (step !== 'finished') {
+      initialMaxSignaturesRef.current = maxSignatures(step);
+      initialSignatureNumberRef.current = getSignatureNumber(step);
+    }
+  }, [step, maxSignatures, getSignatureNumber]);
+
+  const signatureNumber = step === 'finished' ? initialSignatureNumberRef.current : Number(getSignatureNumber(step));
+
+  const maxSignaturesDisplay = step === 'finished' ? initialMaxSignaturesRef.current : maxSignatures(step);
 
   return (
     <section className="z-50 toast toast-end">
@@ -122,18 +124,14 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
           </div>
 
           <div className="w-full pb-2.5">
-            <Progress
-              value={progressValueDisplay}
-              max="100"
-              className="h-4 bg-white border progress-primary border-primary"
-            />
+            <Progress value={progressValue} max="100" className="h-4 bg-white border progress-primary border-primary" />
           </div>
         </main>
 
         <footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
           <Spinner />
           <p className="ml-2.5 my-2 text-xs">
-            Waiting for signature {initialSignatureNumberRef.current}/{initialMaxSignaturesRef.current}
+            Waiting for signature {signatureNumber}/{maxSignaturesDisplay}
           </p>
         </footer>
       </div>
