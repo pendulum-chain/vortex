@@ -96,12 +96,13 @@ export function useSiweSignature() {
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
       signPromise.resolve();
+      setOfframpSigningPhase?.('finished');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       signPromise.reject(new Error('Signing failed: ' + errorMessage));
+      setOfframpSigningPhase?.(undefined);
     } finally {
       setSignPromise(null);
-      setOfframpSigningPhase?.('finished');
     }
   }, [address, storageKey, signPromise, setSignPromise, getMessageSignature]);
 
