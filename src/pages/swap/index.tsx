@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
+import { motion } from 'framer-motion';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
@@ -375,7 +376,13 @@ export const SwapPage = () => {
     <main ref={formRef}>
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={offrampSigningPhase} />
-      <form className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96" onSubmit={onSwapConfirm}>
+      <motion.form
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96"
+        onSubmit={onSwapConfirm}
+      >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
         <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <div className="my-10" />
@@ -450,7 +457,7 @@ export const SwapPage = () => {
         </div>
         <hr className="mt-6 mb-3" />
         <PoweredBy />
-      </form>
+      </motion.form>
       {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
