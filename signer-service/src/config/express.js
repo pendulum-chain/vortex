@@ -35,14 +35,16 @@ app.use(
 // Set number of expected proxies
 app.set('trust proxy', true);
 
-// Add this before your rate limiter
 app.use((req, res, next) => {
+  delete filteredHeaders['authorization'];
+  delete filteredHeaders['cookie'];
+
   console.log({
     'Raw Socket IP': req.socket.remoteAddress,
     'Express req.ip': req.ip,
     'X-Forwarded-For': req.headers['x-forwarded-for'],
     'X-Real-IP': req.headers['x-real-ip'],
-    'All Headers': req.headers,
+    'Filtered Headers': filteredHeaders,
     'Trust Proxy Setting': app.get('trust proxy'),
   });
   next();
