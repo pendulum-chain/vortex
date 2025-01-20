@@ -26,7 +26,7 @@ const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
 );
 
 const ImageList = ({ images }: { images: ImageProps[] }) => (
-  <div className="flex flex-wrap items-start justify-center gap-x-4">
+  <div className="flex flex-wrap items-start justify-center gap-x-6">
     {images.map((img) => (
       <Image key={img.alt} {...img} />
     ))}
@@ -46,9 +46,9 @@ export function PoweredBy() {
           href="https://satoshipay.io"
           target="_blank"
           rel="noopener noreferrer"
-          className="transition hover:opacity-80"
+          className="flex gap-1 text-xs transition hover:opacity-80"
         >
-          <img src={satoshipayLogo} alt="Satoshipay" />
+          A <img src={satoshipayLogo} alt="Satoshipay" /> Company
         </a>
       </p>
     </section>

@@ -82,12 +82,12 @@ const MobileMenuList: FC<MobileMenuListProps> = ({ showMenu, closeMenu }) => (
 const Links = () => (
   <ul className="lg:flex lg:items-center lg:justify-around">
     {links.map((link) => (
-      <li key={link.title} className="mb-9 lg:mb-0">
+      <li key={link.title} className="mr-4 mb-9 lg:mb-0">
         <a
           href={link.href}
           target={link.href.startsWith('https') ? '_blank' : ''}
           rel={link.href.startsWith('https') ? 'noreferrer' : ''}
-          className="px-3 text-lg font-thin text-white lg:px-4 xl:px-7 hover:text-amber-500 hover:underline"
+          className="px-3 text-lg font-thin text-white hover:text-amber-500 hover:underline lg:px-0"
         >
           {link.title}
         </a>
