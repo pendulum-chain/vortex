@@ -41,7 +41,6 @@ app.use((req, res, next) => {
     'Express req.ip': req.ip,
     'X-Forwarded-For': req.headers['x-forwarded-for'],
     'X-Real-IP': req.headers['x-real-ip'],
-    'Filtered Headers': filteredHeaders,
     'Trust Proxy Setting': app.get('trust proxy'),
   });
   next();
