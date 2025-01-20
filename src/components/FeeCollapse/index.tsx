@@ -1,8 +1,8 @@
 import { FC } from 'preact/compat';
 import Big from 'big.js';
-import { roundDownToTwoDecimals } from '../../helpers/parseNumbers';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
+import { useOfframpFees } from '../../hooks/useOfframpFees';
 
 export function calculateTotalReceive(toAmount: Big, outputToken: OutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
@@ -32,10 +32,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
     trackEvent({ event: 'click_details' });
   };
 
-  const toAmountFixed = roundDownToTwoDecimals(toAmount);
-  const totalReceive = calculateTotalReceive(toAmount, toToken);
-  const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive));
-  const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive));
+  const { toAmountFixed, totalReceiveFormatted, feesCost } = useOfframpFees(toAmount, toToken);
 
   return (
     <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>

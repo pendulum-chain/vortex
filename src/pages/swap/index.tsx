@@ -59,6 +59,7 @@ import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -70,6 +71,7 @@ export const SwapPage = () => {
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
+  const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
@@ -345,6 +347,11 @@ export const SwapPage = () => {
   const onSwapConfirm = (e: Event) => {
     e.preventDefault();
 
+    if (offrampStarted) {
+      setIsOfframpSummaryDialogVisible(true);
+      return;
+    }
+
     if (!termsAccepted && !termsChecked) {
       setTermsError(true);
 
@@ -369,10 +376,23 @@ export const SwapPage = () => {
       handleOnSubmit,
       setTermsAccepted,
     });
+
+    setIsOfframpSummaryDialogVisible(true);
   };
 
   const main = (
     <main ref={formRef}>
+      <OfframpSummaryDialog
+        fromToken={fromToken}
+        fromAmountString={fromAmountString}
+        toToken={toToken}
+        formToAmount={formToAmount}
+        visible={isOfframpSummaryDialogVisible}
+        tokenOutAmount={tokenOutAmount}
+        anchorUrl={firstSep24ResponseState?.url}
+        handleOnAnchorWindowOpen={handleOnAnchorWindowOpen}
+        onClose={() => setIsOfframpSummaryDialogVisible(false)}
+      />
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={offrampSigningPhase} />
       <form className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96" onSubmit={onSwapConfirm}>
@@ -426,27 +446,19 @@ export const SwapPage = () => {
           >
             Compare fees
           </button>
-
-          {firstSep24ResponseState?.url !== undefined ? (
-            // eslint-disable-next-line react/jsx-no-target-blank
-            <a
-              href={firstSep24ResponseState.url}
-              target="_blank"
-              rel="opener" //noopener forbids the use of postMessages.
-              className="btn-vortex-primary btn rounded-xl"
-              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-              onClick={handleOnAnchorWindowOpen}
-              // open in a tinier window
-            >
-              Continue with Partner
-            </a>
-          ) : (
-            <SwapSubmitButton
-              text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
-              pending={offrampInitiating || offrampStarted || offrampState !== undefined}
-            />
-          )}
+          <SwapSubmitButton
+            text={
+              offrampInitiating
+                ? 'Confirming'
+                : offrampStarted && isOfframpSummaryDialogVisible
+                ? 'Processing'
+                : 'Confirm'
+            }
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
+            pending={
+              offrampInitiating || (offrampStarted && isOfframpSummaryDialogVisible) || offrampState !== undefined
+            }
+          />
         </div>
         <hr className="mt-6 mb-3" />
         <PoweredBy />
