@@ -1,140 +1,129 @@
-import { Progress } from 'react-daisyui';
-import { FC, useRef, useState } from 'preact/compat';
-import accountBalanceWalletIcon from '../../assets/account-balance-wallet.svg';
+import { FC, useState, useEffect } from 'preact/compat';
+import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 
+import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
 import { OfframpSigningPhase } from '../../types/offramp';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
-import { useEffect } from 'react';
 
-type ProgressStep = {
-  started: string;
-  signed: string;
-  finished: string;
-  approved: string;
-  login: string;
+type ProgressConfig = {
+  [key in OfframpSigningPhase]: number;
 };
 
-type SignatureConfig = {
-  maxSignatures: (step: OfframpSigningPhase) => number;
-  getSignatureNumber: (step: OfframpSigningPhase) => number;
+const PROGRESS_CONFIGS: Record<'EVM' | 'NON_EVM', ProgressConfig> = {
+  EVM: {
+    started: 25,
+    approved: 50,
+    signed: 75,
+    finished: 100,
+    login: 15,
+  },
+  NON_EVM: {
+    started: 33,
+    finished: 100,
+    signed: 0,
+    approved: 0,
+    login: 15,
+  },
 };
 
-const EVM_PROGRESS_CONFIG: ProgressStep = {
-  started: '25',
-  approved: '50',
-  signed: '75',
-  finished: '100',
-  login: '15',
-};
-
-const NON_EVM_PROGRESS_CONFIG: ProgressStep = {
-  started: '33',
-  finished: '100',
-  signed: '0',
-  approved: '0',
-  login: '15',
-};
-
-const EVM_SIGNATURE_CONFIG: SignatureConfig = {
-  maxSignatures: (step: OfframpSigningPhase) => (step === 'login' ? 1 : 2),
-  getSignatureNumber: (step: OfframpSigningPhase) => (step === 'started' || step === 'login' ? 1 : 2),
-};
-
-const NON_EVM_SIGNATURE_CONFIG: SignatureConfig = {
-  maxSignatures: () => 1,
-  getSignatureNumber: () => 1,
-};
-
-const getProgressConfig = (network: Networks): ProgressStep => {
-  return isNetworkEVM(network) ? EVM_PROGRESS_CONFIG : NON_EVM_PROGRESS_CONFIG;
-};
-
-const getSignatureConfig = (network: Networks): SignatureConfig => {
-  return isNetworkEVM(network) ? EVM_SIGNATURE_CONFIG : NON_EVM_SIGNATURE_CONFIG;
+const getSignatureDetails = (step: OfframpSigningPhase, isEVM: boolean) => {
+  if (!isEVM) return { max: 1, current: 1 };
+  if (step === 'login') return { max: 1, current: 1 };
+  if (step === 'started') return { max: 2, current: 1 };
+  return { max: 2, current: 2 };
 };
 
 interface SigningBoxProps {
   step?: OfframpSigningPhase;
 }
 
-const isValidStep = (step: OfframpSigningPhase | undefined, network: Networks): step is OfframpSigningPhase => {
+const isValidStep = (step: OfframpSigningPhase | undefined, isEVM: boolean): step is OfframpSigningPhase => {
   if (!step) return false;
   if (step === 'finished') return true;
-  if (!isNetworkEVM(network) && (step === 'approved' || step === 'signed')) return false;
+  if (!isEVM && (step === 'approved' || step === 'signed')) return false;
   return true;
 };
 
 export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const { selectedNetwork } = useNetwork();
-  const [progressValue, setProgressValue] = useState<number>(0);
-  const initialMaxSignaturesRef = useRef<number>(0);
-  const initialSignatureNumberRef = useRef<number>(0);
+  const isEVM = isNetworkEVM(selectedNetwork);
+  const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
 
-  const { maxSignatures, getSignatureNumber } = getSignatureConfig(selectedNetwork);
+  const progressValue = useSpring(0, {
+    stiffness: 60,
+    damping: 15,
+    restDelta: 0.001,
+  });
+  const displayProgress = useTransform(progressValue, Math.round);
+
+  const [signatureState, setSignatureState] = useState({ max: 0, current: 0 });
+  const [shouldExit, setShouldExit] = useState(false);
 
   useEffect(() => {
-    if (step !== 'finished' && isValidStep(step, selectedNetwork)) {
-      initialMaxSignaturesRef.current = maxSignatures(step);
-      initialSignatureNumberRef.current = getSignatureNumber(step);
-    }
-  }, [step, selectedNetwork, maxSignatures, getSignatureNumber]);
+    if (!isValidStep(step, isEVM)) return;
 
-  useEffect(() => {
     if (step === 'finished') {
-      const animateProgress = () => {
-        setProgressValue((prev) => {
-          if (prev >= 100) return 100;
-          return prev + 1;
-        });
-      };
-
-      const intervalId = setInterval(animateProgress, 5);
-      return () => clearInterval(intervalId);
-    } else {
-      if (!isValidStep(step, selectedNetwork)) return;
-      setProgressValue(Number(getProgressConfig(selectedNetwork)[step]));
+      progressValue.set(100);
+      setTimeout(() => setShouldExit(true), 3500);
+      return;
     }
-  }, [step, selectedNetwork]);
 
-  if (!isValidStep(step, selectedNetwork)) return null;
-  if (progressValue === 100) return null;
+    progressValue.set(progressConfig[step]);
+    setSignatureState(getSignatureDetails(step, isEVM));
+  }, [step, isEVM, progressConfig, progressValue]);
 
-  const signatureNumber = step === 'finished' ? initialSignatureNumberRef.current : Number(getSignatureNumber(step));
-
-  const maxSignaturesDisplay = step === 'finished' ? initialMaxSignaturesRef.current : maxSignatures(step);
+  if (!isValidStep(step, isEVM) || shouldExit) return null;
 
   return (
-    <section className="z-50 toast toast-end">
-      <div className="shadow-2xl">
-        <header className="bg-pink-500 rounded-t">
-          <h1 className="w-full py-2 text-center text-white">Action Required</h1>
-        </header>
+    <AnimatePresence mode="wait">
+      {!isValidStep(step, isEVM) || shouldExit ? null : (
+        <motion.section
+          className="z-50 toast toast-end"
+          initial={{ y: 150 }}
+          animate={{ y: 0, transition: { type: 'spring', bounce: 0.4 } }}
+          exit={{ y: 150 }}
+          transition={{ duration: 0.5 }}
+          key="signing-box"
+        >
+          <div className="shadow-2xl">
+            <motion.header className="bg-pink-500 rounded-t">
+              <h1 className="w-full py-2 text-center text-white">Action Required</h1>
+            </motion.header>
 
-        <main className="px-8 bg-white">
-          <div className="flex items-center justify-center">
-            <div className="flex items-center justify-center w-10 h-10 border rounded-full border-primary">
-              <img src={accountBalanceWalletIcon} alt="wallet account button" />
-            </div>
-            <div className="mx-4 my-5 text-xs">
-              <p>Please sign the transaction in</p>
-              <p>your connected wallet to proceed</p>
-            </div>
+            <main className="px-8 bg-white">
+              <motion.div className="flex items-center justify-center">
+                <div className="flex items-center justify-center w-10 h-10 border rounded-full border-primary">
+                  <img src={accountBalanceWalletIcon} alt="wallet account button" />
+                </div>
+                <div className="mx-4 my-5 text-xs">
+                  <p>Please sign the transaction in</p>
+                  <p>your connected wallet to proceed</p>
+                </div>
+              </motion.div>
+
+              <motion.div className="w-full pb-2.5">
+                <div className="w-full h-4 overflow-hidden bg-white border rounded-full border-primary">
+                  <motion.div
+                    className="h-full rounded-full bg-primary"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${displayProgress.get()}%` }}
+                    transition={{ duration: 0.5, ease: 'linear' }}
+                  />
+                </div>
+              </motion.div>
+            </main>
+
+            <motion.footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
+              <Spinner />
+              <p className="ml-2.5 my-2 text-xs">
+                Waiting for signature {signatureState.current}/{signatureState.max}
+              </p>
+            </motion.footer>
           </div>
-
-          <div className="w-full pb-2.5">
-            <Progress value={progressValue} max="100" className="h-4 bg-white border progress-primary border-primary" />
-          </div>
-        </main>
-
-        <footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
-          <Spinner />
-          <p className="ml-2.5 my-2 text-xs">
-            Waiting for signature {signatureNumber}/{maxSignaturesDisplay}
-          </p>
-        </footer>
-      </div>
-    </section>
+        </motion.section>
+      )}
+    </AnimatePresence>
   );
 };
