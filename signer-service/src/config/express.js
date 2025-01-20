@@ -36,9 +36,6 @@ app.use(
 app.set('trust proxy', true);
 
 app.use((req, res, next) => {
-  delete filteredHeaders['authorization'];
-  delete filteredHeaders['cookie'];
-
   console.log({
     'Raw Socket IP': req.socket.remoteAddress,
     'Express req.ip': req.ip,
