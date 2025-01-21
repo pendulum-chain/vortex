@@ -1,5 +1,5 @@
 import { FC, useState, useEffect } from 'preact/compat';
-import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
 import { OfframpSigningPhase } from '../../types/offramp';
@@ -41,7 +41,7 @@ interface SigningBoxProps {
 
 const isValidStep = (step: OfframpSigningPhase | undefined, isEVM: boolean): step is OfframpSigningPhase => {
   if (!step) return false;
-  if (step === 'finished') return true;
+  if (step === 'finished' || step === 'login') return true;
   if (!isEVM && (step === 'approved' || step === 'signed')) return false;
   return true;
 };
@@ -51,30 +51,26 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
 
-  const progressValue = useSpring(0, {
-    stiffness: 60,
-    damping: 15,
-    restDelta: 0.001,
-  });
-  const displayProgress = useTransform(progressValue, Math.round);
-
+  const [progress, setProgress] = useState(0);
   const [signatureState, setSignatureState] = useState({ max: 0, current: 0 });
   const [shouldExit, setShouldExit] = useState(false);
 
   useEffect(() => {
     if (!isValidStep(step, isEVM)) return;
 
+    if (step !== 'finished' && shouldExit) {
+      setShouldExit(false);
+    }
+
     if (step === 'finished') {
-      progressValue.set(100);
-      setTimeout(() => setShouldExit(true), 3500);
+      setProgress(100);
+      setTimeout(() => setShouldExit(true), 2500);
       return;
     }
 
-    progressValue.set(progressConfig[step]);
+    setProgress(progressConfig[step]);
     setSignatureState(getSignatureDetails(step, isEVM));
-  }, [step, isEVM, progressConfig, progressValue]);
-
-  if (!isValidStep(step, isEVM) || shouldExit) return null;
+  }, [step, isEVM, progressConfig, shouldExit]);
 
   return (
     <AnimatePresence mode="wait">
@@ -108,7 +104,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
                   <motion.div
                     className="h-full rounded-full bg-primary"
                     initial={{ width: 0 }}
-                    animate={{ width: `${displayProgress.get()}%` }}
+                    animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.5, ease: 'linear' }}
                   />
                 </div>
