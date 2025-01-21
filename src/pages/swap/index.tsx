@@ -27,7 +27,7 @@ import {
 } from '../../constants/tokenConfig';
 import { config } from '../../config';
 
-import { useEventsContext } from '../../contexts/events';
+import { useEventsContext, clearPersistentErrorEventStore } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useSiweContext } from '../../contexts/siwe';
@@ -40,8 +40,6 @@ import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import { useSwapUrlParams } from './useSwapUrlParams';
-
-import { initialChecks } from '../../services/initialChecks';
 
 import { BaseLayout } from '../../layouts';
 import { ProgressPage } from '../progress';
@@ -60,6 +58,12 @@ import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import {
+  MoonbeamFundingAccountError,
+  PendulumFundingAccountError,
+  StellarFundingAccountError,
+  useSigningService,
+} from '../../services/signingService';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -78,16 +82,46 @@ export const SwapPage = () => {
   const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+  const {
+    error: signingServiceError,
+    isLoading: isSigningServiceLoading,
+    isError: isSigningServiceError,
+  } = useSigningService();
 
   const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
     useTermsAndConditions();
 
   useEffect(() => {
-    setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
+    if (!pendulumNode.apiComponents?.api && pendulumNode?.isFetched) {
+      setApiInitializeFailed(true);
+      trackEvent({ event: 'initialization_error', error_message: 'node_connection_issue' });
+    }
     if (pendulumNode.apiComponents?.api) {
       setApi(pendulumNode.apiComponents.api);
     }
   }, [pendulumNode]);
+
+  useEffect(() => {
+    if (isSigningServiceError && !isSigningServiceLoading) {
+      if (signingServiceError instanceof StellarFundingAccountError) {
+        trackEvent({ event: 'initialization_error', error_message: 'stellar_account_issue' });
+      } else if (signingServiceError instanceof PendulumFundingAccountError) {
+        trackEvent({ event: 'initialization_error', error_message: 'pendulum_account_issue' });
+      } else if (signingServiceError instanceof MoonbeamFundingAccountError) {
+        trackEvent({ event: 'initialization_error', error_message: 'moonbeam_account_issue' });
+      } else {
+        trackEvent({ event: 'initialization_error', error_message: 'signer_service_issue' });
+      }
+      setInitializeFailed();
+    }
+  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, trackEvent]);
+
+  useEffect(() => {
+    if (api && !isSigningServiceError && !isSigningServiceLoading) {
+      setIsReady(true);
+      clearPersistentErrorEventStore();
+    }
+  }, [api, isSigningServiceError, isSigningServiceLoading]);
 
   // Maybe go into a state of UI errors??
   const setInitializeFailed = useCallback((message?: string | null) => {
@@ -96,19 +130,6 @@ export const SwapPage = () => {
         "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
     );
   }, []);
-
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        await initialChecks();
-        setIsReady(true);
-      } catch (error) {
-        setInitializeFailed();
-      }
-    };
-
-    initialize();
-  }, [setInitializeFailed]);
 
   // Main process hook
   const {
