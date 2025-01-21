@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
+import { Fragment } from 'preact';
 import { motion } from 'framer-motion';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
@@ -15,7 +16,6 @@ import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
-import { SignInModal } from '../../components/SignIn';
 import { PoweredBy } from '../../components/PoweredBy';
 
 import {
@@ -30,11 +30,10 @@ import { config } from '../../config';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
-import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -74,7 +73,6 @@ export const SwapPage = () => {
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
-  const { signingPending, handleSign, handleCancel } = useSiweContext();
   const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
@@ -364,7 +362,7 @@ export const SwapPage = () => {
       from,
       selectedNetwork,
       fromAmountString,
-      requiresSquidRouter: selectedNetwork === Networks.Polygon,
+      requiresSquidRouter: isNetworkEVM(selectedNetwork),
       setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
@@ -374,7 +372,6 @@ export const SwapPage = () => {
 
   const main = (
     <main ref={formRef}>
-      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={offrampSigningPhase} />
       <motion.form
         initial={{ scale: 0.9, opacity: 0 }}
@@ -407,7 +404,9 @@ export const SwapPage = () => {
         </section>
         <section className="flex justify-center w-full mt-5">
           {(initializeFailedMessage || apiInitializeFailed) && (
-            <p className="text-red-600">{initializeFailedMessage}</p>
+            <div className="flex items-center gap-4">
+              <p className="text-red-600">{initializeFailedMessage}</p>
+            </div>
           )}
         </section>
         <section className="w-full mt-5">
