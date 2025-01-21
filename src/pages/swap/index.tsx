@@ -73,7 +73,7 @@ export const SwapPage = () => {
   const { address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
-  const [_, setIsReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
@@ -118,6 +118,7 @@ export const SwapPage = () => {
 
   useEffect(() => {
     if (api && !isSigningServiceError && !isSigningServiceLoading) {
+      console.log('API and signing service are ready.');
       setIsReady(true);
       clearPersistentErrorEventStore();
     }
@@ -471,7 +472,9 @@ export const SwapPage = () => {
           ) : (
             <SwapSubmitButton
               text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
+              disabled={
+                Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage || !isReady
+              } // !!initializeFailedMessage we disable when the initialize failed message is not null
               pending={offrampInitiating || offrampStarted || offrampState !== undefined}
             />
           )}
