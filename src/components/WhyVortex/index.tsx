@@ -13,7 +13,7 @@ const features: Feature[] = [
   {
     icon: DOLLAR,
     title: 'Lower Fees',
-    description: 'Offramping fees at just 0.5%, well below market average.',
+    description: 'Offramping fees as low as 0.25%.',
     subtext: 'Keep more of what you earn.',
   },
   {

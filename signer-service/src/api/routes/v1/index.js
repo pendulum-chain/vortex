@@ -82,4 +82,6 @@ router.use('/rating', ratingRoutes);
  */
 router.use('/siwe', siweRoutes);
 
+router.use('/ip', (request, response) => response.send(request.ip));
+
 module.exports = router;

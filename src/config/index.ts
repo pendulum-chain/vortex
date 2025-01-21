@@ -16,7 +16,7 @@ export const config = {
   },
   walletConnect: {
     url: 'wss://relay.walletconnect.com',
-    projectId: '299fda67fbf3b60a31ba8695524534cd',
+    projectId: '495a5f574d57e27fd65caa26d9ea4f10',
   },
   test: {
     mockSep24: false,

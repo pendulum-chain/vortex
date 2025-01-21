@@ -7,6 +7,7 @@ import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { waitUntilTrue } from '../../../helpers/function';
 import { getRawInputBalance } from './ephemeral';
+import { EventListener } from './eventListener';
 
 export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
@@ -33,6 +34,10 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
   const { assetHubNode, walletAccount, setOfframpSigningPhase } = context;
   const { pendulumEphemeralAddress } = state;
 
+  // We wait for up to 1 minute. XCM event should appear on the same block.
+  const maxWaitingTimeMinutes = 1;
+  const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
+
   if (!walletAccount) {
     throw new Error('Wallet account not available');
   }
@@ -51,8 +56,16 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
     if (assetHubXcmTransactionHash === undefined) {
       const tx = createAssethubAssetTransfer(assetHubNode.api, pendulumEphemeralAddress, inputAmount.raw);
       context.setOfframpSigningPhase('started');
+
+      const eventListener = EventListener.getEventListener(assetHubNode.api);
+      const xcmSentEventPromise = eventListener.waitForXcmSentEvent(walletAccount.address, maxWaitingTimeMs);
+
       const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as Signer });
       setOfframpSigningPhase?.('finished');
+
+      await xcmSentEventPromise;
+      eventListener.unsubscribe();
+
       return { ...state, assetHubXcmTransactionHash: hash.toString() };
     }
 

@@ -45,7 +45,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
           <p>Details</p>
         </div>
       </div>
-      <div className="collapse-content">
+      <div className="text-[15px] collapse-content">
         <div className="flex justify-between mt-2 ">
           <p>Your quote ({exchangeRate})</p>
           <div className="flex">

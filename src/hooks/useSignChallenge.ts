@@ -101,11 +101,11 @@ export function useSiweSignature() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setOfframpSigningPhase?.(undefined);
 
+      // First case Assethub, second case EVM
       if (
         (error as Error).message.includes('User rejected the request') ||
-        (error as Error).message.includes('Signing failed: Cancelled')
+        (error as Error).message.includes('Cancelled')
       ) {
-        // First case Assethub, second case EVM
         return signPromise.reject(new Error('Signing failed: User rejected sign request'));
       }
       return signPromise.reject(new Error('Signing failed: Failed to sign login challenge. ' + errorMessage));

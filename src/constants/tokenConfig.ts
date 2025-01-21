@@ -276,7 +276,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     erc20WrapperAddress: '6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
-    offrampFeesBasisPoints: 125,
+    offrampFeesBasisPoints: 25,
     usesMemo: false,
     supportsClientDomain: true,
   },
