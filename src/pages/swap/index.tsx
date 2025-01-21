@@ -72,6 +72,7 @@ export const SwapPage = () => {
   const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
+  const [isOfframpRedirectDone, setIsOfframpRedirectDone] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
@@ -387,10 +388,14 @@ export const SwapPage = () => {
         fromAmountString={fromAmountString}
         toToken={toToken}
         formToAmount={formToAmount}
-        visible={isOfframpSummaryDialogVisible}
         tokenOutAmount={tokenOutAmount}
+        visible={isOfframpSummaryDialogVisible}
         anchorUrl={firstSep24ResponseState?.url}
-        handleOnAnchorWindowOpen={handleOnAnchorWindowOpen}
+        onSubmit={() => {
+          handleOnAnchorWindowOpen();
+          setIsOfframpSummaryDialogVisible(false);
+          setIsOfframpRedirectDone(true);
+        }}
         onClose={() => setIsOfframpSummaryDialogVisible(false)}
       />
       <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
@@ -455,9 +460,7 @@ export const SwapPage = () => {
                 : 'Confirm'
             }
             disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
-            pending={
-              offrampInitiating || (offrampStarted && isOfframpSummaryDialogVisible) || offrampState !== undefined
-            }
+            pending={offrampInitiating || (offrampStarted && isOfframpRedirectDone) || offrampState !== undefined}
           />
         </div>
         <hr className="mt-6 mb-3" />

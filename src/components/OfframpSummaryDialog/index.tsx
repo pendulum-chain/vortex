@@ -1,5 +1,6 @@
-import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
+import { FC } from 'preact/compat';
+import Big from 'big.js';
 
 import { InputTokenDetails, OutputTokenDetails } from '../../constants/tokenConfig';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
@@ -71,11 +72,11 @@ interface OfframpSummaryDialogProps {
   visible: boolean;
   tokenOutAmount: UseTokenOutAmountResult;
   anchorUrl?: string;
-  handleOnAnchorWindowOpen: () => void;
+  onSubmit: () => void;
   onClose: () => void;
 }
 
-export const OfframpSummaryDialog = ({
+export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   fromToken,
   toToken,
   visible,
@@ -84,13 +85,16 @@ export const OfframpSummaryDialog = ({
   tokenOutAmount,
   anchorUrl,
   onClose,
-  handleOnAnchorWindowOpen,
-}: OfframpSummaryDialogProps) => {
+  onSubmit,
+}) => {
   const { selectedNetwork } = useNetwork();
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const { feesCost } = useOfframpFees(tokenOutAmount.data?.roundedDownQuotedAmountOut || Big(0), toToken);
+
+  if (!visible) return null;
+  if (!anchorUrl) return null;
 
   const content = (
     <div className="flex flex-col justify-center">
@@ -112,7 +116,6 @@ export const OfframpSummaryDialog = ({
       />
     </div>
   );
-
   const actions = (
     // eslint-disable-next-line react/jsx-no-target-blank
     <a
@@ -121,8 +124,11 @@ export const OfframpSummaryDialog = ({
       rel="opener" //noopener forbids the use of postMessages.
       className="btn-vortex-primary btn rounded-xl"
       style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-      onClick={handleOnAnchorWindowOpen}
-      // open in a tinier window
+      onClick={(e) => {
+        e.preventDefault();
+        onSubmit();
+        window.open(anchorUrl, '_blank');
+      }}
     >
       Continue with Partner
     </a>
