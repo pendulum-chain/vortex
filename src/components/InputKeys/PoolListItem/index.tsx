@@ -9,6 +9,7 @@ interface PoolListItemProps<T extends InputTokenType | OutputTokenType> {
   isSelected?: boolean;
   onSelect: (tokenType: T) => void;
   assetIcon: AssetIconType;
+  name?: string;
 }
 
 export function PoolListItem<T extends InputTokenType | OutputTokenType>({
@@ -17,6 +18,7 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
   isSelected,
   onSelect,
   assetIcon,
+  name,
 }: PoolListItemProps<T>) {
   const tokenIcon = useGetAssetIcon(assetIcon);
 
@@ -43,7 +45,7 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
         <span className="text-lg leading-5 dark:text-white">
           <strong>{tokenSymbol}</strong>
         </span>
-        <span className="text-sm leading-5 text-neutral-500">{tokenSymbol}</span>
+        <span className="text-sm leading-5 text-neutral-500">{name || tokenSymbol}</span>
       </span>
     </Button>
   );
