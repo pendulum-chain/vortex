@@ -295,6 +295,7 @@ export const SwapPage = () => {
           type: key as OutputTokenType,
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
+          name: value.fiat.name,
         }));
 
   const modals = (
