@@ -119,6 +119,7 @@ export const SwapPage = () => {
   useEffect(() => {
     if (api && !isSigningServiceError && !isSigningServiceLoading) {
       console.log('API and signing service are ready.');
+      trackEvent({ event: 'initialization_error', error_message: 'pendulum_account_issue' }); // Testing only
       setIsReady(true);
       clearPersistentErrorEventStore();
     }
