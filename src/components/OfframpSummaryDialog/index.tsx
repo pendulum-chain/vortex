@@ -36,18 +36,9 @@ interface FeeDetailsProps {
   tokenOutAmount: UseTokenOutAmountResult;
   fromToken: InputTokenDetails;
   toToken: OutputTokenDetails;
-  anchorUrl?: string;
 }
 
-const FeeDetails = ({
-  network,
-  feesCost,
-  fiatSymbol,
-  tokenOutAmount,
-  fromToken,
-  toToken,
-  anchorUrl,
-}: FeeDetailsProps) => (
+const FeeDetails = ({ network, feesCost, fiatSymbol, tokenOutAmount, fromToken, toToken }: FeeDetailsProps) => (
   <section className="mt-6">
     <div className="flex justify-between mb-2">
       <p>
@@ -70,7 +61,15 @@ const FeeDetails = ({
       </p>
     </div>
     <div className="flex justify-between">
-      <p>Partner - {anchorUrl ? new URL(anchorUrl).origin : ''}</p>
+      <p>Partner</p>
+      <a
+        href={toToken.anchorHomepageUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 hover:underline"
+      >
+        {toToken.anchorHomepageUrl}
+      </a>
     </div>
   </section>
 );
@@ -124,7 +123,6 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         tokenOutAmount={tokenOutAmount}
         network={selectedNetwork}
         feesCost={feesCost}
-        anchorUrl={anchorUrl}
       />
     </div>
   );

@@ -42,6 +42,7 @@ export interface Fiat {
 }
 
 export interface OutputTokenDetails {
+  anchorHomepageUrl: string;
   tomlFileUrl: string;
   decimals: number;
   fiat: Fiat;
@@ -256,6 +257,7 @@ export function getInputTokenDetails(network: Networks, inputTokenType: InputTok
 export type OutputTokenType = 'eurc' | 'ars';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
+    anchorHomepageUrl: 'https://mykobo.co',
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
     decimals: 12,
     fiat: {
@@ -281,6 +283,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     supportsClientDomain: true,
   },
   ars: {
+    anchorHomepageUrl: 'https://home.anclap.com',
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
     decimals: 12,
     fiat: {
