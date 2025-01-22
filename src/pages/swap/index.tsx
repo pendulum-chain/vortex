@@ -417,7 +417,7 @@ export const SwapPage = () => {
         </section>
         <div className="flex gap-3 mt-5">
           <button
-            className="btn-vortex-secondary btn"
+            className="btn-vortex-primary-inverse btn"
             style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
             disabled={!inputAmountIsStable}
             onClick={(e) => {
