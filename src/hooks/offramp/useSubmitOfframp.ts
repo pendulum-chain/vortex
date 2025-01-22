@@ -19,6 +19,8 @@ import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../sto
 import { ExecutionInput } from './useMainProcess';
 import { useSep24Actions } from '../../stores/sep24Store';
 
+import { showToast, ToastMessage } from '../../helpers/notifications';
+
 export const useSubmitOfframp = () => {
   const { selectedNetwork } = useNetwork();
   const { switchChainAsync, switchChain } = useSwitchChain();
@@ -124,10 +126,10 @@ export const useSubmitOfframp = () => {
             setOfframpInitiating(false);
           }
         } catch (error) {
-          console.error('Error initializing the offramping process', error);
+          console.error('Error initializing the offramping process', (error as Error).message);
           // Display error message, differentiating between user rejection and other errors
-          if ((error as Error).message.includes('User rejected the request')) {
-            setInitializeFailed('Please switch to the correct network and try again.');
+          if ((error as Error).message.includes('User rejected')) {
+            showToast(ToastMessage.ERROR, 'You must sign the login request to be able to sell Argentine Peso');
           } else {
             setInitializeFailed();
           }

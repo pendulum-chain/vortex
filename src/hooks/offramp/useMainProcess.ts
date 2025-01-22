@@ -12,7 +12,6 @@ import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 import { useSep24UrlInterval, useSep24InitialResponse } from '../../stores/sep24Store';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
-export type SigningPhase = 'started' | 'approved' | 'signed' | 'finished';
 
 export interface ExecutionInput {
   inputTokenType: InputTokenType;

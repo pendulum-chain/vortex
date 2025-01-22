@@ -1,6 +1,8 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
+import { Fragment } from 'preact';
+import { motion } from 'framer-motion';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
@@ -14,7 +16,6 @@ import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
-import { SignInModal } from '../../components/SignIn';
 import { PoweredBy } from '../../components/PoweredBy';
 
 import {
@@ -29,11 +30,10 @@ import { config } from '../../config';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
-import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -76,7 +76,6 @@ export const SwapPage = () => {
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
-  const { signingPending, handleSign, handleCancel } = useSiweContext();
   const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
@@ -371,7 +370,7 @@ export const SwapPage = () => {
       from,
       selectedNetwork,
       fromAmountString,
-      requiresSquidRouter: selectedNetwork === Networks.Polygon,
+      requiresSquidRouter: isNetworkEVM(selectedNetwork),
       setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
@@ -398,9 +397,14 @@ export const SwapPage = () => {
         }}
         onClose={() => setIsOfframpSummaryDialogVisible(false)}
       />
-      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
       <SigningBox step={offrampSigningPhase} />
-      <form className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96" onSubmit={onSwapConfirm}>
+      <motion.form
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96"
+        onSubmit={onSwapConfirm}
+      >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
         <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <div className="my-10" />
@@ -425,7 +429,9 @@ export const SwapPage = () => {
         </section>
         <section className="flex justify-center w-full mt-5">
           {(initializeFailedMessage || apiInitializeFailed) && (
-            <p className="text-red-600">{initializeFailedMessage}</p>
+            <div className="flex items-center gap-4">
+              <p className="text-red-600">{initializeFailedMessage}</p>
+            </div>
           )}
         </section>
         <section className="w-full mt-5">
@@ -465,7 +471,7 @@ export const SwapPage = () => {
         </div>
         <hr className="mt-6 mb-3" />
         <PoweredBy />
-      </form>
+      </motion.form>
       {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
