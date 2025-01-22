@@ -1,4 +1,4 @@
-import { ArrowDownIcon } from '@heroicons/react/20/solid';
+import { ArrowDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 import { FC } from 'preact/compat';
 import Big from 'big.js';
 
@@ -35,13 +35,25 @@ interface FeeDetailsProps {
   fiatSymbol: string;
   tokenOutAmount: UseTokenOutAmountResult;
   fromToken: InputTokenDetails;
+  toToken: OutputTokenDetails;
   anchorUrl?: string;
 }
 
-const FeeDetails = ({ network, feesCost, fiatSymbol, tokenOutAmount, fromToken, anchorUrl }: FeeDetailsProps) => (
+const FeeDetails = ({
+  network,
+  feesCost,
+  fiatSymbol,
+  tokenOutAmount,
+  fromToken,
+  toToken,
+  anchorUrl,
+}: FeeDetailsProps) => (
   <section className="mt-6">
     <div className="flex justify-between mb-2">
-      <p>Offramp fees</p>
+      <p>
+        Offramp fee ({`${toToken.offrampFeesBasisPoints / 100}%`}
+        {toToken.offrampFeesFixedComponent ? ` + ${toToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
+      </p>
       <p className="flex items-center gap-2">
         <NetworkIcon network={network} className="w-4 h-4" />
         <strong>
@@ -54,7 +66,6 @@ const FeeDetails = ({ network, feesCost, fiatSymbol, tokenOutAmount, fromToken, 
       <p>
         <strong>
           <ExchangeRate tokenOutData={tokenOutAmount} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
-          ($1.00)
         </strong>
       </p>
     </div>
@@ -109,6 +120,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       <FeeDetails
         fiatSymbol={toToken.fiat.symbol}
         fromToken={fromToken}
+        toToken={toToken}
         tokenOutAmount={tokenOutAmount}
         network={selectedNetwork}
         feesCost={feesCost}
@@ -130,7 +142,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         window.open(anchorUrl, '_blank');
       }}
     >
-      Continue with Partner
+      Continue with Partner <ArrowTopRightOnSquareIcon className="w-4 h-4" />
     </a>
   );
 
