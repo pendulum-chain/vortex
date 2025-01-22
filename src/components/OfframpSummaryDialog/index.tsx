@@ -146,7 +146,5 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
     </a>
   );
 
-  return (
-    <Dialog content={content} visible={visible} actions={actions} headerText="You're offramping" onClose={onClose} />
-  );
+  return <Dialog content={content} visible={visible} actions={actions} headerText="You're selling" onClose={onClose} />;
 };
