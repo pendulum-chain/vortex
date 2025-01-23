@@ -5,10 +5,14 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { createAppKit } from '@reown/appkit/react';
 
 // If we have an Alchemy API key, we can use it to fetch data from Polygon, otherwise use the default endpoint
-// TODO we need to add better RPCs because metamask warns about unkown ones (defaults). Avalanche, base, etc.
 const transports = config.alchemyApiKey
   ? {
       [polygon.id]: http(`https://polygon-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
+      [mainnet.id]: http(`https://eth-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
+      [bsc.id]: http(`https://bnb-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
+      [arbitrum.id]: http(`https://arb-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
+      [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
+      [avalanche.id]: http(`https://avax-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
     }
   : {
       [polygon.id]: http(''),
