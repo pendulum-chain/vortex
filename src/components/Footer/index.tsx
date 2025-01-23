@@ -1,4 +1,4 @@
-import { ComponentType } from 'preact';
+import { ComponentType } from 'react';
 import { Telegram } from '../../assets/SocialsTelegram';
 import { Github } from '../../assets/SocialsGithub';
 import { X } from '../../assets/SocialsX';

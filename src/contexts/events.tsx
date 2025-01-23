@@ -1,5 +1,5 @@
-import { createContext } from 'preact';
-import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
+import { createContext } from 'react';
+import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
 import * as Sentry from '@sentry/react';
 import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';

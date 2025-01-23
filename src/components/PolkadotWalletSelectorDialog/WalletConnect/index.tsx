@@ -2,7 +2,7 @@ import { WalletConnectModal } from '@walletconnect/modal';
 import UniversalProvider from '@walletconnect/universal-provider';
 import { SessionTypes } from '@walletconnect/types';
 import { Button } from 'react-daisyui';
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'react';
 
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';

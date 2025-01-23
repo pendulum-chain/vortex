@@ -1,6 +1,6 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import Big from 'big.js';
-import { useCallback, useMemo, useState } from 'preact/compat';
+import { useCallback, useMemo, useState } from 'react';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';

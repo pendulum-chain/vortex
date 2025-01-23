@@ -1,5 +1,5 @@
-import { useState } from 'preact/hooks';
-import { FC } from 'preact/compat';
+import { useState } from 'react';
+import { FC } from 'react';
 import { Bars4Icon, XMarkIcon } from '@heroicons/react/20/solid';
 import { motion, AnimatePresence } from 'framer-motion';
 

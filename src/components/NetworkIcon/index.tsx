@@ -1,4 +1,4 @@
-import { FC, HTMLAttributes } from 'preact/compat';
+import { FC, HTMLAttributes } from 'react';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { getNetworkDisplayName, Networks } from '../../helpers/networks';
 

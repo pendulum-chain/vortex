@@ -1613,7 +1613,7 @@ __metadata:
     "@noble/hashes": "npm:^1.4.0"
     clsx: "npm:^1.2.1"
     eventemitter3: "npm:^5.0.1"
-    preact: "npm:^10.24.2"
+    react: "npm:^10.24.2"
   checksum: 10/dd16ae6d5f7f81b38dfcd95e7538adbe920380bb52206f494f1fafaa38906f2f97265f3eb3f5fe2e9bfab19618447cc19581935586c113d51945c8bab62c7f9a
   languageName: node
   linkType: hard
@@ -6714,7 +6714,7 @@ __metadata:
     eth-json-rpc-filters: "npm:^6.0.0"
     eventemitter3: "npm:^5.0.1"
     keccak: "npm:^3.0.3"
-    preact: "npm:^10.16.0"
+    react: "npm:^10.16.0"
     sha.js: "npm:^2.4.11"
   checksum: 10/3bc3f0edad8ea46cb7a127993373093d95b6fef03d2a6a40bae7983a1d9a20a114faa8e7bf1230efd380ffb67b42dae405c6617cd6fad6d278bf9b9e021a0280
   languageName: node
@@ -12245,16 +12245,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"preact@npm:^10.16.0":
+"react@npm:^10.16.0":
   version: 10.22.0
-  resolution: "preact@npm:10.22.0"
+  resolution: "react@npm:10.22.0"
   checksum: 10/0f3092916a538fa47d205d603bb5c513f9368a59bcbf881b457641ea6b88470b6a07960da8727db1287c232cb0f3a6292963917fa5cf09864be5eb50bf2a294e
   languageName: node
   linkType: hard
 
-"preact@npm:^10.24.2":
+"react@npm:^10.24.2":
   version: 10.24.3
-  resolution: "preact@npm:10.24.3"
+  resolution: "react@npm:10.24.3"
   checksum: 10/e9c4c901a4ddd475a1072355b5c6c944b05797445e0d68f317ad0dbc976b831523573693ea75d2e12e7902042e3729af435377816d25558bf693ecf6b516c707
   languageName: node
   linkType: hard

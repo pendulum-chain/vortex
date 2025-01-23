@@ -1,6 +1,6 @@
 import Big from 'big.js';
-import { useEffect, useRef, useMemo, useImperativeHandle } from 'preact/hooks';
-import { forwardRef } from 'preact/compat';
+import { useEffect, useRef, useMemo, useImperativeHandle } from 'react';
+import { forwardRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 

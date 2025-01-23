@@ -1,5 +1,5 @@
-import { createContext } from 'preact';
-import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
+import { createContext } from 'react';
+import { useContext, useState, useEffect, useCallback } from 'react';
 import { useSwitchChain } from 'wagmi';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
@@ -24,7 +24,7 @@ const NetworkContext = createContext<NetworkContextType>({
 });
 
 interface NetworkProviderProps {
-  children: preact.ComponentChildren;
+  children: react.ComponentChildren;
 }
 
 export const NetworkProvider = ({ children }: NetworkProviderProps) => {

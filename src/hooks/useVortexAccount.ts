@@ -1,5 +1,5 @@
 import { useNetwork } from '../contexts/network';
-import { useMemo, useCallback } from 'preact/compat';
+import { useMemo, useCallback } from 'react';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAccount } from 'wagmi';
 import { Signer } from '@polkadot/types/types';

@@ -1,5 +1,5 @@
 import { Modal } from 'react-daisyui';
-import { FC, createPortal, useCallback, useEffect, useRef, useState } from 'preact/compat';
+import { FC, createPortal, useCallback, useEffect, useRef, useState } from 'react';
 
 import { CloseButton } from '../buttons/CloseButton';
 

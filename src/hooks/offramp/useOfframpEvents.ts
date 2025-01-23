@@ -1,4 +1,4 @@
-import { useCallback } from 'preact/compat';
+import { useCallback } from 'react';
 import { createTransactionEvent } from '../../contexts/events';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';

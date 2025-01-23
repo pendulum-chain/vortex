@@ -1,4 +1,4 @@
-import { useCallback } from 'preact/compat';
+import { useCallback } from 'react';
 import { polygon } from 'wagmi/chains';
 import { useSwitchChain } from 'wagmi';
 

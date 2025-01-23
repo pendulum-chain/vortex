@@ -13,7 +13,7 @@ import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
 import { useDebouncedValue } from '../useDebouncedValue';
 import { ApiPromise } from '@polkadot/api';
-import { useEffect } from 'preact/hooks';
+import { useEffect } from 'react';
 import {
   getInputTokenDetailsOrDefault,
   InputTokenType,

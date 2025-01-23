@@ -1,4 +1,4 @@
-import { StateUpdater } from 'preact/hooks';
+import { StateUpdater } from 'react';
 import Big from 'big.js';
 
 import { OfframpingState } from '../services/offrampingFlow';

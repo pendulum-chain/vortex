@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { StateUpdater } from 'preact/hooks';
+import { StateUpdater } from 'react';
 import { Checkbox, Link } from 'react-daisyui';
 
 interface TermsAndConditionsProps {

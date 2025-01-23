@@ -1,4 +1,4 @@
-import { FC } from 'preact/compat';
+import { FC } from 'react';
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { AssetButton } from '../buttons/AssetButton';
 import { SwapFormValues } from '../Nabla/schema';
