@@ -33,7 +33,19 @@ app.use(
 
 // enable rate limiting
 // Set number of expected proxies
-app.set('trust proxy', rateLimitNumberOfProxies);
+app.set('trust proxy', true);
+
+app.use((req, res, next) => {
+  console.log({
+    'Raw Socket IP': req.socket.remoteAddress,
+    'Express req.ip': req.ip,
+    'X-Forwarded-For': req.headers['x-forwarded-for'],
+    'X-Real-IP': req.headers['x-real-ip'],
+    'Trust Proxy Setting': app.get('trust proxy'),
+  });
+  next();
+});
+
 // Define rate limiter
 const limiter = rateLimit({
   windowMs: rateLimitWindowMinutes * 60 * 1000,

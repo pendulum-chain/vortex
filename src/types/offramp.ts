@@ -5,7 +5,7 @@ import { OfframpingState } from '../services/offrampingFlow';
 import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
 import { ISep24Intermediate, IAnchorSessionParams } from './sep';
 
-export type OfframpSigningPhase = 'started' | 'approved' | 'signed' | 'finished';
+export type OfframpSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
 
 export interface OfframpExecutionInput {
   inputTokenType: InputTokenType;

@@ -15,7 +15,7 @@ interface NetworkButtonProps {
 
 const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkButtonProps) => (
   <motion.button
-    className={`flex items-center gap-2 px-2 sm:px-4 py-2 rounded-full bg-base-100 ${
+    className={`flex items-center gap-2 px-2 sm:px-4 py-3 rounded-full bg-base-100 ${
       disabled ? 'opacity-50 cursor-not-allowed' : ''
     }`}
     onClick={onClick}

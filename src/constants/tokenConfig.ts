@@ -39,6 +39,7 @@ export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 export interface Fiat {
   assetIcon: AssetIconType;
   symbol: string;
+  name: string;
 }
 
 export interface OutputTokenDetails {
@@ -261,6 +262,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     fiat: {
       assetIcon: 'eur',
       symbol: 'EUR',
+      name: 'Euro',
     },
     stellarAsset: {
       code: {
@@ -275,7 +277,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     vaultAccountId: '6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh',
     erc20WrapperAddress: '6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5',
     minWithdrawalAmountRaw: '10000000000000',
-    maxWithdrawalAmountRaw: '10000000000000000',
+    maxWithdrawalAmountRaw: '5000000000000000',
     offrampFeesBasisPoints: 25,
     usesMemo: false,
     supportsClientDomain: true,
@@ -286,6 +288,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     fiat: {
       assetIcon: 'ars',
       symbol: 'ARS',
+      name: 'Argentine Peso',
     },
     stellarAsset: {
       code: {

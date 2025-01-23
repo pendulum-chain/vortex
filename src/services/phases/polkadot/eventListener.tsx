@@ -3,7 +3,7 @@
 
 import { ApiPromise } from '@polkadot/api';
 
-import { parseEventRedeemExecution } from './eventParsers';
+import { parseEventRedeemExecution, parseEventXcmSent } from './eventParsers';
 
 interface IPendingEvent {
   filter: any;
@@ -13,8 +13,11 @@ interface IPendingEvent {
 export class EventListener {
   static eventListeners = new Map<ApiPromise, EventListener>();
 
+  private unsubscribeHandle: (() => void) | null = null;
+
   pendingIssueEvents: IPendingEvent[] = [];
   pendingRedeemEvents: IPendingEvent[] = [];
+  pendingXcmSentEvents: IPendingEvent[] = [];
 
   api: ApiPromise | undefined = undefined;
 
@@ -33,10 +36,11 @@ export class EventListener {
   }
 
   async initEventSubscriber() {
-    this.api!.query.system.events((events) => {
+    this.unsubscribeHandle = await this.api!.query.system.events((events) => {
       events.forEach((event) => {
         this.processEvents(event, this.pendingIssueEvents);
         this.processEvents(event, this.pendingRedeemEvents);
+        this.processEvents(event, this.pendingXcmSentEvents);
       });
     });
   }
@@ -67,6 +71,32 @@ export class EventListener {
     });
   }
 
+  waitForXcmSentEvent(originAddress: string, maxWaitingTimeMs: number) {
+    const filter = (event: any) => {
+      if (event.event.section === 'polkadotXcm' && event.event.method === 'Sent') {
+        const eventParsed = parseEventXcmSent(event);
+        if (eventParsed.originAddress == originAddress) {
+          return eventParsed;
+        }
+      }
+      return null;
+    };
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`Max waiting time exceeded for XCM Sent event from origin: ${originAddress}`));
+      }, maxWaitingTimeMs);
+
+      this.pendingXcmSentEvents.push({
+        filter,
+        resolve: (event) => {
+          clearTimeout(timeout);
+          resolve(event);
+        },
+      });
+    });
+  }
+
   processEvents(event: any, pendingEvents: IPendingEvent[]) {
     pendingEvents.forEach((pendingEvent, index) => {
       const matchedEvent = pendingEvent.filter(event);
@@ -76,5 +106,20 @@ export class EventListener {
         pendingEvents.splice(index, 1);
       }
     });
+  }
+
+  unsubscribe() {
+    if (this.unsubscribeHandle) {
+      this.unsubscribeHandle();
+      this.unsubscribeHandle = null;
+    }
+
+    this.pendingIssueEvents = [];
+    this.pendingRedeemEvents = [];
+    this.pendingXcmSentEvents = [];
+
+    EventListener.eventListeners.delete(this.api!);
+
+    this.api = undefined;
   }
 }

@@ -9,7 +9,7 @@
 
 ---
 
-PendulumPay is a gateway for cross-border payments. It is built on top of the Pendulum blockchain.
+Vortex is a gateway for cross-border payments. It is built on top of the Pendulum blockchain.
 
 ## Run
 
