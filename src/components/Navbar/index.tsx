@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { FC } from 'react';
+import { useState, FC } from 'react';
 import { Bars4Icon, XMarkIcon } from '@heroicons/react/20/solid';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 import whiteLogo from '../../assets/logo/white.png';
 import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
