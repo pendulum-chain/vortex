@@ -16,6 +16,11 @@ const transports = config.alchemyApiKey
     }
   : {
       [polygon.id]: http(''),
+      [mainnet.id]: http(''),
+      [bsc.id]: http(''),
+      [arbitrum.id]: http(''),
+      [base.id]: http(''),
+      [avalanche.id]: http(''),
     };
 
 // 2. Create a metadata object - optional
