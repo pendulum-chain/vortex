@@ -1,10 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { StateUpdater } from 'react';
+import { Dispatch, SetStateAction } from 'react';
 import { Checkbox, Link } from 'react-daisyui';
 
 interface TermsAndConditionsProps {
   toggleTermsChecked: () => void;
-  setTermsError: StateUpdater<boolean>;
+  setTermsError: Dispatch<SetStateAction<boolean>>;
   termsChecked: boolean;
   termsAccepted: boolean;
   termsError: boolean;
