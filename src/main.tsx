@@ -3,8 +3,7 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 
-import { render } from 'preact';
-import { BrowserRouter } from 'react-router-dom';
+import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -36,25 +35,26 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
 });
 
-render(
+const root = document.getElementById('app');
+
+if (!root) {
+  throw new Error('Root element not found');
+}
+
+createRoot(root).render(
   <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <NetworkProvider>
-            <PolkadotNodeProvider>
-              <PolkadotWalletStateProvider>
-                <EventsProvider>
-                  <SiweProvider>
-                    <App />
-                  </SiweProvider>
-                </EventsProvider>
-              </PolkadotWalletStateProvider>
-            </PolkadotNodeProvider>
-          </NetworkProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </BrowserRouter>
+    <WagmiProvider config={wagmiConfig}>
+      <NetworkProvider>
+        <PolkadotNodeProvider>
+          <PolkadotWalletStateProvider>
+            <EventsProvider>
+              <SiweProvider>
+                <App />
+              </SiweProvider>
+            </EventsProvider>
+          </PolkadotWalletStateProvider>
+        </PolkadotNodeProvider>
+      </NetworkProvider>
+    </WagmiProvider>
   </QueryClientProvider>,
-  document.getElementById('app') as HTMLElement,
 );
