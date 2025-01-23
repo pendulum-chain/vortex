@@ -26,7 +26,7 @@ type TokenSelectType = 'from' | 'to';
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
-function mergeIfDefined<T>(target: T, source: Nullable<T> | undefined): void {
+function mergeIfDefined<T>(target: T, source: T | undefined): void {
   if (!source) return;
 
   Object.entries(source).forEach(([key, value]) => {

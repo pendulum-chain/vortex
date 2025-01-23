@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, RefObject } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Networks, getNetworkDisplayName, getNetworkId } from '../../helpers/networks';
@@ -70,7 +70,7 @@ const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownP
   </AnimatePresence>
 );
 
-function useClickOutside(ref: React.RefObject<HTMLElement>, callback: () => void) {
+function useClickOutside(ref: RefObject<HTMLElement | null>, callback: () => void) {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {

@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, JSX } from 'react';
 import Big from 'big.js';
 import { roundDownToTwoDecimals } from '../../helpers/parseNumbers';
 import { OutputTokenDetails } from '../../constants/tokenConfig';

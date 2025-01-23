@@ -50,7 +50,7 @@ function FeeProviderRow({
   const { scheduleQuote } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
-  const prevVortexPrice = useRef<Big>();
+  const prevVortexPrice = useRef<Big | null>(null);
 
   const {
     isLoading,

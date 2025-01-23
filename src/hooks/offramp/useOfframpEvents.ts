@@ -24,7 +24,7 @@ export const useOfframpEvents = () => {
           phase_name: state.phase,
           phase_index: Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(state.phase),
           from_asset: getInputTokenDetailsOrDefault(selectedNetwork, state.inputTokenType).assetSymbol,
-          error_message: state.failure.message,
+          error_message: state.failure.message || 'Unknown error',
         });
       }
     },

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, JSX } from 'react';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { LocalStorageKeys, useLocalStorage } from '../../hooks/useLocalStorage';
 import { handleWalletConnectDisconnect, initSelectedWallet } from './helpers';

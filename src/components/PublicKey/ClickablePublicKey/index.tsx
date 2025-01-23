@@ -1,4 +1,4 @@
-import { CSSProperties } from 'react';
+import { CSSProperties, JSX } from 'react';
 import { Button } from 'react-daisyui';
 import { FormatPublicKeyVariant, PublicKey } from '..';
 
@@ -15,7 +15,7 @@ export interface ClickablePublicKeyProps {
 
 export const ClickablePublicKey = (props: ClickablePublicKeyProps) => (
   <Button
-    className="m-0 h-1 rounded p-1"
+    className="h-1 p-1 m-0 rounded"
     style={props.inline ? { height: 'inherit', minHeight: '0', padding: 0 } : {}}
     color="ghost"
     type="button"

@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
 import { ApiPromise } from '@polkadot/api';
 import { motion } from 'framer-motion';
 
@@ -343,7 +343,7 @@ export const SwapPage = () => {
     }
   }
 
-  const onSwapConfirm = (e: Event) => {
+  const onSwapConfirm = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!termsAccepted && !termsChecked) {
