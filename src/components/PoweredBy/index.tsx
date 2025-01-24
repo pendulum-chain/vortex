@@ -24,7 +24,7 @@ const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
 );
 
 const ImageList = ({ images }: { images: ImageProps[] }) => (
-  <div className="flex flex-wrap justify-center items-normal gap-x-6">
+  <div className="flex flex-wrap justify-center items-normal gap-x-4">
     {images.map((img) => (
       <Image key={img.alt} {...img} />
     ))}
