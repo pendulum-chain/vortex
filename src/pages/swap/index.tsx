@@ -457,7 +457,7 @@ export const SwapPage = () => {
             />
           )}
         </div>
-        <hr className="mt-6 mb-3" />
+        <div className="mb-16" />
         <PoweredBy />
       </motion.form>
       {showCompareFees && fromToken && fromAmount && toToken && (
