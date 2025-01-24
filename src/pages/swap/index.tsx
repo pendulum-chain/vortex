@@ -72,7 +72,7 @@ export const SwapPage = () => {
   const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
-  const [isOfframpRedirectDone, setIsOfframpRedirectDone] = useState(false);
+  const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
@@ -133,6 +133,14 @@ export const SwapPage = () => {
       setCachedId(firstSep24ResponseState?.id);
     }
   }, [firstSep24ResponseState?.id]);
+
+  // Store the anchor URL when it becomes available
+  useEffect(() => {
+    if (firstSep24ResponseState?.url) {
+      setCachedAnchorUrl(firstSep24ResponseState.url);
+      setIsOfframpSummaryDialogVisible(true);
+    }
+  }, [firstSep24ResponseState?.url]);
 
   const {
     isTokenSelectModalVisible,
@@ -202,6 +210,7 @@ export const SwapPage = () => {
         // We don't automatically close the window, as this could be confusing for the user.
         // event.source.close();
 
+        setIsOfframpSummaryDialogVisible(false);
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
@@ -389,11 +398,9 @@ export const SwapPage = () => {
         formToAmount={formToAmount}
         tokenOutAmount={tokenOutAmount}
         visible={isOfframpSummaryDialogVisible}
-        anchorUrl={firstSep24ResponseState?.url}
+        anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={() => {
           handleOnAnchorWindowOpen();
-          setIsOfframpSummaryDialogVisible(false);
-          setIsOfframpRedirectDone(true);
         }}
         onClose={() => setIsOfframpSummaryDialogVisible(false)}
       />
@@ -465,8 +472,8 @@ export const SwapPage = () => {
                 ? 'Processing'
                 : 'Confirm'
             }
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
-            pending={offrampInitiating || (offrampStarted && isOfframpRedirectDone) || offrampState !== undefined}
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
+            pending={offrampInitiating || (offrampStarted && Boolean(cachedAnchorUrl)) || offrampState !== undefined}
           />
         </div>
         <hr className="mt-6 mb-3" />

@@ -1,5 +1,5 @@
 import { ArrowDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { FC } from 'preact/compat';
+import { FC, useState } from 'preact/compat';
 import Big from 'big.js';
 
 import { InputTokenDetails, OutputTokenDetails } from '../../constants/tokenConfig';
@@ -12,6 +12,7 @@ import { Networks } from '../../helpers/networks';
 import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
+import { Spinner } from '../Spinner';
 
 interface AssetDisplayProps {
   amount: string;
@@ -97,6 +98,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { selectedNetwork } = useNetwork();
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
@@ -127,21 +129,26 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
     </div>
   );
   const actions = (
-    // eslint-disable-next-line react/jsx-no-target-blank
-    <a
-      href={anchorUrl}
-      target="_blank"
-      rel="opener" //noopener forbids the use of postMessages.
+    <button
+      disabled={isSubmitted}
       className="btn-vortex-primary btn rounded-xl"
       style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-      onClick={(e) => {
-        e.preventDefault();
+      onClick={() => {
+        setIsSubmitted(true);
         onSubmit();
         window.open(anchorUrl, '_blank');
       }}
     >
-      Continue with Partner <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-    </a>
+      {isSubmitted ? (
+        <>
+          <Spinner /> Continue on Partner&apos;s page
+        </>
+      ) : (
+        <>
+          Continue with Partner <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+        </>
+      )}
+    </button>
   );
 
   return <Dialog content={content} visible={visible} actions={actions} headerText="You're selling" onClose={onClose} />;
