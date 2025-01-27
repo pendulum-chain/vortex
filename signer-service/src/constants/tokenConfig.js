@@ -5,7 +5,7 @@ const TOKEN_CONFIG = {
     assetIssuer: 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     minWithdrawalAmount: '10000000000000',
-    maximumSubsidyAmountRaw: '1000000000000', // 1 unit
+    maximumSubsidyAmountRaw: '4000000000000', // 4 units
     homeDomain: 'circle.anchor.mykobo.co',
     clientDomainEnabled: true,
     memoEnabled: false,
@@ -21,12 +21,12 @@ const TOKEN_CONFIG = {
   'usdc.axl': {
     pendulumCurrencyId: { XCM: 12 },
     decimals: 6,
-    maximumSubsidyAmountRaw: '1000000', // 1 unit
+    maximumSubsidyAmountRaw: '4000000', // 4 units
   },
   usdc: {
     pendulumCurrencyId: { XCM: 2 },
     decimals: 6,
-    maximumSubsidyAmountRaw: '1000000', // 1 unit
+    maximumSubsidyAmountRaw: '4000000', // 4 units
   },
   ars: {
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
@@ -34,7 +34,7 @@ const TOKEN_CONFIG = {
     assetIssuer: 'GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS',
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
     minWithdrawalAmount: '11000000000000', //  11 ARS. Anchor minimum limit.
-    maximumSubsidyAmountRaw: '100000000000000', // Defined by us:  100 unit ~ 0.1 USD @ Oct/2024
+    maximumSubsidyAmountRaw: '4000000000000000', // Defined by us:  4000 unit ~ 4 USD @ Jan/2025
     homeDomain: 'api.anclap.com',
     clientDomainEnabled: true,
     memoEnabled: true,
