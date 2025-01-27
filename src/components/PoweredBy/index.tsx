@@ -2,6 +2,7 @@ import MASTERCARD from '../../assets/payments/mastercard.svg';
 import bank from '../../assets/payments/bank.svg';
 import VISA from '../../assets/payments/visa.svg';
 import vortexLogo from '../../assets/logo/blue.svg';
+import SEPA from '../../assets/payments/sepa.svg';
 
 interface ImageProps {
   src: string;
@@ -11,20 +12,21 @@ interface ImageProps {
 }
 
 const paymentImages = [
-  { src: bank, alt: 'SEPA logo' },
+  { src: SEPA, alt: 'SEPA logo', additionalClass: '!h-5' },
   { src: MASTERCARD, alt: 'Mastercard logo', comingSoon: true },
   { src: VISA, alt: 'Visa logo', comingSoon: true },
+  { src: bank, alt: 'Bank' },
 ];
 
 const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
   <div className="flex flex-col items-normal text-center">
-    <img src={src} alt={alt} className={`${additionalClass} ${comingSoon ? 'h-[18px]' : 'h-6'} `} />
+    <img src={src} alt={alt} className={`${comingSoon ? 'h-[18px]' : 'h-6'} ${additionalClass}`} />
     {comingSoon && <div className="text-[7px] w-12 text-blue-700">Coming soon</div>}
   </div>
 );
 
 const ImageList = ({ images }: { images: ImageProps[] }) => (
-  <div className="flex flex-wrap justify-center items-normal gap-x-4">
+  <div className="flex flex-wrap justify-center items-center items-normal gap-x-4">
     {images.map((img) => (
       <Image key={img.alt} {...img} />
     ))}
