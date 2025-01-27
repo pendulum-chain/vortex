@@ -1,7 +1,6 @@
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 
-import { useEventsContext } from '../../../contexts/events';
 import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
 import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet-pink.svg';
 import { wagmiConfig } from '../../../wagmiConfig';
@@ -46,7 +45,6 @@ const WalletButton = ({
 );
 
 export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) {
-  const { handleUserClickWallet } = useEventsContext();
   const { address, chainId: walletChainId } = useVortexAccount();
   const { isConnected } = useAppKitAccount();
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
@@ -58,7 +56,6 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
     return (
       <WalletButton
         onClick={() => {
-          handleUserClickWallet();
           open({ view: 'Connect' });
         }}
         customStyles={customStyles}
@@ -79,7 +76,6 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
           if (appkitNetwork) {
             switchNetwork(appkitNetwork);
           }
-          handleUserClickWallet();
         }}
         hideIcon={hideIcon}
         showPlayIcon
@@ -93,7 +89,6 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
     <WalletButton
       onClick={() => {
         open({ view: 'Account' });
-        handleUserClickWallet();
       }}
       showWalletIcons
       address={address}

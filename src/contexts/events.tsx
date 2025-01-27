@@ -132,7 +132,6 @@ const useEvents = () => {
   const { address, chainId } = useVortexAccount();
   const previousAddress = useRef<string | undefined>(undefined);
   const previousChainId = useRef<number | undefined>(undefined);
-  const userClickedState = useRef<boolean>(false);
 
   const scheduledQuotes = useRef<
     | {
@@ -229,6 +228,7 @@ const useEvents = () => {
   useEffect(() => {
     const wasConnected = previousAddress.current !== undefined;
     const isConnected = address !== undefined;
+    console.log('address: ', address);
 
     // set sentry user as wallet address
     if (address) {
@@ -237,11 +237,10 @@ const useEvents = () => {
       previousAddress.current = address;
     }
 
-    if (!userClickedState.current) {
-      return;
-    }
-
     if (!isConnected) {
+      if (!wasConnected) {
+        return;
+      }
       trackEvent({
         event: 'wallet_connect',
         wallet_action: 'disconnect',
@@ -256,18 +255,11 @@ const useEvents = () => {
     }
 
     previousAddress.current = address;
-    userClickedState.current = false;
-    // Important NOT to add userClicked to the dependencies array, otherwise logic will not work.
-  }, [address, trackEvent, userClickedState]);
-
-  const handleUserClickWallet = () => {
-    userClickedState.current = true;
-  };
+  }, [address, trackEvent]);
 
   return {
     trackEvent,
     resetUniqueEvents,
-    handleUserClickWallet,
     scheduleQuote,
   };
 };
