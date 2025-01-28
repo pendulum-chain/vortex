@@ -12,15 +12,15 @@ interface ImageProps {
 }
 
 const paymentImages = [
-  { src: SEPA, alt: 'SEPA logo', additionalClass: '!h-5' },
+  { src: bank, alt: 'Bank', additionalClass: '!h-5' },
+  { src: SEPA, alt: 'SEPA logo', additionalClass: '!h-4' },
   { src: MASTERCARD, alt: 'Mastercard logo', comingSoon: true },
   { src: VISA, alt: 'Visa logo', comingSoon: true },
-  { src: bank, alt: 'Bank' },
 ];
 
 const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
   <div className="flex flex-col items-normal text-center">
-    <img src={src} alt={alt} className={`${comingSoon ? 'h-[18px]' : 'h-6'} ${additionalClass}`} />
+    <img src={src} alt={alt} className={`${comingSoon ? 'h-[12px]' : 'h-4'} ${additionalClass}`} />
     {comingSoon && <div className="text-[7px] w-12 text-blue-700">Coming soon</div>}
   </div>
 );
@@ -38,8 +38,8 @@ export function PoweredBy() {
     <section className="flex flex-col justify-between gap-y-2.5 my-2">
       <ImageList images={paymentImages} />
       <div className="flex items-center justify-center">
-        <p className="mr-1 text-sm text-gray-500">Powered by</p>
-        <Image src={vortexLogo} alt="Satoshipay" />
+        <p className="mr-1 text-xs text-gray-500">Powered by</p>
+        <Image src={vortexLogo} alt="Satoshipay" additionalClass="!h-3" />
       </div>
     </section>
   );

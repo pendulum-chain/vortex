@@ -382,7 +382,7 @@ export const SwapPage = () => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="px-4 py-4 mx-4 mt-8 mb-6 rounded-lg shadow-custom md:mx-auto md:w-96"
+        className="px-4 pt-4 mx-4 mt-8 mb-4 pb-2 rounded-lg shadow-custom md:mx-auto md:w-96"
         onSubmit={onSwapConfirm}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
@@ -462,14 +462,14 @@ export const SwapPage = () => {
         <div className="mb-16" />
         <PoweredBy />
       </motion.form>
-      <p className="flex items-center justify-center mr-1 text-xl text-gray-500">
+      <p className="flex items-center justify-center mr-1 text-gray-500">
         <a
           href="https://satoshipay.io"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex gap-1 text-sm transition hover:opacity-80"
+          className="flex gap-1 text-sm transition hover:opacity-80 items-center"
         >
-          A <img src={satoshipayLogo} alt="Satoshipay" /> Company
+          A <img src={satoshipayLogo} alt="Satoshipay" className="h-4" /> Company
         </a>
       </p>
       {showCompareFees && fromToken && fromAmount && toToken && (
