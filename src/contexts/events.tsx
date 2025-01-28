@@ -1,14 +1,13 @@
 import { createContext } from 'preact';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
 import Big from 'big.js';
-import * as Sentry from '@sentry/react';
 import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
 import { useVortexAccount } from '../hooks/useVortexAccount';
 import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
-import { LocalStorageKeys, useLocalStorage } from '../hooks/useLocalStorage';
+import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
 
@@ -266,7 +265,7 @@ const useEvents = () => {
     } else {
       storageService.remove(storageKey);
     }
-  }, [address, trackEvent]);
+  }, [selectedNetwork, address, trackEvent]);
 
   return {
     trackEvent,
