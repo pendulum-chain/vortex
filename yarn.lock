@@ -3777,7 +3777,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@reown/appkit-adapter-wagmi@npm:^1.6.4":
+"@reown/appkit-adapter-wagmi@npm:^1.6.5":
   version: 1.6.5
   resolution: "@reown/appkit-adapter-wagmi@npm:1.6.5"
   dependencies:
@@ -3905,7 +3905,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@reown/appkit@npm:1.6.5, @reown/appkit@npm:^1.6.4":
+"@reown/appkit@npm:1.6.5, @reown/appkit@npm:^1.6.5":
   version: 1.6.5
   resolution: "@reown/appkit@npm:1.6.5"
   dependencies:
@@ -15304,8 +15304,8 @@ __metadata:
     "@polkadot/util": "npm:^13.1.1"
     "@polkadot/util-crypto": "npm:^13.1.1"
     "@preact/preset-vite": "npm:^2.9.1"
-    "@reown/appkit": "npm:^1.6.4"
-    "@reown/appkit-adapter-wagmi": "npm:^1.6.4"
+    "@reown/appkit": "npm:^1.6.5"
+    "@reown/appkit-adapter-wagmi": "npm:^1.6.5"
     "@sentry/react": "npm:^8.36.0"
     "@sentry/vite-plugin": "npm:^2.22.6"
     "@slack/web-api": "npm:^7.7.0"
