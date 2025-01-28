@@ -212,7 +212,6 @@ const useEvents = () => {
 
   useEffect(() => {
     const chainId = getNetworkId(selectedNetwork);
-    console.log('chainId: ', chainId, 'previousChainId: ', previousChainId.current);
     if (!chainId) return;
 
     if (previousChainId.current === undefined) {
