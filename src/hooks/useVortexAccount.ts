@@ -5,6 +5,10 @@ import { useAccount } from 'wagmi';
 import { Signer } from '@polkadot/types/types';
 import { useSignMessage } from 'wagmi';
 import { isNetworkEVM, ASSETHUB_CHAIN_ID } from '../helpers/networks';
+import { useEffect } from 'react';
+import { storageService } from '../services/storage/local';
+import { LocalStorageKeys } from './useLocalStorage';
+import { useEventsContext } from '../contexts/events';
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.
