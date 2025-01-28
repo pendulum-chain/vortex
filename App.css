@@ -96,7 +96,6 @@ div[data-rk] {
     @apply h-3 !important;
     top: 1.4rem !important;
   }
-
   .btn-vortex-primary {
     @apply bg-blue-700;
     @apply text-white;
@@ -120,6 +119,34 @@ div[data-rk] {
 
   .btn-vortex-primary:active,
   .btn-vortex-primary:focus {
+    @apply bg-blue-200;
+    @apply text-blue-700;
+    @apply border-blue-700;
+  }
+
+  .btn-vortex-primary-inverse {
+    @apply bg-white;
+    @apply text-blue-700;
+    @apply rounded-xl;
+    @apply border;
+    @apply border-blue-700;
+  }
+
+  .btn-vortex-primary-inverse:hover {
+    @apply bg-blue-700;
+    @apply text-white;
+    @apply border-blue-700;
+  }
+
+  .btn-vortex-primary-inverse:disabled {
+    @apply bg-white;
+    @apply text-blue-700;
+    @apply border-blue-700;
+    @apply opacity-40;
+  }
+
+  .btn-vortex-primary-inverse:active,
+  .btn-vortex-primary-inverse:focus {
     @apply bg-blue-200;
     @apply text-blue-700;
     @apply border-blue-700;
