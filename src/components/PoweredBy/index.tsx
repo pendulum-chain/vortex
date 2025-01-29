@@ -39,7 +39,14 @@ export function PoweredBy() {
       <ImageList images={paymentImages} />
       <div className="flex items-center justify-center">
         <p className="mr-1 text-xs text-gray-500">Powered by</p>
-        <Image src={vortexLogo} alt="Satoshipay" additionalClass="!h-3" />
+        <a
+          href="https://www.vortexfinance.co"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition hover:opacity-80"
+        >
+          <Image src={vortexLogo} alt="Vortex" additionalClass="!h-3" />
+        </a>
       </div>
     </section>
   );
