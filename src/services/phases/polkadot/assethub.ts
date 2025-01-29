@@ -81,9 +81,9 @@ const submitXcm = async (
           const { status, events, dispatchError } = submissionResult;
           afterSignCallback();
 
-          const hash = status.asFinalized.toString() || submissionResult.txHash.toString();
-
           if (status.isFinalized) {
+            const hash = status.asFinalized.toString();
+
             // Try to find a 'system.ExtrinsicFailed' event
             if (dispatchError) {
               reject('Xcm transaction failed');
