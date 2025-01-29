@@ -10,7 +10,7 @@ import { useSep24Actions } from '../stores/sep24Store';
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
   selectedNetwork: Networks;
-  setSelectedNetwork: (network: Networks) => void;
+  setSelectedNetwork: (network: Networks, resetState?: boolean) => Promise<void>;
   networkSelectorDisabled: boolean;
   setNetworkSelectorDisabled: (disabled: boolean) => void;
 }
@@ -38,21 +38,23 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
 
   const { resetOfframpState } = useOfframpActions();
   const { cleanup: cleanupSep24Variables } = useSep24Actions();
-  const { switchChain } = useSwitchChain();
+  const { switchChainAsync } = useSwitchChain();
 
   const setSelectedNetwork = useCallback(
-    (network: Networks) => {
-      resetOfframpState();
-      cleanupSep24Variables();
+    async (network: Networks, resetState: boolean = false) => {
+      if (resetState) {
+        resetOfframpState();
+        cleanupSep24Variables();
+      }
       setSelectedNetworkState(network);
       setSelectedNetworkLocalStorage(network);
 
-      // Will only switch chain on the EVM conneted wallet case.
+      // Will only switch chain on the EVM connected wallet case.
       if (isNetworkEVM(network)) {
-        switchChain({ chainId: getNetworkId(network) });
+        await switchChainAsync({ chainId: getNetworkId(network) });
       }
     },
-    [switchChain, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
+    [switchChainAsync, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
   );
 
   // Only run on first render

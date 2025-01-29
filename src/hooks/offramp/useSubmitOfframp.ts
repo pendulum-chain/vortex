@@ -22,7 +22,7 @@ import { useSep24Actions } from '../../stores/sep24Store';
 import { showToast, ToastMessage } from '../../helpers/notifications';
 
 export const useSubmitOfframp = () => {
-  const { selectedNetwork } = useNetwork();
+  const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const { switchChainAsync, switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
@@ -48,7 +48,6 @@ export const useSubmitOfframp = () => {
       }
 
       (async () => {
-        switchChain({ chainId: polygon.id });
         setOfframpStarted(true);
 
         trackEvent({
@@ -60,10 +59,7 @@ export const useSubmitOfframp = () => {
         });
 
         try {
-          // For substrate, we only have AssetHub only now. Thus no need to change.
-          if (isNetworkEVM(selectedNetwork)) {
-            await switchChainAsync({ chainId: getNetworkId(selectedNetwork) });
-          }
+          await setSelectedNetwork(selectedNetwork);
 
           setOfframpStarted(true);
 
