@@ -117,7 +117,7 @@ export const Dialog: FC<DialogProps> = ({
       aria-labelledby={headerText ? `${id}-header` : undefined}
     >
       <Modal.Header className={`text-2xl claim-title flex mb-5 ${headerText ? 'justify-between' : 'justify-end'}`}>
-        {headerText} {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
+        <span>{headerText}</span> {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
       </Modal.Header>
       {form ? (
         <form onSubmit={handleFormSubmit} className={form.className} method="dialog">

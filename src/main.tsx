@@ -16,6 +16,7 @@ import { config } from './config';
 import { App } from './app';
 import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
 import { PolkadotNodeProvider } from './contexts/polkadotNode';
+import './helpers/googleTranslate';
 
 const queryClient = new QueryClient();
 

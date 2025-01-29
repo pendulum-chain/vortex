@@ -135,7 +135,7 @@ function FeeComparisonTable(props: BaseComparisonProps) {
                 className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
                 data-tip={`Quotes are for Polygon, as the providers don't support ${getNetworkDisplayName(network)}.`}
               >
-                (Polygon)
+                <span translate="no">(Polygon)</span>
               </div>
             )}{' '}
             with
