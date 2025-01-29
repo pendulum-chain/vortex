@@ -113,10 +113,10 @@ export interface FormErrorEvent {
 
 export interface InitializationErrorEvent {
   event: 'initialization_error';
-  error_message: InializationErrorMessage;
+  error_message: InitializationErrorMessage;
 }
 
-type InializationErrorMessage =
+type InitializationErrorMessage =
   | 'node_connection_issue'
   | 'signer_service_issue'
   | 'moonbeam_account_issue'
@@ -170,7 +170,7 @@ const useEvents = () => {
     }
 
     if (event.event === 'initialization_error') {
-      const eventsStored = storageService.getParsed<Set<InializationErrorMessage>>(
+      const eventsStored = storageService.getParsed<Set<InitializationErrorMessage>>(
         LocalStorageKeys.FIRED_INITIALIZATION_EVENTS,
       );
       const eventsSet = eventsStored ? new Set(eventsStored) : new Set();

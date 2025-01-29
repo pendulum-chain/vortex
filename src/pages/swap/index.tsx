@@ -473,7 +473,7 @@ export const SwapPage = () => {
               text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
               disabled={
                 Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage || !isReady
-              } // !!initializeFailedMessage we disable when the initialize failed message is not null
+              }
               pending={offrampInitiating || offrampStarted || offrampState !== undefined}
             />
           )}
