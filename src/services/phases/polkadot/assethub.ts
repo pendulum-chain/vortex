@@ -7,9 +7,8 @@ import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { waitUntilTrue } from '../../../helpers/function';
 import { getRawInputBalance } from './ephemeral';
-import { EventListener } from './eventListener';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { parseEventXcmSent, SpacewalkRedeemRequestEvent, XcmSentEvent } from './eventParsers';
+import { parseEventXcmSent, XcmSentEvent } from './eventParsers';
 import { WalletAccount } from '@talismn/connect-wallets';
 
 export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
@@ -36,10 +35,6 @@ export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAdd
 export async function executeAssetHubXCM(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
   const { assetHubNode, walletAccount, setOfframpSigningPhase } = context;
   const { pendulumEphemeralAddress } = state;
-
-  // We wait for up to 1 minute. XCM event should appear on the same block.
-  const maxWaitingTimeMinutes = 1;
-  const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
 
   if (!walletAccount) {
     throw new Error('Wallet account not available');
