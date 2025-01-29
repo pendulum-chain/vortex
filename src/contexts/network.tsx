@@ -1,6 +1,6 @@
 import { createContext } from 'preact';
 import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
-import { useSwitchChain } from 'wagmi';
+import { useAccount, useSwitchChain } from 'wagmi';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 import { useOfframpActions } from '../stores/offrampStore';
@@ -39,6 +39,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { resetOfframpState } = useOfframpActions();
   const { cleanup: cleanupSep24Variables } = useSep24Actions();
   const { switchChainAsync } = useSwitchChain();
+  const { chain: connectedEvmChain } = useAccount();
 
   const setSelectedNetwork = useCallback(
     async (network: Networks, resetState: boolean = false) => {
@@ -51,7 +52,11 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
 
       // Will only switch chain on the EVM connected wallet case.
       if (isNetworkEVM(network)) {
-        await switchChainAsync({ chainId: getNetworkId(network) });
+        // Only switch chain if the network is different from the current one
+        // see https://github.com/wevm/wagmi/issues/3417
+        if (!connectedEvmChain || connectedEvmChain.id !== getNetworkId(network)) {
+          await switchChainAsync({ chainId: getNetworkId(network) });
+        }
       }
     },
     [switchChainAsync, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
