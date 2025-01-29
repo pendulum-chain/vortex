@@ -6,6 +6,7 @@ import { ApiPromise } from '@polkadot/api';
 import { parseEventRedeemExecution, parseEventXcmSent } from './eventParsers';
 
 interface IPendingEvent {
+  id: string;
   filter: any;
   resolve: (event: any) => void;
 }
@@ -24,6 +25,11 @@ export class EventListener {
   constructor(api: ApiPromise) {
     this.api = api;
     this.initEventSubscriber();
+
+    this.api!.on('connected', async (): Promise<void> => {
+      console.log('Connected (or reconnected) to the endpoint.');
+      await this.checkForMissedEvents();
+    });
   }
 
   static getEventListener(api: ApiPromise) {
@@ -67,6 +73,7 @@ export class EventListener {
           clearTimeout(timeout);
           resolve(event);
         },
+        id: redeemId,
       });
     });
   }
@@ -93,6 +100,7 @@ export class EventListener {
           clearTimeout(timeout);
           resolve(event);
         },
+        id: originAddress,
       });
     });
   }
@@ -105,6 +113,17 @@ export class EventListener {
         pendingEvent.resolve(matchedEvent);
         pendingEvents.splice(index, 1);
       }
+    });
+  }
+
+  async checkForMissedEvents() {
+    this.pendingRedeemEvents.forEach((pendingEvent) => {
+      const redeemId = pendingEvent.id;
+      const maybeRedeem = this.api?.query.redeem.redeemRequests(redeemId).then((redeem) => {
+        if (redeem) {
+          pendingEvent.resolve(redeem);
+        }
+      });
     });
   }
 
