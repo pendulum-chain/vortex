@@ -473,7 +473,11 @@ export const SwapPage = () => {
                 : 'Confirm'
             }
             disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
-            pending={offrampInitiating || (offrampStarted && Boolean(cachedAnchorUrl)) || offrampState !== undefined}
+            pending={
+              offrampInitiating ||
+              (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
+              offrampState !== undefined
+            }
           />
         </div>
         <hr className="mt-6 mb-3" />
