@@ -15,8 +15,6 @@ export class EventListener {
   static eventListeners = new Map<ApiPromise, EventListener>();
 
   private unsubscribeHandle: (() => void) | null = null;
-
-  pendingIssueEvents: IPendingEvent[] = [];
   pendingRedeemEvents: IPendingEvent[] = [];
   pendingXcmSentEvents: IPendingEvent[] = [];
 
@@ -44,7 +42,6 @@ export class EventListener {
   async initEventSubscriber() {
     this.unsubscribeHandle = await this.api!.query.system.events((events) => {
       events.forEach((event) => {
-        this.processEvents(event, this.pendingIssueEvents);
         this.processEvents(event, this.pendingRedeemEvents);
         this.processEvents(event, this.pendingXcmSentEvents);
       });
@@ -117,9 +114,12 @@ export class EventListener {
   }
 
   async checkForMissedEvents() {
+    const freshApiPromse = this.api;
+    if (!freshApiPromse) return;
+
     this.pendingRedeemEvents.forEach((pendingEvent) => {
       const redeemId = pendingEvent.id;
-      const maybeRedeem = this.api?.query.redeem.redeemRequests(redeemId).then((redeem) => {
+      freshApiPromse.query.redeem.redeemRequests(redeemId).then((redeem) => {
         if (redeem) {
           pendingEvent.resolve(redeem);
         }
@@ -133,7 +133,6 @@ export class EventListener {
       this.unsubscribeHandle = null;
     }
 
-    this.pendingIssueEvents = [];
     this.pendingRedeemEvents = [];
     this.pendingXcmSentEvents = [];
 

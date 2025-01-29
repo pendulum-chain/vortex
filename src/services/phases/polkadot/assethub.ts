@@ -1,5 +1,5 @@
 import { ApiPromise } from '@polkadot/api';
-import { Signer } from '@polkadot/types/types';
+import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import Big from 'big.js';
@@ -8,6 +8,9 @@ import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { waitUntilTrue } from '../../../helpers/function';
 import { getRawInputBalance } from './ephemeral';
 import { EventListener } from './eventListener';
+import { SubmittableExtrinsic } from '@polkadot/api-base/types';
+import { parseEventXcmSent, SpacewalkRedeemRequestEvent, XcmSentEvent } from './eventParsers';
+import { WalletAccount } from '@talismn/connect-wallets';
 
 export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
@@ -57,14 +60,8 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
       const tx = createAssethubAssetTransfer(assetHubNode.api, pendulumEphemeralAddress, inputAmount.raw);
       context.setOfframpSigningPhase('started');
 
-      const eventListener = EventListener.getEventListener(assetHubNode.api);
-      const xcmSentEventPromise = eventListener.waitForXcmSentEvent(walletAccount.address, maxWaitingTimeMs);
-
-      const { hash } = await tx.signAndSend(walletAccount.address, { signer: walletAccount.signer as Signer });
-      setOfframpSigningPhase?.('finished');
-
-      await xcmSentEventPromise;
-      eventListener.unsubscribe();
+      const afterSignCallback = () => setOfframpSigningPhase?.('finished');
+      const { hash } = await submitXcm(walletAccount, tx, afterSignCallback);
 
       return { ...state, assetHubXcmTransactionHash: hash.toString() };
     }
@@ -74,3 +71,50 @@ export async function executeAssetHubXCM(state: OfframpingState, context: Execut
 
   return { ...state, phase: 'subsidizePreSwap' };
 }
+
+const submitXcm = async (
+  walletAccount: WalletAccount,
+  extrinsic: SubmittableExtrinsic<'promise'>,
+  afterSignCallback: () => void,
+): Promise<{ event: XcmSentEvent; hash: string }> => {
+  return new Promise((resolve, reject) => {
+    extrinsic
+      .signAndSend(
+        walletAccount.address,
+        { signer: walletAccount.signer as Signer },
+        (submissionResult: ISubmittableResult) => {
+          const { status, events, dispatchError } = submissionResult;
+          afterSignCallback();
+
+          const hash = status.asFinalized.toString() || submissionResult.txHash.toString();
+
+          if (status.isFinalized) {
+            // Try to find a 'system.ExtrinsicFailed' event
+            if (dispatchError) {
+              reject('Xcm transaction failed');
+            }
+
+            // Try to find 'polkadotXcm.Sent' events
+            const xcmSentEvents = events.filter((record) => {
+              return record.event.section === 'polkadotXcm' && record.event.method === 'Sent';
+            });
+
+            const event = xcmSentEvents
+              .map((event) => parseEventXcmSent(event))
+              .filter((event) => {
+                return event.originAddress == walletAccount.address;
+              });
+
+            if (event.length == 0) {
+              reject(new Error(`No XcmSent event found for account ${walletAccount.address}`));
+            }
+            resolve({ event: event[0], hash });
+          }
+        },
+      )
+      .catch((error) => {
+        afterSignCallback();
+        reject(new Error(`Failed to request redeem: ${error}`));
+      });
+  });
+};
