@@ -102,7 +102,7 @@ export const SwapPage = () => {
     if (pendulumNode.apiComponents?.api) {
       setApi(pendulumNode.apiComponents.api);
     }
-  }, [pendulumNode]);
+  }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
   useEffect(() => {
     if (isSigningServiceError && !isSigningServiceLoading) {
