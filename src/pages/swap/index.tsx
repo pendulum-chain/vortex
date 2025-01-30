@@ -18,6 +18,10 @@ import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { PoweredBy } from '../../components/PoweredBy';
 
+import { PitchSection } from '../../components/PitchSection';
+import { TrustedBy } from '../../components/TrustedBy';
+import { WhyVortex } from '../../components/WhyVortex';
+
 import {
   getInputTokenDetailsOrDefault,
   INPUT_TOKEN_CONFIG,
@@ -56,8 +60,6 @@ import {
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
-import { TrustedBy } from '../../components/TrustedBy';
-import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 
 export const SwapPage = () => {
@@ -470,6 +472,7 @@ export const SwapPage = () => {
           ref={feeComparisonRef}
         />
       )}
+      <PitchSection />
       <TrustedBy />
       <WhyVortex />
     </main>
