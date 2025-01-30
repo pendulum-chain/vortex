@@ -18,7 +18,7 @@ import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { PoweredBy } from '../../components/PoweredBy';
 
-import { PitchSection } from '../../components/PitchSection';
+import { PitchSection } from '../../sections/Pitch';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 
@@ -69,6 +69,7 @@ import {
 import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 import satoshipayLogo from '../../assets/logo/satoshipay.svg';
+import { FAQAccordion } from '../../sections/FAQAccordion';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -536,6 +537,7 @@ export const SwapPage = () => {
       <PitchSection />
       <TrustedBy />
       <WhyVortex />
+      <FAQAccordion />
       <Banner />
     </main>
   );
