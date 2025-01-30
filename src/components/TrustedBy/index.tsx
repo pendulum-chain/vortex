@@ -1,8 +1,8 @@
-import MOONBEAM from '../../assets/trustedby/moonbeam.svg';
-import POLKADOT from '../../assets/trustedby/polkadot.svg';
-import STELLAR from '../../assets/trustedby/stellar.svg';
-import NABLA from '../../assets/trustedby/nabla.svg';
-import WEB3 from '../../assets/trustedby/web3.svg';
+import POLKADOT from '../../assets/trusted-by/polkadot.svg';
+import WEB3 from '../../assets/trusted-by/web3.svg';
+import COINDESK from '../../assets/trusted-by/coindesk.svg';
+import METAMASK from '../../assets/trusted-by/metamask.svg';
+
 import { motion } from 'framer-motion';
 
 interface ImageProps {
@@ -45,11 +45,10 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
 
 export const TrustedBy = () => {
   const trustedByImages = [
-    { src: MOONBEAM, alt: 'Moonbeam logo' },
     { src: POLKADOT, alt: 'Polkadot logo' },
-    { src: STELLAR, alt: 'Stellar logo' },
-    { src: NABLA, alt: 'Nabla logo' },
     { src: WEB3, alt: 'Web3 Foundation logo' },
+    { src: COINDESK, alt: 'CoinDesk logo' },
+    { src: METAMASK, alt: 'MetaMask logo' },
   ];
 
   return (
