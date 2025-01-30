@@ -18,7 +18,7 @@ interface NetworkContextType {
 const NetworkContext = createContext<NetworkContextType>({
   walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
   selectedNetwork: Networks.AssetHub,
-  setSelectedNetwork: () => null,
+  setSelectedNetwork: async () => undefined,
   networkSelectorDisabled: false,
   setNetworkSelectorDisabled: () => null,
 });
@@ -42,7 +42,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { chain: connectedEvmChain } = useAccount();
 
   const setSelectedNetwork = useCallback(
-    async (network: Networks, resetState: boolean = false) => {
+    async (network: Networks, resetState = false) => {
       if (resetState) {
         resetOfframpState();
         cleanupSep24Variables();
@@ -59,7 +59,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         }
       }
     },
-    [switchChainAsync, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
+    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
   );
 
   // Only run on first render

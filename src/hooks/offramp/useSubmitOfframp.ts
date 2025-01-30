@@ -1,8 +1,5 @@
 import { useCallback } from 'preact/compat';
-import { polygon } from 'wagmi/chains';
-import { useSwitchChain } from 'wagmi';
 
-import { getNetworkId, isNetworkEVM } from '../../helpers/networks';
 import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
@@ -23,7 +20,6 @@ import { showToast, ToastMessage } from '../../helpers/notifications';
 
 export const useSubmitOfframp = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
-  const { switchChainAsync, switchChain } = useSwitchChain();
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
@@ -138,7 +134,6 @@ export const useSubmitOfframp = () => {
       offrampStarted,
       offrampState,
       setOfframpInitiating,
-      switchChain,
       setOfframpStarted,
       trackEvent,
       selectedNetwork,
@@ -150,7 +145,7 @@ export const useSubmitOfframp = () => {
       setInitialResponseSEP24,
       setUrlIntervalSEP24,
       cleanupSEP24,
-      switchChainAsync,
+      setSelectedNetwork,
     ],
   );
 };
