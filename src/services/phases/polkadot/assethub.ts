@@ -109,7 +109,7 @@ const submitXcm = async (
       )
       .catch((error) => {
         afterSignCallback();
-        reject(new Error(`Failed to request redeem: ${error}`));
+        reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
 };

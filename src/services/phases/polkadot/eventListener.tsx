@@ -114,12 +114,12 @@ export class EventListener {
   }
 
   async checkForMissedEvents() {
-    const freshApiPromse = this.api;
-    if (!freshApiPromse) return;
+    const freshApiPromise = this.api;
+    if (!freshApiPromise || !freshApiPromise.isConnected) return;
 
     this.pendingRedeemEvents.forEach((pendingEvent) => {
       const redeemId = pendingEvent.id;
-      freshApiPromse.query.redeem.redeemRequests(redeemId).then((redeem) => {
+      freshApiPromise.query.redeem.redeemRequests(redeemId).then((redeem) => {
         if (redeem) {
           pendingEvent.resolve(redeem);
         }
