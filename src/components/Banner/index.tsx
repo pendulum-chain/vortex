@@ -6,7 +6,7 @@ const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSc3TtNxDj_p4smgWVCU2m
 
 export const Banner = () => {
   return (
-    <section className="container relative flex flex-col justify-between px-8 mx-auto overflow-hidden text-white py-14 md:flex-row bg-primary rounded-3xl">
+    <section className="relative flex flex-col justify-between px-8 mx-auto overflow-hidden text-white sm:container py-14 md:flex-row bg-primary sm:rounded-3xl">
       <motion.img
         src={PLANET}
         alt="Planet"

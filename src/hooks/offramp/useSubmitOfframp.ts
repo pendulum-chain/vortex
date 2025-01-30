@@ -1,8 +1,5 @@
 import { useCallback } from 'preact/compat';
-import { polygon } from 'wagmi/chains';
-import { useSwitchChain } from 'wagmi';
 
-import { getNetworkId, isNetworkEVM } from '../../helpers/networks';
 import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
@@ -22,8 +19,7 @@ import { useSep24Actions } from '../../stores/sep24Store';
 import { showToast, ToastMessage } from '../../helpers/notifications';
 
 export const useSubmitOfframp = () => {
-  const { selectedNetwork } = useNetwork();
-  const { switchChainAsync, switchChain } = useSwitchChain();
+  const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
@@ -48,7 +44,6 @@ export const useSubmitOfframp = () => {
       }
 
       (async () => {
-        switchChain({ chainId: polygon.id });
         setOfframpStarted(true);
 
         trackEvent({
@@ -60,10 +55,7 @@ export const useSubmitOfframp = () => {
         });
 
         try {
-          // For substrate, we only have AssetHub only now. Thus no need to change.
-          if (isNetworkEVM(selectedNetwork)) {
-            await switchChainAsync({ chainId: getNetworkId(selectedNetwork) });
-          }
+          await setSelectedNetwork(selectedNetwork);
 
           setOfframpStarted(true);
 
@@ -142,7 +134,6 @@ export const useSubmitOfframp = () => {
       offrampStarted,
       offrampState,
       setOfframpInitiating,
-      switchChain,
       setOfframpStarted,
       trackEvent,
       selectedNetwork,
@@ -154,7 +145,7 @@ export const useSubmitOfframp = () => {
       setInitialResponseSEP24,
       setUrlIntervalSEP24,
       cleanupSEP24,
-      switchChainAsync,
+      setSelectedNetwork,
     ],
   );
 };

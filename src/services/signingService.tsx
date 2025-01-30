@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { OutputTokenType } from '../constants/tokenConfig';
 
@@ -26,26 +27,84 @@ export interface SignerServiceSep10Request {
   usesMemo?: boolean;
 }
 
-// @todo: implement @tanstack/react-query
+// Generic error for signing service
+export class SigningServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SigningServiceError';
+  }
+}
+
+// Specific errors for each funding account
+export class StellarFundingAccountError extends SigningServiceError {
+  constructor() {
+    super('Stellar account is inactive');
+    this.name = 'StellarFundingAccountError';
+  }
+}
+
+export class PendulumFundingAccountError extends SigningServiceError {
+  constructor() {
+    super('Pendulum account is inactive');
+    this.name = 'PendulumFundingAccountError';
+  }
+}
+
+export class MoonbeamFundingAccountError extends SigningServiceError {
+  constructor() {
+    super('Moonbeam account is inactive');
+    this.name = 'MoonbeamFundingAccountError';
+  }
+}
+
 export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStatus> => {
   try {
-    const serviceResponse: SigningServiceStatus = await (await fetch(`${SIGNING_SERVICE_URL}/v1/status`)).json();
-    const allServicesActive = Object.values(serviceResponse).every((service: AccountStatusResponse) => service.status);
-
-    if (allServicesActive) {
-      return {
-        stellar: serviceResponse.stellar,
-        pendulum: serviceResponse.pendulum,
-        moonbeam: serviceResponse.moonbeam,
-      };
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/status`);
+    if (!response.ok) {
+      throw new SigningServiceError('Failed to fetch signing service status');
     }
 
-    // we really want to throw for both cases: accounts not funded, or service down.
-    throw new Error('One or more funding accounts are inactive');
+    const serviceResponse: SigningServiceStatus = await response.json();
+
+    if (!serviceResponse.stellar?.status) {
+      throw new StellarFundingAccountError();
+    }
+    if (!serviceResponse.pendulum?.status) {
+      throw new PendulumFundingAccountError();
+    }
+    if (!serviceResponse.moonbeam?.status) {
+      throw new MoonbeamFundingAccountError();
+    }
+
+    return {
+      stellar: serviceResponse.stellar,
+      pendulum: serviceResponse.pendulum,
+      moonbeam: serviceResponse.moonbeam,
+    };
   } catch (error) {
+    if (error instanceof SigningServiceError) {
+      throw error;
+    }
     console.error('Signing service is down: ', error);
-    throw new Error('Signing service is down');
+    throw new SigningServiceError('Signing service is down');
   }
+};
+
+export const useSigningService = () => {
+  return useQuery({
+    queryKey: ['signingService'],
+    queryFn: fetchSigningServiceAccountId,
+    retry: (failureCount, error) => {
+      if (
+        error instanceof StellarFundingAccountError ||
+        error instanceof PendulumFundingAccountError ||
+        error instanceof MoonbeamFundingAccountError
+      ) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+  });
 };
 
 export const fetchSep10Signatures = async ({

@@ -35,7 +35,6 @@ export const useOfframpAdvancement = () => {
         if (isProcessingAdvance.current) return;
         isProcessingAdvance.current = true;
         if (!pendulumNode || !assetHubNode) {
-          console.error('Polkadot nodes not initialized');
           return;
         }
 
