@@ -70,6 +70,7 @@ import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 import { FAQAccordion } from '../../sections/FAQAccordion';
+import { HowToSell } from '../../sections/HowToSell';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -537,6 +538,7 @@ export const SwapPage = () => {
       <PitchSection />
       <TrustedBy />
       <WhyVortex />
+      <HowToSell />
       <FAQAccordion />
       <Banner />
     </main>

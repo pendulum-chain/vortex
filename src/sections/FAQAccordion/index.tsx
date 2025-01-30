@@ -42,7 +42,7 @@ const FAQ_ITEMS = [
 export const FAQAccordion = () => {
   return (
     <div className="my-12">
-      <p className="text-lg font-bold text-center text-blue-700">FAQ</p>
+      <p className="text-lg font-bold text-center text-blue-700">LEARN MORE</p>
       <h1 className="text-3xl font-bold text-center text-black">Frequently asked questions</h1>
       <div className="mt-6">
         <Accordion defaultValue={['fees']}>
