@@ -6,6 +6,7 @@ import { encodeAddress } from '@polkadot/util-crypto';
 import { stellarHexToPublic, hexToString } from './convert';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
+export type XcmSentEvent = ReturnType<typeof parseEventXcmSent>;
 
 export type TokenTransferEvent = ReturnType<typeof parseTokenDepositEvent>;
 

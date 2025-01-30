@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
 import { ApiPromise } from '@polkadot/api';
+import { Fragment } from 'preact';
 import { motion } from 'framer-motion';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
@@ -15,7 +16,6 @@ import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
-import { SignInModal } from '../../components/SignIn';
 import { PoweredBy } from '../../components/PoweredBy';
 
 import {
@@ -30,11 +30,10 @@ import { config } from '../../config';
 import { useEventsContext, clearPersistentErrorEventStore } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
-import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
@@ -64,21 +63,25 @@ import {
   StellarFundingAccountError,
   useSigningService,
 } from '../../services/signingService';
+import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
+
+import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<FeeComparisonRef>(null);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { address } = useVortexAccount();
+  const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
+  const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
+  const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
-  const { signingPending, handleSign, handleCancel } = useSiweContext();
   const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
@@ -154,6 +157,14 @@ export const SwapPage = () => {
     }
   }, [firstSep24ResponseState?.id]);
 
+  // Store the anchor URL when it becomes available
+  useEffect(() => {
+    if (firstSep24ResponseState?.url) {
+      setCachedAnchorUrl(firstSep24ResponseState.url);
+      setIsOfframpSummaryDialogVisible(true);
+    }
+  }, [firstSep24ResponseState?.url]);
+
   const {
     isTokenSelectModalVisible,
     tokenSelectModalType,
@@ -222,6 +233,7 @@ export const SwapPage = () => {
         // We don't automatically close the window, as this could be confusing for the user.
         // event.source.close();
 
+        setIsOfframpSummaryDialogVisible(false);
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
@@ -276,6 +288,8 @@ export const SwapPage = () => {
   );
 
   function getCurrentErrorMessage() {
+    if (isDisconnected) return;
+
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
         trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
@@ -318,6 +332,7 @@ export const SwapPage = () => {
           type: key as OutputTokenType,
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
+          name: value.fiat.name,
         }));
 
   const modals = (
@@ -367,6 +382,11 @@ export const SwapPage = () => {
   const onSwapConfirm = (e: Event) => {
     e.preventDefault();
 
+    if (offrampStarted) {
+      setIsOfframpSummaryDialogVisible(true);
+      return;
+    }
+
     if (!termsAccepted && !termsChecked) {
       setTermsError(true);
 
@@ -385,23 +405,37 @@ export const SwapPage = () => {
       from,
       selectedNetwork,
       fromAmountString,
-      requiresSquidRouter: selectedNetwork === Networks.Polygon,
+      requiresSquidRouter: isNetworkEVM(selectedNetwork),
       setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
       setTermsAccepted,
     });
+
+    setIsOfframpSummaryDialogVisible(true);
   };
 
   const main = (
     <main ref={formRef}>
-      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
+      <OfframpSummaryDialog
+        fromToken={fromToken}
+        fromAmountString={fromAmountString}
+        toToken={toToken}
+        formToAmount={formToAmount}
+        tokenOutAmount={tokenOutAmount}
+        visible={isOfframpSummaryDialogVisible}
+        anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
+        onSubmit={() => {
+          handleOnAnchorWindowOpen();
+        }}
+        onClose={() => setIsOfframpSummaryDialogVisible(false)}
+      />
       <SigningBox step={offrampSigningPhase} />
       <motion.form
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-96"
+        className="px-4 pt-4 mx-4 mt-8 mb-4 pb-2 rounded-lg shadow-custom md:mx-auto md:w-96"
         onSubmit={onSwapConfirm}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
@@ -428,7 +462,9 @@ export const SwapPage = () => {
         </section>
         <section className="flex justify-center w-full mt-5">
           {(initializeFailedMessage || apiInitializeFailed) && (
-            <p className="text-red-600">{initializeFailedMessage}</p>
+            <div className="flex items-center gap-4">
+              <p className="text-red-600">{initializeFailedMessage}</p>
+            </div>
           )}
         </section>
         <section className="w-full mt-5">
@@ -439,7 +475,7 @@ export const SwapPage = () => {
         </section>
         <div className="flex gap-3 mt-5">
           <button
-            className="btn-vortex-secondary btn"
+            className="btn-vortex-primary-inverse btn"
             style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
             disabled={!inputAmountIsStable}
             onClick={(e) => {
@@ -454,33 +490,35 @@ export const SwapPage = () => {
           >
             Compare fees
           </button>
-
-          {firstSep24ResponseState?.url !== undefined ? (
-            // eslint-disable-next-line react/jsx-no-target-blank
-            <a
-              href={firstSep24ResponseState.url}
-              target="_blank"
-              rel="opener" //noopener forbids the use of postMessages.
-              className="btn-vortex-primary btn rounded-xl"
-              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-              onClick={handleOnAnchorWindowOpen}
-              // open in a tinier window
-            >
-              Continue with Partner
-            </a>
-          ) : (
-            <SwapSubmitButton
-              text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
-              disabled={
-                Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage || !isReady
-              }
-              pending={offrampInitiating || offrampStarted || offrampState !== undefined}
-            />
-          )}
+          <SwapSubmitButton
+            text={
+              offrampInitiating
+                ? 'Confirming'
+                : offrampStarted && isOfframpSummaryDialogVisible
+                ? 'Processing'
+                : 'Confirm'
+            }
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
+            pending={
+              offrampInitiating ||
+              (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
+              offrampState !== undefined
+            }
+          />
         </div>
-        <hr className="mt-6 mb-3" />
+        <div className="mb-16" />
         <PoweredBy />
       </motion.form>
+      <p className="flex items-center justify-center mr-1 text-gray-500">
+        <a
+          href="https://satoshipay.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex gap-1 text-sm transition hover:opacity-80 items-center"
+        >
+          A <img src={satoshipayLogo} alt="Satoshipay" className="h-4" /> Company
+        </a>
+      </p>
       {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
