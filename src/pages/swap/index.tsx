@@ -61,6 +61,7 @@ import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import { Banner } from '../../components/Banner';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -475,6 +476,7 @@ export const SwapPage = () => {
       <PitchSection />
       <TrustedBy />
       <WhyVortex />
+      <Banner />
     </main>
   );
 
