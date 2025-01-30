@@ -1,5 +1,6 @@
-import { createContext, ComponentChildren } from 'preact';
-import { FC, useState, useContext } from 'preact/compat';
+import { ComponentChildren } from 'preact';
+import { FC } from 'preact/compat';
+import { create } from 'zustand';
 
 interface AccordionProps {
   children: ComponentChildren;
@@ -16,62 +17,63 @@ interface AccordionItemProps {
 interface AccordionTriggerProps {
   children: ComponentChildren;
   className?: string;
+  value: string;
 }
 
 interface AccordionContentProps {
   children: ComponentChildren;
   className?: string;
+  value: string;
 }
 
-const AccordionContext = createContext<{
+interface AccordionStore {
   value: string[];
-  onChange: (value: string) => void;
-}>({ value: [], onChange: () => {} });
+  setValue: (value: string[]) => void;
+  toggleValue: (itemValue: string) => void;
+}
 
-const Accordion: FC<AccordionProps> = ({ children, className = '', defaultValue }) => {
-  const [value, setValue] = useState<string[]>(defaultValue ? [defaultValue] : []);
+const useAccordionStore = create<AccordionStore>((set) => ({
+  value: [],
+  setValue: (value) => set({ value }),
+  toggleValue: (itemValue) =>
+    set((state) => ({
+      value: state.value.includes(itemValue) ? state.value.filter((v) => v !== itemValue) : [...state.value, itemValue],
+    })),
+}));
 
-  const handleChange = (itemValue: string) => {
-    setValue((prev) => {
-      if (prev.includes(itemValue)) {
-        return prev.filter((v) => v !== itemValue);
-      }
-      return [...prev, itemValue];
-    });
-  };
+const Accordion: FC<AccordionProps> = ({ children, className = '', defaultValue = [] }) => {
+  const setValue = useAccordionStore((state) => state.setValue);
 
-  return (
-    <AccordionContext.Provider value={{ value, onChange: handleChange }}>
-      <div className={className}>{children}</div>
-    </AccordionContext.Provider>
-  );
+  if (defaultValue.length > 0) {
+    setValue(defaultValue);
+  }
+
+  return <div className={className}>{children}</div>;
 };
 
 const AccordionItem: FC<AccordionItemProps> = ({ children, className = '', value }) => {
+  const isOpen = useAccordionStore((state) => state.value.includes(value));
+
   return (
     <div className={`border-b ${className}`}>
-      <AccordionContext.Consumer>
-        {(context) => <div data-state={context.value.includes(value) ? 'open' : 'closed'}>{children}</div>}
-      </AccordionContext.Consumer>
+      <div data-state={isOpen ? 'open' : 'closed'}>{children}</div>
     </div>
   );
 };
 
-const AccordionTrigger: FC<AccordionTriggerProps> = ({ children, className = '' }) => {
-  const context = useContext(AccordionContext);
-  const item = useContext(ItemContext);
+const AccordionTrigger: FC<AccordionTriggerProps> = ({ children, className = '', value }) => {
+  const toggleValue = useAccordionStore((state) => state.toggleValue);
+  const isOpen = useAccordionStore((state) => state.value.includes(value));
 
   return (
     <div className="flex">
       <button
-        onClick={() => context.onChange(item)}
+        onClick={() => toggleValue(value)}
         className={`flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline text-left ${className}`}
       >
         {children}
         <svg
-          className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
-            context.value.includes(item) ? 'rotate-180' : ''
-          }`}
+          className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -83,10 +85,8 @@ const AccordionTrigger: FC<AccordionTriggerProps> = ({ children, className = '' 
   );
 };
 
-const AccordionContent: FC<AccordionContentProps> = ({ children, className = '' }) => {
-  const context = useContext(AccordionContext);
-  const item = useContext(ItemContext);
-  const isOpen = context.value.includes(item);
+const AccordionContent: FC<AccordionContentProps> = ({ children, className = '', value }) => {
+  const isOpen = useAccordionStore((state) => state.value.includes(value));
 
   return (
     <div className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-96' : 'max-h-0'}`}>
@@ -95,10 +95,4 @@ const AccordionContent: FC<AccordionContentProps> = ({ children, className = '' 
   );
 };
 
-const ItemContext = createContext<string>('');
-
-const AccordionItemProvider: FC<{ value: string; children: ComponentChildren }> = ({ value, children }) => (
-  <ItemContext.Provider value={value}>{children}</ItemContext.Provider>
-);
-
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent, AccordionItemProvider };
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };

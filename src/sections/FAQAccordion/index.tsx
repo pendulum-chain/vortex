@@ -1,10 +1,4 @@
-import {
-  Accordion,
-  AccordionItem,
-  AccordionItemProvider,
-  AccordionTrigger,
-  AccordionContent,
-} from '../../components/Accordion';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '../../components/Accordion';
 
 const FAQ_ITEMS = [
   {
@@ -50,10 +44,8 @@ export const FAQAccordion = () => {
     <Accordion defaultValue={['fees']}>
       {FAQ_ITEMS.map(({ id, question, answer }) => (
         <AccordionItem value={id} key={id}>
-          <AccordionItemProvider value={id}>
-            <AccordionTrigger>{question}</AccordionTrigger>
-            <AccordionContent>{answer}</AccordionContent>
-          </AccordionItemProvider>
+          <AccordionTrigger value={id}>{question}</AccordionTrigger>
+          <AccordionContent value={id}>{answer}</AccordionContent>
         </AccordionItem>
       ))}
 
