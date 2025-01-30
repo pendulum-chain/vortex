@@ -5,7 +5,7 @@ const FAQ_ITEMS = [
     id: 'fees',
     question: 'How much does Vortex charge in fees?',
     answer:
-      'Vortex&apos;s fees are completely transparent and depend on the payment method you choose. These are all-in fees, meaning there are no hidden charges from Vortex or local banking partners. The cost of your transfer comes from the clearly disclosed fee and exchange rate. Unlike many providers that claim &quot;no fees&quot; but hide extra costs in inflated exchange rates, Vortex ensures you&apos;re never overcharged. Our fees are shown upfront so you always know exactly what you&apos;re paying.',
+      'Vortex’s fees are completely transparent and depend on the payment method you choose. These are all-in fees, meaning there are no hidden charges from Vortex or local banking partners. The cost of your transfer comes from the clearly disclosed fee and exchange rate. Unlike many providers that claim “no fees” but hide extra costs in inflated exchange rates, Vortex ensures you’re never overcharged. Our fees are shown upfront so you always know exactly what you’re paying.',
   },
   {
     id: 'countries',
@@ -29,29 +29,35 @@ const FAQ_ITEMS = [
     id: 'timing',
     question: 'How long does it take to sell crypto (for the money to arrive)?',
     answer:
-      'The crypto-to-fiat transaction process with Vortex is exceptionally quick, taking only about three minutes. If your bank supports instant payments, you&apos;ll see the funds in your account within five minutes. For banks without instant payment capabilities, the processing time depends on your bank, but it usually takes one to two business days for the money to arrive.',
+      'The crypto-to-fiat transaction process with Vortex is exceptionally quick, taking only about three minutes. If your bank supports instant payments, you’ll see the funds in your account within five minutes. For banks without instant payment capabilities, the processing time depends on your bank, but it usually takes one to two business days for the money to arrive.',
   },
   {
     id: 'business',
     question: 'Does Vortex offer solutions for businesses?',
     answer:
-      'Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex&apos;s competitive rates, ease of use, and seamless transactions. If you&apos;re interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business.',
+      'Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex’s competitive rates, ease of use, and seamless transactions. If you’re interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business.',
   },
 ];
 
 export const FAQAccordion = () => {
   return (
-    <Accordion defaultValue={['fees']}>
-      {FAQ_ITEMS.map(({ id, question, answer }) => (
-        <AccordionItem value={id} key={id}>
-          <AccordionTrigger value={id}>{question}</AccordionTrigger>
-          <AccordionContent value={id}>{answer}</AccordionContent>
-        </AccordionItem>
-      ))}
+    <div className="my-12">
+      <p className="text-lg font-bold text-center text-blue-700">FAQ</p>
+      <h1 className="text-3xl font-bold text-center text-black">Frequently asked questions</h1>
+      <div className="mt-6">
+        <Accordion defaultValue={['fees']}>
+          {FAQ_ITEMS.map(({ id, question, answer }) => (
+            <AccordionItem value={id} key={id}>
+              <AccordionTrigger value={id}>{question}</AccordionTrigger>
+              <AccordionContent value={id}>{answer}</AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
 
       <p className="mt-4 text-center text-gray-600">
         For any additional questions, don&apos;t hesitate to reach out to us. We&apos;re here to help!
       </p>
-    </Accordion>
+    </div>
   );
 };
