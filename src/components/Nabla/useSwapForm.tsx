@@ -60,7 +60,7 @@ export const useSwapForm = () => {
 
     const network = getCaseSensitiveNetwork(initialValues.network);
     if (network !== selectedNetwork) {
-      setSelectedNetwork(network);
+      setSelectedNetwork(network, true);
     }
 
     const initialFromToken = getInputTokenDetails(network, initialValues.from as InputTokenType);
