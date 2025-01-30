@@ -111,16 +111,13 @@ export const HowToSell = () => {
           <p className="text-5xl text-white">How to sell cryptocurrency online with Vortex Finance</p>
         </div>
         <div className="relative flex justify-center">
-          <div className="relative flex justify-between w-full max-w-4xl">
-            {steps.map((step, index) => (
+          <div className="relative flex flex-wrap justify-between w-full max-w-4xl gap-8">
+            {steps.map((step) => (
               <div key={step.id} className="relative z-10 group">
                 <div className="flex flex-col items-center">
                   <div className="flex items-center justify-center w-20 h-20 mb-4 transition-all duration-300 bg-black border rounded-full shadow-lg group-hover:scale-105 ">
                     <span className="text-3xl font-bold text-white">{step.id}</span>
                   </div>
-                  {index < steps.length - 1 && (
-                    <div className="absolute top-10 left-[calc(50%+2.5rem)] w-[calc(100%-5rem)] h-0.5 bg-white" />
-                  )}
                   <div className="w-48 text-center transition-all duration-300 group-hover:transform group-hover:translate-y-1">
                     <h3 className="text-xs text-white">{step.text}</h3>
                   </div>
