@@ -31,7 +31,7 @@ const features: Feature[] = [
 ];
 
 const FeatureCard = ({ icon, title, description, subtext }: Feature) => (
-  <div className="grid grid-flow-col grid-rows-[100px_30px_50px_30px] gap-1 text-center">
+  <div className="grid grid-flow-col grid-rows-[100px_30px_50px_30px] gap-1 text-center px-16 md:px-0">
     <img src={icon} alt={title} className="w-[100px] mx-auto h-[100px] mb-4" />
     <h3 className="mb-4 text-xl font-bold text-blue-900">{title}</h3>
     <p className="mb-2 text-black">{description}</p>
