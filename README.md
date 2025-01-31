@@ -43,10 +43,10 @@ matter what URL the browser requests.
   - `http://localhost:3000` (if in development mode)
   - `/api/production` (if in production mode)
     - this will use the `_redirects` file to direct Netlify to proxy all requests to `/api/production` to
-      `https://prototype-signer-service-polygon.pendulumchain.tech`
+      `https://signer-service.pendulumchain.tech`
   - `/api/staging` (if in staging mode)
     - this will use the `_redirects` file to direct Netlify to proxy all requests to `/api/staging` to
-      `https://prototype-signer-service-polygon-staging.pendulumchain.tech`
+      `https://signer-service-staging.pendulumchain.tech`
 - `VITE_ALCHEMY_API_KEY`: Optional variable to set the Alchemy API key for the custom RPC provider. If undefined, it
   will use dhe default endpoint.
 
