@@ -110,11 +110,11 @@ export const HowToSell = () => {
             {steps.map((step) => (
               <div key={step.id} className="relative z-10 group">
                 <div className="flex flex-col items-center">
-                  <div className="flex items-center justify-center w-20 h-20 mb-4 transition-all duration-300 bg-blue-100 border-2 border-blue-900 rounded-full shadow-lg group-hover:scale-105 ">
-                    <span className="text-3xl font-bold text-blue-900">{step.id}</span>
+                  <div className="flex items-center justify-center w-20 h-20 mb-4 transition-all duration-300 border-2 border-blue-700 rounded-full shadow-lg bg-gradient-to-br from-black via-black/70 to-black group-hover:scale-105">
+                    <span className="text-3xl font-bold text-primary">{step.id}</span>
                   </div>
                   <div className="w-48 text-center transition-all duration-300 group-hover:transform group-hover:translate-y-1">
-                    <h3 className="text-white ">{step.text}</h3>
+                    <h3 className="text-white/90">{step.text}</h3>
                   </div>
                 </div>
               </div>
