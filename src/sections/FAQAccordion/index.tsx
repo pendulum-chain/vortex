@@ -41,11 +41,11 @@ const FAQ_ITEMS = [
 
 export const FAQAccordion = () => {
   return (
-    <div className="my-12">
+    <div className="my-24">
       <p className="text-lg font-bold text-center text-blue-700">LEARN MORE</p>
       <h1 className="text-3xl font-bold text-center text-black">Frequently asked questions</h1>
       <div className="mt-6">
-        <Accordion defaultValue={['fees']}>
+        <Accordion>
           {FAQ_ITEMS.map(({ id, question, answer }) => (
             <AccordionItem value={id} key={id}>
               <AccordionTrigger value={id}>{question}</AccordionTrigger>

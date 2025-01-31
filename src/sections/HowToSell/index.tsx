@@ -53,7 +53,7 @@ export const HowToSell = () => {
           float radius = length(st);
 
           // Increased spiral intensity - repetition of pattern elements
-          float spiral = sin(angle * 3.0 + radius * 4.0 - time * 0.9) * 1.2;
+          float spiral = sin(angle * 5.0 + radius * 4.0 - time * 0.9) * 1.2;
 
           // Adjusted fade for better visibility
           float fade = 1.0 - smoothstep(0.0, 0.95, radius);
@@ -98,11 +98,11 @@ export const HowToSell = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative py-20 overflow-hidden bg-blue-950">
+    <section ref={sectionRef} className="relative py-32 overflow-hidden bg-blue-950">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       <div className="container relative z-10 px-4 mx-auto mb-12">
         <div className="mb-12 text-center">
-          <h2 className="font-bold text-blue-700 ">HOW TO SELL</h2>
+          <h2 className="font-bold text-pink-500">HOW TO SELL</h2>
           <p className="text-5xl text-white">How to sell cryptocurrency online with Vortex Finance</p>
         </div>
         <div className="relative flex justify-center">

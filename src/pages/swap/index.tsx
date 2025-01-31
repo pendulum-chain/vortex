@@ -19,8 +19,8 @@ import { SigningBox } from '../../components/SigningBox';
 import { PoweredBy } from '../../components/PoweredBy';
 
 import { PitchSection } from '../../sections/Pitch';
-import { TrustedBy } from '../../components/TrustedBy';
-import { WhyVortex } from '../../components/WhyVortex';
+import { TrustedBy } from '../../sections/TrustedBy';
+import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
   getInputTokenDetailsOrDefault,

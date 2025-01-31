@@ -2,9 +2,9 @@ import { motion } from 'framer-motion';
 
 export const PitchSection = () => {
   return (
-    <section className="container mx-auto mt-12">
+    <section className="mx-4 mt-8 sm:container sm:mx-auto">
       <motion.h1
-        className="mb-4 text-4xl text-center text-black"
+        className="text-4xl text-center text-black sm:text-5xl"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -14,7 +14,7 @@ export const PitchSection = () => {
         money directly in your Bank Account
       </motion.h1>
       <motion.p
-        className="text-lg text-center text-black"
+        className="mt-4 text-center text-black sm:mt-10 sm:text-lg"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}

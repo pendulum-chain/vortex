@@ -15,6 +15,7 @@ export const Banner = () => {
         viewport={{ once: true }}
         initial={{ x: -100, y: 100, opacity: 0, rotate: -30 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
+        whileHover={{ scale: 1.02 }}
       />
       <div className="z-10 md:w-1/2">
         <h1 className="text-4xl">Got Questions? We&apos;re here to help!</h1>

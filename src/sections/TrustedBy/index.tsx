@@ -46,17 +46,15 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
 export const TrustedBy = () => {
   const trustedByImages = [
     { src: POLKADOT, alt: 'Polkadot logo' },
+    { src: METAMASK, alt: 'MetaMask logo' },
     { src: WEB3, alt: 'Web3 Foundation logo' },
     { src: COINDESK, alt: 'CoinDesk logo' },
-    { src: METAMASK, alt: 'MetaMask logo' },
   ];
 
   return (
-    <section className="container mx-auto mt-12">
-      <motion.h1 className="mb-4 text-4xl text-center text-black">Trusted by</motion.h1>
-      <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-12">
-        <ImageList images={trustedByImages} />
-      </div>
+    <section className="mx-2 mt-24 sm:container sm:mx-auto">
+      <motion.h1 className="text-4xl text-center text-black sm:text-5xl">Trusted by</motion.h1>
+      <ImageList images={trustedByImages} />
     </section>
   );
 };

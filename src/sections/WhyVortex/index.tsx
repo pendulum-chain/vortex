@@ -31,8 +31,8 @@ const features: Feature[] = [
 ];
 
 const FeatureCard = ({ icon, title, description, subtext }: Feature) => (
-  <div className="flex flex-col items-center text-center">
-    <img src={icon} alt={title} className="w-[100px] h-[100px] mb-4" />
+  <div className="grid grid-flow-col grid-rows-[100px_30px_50px_30px] gap-1 text-center">
+    <img src={icon} alt={title} className="w-[100px] mx-auto h-[100px] mb-4" />
     <h3 className="mb-4 text-xl font-bold text-blue-900">{title}</h3>
     <p className="mb-2 text-black">{description}</p>
     <p className="text-gray-600 text-pink-600">{subtext}</p>
@@ -40,9 +40,11 @@ const FeatureCard = ({ icon, title, description, subtext }: Feature) => (
 );
 
 export const WhyVortex = () => (
-  <section className="container py-12 mx-auto mt-6">
-    <h1 className="mb-6 text-4xl text-center text-black">Why Vortex?</h1>
-    <div className="grid grid-cols-1 gap-x-20 gap-y-8 md:grid-cols-3">
+  <section className="container pb-24 mx-auto mt-28">
+    <h1 className="text-4xl text-center text-black sm:text-5xl">
+      Why <strong className="text-primary">Vortex</strong>?
+    </h1>
+    <div className="grid grid-cols-1 mt-6 sm:mt-12 gap-x-20 gap-y-8 md:grid-cols-3">
       {features.map((feature) => (
         <FeatureCard key={feature.title} {...feature} />
       ))}
