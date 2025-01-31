@@ -14683,10 +14683,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"three@npm:^0.172.0":
-  version: 0.172.0
-  resolution: "three@npm:0.172.0"
-  checksum: 10/ad166a56290258331b358ab70e57fccc25eece7879cdf5638f209709b77b7277002e8653ce517c28566d6529908f08c9ba96d4fbb4a1a553a3ffcc0f57c21b1a
+"three@npm:^0.173.0":
+  version: 0.173.0
+  resolution: "three@npm:0.173.0"
+  checksum: 10/ba839ca592d7d290b536cd8fc0dfcba67382e97920bb7b3204027d68250448f23d7c08139e247a001dd5dc97a982e5c16ea3352bb4a5d05a986bf8def167619e
   languageName: node
   linkType: hard
 
@@ -15841,7 +15841,7 @@ __metadata:
     stellar-sdk: "npm:^11.3.0"
     tailwind: "npm:^4.0.0"
     tailwindcss: "npm:^3.4.3"
-    three: "npm:^0.172.0"
+    three: "npm:^0.173.0"
     ts-node: "npm:^10.9.1"
     typescript: "npm:^5.3.3"
     viem: "npm:^2.21.43"

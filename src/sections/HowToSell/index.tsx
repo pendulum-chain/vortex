@@ -29,9 +29,8 @@ export const HowToSell = () => {
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current });
 
-    // Create vortex shader material
     const vortexShader = {
       uniforms: {
         time: { value: 0 },
@@ -50,25 +49,21 @@ export const HowToSell = () => {
         void main() {
           vec2 st = vUv * 2.0 - 1.0;
 
-          // Create subtle spiral coordinates
           float angle = atan(st.y, st.x);
           float radius = length(st);
 
-          // Slightly faster rotation and more pronounced spiral pattern
-          float spiral = sin(angle * 2.5 + radius * 4.0 - time * 0.3);
+          // Increased spiral intensity - repetition of pattern elements
+          float spiral = sin(angle * 3.0 + radius * 4.0 - time * 0.9) * 1.2;
 
-          // Increased movement
-          float movement = sin(time * 0.15 + radius * 2.5) * 0.08;
-          spiral += movement;
+          // Adjusted fade for better visibility
+          float fade = 1.0 - smoothstep(0.0, 0.95, radius);
 
-          // Slightly less fade at edges
-          float fade = 1.0 - smoothstep(0.0, 0.9, radius);
+          // Increased color intensity and brightness
+          float finalColor = spiral * fade * 0.14;
+          vec3 color = vec3(0.85, 0.95, 1.0) * finalColor;
 
-          // Increased color intensity
-          float finalColor = spiral * fade * 0.12;
-          vec3 color = vec3(0.8, 0.9, 1.0) * finalColor;
-
-          gl_FragColor = vec4(color, 0.25);
+          // Increased opacity
+          gl_FragColor = vec4(color, 0.35);
         }
       `,
     };
