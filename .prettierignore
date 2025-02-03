@@ -1,3 +1,4 @@
+.prettierignore
 node_modules/
 coverage/
 dist/
@@ -6,11 +7,25 @@ preact/
 internals/
 docs/
 .lighthouseci/
-
+**/coins/*
 *.yml
+*.sol
 
 package-lock.json
 package.json
 yarn.lock
+favicon.png
+.prettierignore
 
 CHANGELOG.md
+**/*.svg
+.prettierignore
+.gitignore
+*.png
+*.svg
+*.webp
+*.jpg
+*.jpeg
+*.gif
+_redirects
+LICENSE

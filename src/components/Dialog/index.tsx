@@ -1,0 +1,131 @@
+import { Modal } from 'react-daisyui';
+import { FC, createPortal, useCallback, useEffect, useRef, useState } from 'preact/compat';
+
+import { CloseButton } from '../buttons/CloseButton';
+
+interface DialogProps {
+  visible: boolean;
+  onClose?: () => void;
+  headerText?: string;
+  content: JSX.Element;
+  actions?: JSX.Element;
+  form?: {
+    onSubmit: (event?: Event) => void | Promise<void>;
+    className?: string;
+  };
+  id?: string;
+  disableNativeEvents?: boolean;
+  hideCloseButton?: boolean;
+}
+
+export const Dialog: FC<DialogProps> = ({
+  visible,
+  onClose,
+  headerText,
+  content,
+  actions,
+  id,
+  form,
+  disableNativeEvents = false,
+  hideCloseButton = false,
+}) => {
+  const ref = useRef<HTMLDialogElement>(null);
+  const dialog = ref.current;
+
+  // If it was the form submission we want to only close the dialog without calling onClose
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleClose = useCallback(
+    (dialog: HTMLDialogElement) => {
+      if (isSubmitting) {
+        setIsSubmitting(false);
+        dialog.close();
+        return;
+      }
+
+      dialog.close();
+      onClose && onClose();
+    },
+    [isSubmitting, onClose],
+  );
+
+  const closeListener = useCallback(() => {
+    const dialog = ref.current;
+    if (dialog) {
+      handleClose(dialog);
+    }
+  }, [handleClose]);
+
+  // Manage native <dialog> events and visibility
+  useEffect(() => {
+    if (dialog) {
+      dialog.addEventListener('close', closeListener);
+      if (visible && !dialog.open) {
+        dialog.showModal();
+      } else if (!visible && dialog.open) {
+        dialog.close();
+      }
+
+      return () => {
+        dialog.removeEventListener('close', closeListener);
+      };
+    }
+  }, [visible, closeListener, headerText, dialog]);
+
+  // This useEffect handles disableNativeEvents ( prevents the dialog from closing on Escape key press )
+  useEffect(() => {
+    if (!disableNativeEvents || !dialog) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (disableNativeEvents && e.key === 'Escape') {
+        e.preventDefault();
+        return;
+      }
+    };
+
+    dialog.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      dialog.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [disableNativeEvents, headerText, dialog]);
+
+  const handleFormSubmit = (event: Event) => {
+    if (form) {
+      setIsSubmitting(true);
+      event.preventDefault();
+      form.onSubmit(event);
+    }
+  };
+
+  const container = document.getElementById('modals');
+  if (!container) return null;
+
+  const modalBody = (
+    <>
+      <Modal.Body>{content}</Modal.Body>
+      <Modal.Actions className="justify-center mt-4">{actions}</Modal.Actions>
+    </>
+  );
+
+  return createPortal(
+    <Modal
+      className={`bg-base-200 border border-[--modal-border]`}
+      id={id}
+      ref={ref}
+      aria-labelledby={headerText ? `${id}-header` : undefined}
+    >
+      <Modal.Header className={`text-2xl claim-title flex mb-5 ${headerText ? 'justify-between' : 'justify-end'}`}>
+        {headerText} {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
+      </Modal.Header>
+      {form ? (
+        <form onSubmit={handleFormSubmit} className={form.className} formMethod="dialog">
+          {modalBody}
+        </form>
+      ) : (
+        modalBody
+      )}
+    </Modal>,
+    container,
+  );
+};

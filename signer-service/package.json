@@ -1,0 +1,61 @@
+{
+  "name": "@pendulum-network/token-api",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Pendulum Chain",
+  "main": "src/index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12",
+    "yarn": "*"
+  },
+  "scripts": {
+    "precommit": "yarn lint-staged && yarn lint",
+    "start": "node ./src/index.js",
+    "dev": "nodemon ./src/index.js",
+    "lint-staged": "prettier --write --ignore-unknown",
+    "lint": "eslint ./src/ --ignore-path .gitignore --ignore-pattern internals/scripts",
+    "lint:fix": "yarn lint --fix",
+    "lint:watch": "yarn lint --watch",
+    "test": "vitest",
+    "validate": "yarn lint && yarn test",
+    "postpublish": "git push --tags"
+  },
+  "dependencies": {
+    "@polkadot/api": "^13.2.1",
+    "big.js": "^6.2.1",
+    "body-parser": "^1.17.0",
+    "compression": "^1.6.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.3",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "express": "^5.0.1",
+    "express-rate-limit": "^6.7.0",
+    "express-validation": "^1.0.2",
+    "google-auth-library": "^9.11.0",
+    "google-spreadsheet": "^4.1.2",
+    "helmet": "^4.6.0",
+    "http-status": "^1.0.1",
+    "joi": "^17.13.3",
+    "method-override": "^3.0.0",
+    "mongoose": "^5.2.17",
+    "morgan": "^1.8.1",
+    "siwe": "^2.3.2",
+    "stellar-sdk": "^11.3.0",
+    "viem": "^2.21.3",
+    "winston": "^3.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.29.0",
+    "eslint-config-airbnb-base": "^14.2.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-import": "^2.2.0",
+    "husky": "^3.0.7",
+    "mocha": "^6.2.2",
+    "nodemon": "^2.0.1",
+    "prettier": "^2.8.7"
+  },
+  "packageManager": "yarn@4.4.1"
+}
