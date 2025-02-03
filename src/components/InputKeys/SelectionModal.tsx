@@ -1,5 +1,5 @@
 import { Input } from 'react-daisyui';
-import { ChangeEvent, useState } from 'preact/compat';
+import { ChangeEvent, useState } from 'react';
 import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { Dialog } from '../Dialog';
 import { Skeleton } from '../Skeleton';

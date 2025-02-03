@@ -1,3 +1,5 @@
+import { ChangeEvent, ClipboardEvent } from 'react';
+
 const removeNonNumericCharacters = (value: string): string => value.replace(/[^0-9.]/g, '');
 
 const removeExtraDots = (value: string): string => value.replace(/(\..*?)\./g, '$1');
@@ -20,7 +22,7 @@ const replaceCommasWithDots = (value: string): string => value.replace(/,/g, '.'
  * @param e - The keyboard event triggered by the input.
  * @param maxDecimals - The maximum number of decimal places allowed.
  */
-export function handleOnChangeNumericInput(e: KeyboardEvent, maxDecimals: number): void {
+export function handleOnChangeNumericInput(e: ChangeEvent, maxDecimals: number): void {
   const target = e.target as HTMLInputElement;
 
   target.value = replaceCommasWithDots(target.value);

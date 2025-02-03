@@ -1,4 +1,4 @@
-import { useCallback } from 'preact/compat';
+import { useCallback } from 'react';
 
 import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';

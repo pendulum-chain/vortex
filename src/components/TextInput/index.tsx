@@ -20,7 +20,6 @@ interface TextInputProps {
   additionalStyle?: string;
   autoFocus?: boolean;
   disabled?: boolean;
-  error?: boolean;
   placeholder?: string;
   type?: string;
 }
@@ -31,7 +30,6 @@ export const TextInput = ({
   additionalStyle,
   autoFocus,
   disabled,
-  error,
   placeholder,
   type,
 }: TextInputProps) => (
@@ -47,7 +45,6 @@ export const TextInput = ({
       autoCapitalize="off"
       spellCheck="false"
       placeholder={placeholder}
-      error={error}
       pattern={getPattern(type)}
       readOnly={readOnly}
       disabled={disabled}

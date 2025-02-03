@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState } from 'preact/compat';
+import { FC, useEffect, useRef, useState } from 'react';
 import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';

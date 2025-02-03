@@ -2,7 +2,7 @@
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/27783b79-512d-4205-89c1-d3ead6e3ed46/deploy-status)](https://app.netlify.com/sites/pendulum-pay/deploys)&nbsp;
 ![TypeScript](https://img.shields.io/badge/-TypeSript-05122A?style=flat&logo=typescript)&nbsp;
-![Preact](https://img.shields.io/badge/-Preact-05122A?style=flat&logo=preact)&nbsp;
+![React](https://img.shields.io/badge/-React-05122A?style=flat&logo=react)&nbsp;
 ![Vite](https://img.shields.io/badge/-Vite-05122A?style=flat&logo=vite)&nbsp;
 ![Polkadot](https://img.shields.io/badge/-Polkadot-05122A?style=flat&logo=polkadot)&nbsp;
 ![Ethereum](https://img.shields.io/badge/-Ethereum-05122A?style=flat&logo=ethereum)&nbsp;
@@ -29,7 +29,7 @@ Open [http://127.0.0.1:5173/](http://127.0.0.1:5173) to view it in the browser.
 ### `yarn build`
 
 Builds the app for production to the `dist` folder.\
-It transpiles TypeScript, bundles Preact in production mode, splits and optimizes the builds for the best performance.
+It transpiles TypeScript, bundles React in production mode, splits and optimizes the builds for the best performance.
 
 The build is minified and the filenames include the hashes.\
 We call on `version.cjs` to show the commit version on the sidebar.\

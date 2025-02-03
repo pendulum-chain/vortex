@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { validator } from 'web3';

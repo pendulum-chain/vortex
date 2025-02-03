@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/compat';
+import { useEffect } from 'react';
 import Big from 'big.js';
 
 import { recoverFromFailure, readCurrentState } from '../../services/offrampingFlow';

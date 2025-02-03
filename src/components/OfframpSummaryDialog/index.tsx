@@ -1,5 +1,5 @@
 import { ArrowDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { FC, useState } from 'preact/compat';
+import { useState, FC } from 'react';
 import Big from 'big.js';
 
 import { InputTokenDetails, OutputTokenDetails } from '../../constants/tokenConfig';

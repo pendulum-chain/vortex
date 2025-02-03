@@ -1,4 +1,4 @@
-import { FC } from 'preact/compat';
+import { FC, ReactNode } from 'react';
 
 interface LabeledInputProps {
   label: string;
