@@ -1,5 +1,5 @@
 import { useReadContract } from 'wagmi';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState } from 'react';
 import Big from 'big.js';
 
 import erc20ABI from '../contracts/ERC20';

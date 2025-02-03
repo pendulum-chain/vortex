@@ -1,5 +1,5 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { createContext, useContext } from 'preact/compat';
+import { createContext, useContext, JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ToastMessage } from '../helpers/notifications';
 import { showToast } from '../helpers/notifications';

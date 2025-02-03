@@ -98,8 +98,8 @@ export const HowToSell = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative py-32 overflow-hidden bg-blue-950">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+    <section className="relative py-32 overflow-hidden bg-blue-950">
+      <canvas className="absolute inset-0 w-full h-full" />
       <div className="container relative z-10 px-4 mx-auto mb-12">
         <div className="mb-12 text-center">
           <h2 className="font-bold text-pink-500">HOW TO SELL</h2>

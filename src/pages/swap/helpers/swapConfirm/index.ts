@@ -1,4 +1,5 @@
 import { ApiPromise } from '@polkadot/api';
+import { FormEvent } from 'react';
 import Big from 'big.js';
 
 import {
@@ -33,7 +34,7 @@ interface SwapConfirmParams {
   tokenOutAmount: { data: TokenOutData | undefined };
 }
 
-export function swapConfirm(e: Event, params: SwapConfirmParams) {
+export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmParams) {
   e.preventDefault();
 
   const {

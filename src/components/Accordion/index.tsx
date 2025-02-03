@@ -1,28 +1,27 @@
-import { ComponentChildren } from 'preact';
-import { FC } from 'preact/compat';
+import { FC, JSX } from 'react';
 import { create } from 'zustand';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AccordionProps {
-  children: ComponentChildren;
+  children: React.ReactNode | React.ReactNode[];
   className?: string;
   defaultValue?: string[];
 }
 
 interface AccordionItemProps {
-  children: ComponentChildren;
+  children: React.ReactNode | React.ReactNode[];
   className?: string;
   value: string;
 }
 
 interface AccordionTriggerProps {
-  children: ComponentChildren;
+  children: React.ReactNode | React.ReactNode[];
   className?: string;
   value: string;
 }
 
 interface AccordionContentProps {
-  children: ComponentChildren;
+  children: React.ReactNode | React.ReactNode[];
   className?: string;
   value: string;
 }

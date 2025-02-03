@@ -1,4 +1,4 @@
-import { FC } from 'preact/compat';
+import { FC, JSX } from 'react';
 import Big from 'big.js';
 import { OutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';

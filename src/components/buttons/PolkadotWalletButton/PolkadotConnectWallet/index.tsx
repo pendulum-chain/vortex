@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useState } from 'react';
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { PolkadotWalletSelectorDialog } from '../../../PolkadotWalletSelectorDialog';
 import { useEventsContext } from '../../../../contexts/events';

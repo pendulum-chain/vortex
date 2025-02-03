@@ -1,4 +1,4 @@
-import { StateUpdater } from 'preact/hooks';
+import { Dispatch, SetStateAction } from 'react';
 import Big from 'big.js';
 
 import { OfframpingState } from '../services/offrampingFlow';
@@ -12,7 +12,7 @@ export interface OfframpExecutionInput {
   outputTokenType: OutputTokenType;
   amountInUnits: string;
   offrampAmount: Big;
-  setInitializeFailed: StateUpdater<boolean>;
+  setInitializeFailed: Dispatch<SetStateAction<boolean>>;
 }
 
 export interface OfframpState {

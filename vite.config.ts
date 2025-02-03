@@ -1,5 +1,5 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin';
-import preact from '@preact/preset-vite';
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
@@ -7,7 +7,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    preact(),
+    react(),
     nodePolyfills(),
     sentryVitePlugin({
       org: 'satoshipay',

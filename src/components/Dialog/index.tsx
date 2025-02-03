@@ -1,5 +1,6 @@
 import { Modal } from 'react-daisyui';
-import { FC, createPortal, useCallback, useEffect, useRef, useState } from 'preact/compat';
+import { FC, useCallback, useEffect, useRef, useState, FormEvent, JSX } from 'react';
+import { createPortal } from 'react-dom';
 
 import { CloseButton } from '../buttons/CloseButton';
 
@@ -10,7 +11,7 @@ interface DialogProps {
   content: JSX.Element;
   actions?: JSX.Element;
   form?: {
-    onSubmit: (event?: Event) => void | Promise<void>;
+    onSubmit: (event?: FormEvent<HTMLFormElement>) => void;
     className?: string;
   };
   id?: string;
@@ -90,7 +91,7 @@ export const Dialog: FC<DialogProps> = ({
     };
   }, [disableNativeEvents, headerText, dialog]);
 
-  const handleFormSubmit = (event: Event) => {
+  const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (form) {
       setIsSubmitting(true);
       event.preventDefault();
@@ -116,10 +117,10 @@ export const Dialog: FC<DialogProps> = ({
       aria-labelledby={headerText ? `${id}-header` : undefined}
     >
       <Modal.Header className={`text-2xl claim-title flex mb-5 ${headerText ? 'justify-between' : 'justify-end'}`}>
-        {headerText} {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
+        <span>{headerText}</span> {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
       </Modal.Header>
       {form ? (
-        <form onSubmit={handleFormSubmit} className={form.className} formMethod="dialog">
+        <form onSubmit={handleFormSubmit} className={form.className} method="dialog">
           {modalBody}
         </form>
       ) : (

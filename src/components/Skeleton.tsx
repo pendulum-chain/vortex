@@ -1,4 +1,4 @@
-import { CSSProperties, HTMLAttributes } from 'preact/compat';
+import { CSSProperties, HTMLAttributes } from 'react';
 
 export type SkeletonProps = {
   isLoading?: boolean;
