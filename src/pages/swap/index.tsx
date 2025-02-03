@@ -80,7 +80,6 @@ export const SwapPage = () => {
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [showCompareFees, setShowCompareFees] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
@@ -184,7 +183,7 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  useSwapUrlParams({ form, setShowCompareFees });
+  useSwapUrlParams({ form, feeComparisonRef });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = OUTPUT_TOKEN_CONFIG[to];
@@ -485,8 +484,6 @@ export const SwapPage = () => {
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
-              // We always show the fees comparison when the user clicks on the button. It will not be hidden again.
-              if (!showCompareFees) setShowCompareFees(true);
               // Scroll to the comparison fees section (with a small delay to allow the component to render first)
               setTimeout(() => {
                 feeComparisonRef.current?.scrollIntoView();
@@ -524,16 +521,15 @@ export const SwapPage = () => {
           A <img src={satoshipayLogo} alt="Satoshipay" className="h-4" /> Company
         </a>
       </p>
-      {showCompareFees && fromToken && fromAmount && toToken && (
-        <FeeComparison
-          sourceAssetSymbol={fromToken.assetSymbol}
-          amount={fromAmount}
-          targetAssetSymbol={toToken.fiat.symbol}
-          vortexPrice={vortexPrice}
-          network={selectedNetwork}
-          ref={feeComparisonRef}
-        />
-      )}
+
+      <FeeComparison
+        sourceAssetSymbol={fromToken.assetSymbol}
+        amount={fromAmount ?? Big(100)}
+        targetAssetSymbol={toToken.fiat.symbol}
+        vortexPrice={vortexPrice}
+        network={selectedNetwork}
+        ref={feeComparisonRef}
+      />
       <PitchSection />
       <TrustedBy />
       <WhyVortex />

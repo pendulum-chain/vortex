@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 const steps = [
@@ -21,7 +21,6 @@ const steps = [
 ];
 
 export const HowToSell = () => {
-  const sectionRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {

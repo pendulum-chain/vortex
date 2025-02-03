@@ -123,7 +123,7 @@ function FeeComparisonTable(props: BaseComparisonProps) {
   const { amount, sourceAssetSymbol, network, targetAssetSymbol, vortexPrice } = props;
 
   return (
-    <div className="w-full p-4 grow rounded-3xl shadow-custom">
+    <div className="w-full p-4 transition-all pb-8 duration-300 bg-white grow rounded-2xl shadow-custom hover:scale-[101%]">
       <div className="flex items-center justify-center w-full mb-3">
         <div className="flex items-center justify-center w-full gap-4">
           <span className="font-bold text-md">
@@ -172,19 +172,24 @@ export const FeeComparison = forwardRef<FeeComparisonRef, BaseComparisonProps>(f
   }));
 
   return (
-    <div
+    <section
       ref={feeComparisonRef}
-      className="flex flex-col items-center max-w-4xl px-4 py-8 rounded-lg md:flex-row gap-x-8 gap-y-8 md:mx-auto md:w-3/4"
+      className="py-24 mt-10 mb-24 bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))]"
     >
-      <div className="w-full gap-6 overflow-auto grow">
-        <h1 className="text-2xl font-bold">Save on exchange rate markups</h1>
-        <p className="mt-4 text-lg">
-          The cost of your transfer comes from the fee and the exchange rate. Many providers offer “no fee”, while
-          hiding a markup in the exchange rate, making you pay more.
-        </p>
-        <p className="mt-4 text-lg">At Vortex, we’ll never do that and show our fees upfront.</p>
+      <div className="flex flex-col items-center max-w-4xl px-4 py-8 rounded-lg md:flex-row gap-x-8 gap-y-8 md:mx-auto md:w-3/4">
+        <div className="w-full gap-6 overflow-auto text-white grow">
+          <h1 className="text-4xl font-bold">
+            <strong className="text-blue-400">Save</strong> on exchange rate markups
+          </h1>
+          <p className="mt-4 text-lg">
+            The cost of your transfer comes from the fee and the exchange rate. Many providers offer{' '}
+            <em className="font-bold text-blue-400">“no fee”</em>, while hiding a markup in the exchange rate, making
+            you pay more.
+          </p>
+          <p className="mt-4 text-lg">At Vortex, we’ll never do that and show our fees upfront.</p>
+        </div>
+        <FeeComparisonTable {...props} />
       </div>
-      <FeeComparisonTable {...props} />
-    </div>
+    </section>
   );
 });
