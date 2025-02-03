@@ -92,7 +92,7 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
   const handleNetworkSelect = (network: Networks) => {
-    setSelectedNetwork(network);
+    setSelectedNetwork(network, true);
     setIsOpen(false);
   };
 
