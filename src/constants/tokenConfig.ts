@@ -314,6 +314,10 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
   },
 };
 
+export function getOutputTokenDetails(outputTokenType: OutputTokenType): OutputTokenDetails {
+  return OUTPUT_TOKEN_CONFIG[outputTokenType];
+}
+
 export function getPendulumCurrencyId(outputTokenType: OutputTokenType) {
   const { stellarAsset } = OUTPUT_TOKEN_CONFIG[outputTokenType];
   return {

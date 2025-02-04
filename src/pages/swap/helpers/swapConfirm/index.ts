@@ -16,6 +16,7 @@ import { Networks } from '../../../../helpers/networks';
 import { calculateSwapAmountsWithMargin } from './calculateSwapAmountsWithMargin';
 import { performSwapInitialChecks } from './performSwapInitialChecks';
 import { validateSwapInputs } from './validateSwapInputs';
+import { calculateTotalReceive } from '../../../../components/FeeCollapse';
 
 interface SwapConfirmParams {
   address: string | undefined;
@@ -87,11 +88,22 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
       // here we should set that the user has accepted the terms and conditions in the local storage
       setTermsAccepted(true);
 
+      const effectiveExchangeRate = validInputs.tokenOutAmountData.effectiveExchangeRate;
+      const inputAmountUnits = fromAmountString;
+
+      const outputAmountBeforeFees = validInputs.tokenOutAmountData.roundedDownQuotedAmountOut;
+      const outputAmountAfterFees = calculateTotalReceive(outputAmountBeforeFees, outputToken);
+      const outputAmountUnits = {
+        beforeFees: outputAmountBeforeFees.toFixed(2, 0),
+        afterFees: outputAmountAfterFees,
+      };
+
       handleOnSubmit({
         inputTokenType: from,
         outputTokenType: to,
-        amountInUnits: fromAmountString,
-        offrampAmount: validInputs.tokenOutAmountData.roundedDownQuotedAmountOut,
+        effectiveExchangeRate,
+        inputAmountUnits,
+        outputAmountUnits,
         setInitializeFailed,
       });
     })
