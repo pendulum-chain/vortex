@@ -53,7 +53,7 @@ export const useSubmitOfframp = () => {
           from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
           to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
           from_amount: inputAmountUnits,
-          to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), getOutputTokenDetails(outputTokenType)),
+          to_amount: outputAmountUnits.afterFees,
         });
 
         try {
@@ -66,7 +66,7 @@ export const useSubmitOfframp = () => {
             from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
             to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
             from_amount: inputAmountUnits,
-            to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), getOutputTokenDetails(outputTokenType)),
+            to_amount: outputAmountUnits.afterFees,
           });
 
           const stellarEphemeralSecret = createStellarEphemeralSecret();
