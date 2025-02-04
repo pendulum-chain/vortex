@@ -1,5 +1,4 @@
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
-import { calculateTotalReceive } from '../../../components/FeeCollapse';
 import { OfframpingState } from '../../../services/offrampingFlow';
 import { Networks } from '../../../helpers/networks';
 import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../../constants/tokenConfig';
@@ -14,11 +13,8 @@ export const useTrackSEP24Events = () => {
       event: 'kyc_started',
       from_asset: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType).assetSymbol,
       to_asset: OUTPUT_TOKEN_CONFIG[executionInput.outputTokenType].stellarAsset.code.string,
-      from_amount: executionInput.amountInUnits,
-      to_amount: calculateTotalReceive(
-        executionInput.offrampAmount,
-        OUTPUT_TOKEN_CONFIG[executionInput.outputTokenType],
-      ),
+      from_amount: executionInput.inputAmountUnits,
+      to_amount: executionInput.outputAmountUnits.afterFees,
     });
   };
 

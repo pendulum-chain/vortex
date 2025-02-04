@@ -65,6 +65,7 @@ import {
 import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 import satoshipayLogo from '../../assets/logo/satoshipay.svg';
+import { useSep24ExecutionInput } from '../../stores/sep24Store';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -148,6 +149,7 @@ export const SwapPage = () => {
   const offrampSigningPhase = useOfframpSigningPhase();
   const offrampInitiating = useOfframpInitiating();
   const { setOfframpInitiating } = useOfframpActions();
+  const executionInput = useSep24ExecutionInput();
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
@@ -417,11 +419,7 @@ export const SwapPage = () => {
   const main = (
     <main ref={formRef}>
       <OfframpSummaryDialog
-        fromToken={fromToken}
-        fromAmountString={fromAmountString}
-        toToken={toToken}
-        formToAmount={formToAmount}
-        tokenOutAmount={tokenOutAmount}
+        executionInput={executionInput}
         visible={isOfframpSummaryDialogVisible}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={() => {
@@ -442,20 +440,37 @@ export const SwapPage = () => {
         <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-        <FeeCollapse
-          fromAmount={fromAmount?.toString()}
-          toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
-          toToken={toToken}
-          exchangeRate={
-            <ExchangeRate
-              {...{
-                tokenOutData: tokenOutAmount,
-                fromToken,
-                toTokenSymbol: toToken.fiat.symbol,
-              }}
-            />
-          }
-        />
+        {offrampState ? (
+          <FeeCollapse
+            fromAmount={offrampState.inputAmount.units}
+            toAmount={Big(offrampState.outputAmount.units)}
+            toToken={OUTPUT_TOKEN_CONFIG[offrampState.outputTokenType]}
+            exchangeRate={
+              <ExchangeRate
+                {...{
+                  exchangeRate: offrampState.effectiveExchangeRate,
+                  fromToken: getInputTokenDetailsOrDefault(selectedNetwork, offrampState.inputTokenType),
+                  toTokenSymbol: OUTPUT_TOKEN_CONFIG[offrampState.outputTokenType].fiat.symbol,
+                }}
+              />
+            }
+          />
+        ) : (
+          <FeeCollapse
+            fromAmount={fromAmount?.toString()}
+            toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
+            toToken={toToken}
+            exchangeRate={
+              <ExchangeRate
+                {...{
+                  exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
+                  fromToken,
+                  toTokenSymbol: toToken.fiat.symbol,
+                }}
+              />
+            }
+          />
+        )}
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>

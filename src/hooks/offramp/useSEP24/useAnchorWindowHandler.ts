@@ -58,7 +58,7 @@ export const useAnchorWindowHandler = () => {
     try {
       const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
 
-      if (!Big(secondSep24Response.amount).eq(executionInput.offrampAmount)) {
+      if (!Big(secondSep24Response.amount).eq(executionInput.outputAmountUnits.beforeFees)) {
         handleAmountMismatch(setOfframpStarted);
         return;
       }
@@ -68,8 +68,8 @@ export const useAnchorWindowHandler = () => {
         stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
         inputTokenType: executionInput.inputTokenType,
         outputTokenType: executionInput.outputTokenType,
-        amountIn: executionInput.amountInUnits,
-        amountOut: executionInput.offrampAmount,
+        amountIn: executionInput.inputAmountUnits,
+        amountOut: Big(executionInput.outputAmountUnits.afterFees),
         sepResult: secondSep24Response,
         network: selectedNetwork,
         pendulumNode,

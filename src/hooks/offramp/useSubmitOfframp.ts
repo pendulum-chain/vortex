@@ -17,6 +17,7 @@ import { ExecutionInput } from './useMainProcess';
 import { useSep24Actions } from '../../stores/sep24Store';
 
 import { showToast, ToastMessage } from '../../helpers/notifications';
+import Big from 'big.js';
 
 export const useSubmitOfframp = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -36,7 +37,8 @@ export const useSubmitOfframp = () => {
 
   return useCallback(
     (executionInput: ExecutionInput) => {
-      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
+      const { inputTokenType, inputAmountUnits, outputTokenType, outputAmountUnits, setInitializeFailed } =
+        executionInput;
 
       if (offrampStarted || offrampState !== undefined) {
         setOfframpInitiating(false);
@@ -50,8 +52,8 @@ export const useSubmitOfframp = () => {
           event: 'transaction_confirmation',
           from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
           to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-          from_amount: amountInUnits,
-          to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
+          from_amount: inputAmountUnits,
+          to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), OUTPUT_TOKEN_CONFIG[outputTokenType]),
         });
 
         try {
@@ -63,8 +65,8 @@ export const useSubmitOfframp = () => {
             event: 'transaction_confirmation',
             from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
             to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-            from_amount: amountInUnits,
-            to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
+            from_amount: inputAmountUnits,
+            to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), OUTPUT_TOKEN_CONFIG[outputTokenType]),
           });
 
           const stellarEphemeralSecret = createStellarEphemeralSecret();
@@ -88,7 +90,7 @@ export const useSubmitOfframp = () => {
             token: sep10Token,
             tomlValues,
             tokenConfig: outputToken,
-            offrampAmount: offrampAmount.toFixed(2, 0),
+            offrampAmount: Big(outputAmountUnits.beforeFees).toFixed(2, 0),
           };
 
           setExecutionInput({

@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import Big from 'big.js';
 
 import { recoverFromFailure, readCurrentState } from '../../services/offrampingFlow';
 
@@ -16,8 +15,9 @@ import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
 export interface ExecutionInput {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
-  amountInUnits: string;
-  offrampAmount: Big;
+  inputAmountUnits: string;
+  outputAmountUnits: { beforeFees: string; afterFees: string };
+  effectiveExchangeRate: string;
   setInitializeFailed: (message?: string | null) => void;
 }
 
