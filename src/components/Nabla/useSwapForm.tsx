@@ -1,6 +1,6 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import Big from 'big.js';
-import { useCallback, useMemo, useState } from 'preact/compat';
+import { useCallback, useMemo, useState } from 'react';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
@@ -26,7 +26,7 @@ type TokenSelectType = 'from' | 'to';
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
-function mergeIfDefined<T>(target: T, source: Nullable<T> | undefined): void {
+function mergeIfDefined<T>(target: T, source: T | undefined): void {
   if (!source) return;
 
   Object.entries(source).forEach(([key, value]) => {
@@ -60,7 +60,7 @@ export const useSwapForm = () => {
 
     const network = getCaseSensitiveNetwork(initialValues.network);
     if (network !== selectedNetwork) {
-      setSelectedNetwork(network);
+      setSelectedNetwork(network, true);
     }
 
     const initialFromToken = getInputTokenDetails(network, initialValues.from as InputTokenType);

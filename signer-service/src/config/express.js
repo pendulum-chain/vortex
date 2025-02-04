@@ -20,11 +20,7 @@ const app = express();
 // enable CORS - Cross Origin Resource Sharing
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173',
-      'https://polygon-prototype-staging--pendulum-pay.netlify.app',
-      'https://app.vortexfinance.co',
-    ],
+    origin: ['http://localhost:5173', 'https://staging--pendulum-pay.netlify.app', 'https://app.vortexfinance.co'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
     allowedHeaders: 'Content-Type,Authorization',

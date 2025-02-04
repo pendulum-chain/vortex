@@ -15,7 +15,6 @@ export class TestableEventListener extends EventListener {
   // Analogous to what we would do in the callback of the subscription
   processEventsForTest(events: any[]) {
     events.forEach((event) => {
-      this.processEvents(event, this.pendingIssueEvents);
       this.processEvents(event, this.pendingRedeemEvents);
       this.processEvents(event, this.pendingXcmSentEvents);
     });

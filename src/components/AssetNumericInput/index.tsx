@@ -1,4 +1,4 @@
-import { FC } from 'preact/compat';
+import { ChangeEvent, FC } from 'react';
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { AssetButton } from '../buttons/AssetButton';
 import { SwapFormValues } from '../Nabla/schema';
@@ -9,7 +9,7 @@ interface AssetNumericInputProps {
   assetIcon: AssetIconType;
   tokenSymbol: string;
   onClick: () => void;
-  onChange?: (e: KeyboardEvent) => void;
+  onChange?: (e: ChangeEvent) => void;
   disabled?: boolean;
   readOnly?: boolean;
   registerInput: UseFormRegisterReturn<keyof SwapFormValues>;

@@ -1,5 +1,5 @@
-import { createContext } from 'preact';
-import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'preact/compat';
+import { createContext } from 'react';
+import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
 import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
@@ -111,6 +111,18 @@ export interface FormErrorEvent {
     | 'more_than_maximum_withdrawal';
 }
 
+export interface InitializationErrorEvent {
+  event: 'initialization_error';
+  error_message: InitializationErrorMessage;
+}
+
+type InitializationErrorMessage =
+  | 'node_connection_issue'
+  | 'signer_service_issue'
+  | 'moonbeam_account_issue'
+  | 'stellar_account_issue'
+  | 'pendulum_account_issue';
+
 export type TrackableEvent =
   | AmountTypeEvent
   | ClickDetailsEvent
@@ -124,7 +136,8 @@ export type TrackableEvent =
   | SigningRequestedEvent
   | TransactionSignedEvent
   | ProgressEvent
-  | NetworkChangeEvent;
+  | NetworkChangeEvent
+  | InitializationErrorEvent;
 
 type EventType = TrackableEvent['event'];
 
@@ -153,6 +166,19 @@ const useEvents = () => {
         return;
       } else {
         trackedEventTypes.current.add(event.event);
+      }
+    }
+
+    if (event.event === 'initialization_error') {
+      const eventsStored = storageService.getParsed<Set<InitializationErrorMessage>>(
+        LocalStorageKeys.FIRED_INITIALIZATION_EVENTS,
+      );
+      const eventsSet = eventsStored ? new Set(eventsStored) : new Set();
+      if (eventsSet.has(event.error_message)) {
+        return;
+      } else {
+        eventsSet.add(event.error_message);
+        storageService.set(LocalStorageKeys.FIRED_INITIALIZATION_EVENTS, Array.from(eventsSet));
       }
     }
 
@@ -301,4 +327,8 @@ export function createTransactionEvent(
     from_amount: state.inputAmount.units,
     to_amount: calculateTotalReceive(Big(state.outputAmount.units), OUTPUT_TOKEN_CONFIG[state.outputTokenType]),
   };
+}
+
+export function clearPersistentErrorEventStore() {
+  storageService.remove(LocalStorageKeys.FIRED_INITIALIZATION_EVENTS);
 }

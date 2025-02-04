@@ -1,4 +1,4 @@
-import { FC } from 'preact/compat';
+import { FC } from 'react';
 import { InputTokenDetails } from '../../constants/tokenConfig';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 

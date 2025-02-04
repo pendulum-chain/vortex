@@ -1,4 +1,4 @@
-import { useCallback } from 'preact/compat';
+import { useCallback } from 'react';
 import { createTransactionEvent } from '../../contexts/events';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
@@ -24,7 +24,7 @@ export const useOfframpEvents = () => {
           phase_name: state.phase,
           phase_index: Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(state.phase),
           from_asset: getInputTokenDetailsOrDefault(selectedNetwork, state.inputTokenType).assetSymbol,
-          error_message: state.failure.message,
+          error_message: state.failure.message || 'Unknown error',
         });
       }
     },

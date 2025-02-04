@@ -1,8 +1,8 @@
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
-import { StateUpdater } from 'preact/compat';
+import { Dispatch, SetStateAction } from 'react';
 
 interface SearchInputProps {
-  set: StateUpdater<string>;
+  set: Dispatch<SetStateAction<string>>;
 }
 
 export const SearchInput = ({ set, ...p }: SearchInputProps) => (

@@ -1,11 +1,11 @@
-import { StateUpdater, useEffect } from 'preact/hooks';
+import { Dispatch, SetStateAction, useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { SwapFormValues } from '../../components/Nabla/schema';
 
 interface UseSwapUrlParamsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<SwapFormValues, any, undefined>;
-  setShowCompareFees: StateUpdater<boolean>;
+  setShowCompareFees: Dispatch<SetStateAction<boolean>>;
 }
 
 export const useSwapUrlParams = ({ form, setShowCompareFees }: UseSwapUrlParamsProps) => {

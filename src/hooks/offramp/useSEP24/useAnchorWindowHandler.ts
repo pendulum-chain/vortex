@@ -1,4 +1,4 @@
-import { useCallback } from 'preact/compat';
+import { useCallback } from 'react';
 import Big from 'big.js';
 
 import { useNetwork } from '../../../contexts/network';

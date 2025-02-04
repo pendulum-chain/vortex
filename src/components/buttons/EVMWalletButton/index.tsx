@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 

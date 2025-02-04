@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'preact/compat';
+import { useState, useCallback } from 'react';
 import { SignInMessage } from '../helpers/siweMessageFormatter';
 
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';

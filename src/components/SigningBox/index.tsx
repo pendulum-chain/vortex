@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from 'preact/compat';
+import { FC, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';

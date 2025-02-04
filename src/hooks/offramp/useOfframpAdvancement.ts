@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef } from 'react';
 import { useConfig } from 'wagmi';
 
 import { advanceOfframpingState } from '../../services/offrampingFlow';
@@ -35,7 +35,6 @@ export const useOfframpAdvancement = () => {
         if (isProcessingAdvance.current) return;
         isProcessingAdvance.current = true;
         if (!pendulumNode || !assetHubNode) {
-          console.error('Polkadot nodes not initialized');
           return;
         }
 
