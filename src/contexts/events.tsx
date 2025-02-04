@@ -1,15 +1,15 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
-import * as Sentry from '@sentry/react';
 import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
 import { useVortexAccount } from '../hooks/useVortexAccount';
-import { Networks } from '../helpers/networks';
-import { storageService } from '../services/storage/local';
+import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
+import { storageService } from '../services/storage/local';
+import { useNetwork } from './network';
 
 declare global {
   interface Window {
@@ -144,10 +144,10 @@ type EventType = TrackableEvent['event'];
 type UseEventsContext = ReturnType<typeof useEvents>;
 
 const useEvents = () => {
-  const { address, chainId } = useVortexAccount();
-  const previousAddress = useRef<string | undefined>(undefined);
+  const { address } = useVortexAccount();
   const previousChainId = useRef<number | undefined>(undefined);
-  const userClickedState = useRef<boolean>(false);
+  const firstRender = useRef(true);
+  const { selectedNetwork } = useNetwork();
 
   const scheduledQuotes = useRef<
     | {
@@ -237,6 +237,7 @@ const useEvents = () => {
   );
 
   useEffect(() => {
+    const chainId = getNetworkId(selectedNetwork);
     if (!chainId) return;
 
     if (previousChainId.current === undefined) {
@@ -252,30 +253,31 @@ const useEvents = () => {
     });
 
     previousChainId.current = chainId;
-  }, [chainId, trackEvent]);
+  }, [selectedNetwork, trackEvent]);
 
   useEffect(() => {
-    const wasConnected = previousAddress.current !== undefined;
-    const isConnected = address !== undefined;
-
-    // set sentry user as wallet address
-    if (address) {
-      Sentry.setUser({ id: address });
-
-      previousAddress.current = address;
-    }
-
-    if (!userClickedState.current) {
+    // Ignore first update. Address is set to undefined independently of the wallet connection.
+    // It immediately refreshes to a value, if connected.
+    if (firstRender.current) {
+      firstRender.current = false;
       return;
     }
+    const isEvm = isNetworkEVM(selectedNetwork);
+    const storageKey = isEvm ? LocalStorageKeys.TRIGGER_ACCOUNT_EVM : LocalStorageKeys.TRIGGER_ACCOUNT_POLKADOT;
 
-    if (!isConnected) {
+    const previous = storageService.get(storageKey);
+
+    const wasConnected = previous !== undefined;
+    const wasChanged = previous !== address;
+    const isConnected = address !== undefined;
+
+    if (!isConnected && wasConnected) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: 'disconnect',
-        account_address: previousAddress.current,
+        account_address: previous,
       });
-    } else {
+    } else if (wasChanged) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: wasConnected ? 'change' : 'connect',
@@ -283,19 +285,16 @@ const useEvents = () => {
       });
     }
 
-    previousAddress.current = address;
-    userClickedState.current = false;
-    // Important NOT to add userClicked to the dependencies array, otherwise logic will not work.
-  }, [address, trackEvent, userClickedState]);
-
-  const handleUserClickWallet = () => {
-    userClickedState.current = true;
-  };
+    if (address) {
+      storageService.set(storageKey, address);
+    } else {
+      storageService.remove(storageKey);
+    }
+  }, [selectedNetwork, address, trackEvent]);
 
   return {
     trackEvent,
     resetUniqueEvents,
-    handleUserClickWallet,
     scheduleQuote,
   };
 };
