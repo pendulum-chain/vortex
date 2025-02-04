@@ -52,8 +52,8 @@ export const TrustedBy = () => {
   ];
 
   return (
-    <section className="mx-2 mt-24 sm:container sm:mx-auto">
-      <motion.h1 className="text-4xl text-center text-black sm:text-5xl">Trusted by</motion.h1>
+    <section className="mx-2 mt-12 sm:container sm:mx-auto">
+      <motion.h1 className="mb-5 text-2xl text-center text-black sm:text-3xl">Trusted by</motion.h1>
       <ImageList images={trustedByImages} />
     </section>
   );

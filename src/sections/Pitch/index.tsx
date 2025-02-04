@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 
 export const PitchSection = () => {
   return (
-    <section className="mx-4 mt-8 sm:container sm:mx-auto">
+    <section className="mx-4 mt-8 mb-18 sm:container sm:mx-auto">
       <motion.h1
         className="text-4xl text-center text-black sm:text-5xl"
         initial={{ opacity: 0, y: 20 }}

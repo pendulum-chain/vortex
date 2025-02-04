@@ -522,6 +522,7 @@ export const SwapPage = () => {
         </a>
       </p>
 
+      <PitchSection />
       <FeeComparison
         sourceAssetSymbol={fromToken.assetSymbol}
         amount={fromAmount ?? Big(100)}
@@ -530,7 +531,6 @@ export const SwapPage = () => {
         network={selectedNetwork}
         ref={feeComparisonRef}
       />
-      <PitchSection />
       <TrustedBy />
       <WhyVortex />
       <HowToSell />
