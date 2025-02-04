@@ -441,17 +441,17 @@ export const SwapPage = () => {
         <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-        {offrampState ? (
+        {executionInput ? (
           <FeeCollapse
-            fromAmount={offrampState.inputAmount.units}
-            toAmount={Big(offrampState.outputAmount.units)}
-            toToken={getOutputTokenDetails(offrampState.outputTokenType)}
+            fromAmount={executionInput.inputAmountUnits}
+            toAmount={Big(executionInput.outputAmountUnits.beforeFees)}
+            toToken={getOutputTokenDetails(executionInput.outputTokenType)}
             exchangeRate={
               <ExchangeRate
                 {...{
-                  exchangeRate: offrampState.effectiveExchangeRate,
-                  fromToken: getInputTokenDetailsOrDefault(selectedNetwork, offrampState.inputTokenType),
-                  toTokenSymbol: getOutputTokenDetails(offrampState.outputTokenType).fiat.symbol,
+                  exchangeRate: executionInput.effectiveExchangeRate,
+                  fromToken: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType),
+                  toTokenSymbol: getOutputTokenDetails(executionInput.outputTokenType).fiat.symbol,
                 }}
               />
             }
