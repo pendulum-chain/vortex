@@ -10,7 +10,7 @@ export const TransactionInfo = ({ transactionId }: { transactionId: string }) =>
       <button
         onClick={() => clipboard.copyToClipboard(transactionId)}
         type="button"
-        className="flex items-center justify-center w-5 h-5 ml-1 transition border border-gray-400 rounded-full cursor-pointer click-animation hover:scale-105 hover:border-black hover:text-black"
+        className="flex items-center justify-center w-5 h-5 ml-1 transition border border-gray-400 rounded-full cursor-pointer focus:scale-105 hover:scale-105 hover:border-black hover:text-black"
       >
         <ClipboardDocumentIcon className="w-4" />
       </button>

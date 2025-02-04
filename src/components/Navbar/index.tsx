@@ -19,7 +19,7 @@ interface MobileMenuProps {
 
 const MobileMenu: FC<MobileMenuProps> = ({ onClick }) => (
   <button
-    className="ml-2 bg-pink-600 group btn-vortex-secondary btn btn-circle lg:hidden"
+    className="w-[3rem] ml-2 bg-pink-600 group btn-vortex-secondary btn btn-circle lg:hidden"
     type="button"
     onClick={onClick}
   >

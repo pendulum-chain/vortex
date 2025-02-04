@@ -14,12 +14,41 @@ div[data-rk] {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@plugin "daisyui";
 
+:root {
+  --color-primary: #0f4dc0;
+  --color-primary-content: #fff;
+  --color-secondary: #f4f5f6;
+  --color-secondary-content: #58667e;
+  --color-accent: #1de7df;
+  --color-accent-content: #000;
+  --color-neutral: #eff2f5;
+  --color-neutral-content: #58667e;
+  --color-base-100: #f5f9fa;
+  --color-base-200: #fff;
+  --color-base-300: #f7f7f7;
+  --color-base-content: #58667e;
+
+  --radius-field: 9px;
+  --border: 1px;
+
+  --text: #111;
+  --bg-modal: #fff;
+  --modal-border: #e5e5e5;
+  --rounded-btn: 9px;
+  --btn-text-case: none;
+}
 :root:has(:is(.modal-open, .modal:target, .modal-toggle:checked + .modal, .modal[open])) {
   scrollbar-gutter: unset;
+}
+
+.modal-box {
+  border-bottom-right-radius: 1.25rem;
+  border-bottom-left-radius: 1.25rem;
+  border-top-left-radius: 1.25rem;
+  border-top-right-radius: 1.25rem;
 }
 
 .input-disabled {
@@ -29,6 +58,12 @@ div[data-rk] {
   background-color: var(--fallback-b2, oklch(var(--b2) / var(--tw-bg-opacity)));
 }
 
+.input {
+  &:has(> input[disabled]),
+  &:is(:disabled, [disabled]) {
+    background-color: transparent;
+  }
+}
 .fadein-button-animation::before {
   content: '';
   position: absolute;
@@ -53,115 +88,132 @@ div[data-rk] {
   transform: scaleX(1);
 }
 
-.click-animation:active:hover,
-.click-animation:active:focus {
-  animation: button-pop 0.2s ease-out;
-  transform: scale(var(1, 0.97));
+.step-vortex {
+  min-height: 2.5rem !important;
+}
+.step-vortex::before {
+  @apply bg-blue-700;
+  width: 2px !important;
+}
+.step-vortex::after {
+  @apply text-blue-700;
+}
+.step-primary.step-vortex::after {
+  @apply text-white;
 }
 
-@keyframes click {
-  50% {
-    transform: scale(1.25);
-  }
-  100% {
-    transform: scale(1);
-  }
+.collapse-title,
+:where(.collapse > input[type='checkbox']),
+:where(.collapse > input[type='radio']) {
+  min-height: 0rem !important;
 }
 
-/** Vortex customisations of DaisyUI components */
-@layer components {
-  .step-vortex {
-    min-height: 2.5rem !important;
-  }
-  .step-vortex::before {
-    @apply bg-blue-700 !important;
-    width: 2px !important;
-  }
-  .step-vortex::after {
-    @apply text-blue-700 !important;
-  }
-  .step-primary.step-vortex::after {
-    @apply text-white !important;
+.collapse-title::after {
+  @apply text-blue-700;
+  @apply w-3;
+  @apply h-3;
+  top: 1.4rem !important;
+}
+
+.input-ghost[aria-readonly='true']:focus,
+.input-ghost[aria-readonly='true']:focus-within {
+  background-color: transparent !important;
+  color: var(--color-base-content);
+  border-color: #0000;
+  box-shadow: none;
+}
+
+.input {
+  height: unset;
+}
+
+.btn {
+  height: 3rem;
+}
+
+.btn-vortex-primary {
+  @apply bg-blue-700;
+  @apply text-white;
+  @apply rounded-xl;
+  @apply border;
+  @apply border-blue-700;
+  @apply shadow-none;
+}
+
+.btn-vortex-primary:hover {
+  @apply bg-white;
+  @apply text-blue-700;
+  @apply border-blue-700;
+}
+
+.btn-vortex-primary:disabled {
+  @apply bg-blue-700;
+  @apply text-white;
+  @apply border-blue-700;
+  @apply opacity-40;
+}
+
+.btn-vortex-primary:active,
+.btn-vortex-primary:focus {
+  @apply bg-blue-200;
+  @apply text-blue-700;
+  @apply border-blue-700;
+}
+
+.btn-vortex-primary-inverse {
+  @apply bg-white;
+  @apply text-blue-700;
+  @apply rounded-xl;
+  @apply border;
+  @apply border-blue-700;
+}
+
+.btn-vortex-primary-inverse:hover {
+  @apply bg-blue-700;
+  @apply text-white;
+  @apply border-blue-700;
+}
+
+.btn-vortex-primary-inverse:disabled {
+  @apply bg-white;
+  @apply text-blue-700;
+  @apply border-blue-700;
+  @apply opacity-40;
+}
+
+.btn-vortex-primary-inverse:active,
+.btn-vortex-primary-inverse:focus {
+  @apply bg-blue-200;
+  @apply text-blue-700;
+  @apply border-blue-700;
+}
+
+.btn-vortex-secondary {
+  @apply text-white;
+  @apply bg-pink-600;
+  @apply border-pink-600;
+  @apply shadow-none;
+}
+
+.btn-vortex-secondary:hover {
+  @apply bg-pink-100;
+  @apply text-pink-600;
+  @apply border;
+  @apply border-pink-600;
+}
+
+.btn-vortex-primary {
+  background-color: var(--color-blue-700);
+  color: white;
+  border-radius: var(--radius-field);
+  border: var(--border) solid var(--color-blue-700);
+
+  &:hover {
+    background-color: white;
+    color: var(--color-blue-700);
   }
 
-  .collapse-title,
-  :where(.collapse > input[type='checkbox']),
-  :where(.collapse > input[type='radio']) {
-    min-height: 0rem !important;
-  }
-
-  .collapse-title::after {
-    @apply text-blue-700;
-    @apply w-3 !important;
-    @apply h-3 !important;
-    top: 1.4rem !important;
-  }
-  .btn-vortex-primary {
-    @apply bg-blue-700;
-    @apply text-white;
-    @apply rounded-xl;
-    @apply border;
-    @apply border-blue-700;
-  }
-
-  .btn-vortex-primary:hover {
-    @apply bg-white;
-    @apply text-blue-700;
-    @apply border-blue-700;
-  }
-
-  .btn-vortex-primary:disabled {
-    @apply bg-blue-700;
-    @apply text-white;
-    @apply border-blue-700;
-    @apply opacity-40;
-  }
-
-  .btn-vortex-primary:active,
-  .btn-vortex-primary:focus {
-    @apply bg-blue-200;
-    @apply text-blue-700;
-    @apply border-blue-700;
-  }
-
-  .btn-vortex-primary-inverse {
-    @apply bg-white;
-    @apply text-blue-700;
-    @apply rounded-xl;
-    @apply border;
-    @apply border-blue-700;
-  }
-
-  .btn-vortex-primary-inverse:hover {
-    @apply bg-blue-700;
-    @apply text-white;
-    @apply border-blue-700;
-  }
-
-  .btn-vortex-primary-inverse:disabled {
-    @apply bg-white;
-    @apply text-blue-700;
-    @apply border-blue-700;
-    @apply opacity-40;
-  }
-
-  .btn-vortex-primary-inverse:active,
-  .btn-vortex-primary-inverse:focus {
-    @apply bg-blue-200;
-    @apply text-blue-700;
-    @apply border-blue-700;
-  }
-
-  .btn-vortex-secondary {
-    @apply text-white;
-    @apply bg-pink-600;
-    @apply border-pink-600;
-  }
-
-  .btn-vortex-secondary:hover {
-    @apply bg-pink-100;
-    @apply text-pink-600;
-    @apply border;
-    @apply border-pink-600;
+  &:disabled {
+    opacity: 0.4;
   }
 }
