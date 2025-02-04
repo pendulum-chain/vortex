@@ -205,7 +205,9 @@ const useEvents = () => {
   /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
   /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
   const scheduleQuote = useCallback(
-    (service: QuoteService, quote: string, parameters: OfframpingParameters) => {
+    (service: QuoteService, quote: string, parameters: OfframpingParameters, enableEventTracking: boolean) => {
+      if (!enableEventTracking) return;
+
       const prev = scheduledQuotes.current;
 
       // Do a deep comparison of the parameters to check if they are the same.
