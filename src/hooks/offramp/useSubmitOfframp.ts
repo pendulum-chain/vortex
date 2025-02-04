@@ -6,7 +6,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
-import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getOutputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 
 import { sep24First } from '../../services/anchor/sep24/first';
@@ -51,9 +51,9 @@ export const useSubmitOfframp = () => {
         trackEvent({
           event: 'transaction_confirmation',
           from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
+          to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
           from_amount: inputAmountUnits,
-          to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), OUTPUT_TOKEN_CONFIG[outputTokenType]),
+          to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), getOutputTokenDetails(outputTokenType)),
         });
 
         try {
@@ -64,13 +64,13 @@ export const useSubmitOfframp = () => {
           trackEvent({
             event: 'transaction_confirmation',
             from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-            to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
+            to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
             from_amount: inputAmountUnits,
-            to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), OUTPUT_TOKEN_CONFIG[outputTokenType]),
+            to_amount: calculateTotalReceive(Big(outputAmountUnits.afterFees), getOutputTokenDetails(outputTokenType)),
           });
 
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-          const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+          const outputToken = getOutputTokenDetails(outputTokenType);
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
           if (!address) {

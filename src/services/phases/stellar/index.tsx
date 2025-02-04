@@ -13,7 +13,12 @@ import {
   TransactionBuilder,
 } from 'stellar-sdk';
 
-import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails, OutputTokenType } from '../../../constants/tokenConfig';
+import {
+  getOutputTokenDetails,
+  OUTPUT_TOKEN_CONFIG,
+  OutputTokenDetails,
+  OutputTokenType,
+} from '../../../constants/tokenConfig';
 import {
   HORIZON_URL,
   SIGNING_SERVICE_URL,
@@ -119,7 +124,7 @@ export async function setUpAccountAndOperations(
     sepResult,
     ephemeralKeypair,
     ephemeralAccount,
-    OUTPUT_TOKEN_CONFIG[outputTokenType],
+    getOutputTokenDetails(outputTokenType),
   );
   return { offrampingTransaction, mergeAccountTransaction };
 }
@@ -130,7 +135,7 @@ async function setupStellarAccount(
   outputTokenType: OutputTokenType,
 ) {
   const ephemeralKeypair = Keypair.fromSecret(ephemeralSecret);
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getOutputTokenDetails(outputTokenType);
   const ephemeralAccountId = ephemeralKeypair.publicKey();
 
   // To make the transaction deterministic, we need to set absoulte timebounds

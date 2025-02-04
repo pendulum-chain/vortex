@@ -19,6 +19,7 @@ import { PoweredBy } from '../../components/PoweredBy';
 
 import {
   getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
@@ -183,7 +184,7 @@ export const SwapPage = () => {
   useSwapUrlParams({ form, setShowCompareFees });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = OUTPUT_TOKEN_CONFIG[to];
+  const toToken = getOutputTokenDetails(to);
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
@@ -444,13 +445,13 @@ export const SwapPage = () => {
           <FeeCollapse
             fromAmount={offrampState.inputAmount.units}
             toAmount={Big(offrampState.outputAmount.units)}
-            toToken={OUTPUT_TOKEN_CONFIG[offrampState.outputTokenType]}
+            toToken={getOutputTokenDetails(offrampState.outputTokenType)}
             exchangeRate={
               <ExchangeRate
                 {...{
                   exchangeRate: offrampState.effectiveExchangeRate,
                   fromToken: getInputTokenDetailsOrDefault(selectedNetwork, offrampState.inputTokenType),
-                  toTokenSymbol: OUTPUT_TOKEN_CONFIG[offrampState.outputTokenType].fiat.symbol,
+                  toTokenSymbol: getOutputTokenDetails(offrampState.outputTokenType).fiat.symbol,
                 }}
               />
             }

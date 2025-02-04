@@ -7,6 +7,7 @@ import {
   InputTokenType,
   OutputTokenType,
   OUTPUT_TOKEN_CONFIG,
+  getOutputTokenDetails,
 } from '../../../../constants/tokenConfig';
 
 import { ExecutionInput } from '../../../../hooks/offramp/useMainProcess';
@@ -62,7 +63,7 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
 
   setOfframpInitiating(true);
 
-  const outputToken = OUTPUT_TOKEN_CONFIG[to];
+  const outputToken = getOutputTokenDetails(to);
   const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
 
   const { expectedRedeemAmountRaw, inputAmountRaw } = calculateSwapAmountsWithMargin(

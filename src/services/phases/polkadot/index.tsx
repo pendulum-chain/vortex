@@ -4,7 +4,7 @@ import { Extrinsic } from '@pendulum-chain/api-solang';
 import Big from 'big.js';
 
 import { EventStatus } from '../../../components/GenericEvent';
-import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails } from '../../../constants/tokenConfig';
+import { getOutputTokenDetails, OUTPUT_TOKEN_CONFIG, OutputTokenDetails } from '../../../constants/tokenConfig';
 import { ApiComponents } from '../../../contexts/polkadotNode';
 import { getStellarBalanceUnits } from '../stellar/utils';
 import { getEphemeralNonce } from './ephemeral';
@@ -37,7 +37,7 @@ export async function prepareSpacewalkRedeemTransaction(
   }
 
   const { outputAmount, stellarEphemeralSecret, pendulumEphemeralSeed, outputTokenType, executeSpacewalkNonce } = state;
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getOutputTokenDetails(outputTokenType);
   const { ss58Format } = pendulumNode;
 
   // get ephemeral keypair and account
@@ -92,7 +92,7 @@ export async function executeSpacewalkRedeem(
     stellarEphemeralSecret,
     executeSpacewalkNonce,
   } = state;
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getOutputTokenDetails(outputTokenType);
 
   if (!transactions) {
     const message = 'Transactions not prepared, cannot execute Spacewalk redeem';

@@ -319,7 +319,7 @@ export function getOutputTokenDetails(outputTokenType: OutputTokenType): OutputT
 }
 
 export function getPendulumCurrencyId(outputTokenType: OutputTokenType) {
-  const { stellarAsset } = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const { stellarAsset } = getOutputTokenDetails(outputTokenType);
   return {
     Stellar: {
       AlphaNum4: { code: stellarAsset.code.hex, issuer: stellarAsset.issuer.hex },
