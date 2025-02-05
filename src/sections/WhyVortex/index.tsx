@@ -51,7 +51,7 @@ const FeatureCard = ({ icon, title, description }: Feature) => (
       <img src={icon} alt={title} className="w-[40px] mx-auto h-[40px] text-primary filter-primary" />
     </motion.div>
     <h3 className="mt-6 text-xl font-bold text-blue-900">{title}</h3>
-    <p className="px-10 mt-3 text-center text-black lg:px-0 lg:text-left">{description}</p>
+    <p className="px-10 mt-3 text-center text-black text-gray-500 lg:px-0 lg:text-left">{description}</p>
   </motion.div>
 );
 
