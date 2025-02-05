@@ -16,26 +16,19 @@ export const useSwapUrlParams = ({ form, setShowCompareFees }: UseSwapUrlParamsP
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromAmountParam = params.get('fromAmount');
-    const toToken = params.get('to');
     const toTokenForm = form.getValues('to');
-
-    // const newurl = window.location.protocol + "//" + window.location.host;
-    // window.history.pushState({path:newurl},'',newurl);
 
     if (fromAmountParam) {
       const parsedAmount = Number(fromAmountParam);
       if (!isNaN(parsedAmount) && parsedAmount >= 0) {
         form.setValue('fromAmount', parsedAmount.toFixed(2));
       }
-    } //less invasive -> else if (defaultAmounts[toToken as OutputTokenType] && !address) {
-    else if (toTokenForm) {
+      setShowCompareFees(true);
+      // toToken should always exist due to hardcoded default values. Defensive.
+    } else if (toTokenForm) {
       const defaultAmount = defaultAmounts[toTokenForm];
       form.setValue('fromAmount', defaultAmount.toFixed(2));
+      setShowCompareFees(true);
     }
-    setShowCompareFees(true);
-    // const showCompareFeesParam = params.get('showCompareFees');
-    // if (showCompareFeesParam === 'true') {
-    //   setShowCompareFees(true);
-    // }
   }, [form, setShowCompareFees]);
 };
