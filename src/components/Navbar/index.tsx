@@ -15,15 +15,36 @@ const links = [
 
 interface MobileMenuProps {
   onClick: () => void;
+  open: boolean;
 }
 
-const MobileMenu: FC<MobileMenuProps> = ({ onClick }) => (
+const MobileMenu: FC<MobileMenuProps> = ({ onClick, open }) => (
   <button
-    className="w-[3rem] ml-2 bg-pink-600 group btn-vortex-secondary btn btn-circle lg:hidden"
+    className={`w-[3rem] ml-2 group btn ${
+      open ? 'bg-blue-950 border-0 shadow-none' : 'btn-vortex-secondary'
+    } btn-circle lg:hidden z-[51]`}
     type="button"
     onClick={onClick}
   >
-    <Bars4Icon className="w-6 text-white group-hover:text-pink-600" />
+    <motion.div
+      initial={false}
+      animate={open ? 'open' : 'closed'}
+      variants={{
+        open: {
+          rotate: 90,
+        },
+        closed: {
+          rotate: 0,
+        },
+      }}
+      transition={{ duration: 0.2 }}
+    >
+      {open ? (
+        <XMarkIcon className="w-6 h-6 text-white" />
+      ) : (
+        <Bars4Icon className="w-6 h-6 text-white group-hover:text-pink-600" />
+      )}
+    </motion.div>
   </button>
 );
 
@@ -36,6 +57,7 @@ const menuVariants = {
     transition: {
       type: 'tween',
       duration: 0.3,
+      delay: 0.1,
     },
   },
   exit: {
@@ -48,34 +70,22 @@ const menuVariants = {
   },
 };
 interface MobileMenuListProps {
-  showMenu: boolean;
   closeMenu: () => void;
 }
 
-const MobileMenuList: FC<MobileMenuListProps> = ({ showMenu, closeMenu }) => (
-  <AnimatePresence>
-    {showMenu && (
-      <motion.div
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-blue-950"
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        variants={menuVariants}
-      >
-        <button onClick={closeMenu} className="absolute right-12 top-7">
-          <XMarkIcon className="w-8 text-white" />
-        </button>
-        <nav>
-          <Links />
-        </nav>
-        <img
-          src={whiteLogo}
-          alt="Vortex Logo"
-          className="absolute translate-x-1/2 max-w-26 max-h-6 bottom-10 right-1/2"
-        />
-      </motion.div>
-    )}
-  </AnimatePresence>
+const MobileMenuList: FC<MobileMenuListProps> = () => (
+  <motion.div
+    className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-blue-950"
+    initial="hidden"
+    animate="visible"
+    exit="exit"
+    variants={menuVariants}
+  >
+    <nav>
+      <Links />
+    </nav>
+    <img src={whiteLogo} alt="Vortex Logo" className="absolute translate-x-1/2 max-w-26 max-h-6 bottom-10 right-1/2" />
+  </motion.div>
 );
 
 const Links = () => (
@@ -100,18 +110,32 @@ export const Navbar = () => {
   const { networkSelectorDisabled } = useNetwork();
 
   return (
-    <header className="flex items-center justify-between px-4 py-4 bg-blue-950 md:py-5 md:px-10">
-      <div className="flex">
-        <nav className="hidden m-auto lg:block">
-          <Links />
-        </nav>
-      </div>
-      <div className="flex items-center">
-        <NetworkSelector disabled={networkSelectorDisabled} />
-        <ConnectWalletButton />
-        <MobileMenu onClick={() => setShowMenu(true)} />
-        <MobileMenuList showMenu={showMenu} closeMenu={() => setShowMenu(false)} />
-      </div>
-    </header>
+    <>
+      <motion.header
+        key="navbar-header"
+        className="flex items-center justify-between px-4 py-4 bg-blue-950 md:py-5 md:px-10"
+        initial={{ y: 0 }}
+        animate={{ y: 0 }}
+        exit={{ y: -10 }}
+        transition={{
+          duration: 0.5,
+          ease: 'easeInOut',
+        }}
+      >
+        <div className="flex">
+          <nav className="hidden m-auto lg:block">
+            <Links />
+          </nav>
+        </div>
+        <div className="flex items-center">
+          <NetworkSelector disabled={networkSelectorDisabled} />
+          <ConnectWalletButton />
+          <MobileMenu onClick={() => setShowMenu((state) => !state)} open={showMenu} />
+        </div>
+      </motion.header>
+      <AnimatePresence mode="wait">
+        {showMenu && <MobileMenuList closeMenu={() => setShowMenu(false)} />}
+      </AnimatePresence>
+    </>
   );
 };
