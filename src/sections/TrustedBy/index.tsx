@@ -2,8 +2,10 @@ import POLKADOT from '../../assets/trusted-by/polkadot.svg';
 import WEB3 from '../../assets/trusted-by/web3.svg';
 import COINDESK from '../../assets/trusted-by/coindesk.svg';
 import METAMASK from '../../assets/trusted-by/metamask.svg';
+import PLUGNPLAY from '../../assets/trusted-by/plugnplay.png';
+import SEPA from '../../assets/payments/sepa.svg';
 
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface ImageProps {
   src: string;
@@ -49,6 +51,8 @@ export const TrustedBy = () => {
     { src: METAMASK, alt: 'MetaMask logo' },
     { src: WEB3, alt: 'Web3 Foundation logo' },
     { src: COINDESK, alt: 'CoinDesk logo' },
+    { src: PLUGNPLAY, alt: 'PlugAndPlay logo' },
+    { src: SEPA, alt: 'SEPA logo' },
   ];
 
   return (

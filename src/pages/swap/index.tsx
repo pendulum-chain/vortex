@@ -519,11 +519,12 @@ export const SwapPage = () => {
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-sm transition hover:opacity-80"
         >
-          A <img src={satoshipayLogo} alt="Satoshipay" className="h-4" /> Company
+          Developed by <img src={satoshipayLogo} alt="Satoshipay" className="h-4" />
         </a>
       </p>
 
       <PitchSection />
+      <TrustedBy />
       <FeeComparison
         sourceAssetSymbol={fromToken.assetSymbol}
         amount={fromAmount ?? Big(100)}
@@ -532,7 +533,6 @@ export const SwapPage = () => {
         network={selectedNetwork}
         ref={feeComparisonRef}
       />
-      <TrustedBy />
       <WhyVortex />
       <HowToSell />
       <PopularTokens />
