@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
 import { ApiPromise } from '@polkadot/api';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';

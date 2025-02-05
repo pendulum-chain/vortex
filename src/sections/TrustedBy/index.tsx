@@ -3,8 +3,8 @@ import WEB3 from '../../assets/trusted-by/web3.svg';
 import COINDESK from '../../assets/trusted-by/coindesk.svg';
 import METAMASK from '../../assets/trusted-by/metamask.svg';
 import PLUGNPLAY from '../../assets/trusted-by/plugnplay.png';
+import ETHEREUM from '../../assets/trusted-by/ethereum.svg';
 import SEPA from '../../assets/payments/sepa.svg';
-
 import { motion } from 'motion/react';
 
 interface ImageProps {
@@ -18,11 +18,20 @@ const Image = ({ src, alt, comingSoon }: ImageProps) => (
     <motion.img
       src={src}
       alt={alt}
-      className="max-w-[150px] h-[48px]"
+      className="max-w-[140px] h-[44px]"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      whileHover={{ scale: 1.02 }}
+      whileHover={{
+        scale: 1.02,
+        rotate: [0, -1, 1, -1, 0],
+        transition: {
+          rotate: {
+            repeat: Infinity,
+            duration: 0.9,
+          },
+        },
+      }}
       transition={{ duration: 0.2 }}
     />
     {comingSoon && <div className="absolute top-0 right-0 text-xs text-right text-blue-700">Coming soon</div>}
@@ -48,15 +57,16 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
 export const TrustedBy = () => {
   const trustedByImages = [
     { src: POLKADOT, alt: 'Polkadot logo' },
+    { src: ETHEREUM, alt: 'Ethereum logo' },
     { src: METAMASK, alt: 'MetaMask logo' },
     { src: WEB3, alt: 'Web3 Foundation logo' },
     { src: COINDESK, alt: 'CoinDesk logo' },
-    { src: PLUGNPLAY, alt: 'PlugAndPlay logo' },
     { src: SEPA, alt: 'SEPA logo' },
+    { src: PLUGNPLAY, alt: 'PlugAndPlay logo' },
   ];
 
   return (
-    <section className="mx-2 mt-12 sm:container sm:mx-auto">
+    <section className="mx-2 mt-12 mb-20 sm:container sm:mx-auto">
       <motion.h1 className="mb-5 text-2xl text-center text-black sm:text-3xl">Trusted by</motion.h1>
       <ImageList images={trustedByImages} />
     </section>
