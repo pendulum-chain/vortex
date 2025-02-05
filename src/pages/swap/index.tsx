@@ -234,8 +234,6 @@ export const SwapPage = () => {
 
         // We don't automatically close the window, as this could be confusing for the user.
         // event.source.close();
-
-        setIsOfframpSummaryDialogVisible(false);
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
