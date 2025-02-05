@@ -58,7 +58,7 @@ import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-import { Banner } from '../../components/Banner';
+import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
   PendulumFundingAccountError,
@@ -537,7 +537,7 @@ export const SwapPage = () => {
       <HowToSell />
       <PopularTokens />
       <FAQAccordion />
-      <Banner />
+      <GotQuestions />
     </main>
   );
 
