@@ -10,6 +10,7 @@ import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
 import { createOfframpingPhaseMessage } from './helpers';
 import { useCountdownTimer } from '../../hooks/useCountdownTimer';
+import { GotQuestions } from '../../sections/GotQuestions';
 
 const useProgressUpdate = (
   currentPhase: OfframpingPhase,
@@ -226,6 +227,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
       main={
         <main>
           <ProgressContent currentPhase={currentPhase} currentPhaseIndex={currentPhaseIndex} message={message} />
+          <GotQuestions />
         </main>
       }
     />

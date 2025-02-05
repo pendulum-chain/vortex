@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/compat';
+import { useEffect } from 'react';
 
 export const useCountdownTimer = (
   remainingTime: number | null,
