@@ -18,7 +18,7 @@ const steps = [
 ];
 
 export const HowToSell = () => (
-  <section className="relative py-32 overflow-hidden bg-[radial-gradient(at_50%_50%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950)_95%)]">
+  <section className="relative py-32 overflow-hidden bg-[radial-gradient(at_50%_50%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))]">
     <canvas className="absolute inset-0 w-full h-full" />
     <div className="container relative z-10 px-4 mx-auto mb-12">
       <div className="mb-12 text-center">
