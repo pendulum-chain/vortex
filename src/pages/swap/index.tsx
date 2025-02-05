@@ -210,7 +210,7 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount, toToken);
       form.setValue('toAmount', totalReceive);
-    } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
+    } else if (tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing

@@ -12,7 +12,6 @@ interface UseSwapUrlParamsProps {
 const defaultAmounts: Record<OutputTokenType, number> = { eurc: 1000, ars: 200 };
 
 export const useSwapUrlParams = ({ form, setShowCompareFees }: UseSwapUrlParamsProps) => {
-  const { address } = useVortexAccount();
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromAmountParam = params.get('fromAmount');
