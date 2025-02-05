@@ -18,7 +18,6 @@ import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { Networks } from '../../helpers/networks';

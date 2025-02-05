@@ -13,12 +13,7 @@ import {
   TransactionBuilder,
 } from 'stellar-sdk';
 
-import {
-  getOutputTokenDetails,
-  OUTPUT_TOKEN_CONFIG,
-  OutputTokenDetails,
-  OutputTokenType,
-} from '../../../constants/tokenConfig';
+import { getOutputTokenDetails, OutputTokenDetails, OutputTokenType } from '../../../constants/tokenConfig';
 import {
   HORIZON_URL,
   SIGNING_SERVICE_URL,

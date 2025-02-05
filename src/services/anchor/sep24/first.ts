@@ -1,5 +1,5 @@
 import { IAnchorSessionParams, ISep24Intermediate } from '../../../types/sep';
-import { getOutputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../../../constants/tokenConfig';
+import { getOutputTokenDetails } from '../../../constants/tokenConfig';
 import { OutputTokenType } from '../../../constants/tokenConfig';
 import { config } from '../../../config';
 

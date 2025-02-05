@@ -1,11 +1,7 @@
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { OfframpingState } from '../../../services/offrampingFlow';
 import { Networks } from '../../../helpers/networks';
-import {
-  getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
-  OUTPUT_TOKEN_CONFIG,
-} from '../../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../../constants/tokenConfig';
 import { OfframpExecutionInput } from '../../../types/offramp';
 
 export const useTrackSEP24Events = () => {

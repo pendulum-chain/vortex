@@ -3,7 +3,7 @@ import { Keypair } from 'stellar-sdk';
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { ApiComponents } from '../../../../contexts/polkadotNode';
 import { getVaultsForCurrency, VaultService } from '../spacewalk';
-import { getOutputTokenDetails, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../../../constants/tokenConfig';
+import { getOutputTokenDetails, OutputTokenType } from '../../../../constants/tokenConfig';
 
 // The secret phrase of a substrate account on Pendulum used for requesting a redeem
 const TEST_ACCOUNT_SECRET_PHRASE = process.env.TEST_ACCOUNT_SECRET_PHRASE || '';

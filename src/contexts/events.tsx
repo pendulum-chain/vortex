@@ -2,7 +2,7 @@ import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
 import * as Sentry from '@sentry/react';
-import { getInputTokenDetails, getOutputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import { getInputTokenDetails, getOutputTokenDetails } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';

@@ -4,7 +4,7 @@ import { Extrinsic } from '@pendulum-chain/api-solang';
 import Big from 'big.js';
 
 import { EventStatus } from '../../../components/GenericEvent';
-import { getOutputTokenDetails, OUTPUT_TOKEN_CONFIG, OutputTokenDetails } from '../../../constants/tokenConfig';
+import { getOutputTokenDetails, OutputTokenDetails } from '../../../constants/tokenConfig';
 import { ApiComponents } from '../../../contexts/polkadotNode';
 import { getStellarBalanceUnits } from '../stellar/utils';
 import { getEphemeralNonce } from './ephemeral';

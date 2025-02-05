@@ -8,7 +8,6 @@ import {
   getInputTokenDetails,
   getOutputTokenDetails,
   InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';

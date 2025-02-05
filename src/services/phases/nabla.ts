@@ -18,7 +18,6 @@ import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   getPendulumCurrencyId,
-  OUTPUT_TOKEN_CONFIG,
 } from '../../constants/tokenConfig';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { erc20WrapperAbi } from '../../contracts/ERC20Wrapper';

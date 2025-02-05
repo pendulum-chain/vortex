@@ -98,19 +98,19 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { selectedNetwork } = useNetwork();
 
-  console.log('OfframpSummaryDialog', { anchorUrl, executionInput, visible, onClose, onSubmit });
+  // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
+  // component will not render if the executionInput is undefined.
+  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
+  const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
+  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
+  const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
+
+  const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
+  const { feesCost } = useOfframpFees(toAmount, toToken);
 
   if (!visible) return null;
   if (!anchorUrl) return null;
   if (!executionInput) return null;
-
-  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType);
-  const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
-  const toToken = getOutputTokenDetails(executionInput.outputTokenType);
-  const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
-
-  const toAmount = Big(executionInput.outputAmountUnits.afterFees);
-  const { feesCost } = useOfframpFees(toAmount, toToken);
 
   const content = (
     <div className="flex flex-col justify-center">

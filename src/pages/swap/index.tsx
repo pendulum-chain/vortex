@@ -76,7 +76,7 @@ export const SwapPage = () => {
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
@@ -105,6 +105,14 @@ export const SwapPage = () => {
     }
   }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
+  // Maybe go into a state of UI errors??
+  const setInitializeFailed = useCallback((message?: string | null) => {
+    setInitializeFailedMessage(
+      message ??
+        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
+    );
+  }, []);
+
   useEffect(() => {
     if (isSigningServiceError && !isSigningServiceLoading) {
       if (signingServiceError instanceof StellarFundingAccountError) {
@@ -118,7 +126,7 @@ export const SwapPage = () => {
       }
       setInitializeFailed();
     }
-  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, trackEvent]);
+  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, setInitializeFailed, trackEvent]);
 
   useEffect(() => {
     if (api && !isSigningServiceError && !isSigningServiceLoading) {
@@ -126,14 +134,6 @@ export const SwapPage = () => {
       clearPersistentErrorEventStore();
     }
   }, [api, isSigningServiceError, isSigningServiceLoading]);
-
-  // Maybe go into a state of UI errors??
-  const setInitializeFailed = useCallback((message?: string | null) => {
-    setInitializeFailedMessage(
-      message ??
-        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
-    );
-  }, []);
 
   // Main process hook
   const {

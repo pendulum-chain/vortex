@@ -5,7 +5,7 @@ import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
-import { getInputTokenDetailsOrDefault, getOutputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 
 import { sep24First } from '../../services/anchor/sep24/first';
