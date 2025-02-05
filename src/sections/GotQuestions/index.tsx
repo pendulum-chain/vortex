@@ -2,7 +2,7 @@ import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { motion } from 'framer-motion';
 import PLANET from '../../assets/planet.svg';
 
-const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSc3TtNxDj_p4smgWVCU2mayXl-0T7LLAgCN6chOTKhCL15-5Q/viewform';
+const FORM_URL = 'https://forms.gle/dKh8ckXheRPdRa398';
 
 export const GotQuestions = () => {
   return (

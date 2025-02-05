@@ -64,6 +64,11 @@ div[data-rk] {
     background-color: transparent;
   }
 }
+
+.input-vortex-primary:focus-within {
+  outline: 2px solid var(--color-primary);
+}
+
 .fadein-button-animation::before {
   content: '';
   position: absolute;
