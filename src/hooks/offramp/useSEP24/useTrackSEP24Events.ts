@@ -6,13 +6,12 @@ import {
   getOutputTokenDetails,
   OUTPUT_TOKEN_CONFIG,
 } from '../../../constants/tokenConfig';
-
-import { ExecutionInput } from '../useMainProcess';
+import { OfframpExecutionInput } from '../../../types/offramp';
 
 export const useTrackSEP24Events = () => {
   const { trackEvent } = useEventsContext();
 
-  const trackKYCStarted = (executionInput: ExecutionInput, selectedNetwork: Networks) => {
+  const trackKYCStarted = (executionInput: OfframpExecutionInput, selectedNetwork: Networks) => {
     trackEvent({
       event: 'kyc_started',
       from_asset: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType).assetSymbol,

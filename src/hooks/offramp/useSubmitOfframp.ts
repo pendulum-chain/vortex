@@ -5,7 +5,6 @@ import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
-import { calculateTotalReceive } from '../../components/FeeCollapse';
 import { getInputTokenDetailsOrDefault, getOutputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 
@@ -13,11 +12,11 @@ import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 
 import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
-import { ExecutionInput } from './useMainProcess';
 import { useSep24Actions } from '../../stores/sep24Store';
 
 import { showToast, ToastMessage } from '../../helpers/notifications';
 import Big from 'big.js';
+import { OfframpExecutionInput } from '../../types/offramp';
 
 export const useSubmitOfframp = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -26,17 +25,16 @@ export const useSubmitOfframp = () => {
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
-  const { setOfframpStarted, setOfframpInitiating } = useOfframpActions();
+  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
   const {
     setAnchorSessionParams,
-    setExecutionInput,
     setInitialResponse: setInitialResponseSEP24,
     setUrlInterval: setUrlIntervalSEP24,
     cleanup: cleanupSEP24,
   } = useSep24Actions();
 
   return useCallback(
-    (executionInput: ExecutionInput) => {
+    (executionInput: OfframpExecutionInput) => {
       const { inputTokenType, inputAmountUnits, outputTokenType, outputAmountUnits, setInitializeFailed } =
         executionInput;
 
@@ -93,7 +91,7 @@ export const useSubmitOfframp = () => {
             offrampAmount: Big(outputAmountUnits.beforeFees).toFixed(2, 0),
           };
 
-          setExecutionInput({
+          setOfframpExecutionInput({
             ...executionInput,
             stellarEphemeralSecret,
           });
@@ -142,7 +140,7 @@ export const useSubmitOfframp = () => {
       address,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
-      setExecutionInput,
+      setOfframpExecutionInput,
       setAnchorSessionParams,
       setInitialResponseSEP24,
       setUrlIntervalSEP24,

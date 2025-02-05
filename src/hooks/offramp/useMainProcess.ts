@@ -2,8 +2,6 @@ import { useEffect } from 'react';
 
 import { recoverFromFailure, readCurrentState } from '../../services/offrampingFlow';
 
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
-
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
 import { useOfframpAdvancement } from './useOfframpAdvancement';
@@ -11,15 +9,6 @@ import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 import { useSep24UrlInterval, useSep24InitialResponse } from '../../stores/sep24Store';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
-
-export interface ExecutionInput {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
-  inputAmountUnits: string;
-  outputAmountUnits: { beforeFees: string; afterFees: string };
-  effectiveExchangeRate: string;
-  setInitializeFailed: (message?: string | null) => void;
-}
 
 export const useMainProcess = () => {
   const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();

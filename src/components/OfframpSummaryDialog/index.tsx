@@ -17,7 +17,7 @@ import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
-import { ExecutionInput } from '../../hooks/offramp/useMainProcess';
+import { OfframpExecutionInput } from '../../types/offramp';
 
 interface AssetDisplayProps {
   amount: string;
@@ -82,7 +82,7 @@ const FeeDetails = ({ network, feesCost, fiatSymbol, fromToken, toToken, exchang
 
 interface OfframpSummaryDialogProps {
   anchorUrl?: string;
-  executionInput?: ExecutionInput;
+  executionInput?: OfframpExecutionInput;
   visible: boolean;
   onSubmit: () => void;
   onClose: () => void;

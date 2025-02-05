@@ -50,6 +50,7 @@ import {
   useOfframpState,
   useOfframpStarted,
   useOfframpInitiating,
+  useOfframpExecutionInput,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
@@ -66,7 +67,6 @@ import {
 import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 import satoshipayLogo from '../../assets/logo/satoshipay.svg';
-import { useSep24ExecutionInput } from '../../stores/sep24Store';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -150,7 +150,7 @@ export const SwapPage = () => {
   const offrampSigningPhase = useOfframpSigningPhase();
   const offrampInitiating = useOfframpInitiating();
   const { setOfframpInitiating } = useOfframpActions();
-  const executionInput = useSep24ExecutionInput();
+  const executionInput = useOfframpExecutionInput();
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {

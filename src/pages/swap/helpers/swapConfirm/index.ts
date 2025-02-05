@@ -6,11 +6,9 @@ import {
   getInputTokenDetailsOrDefault,
   InputTokenType,
   OutputTokenType,
-  OUTPUT_TOKEN_CONFIG,
   getOutputTokenDetails,
 } from '../../../../constants/tokenConfig';
 
-import { ExecutionInput } from '../../../../hooks/offramp/useMainProcess';
 import { TokenOutData } from '../../../../hooks/nabla/useTokenAmountOut';
 import { Networks } from '../../../../helpers/networks';
 
@@ -18,6 +16,7 @@ import { calculateSwapAmountsWithMargin } from './calculateSwapAmountsWithMargin
 import { performSwapInitialChecks } from './performSwapInitialChecks';
 import { validateSwapInputs } from './validateSwapInputs';
 import { calculateTotalReceive } from '../../../../components/FeeCollapse';
+import { OfframpExecutionInput } from '../../../../types/offramp';
 
 interface SwapConfirmParams {
   address: string | undefined;
@@ -25,7 +24,7 @@ interface SwapConfirmParams {
   from: InputTokenType;
   fromAmount: Big | undefined;
   fromAmountString: string;
-  handleOnSubmit: (executionInput: ExecutionInput) => void;
+  handleOnSubmit: (executionInput: OfframpExecutionInput) => void;
   inputAmountIsStable: boolean;
   requiresSquidRouter: boolean;
   selectedNetwork: Networks;
