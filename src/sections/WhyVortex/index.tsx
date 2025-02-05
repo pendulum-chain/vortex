@@ -1,3 +1,4 @@
+import { motion } from 'motion/react';
 import PERCENT from '../../assets/why-vortex/percent.svg';
 import COFFEE from '../../assets/why-vortex/coffee.svg';
 import LOCK from '../../assets/why-vortex/lock.svg';
@@ -35,26 +36,42 @@ const features: Feature[] = [
 ];
 
 const FeatureCard = ({ icon, title, description }: Feature) => (
-  <div>
-    <div className="shadow-xl border-1 border-gray-100 rounded-2xl w-[70px] h-[70px] flex items-center justify-center">
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    viewport={{ once: true }}
+    className="flex flex-col items-center lg:items-start lg:text-left"
+  >
+    <motion.div
+      className="shadow-xl border-1 border-gray-100 rounded-2xl w-[70px] h-[70px] flex items-center justify-center"
+      whileHover={{ scale: 1.05 }}
+      transition={{ type: 'spring', stiffness: 300 }}
+    >
       <img src={icon} alt={title} className="w-[40px] mx-auto h-[40px] text-primary filter-primary" />
-    </div>
+    </motion.div>
     <h3 className="mt-6 text-xl font-bold text-blue-900">{title}</h3>
-    <p className="mt-3 text-black">{description}</p>
-  </div>
+    <p className="px-10 mt-3 text-center text-black lg:px-0 lg:text-left">{description}</p>
+  </motion.div>
 );
 
 export const WhyVortex = () => (
-  <section className="container pb-24 mx-auto mt-28">
-    <div className="grid grid-cols-2">
-      <h1 className="text-4xl text-black sm:text-5xl">
+  <motion.section className="container pb-24 mx-auto">
+    <div className="relative grid grid-cols-1 lg:grid-cols-2">
+      <motion.h1
+        className="lg:sticky text-center lg:text-left lg:pr-20 text-3xl text-black lg:top-24 sm:text-5xl lg:text-4xl lg:h-[100px]"
+        initial={{ x: -50 }}
+        animate={{ x: 0 }}
+        transition={{ duration: 0.6 }}
+        viewport={{ once: true }}
+      >
         Sell Crypto the secure Way with <strong className="text-primary">Vortex Finance</strong>?
-      </h1>
-      <div className="grid grid-cols-1 mt-6 sm:mt-12 gap-x-20 gap-y-8 md:grid-cols-2">
+      </motion.h1>
+      <div className="grid grid-cols-1 mt-12 lg:mt-0 gap-x-20 gap-y-8 md:grid-cols-2">
         {features.map((feature) => (
           <FeatureCard key={feature.title} {...feature} />
         ))}
       </div>
     </div>
-  </section>
+  </motion.section>
 );
