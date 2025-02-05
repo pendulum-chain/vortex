@@ -68,7 +68,7 @@ export const useAnchorWindowHandler = () => {
         inputTokenType: executionInput.inputTokenType,
         outputTokenType: executionInput.outputTokenType,
         amountIn: executionInput.inputAmountUnits,
-        amountOut: Big(executionInput.outputAmountUnits.afterFees),
+        amountOut: Big(executionInput.outputAmountUnits.beforeFees),
         sepResult: secondSep24Response,
         network: selectedNetwork,
         pendulumNode,
