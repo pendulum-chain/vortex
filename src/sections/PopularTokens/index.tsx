@@ -12,30 +12,43 @@ const tokens: Array<{ name: string; assetIcon: AssetIconType }> = [
 
 const networks = Object.values(Networks);
 
-const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
-  const networkIcon = useGetNetworkIcon(network);
+type BadgeProps = {
+  icon: string;
+  label: string;
+  isAnimating: boolean;
+  rotationDuration?: number;
+};
+
+const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5 }: BadgeProps) => {
   const scale = isAnimating ? 1.05 : 1;
   const bgColor = isAnimating ? 'bg-gray-300' : 'bg-secondary';
 
   return (
     <motion.li
-      className={`flex items-center justify-center px-4 py-2 shadow-lg rounded-xl ${bgColor}`}
+      className={`flex items-center justify-center px-4 py-2 shadow-lg rounded-full ${bgColor}`}
       whileHover={{
         scale: 1.05,
         rotate: [0, -1, 1, -1, 0],
         transition: {
           rotate: {
             repeat: Infinity,
-            duration: 0.5,
+            duration: rotationDuration,
           },
         },
       }}
       animate={{ scale }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 1 }}
     >
-      <img src={networkIcon} alt={getNetworkDisplayName(network)} className="w-6 h-6 mr-2" />
-      <span className="font-medium text-gray-900">{getNetworkDisplayName(network)}</span>
+      <img src={icon} alt={label} className="w-6 h-6 mr-2" />
+      <span className="font-medium text-gray-900">{label}</span>
     </motion.li>
+  );
+};
+
+const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
+  const networkIcon = useGetNetworkIcon(network);
+  return (
+    <Badge icon={networkIcon} label={getNetworkDisplayName(network)} isAnimating={isAnimating} rotationDuration={0.5} />
   );
 };
 
@@ -47,29 +60,7 @@ const TokenBadge = ({
   isAnimating: boolean;
 }) => {
   const icon = useGetAssetIcon(token.assetIcon);
-  const scale = isAnimating ? 1.05 : 1;
-  const bgColor = isAnimating ? 'bg-gray-300' : 'bg-secondary';
-
-  return (
-    <motion.li
-      className={`flex items-center justify-center px-4 py-2 shadow-lg rounded-xl ${bgColor}`}
-      whileHover={{
-        scale: 1.05,
-        rotate: [0, -1, 1, -1, 0],
-        transition: {
-          rotate: {
-            repeat: Infinity,
-            duration: 0.3,
-          },
-        },
-      }}
-      animate={{ scale }}
-      transition={{ duration: 0.5 }}
-    >
-      <img src={icon} alt={token.name} className="w-6 h-6 mr-2" />
-      <span className="font-medium text-gray-900">{token.name}</span>
-    </motion.li>
-  );
+  return <Badge icon={icon} label={token.name} isAnimating={isAnimating} rotationDuration={0.3} />;
 };
 
 export function PopularTokens() {
