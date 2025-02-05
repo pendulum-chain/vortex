@@ -33,6 +33,7 @@ const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
 
 export interface AmountTypeEvent {
   event: `amount_type`;
+  input_amount: string;
 }
 
 export interface ClickDetailsEvent {
@@ -42,6 +43,7 @@ export interface ClickDetailsEvent {
 export interface WalletConnectEvent {
   event: 'wallet_connect';
   wallet_action: 'connect' | 'disconnect' | 'change';
+  input_amount?: string;
   account_address?: string;
 }
 
@@ -104,6 +106,7 @@ export interface NetworkChangeEvent {
 
 export interface FormErrorEvent {
   event: 'form_error';
+  input_amount: string;
   error_message:
     | 'insufficient_balance'
     | 'insufficient_liquidity'

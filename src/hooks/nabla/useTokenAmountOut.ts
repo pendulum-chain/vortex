@@ -124,7 +124,11 @@ export function useTokenOutAmount({
       },
       parseError: (error) => {
         const insufficientLiquidityMessage = () => {
-          trackEvent({ event: 'form_error', error_message: 'insufficient_liquidity' });
+          trackEvent({
+            event: 'form_error',
+            error_message: 'insufficient_liquidity',
+            input_amount: amountIn ? amountIn : '0',
+          });
           return 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.';
         };
 

@@ -276,7 +276,7 @@ export const SwapPage = () => {
           onClick={() => openTokenSelectModal('from')}
           onChange={() => {
             // User interacted with the input field
-            trackEvent({ event: 'amount_type' });
+            trackEvent({ event: 'amount_type', input_amount: fromAmount ? fromAmount.toString() : '0' });
           }}
           id="fromAmount"
         />
@@ -291,7 +291,11 @@ export const SwapPage = () => {
 
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
-        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+        trackEvent({
+          event: 'form_error',
+          error_message: 'insufficient_balance',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
@@ -303,14 +307,22 @@ export const SwapPage = () => {
       const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
 
       if (maxAmountUnits.lt(amountOut)) {
-        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
+        trackEvent({
+          event: 'form_error',
+          error_message: 'more_than_maximum_withdrawal',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
         return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
       }
 
       if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
-        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
+        trackEvent({
+          event: 'form_error',
+          error_message: 'less_than_minimum_withdrawal',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
