@@ -59,7 +59,7 @@ export const WhyVortex = () => (
   <motion.section className="container pb-24 mx-auto">
     <div className="relative grid grid-cols-1 lg:grid-cols-2">
       <motion.h1
-        className="lg:sticky text-center lg:text-left lg:pr-20 text-3xl text-black lg:top-24 sm:text-5xl lg:text-4xl lg:h-[100px]"
+        className="lg:sticky text-center lg:pl-4 lg:text-left lg:pr-20 text-3xl text-black lg:top-24 sm:text-5xl lg:text-4xl lg:h-[100px]"
         initial={{ x: -50 }}
         animate={{ x: 0 }}
         transition={{ duration: 0.6 }}
