@@ -38,11 +38,11 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
         ) : undefined}
         {failure.type === 'recoverable' && (
           <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={continueFailedFlow}>
-            Continue
+            Retry
           </button>
         )}
         <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={finishOfframping}>
-          Try again
+          Reset and Restart
         </button>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         {transactionId && (
