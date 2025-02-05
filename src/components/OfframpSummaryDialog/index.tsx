@@ -18,6 +18,7 @@ import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
 import { OfframpExecutionInput } from '../../types/offramp';
+import { useOfframpActions } from '../../stores/offrampStore';
 
 interface AssetDisplayProps {
   amount: string;
@@ -97,6 +98,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
 }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { selectedNetwork } = useNetwork();
+  const { setOfframpExecutionInput, setOfframpInitiating, setOfframpStarted } = useOfframpActions();
 
   // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
   // component will not render if the executionInput is undefined.
@@ -160,5 +162,19 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
     </button>
   );
 
-  return <Dialog content={content} visible={visible} actions={actions} headerText="You're selling" onClose={onClose} />;
+  return (
+    <Dialog
+      content={content}
+      visible={visible}
+      actions={actions}
+      headerText="You're selling"
+      onClose={() => {
+        setIsSubmitted(false);
+        setOfframpExecutionInput(undefined);
+        setOfframpStarted(false);
+        setOfframpInitiating(false);
+        onClose();
+      }}
+    />
+  );
 };
