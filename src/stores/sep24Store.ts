@@ -2,8 +2,6 @@ import { create } from 'zustand';
 import { IAnchorSessionParams, ISep24Intermediate } from '../types/sep';
 import { OfframpExecutionInput } from '../types/offramp';
 
-export type ExtendedExecutionInput = OfframpExecutionInput & { stellarEphemeralSecret: string };
-
 export interface Sep24State {
   anchorSessionParams: IAnchorSessionParams | undefined;
   initialResponse: ISep24Intermediate | undefined;
