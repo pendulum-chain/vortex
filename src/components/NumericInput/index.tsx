@@ -36,8 +36,8 @@ export const NumericInput = ({
     handleOnPasteNumericInput(e, maxDecimals);
     register.onChange(e);
   }
-  console.log(defaultValue, 'defaultValue');
-  const removeText = disabled ? ' text-white' : '';
+  const removeText = disabled ? ' opacity-0' : '';
+
   return (
     <div className={disableStyles ? 'relative flex-grow' : 'relative flex-grow text-black font-outfit'}>
       <Input
