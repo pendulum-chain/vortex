@@ -24,20 +24,20 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   ...rest
 }) => (
   <div
+    aria-readonly={rest.readOnly}
     className={
-      'flex pl-2 focus:outline-none input-ghost text-accent-content' +
-      (rest.disabled ? ' opacity-50 input-disabled' : '') +
-      (rest.readOnly ? ' pr-4' : ' input-bordered input')
+      'flex pl-2 py-1 mb-2 mt-1 items-center ' +
+      (rest.disabled ? ' opacity-50 input-disabled ' : '') +
+      (rest.readOnly ? ' pr-0.5' : 'border-1 border-neutral-300 w-full input input-ghost ')
     }
   >
-    <div className="flex items-center justify-between">
-      <AssetButton assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
+    <div className="flex items-center">
+      <AssetButton disabled={rest.disabled} assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
     </div>
 
     <NumericInput
       register={registerInput}
-      additionalStyle={'text-right text-lg w-full' + (rest.readOnly ? ' text-xl' : '')}
-      disableStyles={true}
+      additionalStyle={'text-right text-lg ' + (rest.readOnly ? ' text-xl' : '')}
       {...rest}
     />
   </div>

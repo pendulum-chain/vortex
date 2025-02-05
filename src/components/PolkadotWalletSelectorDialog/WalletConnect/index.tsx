@@ -1,7 +1,6 @@
 import { WalletConnectModal } from '@walletconnect/modal';
 import UniversalProvider from '@walletconnect/universal-provider';
 import { SessionTypes } from '@walletconnect/types';
-import { Button } from 'react-daisyui';
 import { useCallback, useEffect, useState } from 'react';
 
 import { showToast, ToastMessage } from '../../../helpers/notifications';
@@ -101,13 +100,13 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
   }, [provider]);
 
   return (
-    <Button
-      className="flex justify-center w-full outline-primary md:justify-start"
+    <button
+      className="flex justify-center w-full border-0 shadow-xs btn outline-primary md:justify-start"
       onClick={walletConnectClick}
       disabled={loading}
     >
       <img src={logo} alt="WalletConnect connect button" width={32} height={32} />
       <p className="ml-2">{loading ? 'Loading...' : 'Wallet Connect'}</p>
-    </Button>
+    </button>
   );
 };

@@ -1,5 +1,4 @@
 import { Wallet } from '@talismn/connect-wallets';
-import { Button } from 'react-daisyui';
 
 interface WalletsListItemProps {
   wallet: Wallet;
@@ -13,12 +12,12 @@ function buttonOnClick(props: WalletsListItemProps) {
 }
 
 export const WalletsListItem = (props: WalletsListItemProps) => (
-  <Button
+  <button
     key={props.wallet.extensionName}
-    className="flex justify-center w-full outline-primary md:justify-start"
+    className="flex justify-center w-full border-0 shadow-xs btn outline-primary md:justify-start"
     onClick={() => buttonOnClick(props)}
   >
     <img src={props.wallet.logo.src} alt={props.wallet.logo.alt} width={32} height={32} />
     <p className="ml-2">{props.wallet.title}</p>
-  </Button>
+  </button>
 );

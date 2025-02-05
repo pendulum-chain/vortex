@@ -1,4 +1,3 @@
-import { Input } from 'react-daisyui';
 import { UseFormRegisterReturn } from 'react-hook-form';
 
 const patterns: Record<string, string> = {
@@ -34,9 +33,9 @@ export const TextInput = ({
   type,
 }: TextInputProps) => (
   <div className="flex-grow text-black font-outfit">
-    <Input
+    <input
       className={
-        'input-ghost w-full text-lg font-outfit pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
+        'h-[3rem] input input-ghost w-full text-lg font-outfit pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
         additionalStyle
       }
       type={type || 'text'}

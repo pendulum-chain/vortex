@@ -1,6 +1,5 @@
 import { Wallet, WalletAccount } from '@talismn/connect-wallets';
 import { ArrowLeftEndOnRectangleIcon } from '@heroicons/react/20/solid';
-import { Button, Dropdown } from 'react-daisyui';
 
 import accountBalanceWalletIcon from '../../../../assets/account-balance-wallet.svg';
 import accountBalanceWalletIconPink from '../../../../assets/account-balance-wallet-pink.svg';
@@ -32,16 +31,18 @@ interface WalletDropdownMenuProps {
 }
 
 const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: WalletDropdownMenuProps) => (
-  <Dropdown.Menu className="right-0 mt-2 min-w-[240px] border border-base-300 bg-base-200 p-3 text-center shadow-lg">
-    <div className="text-sm text-neutral-400">{walletAccount?.name}</div>
-    <div className="text-neutral-500">
+  <ul className="dropdown-content menu right-0 mt-2 min-w-[240px] border border-base-300 bg-base-200 p-3 text-center shadow-lg rounded-2xl">
+    <li className="text-sm text-neutral-400">{walletAccount?.name}</li>
+    <li className="mt-2 text-neutral-500">
       <CopyablePublicKey publicKey={address} variant="short" inline={true} />
-    </div>
-    <Button className="bg-base-300" size="sm" onClick={removeWalletAccount}>
-      <ArrowLeftEndOnRectangleIcon className="w-5 mr-2" />
-      Disconnect
-    </Button>
-  </Dropdown.Menu>
+    </li>
+    <li>
+      <button className="mt-2 text-base btn btn-sm bg-base-300" onClick={removeWalletAccount}>
+        <ArrowLeftEndOnRectangleIcon className="w-5 mr-2" />
+        Disconnect
+      </button>
+    </li>
+  </ul>
 );
 
 export const DisconnectModal = () => {
@@ -51,9 +52,11 @@ export const DisconnectModal = () => {
   if (!address) return <></>;
 
   return (
-    <Dropdown vertical="bottom">
-      <WalletButton wallet={wallet} balance={'0'} tokenSymbol={'$'} walletAccount={walletAccount} />
+    <div className="dropdown dropdown-bottom" role="listbox">
+      <label tabIndex={0}>
+        <WalletButton wallet={wallet} balance={'0'} tokenSymbol={'$'} walletAccount={walletAccount} />
+      </label>
       <WalletDropdownMenu walletAccount={walletAccount} address={address} removeWalletAccount={removeWalletAccount} />
-    </Dropdown>
+    </div>
   );
 };

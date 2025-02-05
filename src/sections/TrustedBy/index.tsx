@@ -1,9 +1,11 @@
-import MOONBEAM from '../../assets/trustedby/moonbeam.svg';
-import POLKADOT from '../../assets/trustedby/polkadot.svg';
-import STELLAR from '../../assets/trustedby/stellar.svg';
-import NABLA from '../../assets/trustedby/nabla.svg';
-import WEB3 from '../../assets/trustedby/web3.svg';
-import { motion } from 'framer-motion';
+import POLKADOT from '../../assets/trusted-by/polkadot.svg';
+import WEB3 from '../../assets/trusted-by/web3.svg';
+import COINDESK from '../../assets/trusted-by/coindesk.svg';
+import METAMASK from '../../assets/trusted-by/metamask.svg';
+import PLUGNPLAY from '../../assets/trusted-by/plugnplay.png';
+import SEPA from '../../assets/payments/sepa.svg';
+
+import { motion } from 'motion/react';
 
 interface ImageProps {
   src: string;
@@ -45,19 +47,18 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
 
 export const TrustedBy = () => {
   const trustedByImages = [
-    { src: MOONBEAM, alt: 'Moonbeam logo' },
     { src: POLKADOT, alt: 'Polkadot logo' },
-    { src: STELLAR, alt: 'Stellar logo' },
-    { src: NABLA, alt: 'Nabla logo' },
+    { src: METAMASK, alt: 'MetaMask logo' },
     { src: WEB3, alt: 'Web3 Foundation logo' },
+    { src: COINDESK, alt: 'CoinDesk logo' },
+    { src: PLUGNPLAY, alt: 'PlugAndPlay logo' },
+    { src: SEPA, alt: 'SEPA logo' },
   ];
 
   return (
-    <section className="container mx-auto mt-12">
-      <motion.h1 className="mb-4 text-4xl text-center text-black">Trusted by</motion.h1>
-      <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-12">
-        <ImageList images={trustedByImages} />
-      </div>
+    <section className="mx-2 mt-12 sm:container sm:mx-auto">
+      <motion.h1 className="mb-5 text-2xl text-center text-black sm:text-3xl">Trusted by</motion.h1>
+      <ImageList images={trustedByImages} />
     </section>
   );
 };

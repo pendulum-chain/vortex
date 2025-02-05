@@ -1,5 +1,4 @@
 import { CSSProperties, JSX } from 'react';
-import { Button } from 'react-daisyui';
 import { FormatPublicKeyVariant, PublicKey } from '..';
 
 export interface ClickablePublicKeyProps {
@@ -14,10 +13,9 @@ export interface ClickablePublicKeyProps {
 }
 
 export const ClickablePublicKey = (props: ClickablePublicKeyProps) => (
-  <Button
-    className="h-1 p-1 m-0 rounded"
+  <button
+    className={`btn btn-ghost h-1 p-1 m-0 rounded ${props.className || ''}`}
     style={props.inline ? { height: 'inherit', minHeight: '0', padding: 0 } : {}}
-    color="ghost"
     type="button"
     onClick={props.onClick}
   >
@@ -28,5 +26,5 @@ export const ClickablePublicKey = (props: ClickablePublicKeyProps) => (
       </>
     ) : null}
     <PublicKey {...props} />
-  </Button>
+  </button>
 );
