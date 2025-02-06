@@ -41,8 +41,8 @@ const FAQ_ITEMS = [
 
 export const FAQAccordion = () => {
   return (
-    <div className="my-24">
-      <p className="text-lg font-bold text-center text-blue-700">LEARN MORE</p>
+    <div className="mb-24 mt-14">
+      <p className="font-bold mb-3 text-center text-blue-700">LEARN MORE</p>
       <h1 className="text-3xl font-bold text-center text-black">Frequently asked questions</h1>
       <div className="mt-6">
         <Accordion>
@@ -54,10 +54,6 @@ export const FAQAccordion = () => {
           ))}
         </Accordion>
       </div>
-
-      <p className="mt-4 text-center text-gray-600">
-        For any additional questions, don&apos;t hesitate to reach out to us. We&apos;re here to help!
-      </p>
     </div>
   );
 };
