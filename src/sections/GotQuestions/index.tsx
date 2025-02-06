@@ -6,7 +6,7 @@ const FORM_URL = 'https://forms.gle/dKh8ckXheRPdRa398';
 
 export const GotQuestions = () => {
   return (
-    <section className="px-8 py-20 overflow-hidden text-white bg-primary">
+    <section className="px-8 py-20 overflow-hidden text-white bg-blue-900">
       <div className="relative flex flex-col justify-between mx-auto sm:container md:flex-row">
         <motion.img
           src={PLANET}
