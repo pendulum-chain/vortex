@@ -12,8 +12,6 @@ const useOfframpStore = create<OfframpStore>()((set) => ({
   offrampInitiating: false,
   offrampState: undefined,
   offrampSigningPhase: undefined,
-  offrampAnchorSessionParams: undefined,
-  offrampFirstSep24Response: undefined,
   offrampExecutionInput: undefined,
 
   actions: {
@@ -21,10 +19,8 @@ const useOfframpStore = create<OfframpStore>()((set) => ({
     setOfframpStarted: (started) => set({ offrampStarted: started }),
     setOfframpInitiating: (initiating) => set({ offrampInitiating: initiating }),
     setOfframpState: (state) => set({ offrampState: state }),
+    setOfframpExecutionInput: (executionInput) => set({ offrampExecutionInput: executionInput }),
     setOfframpSigningPhase: (phase) => set({ offrampSigningPhase: phase }),
-
-    // Complex setters
-    setOfframpSep24Params: (params) => set((state) => ({ ...state, ...params })),
 
     // Business logic
     updateOfframpHookStateFromState: (state) => {
@@ -41,8 +37,6 @@ const useOfframpStore = create<OfframpStore>()((set) => ({
         offrampInitiating: false,
         offrampState: undefined,
         offrampSigningPhase: undefined,
-        offrampAnchorSessionParams: undefined,
-        offrampFirstSep24Response: undefined,
         offrampExecutionInput: undefined,
       });
     },
@@ -53,8 +47,6 @@ export const useOfframpSigningPhase = () => useOfframpStore((state) => state.off
 export const useOfframpState = () => useOfframpStore((state) => state.offrampState);
 export const useOfframpStarted = () => useOfframpStore((state) => state.offrampStarted);
 export const useOfframpInitiating = () => useOfframpStore((state) => state.offrampInitiating);
-export const useOfframpFirstSep24Response = () => useOfframpStore((state) => state.offrampFirstSep24Response);
 export const useOfframpExecutionInput = () => useOfframpStore((state) => state.offrampExecutionInput);
-export const useOfframpAnchorSessionParams = () => useOfframpStore((state) => state.offrampAnchorSessionParams);
 
 export const useOfframpActions = () => useOfframpStore((state) => state.actions);

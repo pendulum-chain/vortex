@@ -4,13 +4,13 @@ import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow'
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
-import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../constants/tokenConfig';
 import { useNetwork } from '../../contexts/network';
 import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 
 function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
   const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
-  const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
+  const outputToken = getOutputTokenDetails(offrampingState.outputTokenType);
   const { phase } = offrampingState;
 
   if (phase === 'success') return 'Transaction completed successfully';

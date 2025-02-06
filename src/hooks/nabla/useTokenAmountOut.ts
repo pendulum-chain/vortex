@@ -16,8 +16,8 @@ import { ApiPromise } from '@polkadot/api';
 import { useEffect, useState } from 'react';
 import {
   getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
   InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { Networks } from '../../helpers/networks';
@@ -74,7 +74,7 @@ export function useTokenOutAmount({
   }
 
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getOutputTokenDetails(outputTokenType);
 
   const fromTokenDecimals = inputToken?.pendulumDecimals;
 

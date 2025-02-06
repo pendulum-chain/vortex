@@ -19,6 +19,7 @@ import { PoweredBy } from '../../components/PoweredBy';
 
 import {
   getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
@@ -49,6 +50,7 @@ import {
   useOfframpState,
   useOfframpStarted,
   useOfframpInitiating,
+  useOfframpExecutionInput,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
@@ -75,7 +77,7 @@ export const SwapPage = () => {
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
@@ -104,6 +106,14 @@ export const SwapPage = () => {
     }
   }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
+  // Maybe go into a state of UI errors??
+  const setInitializeFailed = useCallback((message?: string | null) => {
+    setInitializeFailedMessage(
+      message ??
+        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
+    );
+  }, []);
+
   useEffect(() => {
     if (isSigningServiceError && !isSigningServiceLoading) {
       if (signingServiceError instanceof StellarFundingAccountError) {
@@ -117,7 +127,7 @@ export const SwapPage = () => {
       }
       setInitializeFailed();
     }
-  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, trackEvent]);
+  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, setInitializeFailed, trackEvent]);
 
   useEffect(() => {
     if (api && !isSigningServiceError && !isSigningServiceLoading) {
@@ -125,14 +135,6 @@ export const SwapPage = () => {
       clearPersistentErrorEventStore();
     }
   }, [api, isSigningServiceError, isSigningServiceLoading]);
-
-  // Maybe go into a state of UI errors??
-  const setInitializeFailed = useCallback((message?: string | null) => {
-    setInitializeFailedMessage(
-      message ??
-        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
-    );
-  }, []);
 
   // Main process hook
   const {
@@ -149,6 +151,7 @@ export const SwapPage = () => {
   const offrampSigningPhase = useOfframpSigningPhase();
   const offrampInitiating = useOfframpInitiating();
   const { setOfframpInitiating } = useOfframpActions();
+  const executionInput = useOfframpExecutionInput();
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
@@ -182,7 +185,7 @@ export const SwapPage = () => {
   useSwapUrlParams({ form, setShowCompareFees });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = OUTPUT_TOKEN_CONFIG[to];
+  const toToken = getOutputTokenDetails(to);
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
@@ -232,8 +235,6 @@ export const SwapPage = () => {
 
         // We don't automatically close the window, as this could be confusing for the user.
         // event.source.close();
-
-        setIsOfframpSummaryDialogVisible(false);
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
@@ -420,12 +421,8 @@ export const SwapPage = () => {
   const main = (
     <main ref={formRef}>
       <OfframpSummaryDialog
-        fromToken={fromToken}
-        fromAmountString={fromAmountString}
-        toToken={toToken}
-        formToAmount={formToAmount}
-        tokenOutAmount={tokenOutAmount}
-        visible={isOfframpSummaryDialogVisible}
+        executionInput={executionInput}
+        visible={true}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={() => {
           handleOnAnchorWindowOpen();
@@ -452,7 +449,7 @@ export const SwapPage = () => {
           exchangeRate={
             <ExchangeRate
               {...{
-                tokenOutData: tokenOutAmount,
+                exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
                 fromToken,
                 toTokenSymbol: toToken.fiat.symbol,
               }}
