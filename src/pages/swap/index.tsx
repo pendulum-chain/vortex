@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, FormEvent, useDeferredValue } from 'react';
 import { ApiPromise } from '@polkadot/api';
 import { motion } from 'framer-motion';
 
@@ -69,6 +69,7 @@ import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<FeeComparisonRef>(null);
+  const fromAmountRef = useRef<Big | undefined>(undefined);
   const pendulumNode = usePendulumNode();
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
@@ -266,6 +267,10 @@ export const SwapPage = () => {
     [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
   );
 
+  useEffect(() => {
+    fromAmountRef.current = fromAmount;
+  }, [fromAmount]);
+
   const WithdrawNumericInput = useMemo(
     () => (
       <>
@@ -276,14 +281,19 @@ export const SwapPage = () => {
           onClick={() => openTokenSelectModal('from')}
           onChange={() => {
             // User interacted with the input field
-            trackEvent({ event: 'amount_type', input_amount: fromAmount ? fromAmount.toString() : '0' });
+            setTimeout(() => {
+              trackEvent({
+                event: 'amount_type',
+                input_amount: fromAmountRef.current ? fromAmountRef.current.toString() : '0',
+              });
+            }, 3000);
           }}
           id="fromAmount"
         />
         <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
-    [form, fromToken, openTokenSelectModal, trackEvent],
+    [form, fromAmount, fromToken, openTokenSelectModal, trackEvent],
   );
 
   function getCurrentErrorMessage() {

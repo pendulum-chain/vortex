@@ -10,6 +10,7 @@ import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
+import { useFromAmount } from '../stores/formStore';
 
 declare global {
   interface Window {
@@ -151,6 +152,7 @@ const useEvents = () => {
   const previousChainId = useRef<number | undefined>(undefined);
   const firstRender = useRef(true);
   const { selectedNetwork } = useNetwork();
+  const fromAmount = useFromAmount();
 
   const scheduledQuotes = useRef<
     | {
@@ -279,12 +281,14 @@ const useEvents = () => {
         event: 'wallet_connect',
         wallet_action: 'disconnect',
         account_address: previous,
+        input_amount: fromAmount ? fromAmount.toString() : '0',
       });
     } else if (wasChanged) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: wasConnected ? 'change' : 'connect',
         account_address: address,
+        input_amount: fromAmount ? fromAmount.toString() : '0',
       });
     }
 
