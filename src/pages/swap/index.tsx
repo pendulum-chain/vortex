@@ -419,7 +419,7 @@ export const SwapPage = () => {
     <main ref={formRef}>
       <OfframpSummaryDialog
         executionInput={executionInput}
-        visible={isOfframpSummaryDialogVisible}
+        visible={true}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={() => {
           handleOnAnchorWindowOpen();
@@ -439,37 +439,20 @@ export const SwapPage = () => {
         <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-        {executionInput ? (
-          <FeeCollapse
-            fromAmount={executionInput.inputAmountUnits}
-            toAmount={Big(executionInput.outputAmountUnits.beforeFees)}
-            toToken={getOutputTokenDetails(executionInput.outputTokenType)}
-            exchangeRate={
-              <ExchangeRate
-                {...{
-                  exchangeRate: executionInput.effectiveExchangeRate,
-                  fromToken: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType),
-                  toTokenSymbol: getOutputTokenDetails(executionInput.outputTokenType).fiat.symbol,
-                }}
-              />
-            }
-          />
-        ) : (
-          <FeeCollapse
-            fromAmount={fromAmount?.toString()}
-            toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
-            toToken={toToken}
-            exchangeRate={
-              <ExchangeRate
-                {...{
-                  exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
-                  fromToken,
-                  toTokenSymbol: toToken.fiat.symbol,
-                }}
-              />
-            }
-          />
-        )}
+        <FeeCollapse
+          fromAmount={fromAmount?.toString()}
+          toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
+          toToken={toToken}
+          exchangeRate={
+            <ExchangeRate
+              {...{
+                exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
+                fromToken,
+                toTokenSymbol: toToken.fiat.symbol,
+              }}
+            />
+          }
+        />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
