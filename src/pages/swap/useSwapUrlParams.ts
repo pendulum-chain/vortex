@@ -9,7 +9,7 @@ interface UseSwapUrlParamsProps {
   form: UseFormReturn<SwapFormValues, any, undefined>;
   setShowCompareFees: Dispatch<SetStateAction<boolean>>;
 }
-const defaultAmounts: Record<OutputTokenType, number> = { eurc: 1000, ars: 200 };
+const defaultFromAmounts: Record<OutputTokenType, number> = { eurc: 1000, ars: 200 };
 
 export const useSwapUrlParams = ({ form, setShowCompareFees }: UseSwapUrlParamsProps) => {
   useEffect(() => {
@@ -25,7 +25,7 @@ export const useSwapUrlParams = ({ form, setShowCompareFees }: UseSwapUrlParamsP
       setShowCompareFees(true);
       // toToken should always exist due to hardcoded default values. Defensive.
     } else if (toTokenForm) {
-      const defaultAmount = defaultAmounts[toTokenForm];
+      const defaultAmount = defaultFromAmounts[toTokenForm];
       form.setValue('fromAmount', defaultAmount.toFixed(2));
       setShowCompareFees(true);
     }
