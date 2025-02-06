@@ -61,7 +61,7 @@ const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating
       label={getNetworkDisplayName(network)}
       isAnimating={isAnimating}
       rotationDuration={0.5}
-      onClick={() => setSelectedNetwork(network)}
+      onClick={() => setSelectedNetwork(network, true)}
     />
   );
 };
