@@ -18,7 +18,7 @@ const Image = ({ src, alt, comingSoon }: ImageProps) => (
     <motion.img
       src={src}
       alt={alt}
-      className="max-w-[140px] h-[44px]"
+      className="max-w-[120px] h-[38px]"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -39,7 +39,7 @@ const Image = ({ src, alt, comingSoon }: ImageProps) => (
 );
 
 const ImageList = ({ images }: { images: ImageProps[] }) => (
-  <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-12">
+  <div className="flex flex-wrap items-center justify-center gap-y-1 gap-x-12">
     {images.map((img, index) => (
       <motion.div
         key={img.alt}
@@ -67,7 +67,7 @@ export const TrustedBy = () => {
 
   return (
     <section className="mx-2 mt-12 mb-20 sm:container sm:mx-auto">
-      <motion.h1 className="mb-5 text-2xl text-center text-black sm:text-3xl">Trusted by</motion.h1>
+      <motion.h1 className="mb-5 text-2xl text-center text-black sm:text-[1.5rem]">Trusted by</motion.h1>
       <ImageList images={trustedByImages} />
     </section>
   );
