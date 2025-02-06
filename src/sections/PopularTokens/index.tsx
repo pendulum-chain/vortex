@@ -85,9 +85,9 @@ export function PopularTokens() {
   }, []);
 
   return (
-    <div className="max-w-2xl p-8 mx-auto text-center ">
+    <div className="max-w-2xl p-8 mx-auto text-center mt-8">
       <div className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900">Supported Networks</h2>
+        <h2 className="text-3xl font-bold text-gray-900">Supported Networks</h2>
         <p className="mt-2 text-lg text-gray-600">Trade across multiple blockchain networks</p>
 
         <ul className="flex flex-wrap items-center justify-center gap-2 mt-4">
@@ -102,7 +102,7 @@ export function PopularTokens() {
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Supported Tokens</h2>
+        <h2 className="text-3xl font-bold text-gray-900">Supported Tokens</h2>
         <p className="mt-2 text-lg text-gray-600">Trade these popular stablecoins</p>
         <motion.ul
           className="flex flex-wrap items-center justify-center gap-2 mt-4"
