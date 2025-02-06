@@ -30,7 +30,12 @@ export const HowToSell = () => (
           {steps.map((step, index) => (
             <div key={step.id} className="relative group">
               {index !== 0 && (
-                <div className="hidden md:block absolute bg-primary w-full h-[1px] top-1/4 -translate-x-1/2 z-[0]"></div>
+                <>
+                  <div className="hidden lg:block absolute bg-primary w-full h-[1px] top-1/4 -translate-x-1/2 z-[0]"></div>
+                </>
+              )}
+              {index !== steps.length - 1 && (
+                <div className="block lg:hidden absolute bg-primary/50 w-[1px] left-1/2 h-full top-1/3 -translate-x-1/2 z-[0]"></div>
               )}
               <div className="flex flex-col items-center relative z-[1]">
                 <div className="flex items-center justify-center w-18 h-18 mb-4 transition-all duration-300 border-2 border-blue-700 rounded-full shadow-lg bg-[radial-gradient(at_50%_50%,theme(colors.black),theme(colors.blue.950),theme(colors.black)_134%)] group-hover:scale-105">
