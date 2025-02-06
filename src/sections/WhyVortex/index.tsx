@@ -48,7 +48,7 @@ const FeatureCard = ({ icon, title, description }: Feature) => (
       whileHover={{ scale: 1.05 }}
       transition={{ type: 'spring', stiffness: 300 }}
     >
-      <img src={icon} alt={title} className="w-[40px] mx-auto h-[40px] text-primary filter-primary" />
+      <img src={icon} alt={title} className="w-[28px] mx-auto h-[28px] text-primary filter-primary" />
     </motion.div>
     <h3 className="mt-6 text-xl font-bold text-blue-900">{title}</h3>
     <p className="px-10 mt-3 text-center text-black text-gray-500 lg:px-0 lg:text-left">{description}</p>
@@ -59,13 +59,14 @@ export const WhyVortex = () => (
   <motion.section className="container pb-24 mx-auto">
     <div className="relative grid grid-cols-1 lg:grid-cols-2">
       <motion.h1
-        className="lg:sticky text-center lg:pl-4 lg:text-left lg:pr-20 text-3xl text-black lg:top-24 sm:text-5xl lg:text-4xl lg:h-[100px]"
+        className="lg:sticky text-center lg:pl-4 lg:text-left  text-3xl text-black lg:top-24 sm:text-5xl lg:text-4xl lg:h-[100px]"
         initial={{ x: -50 }}
         animate={{ x: 0 }}
         transition={{ duration: 0.6 }}
         viewport={{ once: true }}
       >
-        Sell Crypto the secure Way with <strong className="text-primary">Vortex Finance</strong>?
+        Sell Crypto the secure Way <br className="hidden lg:block" /> with{' '}
+        <strong className="text-primary">Vortex Finance</strong>?
       </motion.h1>
       <div className="grid grid-cols-1 mt-12 lg:mt-0 gap-x-20 gap-y-8 md:grid-cols-2">
         {features.map((feature) => (
