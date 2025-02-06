@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocalStorage, LocalStorageKeys } from '../../hooks/useLocalStorage';
 
 export function useRatingVisibility() {

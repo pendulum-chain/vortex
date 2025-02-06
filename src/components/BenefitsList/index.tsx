@@ -1,5 +1,5 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { FC } from 'preact/compat';
+import { FC } from 'react';
 import Big from 'big.js';
 
 interface BenefitsListProps {

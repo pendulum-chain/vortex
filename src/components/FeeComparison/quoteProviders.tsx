@@ -2,6 +2,7 @@ import { getQueryFnForService, QuoteQuery, QuoteService } from '../../services/q
 import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
+import { JSX } from 'react';
 
 export interface QuoteProvider {
   name: QuoteService;

@@ -1,5 +1,5 @@
-import { createContext } from 'preact';
-import { PropsWithChildren, useContext } from 'preact/compat';
+import { createContext } from 'react';
+import { PropsWithChildren, useContext } from 'react';
 import { useSiweSignature } from '../hooks/useSignChallenge';
 
 type UseSiweContext = ReturnType<typeof useSiweSignature>;

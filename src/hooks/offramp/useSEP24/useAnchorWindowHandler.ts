@@ -1,4 +1,4 @@
-import { useCallback } from 'preact/compat';
+import { useCallback } from 'react';
 import Big from 'big.js';
 
 import { useNetwork } from '../../../contexts/network';
@@ -10,13 +10,8 @@ import { showToast, ToastMessage } from '../../../helpers/notifications';
 
 import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
-import { useOfframpActions } from '../../../stores/offrampStore';
-import {
-  useSep24Actions,
-  useSep24InitialResponse,
-  useSep24AnchorSessionParams,
-  useSep24ExecutionInput,
-} from '../../../stores/sep24Store';
+import { useOfframpActions, useOfframpExecutionInput } from '../../../stores/offrampStore';
+import { useSep24Actions, useSep24InitialResponse, useSep24AnchorSessionParams } from '../../../stores/sep24Store';
 import { useVortexAccount } from '../../useVortexAccount';
 
 const handleAmountMismatch = (setOfframpingStarted: (started: boolean) => void): void => {
@@ -39,7 +34,7 @@ export const useAnchorWindowHandler = () => {
   const firstSep24Response = useSep24InitialResponse();
   const anchorSessionParams = useSep24AnchorSessionParams();
 
-  const executionInput = useSep24ExecutionInput();
+  const executionInput = useOfframpExecutionInput();
   const { cleanup: cleanupSep24State } = useSep24Actions();
 
   return useCallback(async () => {
@@ -58,9 +53,13 @@ export const useAnchorWindowHandler = () => {
     try {
       const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
 
-      if (!Big(secondSep24Response.amount).eq(executionInput.offrampAmount)) {
+      if (!Big(secondSep24Response.amount).eq(executionInput.outputAmountUnits.beforeFees)) {
         handleAmountMismatch(setOfframpStarted);
         return;
+      }
+
+      if (!executionInput.stellarEphemeralSecret) {
+        throw new Error('Missing stellarEphemeralSecret on executionInput');
       }
 
       const initialState = await constructInitialState({
@@ -68,8 +67,8 @@ export const useAnchorWindowHandler = () => {
         stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
         inputTokenType: executionInput.inputTokenType,
         outputTokenType: executionInput.outputTokenType,
-        amountIn: executionInput.amountInUnits,
-        amountOut: executionInput.offrampAmount,
+        amountIn: executionInput.inputAmountUnits,
+        amountOut: Big(executionInput.outputAmountUnits.beforeFees),
         sepResult: secondSep24Response,
         network: selectedNetwork,
         pendulumNode,

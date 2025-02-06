@@ -1,4 +1,4 @@
-import { FC } from 'preact/compat';
+import { FC } from 'react';
 import { Spinner } from '../../Spinner';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { ConnectWalletButton } from '../ConnectWalletButton';
