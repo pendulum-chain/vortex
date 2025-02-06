@@ -70,6 +70,7 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<FeeComparisonRef>(null);
   const pendulumNode = usePendulumNode();
+  const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
@@ -277,6 +278,8 @@ export const SwapPage = () => {
           onChange={() => {
             // User interacted with the input field
             trackEvent({ event: 'amount_type' });
+            // This also enables the quote tracking events
+            trackQuote.current = true;
           }}
           id="fromAmount"
         />
@@ -480,11 +483,15 @@ export const SwapPage = () => {
             onClick={(e) => {
               e.preventDefault();
               // We always show the fees comparison when the user clicks on the button. It will not be hidden again.
-              if (!showCompareFees) setShowCompareFees(true);
+              if (!showCompareFees) {
+                setShowCompareFees(true);
+              }
               // Scroll to the comparison fees section (with a small delay to allow the component to render first)
               setTimeout(() => {
                 feeComparisonRef.current?.scrollIntoView();
               }, 200);
+              // We track the user interaction with the button, for tracking the quote requested.
+              trackQuote.current = true;
             }}
           >
             Compare fees
@@ -526,6 +533,7 @@ export const SwapPage = () => {
           vortexPrice={vortexPrice}
           network={selectedNetwork}
           ref={feeComparisonRef}
+          trackQuote={trackQuote.current}
         />
       )}
       <TrustedBy />

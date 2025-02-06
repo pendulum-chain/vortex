@@ -16,6 +16,7 @@ interface BaseComparisonProps {
   targetAssetSymbol: string;
   vortexPrice: Big;
   network: Networks;
+  trackQuote: boolean;
 }
 
 type VortexRowProps = Pick<BaseComparisonProps, 'targetAssetSymbol' | 'vortexPrice'>;
@@ -46,6 +47,7 @@ function FeeProviderRow({
   targetAssetSymbol,
   vortexPrice,
   network,
+  trackQuote,
 }: FeeProviderRowProps) {
   const { scheduleQuote } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
@@ -79,7 +81,7 @@ function FeeProviderRow({
 
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
 
-    scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
+    scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, trackQuote);
     prevVortexPrice.current = vortexPrice;
   }, [
     amount,
