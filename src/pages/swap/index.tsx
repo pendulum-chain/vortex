@@ -66,10 +66,12 @@ import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 
+type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
+
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<FeeComparisonRef>(null);
-  const pendulumNode = usePendulumNode();
+
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
@@ -79,11 +81,18 @@ export const SwapPage = () => {
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
+  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+  const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
+    usdc: { ars: 1200, eurc: 0.95 },
+    usdce: { ars: 1200, eurc: 0.95 },
+    usdt: { ars: 1200, eurc: 0.95 },
+  });
+
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
   const { walletAccount } = usePolkadotWalletState();
+  const pendulumNode = usePendulumNode();
 
-  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
   const {
     error: signingServiceError,
     isLoading: isSigningServiceLoading,
@@ -210,6 +219,10 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount, toToken);
       form.setValue('toAmount', totalReceive);
+      setExchangeRateCache((prev) => ({
+        ...prev,
+        [from]: { ...prev[from], [to]: tokenOutAmount.data!.effectiveExchangeRate },
+      }));
     } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
@@ -289,26 +302,30 @@ export const SwapPage = () => {
   function getCurrentErrorMessage() {
     if (isDisconnected) return;
 
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
-        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
+    //TODO - commented for testing and preview only. REMOVE COMMENT.
+    // if (typeof userInputTokenBalance === 'string') {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
+    //     trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+    //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+    //   }
+    // }
 
     const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
 
+    const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
+    const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
+
+    const exchangeRate = tokenOutAmount.data?.effectiveExchangeRate || exchangeRateCache[from]?.[to];
+
+    if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
+      console.log(exchangeRate, fromAmount!.mul(exchangeRate).toNumber());
+      trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
+      return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+        toToken.fiat.symbol
+      }.`;
+    }
+
     if (amountOut !== undefined) {
-      const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
-      const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
-
-      if (maxAmountUnits.lt(amountOut)) {
-        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
-        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
-
       if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
         trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
@@ -317,6 +334,9 @@ export const SwapPage = () => {
       }
     }
 
+    if (tokenOutAmount.error?.includes('Insufficient liquidity')) {
+      return 'The amount is temporarily not available. Please, try with a smaller amount.';
+    }
     return tokenOutAmount.error;
   }
 
