@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { PolkadotWalletSelectorDialog } from '../../../PolkadotWalletSelectorDialog';
-import { useEventsContext } from '../../../../contexts/events';
 
 export const PolkadotConnectWallet = ({ customStyles, hideIcon }: { customStyles?: string; hideIcon?: boolean }) => {
   const [showPolkadotDialog, setShowPolkadotDialog] = useState(false);
-  const { handleUserClickWallet } = useEventsContext();
 
   return (
     <>
       <button
         onClick={() => {
-          handleUserClickWallet();
           setShowPolkadotDialog(true);
         }}
         type="button"
