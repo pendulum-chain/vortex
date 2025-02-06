@@ -41,9 +41,6 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
             Retry
           </button>
         )}
-        <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={finishOfframping}>
-          Reset and Restart
-        </button>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         {transactionId && (
           <p className="text-center text-gray-400">
@@ -51,12 +48,18 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
             <TransactionInfo transactionId={transactionId} />
           </p>
         )}
-        <p className="mb-6 text-center text-gray-400">
+        <p className="mb-1 mt-5 text-center text-gray-400">
           Contact our{' '}
           <a href={config.supportUrl} target="_blank" rel="noreferrer" className="underline">
             support team
           </a>
           . We’re here to help!
+        </p>
+        <p className="mb-5 text-center text-gray-400">
+          Contacted support and ready to start fresh with a new transaction? <br /> Tap
+          <button className="btn btn-sm rounded-xl inline-flex ml-1 text-gray-400" onClick={finishOfframping}>
+            Reset and Restart
+          </button>
         </p>
         <EmailForm transactionId={transactionId} transactionSuccess={false} />
       </Box>
