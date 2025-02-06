@@ -46,6 +46,7 @@ export interface WalletConnectEvent {
   wallet_action: 'connect' | 'disconnect' | 'change';
   input_amount?: string;
   account_address?: string;
+  network_selected?: string;
 }
 
 export interface OfframpingParameters {
@@ -282,6 +283,7 @@ const useEvents = () => {
         wallet_action: 'disconnect',
         account_address: previous,
         input_amount: fromAmount ? fromAmount.toString() : '0',
+        network_selected: getNetworkId(selectedNetwork).toString(),
       });
     } else if (wasChanged) {
       trackEvent({
@@ -289,6 +291,7 @@ const useEvents = () => {
         wallet_action: wasConnected ? 'change' : 'connect',
         account_address: address,
         input_amount: fromAmount ? fromAmount.toString() : '0',
+        network_selected: getNetworkId(selectedNetwork).toString(),
       });
     }
 
