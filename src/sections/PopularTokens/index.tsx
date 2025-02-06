@@ -3,6 +3,7 @@ import { Networks, getNetworkDisplayName } from '../../helpers/networks';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { AssetIconType, useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useEffect, useState } from 'react';
+import { useNetwork } from '../../contexts/network';
 
 const tokens: Array<{ name: string; assetIcon: AssetIconType }> = [
   { name: 'USDC', assetIcon: 'usdc' },
@@ -17,15 +18,18 @@ type BadgeProps = {
   label: string;
   isAnimating: boolean;
   rotationDuration?: number;
+  onClick?: () => void;
 };
 
-const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5 }: BadgeProps) => {
+const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: BadgeProps) => {
   const scale = isAnimating ? 1.05 : 1;
   const bgColor = isAnimating ? 'bg-gray-300' : 'bg-secondary';
 
   return (
     <motion.li
-      className={`flex items-center justify-center px-4 py-2 shadow-lg rounded-full ${bgColor}`}
+      className={`flex items-center justify-center px-4 py-2 shadow-lg rounded-full ${bgColor} ${
+        onClick ? 'cursor-pointer active:bg-gray-400 active:scale-95' : ''
+      }`}
       whileHover={{
         scale: 1.05,
         rotate: [0, -1, 1, -1, 0],
@@ -36,8 +40,10 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5 }: BadgeProps)
           },
         },
       }}
+      whileTap={{ scale: 0.95 }}
       animate={{ scale }}
       transition={{ duration: 1 }}
+      onClick={onClick}
     >
       <img src={icon} alt={label} className="w-6 h-6 mr-2" />
       <span className="font-medium text-gray-900">{label}</span>
@@ -47,8 +53,16 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5 }: BadgeProps)
 
 const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
   const networkIcon = useGetNetworkIcon(network);
+  const { setSelectedNetwork } = useNetwork();
+
   return (
-    <Badge icon={networkIcon} label={getNetworkDisplayName(network)} isAnimating={isAnimating} rotationDuration={0.5} />
+    <Badge
+      icon={networkIcon}
+      label={getNetworkDisplayName(network)}
+      isAnimating={isAnimating}
+      rotationDuration={0.5}
+      onClick={() => setSelectedNetwork(network)}
+    />
   );
 };
 
