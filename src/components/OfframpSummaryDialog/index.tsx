@@ -2,8 +2,12 @@ import { ArrowDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/so
 import { useState, FC } from 'react';
 import Big from 'big.js';
 
-import { InputTokenDetails, OutputTokenDetails } from '../../constants/tokenConfig';
-import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
+import {
+  getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
+  InputTokenDetails,
+  OutputTokenDetails,
+} from '../../constants/tokenConfig';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 import { useNetwork } from '../../contexts/network';
@@ -13,6 +17,8 @@ import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
+import { OfframpExecutionInput } from '../../types/offramp';
+import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 
 interface AssetDisplayProps {
   amount: string;
@@ -34,12 +40,12 @@ interface FeeDetailsProps {
   network: Networks;
   feesCost: string;
   fiatSymbol: string;
-  tokenOutAmount: UseTokenOutAmountResult;
+  exchangeRate: string;
   fromToken: InputTokenDetails;
   toToken: OutputTokenDetails;
 }
 
-const FeeDetails = ({ network, feesCost, fiatSymbol, tokenOutAmount, fromToken, toToken }: FeeDetailsProps) => (
+const FeeDetails = ({ network, feesCost, fiatSymbol, fromToken, toToken, exchangeRate }: FeeDetailsProps) => (
   <section className="mt-6">
     <div className="flex justify-between mb-2">
       <p>
@@ -57,7 +63,7 @@ const FeeDetails = ({ network, feesCost, fiatSymbol, tokenOutAmount, fromToken, 
       <p>Quote</p>
       <p>
         <strong>
-          <ExchangeRate tokenOutData={tokenOutAmount} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
+          <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
         </strong>
       </p>
     </div>
@@ -76,53 +82,59 @@ const FeeDetails = ({ network, feesCost, fiatSymbol, tokenOutAmount, fromToken, 
 );
 
 interface OfframpSummaryDialogProps {
-  fromToken: InputTokenDetails;
-  toToken: OutputTokenDetails;
-  formToAmount: string;
-  fromAmountString: string;
-  visible: boolean;
-  tokenOutAmount: UseTokenOutAmountResult;
   anchorUrl?: string;
+  executionInput?: OfframpExecutionInput;
+  visible: boolean;
   onSubmit: () => void;
   onClose: () => void;
 }
 
 export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
-  fromToken,
-  toToken,
-  visible,
-  formToAmount,
-  fromAmountString,
-  tokenOutAmount,
   anchorUrl,
+  executionInput,
+  visible,
   onClose,
   onSubmit,
 }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { selectedNetwork } = useNetwork();
+  const { setOfframpExecutionInput, setOfframpInitiating, setOfframpStarted } = useOfframpActions();
+  const offrampState = useOfframpState();
+
+  // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
+  // component will not render if the executionInput is undefined.
+  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
+  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
-  const { feesCost } = useOfframpFees(tokenOutAmount.data?.roundedDownQuotedAmountOut || Big(0), toToken);
+  const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
+  const { feesCost } = useOfframpFees(toAmount, toToken);
 
   if (!visible) return null;
   if (!anchorUrl) return null;
+  if (!executionInput) return null;
 
   const content = (
     <div className="flex flex-col justify-center">
       <AssetDisplay
         iconAlt={fromToken.networkAssetIcon}
         symbol={fromToken.assetSymbol}
-        amount={fromAmountString}
+        amount={executionInput.inputAmountUnits}
         iconSrc={fromIcon}
       />
       <ArrowDownIcon className="w-4 h-4 my-2" />
-      <AssetDisplay amount={formToAmount} symbol={toToken.fiat.symbol} iconSrc={toIcon} iconAlt={toToken.fiat.symbol} />
+      <AssetDisplay
+        amount={executionInput.outputAmountUnits.afterFees}
+        symbol={toToken.fiat.symbol}
+        iconSrc={toIcon}
+        iconAlt={toToken.fiat.symbol}
+      />
       <FeeDetails
         fiatSymbol={toToken.fiat.symbol}
         fromToken={fromToken}
         toToken={toToken}
-        tokenOutAmount={tokenOutAmount}
+        exchangeRate={executionInput.effectiveExchangeRate}
         network={selectedNetwork}
         feesCost={feesCost}
       />
@@ -139,7 +151,11 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         window.open(anchorUrl, '_blank');
       }}
     >
-      {isSubmitted ? (
+      {offrampState !== undefined ? (
+        <>
+          <Spinner /> Processing
+        </>
+      ) : isSubmitted ? (
         <>
           <Spinner /> Continue on Partner&apos;s page
         </>
@@ -151,5 +167,19 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
     </button>
   );
 
-  return <Dialog content={content} visible={visible} actions={actions} headerText="You're selling" onClose={onClose} />;
+  return (
+    <Dialog
+      content={content}
+      visible={visible}
+      actions={actions}
+      headerText="You're selling"
+      onClose={() => {
+        setIsSubmitted(false);
+        setOfframpExecutionInput(undefined);
+        setOfframpStarted(false);
+        setOfframpInitiating(false);
+        onClose();
+      }}
+    />
+  );
 };

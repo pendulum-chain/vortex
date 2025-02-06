@@ -11,6 +11,7 @@ interface NumericInputProps {
   defaultValue?: string;
   autoFocus?: boolean;
   disableStyles?: boolean;
+  disabled?: boolean;
   onChange?: (e: ChangeEvent) => void;
 }
 
@@ -22,6 +23,7 @@ export const NumericInput = ({
   defaultValue,
   autoFocus,
   disableStyles = false,
+  disabled,
   onChange,
 }: NumericInputProps) => {
   function handleOnChange(e: ChangeEvent): void {
@@ -34,9 +36,10 @@ export const NumericInput = ({
     handleOnPasteNumericInput(e, maxDecimals);
     register.onChange(e);
   }
+  const removeText = disabled ? ' opacity-0' : '';
 
   return (
-    <div className={disableStyles ? 'flex-grow' : 'flex-grow text-black font-outfit'}>
+    <div className={disableStyles ? 'relative flex-grow' : 'relative flex-grow text-black font-outfit'}>
       <Input
         {...register}
         autoComplete="off"
@@ -44,8 +47,8 @@ export const NumericInput = ({
         autoCapitalize="none"
         className={
           disableStyles
-            ? 'border-0 bg-transparent focus:outline-none px-4 ' + additionalStyle
-            : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content ' + additionalStyle
+            ? 'border-0 bg-transparent focus:outline-none px-4 text-opacity-100 ' + additionalStyle + removeText
+            : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content text-opacity-100' + removeText
         }
         minLength={1}
         onChange={handleOnChange}
@@ -60,6 +63,9 @@ export const NumericInput = ({
         value={defaultValue}
         autoFocus={autoFocus}
       />
+      {disabled && (
+        <span className="absolute top-1/2 right-3 -translate-y-1/2 loading loading-bars loading-sm text-primary"></span>
+      )}
     </div>
   );
 };
