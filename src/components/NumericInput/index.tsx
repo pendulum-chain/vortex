@@ -36,7 +36,7 @@ export const NumericInput = ({
   const removeText = disabled ? ' opacity-0' : '';
 
   return (
-    <div className="flex-grow">
+    <div className="relative flex-grow">
       <input
         {...register}
         autoComplete="off"
