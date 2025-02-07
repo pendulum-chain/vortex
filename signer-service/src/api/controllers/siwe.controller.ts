@@ -1,13 +1,6 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { createAndSendNonce, verifyAndStoreSiweMessage } from '../services/siwe.service';
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
-
-interface SiweRequestBody {
-  walletAddress?: string;
-  nonce?: string;
-  signature?: string;
-  siweMessage?: string;
-}
 
 type SiweResponse = {
   nonce?: string;
