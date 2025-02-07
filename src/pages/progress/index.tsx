@@ -174,6 +174,7 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
         >
           {!isNetworkEVM(selectedNetwork) ? 'This usually takes 4-6 minutes.' : 'This usually takes 6-8 minutes.'}
         </motion.h1>
+        <div>{message}</div>
       </div>
     </Box>
   );
