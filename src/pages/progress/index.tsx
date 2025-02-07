@@ -1,6 +1,6 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { ExclamationCircleIcon, CheckIcon } from '@heroicons/react/20/solid';
+import { CheckIcon } from '@heroicons/react/20/solid';
 
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
@@ -9,8 +9,8 @@ import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
 import { createOfframpingPhaseMessage } from './helpers';
-import { useCountdownTimer } from '../../hooks/useCountdownTimer';
 import { GotQuestions } from '../../sections/GotQuestions';
+import { WarningBanner } from '../../components/WarningBanner';
 
 const useProgressUpdate = (
   currentPhase: OfframpingPhase,
@@ -18,36 +18,38 @@ const useProgressUpdate = (
   displayedPercentage: number,
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void,
-  setRemainingTime: (value: number) => void,
 ) => {
+  const phaseStartTime = useRef(Date.now());
+  const phaseStartPercentage = useRef(displayedPercentage);
+
   useEffect(() => {
     const targetPercentage = Math.round((100 / numberOfPhases) * (currentPhaseIndex + 1));
     const duration = OFFRAMPING_PHASE_SECONDS[currentPhase] * 1000;
-    const increment = Math.max(1, Math.floor((targetPercentage - displayedPercentage) / (duration / 200)));
 
-    const intervalId = setInterval(() => {
-      setDisplayedPercentage((prev) => {
-        if (prev >= targetPercentage) {
-          clearInterval(intervalId);
+    phaseStartTime.current = Date.now();
+    phaseStartPercentage.current = displayedPercentage;
+
+    const progressUpdateInterval = setInterval(() => {
+      const elapsedTime = Date.now() - phaseStartTime.current;
+      const timeRatio = Math.min(1, elapsedTime / duration);
+
+      const newPercentage = Math.round(
+        phaseStartPercentage.current + (targetPercentage - phaseStartPercentage.current) * timeRatio,
+      );
+
+      setDisplayedPercentage(() => {
+        if (timeRatio === 1) {
+          clearInterval(progressUpdateInterval);
           if (currentPhaseIndex === numberOfPhases - 1) {
             setShowCheckmark(true);
           }
-          return prev;
         }
-        return Math.min(prev + increment, targetPercentage);
+        return newPercentage;
       });
-    }, 350);
+    }, 100);
 
-    setRemainingTime(duration / 1000);
-    return () => clearInterval(intervalId);
-  }, [
-    currentPhase,
-    currentPhaseIndex,
-    displayedPercentage,
-    setDisplayedPercentage,
-    setRemainingTime,
-    setShowCheckmark,
-  ]);
+    return () => clearInterval(progressUpdateInterval);
+  }, [currentPhase, currentPhaseIndex, setDisplayedPercentage, setShowCheckmark]);
 };
 
 export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
@@ -79,20 +81,6 @@ interface ProgressContentProps {
   currentPhaseIndex: number;
   message: string;
 }
-
-const WarningSection: FC = () => (
-  <section className="flex items-center gap-4 p-4 bg-yellow-500 border-l-8 border-yellow-700 rounded shadow-lg">
-    <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
-      <ExclamationCircleIcon className="w-12 text-yellow-800" />
-    </motion.div>
-    <div>
-      <h1 className="text-xl font-extrabold text-yellow-900 uppercase">Do not close this tab!</h1>
-      <p className="text-sm font-medium text-yellow-900">
-        Closing this tab can result in your transaction failing. Please wait until it&apos;s completed.
-      </p>
-    </div>
-  </section>
-);
 
 const ProgressCircle: FC<{
   displayedPercentage: number;
@@ -145,7 +133,7 @@ const ProgressCircle: FC<{
         </motion.div>
       ) : (
         <motion.span className="text-4xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-          {displayedPercentage}%
+          {Math.round(displayedPercentage)}%
         </motion.span>
       )}
     </div>
@@ -156,23 +144,14 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
   const { selectedNetwork } = useNetwork();
   const [showCheckmark, setShowCheckmark] = useState(false);
   const [displayedPercentage, setDisplayedPercentage] = useState(0);
-  const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const circumference = CIRCLE_RADIUS * 2 * Math.PI;
 
-  useProgressUpdate(
-    currentPhase,
-    currentPhaseIndex,
-    displayedPercentage,
-    setDisplayedPercentage,
-    setShowCheckmark,
-    setRemainingTime,
-  );
-  useCountdownTimer(remainingTime, setRemainingTime);
+  useProgressUpdate(currentPhase, currentPhaseIndex, displayedPercentage, setDisplayedPercentage, setShowCheckmark);
 
   return (
     <Box className="flex flex-col items-center justify-center mt-4">
       <div className="flex flex-col items-center justify-center max-w-[400px]">
-        <WarningSection />
+        <WarningBanner />
         <ProgressCircle
           displayedPercentage={displayedPercentage}
           showCheckmark={showCheckmark}
@@ -194,17 +173,6 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
         >
           {!isNetworkEVM(selectedNetwork) ? 'This usually takes 4-6 minutes.' : 'This usually takes 6-8 minutes.'}
         </motion.h1>
-        <motion.div
-          className="flex flex-col items-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
-        >
-          <div className="mb-2">{message}</div>
-          {remainingTime !== null && (
-            <p className="text-sm text-gray-500">Estimated time left: {remainingTime} seconds</p>
-          )}
-        </motion.div>
       </div>
     </Box>
   );
