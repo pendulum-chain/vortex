@@ -37,9 +37,6 @@ export const executeXcmController = async (req: Request, res: Response): Promise
   const { id, payload } = req.body;
 
   try {
-    if (!MOONBEAM_EXECUTOR_PRIVATE_KEY) {
-      throw new Error('Moonbeam executor private key not configured');
-    }
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
     const { walletClient, publicClient } = createClients(moonbeamExecutorAccount);
 
@@ -77,9 +74,6 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
   let moonbeamExecutorAccount;
 
   try {
-    if (!MOONBEAM_EXECUTOR_PRIVATE_KEY) {
-      throw new Error('Moonbeam executor private key not configured');
-    }
     moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
     const { publicClient } = createClients(moonbeamExecutorAccount);
 
