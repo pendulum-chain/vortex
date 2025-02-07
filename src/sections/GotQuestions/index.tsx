@@ -1,5 +1,5 @@
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import PLANET from '../../assets/planet.svg';
 
 const FORM_URL = 'https://forms.gle/dKh8ckXheRPdRa398';

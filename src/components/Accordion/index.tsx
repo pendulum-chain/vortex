@@ -1,6 +1,6 @@
 import { FC, JSX } from 'react';
 import { create } from 'zustand';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface AccordionProps {
   children: React.ReactNode | React.ReactNode[];
