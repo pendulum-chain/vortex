@@ -1,13 +1,13 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import Big from 'big.js';
-import { useCallback, useMemo, useState } from 'preact/compat';
+import { useCallback, useMemo, useState } from 'react';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
 import {
   getInputTokenDetails,
+  getOutputTokenDetails,
   InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
@@ -26,7 +26,7 @@ type TokenSelectType = 'from' | 'to';
 const storageSet = debounce(storageService.set, 1000);
 const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
 
-function mergeIfDefined<T>(target: T, source: Nullable<T> | undefined): void {
+function mergeIfDefined<T>(target: T, source: T | undefined): void {
   if (!source) return;
 
   Object.entries(source).forEach(([key, value]) => {
@@ -60,12 +60,12 @@ export const useSwapForm = () => {
 
     const network = getCaseSensitiveNetwork(initialValues.network);
     if (network !== selectedNetwork) {
-      setSelectedNetwork(network);
+      setSelectedNetwork(network, true);
     }
 
     const initialFromToken = getInputTokenDetails(network, initialValues.from as InputTokenType);
     const initialFromTokenIsValid = initialFromToken !== undefined;
-    const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
+    const initialToTokenIsValid = getOutputTokenDetails(initialValues.to as OutputTokenType) !== undefined;
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;
     const to = (initialToTokenIsValid ? initialValues.to : defaultValues.to) as OutputTokenType;
@@ -86,7 +86,7 @@ export const useSwapForm = () => {
     () => (from ? getInputTokenDetails(selectedNetwork, from) : undefined),
     [from, selectedNetwork],
   );
-  const toToken = useMemo(() => (to ? OUTPUT_TOKEN_CONFIG[to] : undefined), [to]);
+  const toToken = useMemo(() => (to ? getOutputTokenDetails(to) : undefined), [to]);
 
   const onFromChange = useCallback(
     (tokenKey: string) => {

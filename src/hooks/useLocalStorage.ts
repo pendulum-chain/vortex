@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/compat';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { storageService } from '../services/storage/local';
 import { Storage } from '../services/storage/types';
 
@@ -116,6 +116,9 @@ export const useLocalStorage = <T>({
 export enum LocalStorageKeys {
   RATING = 'RATING',
   SELECTED_NETWORK = 'SELECTED_NETWORK',
+  TRIGGER_ACCOUNT_EVM = 'TRIGGER_ACCOUNT_EVM',
+  TRIGGER_ACCOUNT_POLKADOT = 'TRIGGER_ACCOUNT_POLKADOT',
   SELECTED_POLKADOT_WALLET = 'SELECTED_POLKADOT_WALLET',
   SELECTED_POLKADOT_ACCOUNT = 'SELECTED_POLKADOT_ACCOUNT',
+  FIRED_INITIALIZATION_EVENTS = 'FIRED_INITIALIZATION_EVENTS',
 }

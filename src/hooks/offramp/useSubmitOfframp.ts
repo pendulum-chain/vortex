@@ -1,44 +1,42 @@
-import { useCallback } from 'preact/compat';
-import { polygon } from 'wagmi/chains';
-import { useSwitchChain } from 'wagmi';
+import { useCallback } from 'react';
 
-import { getNetworkId, isNetworkEVM } from '../../helpers/networks';
 import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
-import { calculateTotalReceive } from '../../components/FeeCollapse';
-import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 
 import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
-import { ExecutionInput } from './useMainProcess';
 import { useSep24Actions } from '../../stores/sep24Store';
 
+import { showToast, ToastMessage } from '../../helpers/notifications';
+import Big from 'big.js';
+import { OfframpExecutionInput } from '../../types/offramp';
+
 export const useSubmitOfframp = () => {
-  const { selectedNetwork } = useNetwork();
-  const { switchChainAsync, switchChain } = useSwitchChain();
+  const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
-  const { setOfframpStarted, setOfframpInitiating } = useOfframpActions();
+  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
   const {
     setAnchorSessionParams,
-    setExecutionInput,
     setInitialResponse: setInitialResponseSEP24,
     setUrlInterval: setUrlIntervalSEP24,
     cleanup: cleanupSEP24,
   } = useSep24Actions();
 
   return useCallback(
-    (executionInput: ExecutionInput) => {
-      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
+    (executionInput: OfframpExecutionInput) => {
+      const { inputTokenType, inputAmountUnits, outputTokenType, outputAmountUnits, setInitializeFailed } =
+        executionInput;
 
       if (offrampStarted || offrampState !== undefined) {
         setOfframpInitiating(false);
@@ -46,35 +44,31 @@ export const useSubmitOfframp = () => {
       }
 
       (async () => {
-        switchChain({ chainId: polygon.id });
         setOfframpStarted(true);
 
         trackEvent({
           event: 'transaction_confirmation',
           from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-          from_amount: amountInUnits,
-          to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
+          to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
+          from_amount: inputAmountUnits,
+          to_amount: outputAmountUnits.afterFees,
         });
 
         try {
-          // For substrate, we only have AssetHub only now. Thus no need to change.
-          if (isNetworkEVM(selectedNetwork)) {
-            await switchChainAsync({ chainId: getNetworkId(selectedNetwork) });
-          }
+          await setSelectedNetwork(selectedNetwork);
 
           setOfframpStarted(true);
 
           trackEvent({
             event: 'transaction_confirmation',
             from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-            to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-            from_amount: amountInUnits,
-            to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
+            to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
+            from_amount: inputAmountUnits,
+            to_amount: outputAmountUnits.afterFees,
           });
 
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-          const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+          const outputToken = getOutputTokenDetails(outputTokenType);
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
           if (!address) {
@@ -94,10 +88,10 @@ export const useSubmitOfframp = () => {
             token: sep10Token,
             tomlValues,
             tokenConfig: outputToken,
-            offrampAmount: offrampAmount.toFixed(2, 0),
+            offrampAmount: Big(outputAmountUnits.beforeFees).toFixed(2, 0),
           };
 
-          setExecutionInput({
+          setOfframpExecutionInput({
             ...executionInput,
             stellarEphemeralSecret,
           });
@@ -124,10 +118,10 @@ export const useSubmitOfframp = () => {
             setOfframpInitiating(false);
           }
         } catch (error) {
-          console.error('Error initializing the offramping process', error);
+          console.error('Error initializing the offramping process', (error as Error).message);
           // Display error message, differentiating between user rejection and other errors
-          if ((error as Error).message.includes('User rejected the request')) {
-            setInitializeFailed('Please switch to the correct network and try again.');
+          if ((error as Error).message.includes('User rejected')) {
+            showToast(ToastMessage.ERROR, 'You must sign the login request to be able to sell Argentine Peso');
           } else {
             setInitializeFailed();
           }
@@ -140,19 +134,18 @@ export const useSubmitOfframp = () => {
       offrampStarted,
       offrampState,
       setOfframpInitiating,
-      switchChain,
       setOfframpStarted,
       trackEvent,
       selectedNetwork,
       address,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
-      setExecutionInput,
+      setOfframpExecutionInput,
       setAnchorSessionParams,
       setInitialResponseSEP24,
       setUrlIntervalSEP24,
       cleanupSEP24,
-      switchChainAsync,
+      setSelectedNetwork,
     ],
   );
 };

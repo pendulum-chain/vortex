@@ -1,7 +1,6 @@
-import { useState } from 'preact/hooks';
-import { FC } from 'preact/compat';
+import { useState, FC } from 'react';
 import { Bars4Icon, XMarkIcon } from '@heroicons/react/20/solid';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 import whiteLogo from '../../assets/logo/white.png';
 import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
@@ -9,7 +8,7 @@ import { NetworkSelector } from '../NetworkSelector';
 import { useNetwork } from '../../contexts/network';
 
 const links = [
-  { title: 'Offramp', href: '/' },
+  { title: 'Sell Crypto', href: '/' },
   { title: 'How it works', href: 'https://www.vortexfinance.co/#lowest-code' },
   { title: 'Community', href: 'https://www.vortexfinance.co/#call-to-action' },
 ];
@@ -82,12 +81,12 @@ const MobileMenuList: FC<MobileMenuListProps> = ({ showMenu, closeMenu }) => (
 const Links = () => (
   <ul className="lg:flex lg:items-center lg:justify-around">
     {links.map((link) => (
-      <li key={link.title} className="mb-9 lg:mb-0">
+      <li key={link.title} className="mr-4 mb-9 lg:mb-0">
         <a
           href={link.href}
           target={link.href.startsWith('https') ? '_blank' : ''}
           rel={link.href.startsWith('https') ? 'noreferrer' : ''}
-          className="px-3 text-lg font-thin text-white lg:px-4 xl:px-7 hover:text-amber-500 hover:underline"
+          className="px-3 text-lg font-thin text-white hover:text-amber-500 hover:underline lg:px-0"
         >
           {link.title}
         </a>
@@ -103,10 +102,6 @@ export const Navbar = () => {
   return (
     <header className="flex items-center justify-between px-4 py-4 bg-blue-950 md:py-5 md:px-10">
       <div className="flex">
-        <a href="https://www.vortexfinance.co/" target="_blank" rel="noreferrer" className="flex text-slate-400">
-          <img src={whiteLogo} alt="Vortex Logo" className="mr-1 max-h-6 lg:max-h-8 xl:max-h-12" />
-          Alpha
-        </a>
         <nav className="hidden m-auto lg:block">
           <Links />
         </nav>

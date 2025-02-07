@@ -37,7 +37,9 @@ export const fundEphemeralAccount = async (ephemeralAddress: string): Promise<bo
     const apiData = await createPolkadotApi();
     const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
 
-    await apiData.api.tx.balances.transfer(ephemeralAddress, fundingAmountRaw).signAndSend(fundingAccountKeypair);
+    await apiData.api.tx.balances
+      .transferKeepAlive(ephemeralAddress, fundingAmountRaw)
+      .signAndSend(fundingAccountKeypair);
 
     return true;
   } catch (error) {

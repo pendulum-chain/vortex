@@ -1,7 +1,7 @@
-import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
 import { ApiPromise } from '@polkadot/api';
+import { motion } from 'framer-motion';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
@@ -15,11 +15,11 @@ import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
-import { SignInModal } from '../../components/SignIn';
 import { PoweredBy } from '../../components/PoweredBy';
 
 import {
   getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
@@ -27,21 +27,18 @@ import {
 } from '../../constants/tokenConfig';
 import { config } from '../../config';
 
-import { useEventsContext } from '../../contexts/events';
+import { useEventsContext, clearPersistentErrorEventStore } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
-import { useSiweContext } from '../../contexts/siwe';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import { useSwapUrlParams } from './useSwapUrlParams';
-
-import { initialChecks } from '../../services/initialChecks';
 
 import { BaseLayout } from '../../layouts';
 import { ProgressPage } from '../progress';
@@ -53,6 +50,7 @@ import {
   useOfframpState,
   useOfframpStarted,
   useOfframpInitiating,
+  useOfframpExecutionInput,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
@@ -60,60 +58,83 @@ import { swapConfirm } from './helpers/swapConfirm';
 import { TrustedBy } from '../../components/TrustedBy';
 import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import {
+  MoonbeamFundingAccountError,
+  PendulumFundingAccountError,
+  StellarFundingAccountError,
+  useSigningService,
+} from '../../services/signingService';
+import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
-const Arrow = () => (
-  <div className="flex justify-center w-full my-5">
-    <ArrowDownIcon className="text-blue-700 w-7" />
-  </div>
-);
+import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<FeeComparisonRef>(null);
   const pendulumNode = usePendulumNode();
+  const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
-  const { address } = useVortexAccount();
+  const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [showCompareFees, setShowCompareFees] = useState(false);
+  const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
+  const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
-  const { signingPending, handleSign, handleCancel } = useSiweContext();
   const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+  const {
+    error: signingServiceError,
+    isLoading: isSigningServiceLoading,
+    isError: isSigningServiceError,
+  } = useSigningService();
 
   const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
     useTermsAndConditions();
 
   useEffect(() => {
-    setApiInitializeFailed(!pendulumNode.apiComponents?.api && pendulumNode?.isFetched);
+    if (!pendulumNode.apiComponents?.api && pendulumNode?.isFetched) {
+      setApiInitializeFailed(true);
+      trackEvent({ event: 'initialization_error', error_message: 'node_connection_issue' });
+    }
     if (pendulumNode.apiComponents?.api) {
       setApi(pendulumNode.apiComponents.api);
     }
-  }, [pendulumNode]);
+  }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
   // Maybe go into a state of UI errors??
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
-      message ?? "We're stuck in the digital equivalent of rush hour traffic. Hang tight, we'll get moving again!",
+      message ??
+        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
     );
   }, []);
 
   useEffect(() => {
-    const initialize = async () => {
-      try {
-        await initialChecks();
-        setIsReady(true);
-      } catch (error) {
-        setInitializeFailed();
+    if (isSigningServiceError && !isSigningServiceLoading) {
+      if (signingServiceError instanceof StellarFundingAccountError) {
+        trackEvent({ event: 'initialization_error', error_message: 'stellar_account_issue' });
+      } else if (signingServiceError instanceof PendulumFundingAccountError) {
+        trackEvent({ event: 'initialization_error', error_message: 'pendulum_account_issue' });
+      } else if (signingServiceError instanceof MoonbeamFundingAccountError) {
+        trackEvent({ event: 'initialization_error', error_message: 'moonbeam_account_issue' });
+      } else {
+        trackEvent({ event: 'initialization_error', error_message: 'signer_service_issue' });
       }
-    };
+      setInitializeFailed();
+    }
+  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, setInitializeFailed, trackEvent]);
 
-    initialize();
-  }, [setInitializeFailed]);
+  useEffect(() => {
+    if (api && !isSigningServiceError && !isSigningServiceLoading) {
+      setIsReady(true);
+      clearPersistentErrorEventStore();
+    }
+  }, [api, isSigningServiceError, isSigningServiceLoading]);
 
   // Main process hook
   const {
@@ -130,6 +151,7 @@ export const SwapPage = () => {
   const offrampSigningPhase = useOfframpSigningPhase();
   const offrampInitiating = useOfframpInitiating();
   const { setOfframpInitiating } = useOfframpActions();
+  const executionInput = useOfframpExecutionInput();
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
@@ -137,6 +159,14 @@ export const SwapPage = () => {
       setCachedId(firstSep24ResponseState?.id);
     }
   }, [firstSep24ResponseState?.id]);
+
+  // Store the anchor URL when it becomes available
+  useEffect(() => {
+    if (firstSep24ResponseState?.url) {
+      setCachedAnchorUrl(firstSep24ResponseState.url);
+      setIsOfframpSummaryDialogVisible(true);
+    }
+  }, [firstSep24ResponseState?.url]);
 
   const {
     isTokenSelectModalVisible,
@@ -155,7 +185,7 @@ export const SwapPage = () => {
   useSwapUrlParams({ form, setShowCompareFees });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = OUTPUT_TOKEN_CONFIG[to];
+  const toToken = getOutputTokenDetails(to);
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
@@ -184,7 +214,7 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount, toToken);
       form.setValue('toAmount', totalReceive);
-    } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
+    } else if (tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing
@@ -205,7 +235,6 @@ export const SwapPage = () => {
 
         // We don't automatically close the window, as this could be confusing for the user.
         // event.source.close();
-
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
@@ -250,6 +279,8 @@ export const SwapPage = () => {
           onChange={() => {
             // User interacted with the input field
             trackEvent({ event: 'amount_type' });
+            // This also enables the quote tracking events
+            trackQuote.current = true;
           }}
           id="fromAmount"
         />
@@ -260,6 +291,8 @@ export const SwapPage = () => {
   );
 
   function getCurrentErrorMessage() {
+    if (isDisconnected) return;
+
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
         trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
@@ -302,6 +335,7 @@ export const SwapPage = () => {
           type: key as OutputTokenType,
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
+          name: value.fiat.name,
         }));
 
   const modals = (
@@ -348,8 +382,13 @@ export const SwapPage = () => {
     }
   }
 
-  const onSwapConfirm = (e: Event) => {
+  const onSwapConfirm = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (offrampStarted) {
+      setIsOfframpSummaryDialogVisible(true);
+      return;
+    }
 
     if (!termsAccepted && !termsChecked) {
       setTermsError(true);
@@ -369,25 +408,38 @@ export const SwapPage = () => {
       from,
       selectedNetwork,
       fromAmountString,
-      requiresSquidRouter: selectedNetwork === Networks.Polygon,
+      requiresSquidRouter: isNetworkEVM(selectedNetwork),
       setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
       setTermsAccepted,
     });
+
+    setIsOfframpSummaryDialogVisible(true);
   };
 
   const main = (
     <main ref={formRef}>
-      <SignInModal signingPending={signingPending} closeModal={handleCancel} handleSignIn={handleSign} />
+      <OfframpSummaryDialog
+        executionInput={executionInput}
+        visible={true}
+        anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
+        onSubmit={() => {
+          handleOnAnchorWindowOpen();
+        }}
+        onClose={() => setIsOfframpSummaryDialogVisible(false)}
+      />
       <SigningBox step={offrampSigningPhase} />
-      <form
-        className="max-w-2xl px-4 py-4 mx-4 my-8 rounded-lg shadow-custom md:mx-auto md:w-2/3 lg:w-3/5 xl:w-1/2"
+      <motion.form
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="px-4 pt-4 mx-4 mt-8 mb-4 pb-2 rounded-lg shadow-custom md:mx-auto md:w-96"
         onSubmit={onSwapConfirm}
       >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Withdraw</h1>
-        <LabeledInput label="You withdraw" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-        <Arrow />
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
+        <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
+        <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
@@ -397,7 +449,7 @@ export const SwapPage = () => {
           exchangeRate={
             <ExchangeRate
               {...{
-                tokenOutData: tokenOutAmount,
+                exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
                 fromToken,
                 toTokenSymbol: toToken.fiat.symbol,
               }}
@@ -409,7 +461,9 @@ export const SwapPage = () => {
         </section>
         <section className="flex justify-center w-full mt-5">
           {(initializeFailedMessage || apiInitializeFailed) && (
-            <p className="text-red-600">{initializeFailedMessage}</p>
+            <div className="flex items-center gap-4">
+              <p className="text-red-600">{initializeFailedMessage}</p>
+            </div>
           )}
         </section>
         <section className="w-full mt-5">
@@ -420,46 +474,54 @@ export const SwapPage = () => {
         </section>
         <div className="flex gap-3 mt-5">
           <button
-            className="btn-vortex-secondary btn"
+            className="btn-vortex-primary-inverse btn"
             style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
               // We always show the fees comparison when the user clicks on the button. It will not be hidden again.
-              if (!showCompareFees) setShowCompareFees(true);
+              if (!showCompareFees) {
+                setShowCompareFees(true);
+              }
               // Scroll to the comparison fees section (with a small delay to allow the component to render first)
               setTimeout(() => {
                 feeComparisonRef.current?.scrollIntoView();
               }, 200);
+              // We track the user interaction with the button, for tracking the quote requested.
+              trackQuote.current = true;
             }}
           >
             Compare fees
           </button>
-
-          {firstSep24ResponseState?.url !== undefined ? (
-            // eslint-disable-next-line react/jsx-no-target-blank
-            <a
-              href={firstSep24ResponseState.url}
-              target="_blank"
-              rel="opener" //noopener forbids the use of postMessages.
-              className="btn-vortex-primary btn rounded-xl"
-              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-              onClick={handleOnAnchorWindowOpen}
-              // open in a tinier window
-            >
-              Continue with Partner
-            </a>
-          ) : (
-            <SwapSubmitButton
-              text={offrampInitiating ? 'Confirming' : offrampStarted ? 'Processing Details' : 'Confirm'}
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage} // !!initializeFailedMessage we disable when the initialize failed message is not null
-              pending={offrampInitiating || offrampStarted || offrampState !== undefined}
-            />
-          )}
+          <SwapSubmitButton
+            text={
+              offrampInitiating
+                ? 'Confirming'
+                : offrampStarted && isOfframpSummaryDialogVisible
+                ? 'Processing'
+                : 'Confirm'
+            }
+            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
+            pending={
+              offrampInitiating ||
+              (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
+              offrampState !== undefined
+            }
+          />
         </div>
-        <hr className="mt-6 mb-3" />
+        <div className="mb-16" />
         <PoweredBy />
-      </form>
+      </motion.form>
+      <p className="flex items-center justify-center mr-1 text-gray-500">
+        <a
+          href="https://satoshipay.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex gap-1 text-sm transition hover:opacity-80 items-center"
+        >
+          A <img src={satoshipayLogo} alt="Satoshipay" className="h-4" /> Company
+        </a>
+      </p>
       {showCompareFees && fromToken && fromAmount && toToken && (
         <FeeComparison
           sourceAssetSymbol={fromToken.assetSymbol}
@@ -468,6 +530,7 @@ export const SwapPage = () => {
           vortexPrice={vortexPrice}
           network={selectedNetwork}
           ref={feeComparisonRef}
+          trackQuote={trackQuote.current}
         />
       )}
       <TrustedBy />

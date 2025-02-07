@@ -1,6 +1,6 @@
 import { Wallet } from '@talismn/connect-wallets';
 import { Collapse } from 'react-daisyui';
-import { useState } from 'preact/hooks';
+import { useState } from 'react';
 
 import { useConnectPolkadotWallet } from '../../hooks/useConnectPolkadotWallet';
 import { ConnectModalAccountsList } from './AccountsList';

@@ -88,4 +88,6 @@ router.use('/rating', ratingRoutes);
  */
 router.use('/siwe', siweRoutes);
 
+router.use('/ip', (request: Request, response: Response) => response.send(request.ip));
+
 export default router;

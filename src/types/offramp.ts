@@ -1,30 +1,23 @@
-import { StateUpdater } from 'preact/hooks';
-import Big from 'big.js';
-
 import { OfframpingState } from '../services/offrampingFlow';
 import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
-import { ISep24Intermediate, IAnchorSessionParams } from './sep';
 
-export type OfframpSigningPhase = 'started' | 'approved' | 'signed' | 'finished';
+export type OfframpSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
 
 export interface OfframpExecutionInput {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
-  amountInUnits: string;
-  offrampAmount: Big;
-  setInitializeFailed: StateUpdater<boolean>;
+  inputAmountUnits: string;
+  outputAmountUnits: { beforeFees: string; afterFees: string };
+  effectiveExchangeRate: string;
+  stellarEphemeralSecret?: string;
+  setInitializeFailed: (message?: string | null) => void;
 }
 
 export interface OfframpState {
-  // Core state
   offrampStarted: boolean;
   offrampInitiating: boolean;
   offrampState: OfframpingState | undefined;
   offrampSigningPhase: OfframpSigningPhase | undefined;
-
-  // SEP24 related state @todo move to separate store
-  offrampAnchorSessionParams: IAnchorSessionParams | undefined;
-  offrampFirstSep24Response: ISep24Intermediate | undefined;
   offrampExecutionInput: OfframpExecutionInput | undefined;
 }
 
@@ -33,11 +26,7 @@ export interface OfframpActions {
   setOfframpInitiating: (initiating: boolean) => void;
   setOfframpState: (state: OfframpingState | undefined) => void;
   setOfframpSigningPhase: (phase: OfframpSigningPhase | undefined) => void;
-  setOfframpSep24Params: (
-    params: Partial<
-      Pick<OfframpState, 'offrampAnchorSessionParams' | 'offrampFirstSep24Response' | 'offrampExecutionInput'>
-    >,
-  ) => void;
+  setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
   updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
   resetOfframpState: () => void;
 }

@@ -39,9 +39,11 @@ export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 export interface Fiat {
   assetIcon: AssetIconType;
   symbol: string;
+  name: string;
 }
 
 export interface OutputTokenDetails {
+  anchorHomepageUrl: string;
   tomlFileUrl: string;
   decimals: number;
   fiat: Fiat;
@@ -256,11 +258,13 @@ export function getInputTokenDetails(network: Networks, inputTokenType: InputTok
 export type OutputTokenType = 'eurc' | 'ars';
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
   eurc: {
+    anchorHomepageUrl: 'https://mykobo.co',
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
     decimals: 12,
     fiat: {
       assetIcon: 'eur',
       symbol: 'EUR',
+      name: 'Euro',
     },
     stellarAsset: {
       code: {
@@ -276,16 +280,18 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     erc20WrapperAddress: '6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
-    offrampFeesBasisPoints: 125,
+    offrampFeesBasisPoints: 25,
     usesMemo: false,
     supportsClientDomain: true,
   },
   ars: {
+    anchorHomepageUrl: 'https://home.anclap.com',
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
     decimals: 12,
     fiat: {
       assetIcon: 'ars',
       symbol: 'ARS',
+      name: 'Argentine Peso',
     },
     stellarAsset: {
       code: {
@@ -308,8 +314,12 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
   },
 };
 
+export function getOutputTokenDetails(outputTokenType: OutputTokenType): OutputTokenDetails {
+  return OUTPUT_TOKEN_CONFIG[outputTokenType];
+}
+
 export function getPendulumCurrencyId(outputTokenType: OutputTokenType) {
-  const { stellarAsset } = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const { stellarAsset } = getOutputTokenDetails(outputTokenType);
   return {
     Stellar: {
       AlphaNum4: { code: stellarAsset.code.hex, issuer: stellarAsset.issuer.hex },

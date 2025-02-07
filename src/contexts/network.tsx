@@ -1,15 +1,15 @@
-import { createContext } from 'preact';
-import { useContext, useState, useEffect, useCallback } from 'preact/hooks';
-import { useSwitchChain } from 'wagmi';
+import { createContext, ReactNode, useContext, useState, useEffect, useCallback } from 'react';
+import { useAccount, useSwitchChain } from 'wagmi';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 import { useOfframpActions } from '../stores/offrampStore';
 import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
+import { useSep24Actions } from '../stores/sep24Store';
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
   selectedNetwork: Networks;
-  setSelectedNetwork: (network: Networks) => void;
+  setSelectedNetwork: (network: Networks, resetState?: boolean) => Promise<void>;
   networkSelectorDisabled: boolean;
   setNetworkSelectorDisabled: (disabled: boolean) => void;
 }
@@ -17,13 +17,13 @@ interface NetworkContextType {
 const NetworkContext = createContext<NetworkContextType>({
   walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
   selectedNetwork: Networks.AssetHub,
-  setSelectedNetwork: () => null,
+  setSelectedNetwork: async () => undefined,
   networkSelectorDisabled: false,
   setNetworkSelectorDisabled: () => null,
 });
 
 interface NetworkProviderProps {
-  children: preact.ComponentChildren;
+  children: ReactNode;
 }
 
 export const NetworkProvider = ({ children }: NetworkProviderProps) => {
@@ -36,20 +36,29 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
 
   const { resetOfframpState } = useOfframpActions();
-  const { switchChain } = useSwitchChain();
+  const { cleanup: cleanupSep24Variables } = useSep24Actions();
+  const { switchChainAsync } = useSwitchChain();
+  const { chain: connectedEvmChain } = useAccount();
 
   const setSelectedNetwork = useCallback(
-    (network: Networks) => {
-      resetOfframpState();
+    async (network: Networks, resetState = false) => {
+      if (resetState) {
+        resetOfframpState();
+        cleanupSep24Variables();
+      }
       setSelectedNetworkState(network);
       setSelectedNetworkLocalStorage(network);
 
-      // Will only switch chain on the EVM conneted wallet case.
+      // Will only switch chain on the EVM connected wallet case.
       if (isNetworkEVM(network)) {
-        switchChain({ chainId: getNetworkId(network) });
+        // Only switch chain if the network is different from the current one
+        // see https://github.com/wevm/wagmi/issues/3417
+        if (!connectedEvmChain || connectedEvmChain.id !== getNetworkId(network)) {
+          await switchChainAsync({ chainId: getNetworkId(network) });
+        }
       }
     },
-    [switchChain, setSelectedNetworkLocalStorage, resetOfframpState],
+    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
   );
 
   // Only run on first render

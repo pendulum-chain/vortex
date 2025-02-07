@@ -1,6 +1,6 @@
 import Big from 'big.js';
-import { useEffect, useRef, useMemo, useImperativeHandle } from 'preact/hooks';
-import { forwardRef } from 'preact/compat';
+import { useEffect, useRef, useMemo, useImperativeHandle } from 'react';
+import { forwardRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
@@ -16,6 +16,7 @@ interface BaseComparisonProps {
   targetAssetSymbol: string;
   vortexPrice: Big;
   network: Networks;
+  trackQuote: boolean;
 }
 
 type VortexRowProps = Pick<BaseComparisonProps, 'targetAssetSymbol' | 'vortexPrice'>;
@@ -46,11 +47,12 @@ function FeeProviderRow({
   targetAssetSymbol,
   vortexPrice,
   network,
+  trackQuote,
 }: FeeProviderRowProps) {
   const { scheduleQuote } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
-  const prevVortexPrice = useRef<Big>();
+  const prevVortexPrice = useRef<Big | null>(null);
 
   const {
     isLoading,
@@ -79,7 +81,7 @@ function FeeProviderRow({
 
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
 
-    scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters);
+    scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, trackQuote);
     prevVortexPrice.current = vortexPrice;
   }, [
     amount,
@@ -135,7 +137,7 @@ function FeeComparisonTable(props: BaseComparisonProps) {
                 className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
                 data-tip={`Quotes are for Polygon, as the providers don't support ${getNetworkDisplayName(network)}.`}
               >
-                (Polygon)
+                <span translate="no">(Polygon)</span>
               </div>
             )}{' '}
             with

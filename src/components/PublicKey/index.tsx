@@ -1,4 +1,4 @@
-import { CSSProperties } from 'preact/compat';
+import { CSSProperties } from 'react';
 
 export type FormatPublicKeyVariant = 'full' | 'short' | 'shorter' | 'hexa';
 

@@ -1,10 +1,12 @@
 // @todo: remove no-explicit-any
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Big from 'big.js';
+import { encodeAddress } from '@polkadot/util-crypto';
 
 import { stellarHexToPublic, hexToString } from './convert';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
+export type XcmSentEvent = ReturnType<typeof parseEventXcmSent>;
 
 export type TokenTransferEvent = ReturnType<typeof parseTokenDepositEvent>;
 
@@ -50,6 +52,14 @@ export function parseEventRedeemExecution(event: any) {
     asset: extractStellarAssetInfo(rawEventData[4]),
     fee: parseInt(rawEventData[5].toString(), 10),
     transferFee: parseInt(rawEventData[6].toString(), 10),
+  };
+  return mappedData;
+}
+
+export function parseEventXcmSent(event: any) {
+  const rawEventData = JSON.parse(event.event.data.toString());
+  const mappedData = {
+    originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId32.id.toString()),
   };
   return mappedData;
 }

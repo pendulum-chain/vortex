@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'preact/compat';
+import { useState, useCallback } from 'react';
 import { SignInMessage } from '../helpers/siweMessageFormatter';
 
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
 import { useVortexAccount } from './useVortexAccount';
+import { useOfframpActions } from '../stores/offrampStore';
+import { useEffect } from 'react';
 
 export interface SiweSignatureData {
   signatureSet: boolean;
@@ -24,9 +26,8 @@ function createSiweMessage(address: string, nonce: string) {
 }
 
 export function useSiweSignature() {
-  const [signingPending, setSigningPending] = useState(false);
   const { address, getMessageSignature } = useVortexAccount();
-
+  const { setOfframpSigningPhase } = useOfframpActions();
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
   const [signPromise, setSignPromise] = useState<{
@@ -55,9 +56,9 @@ export function useSiweSignature() {
     if (signPromise) return;
     return new Promise((resolve, reject) => {
       setSignPromise({ resolve, reject });
-      setSigningPending(true);
+      setOfframpSigningPhase?.('login');
     });
-  }, [setSigningPending, setSignPromise, signPromise]);
+  }, [setOfframpSigningPhase, setSignPromise, signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
@@ -95,23 +96,27 @@ export function useSiweSignature() {
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
       signPromise.resolve();
+      setOfframpSigningPhase?.('finished');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      signPromise.reject(new Error('Signing failed: ' + errorMessage));
-    } finally {
-      setSigningPending(false);
-      setSignPromise(null);
-    }
-  }, [address, storageKey, signPromise, setSigningPending, setSignPromise, getMessageSignature]);
+      setOfframpSigningPhase?.(undefined);
 
-  // Handler for modal cancellation
-  const handleCancel = useCallback(() => {
-    if (signPromise) {
-      signPromise.reject(new Error('User cancelled'));
+      // First case Assethub, second case EVM
+      if (
+        (error as Error).message.includes('User rejected the request') ||
+        (error as Error).message.includes('Cancelled')
+      ) {
+        return signPromise.reject(new Error('Signing failed: User rejected sign request'));
+      }
+      return signPromise.reject(new Error('Signing failed: Failed to sign login challenge. ' + errorMessage));
+    } finally {
       setSignPromise(null);
     }
-    setSigningPending(false);
-  }, [signPromise, setSigningPending, setSignPromise]);
+  }, [address, storageKey, signPromise, setSignPromise, getMessageSignature, setOfframpSigningPhase]);
+
+  useEffect(() => {
+    if (signPromise) handleSign();
+  }, [signPromise, handleSign]);
 
   const checkAndWaitForSignature = useCallback(async (): Promise<void> => {
     const stored = checkStoredSignature();
@@ -125,9 +130,6 @@ export function useSiweSignature() {
   }, [storageKey, signMessage]);
 
   return {
-    signingPending,
-    handleSign,
-    handleCancel,
     checkAndWaitForSignature,
     forceRefreshAndWaitForSignature,
   };
