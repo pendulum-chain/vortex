@@ -25,7 +25,7 @@ const features: Feature[] = [
   {
     icon: LOCK,
     title: 'Security First, Always',
-    description: 'Vortex Network is non-custodial by design. Your assets are handled with care and security.',
+    description: 'Vortex is non-custodial by design. Your assets are handled with care and security.',
   },
   {
     icon: USER_CHECK,
