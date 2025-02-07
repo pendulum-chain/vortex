@@ -4,7 +4,7 @@ import { removeEmptyKeys, sortObject } from './helpers';
 
 const { quoteProviders } = config;
 
-interface AlchemyPayQuote {
+export interface AlchemyPayQuote {
   cryptoPrice: number;
   cryptoAmount: number;
   fiatAmount: number;
