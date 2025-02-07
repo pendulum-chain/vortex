@@ -174,7 +174,9 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
         >
           {!isNetworkEVM(selectedNetwork) ? 'This usually takes 4-6 minutes.' : 'This usually takes 6-8 minutes.'}
         </motion.h1>
-        <div>{message}</div>
+        <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}>
+          {message}
+        </motion.p>
       </div>
     </Box>
   );
