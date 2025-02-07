@@ -3,6 +3,9 @@ import { Request, Response, NextFunction } from 'express';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
 import * as transakService from '../services/transak.service';
 import * as moonpayService from '../services/moonpay.service';
+import { MoonpayQuote } from '../services/moonpay.service';
+import { AlchemyPayQuote } from '../services/alchemypay/alchemypay.service';
+import { QuoteResult } from '../services/transak.service';
 
 export const SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
 export type Provider = (typeof SUPPORTED_PROVIDERS)[number];
@@ -21,12 +24,14 @@ export interface QuoteRequest {
   network?: string;
 }
 
+type AnyQuote = AlchemyPayQuote | MoonpayQuote | QuoteResult;
+
 type QuoteHandler = (
   fromCrypto: CryptoCurrency,
   toFiat: FiatCurrency,
   amount: string,
   network?: string,
-) => Promise<unknown>;
+) => Promise<AnyQuote>;
 
 const providerHandlers: Record<Provider, QuoteHandler> = {
   alchemypay: async (fromCrypto, toFiat, amount, network) => {
