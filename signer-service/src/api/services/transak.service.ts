@@ -14,7 +14,7 @@ interface TransakQuoteResponse {
   };
 }
 
-interface QuoteResult {
+export interface TransakQuoteResult {
   cryptoPrice: number;
   cryptoAmount: number;
   fiatAmount: number;
@@ -32,7 +32,7 @@ async function priceQuery(
   network: Network,
   isBuyOrSell: Side,
   paymentMethod?: string,
-): Promise<QuoteResult> {
+): Promise<TransakQuoteResult> {
   const { baseUrl, partnerApiKey } = quoteProviders.transak;
   const requestPath = '/api/v1/pricing/public/quotes';
   const requestUrl = `${baseUrl}${requestPath}`;
@@ -106,7 +106,7 @@ export const getQuoteFor = (
   toFiat: string,
   amount: string | number,
   network?: string,
-): Promise<QuoteResult> => {
+): Promise<TransakQuoteResult> => {
   const DEFAULT_NETWORK = 'POLYGON';
   const networkCode = getTransakNetworkCode(network || DEFAULT_NETWORK);
   const side: Side = 'SELL'; // We always sell our crypto for fiat

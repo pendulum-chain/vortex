@@ -5,7 +5,7 @@ import * as transakService from '../services/transak.service';
 import * as moonpayService from '../services/moonpay.service';
 import { MoonpayQuote } from '../services/moonpay.service';
 import { AlchemyPayQuote } from '../services/alchemypay/alchemypay.service';
-import { QuoteResult } from '../services/transak.service';
+import { TransakQuoteResult } from '../services/transak.service';
 
 export const SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
 export type Provider = (typeof SUPPORTED_PROVIDERS)[number];
@@ -24,7 +24,7 @@ export interface QuoteRequest {
   network?: string;
 }
 
-type AnyQuote = AlchemyPayQuote | MoonpayQuote | QuoteResult;
+type AnyQuote = AlchemyPayQuote | MoonpayQuote | TransakQuoteResult;
 
 type QuoteHandler = (
   fromCrypto: CryptoCurrency,
