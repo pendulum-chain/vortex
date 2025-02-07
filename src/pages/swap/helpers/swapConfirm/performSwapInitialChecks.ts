@@ -1,13 +1,18 @@
 import { ApiPromise } from '@polkadot/api';
 
-import { InputTokenDetails, OutputTokenDetails } from '../../../../constants/tokenConfig';
+import {
+  InputTokenDetails,
+  isStellarOutputTokenDetails,
+  OutputTokenDetailsMoonbeam,
+  OutputTokenDetailsSpacewalk,
+} from '../../../../constants/tokenConfig';
 import { getVaultsForCurrency } from '../../../../services/phases/polkadot/spacewalk';
 import { testRoute } from '../../../../services/phases/squidrouter/route';
 import { Networks } from '../../../../helpers/networks';
 
 export const performSwapInitialChecks = async (
   api: ApiPromise,
-  outputToken: OutputTokenDetails,
+  outputToken: OutputTokenDetailsMoonbeam | OutputTokenDetailsSpacewalk,
   fromToken: InputTokenDetails,
   expectedRedeemAmountRaw: string,
   inputAmountRaw: string,
@@ -15,13 +20,17 @@ export const performSwapInitialChecks = async (
   requiresSquidRouter: boolean,
   selectedNetwork: Networks,
 ) => {
-  await Promise.all([
-    getVaultsForCurrency(
-      api,
-      outputToken.stellarAsset.code.hex,
-      outputToken.stellarAsset.issuer.hex,
-      expectedRedeemAmountRaw,
-    ),
-    requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address, selectedNetwork) : Promise.resolve(),
-  ]);
+  if (isStellarOutputTokenDetails(outputToken)) {
+    await Promise.all([
+      getVaultsForCurrency(
+        api,
+        (outputToken as OutputTokenDetailsSpacewalk).stellarAsset.code.hex,
+        (outputToken as OutputTokenDetailsSpacewalk).stellarAsset.issuer.hex,
+        expectedRedeemAmountRaw,
+      ),
+      requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address, selectedNetwork) : Promise.resolve(),
+    ]);
+  } else {
+    await (requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address, selectedNetwork) : Promise.resolve());
+  }
 };

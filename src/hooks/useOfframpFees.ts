@@ -1,9 +1,9 @@
 import Big from 'big.js';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { roundDownToTwoDecimals } from '../helpers/parseNumbers';
-import { OutputTokenDetails } from '../constants/tokenConfig';
+import { BaseOutputTokenDetails } from '../constants/tokenConfig';
 
-export const useOfframpFees = (toAmount: Big, toToken: OutputTokenDetails) => {
+export const useOfframpFees = (toAmount: Big, toToken: BaseOutputTokenDetails) => {
   const toAmountFixed = roundDownToTwoDecimals(toAmount);
   const totalReceive = calculateTotalReceive(toAmount, toToken);
   const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive));

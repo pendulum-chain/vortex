@@ -42,11 +42,21 @@ export interface Fiat {
   name: string;
 }
 
-export interface OutputTokenDetails {
+export interface BaseOutputTokenDetails {
   anchorHomepageUrl: string;
   tomlFileUrl: string;
   decimals: number;
   fiat: Fiat;
+  minWithdrawalAmountRaw: string;
+  maxWithdrawalAmountRaw: string;
+  erc20WrapperAddress: string;
+  offrampFeesBasisPoints: number;
+  offrampFeesFixedComponent?: number;
+  usesMemo: boolean;
+}
+
+export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
+  type: 'spacewalk';
   stellarAsset: {
     code: {
       hex: string;
@@ -58,13 +68,26 @@ export interface OutputTokenDetails {
     };
   };
   vaultAccountId: string;
-  minWithdrawalAmountRaw: string;
-  maxWithdrawalAmountRaw: string;
-  erc20WrapperAddress: string;
-  offrampFeesBasisPoints: number;
-  offrampFeesFixedComponent?: number;
-  usesMemo: boolean;
   supportsClientDomain: boolean;
+};
+
+export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
+  type: 'moonbeam';
+  pendulumErc20WrapperAddress: string;
+  pendulumCurrencyId: { XCM: number };
+  pendulumAssetSymbol: string;
+  pendulumDecimals: number;
+};
+
+export function isStellarOutputTokenDetails(
+  outputTokenDetails: OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam,
+): boolean {
+  return outputTokenDetails.type === 'spacewalk';
+}
+
+export function isStellarOutputToken(outputToken: OutputTokenType): boolean {
+  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputToken];
+  return (maybeOutputTokenDetails as OutputTokenDetailsSpacewalk).type === 'spacewalk';
 }
 
 const PENDULUM_USDC_AXL = {
@@ -80,6 +103,13 @@ const PENDULUM_USDC_ASSETHUB = {
   foreignAssetId: 1337, // USDC on AssetHub
   pendulumAssetSymbol: 'USDC',
   pendulumDecimals: 6,
+};
+
+const PENDULUM_BRLA_MOONBEAM = {
+  pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF',
+  pendulumCurrencyId: { XCM: 13 },
+  pendulumAssetSymbol: 'BRLA',
+  pendulumDecimals: 18,
 };
 
 export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType, InputTokenDetails>>> = {
@@ -255,9 +285,10 @@ export function getInputTokenDetails(network: Networks, inputTokenType: InputTok
   }
 }
 
-export type OutputTokenType = 'eurc' | 'ars';
-export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = {
+export type OutputTokenType = 'eurc' | 'ars' | 'brl';
+export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
   eurc: {
+    type: 'spacewalk',
     anchorHomepageUrl: 'https://mykobo.co',
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
     decimals: 12,
@@ -285,6 +316,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     supportsClientDomain: true,
   },
   ars: {
+    type: 'spacewalk',
     anchorHomepageUrl: 'https://home.anclap.com',
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
     decimals: 12,
@@ -312,14 +344,46 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetails> = 
     usesMemo: true,
     supportsClientDomain: true,
   },
+  brl: {
+    type: 'moonbeam',
+    anchorHomepageUrl: '???',
+    tomlFileUrl: '??',
+    decimals: 18,
+    fiat: {
+      assetIcon: 'brl',
+      symbol: 'BRL',
+      name: 'Brazilian Real',
+    },
+    erc20WrapperAddress: '6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv',
+    minWithdrawalAmountRaw: '1',
+    maxWithdrawalAmountRaw: '50000000000000000000000000000000',
+    offrampFeesBasisPoints: 0,
+    offrampFeesFixedComponent: 0.75, // 0.75 BRL
+    usesMemo: true, // Not really, but we need to identify the user.
+    ...PENDULUM_BRLA_MOONBEAM,
+  },
 };
 
-export function getOutputTokenDetails(outputTokenType: OutputTokenType): OutputTokenDetails {
+export function getOutputTokenDetailsSpacewalk(outputTokenType: OutputTokenType): OutputTokenDetailsSpacewalk {
+  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputTokenType] as OutputTokenDetailsSpacewalk;
+
+  if (!maybeOutputTokenDetails.stellarAsset) throw new Error(`Invalid output token type: ${outputTokenType}`);
+
+  return OUTPUT_TOKEN_CONFIG[outputTokenType] as OutputTokenDetailsSpacewalk;
+}
+
+export function getBaseOutputTokenDetails(outputTokenType: OutputTokenType): BaseOutputTokenDetails {
+  return OUTPUT_TOKEN_CONFIG[outputTokenType];
+}
+
+export function getOutputTokenDetails(
+  outputTokenType: OutputTokenType,
+): OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam {
   return OUTPUT_TOKEN_CONFIG[outputTokenType];
 }
 
 export function getPendulumCurrencyId(outputTokenType: OutputTokenType) {
-  const { stellarAsset } = getOutputTokenDetails(outputTokenType);
+  const { stellarAsset } = getOutputTokenDetailsSpacewalk(outputTokenType);
   return {
     Stellar: {
       AlphaNum4: { code: stellarAsset.code.hex, issuer: stellarAsset.issuer.hex },

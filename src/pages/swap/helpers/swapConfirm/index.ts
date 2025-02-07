@@ -32,7 +32,7 @@ interface SwapConfirmParams {
   setOfframpInitiating: (initiating: boolean) => void;
   setTermsAccepted: (accepted: boolean) => void;
   to: OutputTokenType;
-  tokenOutAmount: { data: TokenOutData | undefined };
+  tokenOutAmount: any;
 }
 
 export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmParams) {
@@ -54,6 +54,8 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
     to,
     tokenOutAmount,
   } = params;
+
+  if (tokenOutAmount.data?.effectiveExchangeRate === '1') return;
 
   const validInputs = validateSwapInputs(inputAmountIsStable, address, fromAmount, tokenOutAmount.data);
   if (!validInputs) {

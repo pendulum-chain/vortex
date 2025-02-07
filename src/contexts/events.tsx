@@ -2,7 +2,7 @@ import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
 import * as Sentry from '@sentry/react';
-import { getInputTokenDetails, getOutputTokenDetails } from '../constants/tokenConfig';
+import { getBaseOutputTokenDetails, getInputTokenDetails } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
@@ -326,9 +326,9 @@ export function createTransactionEvent(
   return {
     event: type,
     from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType)?.assetSymbol ?? 'unknown',
-    to_asset: getOutputTokenDetails(state.outputTokenType)?.stellarAsset?.code?.string,
+    to_asset: getBaseOutputTokenDetails(state.outputTokenType)?.stellarAsset?.code?.string,
     from_amount: state.inputAmount.units,
-    to_amount: calculateTotalReceive(Big(state.outputAmount.units), getOutputTokenDetails(state.outputTokenType)),
+    to_amount: calculateTotalReceive(Big(state.outputAmount.units), getBaseOutputTokenDetails(state.outputTokenType)),
   };
 }
 
