@@ -2,7 +2,7 @@ import { config } from '../../config/vars';
 
 const { quoteProviders } = config;
 
-interface MoonpayQuote {
+export interface MoonpayQuote {
   cryptoPrice: number;
   cryptoAmount: number;
   fiatAmount: number;
