@@ -1,4 +1,3 @@
-import { Input } from 'react-daisyui';
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { handleOnChangeNumericInput, handleOnPasteNumericInput } from './helpers';
 import { ChangeEvent, ClipboardEvent } from 'react';
@@ -10,7 +9,6 @@ interface NumericInputProps {
   maxDecimals?: number;
   defaultValue?: string;
   autoFocus?: boolean;
-  disableStyles?: boolean;
   disabled?: boolean;
   onChange?: (e: ChangeEvent) => void;
 }
@@ -22,9 +20,8 @@ export const NumericInput = ({
   maxDecimals = 2,
   defaultValue,
   autoFocus,
-  disableStyles = false,
-  disabled,
   onChange,
+  disabled = false,
 }: NumericInputProps) => {
   function handleOnChange(e: ChangeEvent): void {
     handleOnChangeNumericInput(e, maxDecimals);
@@ -39,23 +36,22 @@ export const NumericInput = ({
   const removeText = disabled ? ' opacity-0' : '';
 
   return (
-    <div className={disableStyles ? 'relative flex-grow' : 'relative flex-grow text-black font-outfit'}>
-      <Input
+    <div className="relative flex-grow">
+      <input
         {...register}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
-        className={
-          disableStyles
-            ? 'border-0 bg-transparent focus:outline-none px-4 text-opacity-100 ' + additionalStyle + removeText
-            : 'input-ghost w-full text-lg pl-2 focus:outline-none text-accent-content text-opacity-100' + removeText
-        }
+        className={`input border-0 focus:shadow-none bg-transparent focus:outline-none px-4 w-full h-full ${
+          additionalStyle || ''
+        } ${removeText}`}
         minLength={1}
         onChange={handleOnChange}
         onPaste={handleOnPaste}
         pattern="^[0-9]*[.,]?[0-9]*$"
         placeholder="0.0"
         readOnly={readOnly}
+        disabled={disabled}
         spellCheck={false}
         step="any"
         type="text"
