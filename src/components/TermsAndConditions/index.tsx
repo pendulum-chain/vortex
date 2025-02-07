@@ -1,6 +1,5 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { Dispatch, SetStateAction } from 'react';
-import { Checkbox, Link } from 'react-daisyui';
 
 interface TermsAndConditionsProps {
   toggleTermsChecked: () => void;
@@ -31,14 +30,14 @@ const TermsAndConditionsContent = ({
   <motion.div key="terms-conditions" exit={fadeOutAnimation}>
     <div className="mb-5 text-sm" />
     <div className="flex text-sm">
-      <Checkbox
+      <input
+        type="checkbox"
+        className="checkbox checkbox-primary checkbox-sm"
         checked={termsChecked}
-        onClick={() => {
+        onChange={() => {
           toggleTermsChecked();
           setTermsError(false);
         }}
-        color="primary"
-        size="sm"
       />
       <TermsText error={termsError} />
     </div>
@@ -51,15 +50,14 @@ const TermsText = ({ error }: { error: boolean }) => (
     animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
   >
     I have read and accept the{' '}
-    <Link
+    <a
       href="https://www.vortexfinance.co/terms-conditions"
-      color={error ? 'error' : 'accent'}
-      className={`transition-all duration-300 ${error ? 'text-red-600 font-bold' : ''}`}
+      className={`link link-accent transition-all duration-300 ${error ? 'text-red-600 font-bold' : ''}`}
       target="_blank"
       rel="noreferrer"
       style={{ textDecoration: 'underline' }}
     >
       Terms and Conditions
-    </Link>
+    </a>
   </motion.span>
 );

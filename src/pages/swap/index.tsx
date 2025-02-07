@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
 import { ApiPromise } from '@polkadot/api';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
@@ -16,6 +16,10 @@ import { LabeledInput } from '../../components/LabeledInput';
 import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { PoweredBy } from '../../components/PoweredBy';
+
+import { PitchSection } from '../../sections/Pitch';
+import { TrustedBy } from '../../sections/TrustedBy';
+import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
   getInputTokenDetailsOrDefault,
@@ -55,9 +59,8 @@ import {
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
-import { TrustedBy } from '../../components/TrustedBy';
-import { WhyVortex } from '../../components/WhyVortex';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
   PendulumFundingAccountError,
@@ -67,6 +70,9 @@ import {
 import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 import satoshipayLogo from '../../assets/logo/satoshipay.svg';
+import { FAQAccordion } from '../../sections/FAQAccordion';
+import { HowToSell } from '../../sections/HowToSell';
+import { PopularTokens } from '../../sections/PopularTokens';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -78,7 +84,6 @@ export const SwapPage = () => {
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
-  const [showCompareFees, setShowCompareFees] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
@@ -182,7 +187,7 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  useSwapUrlParams({ form, setShowCompareFees });
+  useSwapUrlParams({ form, feeComparisonRef });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getOutputTokenDetails(to);
@@ -434,7 +439,7 @@ export const SwapPage = () => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="px-4 pt-4 mx-4 mt-8 mb-4 pb-2 rounded-lg shadow-custom md:mx-auto md:w-96"
+        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
         onSubmit={onSwapConfirm}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
@@ -479,10 +484,6 @@ export const SwapPage = () => {
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
-              // We always show the fees comparison when the user clicks on the button. It will not be hidden again.
-              if (!showCompareFees) {
-                setShowCompareFees(true);
-              }
               // Scroll to the comparison fees section (with a small delay to allow the component to render first)
               setTimeout(() => {
                 feeComparisonRef.current?.scrollIntoView();
@@ -517,24 +518,27 @@ export const SwapPage = () => {
           href="https://satoshipay.io"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex gap-1 text-sm transition hover:opacity-80 items-center"
+          className="flex items-center gap-1 text-sm transition hover:opacity-80"
         >
-          A <img src={satoshipayLogo} alt="Satoshipay" className="h-4" /> Company
+          Developed by <img src={satoshipayLogo} alt="Satoshipay" className="h-4" />
         </a>
       </p>
-      {showCompareFees && fromToken && fromAmount && toToken && (
-        <FeeComparison
-          sourceAssetSymbol={fromToken.assetSymbol}
-          amount={fromAmount}
-          targetAssetSymbol={toToken.fiat.symbol}
-          vortexPrice={vortexPrice}
-          network={selectedNetwork}
-          ref={feeComparisonRef}
-          trackQuote={trackQuote.current}
-        />
-      )}
+      <PitchSection />
       <TrustedBy />
+      <FeeComparison
+        sourceAssetSymbol={fromToken.assetSymbol}
+        amount={fromAmount ?? Big(100)}
+        targetAssetSymbol={toToken.fiat.symbol}
+        vortexPrice={vortexPrice}
+        network={selectedNetwork}
+        ref={feeComparisonRef}
+        trackQuote={trackQuote.current}
+      />
       <WhyVortex />
+      <HowToSell />
+      <PopularTokens />
+      <FAQAccordion />
+      <GotQuestions />
     </main>
   );
 
