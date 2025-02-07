@@ -1,12 +1,12 @@
 import { OfframpingPhase } from '../../services/offrampingFlow';
 
-import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../constants/tokenConfig';
 import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 import { OfframpingState } from '../../services/offrampingFlow';
 
 export function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
   const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
-  const outputToken = OUTPUT_TOKEN_CONFIG[offrampingState.outputTokenType];
+  const outputToken = getOutputTokenDetails(offrampingState.outputTokenType);
   const { phase } = offrampingState;
 
   if (phase === 'success') return 'Transaction completed successfully';

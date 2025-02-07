@@ -9,8 +9,8 @@ interface NumericInputProps {
   maxDecimals?: number;
   defaultValue?: string;
   autoFocus?: boolean;
-  onChange?: (e: ChangeEvent) => void;
   disabled?: boolean;
+  onChange?: (e: ChangeEvent) => void;
 }
 
 export const NumericInput = ({
@@ -33,6 +33,7 @@ export const NumericInput = ({
     handleOnPasteNumericInput(e, maxDecimals);
     register.onChange(e);
   }
+  const removeText = disabled ? ' opacity-0' : '';
 
   return (
     <div className="flex-grow">
@@ -41,10 +42,9 @@ export const NumericInput = ({
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
-        className={
-          'input border-0 focus:shadow-none bg-transparent focus:outline-none px-4 w-full h-full ' +
-          (additionalStyle || '')
-        }
+        className={`input border-0 focus:shadow-none bg-transparent focus:outline-none px-4 w-full h-full ${
+          additionalStyle || ''
+        } ${removeText}`}
         minLength={1}
         onChange={handleOnChange}
         onPaste={handleOnPaste}
@@ -59,6 +59,9 @@ export const NumericInput = ({
         value={defaultValue}
         autoFocus={autoFocus}
       />
+      {disabled && (
+        <span className="absolute top-1/2 right-3 -translate-y-1/2 loading loading-bars loading-sm text-primary"></span>
+      )}
     </div>
   );
 };

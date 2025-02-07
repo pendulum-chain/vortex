@@ -6,6 +6,7 @@ import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow'
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
+import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../constants/tokenConfig';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
 import { createOfframpingPhaseMessage } from './helpers';
