@@ -326,7 +326,7 @@ export function createTransactionEvent(
   return {
     event: type,
     from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType)?.assetSymbol ?? 'unknown',
-    to_asset: getBaseOutputTokenDetails(state.outputTokenType)?.stellarAsset?.code?.string,
+    to_asset: getBaseOutputTokenDetails(state.outputTokenType)?.fiat?.symbol,
     from_amount: state.inputAmount.units,
     to_amount: calculateTotalReceive(Big(state.outputAmount.units), getBaseOutputTokenDetails(state.outputTokenType)),
   };
