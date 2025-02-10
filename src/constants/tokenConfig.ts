@@ -71,6 +71,21 @@ export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
   supportsClientDomain: boolean;
 };
 
+export type PendulumCurrencyId = PendulumStellarCurrencyId | PendulumXcmCurrencyId;
+
+export type PendulumStellarCurrencyId = {
+  Stellar: {
+    AlphaNum4: {
+      code: string;
+      issuer: string;
+    };
+  };
+};
+
+export type PendulumXcmCurrencyId = {
+  XCM: number;
+};
+
 export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   type: 'moonbeam';
   pendulumErc20WrapperAddress: string;
@@ -81,13 +96,13 @@ export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
 
 export function isStellarOutputTokenDetails(
   outputTokenDetails: OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam,
-): boolean {
+): outputTokenDetails is OutputTokenDetailsSpacewalk {
   return outputTokenDetails.type === 'spacewalk';
 }
 
 export function isStellarOutputToken(outputToken: OutputTokenType): boolean {
   const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputToken];
-  return (maybeOutputTokenDetails as OutputTokenDetailsSpacewalk).type === 'spacewalk';
+  return maybeOutputTokenDetails.type === 'spacewalk';
 }
 
 const PENDULUM_USDC_AXL = {
@@ -365,11 +380,12 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
 };
 
 export function getOutputTokenDetailsSpacewalk(outputTokenType: OutputTokenType): OutputTokenDetailsSpacewalk {
-  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputTokenType] as OutputTokenDetailsSpacewalk;
+  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputTokenType];
 
-  if (!maybeOutputTokenDetails.stellarAsset) throw new Error(`Invalid output token type: ${outputTokenType}`);
-
-  return OUTPUT_TOKEN_CONFIG[outputTokenType] as OutputTokenDetailsSpacewalk;
+  if (isStellarOutputTokenDetails(maybeOutputTokenDetails)) {
+    return maybeOutputTokenDetails;
+  }
+  throw new Error(`Invalid output token type: ${outputTokenType}. Token type is not Stellar.`);
 }
 
 export function getBaseOutputTokenDetails(outputTokenType: OutputTokenType): BaseOutputTokenDetails {
@@ -382,11 +398,15 @@ export function getOutputTokenDetails(
   return OUTPUT_TOKEN_CONFIG[outputTokenType];
 }
 
-export function getPendulumCurrencyId(outputTokenType: OutputTokenType) {
-  const { stellarAsset } = getOutputTokenDetailsSpacewalk(outputTokenType);
-  return {
-    Stellar: {
-      AlphaNum4: { code: stellarAsset.code.hex, issuer: stellarAsset.issuer.hex },
-    },
-  };
+export function getPendulumCurrencyId(outputTokenType: OutputTokenType): PendulumCurrencyId {
+  const tokenDetails = getOutputTokenDetails(outputTokenType);
+  if (isStellarOutputTokenDetails(tokenDetails)) {
+    return {
+      Stellar: {
+        AlphaNum4: { code: tokenDetails.stellarAsset.code.hex, issuer: tokenDetails.stellarAsset.issuer.hex },
+      },
+    };
+  } else {
+    return tokenDetails.pendulumCurrencyId;
+  }
 }

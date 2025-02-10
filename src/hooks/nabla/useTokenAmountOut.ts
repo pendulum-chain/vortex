@@ -74,8 +74,6 @@ export function useTokenOutAmount({
     // no action required
   }
 
-  //if (!isStellarOutputToken(outputTokenType)) return { isLoading: false, enabled: true, data: { roundedDownQuotedAmountOut: new Big(5), effectiveExchangeRate: '1'}, error: undefined, stableAmountInUnits: 0 };
-
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
   const outputToken = getBaseOutputTokenDetails(outputTokenType);
 

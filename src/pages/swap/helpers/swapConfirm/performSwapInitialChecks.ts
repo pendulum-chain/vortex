@@ -24,8 +24,8 @@ export const performSwapInitialChecks = async (
     await Promise.all([
       getVaultsForCurrency(
         api,
-        (outputToken as OutputTokenDetailsSpacewalk).stellarAsset.code.hex,
-        (outputToken as OutputTokenDetailsSpacewalk).stellarAsset.issuer.hex,
+        outputToken.stellarAsset.code.hex,
+        outputToken.stellarAsset.issuer.hex,
         expectedRedeemAmountRaw,
       ),
       requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address, selectedNetwork) : Promise.resolve(),

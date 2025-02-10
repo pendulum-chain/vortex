@@ -33,9 +33,7 @@ export function createOfframpingPhaseMessage(offrampingState: OfframpingState, n
     nablaSwap: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
     subsidizePostSwap: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
     executeSpacewalkRedeem: isStellarOutputTokenDetails(outputTokenDetails)
-      ? `Bridging ${
-          (outputTokenDetails as OutputTokenDetailsSpacewalk).stellarAsset.code.string
-        } to Stellar via Spacewalk`
+      ? `Bridging ${outputTokenDetails.stellarAsset.code.string} to Stellar via Spacewalk`
       : '',
     pendulumCleanup: 'Transferring to local partner for bank transfer',
     stellarOfframp: 'Transferring to local partner for bank transfer',
