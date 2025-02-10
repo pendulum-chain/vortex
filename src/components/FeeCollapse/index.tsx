@@ -35,15 +35,6 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
   const trackFeeCollapseOpen = () => {
     trackEvent({ event: 'click_details' });
   };
-  // if (!isStellarOutputTokenDetails(toToken))  {
-  //   console.log(
-  //     'toToken is not supported for fees yet!',
-  //     toToken
-  //   )
-  // return(
-  //   //token not supported yet!
-  //   <div></div>
-  // )};
 
   const { toAmountFixed, totalReceiveFormatted, feesCost } = useOfframpFees(toAmount, toToken);
 
