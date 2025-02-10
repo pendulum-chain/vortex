@@ -5,7 +5,7 @@ const TOKEN_CONFIG = {
     assetIssuer: 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
     vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
     minWithdrawalAmount: '10000000000000',
-    maximumSubsidyAmountRaw: '6000000000000', // 6 units
+    maximumSubsidyAmountRaw: '10000000000000', // 10 units
     homeDomain: 'circle.anchor.mykobo.co',
     clientDomainEnabled: true,
     memoEnabled: false,
@@ -21,12 +21,12 @@ const TOKEN_CONFIG = {
   'usdc.axl': {
     pendulumCurrencyId: { XCM: 12 },
     decimals: 6,
-    maximumSubsidyAmountRaw: '6000000', // 6 units
+    maximumSubsidyAmountRaw: '10000000', // 10 units
   },
   usdc: {
     pendulumCurrencyId: { XCM: 2 },
     decimals: 6,
-    maximumSubsidyAmountRaw: '6000000', // 6 units
+    maximumSubsidyAmountRaw: '10000000', // 10 units
   },
   ars: {
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
