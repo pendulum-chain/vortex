@@ -32,7 +32,7 @@ interface SwapConfirmParams {
   setOfframpInitiating: (initiating: boolean) => void;
   setTermsAccepted: (accepted: boolean) => void;
   to: OutputTokenType;
-  tokenOutAmount: any;
+  tokenOutAmount: { data: TokenOutData | undefined };
 }
 
 export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmParams) {
