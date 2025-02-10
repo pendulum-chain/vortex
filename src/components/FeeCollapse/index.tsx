@@ -1,10 +1,6 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import {
-  isStellarOutputTokenDetails,
-  BaseOutputTokenDetails,
-  OutputTokenDetailsMoonbeam,
-} from '../../constants/tokenConfig';
+import { BaseOutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 

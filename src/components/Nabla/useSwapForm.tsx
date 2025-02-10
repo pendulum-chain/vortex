@@ -66,7 +66,7 @@ export const useSwapForm = () => {
 
     const initialFromToken = getInputTokenDetails(network, initialValues.from as InputTokenType);
     const initialFromTokenIsValid = initialFromToken !== undefined;
-    const initialToTokenIsValid = isStellarOutputToken(initialValues.to as OutputTokenType);
+    const initialToTokenIsValid = getBaseOutputTokenDetails(initialValues.to as OutputTokenType);
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;
     const to = (initialToTokenIsValid ? initialValues.to : defaultValues.to) as OutputTokenType;

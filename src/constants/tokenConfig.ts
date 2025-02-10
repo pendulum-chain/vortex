@@ -102,6 +102,7 @@ export function isStellarOutputTokenDetails(
 
 export function isStellarOutputToken(outputToken: OutputTokenType): boolean {
   const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputToken];
+  if (!maybeOutputTokenDetails) return false;
   return maybeOutputTokenDetails.type === 'spacewalk';
 }
 
