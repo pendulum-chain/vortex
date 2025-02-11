@@ -18,6 +18,15 @@ interface StatusResponse {
   public: Address | undefined;
 }
 
+interface ExecuteXcmRequest {
+  id: string;
+  payload: string;
+}
+
+interface ExecuteXcmResponse {
+  hash: `0x${string}`;
+}
+
 const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
   const walletClient = createWalletClient({
     account: executorAccount,
@@ -33,7 +42,10 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
   return { walletClient, publicClient };
 };
 
-export const executeXcmController = async (req: Request, res: Response): Promise<void> => {
+export const executeXcmController = async (
+  req: Request<{}, {}, ExecuteXcmRequest>,
+  res: Response<ExecuteXcmResponse | { error: string }>,
+): Promise<void> => {
   const { id, payload } = req.body;
 
   try {

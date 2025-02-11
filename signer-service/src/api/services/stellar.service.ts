@@ -1,12 +1,6 @@
 import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } from 'stellar-sdk';
-import {
-  HORIZON_URL,
-  FUNDING_SECRET,
-  STELLAR_FUNDING_AMOUNT_UNITS,
-  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
-} from '../../constants/constants';
+import { HORIZON_URL, FUNDING_SECRET, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../constants/constants';
 import { StellarTokenConfig, TOKEN_CONFIG, getTokenConfigByAssetCode } from '../../constants/tokenConfig';
-import { SlackNotifier } from './slack.service';
 
 export interface PaymentData {
   amount: string;
@@ -24,14 +18,9 @@ interface PaymentTxResult {
   signature: string[];
 }
 
-interface StatusResult {
-  status: boolean;
-  public: string;
-}
-
 // Constants
 const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET || '').publicKey();
-const horizonServer = new Horizon.Server(HORIZON_URL);
+export const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 async function buildCreationStellarTx(
@@ -147,29 +136,4 @@ async function buildPaymentAndMergeTx(
   };
 }
 
-async function sendStatusWithPk(): Promise<StatusResult> {
-  const slackNotifier = new SlackNotifier();
-
-  try {
-    const account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
-    const stellarBalance = account.balances.find(
-      (balance: { asset_type: string; balance: string }) => balance.asset_type === 'native',
-    );
-
-    if (!stellarBalance || Number(stellarBalance.balance) < Number(STELLAR_FUNDING_AMOUNT_UNITS)) {
-      await slackNotifier.sendMessage({
-        text: `Current balance of funding account is ${
-          stellarBalance?.balance ?? 0
-        } XLM please charge the account ${FUNDING_PUBLIC_KEY}.`,
-      });
-      return { status: false, public: FUNDING_PUBLIC_KEY };
-    }
-
-    return { status: true, public: FUNDING_PUBLIC_KEY };
-  } catch (error) {
-    console.error("Couldn't load Stellar account:", error);
-    return { status: false, public: FUNDING_PUBLIC_KEY };
-  }
-}
-
-export { buildCreationStellarTx, buildPaymentAndMergeTx, sendStatusWithPk };
+export { buildCreationStellarTx, buildPaymentAndMergeTx };

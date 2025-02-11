@@ -12,6 +12,7 @@
     "lint": "eslint ./src/**/*.{js,ts} --ignore-path .gitignore --ignore-pattern internals/scripts",
     "lint-staged": "prettier --write",
     "test": "vitest",
+    "precommit": "yarn lint-staged && yarn lint",
     "build": "swc src -d dist --strip-leading-paths",
     "serve": "node dist/index.js",
     "start": "yarn build && yarn serve",

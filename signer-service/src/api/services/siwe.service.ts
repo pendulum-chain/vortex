@@ -21,7 +21,7 @@ interface SiweData {
 // Map that will hold the siwe messages sent + nonce we defined
 const siweMessagesMap = new Map<string, SiweData>();
 
-const createAndSendNonce = async (address: string): Promise<{ nonce: string }> => {
+export const createAndSendNonce = async (address: string): Promise<{ nonce: string }> => {
   const nonce = generateNonce();
   const siweMessage = undefined; // Initial message is undefined since it will be created in UI.
   siweMessagesMap.set(nonce, { siweMessage, address });
@@ -30,7 +30,7 @@ const createAndSendNonce = async (address: string): Promise<{ nonce: string }> =
 
 // Used to verify the integrity and validity of the signature
 // For the initial verification, the siweMessage must be provided as parameter
-const verifySiweMessage = async (
+export const verifySiweMessage = async (
   nonce: string,
   signature: string,
   initialSiweMessage?: string,
@@ -115,7 +115,11 @@ const verifyInitialMessageFields = (siweMessage: SignInMessage): void => {
   }
 };
 
-const verifyAndStoreSiweMessage = async (nonce: string, signature: string, siweMessage: string): Promise<string> => {
+export const verifyAndStoreSiweMessage = async (
+  nonce: string,
+  signature: string,
+  siweMessage: string,
+): Promise<string> => {
   const validatedMessage = await verifySiweMessage(nonce, signature, siweMessage);
 
   // Perform additional checks to ensure message fields are valid
@@ -139,7 +143,7 @@ const verifyAndStoreSiweMessage = async (nonce: string, signature: string, siweM
   return siweData.address;
 };
 
-const validateSignatureAndGetMemo = async (
+export const validateSignatureAndGetMemo = async (
   nonce: string | null,
   userChallengeSignature: string | null,
 ): Promise<string | null> => {
@@ -157,5 +161,3 @@ const validateSignatureAndGetMemo = async (
     throw error;
   }
 };
-
-export { verifySiweMessage, verifyAndStoreSiweMessage, createAndSendNonce, validateSignatureAndGetMemo };

@@ -4,8 +4,8 @@ import { JWT } from 'google-auth-library';
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
 export interface GoogleCredentials {
-  email: string;
-  key: string;
+  email?: string;
+  key?: string;
 }
 
 interface SpreadsheetService {

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, RequestHandler } from 'express';
 
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
 import * as transakService from '../services/transak.service';
@@ -6,6 +6,7 @@ import * as moonpayService from '../services/moonpay.service';
 import { MoonpayQuote } from '../services/moonpay.service';
 import { AlchemyPayQuote } from '../services/alchemypay/alchemypay.service';
 import { TransakQuoteResult } from '../services/transak.service';
+import { QuoteQuery } from '../middlewares/validators';
 
 export const SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
 export type Provider = (typeof SUPPORTED_PROVIDERS)[number];
@@ -75,7 +76,7 @@ const getQuoteFromProvider = async (
   return await providerHandlers[provider](fromCrypto, toFiat, amount, network);
 };
 
-export const getQuoteForProvider = async (req: Request, res: Response, next: NextFunction) => {
+export const getQuoteForProvider: RequestHandler<unknown, unknown, unknown, QuoteQuery> = async (req, res) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || typeof provider !== 'string') {

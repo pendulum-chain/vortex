@@ -10,13 +10,11 @@ const enum RatingSheetHeaders {
   WalletAddress = 'walletAddress',
 }
 
-const RATING_SHEET_HEADER_VALUES = [
+export const RATING_SHEET_HEADER_VALUES = [
   RatingSheetHeaders.Timestamp,
   RatingSheetHeaders.Rating,
   RatingSheetHeaders.WalletAddress,
 ];
-
-export { RATING_SHEET_HEADER_VALUES };
 
 export const storeRating = async (req: Request, res: Response): Promise<void> => {
   if (!spreadsheet.ratingSheetId) {

@@ -1,15 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import { Keypair } from 'stellar-sdk';
 
-import { FUNDING_SECRET, SEP10_MASTER_SECRET } from '../../constants/constants';
+import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { OutputTokenType } from './../../../../src/constants/tokenConfig';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
 import {
   buildCreationStellarTx,
   buildPaymentAndMergeTx,
-  sendStatusWithPk,
+  horizonServer,
   PaymentData,
 } from '../services/stellar.service';
+import { SlackNotifier } from '../services/slack.service';
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 
@@ -31,18 +32,6 @@ interface Sep10Request {
   clientPublicKey: string;
   derivedMemo: string;
 }
-
-export const sendStatusWithPkHandler = async (_: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const result = await sendStatusWithPk();
-    res.json(result);
-    return;
-  } catch (error) {
-    console.error('Server error:', error);
-    res.status(500).json({ error: 'Server error', details: (error as Error).message });
-    return;
-  }
-};
 
 export const createStellarTransactionHandler = async (
   req: Request<{}, {}, CreateTxRequest>,
@@ -131,3 +120,33 @@ export const getSep10MasterPKHandler = async (_: Request, res: Response, next: N
     return;
   }
 };
+
+interface StatusResult {
+  status: boolean;
+  public: string;
+}
+
+export async function sendStatusWithPk(): Promise<StatusResult> {
+  const slackNotifier = new SlackNotifier();
+
+  try {
+    const account = await horizonServer.loadAccount(FUNDING_PUBLIC_KEY);
+    const stellarBalance = account.balances.find(
+      (balance: { asset_type: string; balance: string }) => balance.asset_type === 'native',
+    );
+
+    if (!stellarBalance || Number(stellarBalance.balance) < Number(STELLAR_FUNDING_AMOUNT_UNITS)) {
+      await slackNotifier.sendMessage({
+        text: `Current balance of funding account is ${
+          stellarBalance?.balance ?? 0
+        } XLM please charge the account ${FUNDING_PUBLIC_KEY}.`,
+      });
+      return { status: false, public: FUNDING_PUBLIC_KEY };
+    }
+
+    return { status: true, public: FUNDING_PUBLIC_KEY };
+  } catch (error) {
+    console.error("Couldn't load Stellar account:", error);
+    return { status: false, public: FUNDING_PUBLIC_KEY };
+  }
+}

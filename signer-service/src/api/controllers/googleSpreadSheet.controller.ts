@@ -25,8 +25,8 @@ export async function storeDataInGoogleSpreadsheet(
   try {
     // Ensure credentials are fully defined
     const credentials: GoogleCredentials = {
-      email: config.spreadsheet.googleCredentials.email ?? '',
-      key: config.spreadsheet.googleCredentials.key ?? '',
+      email: config.spreadsheet.googleCredentials.email,
+      key: config.spreadsheet.googleCredentials.key,
     };
 
     const sheet = await initGoogleSpreadsheet(spreadsheetId, credentials).then((doc) =>

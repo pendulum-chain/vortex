@@ -1,4 +1,4 @@
-import express, { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 
 import stellarRoutes from './stellar.route';
 import moonbeamRoutes from './moonbeam.route';
@@ -10,8 +10,8 @@ import subsidizeRoutes from './subsidize.route';
 import siweRoutes from './siwe.route';
 import quoteRoutes from './quote.route';
 
-import { sendStatusWithPk as sendStellarStatusWithPk } from '../../services/stellar.service';
-import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../services/pendulum/pendulum.service';
+import { sendStatusWithPk as sendStellarStatusWithPk } from '../../controllers/stellar.controller';
+import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../controllers/pendulum.controller';
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from '../../controllers/moonbeam.controller';
 
 type ChainStatus = {
@@ -88,6 +88,8 @@ router.use('/rating', ratingRoutes);
  */
 router.use('/siwe', siweRoutes);
 
-router.use('/ip', (request: Request, response: Response) => response.send(request.ip));
+router.get('/ip', (request: Request, response: Response) => {
+  response.send(request.ip);
+});
 
 export default router;

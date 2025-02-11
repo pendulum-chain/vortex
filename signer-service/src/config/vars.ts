@@ -13,9 +13,12 @@ interface QuoteProvider {
   apiKey?: string;
 }
 
+/**
+ * The GoogleCredentials interface is the same as in the signer-service/.../spreadsheet.service.ts
+ */
 interface GoogleCredentials {
-  email: string | undefined;
-  key: string | undefined;
+  email?: string;
+  key?: string;
 }
 
 interface SpreadsheetConfig {

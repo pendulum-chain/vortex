@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { RequestHandler } from 'express';
 import { isStellarTokenConfig, TOKEN_CONFIG, TokenConfig } from '../../constants/tokenConfig';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
@@ -19,7 +19,7 @@ interface CreationBody {
   baseFee: string;
 }
 
-interface QuoteQuery {
+export interface QuoteQuery {
   provider: Provider;
   fromCrypto: CryptoCurrency;
   toFiat: FiatCurrency;
@@ -54,7 +54,7 @@ interface SiweValidateBody {
   siweMessage: string;
 }
 
-const validateCreationInput: RequestHandler = (req, res, next) => {
+export const validateCreationInput: RequestHandler = (req, res, next) => {
   const { accountId, maxTime, assetCode, baseFee } = req.body as CreationBody;
 
   if (!accountId || !maxTime) {
@@ -79,8 +79,8 @@ const validateCreationInput: RequestHandler = (req, res, next) => {
   next();
 };
 
-const validateQuoteInput: RequestHandler = (req, res, next) => {
-  const { provider, fromCrypto, toFiat, amount, network } = req.query as unknown as QuoteQuery;
+export const validateQuoteInput: RequestHandler<{}, unknown, unknown, QuoteQuery> = (req, res, next) => {
+  const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || !SUPPORTED_PROVIDERS.includes(provider.toLowerCase() as Provider)) {
     res.status(400).json({ error: `Invalid provider. Supported providers are: ${SUPPORTED_PROVIDERS.join(', ')}` });
@@ -119,7 +119,7 @@ const validateQuoteInput: RequestHandler = (req, res, next) => {
   next();
 };
 
-const validateChangeOpInput: RequestHandler = (req, res, next) => {
+export const validateChangeOpInput: RequestHandler = (req, res, next) => {
   const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body as ChangeOpBody;
 
   if (!accountId || !sequence || !paymentData || !maxTime) {
@@ -175,12 +175,12 @@ const validateRequestBodyValues =
     next();
   };
 
-const validateStorageInput = validateRequestBodyValuesForTransactionStore();
-const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
-const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
-const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
+export const validateStorageInput = validateRequestBodyValuesForTransactionStore();
+export const validateEmailInput = validateRequestBodyValues(EMAIL_SHEET_HEADER_VALUES);
+export const validateRatingInput = validateRequestBodyValues(RATING_SHEET_HEADER_VALUES);
+export const validateExecuteXCM = validateRequestBodyValues(['id', 'payload']);
 
-const validatePreSwapSubsidizationInput: RequestHandler = (req, res, next) => {
+export const validatePreSwapSubsidizationInput: RequestHandler = (req, res, next) => {
   const { amountRaw, address } = req.body as SwapBody;
 
   if (amountRaw === undefined) {
@@ -201,7 +201,7 @@ const validatePreSwapSubsidizationInput: RequestHandler = (req, res, next) => {
   next();
 };
 
-const validatePostSwapSubsidizationInput: RequestHandler = (req, res, next) => {
+export const validatePostSwapSubsidizationInput: RequestHandler = (req, res, next) => {
   const { amountRaw, address, token } = req.body as Required<SwapBody>;
 
   if (amountRaw === undefined) {
@@ -233,7 +233,7 @@ const validatePostSwapSubsidizationInput: RequestHandler = (req, res, next) => {
   next();
 };
 
-const validateSep10Input: RequestHandler = (req, res, next) => {
+export const validateSep10Input: RequestHandler = (req, res, next) => {
   const { challengeXDR, outToken, clientPublicKey } = req.body as Sep10Body;
 
   if (!challengeXDR) {
@@ -253,7 +253,7 @@ const validateSep10Input: RequestHandler = (req, res, next) => {
   next();
 };
 
-const validateSiweCreate: RequestHandler = (req, res, next) => {
+export const validateSiweCreate: RequestHandler = (req, res, next) => {
   const { walletAddress } = req.body as SiweCreateBody;
 
   if (!walletAddress) {
@@ -263,7 +263,7 @@ const validateSiweCreate: RequestHandler = (req, res, next) => {
   next();
 };
 
-const validateSiweValidate: RequestHandler = (req, res, next) => {
+export const validateSiweValidate: RequestHandler = (req, res, next) => {
   const { nonce, signature, siweMessage } = req.body as SiweValidateBody;
 
   if (!signature) {
@@ -282,19 +282,4 @@ const validateSiweValidate: RequestHandler = (req, res, next) => {
   }
 
   next();
-};
-
-export {
-  validateChangeOpInput,
-  validateQuoteInput,
-  validateCreationInput,
-  validatePreSwapSubsidizationInput,
-  validatePostSwapSubsidizationInput,
-  validateStorageInput,
-  validateEmailInput,
-  validateRatingInput,
-  validateExecuteXCM,
-  validateSep10Input,
-  validateSiweCreate,
-  validateSiweValidate,
 };
