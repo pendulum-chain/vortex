@@ -46,7 +46,7 @@ const wagmiAdapter = new WagmiAdapter({
 // 5. Create modal
 createAppKit({
   adapters: [wagmiAdapter],
-  // @ts-ignore
+  // @ts-expect-error - networks is not typed
   networks,
   projectId,
   features: {
