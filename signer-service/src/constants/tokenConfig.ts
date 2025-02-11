@@ -56,7 +56,7 @@ const eurc: StellarTokenConfig = {
   assetIssuer: 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
   vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
   minWithdrawalAmount: '10000000000000',
-  maximumSubsidyAmountRaw: '6000000000000', // 6 units
+  maximumSubsidyAmountRaw: '15000000000000', // 15 units
   homeDomain: 'circle.anchor.mykobo.co',
   clientDomainEnabled: true,
   memoEnabled: false,
@@ -96,12 +96,12 @@ export const TOKEN_CONFIG: TokenConfig = {
   usdc: {
     pendulumCurrencyId: { XCM: 2 },
     decimals: 6,
-    maximumSubsidyAmountRaw: '6000000', // 6 units
+    maximumSubsidyAmountRaw: '15000000', // 15 units
   },
   'usdc.axl': {
     pendulumCurrencyId: { XCM: 12 },
     decimals: 6,
-    maximumSubsidyAmountRaw: '6000000', // 6 units
+    maximumSubsidyAmountRaw: '15000000', // 15 units
   },
 };
 

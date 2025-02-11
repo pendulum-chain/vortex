@@ -1,4 +1,3 @@
-import { Button } from 'react-daisyui';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
@@ -23,16 +22,14 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
   const tokenIcon = useGetAssetIcon(assetIcon);
 
   return (
-    <Button
+    <button
       type="button"
-      size="md"
-      color="secondary"
       key={tokenSymbol}
       onClick={() => onSelect(tokenType)}
-      className="items-center justify-start w-full h-auto gap-4 px-3 py-2 text-left border-0 bg-blackAlpha-200 hover:opacity-80 dark:bg-whiteAlpha-200"
+      className="items-center justify-start w-full gap-4 px-3 py-3 text-left bg-gray-200 border-0 shadow-xs btn hover:opacity-80 hover:bg-gray-300"
     >
       <span className="relative">
-        <div className="text-xs ">
+        <div className="text-xs">
           <div className="w-10">
             <img src={tokenIcon} alt={tokenSymbol} className="object-contain w-full h-full" />
           </div>
@@ -42,11 +39,11 @@ export function PoolListItem<T extends InputTokenType | OutputTokenType>({
         )}
       </span>
       <span className="flex flex-col">
-        <span className="text-lg leading-5 dark:text-white">
+        <span className="text-lg leading-5">
           <strong>{tokenSymbol}</strong>
         </span>
         <span className="text-sm leading-5 text-neutral-500">{name || tokenSymbol}</span>
       </span>
-    </Button>
+    </button>
   );
 }
