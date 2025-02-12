@@ -5,7 +5,11 @@ import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
-import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../constants/tokenConfig';
+import {
+  getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
+  getOutputTokenDetailsSpacewalk,
+} from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 
 import { sep24First } from '../../services/anchor/sep24/first';
@@ -46,14 +50,6 @@ export const useSubmitOfframp = () => {
       (async () => {
         setOfframpStarted(true);
 
-        trackEvent({
-          event: 'transaction_confirmation',
-          from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-          to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
-          from_amount: inputAmountUnits,
-          to_amount: outputAmountUnits.afterFees,
-        });
-
         try {
           await setSelectedNetwork(selectedNetwork);
 
@@ -62,14 +58,14 @@ export const useSubmitOfframp = () => {
           trackEvent({
             event: 'transaction_confirmation',
             from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-            to_asset: getOutputTokenDetails(outputTokenType).stellarAsset.code.string,
+            to_asset: getOutputTokenDetails(outputTokenType).fiat.symbol,
             from_amount: inputAmountUnits,
             to_amount: outputAmountUnits.afterFees,
           });
 
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-          const outputToken = getOutputTokenDetails(outputTokenType);
-          const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
+          const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
+          const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
           if (!address) {
             throw new Error('useSubmitOfframp: Address must be defined at this stage');
@@ -95,6 +91,7 @@ export const useSubmitOfframp = () => {
             ...executionInput,
             stellarEphemeralSecret,
           });
+
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {

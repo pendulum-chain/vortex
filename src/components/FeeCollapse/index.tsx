@@ -1,10 +1,10 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import { OutputTokenDetails } from '../../constants/tokenConfig';
+import { BaseOutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 
-export function calculateTotalReceive(toAmount: Big, outputToken: OutputTokenDetails): string {
+export function calculateTotalReceive(toAmount: Big, outputToken: BaseOutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
   const fixedFees = new Big(outputToken.offrampFeesFixedComponent ? outputToken.offrampFeesFixedComponent : 0);
   const fees = toAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
@@ -20,7 +20,7 @@ export function calculateTotalReceive(toAmount: Big, outputToken: OutputTokenDet
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: Big;
-  toToken: OutputTokenDetails;
+  toToken: BaseOutputTokenDetails;
   exchangeRate?: JSX.Element;
 }
 
