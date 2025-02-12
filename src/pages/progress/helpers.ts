@@ -26,8 +26,8 @@ export function createOfframpingPhaseMessage(offrampingState: OfframpingState, n
     pendulumFundEphemeral: isNetworkEVM(network)
       ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
       : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
-    executeMoonbeamXCM: `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`,
-    executeAssetHubXCM: `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
+    executeMoonbeamToPendulumXCM: `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`,
+    executeAssetHubToPendulumXCM: `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
     subsidizePreSwap: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
     nablaApprove: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
     nablaSwap: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,

@@ -28,10 +28,13 @@ import encodePayload from './phases/squidrouter/payload';
 import { squidRouter } from './phases/squidrouter/process';
 import { prepareTransactions } from './phases/signedTransactions';
 import { stellarCleanup, stellarOfframp } from './phases/stellar';
-import { executeMoonbeamXCM } from './phases/moonbeam';
+import { executeMoonbeamToPendulumXCM } from './phases/moonbeam';
 import { nablaApprove, nablaSwap } from './phases/nabla';
-import { executeAssetHubXCM } from './phases/polkadot/assethub';
+import { executeAssetHubToPendulumXCM } from './phases/polkadot/xcm/assethub';
+import { executePendulumToMoonbeamXCM } from './phases/polkadot/xcm/moonbeam';
 import { executeSpacewalkRedeem } from './phases/polkadot';
+import { performBrlaPayoutOnMoonbeam } from './phases/brla';
+
 import {
   pendulumFundEphemeral,
   subsidizePreSwap,
@@ -49,16 +52,18 @@ export type OfframpingPhase =
   | 'prepareTransactions'
   | 'squidRouter'
   | 'pendulumFundEphemeral'
-  | 'executeMoonbeamXCM'
-  | 'executeAssetHubXCM'
+  | 'executeMoonbeamToPendulumXCM'
+  | 'executeAssetHubToPendulumXCM'
   | 'subsidizePreSwap'
   | 'nablaApprove'
   | 'nablaSwap'
   | 'subsidizePostSwap'
+  | 'executePendulumToMoonbeamXCM'
   | 'executeSpacewalkRedeem'
   | 'pendulumCleanup'
   | 'stellarOfframp'
-  | 'stellarCleanup';
+  | 'stellarCleanup'
+  | 'performBrlaPayoutOnMoonbeam';
 
 export type FinalOfframpingPhase = 'success';
 
@@ -71,6 +76,7 @@ export interface ExecutionContext {
   walletAccount?: WalletAccount;
 }
 
+//TODO maybe change later to SpacewalkInitialStateArguments
 export interface InitiateStateArguments {
   sep24Id: string;
   stellarEphemeralSecret: string;
@@ -84,11 +90,23 @@ export interface InitiateStateArguments {
   offramperAddress: string;
 }
 
+export interface BrlaInitiateStateArguments {
+  inputTokenType: InputTokenType;
+  outputTokenType: OutputTokenType;
+  amountIn: string;
+  amountOut: Big;
+  network: Networks;
+  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  offramperAddress: string;
+  brlaEvmAddress: string;
+  pixDestination: string;
+}
+
 export interface OfframpingState {
-  sep24Id: string;
+  sep24Id?: string;
   pendulumEphemeralSeed: string;
   pendulumEphemeralAddress: string;
-  stellarEphemeralSecret: string;
+  stellarEphemeralSecret?: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   effectiveExchangeRate: string;
@@ -107,8 +125,8 @@ export interface OfframpingState {
   nablaHardMinimumOutputRaw: string;
   nablaApproveNonce: number;
   nablaSwapNonce: number;
-  executeSpacewalkNonce: number;
-  sepResult: SepResult;
+  executeSpacewalkNonce?: number;
+  sepResult?: SepResult;
   createdAt: number;
   failureTimeoutAt: number;
   transactions?: {
@@ -117,9 +135,12 @@ export interface OfframpingState {
     spacewalkRedeemTransaction: string;
     nablaApproveTransaction: string;
     nablaSwapTransaction: string;
+    pendulumToMoonbeamXcmTransaction?: string;
   };
   network: Networks;
   offramperAddress: string;
+  brlaEvmAddress?: string;
+  pixDestination?: string;
 }
 
 export type StateTransitionFunction = (
@@ -134,6 +155,7 @@ const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 enum HandlerType {
   SQUIDROUTER = 'squidrouter',
   XCM = 'xcm',
+  BRLA = 'brla',
 }
 
 const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingPhase, StateTransitionFunction>>> = {
@@ -141,7 +163,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
     prepareTransactions,
     squidRouter,
     pendulumFundEphemeral,
-    executeMoonbeamXCM,
+    executeMoonbeamToPendulumXCM,
     subsidizePreSwap,
     nablaApprove,
     nablaSwap,
@@ -154,7 +176,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
   [HandlerType.XCM]: {
     prepareTransactions,
     pendulumFundEphemeral,
-    executeAssetHubXCM,
+    executeAssetHubToPendulumXCM,
     subsidizePreSwap,
     nablaApprove,
     nablaSwap,
@@ -163,6 +185,18 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
     pendulumCleanup,
     stellarOfframp,
     stellarCleanup,
+  },
+  [HandlerType.BRLA]: {
+    prepareTransactions,
+    pendulumFundEphemeral,
+    executeAssetHubToPendulumXCM,
+    subsidizePreSwap,
+    nablaApprove,
+    nablaSwap,
+    subsidizePostSwap,
+    executePendulumToMoonbeamXCM,
+    pendulumCleanup,
+    performBrlaPayoutOnMoonbeam,
   },
 };
 
@@ -238,6 +272,71 @@ export async function constructInitialState({
     network,
     pendulumEphemeralAddress,
     offramperAddress,
+  };
+
+  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);
+  return initialState;
+}
+
+export async function constructBrlaInitialState({
+  inputTokenType,
+  outputTokenType,
+  amountIn,
+  amountOut,
+  network,
+  pendulumNode,
+  offramperAddress,
+  brlaEvmAddress,
+  pixDestination,
+}: BrlaInitiateStateArguments) {
+  const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed(
+    pendulumNode,
+  );
+
+  const { decimals: inputTokenDecimals, pendulumDecimals } = getInputTokenDetailsOrDefault(network, inputTokenType);
+  const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
+
+  const inputAmountBig = Big(amountIn);
+  const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();
+  const pendulumAmountRaw = multiplyByPowerOfTen(inputAmountBig, pendulumDecimals || 0).toFixed();
+
+  const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
+
+  const effectiveExchangeRate = stringifyBigWithSignificantDecimals(amountOut.div(inputAmountBig), 4);
+
+  const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
+  const nablaSoftMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenDecimals).toFixed();
+  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenDecimals).toFixed();
+
+  const squidRouterReceiverId = createRandomString(32);
+  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
+  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
+
+  const now = Date.now();
+  const initialState: OfframpingState = {
+    pendulumEphemeralSeed,
+    inputTokenType,
+    outputTokenType,
+    effectiveExchangeRate,
+    inputAmount: { units: amountIn, raw: inputAmountRaw },
+    pendulumAmountRaw,
+    outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },
+    phase: 'prepareTransactions',
+    squidRouterReceiverId,
+    squidRouterReceiverHash,
+    nablaHardMinimumOutputRaw,
+    nablaSoftMinimumOutputRaw,
+    nablaApproveNonce: 0,
+    nablaSwapNonce: 1,
+    createdAt: now,
+    failureTimeoutAt: now + minutesInMs(10),
+    network,
+    pendulumEphemeralAddress,
+    offramperAddress,
+    brlaEvmAddress,
+    pixDestination,
   };
 
   storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);

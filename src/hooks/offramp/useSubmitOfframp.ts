@@ -20,7 +20,10 @@ import { useSep24Actions } from '../../stores/sep24Store';
 
 import { showToast, ToastMessage } from '../../helpers/notifications';
 import Big from 'big.js';
-import { OfframpExecutionInput } from '../../types/offramp';
+import { BrlaOfframpExecutionInput, OfframpExecutionInput } from '../../types/offramp';
+import { constructBrlaInitialState } from '../../services/offrampingFlow';
+import { usePendulumNode } from '../../contexts/polkadotNode';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 export const useSubmitOfframp = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -29,7 +32,8 @@ export const useSubmitOfframp = () => {
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
-  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
+  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput, updateOfframpHookStateFromState } =
+    useOfframpActions();
   const {
     setAnchorSessionParams,
     setInitialResponse: setInitialResponseSEP24,
@@ -37,7 +41,110 @@ export const useSubmitOfframp = () => {
     cleanup: cleanupSEP24,
   } = useSep24Actions();
 
-  return useCallback(
+  const { apiComponents: pendulumNode } = usePendulumNode();
+
+  const brlaSubmitCallback = useCallback(
+    (executionInput: BrlaOfframpExecutionInput) => {
+      const {
+        inputTokenType,
+        inputAmountUnits,
+        outputTokenType,
+        outputAmountUnits,
+        taxId,
+        pixId,
+        setInitializeFailed,
+      } = executionInput;
+
+      if (offrampStarted || offrampState !== undefined || !pendulumNode) {
+        setOfframpInitiating(false);
+        return;
+      }
+
+      (async () => {
+        setOfframpStarted(true);
+
+        try {
+          await setSelectedNetwork(selectedNetwork);
+
+          setOfframpStarted(true);
+
+          trackEvent({
+            event: 'transaction_confirmation',
+            from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
+            to_asset: getOutputTokenDetails(outputTokenType).fiat.symbol,
+            from_amount: inputAmountUnits,
+            to_amount: outputAmountUnits.afterFees,
+          });
+
+          if (!address) {
+            throw new Error('useSubmitOfframp: Address must be defined at this stage');
+          }
+
+          // Fetch user by tax id. Assuming we start only with users that have done this process
+          const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}&pixId=${pixId}`);
+
+          if (!response.ok) {
+            if (response.status === 404) {
+              // TODO redirect to subaccount creation and KYC flow.
+              setOfframpStarted(false);
+              setOfframpInitiating(false);
+              return;
+            }
+            throw new Error(`Error while fetching funding account signature`);
+          }
+
+          const { evmAddress: brlaEvmAddress } = await response.json();
+
+          const brlaOfframpExecution = { ...executionInput, brlaEvmAddress };
+          setOfframpExecutionInput(brlaOfframpExecution);
+
+          const initialState = await constructBrlaInitialState({
+            inputTokenType: executionInput.inputTokenType,
+            outputTokenType: executionInput.outputTokenType,
+            amountIn: executionInput.inputAmountUnits,
+            amountOut: Big(executionInput.outputAmountUnits.beforeFees),
+            network: selectedNetwork,
+            pendulumNode,
+            offramperAddress: address!,
+            brlaEvmAddress,
+            pixDestination: pixId,
+          });
+
+          // TODO maybe add a new tracking event??
+          updateOfframpHookStateFromState(initialState);
+        } catch (error) {
+          console.error('Error initializing the offramping process', (error as Error).message);
+          // Display error message, differentiating between user rejection and other errors
+          if ((error as Error).message.includes('User rejected')) {
+            showToast(ToastMessage.ERROR, 'You must sign the login request to be able to sell Argentine Peso');
+          } else {
+            setInitializeFailed();
+          }
+          setOfframpStarted(false);
+          setOfframpInitiating(false);
+        }
+      })();
+    },
+    [
+      offrampStarted,
+      offrampState,
+      setOfframpInitiating,
+      setOfframpStarted,
+      trackEvent,
+      selectedNetwork,
+      address,
+      checkAndWaitForSignature,
+      forceRefreshAndWaitForSignature,
+      setOfframpExecutionInput,
+      setAnchorSessionParams,
+      setInitialResponseSEP24,
+      setUrlIntervalSEP24,
+      cleanupSEP24,
+      setSelectedNetwork,
+    ],
+  );
+
+  const stellarSubmitCallback = useCallback(
     (executionInput: OfframpExecutionInput) => {
       const { inputTokenType, inputAmountUnits, outputTokenType, outputAmountUnits, setInitializeFailed } =
         executionInput;
@@ -145,4 +252,6 @@ export const useSubmitOfframp = () => {
       setSelectedNetwork,
     ],
   );
+
+  return { brlaSubmitCallback, stellarSubmitCallback };
 };

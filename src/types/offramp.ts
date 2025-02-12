@@ -3,6 +3,7 @@ import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
 
 export type OfframpSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
 
+// TODO rename
 export interface OfframpExecutionInput {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
@@ -13,12 +14,23 @@ export interface OfframpExecutionInput {
   setInitializeFailed: (message?: string | null) => void;
 }
 
+export interface BrlaOfframpExecutionInput {
+  inputTokenType: InputTokenType;
+  outputTokenType: OutputTokenType;
+  inputAmountUnits: string;
+  outputAmountUnits: { beforeFees: string; afterFees: string };
+  effectiveExchangeRate: string;
+  taxId: string;
+  pixId: string;
+  setInitializeFailed: (message?: string | null) => void;
+}
+
 export interface OfframpState {
   offrampStarted: boolean;
   offrampInitiating: boolean;
   offrampState: OfframpingState | undefined;
   offrampSigningPhase: OfframpSigningPhase | undefined;
-  offrampExecutionInput: OfframpExecutionInput | undefined;
+  offrampExecutionInput: OfframpExecutionInput | BrlaOfframpExecutionInput | undefined;
 }
 
 export interface OfframpActions {
@@ -26,7 +38,7 @@ export interface OfframpActions {
   setOfframpInitiating: (initiating: boolean) => void;
   setOfframpState: (state: OfframpingState | undefined) => void;
   setOfframpSigningPhase: (phase: OfframpSigningPhase | undefined) => void;
-  setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
+  setOfframpExecutionInput: (executionInput: OfframpExecutionInput | BrlaOfframpExecutionInput | undefined) => void;
   updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
   resetOfframpState: () => void;
 }

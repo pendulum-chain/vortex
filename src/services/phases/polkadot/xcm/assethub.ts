@@ -4,11 +4,11 @@ import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import Big from 'big.js';
 
-import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
-import { waitUntilTrue } from '../../../helpers/function';
-import { getRawInputBalance } from './ephemeral';
+import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
+import { waitUntilTrue } from '../../../../helpers/function';
+import { getRawInputBalance } from '../ephemeral';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { parseEventXcmSent, XcmSentEvent } from './eventParsers';
+import { parseEventXcmSent, XcmSentEvent } from '../eventParsers';
 import { WalletAccount } from '@talismn/connect-wallets';
 
 export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
@@ -32,7 +32,10 @@ export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAdd
   return assethubApi.tx.polkadotXcm.limitedReserveTransferAssets(dest, beneficiary, assets, feeAssetItem, weightLimit);
 }
 
-export async function executeAssetHubXCM(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function executeAssetHubToPendulumXCM(
+  state: OfframpingState,
+  context: ExecutionContext,
+): Promise<OfframpingState> {
   const { assetHubNode, walletAccount, setOfframpSigningPhase } = context;
   const { pendulumEphemeralAddress } = state;
 

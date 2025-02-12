@@ -9,7 +9,7 @@ import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   CLIENT_DOMAIN_SECRET,
 } from './constants/constants';
-
+import { BrlaApiService } from './api/services/brla/brlaApiService';
 const { port, env } = config;
 
 dotenv.config();

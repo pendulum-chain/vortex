@@ -144,6 +144,7 @@ export const SwapPage = () => {
   // Main process hook
   const {
     handleOnSubmit,
+    handleOnSubmitBrla,
     finishOfframping,
     continueFailedFlow,
     firstSep24ResponseState,
@@ -377,7 +378,7 @@ export const SwapPage = () => {
   if (offrampState !== undefined || offrampStarted) {
     const isAssetHubFlow =
       !isNetworkEVM(selectedNetwork) &&
-      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubXCM');
+      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubToPendulumXCM');
     const showMainScreenAnyway =
       offrampState === undefined ||
       ['prepareTransactions', 'squidRouter'].includes(offrampState.phase) ||
@@ -417,6 +418,7 @@ export const SwapPage = () => {
       setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
+      handleOnSubmitBrla,
       setTermsAccepted,
     });
 
