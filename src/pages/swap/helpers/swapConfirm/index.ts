@@ -55,8 +55,6 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
     tokenOutAmount,
   } = params;
 
-  if (tokenOutAmount.data?.effectiveExchangeRate === '1') return;
-
   const validInputs = validateSwapInputs(inputAmountIsStable, address, fromAmount, tokenOutAmount.data);
   if (!validInputs) {
     return;
