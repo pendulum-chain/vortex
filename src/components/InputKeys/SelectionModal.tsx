@@ -1,10 +1,10 @@
-import { Input } from 'react-daisyui';
-import { ChangeEvent, useState } from 'preact/compat';
+import { ChangeEvent, useState } from 'react';
 import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 import { Dialog } from '../Dialog';
 import { Skeleton } from '../Skeleton';
 import { PoolListItem } from './PoolListItem';
 import { AssetIconType } from '../../hooks/useGetAssetIcon';
+import { SearchInput } from '../SearchInput';
 
 interface PoolSelectorModalProps<T extends InputTokenType | OutputTokenType> extends PoolListProps<T> {
   isLoading?: boolean;
@@ -36,17 +36,18 @@ export function PoolSelectorModal<T extends InputTokenType | OutputTokenType>({
 }
 
 function PoolList<T extends InputTokenType | OutputTokenType>({ onSelect, definitions, selected }: PoolListProps<T>) {
-  const [_, setFilter] = useState<string>();
+  const [filter, setFilter] = useState<string>('');
+
+  const filteredDefinitions = definitions.filter(({ assetSymbol, name }) => {
+    const searchTerm = filter.toLowerCase();
+    return assetSymbol.toLowerCase().includes(searchTerm) || (name && name.toLowerCase().includes(searchTerm));
+  });
+
   return (
     <div className="relative">
-      <Input
-        bordered
-        className="sticky top-0 z-10 w-full mb-8"
-        onChange={(ev: ChangeEvent<HTMLInputElement>) => setFilter(ev.currentTarget.value)}
-        placeholder="Find by name or address"
-      />
-      <div className="flex flex-col gap-1">
-        {definitions.map(({ assetIcon, assetSymbol, type, name }) => (
+      <SearchInput set={setFilter} placeholder="Find by name or address" />
+      <div className="flex flex-col gap-2 mt-5">
+        {filteredDefinitions.map(({ assetIcon, assetSymbol, type, name }) => (
           <PoolListItem
             key={type}
             isSelected={selected === type}

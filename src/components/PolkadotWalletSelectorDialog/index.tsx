@@ -1,6 +1,7 @@
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Wallet } from '@talismn/connect-wallets';
-import { Collapse } from 'react-daisyui';
-import { useState } from 'preact/hooks';
+import { motion } from 'motion/react';
+import { useState } from 'react';
 
 import { useConnectPolkadotWallet } from '../../hooks/useConnectPolkadotWallet';
 import { ConnectModalAccountsList } from './AccountsList';
@@ -18,18 +19,29 @@ export const PolkadotWalletSelectorDialog = ({ visible, onClose }: PolkadotWalle
   const [isAccountsCollapseOpen, setIsAccountsCollapseOpen] = useState(false);
 
   const accountsContent = (
-    <Collapse defaultChecked icon="arrow" open={isAccountsCollapseOpen}>
-      <Collapse.Title onClick={() => setIsAccountsCollapseOpen((state) => !state)}>Choose Account</Collapse.Title>
-      <Collapse.Content>
+    <div className="collapse">
+      <input
+        type="checkbox"
+        checked={isAccountsCollapseOpen}
+        onChange={() => setIsAccountsCollapseOpen((prev) => !prev)}
+      />
+      <div className="flex items-center justify-between pr-4 collapse-title">
+        <p>Choose Account</p>
+        <motion.div animate={{ rotate: isAccountsCollapseOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDownIcon className="w-6 h-6" />
+        </motion.div>
+      </div>
+      <div className="collapse-content">
         <ConnectModalAccountsList accounts={accounts || []} />
-      </Collapse.Content>
-    </Collapse>
+      </div>
+    </div>
   );
 
   const walletsContent = (
-    <Collapse defaultChecked open>
-      <Collapse.Title>Select Wallet</Collapse.Title>
-      <Collapse.Content>
+    <div className="collapse collapse-open">
+      <input type="checkbox" defaultChecked />
+      <div className="collapse-title">Select Wallet</div>
+      <div className="collapse-content">
         <ConnectModalWalletsList
           wallets={wallets}
           onClick={(wallet: Wallet) => {
@@ -38,8 +50,8 @@ export const PolkadotWalletSelectorDialog = ({ visible, onClose }: PolkadotWalle
           }}
           onClose={onClose}
         />
-      </Collapse.Content>
-    </Collapse>
+      </div>
+    </div>
   );
 
   const content = (

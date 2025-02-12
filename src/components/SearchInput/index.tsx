@@ -1,17 +1,21 @@
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
-import { StateUpdater } from 'preact/compat';
+import { Dispatch, SetStateAction } from 'react';
 
 interface SearchInputProps {
-  set: StateUpdater<string>;
+  set: Dispatch<SetStateAction<string>>;
+  placeholder?: string;
 }
 
-export const SearchInput = ({ set, ...p }: SearchInputProps) => (
-  <label className="flex items-center input input-bordered" htmlFor="search">
+export const SearchInput = ({ set, placeholder, ...p }: SearchInputProps) => (
+  <label
+    className="input-vortex-primary flex items-center w-full input input-bordered h-[3rem] text-base focus:outline-primary"
+    htmlFor="search"
+  >
     <MagnifyingGlassIcon className="mr-1 size-5 text-neutral-400" />
     <input
-      className="w-full"
+      className="w-full h-[3rem] "
       type="text"
-      placeholder="Search"
+      placeholder={placeholder || 'Search'}
       name="search"
       id="search"
       onChange={(e) => set((e.target as HTMLInputElement).value)}

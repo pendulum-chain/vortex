@@ -21,7 +21,7 @@ import {
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 
 import { createRandomString, createSquidRouterHash } from '../helpers/crypto';
-import { multiplyByPowerOfTen } from '../helpers/contracts';
+import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../helpers/contracts';
 import { storageService } from './storage/local';
 
 import encodePayload from './phases/squidrouter/payload';
@@ -91,6 +91,7 @@ export interface OfframpingState {
   stellarEphemeralSecret: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
+  effectiveExchangeRate: string;
   inputAmount: { units: string; raw: string };
   pendulumAmountRaw: string;
   outputAmount: { units: string; raw: string };
@@ -200,6 +201,8 @@ export async function constructInitialState({
 
   const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
 
+  const effectiveExchangeRate = stringifyBigWithSignificantDecimals(amountOut.div(inputAmountBig), 4);
+
   const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
   const nablaSoftMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenDecimals).toFixed();
@@ -217,6 +220,7 @@ export async function constructInitialState({
     stellarEphemeralSecret,
     inputTokenType,
     outputTokenType,
+    effectiveExchangeRate,
     inputAmount: { units: amountIn, raw: inputAmountRaw },
     pendulumAmountRaw,
     outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },

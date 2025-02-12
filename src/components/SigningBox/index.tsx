@@ -1,5 +1,5 @@
-import { FC, useState, useEffect } from 'preact/compat';
-import { motion, AnimatePresence } from 'framer-motion';
+import { FC, useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
 import { OfframpSigningPhase } from '../../types/offramp';

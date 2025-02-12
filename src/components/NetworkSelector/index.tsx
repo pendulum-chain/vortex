@@ -1,6 +1,6 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { useState, useRef, useEffect } from 'preact/hooks';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect, RefObject } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { Networks, getNetworkDisplayName, getNetworkId } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
@@ -59,6 +59,7 @@ const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownP
               key={networkId}
               onClick={() => onNetworkSelect(network)}
               className="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-base-200"
+              translate="no"
             >
               <NetworkIcon network={network} className="w-5 h-5" />
               <span>{getNetworkDisplayName(network)}</span>
@@ -70,7 +71,7 @@ const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownP
   </AnimatePresence>
 );
 
-function useClickOutside(ref: React.RefObject<HTMLElement>, callback: () => void) {
+function useClickOutside(ref: RefObject<HTMLElement | null>, callback: () => void) {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
@@ -91,7 +92,7 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
   const handleNetworkSelect = (network: Networks) => {
-    setSelectedNetwork(network);
+    setSelectedNetwork(network, true);
     setIsOpen(false);
   };
 

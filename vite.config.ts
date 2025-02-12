@@ -1,14 +1,16 @@
-import { sentryVitePlugin } from '@sentry/vite-plugin';
-import preact from '@preact/preset-vite';
 import { defineConfig } from 'vite';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
+import react from '@vitejs/plugin-react';
+// @ts-ignore
+import tailwindcss from '@tailwindcss/vite';
 
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    preact(),
+    react(),
     nodePolyfills(),
+    tailwindcss(),
     sentryVitePlugin({
       org: 'satoshipay',
       project: 'vortex',
