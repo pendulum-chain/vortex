@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { AccountInfo } from '@polkadot/types/interfaces';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 import { PENDULUM_FUNDING_AMOUNT_UNITS, SUBSIDY_MINIMUM_RATIO_FUND_UNITS } from '../../constants/constants';
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '../../constants/tokenConfig';
@@ -46,22 +46,6 @@ export const fundEphemeralAccountController = async (
   } catch (error) {
     console.error('Error funding ephemeral account:', error);
     res.status(500).send({ error: 'Internal Server Error' });
-    return;
-  }
-};
-
-export const sendStatusWithPkController = async (_req: Request, res: Response, _next: NextFunction) => {
-  try {
-    const result = await sendStatusWithPk();
-    res.json(result);
-    return;
-  } catch (err) {
-    const error = err as Error;
-    console.error('Server error:', error);
-    res.status(500).json({
-      error: 'Server error',
-      details: error.message,
-    });
     return;
   }
 };
