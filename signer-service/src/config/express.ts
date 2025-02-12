@@ -38,7 +38,7 @@ app.use(
 
 // enable rate limiting
 // Set number of expected proxies
-app.set('trust proxy', true);
+app.set('trust proxy', rateLimitNumberOfProxies);
 
 app.use((req, res, next) => {
   console.log({
