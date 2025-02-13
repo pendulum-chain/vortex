@@ -52,7 +52,6 @@ export interface BaseOutputTokenDetails {
   erc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
-  usesMemo: boolean;
 }
 
 export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
@@ -69,6 +68,7 @@ export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
   };
   vaultAccountId: string;
   supportsClientDomain: boolean;
+  usesMemo: boolean;
 };
 
 export type PendulumCurrencyId = PendulumStellarCurrencyId | PendulumXcmCurrencyId;
@@ -102,8 +102,7 @@ export function isStellarOutputTokenDetails(
 
 export function isStellarOutputToken(outputToken: OutputTokenType): boolean {
   const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputToken];
-  if (!maybeOutputTokenDetails) return false;
-  return maybeOutputTokenDetails.type === 'spacewalk';
+  return isStellarOutputTokenDetails(maybeOutputTokenDetails);
 }
 
 const PENDULUM_USDC_AXL = {
@@ -122,7 +121,7 @@ const PENDULUM_USDC_ASSETHUB = {
 };
 
 const PENDULUM_BRLA_MOONBEAM = {
-  pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF',
+  pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF', // TODO. Placeholder address.
   pendulumCurrencyId: { XCM: 13 },
   pendulumAssetSymbol: 'BRLA',
   pendulumDecimals: 18,
@@ -360,6 +359,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
     usesMemo: true,
     supportsClientDomain: true,
   },
+  // TODO - most values are placeholders. Must be updated.
   brl: {
     type: 'moonbeam',
     anchorHomepageUrl: '???',
@@ -375,7 +375,6 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
     maxWithdrawalAmountRaw: '50000000000000000000000000000000',
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL
-    usesMemo: true, // Not really, but we need to identify the user.
     ...PENDULUM_BRLA_MOONBEAM,
   },
 };
