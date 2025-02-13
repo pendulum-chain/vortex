@@ -206,8 +206,12 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
 function selectNextStateAdvancementHandler(
   network: Networks,
   phase: OfframpingPhase,
+  outToken: OutputTokenType,
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
+    if (outToken === 'brl') {
+      return STATE_ADVANCEMENT_HANDLERS[HandlerType.BRLA][phase];
+    }
     return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];
   }
   return STATE_ADVANCEMENT_HANDLERS[HandlerType.XCM][phase];
@@ -395,7 +399,7 @@ export const advanceOfframpingState = async (
 
   let newState: OfframpingState | undefined;
   try {
-    const nextHandler = selectNextStateAdvancementHandler(state.network, phase);
+    const nextHandler = selectNextStateAdvancementHandler(state.network, phase, state.outputTokenType);
     if (!nextHandler) {
       throw new Error(`No handler for phase ${phase} on network ${state.network}`);
     }

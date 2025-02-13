@@ -10,6 +10,7 @@ import { storeDataInBackend } from '../storage/remote';
 import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './nabla';
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { prepareSpacewalkRedeemTransaction } from './polkadot';
+import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
 
 const getNextPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
   // For AssetHub we skip the squidRouter and go straight to the pendulumFundEphemeral phase
@@ -142,9 +143,17 @@ async function prepareBrlaOfframpTransactions(state: OfframpingState, context: E
     context,
   );
 
-  const { stellarEphemeralSecret, outputTokenType, sepResult } = state;
+  const { brlaEvmAddress, outputAmount } = state;
+  const { pendulumNode } = context;
+
+  if (!brlaEvmAddress) {
+    const message = 'Missing variables on initial state. This is a bug.';
+    console.error(message);
+    return { ...state, failure: { type: 'unrecoverable', message } };
+  }
 
   // TODO pendulumToMoonbeam
+  const tx = createPendulumToMoonbeamTransfer(context, brlaEvmAddress, outputAmount.raw, state.inputAmount.raw);
   const pendulumToMoonbeamXcmTransaction = '0x';
 
   const transactions = {
