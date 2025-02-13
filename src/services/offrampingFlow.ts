@@ -102,11 +102,9 @@ export interface BrlaInitiateStateArguments {
   pixDestination: string;
 }
 
-export interface OfframpingState {
-  sep24Id?: string;
+export interface BaseOfframpingState {
   pendulumEphemeralSeed: string;
   pendulumEphemeralAddress: string;
-  stellarEphemeralSecret?: string;
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   effectiveExchangeRate: string;
@@ -125,10 +123,17 @@ export interface OfframpingState {
   nablaHardMinimumOutputRaw: string;
   nablaApproveNonce: number;
   nablaSwapNonce: number;
-  executeSpacewalkNonce?: number;
-  sepResult?: SepResult;
   createdAt: number;
   failureTimeoutAt: number;
+  network: Networks;
+  offramperAddress: string;
+}
+
+export interface OfframpingState extends BaseOfframpingState {
+  sep24Id?: string;
+  sepResult?: SepResult;
+  stellarEphemeralSecret?: string;
+  executeSpacewalkNonce?: number;
   transactions?: {
     stellarOfframpingTransaction: string;
     stellarCleanupTransaction: string;
@@ -137,8 +142,6 @@ export interface OfframpingState {
     nablaSwapTransaction: string;
     pendulumToMoonbeamXcmTransaction?: string;
   };
-  network: Networks;
-  offramperAddress: string;
   brlaEvmAddress?: string;
   pixDestination?: string;
 }
@@ -210,18 +213,23 @@ function selectNextStateAdvancementHandler(
   return STATE_ADVANCEMENT_HANDLERS[HandlerType.XCM][phase];
 }
 
-export async function constructInitialState({
-  sep24Id,
-  stellarEphemeralSecret,
+async function constructBaseInitialState({
   inputTokenType,
   outputTokenType,
   amountIn,
   amountOut,
-  sepResult,
   network,
   pendulumNode,
   offramperAddress,
-}: InitiateStateArguments) {
+}: {
+  inputTokenType: InputTokenType;
+  outputTokenType: OutputTokenType;
+  amountIn: string;
+  amountOut: Big;
+  network: Networks;
+  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  offramperAddress: string;
+}): Promise<BaseOfframpingState> {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed(
     pendulumNode,
   );
@@ -248,10 +256,9 @@ export async function constructInitialState({
   const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
 
   const now = Date.now();
-  const initialState: OfframpingState = {
-    sep24Id,
+
+  return {
     pendulumEphemeralSeed,
-    stellarEphemeralSecret,
     inputTokenType,
     outputTokenType,
     effectiveExchangeRate,
@@ -265,17 +272,46 @@ export async function constructInitialState({
     nablaSoftMinimumOutputRaw,
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
-    executeSpacewalkNonce: 2,
     createdAt: now,
     failureTimeoutAt: now + minutesInMs(10),
-    sepResult,
     network,
     pendulumEphemeralAddress,
     offramperAddress,
   };
+}
 
-  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);
-  return initialState;
+export async function constructInitialState({
+  sep24Id,
+  stellarEphemeralSecret,
+  inputTokenType,
+  outputTokenType,
+  amountIn,
+  amountOut,
+  sepResult,
+  network,
+  pendulumNode,
+  offramperAddress,
+}: InitiateStateArguments) {
+  const baseState = await constructBaseInitialState({
+    inputTokenType,
+    outputTokenType,
+    amountIn,
+    amountOut,
+    network,
+    pendulumNode,
+    offramperAddress,
+  });
+
+  const completeState: Partial<OfframpingState> = {
+    ...baseState,
+    sep24Id,
+    stellarEphemeralSecret,
+    sepResult,
+    executeSpacewalkNonce: 2,
+  };
+
+  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, completeState);
+  return completeState;
 }
 
 export async function constructBrlaInitialState({
@@ -289,58 +325,24 @@ export async function constructBrlaInitialState({
   brlaEvmAddress,
   pixDestination,
 }: BrlaInitiateStateArguments) {
-  const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed(
-    pendulumNode,
-  );
-
-  const { decimals: inputTokenDecimals, pendulumDecimals } = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
-
-  const inputAmountBig = Big(amountIn);
-  const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();
-  const pendulumAmountRaw = multiplyByPowerOfTen(inputAmountBig, pendulumDecimals || 0).toFixed();
-
-  const outputAmountRaw = multiplyByPowerOfTen(amountOut, outputTokenDecimals).toFixed();
-
-  const effectiveExchangeRate = stringifyBigWithSignificantDecimals(amountOut.div(inputAmountBig), 4);
-
-  const nablaHardMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
-  const nablaSoftMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenDecimals).toFixed();
-  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenDecimals).toFixed();
-
-  const squidRouterReceiverId = createRandomString(32);
-  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(pendulumEphemeralAddress));
-  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
-  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
-
-  const now = Date.now();
-  const initialState: OfframpingState = {
-    pendulumEphemeralSeed,
+  const baseState = await constructBaseInitialState({
     inputTokenType,
     outputTokenType,
-    effectiveExchangeRate,
-    inputAmount: { units: amountIn, raw: inputAmountRaw },
-    pendulumAmountRaw,
-    outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },
-    phase: 'prepareTransactions',
-    squidRouterReceiverId,
-    squidRouterReceiverHash,
-    nablaHardMinimumOutputRaw,
-    nablaSoftMinimumOutputRaw,
-    nablaApproveNonce: 0,
-    nablaSwapNonce: 1,
-    createdAt: now,
-    failureTimeoutAt: now + minutesInMs(10),
+    amountIn,
+    amountOut,
     network,
-    pendulumEphemeralAddress,
+    pendulumNode,
     offramperAddress,
+  });
+
+  const completeState: OfframpingState = {
+    ...baseState,
     brlaEvmAddress,
     pixDestination,
   };
 
-  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, initialState);
-  return initialState;
+  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, completeState);
+  return completeState;
 }
 
 export const clearOfframpingState = () => {
