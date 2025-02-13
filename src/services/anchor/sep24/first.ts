@@ -1,5 +1,5 @@
 import { IAnchorSessionParams, ISep24Intermediate } from '../../../types/sep';
-import { getOutputTokenDetails } from '../../../constants/tokenConfig';
+import { getOutputTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
 import { OutputTokenType } from '../../../constants/tokenConfig';
 import { config } from '../../../config';
 
@@ -14,7 +14,7 @@ export async function sep24First(
 
   const { token, tomlValues, offrampAmount } = sessionParams;
   const { sep24Url } = tomlValues;
-  const { usesMemo } = getOutputTokenDetails(outputToken);
+  const { usesMemo } = getOutputTokenDetailsSpacewalk(outputToken);
   const assetCode = sessionParams.tokenConfig.stellarAsset.code.string;
 
   const params = new URLSearchParams({
