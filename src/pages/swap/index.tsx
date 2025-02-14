@@ -59,7 +59,6 @@ import {
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
-import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
@@ -89,7 +88,6 @@ export const SwapPage = () => {
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
-  const { walletAccount } = usePolkadotWalletState();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
   const {
@@ -299,7 +297,7 @@ export const SwapPage = () => {
     if (isDisconnected) return;
 
     if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
         trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
