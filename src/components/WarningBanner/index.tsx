@@ -8,10 +8,8 @@ export const WarningBanner: FC = () => (
       <ExclamationCircleIcon className="w-12 text-yellow-800" />
     </motion.div>
     <div>
-      <h1 className="text-xl font-extrabold text-yellow-900 uppercase">Do not close this tab!</h1>
-      <p className="text-sm font-medium text-yellow-900">
-        Closing this tab can result in your transaction failing. Please wait until it&apos;s completed.
-      </p>
+      <h1 className="text-xl font-extrabold text-yellow-900">Keep this tab open</h1>
+      <p className="text-sm font-medium text-yellow-900">Closing this tab will halt the process.</p>
     </div>
   </section>
 );

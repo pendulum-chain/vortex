@@ -35,7 +35,7 @@ export const TextInput = ({
   <div className="flex-grow text-black font-outfit">
     <input
       className={
-        'h-[3rem] input input-ghost w-full text-lg font-outfit pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
+        'input input-lg w-full font-outfit py-2 pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
         additionalStyle
       }
       type={type || 'text'}

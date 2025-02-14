@@ -56,10 +56,16 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
           . We’re here to help!
         </p>
         <p className="mb-5 text-center text-gray-400">
-          Contacted support and ready to start fresh with a new transaction? <br /> Tap
-          <button className="btn btn-sm rounded-xl inline-flex ml-1 text-gray-400" onClick={finishOfframping}>
-            Reset and Restart
-          </button>
+          Contacted support and ready to start fresh with a new transaction?
+          <p className="mt-1">
+            Tap
+            <button
+              className="btn h-8! btn-xs btn-dash rounded-xl inline-flex ml-1 text-gray-400"
+              onClick={finishOfframping}
+            >
+              Reset and Restart
+            </button>
+          </p>
         </p>
         <EmailForm transactionId={transactionId} transactionSuccess={false} />
       </Box>

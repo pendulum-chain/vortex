@@ -285,7 +285,7 @@ export async function prepareNablaSwapTransaction(
     // Try swap
     try {
       console.log(
-        `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+        `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
         EventStatus.Waiting,
       );
 
@@ -354,7 +354,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
 
   try {
     console.log(
-      `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+      `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
       EventStatus.Waiting,
     );
 
