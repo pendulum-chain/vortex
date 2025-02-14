@@ -20,6 +20,7 @@ import USDT_POLYGON from '../assets/coins/USDT_POLYGON.svg';
 import USDC_ASSETHUB from '../assets/coins/USDC_ASSETHUB.svg';
 
 import ARS from '../assets/coins/ARS.png';
+import BRL from '../assets/coins/BRL.png';
 
 const ICONS = {
   eur: EUR,
@@ -40,6 +41,7 @@ const ICONS = {
   polygonUSDT: USDT_POLYGON,
   assethubUSDC: USDC_ASSETHUB,
   ars: ARS,
+  brl: BRL,
 };
 
 export type AssetIconType = keyof typeof ICONS;

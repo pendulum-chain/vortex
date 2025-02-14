@@ -1,7 +1,7 @@
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { OfframpingState } from '../../../services/offrampingFlow';
 import { Networks } from '../../../helpers/networks';
-import { getInputTokenDetailsOrDefault, getOutputTokenDetails } from '../../../constants/tokenConfig';
+import { getInputTokenDetailsOrDefault, getBaseOutputTokenDetails } from '../../../constants/tokenConfig';
 import { OfframpExecutionInput } from '../../../types/offramp';
 
 export const useTrackSEP24Events = () => {
@@ -11,7 +11,7 @@ export const useTrackSEP24Events = () => {
     trackEvent({
       event: 'kyc_started',
       from_asset: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType).assetSymbol,
-      to_asset: getOutputTokenDetails(executionInput.outputTokenType).stellarAsset.code.string,
+      to_asset: getBaseOutputTokenDetails(executionInput.outputTokenType).fiat.symbol,
       from_amount: executionInput.inputAmountUnits,
       to_amount: executionInput.outputAmountUnits.afterFees,
     });
