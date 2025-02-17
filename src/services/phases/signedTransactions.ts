@@ -152,9 +152,12 @@ async function prepareBrlaOfframpTransactions(state: OfframpingState, context: E
     return { ...state, failure: { type: 'unrecoverable', message } };
   }
 
-  // TODO pendulumToMoonbeam
-  const tx = createPendulumToMoonbeamTransfer(context, brlaEvmAddress, outputAmount.raw, state.inputAmount.raw);
-  const pendulumToMoonbeamXcmTransaction = '0x';
+  const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
+    pendulumNode,
+    brlaEvmAddress,
+    outputAmount.raw,
+    state.inputAmount.raw,
+  );
 
   const transactions = {
     pendulumToMoonbeamXcmTransaction,

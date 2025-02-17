@@ -108,6 +108,7 @@ export const useSubmitOfframp = () => {
             offramperAddress: address!,
             brlaEvmAddress,
             pixDestination: pixId,
+            taxId,
           });
 
           // TODO maybe add a new tracking event??

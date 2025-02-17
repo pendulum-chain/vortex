@@ -4,8 +4,10 @@ import { validateBrlaTriggerOfframpInput } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
 
-router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaController.getBrlaUser);
+router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaController.triggerBrlaOfframp);
 
 router.route('/getUser').get(brlaController.getBrlaUser);
+
+router.route('/getOfframpStatus').get(brlaController.getOfframpStatus);
 
 export default router;

@@ -10,10 +10,12 @@ const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new pendulum ephemeral account created
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
+
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+const WEBHOOKS_CACHE_URL = process.env.WEBHOOKS_CACHE_URL;
 const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
 const MOONBEAM_EXECUTOR_PRIVATE_KEY = process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY;
@@ -42,4 +44,5 @@ export {
   BRLA_BASE_URL,
   BRLA_LOGIN_PASSWORD,
   BRLA_LOGIN_USERNAME,
+  WEBHOOKS_CACHE_URL,
 };

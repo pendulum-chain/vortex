@@ -100,6 +100,7 @@ export interface BrlaInitiateStateArguments {
   offramperAddress: string;
   brlaEvmAddress: string;
   pixDestination: string;
+  taxId: string;
 }
 
 export interface BaseOfframpingState {
@@ -144,6 +145,7 @@ export interface OfframpingState extends BaseOfframpingState {
   };
   brlaEvmAddress?: string;
   pixDestination?: string;
+  taxId?: string;
 }
 
 export type StateTransitionFunction = (
@@ -328,6 +330,7 @@ export async function constructBrlaInitialState({
   offramperAddress,
   brlaEvmAddress,
   pixDestination,
+  taxId,
 }: BrlaInitiateStateArguments) {
   const baseState = await constructBaseInitialState({
     inputTokenType,
@@ -343,6 +346,7 @@ export async function constructBrlaInitialState({
     ...baseState,
     brlaEvmAddress,
     pixDestination,
+    taxId,
   };
 
   storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, completeState);
