@@ -7,19 +7,21 @@ import { wagmiConfig } from '../../wagmiConfig';
 import { useSignatureStore } from '../../components/SigningBox';
 
 /**
- * Detects if a transaction is a Safe Wallet transaction and waits for it to be confirmed by the Safe Wallet API and the blockchain.
+ * Waits for a transaction to be confirmed, handling both regular and Safe Wallet transactions.
+ * For Safe Wallet transactions, it monitors both the Safe API for signatures and the blockchain for confirmation.
+ * For regular transactions, it simply waits for blockchain confirmation.
  *
- * @param hash - The hash of the transaction to wait for.
- * @returns The confirmed transaction hash.
+ * @param hash - The transaction hash to monitor
+ * @returns A promise that resolves to the final transaction hash
  */
 export async function waitForTransactionConfirmation(hash: Hash): Promise<Hash> {
   const isSafeWalletTransaction = await isTransactionHashSafeWallet(hash);
 
   if (isSafeWalletTransaction) {
-    // Wait for the transaction to be confirmed by the Safe Wallet API
+    // Wait for all required signatures via Safe API
     const transactionHash = await pollSafeTransaction(hash);
 
-    // Wait for the transaction to be confirmed by the blockchain
+    // Wait for on-chain confirmation
     await waitForTransactionReceipt(wagmiConfig, { hash: transactionHash });
     return transactionHash;
   }
@@ -33,16 +35,21 @@ interface SafeTransactionStatus {
   requiredConfirmations: number;
 }
 
-interface UpdateSignatureStatusProps {
+interface SafeTransactionResponse {
   confirmations: unknown[];
   confirmationsRequired: number;
   isSuccessful: boolean;
+  transactionHash?: Hash;
 }
+
 /**
- * Extracts and updates the signature status from a Safe transaction
- * @param safeTransaction The Safe transaction response
+ * Updates the global signature status store based on a Safe transaction's current state.
+ * Tracks the number of confirmations received vs required, and resets when complete.
+ *
+ * @param safeTransaction - The transaction response from Safe API
+ * @returns The current confirmation status
  */
-function updateSignatureStatus(safeTransaction: UpdateSignatureStatusProps): SafeTransactionStatus {
+function updateSignatureStatus(safeTransaction: SafeTransactionResponse): SafeTransactionStatus {
   const status: SafeTransactionStatus = {
     currentConfirmations: safeTransaction.confirmations?.length ?? 0,
     requiredConfirmations: safeTransaction.confirmationsRequired ?? 0,
@@ -58,12 +65,12 @@ function updateSignatureStatus(safeTransaction: UpdateSignatureStatusProps): Saf
 }
 
 /**
- * If the transaction has to be signed by several signers, it may take some time for the transaction to be confirmed.
- * This function polls the Safe Wallet API for the transaction and returns the confirmed transaction.
+ * Polls the Safe API until a transaction is fully signed by all required signers.
+ * Updates the signature status during polling to track progress.
  *
- * @param hash - The hash of the transaction to poll.
- * @param delay - The delay between polls in milliseconds.
- * @returns The confirmed transaction and its status.
+ * @param hash - The Safe transaction hash to poll
+ * @param delay - Time in milliseconds between polling attempts (default: 5000)
+ * @returns A promise that resolves to the final transaction hash once fully signed
  */
 async function pollSafeTransaction(hash: Hash, delay = 5000): Promise<Hash> {
   const chainId = getChainId(wagmiConfig);
@@ -73,7 +80,7 @@ async function pollSafeTransaction(hash: Hash, delay = 5000): Promise<Hash> {
 
   const safeTransaction = await safeApiKit.getTransaction(hash);
 
-  updateSignatureStatus(safeTransaction as UpdateSignatureStatusProps);
+  updateSignatureStatus(safeTransaction as SafeTransactionResponse);
 
   if (safeTransaction.isSuccessful) {
     return safeTransaction.transactionHash as Hash;
