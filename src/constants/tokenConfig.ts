@@ -17,7 +17,7 @@ export enum InputTokenTypes {
   Substrate = 'substrate',
 }
 
-type EvmInputTokenDetails = BaseInputTokenDetails & {
+export type EvmInputTokenDetails = BaseInputTokenDetails & {
   erc20AddressSourceChain: `0x${string}`;
   type: InputTokenTypes.Evm;
 };
