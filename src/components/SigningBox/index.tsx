@@ -1,11 +1,26 @@
 import { FC, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { create } from 'zustand';
 
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
 import { OfframpSigningPhase } from '../../types/offramp';
 import { isNetworkEVM } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
+
+interface SignatureState {
+  max: number;
+  current: number;
+  setSigners: (max: number, current: number) => void;
+  reset: () => void;
+}
+
+export const useSignatureStore = create<SignatureState>((set) => ({
+  max: 0,
+  current: 0,
+  setSigners: (max: number, current: number) => set({ max, current }),
+  reset: () => set({ max: 0, current: 0 }),
+}));
 
 type ProgressConfig = {
   [key in OfframpSigningPhase]: number;
@@ -50,6 +65,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const { selectedNetwork } = useNetwork();
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
+  const { max, current } = useSignatureStore();
 
   const [progress, setProgress] = useState(0);
   const [signatureState, setSignatureState] = useState({ max: 0, current: 0 });
@@ -115,6 +131,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
               <Spinner />
               <p className="ml-2.5 my-2 text-xs">
                 Waiting for signature {signatureState.current}/{signatureState.max}
+                {max > 0 ? `. (Signers ${current}/${max})` : ''}
               </p>
             </motion.footer>
           </div>
