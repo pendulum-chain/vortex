@@ -121,7 +121,7 @@ const PENDULUM_USDC_ASSETHUB = {
 };
 
 const PENDULUM_BRLA_MOONBEAM = {
-  pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF', // TODO. Placeholder address.
+  pendulumErc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
   pendulumCurrencyId: { XCM: 13 },
   pendulumAssetSymbol: 'BRLA',
   pendulumDecimals: 18,
