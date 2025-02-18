@@ -144,7 +144,6 @@ export const SwapPage = () => {
   // Main process hook
   const {
     handleOnSubmit,
-    handleOnSubmitBrla,
     finishOfframping,
     continueFailedFlow,
     firstSep24ResponseState,
@@ -418,7 +417,6 @@ export const SwapPage = () => {
       setOfframpInitiating,
       setInitializeFailed,
       handleOnSubmit,
-      handleOnSubmitBrla,
       setTermsAccepted,
     });
 

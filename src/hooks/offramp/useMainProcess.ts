@@ -33,13 +33,12 @@ export const useMainProcess = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateOfframpHookStateFromState, events.trackOfframpingEvent]);
 
-  const { stellarSubmitCallback, brlaSubmitCallback } = useSubmitOfframp();
+  const { submitOfframpCallback } = useSubmitOfframp();
   // Determines the current offramping phase
   useOfframpAdvancement();
 
   return {
-    handleOnSubmit: stellarSubmitCallback,
-    handleOnSubmitBrla: brlaSubmitCallback,
+    handleOnSubmit: submitOfframpCallback,
     firstSep24ResponseState: firstSep24Response,
     finishOfframping: () => {
       events.resetUniqueEvents();

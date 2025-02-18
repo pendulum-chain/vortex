@@ -16,7 +16,7 @@ import { calculateSwapAmountsWithMargin } from './calculateSwapAmountsWithMargin
 import { performSwapInitialChecks } from './performSwapInitialChecks';
 import { validateSwapInputs } from './validateSwapInputs';
 import { calculateTotalReceive } from '../../../../components/FeeCollapse';
-import { BrlaOfframpExecutionInput, OfframpExecutionInput } from '../../../../types/offramp';
+import { OfframpExecutionInput } from '../../../../types/offramp';
 
 interface SwapConfirmParams {
   address: string | undefined;
@@ -25,7 +25,6 @@ interface SwapConfirmParams {
   fromAmount: Big | undefined;
   fromAmountString: string;
   handleOnSubmit: (executionInput: OfframpExecutionInput) => void;
-  handleOnSubmitBrla: (executionInput: BrlaOfframpExecutionInput) => void;
   inputAmountIsStable: boolean;
   requiresSquidRouter: boolean;
   selectedNetwork: Networks;
@@ -46,7 +45,6 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
     fromAmount,
     fromAmountString,
     handleOnSubmit,
-    handleOnSubmitBrla,
     inputAmountIsStable,
     requiresSquidRouter,
     selectedNetwork,
@@ -100,29 +98,16 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
         afterFees: outputAmountAfterFees,
       };
 
-      if (to === 'brl') {
-        handleOnSubmitBrla({
-          inputTokenType: from,
-          outputTokenType: to,
-          effectiveExchangeRate,
-          inputAmountUnits,
-          outputAmountUnits,
-          setInitializeFailed,
-          pixId: '1234',
-          taxId: '25246094561',
-        });
-        return;
-      } else {
-        handleOnSubmit({
-          inputTokenType: from,
-          outputTokenType: to,
-          effectiveExchangeRate,
-          inputAmountUnits,
-          outputAmountUnits,
-          setInitializeFailed,
-        });
-        return;
-      }
+      handleOnSubmit({
+        inputTokenType: from,
+        outputTokenType: to,
+        effectiveExchangeRate,
+        inputAmountUnits,
+        outputAmountUnits,
+        setInitializeFailed,
+        pixId: '1234',
+        taxId: '25246094561',
+      });
     })
     .catch((_error) => {
       console.error('Error during swap confirmation:', _error);
