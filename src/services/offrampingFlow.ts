@@ -118,8 +118,6 @@ export interface BaseOfframpingState {
   squidRouterReceiverHash: `0x${string}`;
   squidRouterApproveHash?: `0x${string}`;
   squidRouterSwapHash?: `0x${string}`;
-  moonbeamXcmTransactionHash?: `0x${string}`;
-  assetHubXcmTransactionHash?: string;
   nablaSoftMinimumOutputRaw: string;
   nablaHardMinimumOutputRaw: string;
   nablaApproveNonce: number;
@@ -146,6 +144,9 @@ export interface OfframpingState extends BaseOfframpingState {
   brlaEvmAddress?: string;
   pixDestination?: string;
   taxId?: string;
+  moonbeamXcmTransactionHash?: `0x${string}`;
+  assetHubXcmTransactionHash?: string;
+  pendulumToMoonbeamXcmHash?: string;
 }
 
 export type StateTransitionFunction = (
@@ -201,8 +202,8 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
     nablaSwap,
     subsidizePostSwap,
     executePendulumToMoonbeamXCM,
-    pendulumCleanup,
     performBrlaPayoutOnMoonbeam,
+    pendulumCleanup,
   },
 };
 

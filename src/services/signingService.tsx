@@ -19,6 +19,14 @@ interface SignerServiceSep10Response {
   masterClientPublic: string;
 }
 
+type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
+type Status = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
+
+interface BrlaOfframpStatus {
+  type: BrlaOfframpState;
+  status: Status;
+}
+
 export interface SignerServiceSep10Request {
   challengeXDR: string;
   outToken: OutputTokenType;
@@ -133,4 +141,20 @@ export const fetchSep10Signatures = async ({
 
   const { clientSignature, clientPublic, masterClientSignature, masterClientPublic } = await response.json();
   return { clientSignature, clientPublic, masterClientSignature, masterClientPublic };
+};
+
+export const fetchOfframpStatus = async (taxId: string) => {
+  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getOfframpStatus?taxId=${taxId}`);
+
+  if (statusResponse.status !== 200) {
+    if (statusResponse.status === 404) {
+      throw new Error('Offramp not found');
+    } else {
+      throw new Error(`Failed to fetch offramp status from server: ${statusResponse.statusText}`);
+    }
+  }
+
+  const eventStatus: BrlaOfframpStatus = await statusResponse.json();
+  console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
+  return eventStatus;
 };

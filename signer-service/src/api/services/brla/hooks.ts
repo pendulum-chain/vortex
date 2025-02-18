@@ -1,6 +1,7 @@
 import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
 
 type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT';
+type Status = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
 
 export interface Event {
   userId: string;
@@ -13,7 +14,7 @@ export interface Event {
 
 // TODO - Define the data structure for the each event
 export interface BurnEventData {
-  status: string;
+  status: Status;
   // ...
 }
 

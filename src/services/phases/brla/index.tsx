@@ -1,12 +1,17 @@
 import Big from 'big.js';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 import { OfframpingState } from '../../offrampingFlow';
+import { fetchOfframpStatus } from '../../signingService';
 
 export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promise<OfframpingState> {
   // Must confirm, token has arrived on Moonbeam
   // For simplicity let's say we wait 2 minutes
 
   const { taxId, pixDestination, outputAmount } = state;
+
+  if (!taxId || !pixDestination || !outputAmount) {
+    return { ...state, failure: { type: 'unrecoverable', message: 'Missing required parameters on state' } };
+  }
 
   const amount = new Big(outputAmount.units).mul(100); // BRLA understands raw amount with 2 decimal places.
 
@@ -28,32 +33,23 @@ export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promi
     throw new Error(`Failed request BRLA offramp from server: ${response.statusText}`);
   }
 
-  // fetch until we get success or failure event
-  let currentError = '';
   while (true) {
     await new Promise((resolve) => setTimeout(resolve, 10000));
-
-    const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getOfframpStatus?taxId=${taxId}`);
-
-    if (statusResponse.status !== 200) {
-      if (statusResponse.status === 404) {
-        currentError = 'Offramp not found';
-      } else {
-        currentError = `Failed to fetch offramp status from server: ${statusResponse.statusText}`;
+    try {
+      const eventStatus = await fetchOfframpStatus(taxId);
+      if (eventStatus.type === 'MONEY-TRANSFER') {
+        console.log(`Received money transfer event: ${JSON.stringify(eventStatus)}`);
+        break;
       }
-      continue;
-    }
-
-    const eventStatus = await statusResponse.json();
-    console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
-    if (eventStatus.type === 'MONEY-TRANSFER') {
-      console.log(`Received money transfer event: ${JSON.stringify(eventStatus)}`);
-      break;
+    } catch (err) {
+      const error = err as Error;
+      // we assume backend is temporarily unavailable. Operation should not fail.
+      console.error('Error while fetching offramp status:', error.message);
     }
   }
 
   return {
     ...state,
-    phase: 'success',
+    phase: 'pendulumCleanup',
   };
 }

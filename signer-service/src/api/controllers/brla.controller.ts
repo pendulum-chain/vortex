@@ -84,7 +84,7 @@ export const getOfframpStatus = async (req: Request<{}, {}, {}, { taxId: string 
       return;
     }
 
-    res.status(201).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
+    res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
   } catch (error) {
     console.error('Error while requesting offramp status: ', error);
     res.status(500).json({
