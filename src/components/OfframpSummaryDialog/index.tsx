@@ -4,9 +4,9 @@ import Big from 'big.js';
 
 import {
   getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
+  getBaseOutputTokenDetails,
   InputTokenDetails,
-  OutputTokenDetails,
+  BaseOutputTokenDetails,
 } from '../../constants/tokenConfig';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
@@ -42,7 +42,7 @@ interface FeeDetailsProps {
   fiatSymbol: string;
   exchangeRate: string;
   fromToken: InputTokenDetails;
-  toToken: OutputTokenDetails;
+  toToken: BaseOutputTokenDetails;
 }
 
 const FeeDetails = ({ network, feesCost, fiatSymbol, fromToken, toToken, exchangeRate }: FeeDetailsProps) => (
@@ -105,7 +105,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   // component will not render if the executionInput is undefined.
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
-  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
+  const toToken = getBaseOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
