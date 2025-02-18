@@ -22,7 +22,6 @@ export interface BrlaOfframpExecutionInput {
   effectiveExchangeRate: string;
   taxId: string;
   pixId: string;
-  pendulumNode: any;
   setInitializeFailed: (message?: string | null) => void;
 }
 

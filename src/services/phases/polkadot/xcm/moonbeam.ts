@@ -1,12 +1,10 @@
 import { ApiPromise, Keyring } from '@polkadot/api';
 
 import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
-import { waitUntilTrue } from '../../../../helpers/function';
 
 import { submitSignedXcm } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
 import { decodeSubmittableExtrinsic } from '../../signedTransactions';
-import Big from 'big.js';
 
 // Fee was 38,722,802,500,000,000 GLMR when testing
 export function createPendulumToMoonbeamTransfer(
@@ -61,6 +59,7 @@ export async function executePendulumToMoonbeamXCM(
   const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
   const { event, hash } = await submitSignedXcm(pendulumEphemeralAddress, xcmExtrinsic);
+  state.pendulumToMoonbeamXcmHash = hash;
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };
 }

@@ -41,6 +41,8 @@ export const useSubmitOfframp = () => {
     cleanup: cleanupSEP24,
   } = useSep24Actions();
 
+  const { apiComponents: pendulumNode } = usePendulumNode();
+
   const brlaSubmitCallback = useCallback(
     (executionInput: BrlaOfframpExecutionInput) => {
       const {
@@ -51,9 +53,8 @@ export const useSubmitOfframp = () => {
         taxId,
         pixId,
         setInitializeFailed,
-        pendulumNode,
       } = executionInput;
-      if (offrampStarted || offrampState !== undefined) {
+      if (offrampStarted || offrampState !== undefined || !pendulumNode) {
         setOfframpInitiating(false);
         return;
       }
@@ -138,6 +139,7 @@ export const useSubmitOfframp = () => {
       setUrlIntervalSEP24,
       cleanupSEP24,
       setSelectedNetwork,
+      pendulumNode,
     ],
   );
 
