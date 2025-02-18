@@ -43,8 +43,6 @@ export interface Fiat {
 }
 
 export interface BaseOutputTokenDetails {
-  anchorHomepageUrl: string;
-  tomlFileUrl: string;
   decimals: number;
   fiat: Fiat;
   minWithdrawalAmountRaw: string;
@@ -52,7 +50,6 @@ export interface BaseOutputTokenDetails {
   erc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
-  usesMemo: boolean;
 }
 
 export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
@@ -69,6 +66,9 @@ export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
   };
   vaultAccountId: string;
   supportsClientDomain: boolean;
+  anchorHomepageUrl: string;
+  tomlFileUrl: string;
+  usesMemo: boolean;
 };
 
 export type PendulumCurrencyId = PendulumStellarCurrencyId | PendulumXcmCurrencyId;
@@ -362,8 +362,6 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
   },
   brl: {
     type: 'moonbeam',
-    anchorHomepageUrl: '???',
-    tomlFileUrl: '??',
     decimals: 18,
     fiat: {
       assetIcon: 'brl',
@@ -371,11 +369,10 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
       name: 'Brazilian Real',
     },
     erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
-    minWithdrawalAmountRaw: '1',
-    maxWithdrawalAmountRaw: '50000000000000000000000000000000',
+    minWithdrawalAmountRaw: '1000000000000000000', // 1 BRL.
+    maxWithdrawalAmountRaw: '56000000000000000000000',
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL
-    usesMemo: true, // Not really, but we need to identify the user.
     ...PENDULUM_BRLA_MOONBEAM,
   },
 };
