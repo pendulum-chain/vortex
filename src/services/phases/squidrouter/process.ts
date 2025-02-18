@@ -122,13 +122,13 @@ export async function squidRouter(
 
     const approvalHash = await handleTokenApproval(inputToken, transactionRequest, state, wagmiConfig, trackEvent);
 
-    await waitForTransactionConfirmation(approvalHash);
+    const confirmedApprovalHash = await waitForTransactionConfirmation(approvalHash);
 
     setOfframpSigningPhase?.('approved');
 
     const swapHash = await handleSwapTransaction(transactionRequest, wagmiConfig, trackEvent);
 
-    await waitForTransactionConfirmation(swapHash);
+    const confirmedSwapHash = await waitForTransactionConfirmation(swapHash);
 
     setOfframpSigningPhase?.('signed');
 
@@ -142,8 +142,8 @@ export async function squidRouter(
 
     return {
       ...state,
-      squidRouterApproveHash: approvalHash as Hash,
-      squidRouterSwapHash: swapHash as Hash,
+      squidRouterApproveHash: confirmedApprovalHash as Hash,
+      squidRouterSwapHash: confirmedSwapHash as Hash,
       phase: 'pendulumFundEphemeral',
     };
   } catch (error) {
