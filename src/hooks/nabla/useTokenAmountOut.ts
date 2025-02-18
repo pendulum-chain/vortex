@@ -15,9 +15,10 @@ import { useDebouncedValue } from '../useDebouncedValue';
 import { ApiPromise } from '@polkadot/api';
 import { useEffect, useState } from 'react';
 import {
+  getBaseOutputTokenDetails,
   getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
   InputTokenType,
+  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { Networks } from '../../helpers/networks';
@@ -74,7 +75,7 @@ export function useTokenOutAmount({
   }
 
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputToken = getOutputTokenDetails(outputTokenType);
+  const outputToken = getBaseOutputTokenDetails(outputTokenType);
 
   const fromTokenDecimals = inputToken?.pendulumDecimals;
 

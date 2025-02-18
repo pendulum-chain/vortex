@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 // From the highest to the lowest rating - because of ".rating input:hover ~ input" in ./index.css
 // https://developer.mozilla.org/en-US/docs/Web/CSS/Subsequent-sibling_combinator
