@@ -41,8 +41,6 @@ export const useSubmitOfframp = () => {
     cleanup: cleanupSEP24,
   } = useSep24Actions();
 
-  const { apiComponents: pendulumNode } = usePendulumNode();
-
   const brlaSubmitCallback = useCallback(
     (executionInput: BrlaOfframpExecutionInput) => {
       const {
@@ -53,16 +51,15 @@ export const useSubmitOfframp = () => {
         taxId,
         pixId,
         setInitializeFailed,
+        pendulumNode,
       } = executionInput;
-
-      if (offrampStarted || offrampState !== undefined || !pendulumNode) {
+      if (offrampStarted || offrampState !== undefined) {
         setOfframpInitiating(false);
         return;
       }
 
       (async () => {
         setOfframpStarted(true);
-
         try {
           await setSelectedNetwork(selectedNetwork);
 
@@ -82,7 +79,6 @@ export const useSubmitOfframp = () => {
 
           // Fetch user by tax id. Assuming we start only with users that have done this process
           const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}&pixId=${pixId}`);
-
           if (!response.ok) {
             if (response.status === 404) {
               // TODO redirect to subaccount creation and KYC flow.
@@ -149,7 +145,6 @@ export const useSubmitOfframp = () => {
     (executionInput: OfframpExecutionInput) => {
       const { inputTokenType, inputAmountUnits, outputTokenType, outputAmountUnits, setInitializeFailed } =
         executionInput;
-
       if (offrampStarted || offrampState !== undefined) {
         setOfframpInitiating(false);
         return;

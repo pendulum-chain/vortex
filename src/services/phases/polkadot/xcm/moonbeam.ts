@@ -18,7 +18,12 @@ export function createPendulumToMoonbeamTransfer(
 ) {
   const currencyId = { XCM: 13 };
   const currencyFeeId = { XCM: 1 };
-  const destination = { V2: { parents: 1, interior: { X2: { AccountKey20: destinationAddress, Parachain: 2004 } } } };
+  const destination = {
+    V2: {
+      parents: 1,
+      interior: { X2: [{ AccountKey20: { key: destinationAddress, network: 'Any' } }, { Parachain: 2004 }] },
+    },
+  };
   const { ss58Format, api: pendulumApi } = pendulumNode;
 
   // get ephemeral keypair and account
@@ -53,8 +58,9 @@ export async function executePendulumToMoonbeamXCM(
     return { ...state, failure: { type: 'unrecoverable', message } };
   }
 
-  const redeemExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
-  const { event, hash } = await submitSignedXcm(pendulumEphemeralAddress, redeemExtrinsic);
+  const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
+
+  const { event, hash } = await submitSignedXcm(pendulumEphemeralAddress, xcmExtrinsic);
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };
 }

@@ -87,22 +87,17 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
 }
 
 async function prepareCommonTransactions(state: OfframpingState, context: ExecutionContext) {
-  const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
   const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
   const nablaSwapTransaction = await prepareNablaSwapTransaction(state, context);
 
   return {
-    spacewalkRedeemTransaction,
     nablaApproveTransaction,
     nablaSwapTransaction,
   };
 }
 
 async function prepareSpacewalkOfframpTransactions(state: OfframpingState, context: ExecutionContext): Promise<any> {
-  const { spacewalkRedeemTransaction, nablaApproveTransaction, nablaSwapTransaction } = await prepareCommonTransactions(
-    state,
-    context,
-  );
+  const { nablaApproveTransaction, nablaSwapTransaction } = await prepareCommonTransactions(state, context);
 
   const { stellarEphemeralSecret, outputTokenType, sepResult } = state;
 
@@ -111,6 +106,7 @@ async function prepareSpacewalkOfframpTransactions(state: OfframpingState, conte
     console.error(message);
     return { ...state, failure: { type: 'unrecoverable', message } };
   }
+  const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
 
   // Fund Stellar ephemeral only after all other transactions are prepared
   await stellarCreateEphemeral(stellarEphemeralSecret, outputTokenType);
@@ -138,10 +134,7 @@ async function prepareSpacewalkOfframpTransactions(state: OfframpingState, conte
 }
 
 async function prepareBrlaOfframpTransactions(state: OfframpingState, context: ExecutionContext): Promise<any> {
-  const { spacewalkRedeemTransaction, nablaApproveTransaction, nablaSwapTransaction } = await prepareCommonTransactions(
-    state,
-    context,
-  );
+  const { nablaApproveTransaction, nablaSwapTransaction } = await prepareCommonTransactions(state, context);
 
   const { brlaEvmAddress, outputAmount } = state;
   const { pendulumNode } = context;
@@ -161,7 +154,6 @@ async function prepareBrlaOfframpTransactions(state: OfframpingState, context: E
 
   const transactions = {
     pendulumToMoonbeamXcmTransaction,
-    spacewalkRedeemTransaction: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
     nablaSwapTransaction: encodeSubmittableExtrinsic(nablaSwapTransaction),
     nablaApproveTransaction: encodeSubmittableExtrinsic(nablaApproveTransaction),
   };

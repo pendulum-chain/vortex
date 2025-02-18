@@ -34,6 +34,7 @@ interface SwapConfirmParams {
   setTermsAccepted: (accepted: boolean) => void;
   to: OutputTokenType;
   tokenOutAmount: { data: TokenOutData | undefined };
+  pendulumNode: any;
 }
 
 export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmParams) {
@@ -55,6 +56,7 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
     setTermsAccepted,
     to,
     tokenOutAmount,
+    pendulumNode,
   } = params;
 
   const validInputs = validateSwapInputs(inputAmountIsStable, address, fromAmount, tokenOutAmount.data);
@@ -109,7 +111,8 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
           outputAmountUnits,
           setInitializeFailed,
           pixId: '1234',
-          taxId: '1234',
+          taxId: '25246094561',
+          pendulumNode,
         });
         return;
       } else {

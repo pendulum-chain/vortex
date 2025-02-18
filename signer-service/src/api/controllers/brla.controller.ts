@@ -38,6 +38,7 @@ export const getBrlaUser = async (
 export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequest>, res: Response): Promise<void> => {
   try {
     const { taxId, pixKey, amount } = req.body;
+    console.log('Triggering offramp. Amount ', amount, 'taxId ', taxId, 'pixKey ', pixKey);
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
@@ -48,8 +49,7 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
 
     const subaccountId = subaccount.id;
     const { id: offrampId } = await brlaApiService.triggerOfframp({ subaccountId, pixKey, amount });
-
-    res.status(201).json({ offrampId });
+    res.status(200).json({ offrampId });
     return;
   } catch (error) {
     console.error('Error while requesting offramp: ', error);

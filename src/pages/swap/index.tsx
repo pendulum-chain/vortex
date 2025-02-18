@@ -420,6 +420,7 @@ export const SwapPage = () => {
       handleOnSubmit,
       handleOnSubmitBrla,
       setTermsAccepted,
+      pendulumNode,
     });
 
     setIsOfframpSummaryDialogVisible(true);

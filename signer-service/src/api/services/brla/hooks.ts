@@ -23,7 +23,7 @@ export class EventPoller {
   private apiUrl: string;
 
   constructor(pollingInterval: number = 1000) {
-    this.apiUrl = WEBHOOKS_CACHE_URL;
+    this.apiUrl = WEBHOOKS_CACHE_URL!;
     this.pollingInterval = pollingInterval;
   }
 

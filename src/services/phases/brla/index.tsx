@@ -5,12 +5,19 @@ import { OfframpingState } from '../../offrampingFlow';
 export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promise<OfframpingState> {
   // Must confirm, token has arrived on Moonbeam
   // For simplicity let's say we wait 2 minutes
-  await new Promise((resolve) => setTimeout(resolve, 120000));
 
   const { taxId, pixDestination, outputAmount } = state;
 
-  const amount = new Big(outputAmount.units).div(100); // BRLA understands raw amount with 2 decimal places.
+  const amount = new Big(outputAmount.units).mul(100); // BRLA understands raw amount with 2 decimal places.
 
+  console.log(
+    'performBrlaPayoutOnMoonbeam: Triggering offramp with taxId: ',
+    taxId,
+    ' pixDestination: ',
+    pixDestination,
+    ' amount: ',
+    amount.toString(),
+  );
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/triggerOfframp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -18,15 +25,14 @@ export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promi
     body: JSON.stringify({ taxId, pixKey: pixDestination, amount: amount.toString() }),
   });
   if (response.status !== 200) {
-    if (response.status === 401) {
-      throw new Error('Invalid signature');
-    }
-    throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
+    throw new Error(`Failed request BRLA offramp from server: ${response.statusText}`);
   }
 
-  // fetch untile we get success or failure event
+  // fetch until we get success or failure event
   let currentError = '';
   while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+
     const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getOfframpStatus?taxId=${taxId}`);
 
     if (statusResponse.status !== 200) {

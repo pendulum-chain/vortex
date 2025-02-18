@@ -193,8 +193,9 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
   },
   [HandlerType.BRLA]: {
     prepareTransactions,
+    squidRouter,
     pendulumFundEphemeral,
-    executeAssetHubToPendulumXCM,
+    executeMoonbeamToPendulumXCM,
     subsidizePreSwap,
     nablaApprove,
     nablaSwap,
@@ -326,11 +327,11 @@ export async function constructBrlaInitialState({
   amountIn,
   amountOut,
   network,
-  pendulumNode,
   offramperAddress,
   brlaEvmAddress,
   pixDestination,
   taxId,
+  pendulumNode,
 }: BrlaInitiateStateArguments) {
   const baseState = await constructBaseInitialState({
     inputTokenType,
@@ -338,8 +339,8 @@ export async function constructBrlaInitialState({
     amountIn,
     amountOut,
     network,
-    pendulumNode,
     offramperAddress,
+    pendulumNode,
   });
 
   const completeState: OfframpingState = {
