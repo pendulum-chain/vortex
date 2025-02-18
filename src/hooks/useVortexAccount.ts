@@ -24,10 +24,10 @@ export const useVortexAccount = () => {
   }, [evmAccountAddress, polkadotWalletAccount, selectedNetwork]);
 
   const isDisconnected = useMemo(() => {
-    if (!isNetworkEVM(selectedNetwork)) {
-      return !polkadotWalletAccount;
-    } else {
+    if (isNetworkEVM(selectedNetwork)) {
       return !evmAccountAddress;
+    } else {
+      return !polkadotWalletAccount;
     }
   }, [evmAccountAddress, selectedNetwork, polkadotWalletAccount]);
 
