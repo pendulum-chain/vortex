@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback, FormEvent, useDeferredValue } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
 import { ApiPromise } from '@polkadot/api';
 import { motion } from 'framer-motion';
 
@@ -9,7 +9,7 @@ import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
+import { FeeComparison } from '../../components/FeeComparison';
 import { BenefitsList } from '../../components/BenefitsList';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
@@ -38,6 +38,7 @@ import { isNetworkEVM } from '../../helpers/networks';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { BaseLayout } from '../../layouts';
@@ -70,8 +71,6 @@ import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
-  const feeComparisonRef = useRef<FeeComparisonRef>(null);
-  const fromAmountRef = useRef<Big | undefined>(undefined);
   const pendulumNode = usePendulumNode();
   const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
@@ -183,6 +182,20 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
+  // We need to keep track of the amount the user has entered. We use a debounced value to avoid tracking the amount while the user is typing.
+  const debouncedFromAmount = useDebouncedValue(fromAmount, 1000);
+  // Tracks if the user has interacted with the input field.
+  const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
+
+  useEffect(() => {
+    if (fromAmountFieldTouched) {
+      trackEvent({
+        event: 'amount_type',
+        input_amount: debouncedFromAmount ? debouncedFromAmount.toString() : '0',
+      });
+    }
+  }, [fromAmountFieldTouched, debouncedFromAmount]);
+
   useSwapUrlParams({ form, setShowCompareFees });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
@@ -269,10 +282,6 @@ export const SwapPage = () => {
     [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
   );
 
-  useEffect(() => {
-    fromAmountRef.current = fromAmount;
-  }, [fromAmount]);
-
   const WithdrawNumericInput = useMemo(
     () => (
       <>
@@ -283,12 +292,7 @@ export const SwapPage = () => {
           onClick={() => openTokenSelectModal('from')}
           onChange={() => {
             // User interacted with the input field
-            setTimeout(() => {
-              trackEvent({
-                event: 'amount_type',
-                input_amount: fromAmountRef.current ? fromAmountRef.current.toString() : '0',
-              });
-            }, 3000);
+            setFromAmountFieldTouched(true);
             // This also enables the quote tracking events
             trackQuote.current = true;
           }}
