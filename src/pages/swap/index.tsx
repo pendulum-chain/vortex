@@ -200,7 +200,7 @@ export const SwapPage = () => {
         input_amount: debouncedFromAmount ? debouncedFromAmount.toString() : '0',
       });
     }
-  }, [fromAmountFieldTouched, debouncedFromAmount]);
+  }, [fromAmountFieldTouched, debouncedFromAmount, trackEvent]);
 
   useSwapUrlParams({ form, feeComparisonRef });
 
@@ -307,7 +307,7 @@ export const SwapPage = () => {
         <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
-    [form, fromAmount, fromToken, openTokenSelectModal, trackEvent],
+    [form, fromToken, openTokenSelectModal],
   );
 
   function getCurrentErrorMessage() {

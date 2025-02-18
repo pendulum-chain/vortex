@@ -165,7 +165,17 @@ export function useTokenOutAmount({
     } else {
       setError('root', { type: 'custom', message: error });
     }
-  }, [error, isLoading, fetchStatus, initializing, debouncedAmountBigDecimal, fromAmountString, clearErrors, setError]);
+  }, [
+    error,
+    isLoading,
+    fetchStatus,
+    initializing,
+    debouncedAmountBigDecimal,
+    fromAmountString,
+    clearErrors,
+    setError,
+    debouncedFromAmountString,
+  ]);
 
   const isInputStable = debouncedFromAmountString === fromAmountString;
   const stableAmountInUnits = isInputStable ? debouncedFromAmountString : undefined;

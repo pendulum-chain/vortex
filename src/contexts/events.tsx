@@ -303,7 +303,7 @@ const useEvents = () => {
     } else {
       storageService.remove(storageKey);
     }
-  }, [selectedNetwork, address, trackEvent]);
+  }, [fromAmount, selectedNetwork, address, trackEvent]);
 
   return {
     trackEvent,

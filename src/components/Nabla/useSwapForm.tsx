@@ -138,7 +138,7 @@ export const useSwapForm = () => {
     } catch {
       return undefined;
     }
-  }, [fromAmountString]);
+  }, [fromAmountString, setFromAmount]);
 
   const openTokenSelectModal = useCallback((type: TokenSelectType) => {
     setTokenModalType(type);
