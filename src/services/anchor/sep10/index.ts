@@ -1,6 +1,6 @@
 import { Transaction, Keypair, Memo, Operation, MemoType } from 'stellar-sdk';
 
-import { OUTPUT_TOKEN_CONFIG } from '../../../constants/tokenConfig';
+import { getOutputTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
 import { OutputTokenType } from '../../../constants/tokenConfig';
 import { TomlValues } from '../../../types/sep';
 
@@ -50,7 +50,7 @@ export async function sep10(
 
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
-  const { usesMemo, supportsClientDomain } = OUTPUT_TOKEN_CONFIG[outputToken];
+  const { usesMemo, supportsClientDomain } = getOutputTokenDetailsSpacewalk(outputToken);
 
   const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, supportsClientDomain, address);
   const transactionSigned = await fetchAndValidateChallenge(webAuthEndpoint, urlParams, signingKey);
