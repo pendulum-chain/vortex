@@ -1,0 +1,17 @@
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "tsx": false,
+      "dynamicImport": true,
+      "skipLibCheck": true
+    },
+    "target": "es2022",
+    "keepClassNames": true,
+    "loose": true
+  },
+  "module": {
+    "type": "commonjs"
+  },
+  "exclude": ["node_modules"]
+}
