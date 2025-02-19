@@ -20,11 +20,19 @@ interface SignerServiceSep10Response {
 }
 
 type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
-type Status = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
+type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
+
+type BrlaKycState = 'KYC';
+type KycStatus = 'POSTED' | 'FAILED' | 'SUCCESS';
 
 interface BrlaOfframpStatus {
   type: BrlaOfframpState;
-  status: Status;
+  status: OfframpStatus;
+}
+
+interface BrlaKycStatus {
+  type: BrlaKycState;
+  status: KycStatus;
 }
 
 export interface SignerServiceSep10Request {
@@ -151,6 +159,22 @@ export const fetchOfframpStatus = async (taxId: string) => {
   }
 
   const eventStatus: BrlaOfframpStatus = await statusResponse.json();
+  console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
+  return eventStatus;
+};
+
+export const fetchKycStatus = async (taxId: string) => {
+  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}`);
+
+  if (statusResponse.status !== 200) {
+    if (statusResponse.status === 404) {
+      throw new Error('No KYC status found');
+    } else {
+      throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
+    }
+  }
+
+  const eventStatus: BrlaKycStatus = await statusResponse.json();
   console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
   return eventStatus;
 };

@@ -77,7 +77,7 @@ export const getOfframpStatus = async (req: Request<{}, {}, {}, { taxId: string 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      res.status(404).json({ error: 'Subaccount not found' });
+      res.status(400).json({ error: 'Subaccount not found' });
       return;
     }
 
@@ -141,7 +141,7 @@ export const fetchSubaccountKycStatus = async (
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      res.status(404).json({ error: 'Subaccount not found' });
+      res.status(400).json({ error: 'Subaccount not found' });
       return;
     }
 
