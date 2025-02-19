@@ -4,7 +4,7 @@ import { Hash } from 'viem';
 
 import { isTransactionHashSafeWallet } from './isTransactionSafeWallet';
 import { wagmiConfig } from '../../wagmiConfig';
-import { useSafeWalletSignatureStore } from '../../components/SigningBox';
+import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
 
 /**
  * Waits for a transaction to be confirmed, handling both regular and Safe Wallet transactions.
@@ -30,38 +30,11 @@ export async function waitForTransactionConfirmation(hash: Hash): Promise<Hash> 
   return hash;
 }
 
-interface SafeTransactionStatus {
-  currentConfirmations: number;
-  requiredConfirmations: number;
-}
-
-interface SafeTransactionResponse {
+export interface SafeTransactionResponse {
   confirmations: unknown[];
   confirmationsRequired: number;
   isSuccessful: boolean;
   transactionHash?: Hash;
-}
-
-/**
- * Updates the global signature status store based on a Safe transaction's current state.
- * Tracks the number of confirmations received vs required, and resets when complete.
- *
- * @param safeTransaction - The transaction response from Safe API
- * @returns The current confirmation status
- */
-function updateSafeWalletSignatureStatus(safeTransaction: SafeTransactionResponse): SafeTransactionStatus {
-  const status: SafeTransactionStatus = {
-    currentConfirmations: safeTransaction.confirmations?.length ?? 0,
-    requiredConfirmations: safeTransaction.confirmationsRequired ?? 0,
-  };
-
-  useSafeWalletSignatureStore.getState().setSigners(status.requiredConfirmations, status.currentConfirmations);
-
-  if (safeTransaction.isSuccessful) {
-    useSafeWalletSignatureStore.getState().reset();
-  }
-
-  return status;
 }
 
 /**
@@ -80,7 +53,7 @@ async function pollSafeWalletTransaction(hash: Hash, delay = 5000): Promise<Hash
 
   const safeTransaction = await safeApiKit.getTransaction(hash);
 
-  updateSafeWalletSignatureStatus(safeTransaction as SafeTransactionResponse);
+  useSafeWalletSignatureStore.getState().updateSafeWalletSignatureStatus(safeTransaction as SafeTransactionResponse);
 
   if (safeTransaction.isSuccessful) {
     return safeTransaction.transactionHash as Hash;

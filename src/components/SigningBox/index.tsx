@@ -1,35 +1,12 @@
 import { FC, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { create } from 'zustand';
 
+import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
 import { OfframpSigningPhase } from '../../types/offramp';
 import { isNetworkEVM } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
-
-interface SafeWalletSignatureState {
-  confirmations: {
-    required: number;
-    current: number;
-  };
-  setSigners: (required: number, current: number) => void;
-  reset: () => void;
-}
-
-/**
- * When using a Safe Wallet, sometimes several signatures are required to confirm a transaction.
- * This store is used to track the number of signatures required and the number of signatures that have been confirmed.
- */
-
-export const useSafeWalletSignatureStore = create<SafeWalletSignatureState>((set) => ({
-  confirmations: {
-    required: 0,
-    current: 0,
-  },
-  setSigners: (required: number, current: number) => set({ confirmations: { required, current } }),
-  reset: () => set({ confirmations: { required: 0, current: 0 } }),
-}));
 
 type ProgressConfig = {
   [key in OfframpSigningPhase]: number;

@@ -5,7 +5,7 @@ import { Hash, SendTransactionErrorType, WriteContractErrorType } from 'viem';
 import { storageKeys } from '../../../constants/localStorage';
 import { EvmInputTokenDetails, getInputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
 
-import { waitForTransactionConfirmation } from '../../../hooks/safe-wallet/waitForTransactionConfirmation';
+import { waitForTransactionConfirmation } from '../../../helpers/safe-wallet/waitForTransactionConfirmation';
 import { showToast, ToastMessage } from '../../../helpers/notifications';
 import { TrackableEvent } from '../../../contexts/events';
 import erc20ABI from '../../../contracts/ERC20';
