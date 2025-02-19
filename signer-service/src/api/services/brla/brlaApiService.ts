@@ -4,11 +4,25 @@ interface SubaccountData {
   id: string;
   fullName: string;
   phone: string;
-  kyc: any;
+  kyc: KYCData;
   address: any;
   createdAt: string;
   wallets: { evm: string; tron: string };
   brCode: string;
+}
+
+interface KYCData {
+  level: number;
+  documentData: string;
+  documentType: string;
+  limits: {
+    limitMint: number;
+    limitBurn: number;
+    limitSwapBuy: number;
+    limitSwapSell: number;
+    limitBRLAOutOwnAccount: number;
+    limitBRLAOutThirdParty: number;
+  };
 }
 
 interface RegisterSubaccount {
