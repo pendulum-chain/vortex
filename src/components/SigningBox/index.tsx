@@ -8,18 +8,27 @@ import { isNetworkEVM } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 
-interface SignatureState {
-  max: number;
-  current: number;
-  setSigners: (max: number, current: number) => void;
+interface SafeWalletSignatureState {
+  confirmations: {
+    required: number;
+    current: number;
+  };
+  setSigners: (required: number, current: number) => void;
   reset: () => void;
 }
 
-export const useSignatureStore = create<SignatureState>((set) => ({
-  max: 0,
-  current: 0,
-  setSigners: (max: number, current: number) => set({ max, current }),
-  reset: () => set({ max: 0, current: 0 }),
+/**
+ * When using a Safe Wallet, sometimes several signatures are required to confirm a transaction.
+ * This store is used to track the number of signatures required and the number of signatures that have been confirmed.
+ */
+
+export const useSafeWalletSignatureStore = create<SafeWalletSignatureState>((set) => ({
+  confirmations: {
+    required: 0,
+    current: 0,
+  },
+  setSigners: (required: number, current: number) => set({ confirmations: { required, current } }),
+  reset: () => set({ confirmations: { required: 0, current: 0 } }),
 }));
 
 type ProgressConfig = {
@@ -65,7 +74,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const { selectedNetwork } = useNetwork();
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
-  const { max, current } = useSignatureStore();
+  const { confirmations } = useSafeWalletSignatureStore();
 
   const [progress, setProgress] = useState(0);
   const [signatureState, setSignatureState] = useState({ max: 0, current: 0 });
@@ -131,7 +140,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
               <Spinner />
               <p className="ml-2.5 my-2 text-xs">
                 Waiting for signature {signatureState.current}/{signatureState.max}
-                {max > 0 ? `. (Signers ${current}/${max})` : ''}
+                {confirmations.required > 0 ? `. (Signers ${confirmations.current}/${confirmations.required})` : ''}
               </p>
             </motion.footer>
           </div>

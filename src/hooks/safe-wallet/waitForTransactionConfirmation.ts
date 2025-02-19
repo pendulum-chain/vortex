@@ -4,7 +4,7 @@ import { Hash } from 'viem';
 
 import { isTransactionHashSafeWallet } from './isTransactionSafeWallet';
 import { wagmiConfig } from '../../wagmiConfig';
-import { useSignatureStore } from '../../components/SigningBox';
+import { useSafeWalletSignatureStore } from '../../components/SigningBox';
 
 /**
  * Waits for a transaction to be confirmed, handling both regular and Safe Wallet transactions.
@@ -19,7 +19,7 @@ export async function waitForTransactionConfirmation(hash: Hash): Promise<Hash> 
 
   if (isSafeWalletTransaction) {
     // Wait for all required signatures via Safe API
-    const transactionHash = await pollSafeTransaction(hash);
+    const transactionHash = await pollSafeWalletTransaction(hash);
 
     // Wait for on-chain confirmation
     await waitForTransactionReceipt(wagmiConfig, { hash: transactionHash });
@@ -49,16 +49,16 @@ interface SafeTransactionResponse {
  * @param safeTransaction - The transaction response from Safe API
  * @returns The current confirmation status
  */
-function updateSignatureStatus(safeTransaction: SafeTransactionResponse): SafeTransactionStatus {
+function updateSafeWalletSignatureStatus(safeTransaction: SafeTransactionResponse): SafeTransactionStatus {
   const status: SafeTransactionStatus = {
     currentConfirmations: safeTransaction.confirmations?.length ?? 0,
     requiredConfirmations: safeTransaction.confirmationsRequired ?? 0,
   };
 
-  useSignatureStore.getState().setSigners(status.requiredConfirmations, status.currentConfirmations);
+  useSafeWalletSignatureStore.getState().setSigners(status.requiredConfirmations, status.currentConfirmations);
 
   if (safeTransaction.isSuccessful) {
-    useSignatureStore.getState().reset();
+    useSafeWalletSignatureStore.getState().reset();
   }
 
   return status;
@@ -72,7 +72,7 @@ function updateSignatureStatus(safeTransaction: SafeTransactionResponse): SafeTr
  * @param delay - Time in milliseconds between polling attempts (default: 5000)
  * @returns A promise that resolves to the final transaction hash once fully signed
  */
-async function pollSafeTransaction(hash: Hash, delay = 5000): Promise<Hash> {
+async function pollSafeWalletTransaction(hash: Hash, delay = 5000): Promise<Hash> {
   const chainId = getChainId(wagmiConfig);
   const safeApiKit = new SafeApiKit({
     chainId: BigInt(chainId),
@@ -80,12 +80,12 @@ async function pollSafeTransaction(hash: Hash, delay = 5000): Promise<Hash> {
 
   const safeTransaction = await safeApiKit.getTransaction(hash);
 
-  updateSignatureStatus(safeTransaction as SafeTransactionResponse);
+  updateSafeWalletSignatureStatus(safeTransaction as SafeTransactionResponse);
 
   if (safeTransaction.isSuccessful) {
     return safeTransaction.transactionHash as Hash;
   }
 
   await new Promise((resolve) => setTimeout(resolve, delay));
-  return pollSafeTransaction(hash, delay);
+  return pollSafeWalletTransaction(hash, delay);
 }
