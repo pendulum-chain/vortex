@@ -76,7 +76,6 @@ export interface ExecutionContext {
   walletAccount?: WalletAccount;
 }
 
-//TODO maybe change later to SpacewalkInitialStateArguments
 export interface InitiateStateArguments {
   sep24Id: string;
   stellarEphemeralSecret: string;

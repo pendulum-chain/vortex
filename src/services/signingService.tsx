@@ -35,10 +35,6 @@ export interface SignerServiceSep10Request {
   usesMemo?: boolean;
 }
 
-export interface SignerServiceBrlaUserRequest {
-  stuff: string;
-}
-
 // Generic error for signing service
 export class SigningServiceError extends Error {
   constructor(message: string) {

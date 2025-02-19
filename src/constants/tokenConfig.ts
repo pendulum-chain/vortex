@@ -360,7 +360,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
     usesMemo: true,
     supportsClientDomain: true,
   },
-  // TODO - most values are placeholders. Must be updated.
+  // TODO - maximum and minimum amounts need to be clarified.
   brl: {
     type: 'moonbeam',
     partnerUrl: 'https://brla.digital',

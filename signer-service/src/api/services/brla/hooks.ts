@@ -12,12 +12,6 @@ export interface Event {
   acknowledged: boolean;
 }
 
-// TODO - Define the data structure for the each event
-export interface BurnEventData {
-  status: Status;
-  // ...
-}
-
 export class EventPoller {
   private cache: Map<string, Event[]> = new Map();
   private pollingInterval: number;
