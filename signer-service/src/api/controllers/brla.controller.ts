@@ -24,7 +24,7 @@ export const getBrlaUser = async (
       return;
     }
     if (subaccount.kyc.level !== 1) {
-      res.status(404).json({ error: 'KYC invalid' });
+      res.status(400).json({ error: 'KYC invalid' });
       return;
     }
     res.json({ evmAddress: subaccount.wallets.evm });

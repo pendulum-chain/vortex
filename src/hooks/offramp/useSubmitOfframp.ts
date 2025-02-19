@@ -72,6 +72,8 @@ export const useSubmitOfframp = () => {
 
             const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}&pixId=${pixId}`);
             if (!response.ok) {
+              // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
+              // to be valid, or retry.
               if (response.status === 404) {
                 // TODO: Redirect to subaccount creation/KYC flow.
                 setOfframpStarted(false);
