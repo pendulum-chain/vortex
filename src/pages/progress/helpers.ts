@@ -4,7 +4,6 @@ import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   isStellarOutputTokenDetails,
-  OutputTokenDetailsSpacewalk,
 } from '../../constants/tokenConfig';
 import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 import { OfframpingState } from '../../services/offrampingFlow';
@@ -38,6 +37,8 @@ export function createOfframpingPhaseMessage(offrampingState: OfframpingState, n
     pendulumCleanup: 'Transferring to local partner for bank transfer',
     stellarOfframp: 'Transferring to local partner for bank transfer',
     stellarCleanup: 'Transferring to local partner for bank transfer',
+    executePendulumToMoonbeamXCM: `Transferring ${outputTokenDetails.fiat.symbol} from Pendulum --> Moonbeam`,
+    performBrlaPayoutOnMoonbeam: `Transferring to local partner for bank transfer`,
   };
 
   return messages[phase as OfframpingPhase];

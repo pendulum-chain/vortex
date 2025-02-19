@@ -310,7 +310,7 @@ export async function constructInitialState({
     offramperAddress,
   });
 
-  const completeState: Partial<OfframpingState> = {
+  const completeState: OfframpingState = {
     ...baseState,
     sep24Id,
     stellarEphemeralSecret,

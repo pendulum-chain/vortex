@@ -92,6 +92,7 @@ export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
+  partnerUrl: string;
 };
 
 export function isStellarOutputTokenDetails(
@@ -362,6 +363,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
   // TODO - most values are placeholders. Must be updated.
   brl: {
     type: 'moonbeam',
+    partnerUrl: 'https://brla.digital',
     decimals: 18,
     fiat: {
       assetIcon: 'brl',
