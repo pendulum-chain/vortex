@@ -35,6 +35,23 @@ interface BrlaKycStatus {
   status: KycStatus;
 }
 
+type TaxIdType = 'CPF' | 'CNPJ';
+export interface RegisterSubaccountPayload {
+  phone: string;
+  taxIdType: TaxIdType;
+  address: {
+    cep: string;
+    city: string;
+    state: string;
+    street: string;
+    number: string;
+    district: string;
+  };
+  fullName: string;
+  cpf: string;
+  birthDate: string;
+}
+
 export interface SignerServiceSep10Request {
   challengeXDR: string;
   outToken: OutputTokenType;
@@ -177,4 +194,19 @@ export const fetchKycStatus = async (taxId: string) => {
   const eventStatus: BrlaKycStatus = await statusResponse.json();
   console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
   return eventStatus;
+};
+
+export const createSubaccount = async (kycData: RegisterSubaccountPayload): Promise<{ subaccountId: string }> => {
+  const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(kycData),
+  });
+
+  if (accountCreationResponse.status !== 200) {
+    throw new Error(`Failed to fetch KYC status from server: ${accountCreationResponse.statusText}`);
+  }
+
+  return await accountCreationResponse.json();
 };
