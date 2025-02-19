@@ -1,44 +1,10 @@
 import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
-
-interface SubaccountData {
-  id: string;
-  fullName: string;
-  phone: string;
-  kyc: KYCData;
-  address: any;
-  createdAt: string;
-  wallets: { evm: string; tron: string };
-  brCode: string;
-}
-
-interface KYCData {
-  level: number;
-  documentData: string;
-  documentType: string;
-  limits: {
-    limitMint: number;
-    limitBurn: number;
-    limitSwapBuy: number;
-    limitSwapSell: number;
-    limitBRLAOutOwnAccount: number;
-    limitBRLAOutThirdParty: number;
-  };
-}
-
-interface RegisterSubaccount {
-  stuff: string;
-}
-
-interface OfframpPayload {
-  subaccountId: string;
-  pixKey: string;
-  amount: string;
-}
+import { SubaccountData, RegisterSubaccountPayload, OfframpPayload } from './types';
 
 interface EndpointMapping {
   '/subaccounts': {
     POST: {
-      body: RegisterSubaccount;
+      body: RegisterSubaccountPayload;
       response: { id: string };
     };
     GET: {
@@ -142,7 +108,7 @@ export class BrlaApiService {
     }
 
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}`);
+      throw new Error(`Request failed with status ${response.status}, ${await response.text()}`);
     }
 
     return response.json();
@@ -158,6 +124,12 @@ export class BrlaApiService {
   public async triggerOfframp(offrampParams: OfframpPayload): Promise<{ id: string }> {
     const endpoint = `/pay-out`;
     const repsonse = await this.sendRequest(endpoint, 'POST', undefined, offrampParams);
+    return repsonse;
+  }
+
+  public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
+    const endpoint = `/subaccounts`;
+    const repsonse = await this.sendRequest(endpoint, 'POST', undefined, registerSubaccountPayload);
     return repsonse;
   }
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { BrlaApiService } from '../services/brla/brlaApiService';
-import { TriggerOfframpRequest } from '../middlewares/validators';
+import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
 
 export const getBrlaUser = async (
@@ -91,6 +91,70 @@ export const getOfframpStatus = async (req: Request<{}, {}, {}, { taxId: string 
     res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
   } catch (error) {
     console.error('Error while requesting offramp status: ', error);
+    res.status(500).json({
+      error: 'Server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return;
+  }
+};
+
+export const createSubaccount = async (
+  req: Request<{}, {}, RegisterSubaccountPayload>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { cpf: taxId } = req.body;
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (subaccount) {
+      res.status(400).json({ error: 'Subaccount already created' });
+      return;
+    }
+
+    const { id } = await brlaApiService.createSubaccount(req.body);
+
+    res.status(200).json({ subaccountId: id });
+  } catch (error) {
+    console.error('Error while creating subaccount: ', error);
+    res.status(500).json({
+      error: 'Server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return;
+  }
+};
+
+export const fetchSubaccountKycStatus = async (
+  req: Request<{}, {}, {}, { taxId: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { taxId } = req.query;
+
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      res.status(404).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    const lastEventCached = eventPoller.getLatestEventForUser(subaccount.id);
+
+    if (!lastEventCached) {
+      res.status(404).json({ error: `No status events found for ${taxId}` });
+      return;
+    }
+
+    res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
+  } catch (error) {
+    console.error('Error while requesting KYC status: ', error);
     res.status(500).json({
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',

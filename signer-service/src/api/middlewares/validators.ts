@@ -11,6 +11,7 @@ import {
   FiatCurrency,
   CryptoCurrency,
 } from '../controllers/quote.controller';
+import { TriggerOfframpRequest } from '../services/brla/types';
 
 interface CreationBody {
   accountId: string;
@@ -52,12 +53,6 @@ interface SiweValidateBody {
   nonce: string;
   signature: string;
   siweMessage: string;
-}
-
-export interface TriggerOfframpRequest {
-  taxId: string;
-  pixKey: string;
-  amount: string;
 }
 
 export const validateCreationInput: RequestHandler = (req, res, next) => {
