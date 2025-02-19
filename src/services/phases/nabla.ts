@@ -14,7 +14,11 @@ import {
 import Big from 'big.js';
 
 import { EventStatus } from '../../components/GenericEvent';
-import { getInputTokenDetailsOrDefault, getPendulumCurrencyId, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import {
+  getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
+  getPendulumCurrencyId,
+} from '../../constants/tokenConfig';
 import { NABLA_ROUTER } from '../../constants/constants';
 import { erc20WrapperAbi } from '../../contracts/ERC20Wrapper';
 import { routerAbi } from '../../contracts/Router';
@@ -261,7 +265,7 @@ export async function prepareNablaSwapTransaction(
 
   // event attempting swap
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getOutputTokenDetails(outputTokenType);
 
   const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
 
@@ -281,7 +285,7 @@ export async function prepareNablaSwapTransaction(
     // Try swap
     try {
       console.log(
-        `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+        `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
         EventStatus.Waiting,
       );
 
@@ -331,7 +335,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
   }
 
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getOutputTokenDetails(outputTokenType);
 
   if (transactions === undefined) {
     const message = 'Missing transactions for nablaSwap';
@@ -350,7 +354,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
 
   try {
     console.log(
-      `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.stellarAsset.code.string} `,
+      `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
       EventStatus.Waiting,
     );
 

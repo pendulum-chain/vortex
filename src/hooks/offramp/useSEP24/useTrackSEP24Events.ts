@@ -1,24 +1,19 @@
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
-import { calculateTotalReceive } from '../../../components/FeeCollapse';
 import { OfframpingState } from '../../../services/offrampingFlow';
 import { Networks } from '../../../helpers/networks';
-import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../../constants/tokenConfig';
-
-import { ExecutionInput } from '../useMainProcess';
+import { getInputTokenDetailsOrDefault, getBaseOutputTokenDetails } from '../../../constants/tokenConfig';
+import { OfframpExecutionInput } from '../../../types/offramp';
 
 export const useTrackSEP24Events = () => {
   const { trackEvent } = useEventsContext();
 
-  const trackKYCStarted = (executionInput: ExecutionInput, selectedNetwork: Networks) => {
+  const trackKYCStarted = (executionInput: OfframpExecutionInput, selectedNetwork: Networks) => {
     trackEvent({
       event: 'kyc_started',
       from_asset: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType).assetSymbol,
-      to_asset: OUTPUT_TOKEN_CONFIG[executionInput.outputTokenType].stellarAsset.code.string,
-      from_amount: executionInput.amountInUnits,
-      to_amount: calculateTotalReceive(
-        executionInput.offrampAmount,
-        OUTPUT_TOKEN_CONFIG[executionInput.outputTokenType],
-      ),
+      to_asset: getBaseOutputTokenDetails(executionInput.outputTokenType).fiat.symbol,
+      from_amount: executionInput.inputAmountUnits,
+      to_amount: executionInput.outputAmountUnits.afterFees,
     });
   };
 

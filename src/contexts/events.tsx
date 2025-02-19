@@ -1,7 +1,8 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
-import { getInputTokenDetails, OUTPUT_TOKEN_CONFIG } from '../constants/tokenConfig';
+import * as Sentry from '@sentry/react';
+import { getBaseOutputTokenDetails, getInputTokenDetails } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
@@ -205,7 +206,9 @@ const useEvents = () => {
   /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
   /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
   const scheduleQuote = useCallback(
-    (service: QuoteService, quote: string, parameters: OfframpingParameters) => {
+    (service: QuoteService, quote: string, parameters: OfframpingParameters, enableEventTracking: boolean) => {
+      if (!enableEventTracking) return;
+
       const prev = scheduledQuotes.current;
 
       // Do a deep comparison of the parameters to check if they are the same.
@@ -323,9 +326,9 @@ export function createTransactionEvent(
   return {
     event: type,
     from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType)?.assetSymbol ?? 'unknown',
-    to_asset: OUTPUT_TOKEN_CONFIG[state.outputTokenType]?.stellarAsset?.code?.string,
+    to_asset: getBaseOutputTokenDetails(state.outputTokenType)?.fiat?.symbol,
     from_amount: state.inputAmount.units,
-    to_amount: calculateTotalReceive(Big(state.outputAmount.units), OUTPUT_TOKEN_CONFIG[state.outputTokenType]),
+    to_amount: calculateTotalReceive(Big(state.outputAmount.units), getBaseOutputTokenDetails(state.outputTokenType)),
   };
 }
 

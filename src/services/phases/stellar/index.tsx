@@ -13,7 +13,11 @@ import {
   TransactionBuilder,
 } from 'stellar-sdk';
 
-import { OUTPUT_TOKEN_CONFIG, OutputTokenDetails, OutputTokenType } from '../../../constants/tokenConfig';
+import {
+  getOutputTokenDetailsSpacewalk,
+  OutputTokenDetailsSpacewalk,
+  OutputTokenType,
+} from '../../../constants/tokenConfig';
 import {
   HORIZON_URL,
   SIGNING_SERVICE_URL,
@@ -119,7 +123,7 @@ export async function setUpAccountAndOperations(
     sepResult,
     ephemeralKeypair,
     ephemeralAccount,
-    OUTPUT_TOKEN_CONFIG[outputTokenType],
+    getOutputTokenDetailsSpacewalk(outputTokenType),
   );
   return { offrampingTransaction, mergeAccountTransaction };
 }
@@ -130,7 +134,7 @@ async function setupStellarAccount(
   outputTokenType: OutputTokenType,
 ) {
   const ephemeralKeypair = Keypair.fromSecret(ephemeralSecret);
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
   const ephemeralAccountId = ephemeralKeypair.publicKey();
 
   // To make the transaction deterministic, we need to set absoulte timebounds
@@ -215,7 +219,7 @@ async function createOfframpAndMergeTransaction(
   sepResult: SepResult,
   ephemeralKeys: Keypair,
   ephemeralAccount: Account,
-  { stellarAsset: { code, issuer } }: OutputTokenDetails,
+  { stellarAsset: { code, issuer } }: OutputTokenDetailsSpacewalk,
 ) {
   // We allow for a TLL of up to two weeks so we are able to recover it in case of failure
   const maxTime = Date.now() + 1000 * 60 * 60 * 24 * 14;

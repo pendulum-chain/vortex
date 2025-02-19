@@ -5,9 +5,10 @@ import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
 import {
+  getBaseOutputTokenDetails,
   getInputTokenDetails,
   InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
+  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
@@ -65,7 +66,7 @@ export const useSwapForm = () => {
 
     const initialFromToken = getInputTokenDetails(network, initialValues.from as InputTokenType);
     const initialFromTokenIsValid = initialFromToken !== undefined;
-    const initialToTokenIsValid = OUTPUT_TOKEN_CONFIG[initialValues.to as OutputTokenType] !== undefined;
+    const initialToTokenIsValid = getBaseOutputTokenDetails(initialValues.to as OutputTokenType);
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as InputTokenType;
     const to = (initialToTokenIsValid ? initialValues.to : defaultValues.to) as OutputTokenType;
@@ -86,7 +87,7 @@ export const useSwapForm = () => {
     () => (from ? getInputTokenDetails(selectedNetwork, from) : undefined),
     [from, selectedNetwork],
   );
-  const toToken = useMemo(() => (to ? OUTPUT_TOKEN_CONFIG[to] : undefined), [to]);
+  const toToken = useMemo(() => (to ? getBaseOutputTokenDetails(to) : undefined), [to]);
 
   const onFromChange = useCallback(
     (tokenKey: string) => {

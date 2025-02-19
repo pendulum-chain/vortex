@@ -5,18 +5,23 @@ import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 
-import { calculateTotalReceive } from '../../components/FeeCollapse';
-import { getInputTokenDetailsOrDefault, OUTPUT_TOKEN_CONFIG } from '../../constants/tokenConfig';
+import {
+  getInputTokenDetailsOrDefault,
+  getBaseOutputTokenDetails,
+  isStellarOutputToken,
+  getOutputTokenDetailsSpacewalk,
+} from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 
 import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
-import { ExecutionInput } from './useMainProcess';
 import { useSep24Actions } from '../../stores/sep24Store';
 
 import { showToast, ToastMessage } from '../../helpers/notifications';
+import Big from 'big.js';
+import { OfframpExecutionInput } from '../../types/offramp';
 
 export const useSubmitOfframp = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -25,19 +30,24 @@ export const useSubmitOfframp = () => {
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
-  const { setOfframpStarted, setOfframpInitiating } = useOfframpActions();
+  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
   const {
     setAnchorSessionParams,
-    setExecutionInput,
     setInitialResponse: setInitialResponseSEP24,
     setUrlInterval: setUrlIntervalSEP24,
     cleanup: cleanupSEP24,
   } = useSep24Actions();
 
   return useCallback(
-    (executionInput: ExecutionInput) => {
-      const { inputTokenType, amountInUnits, outputTokenType, offrampAmount, setInitializeFailed } = executionInput;
+    (executionInput: OfframpExecutionInput) => {
+      const { inputTokenType, inputAmountUnits, outputTokenType, outputAmountUnits, setInitializeFailed } =
+        executionInput;
 
+      // For now, we do nothing for BRLA. Later, we should route the flow from here.
+      if (!isStellarOutputToken(outputTokenType)) {
+        setOfframpInitiating(false);
+        return;
+      }
       if (offrampStarted || offrampState !== undefined) {
         setOfframpInitiating(false);
         return;
@@ -45,14 +55,6 @@ export const useSubmitOfframp = () => {
 
       (async () => {
         setOfframpStarted(true);
-
-        trackEvent({
-          event: 'transaction_confirmation',
-          from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-          to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-          from_amount: amountInUnits,
-          to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
-        });
 
         try {
           await setSelectedNetwork(selectedNetwork);
@@ -62,13 +64,13 @@ export const useSubmitOfframp = () => {
           trackEvent({
             event: 'transaction_confirmation',
             from_asset: getInputTokenDetailsOrDefault(selectedNetwork, inputTokenType).assetSymbol,
-            to_asset: OUTPUT_TOKEN_CONFIG[outputTokenType].stellarAsset.code.string,
-            from_amount: amountInUnits,
-            to_amount: calculateTotalReceive(offrampAmount, OUTPUT_TOKEN_CONFIG[outputTokenType]),
+            to_asset: getBaseOutputTokenDetails(outputTokenType).fiat.symbol,
+            from_amount: inputAmountUnits,
+            to_amount: outputAmountUnits.afterFees,
           });
 
           const stellarEphemeralSecret = createStellarEphemeralSecret();
-          const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+          const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
           const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
 
           if (!address) {
@@ -88,13 +90,14 @@ export const useSubmitOfframp = () => {
             token: sep10Token,
             tomlValues,
             tokenConfig: outputToken,
-            offrampAmount: offrampAmount.toFixed(2, 0),
+            offrampAmount: Big(outputAmountUnits.beforeFees).toFixed(2, 0),
           };
 
-          setExecutionInput({
+          setOfframpExecutionInput({
             ...executionInput,
             stellarEphemeralSecret,
           });
+
           setAnchorSessionParams(anchorSessionParams);
 
           const fetchAndUpdateSep24Url = async () => {
@@ -140,7 +143,7 @@ export const useSubmitOfframp = () => {
       address,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
-      setExecutionInput,
+      setOfframpExecutionInput,
       setAnchorSessionParams,
       setInitialResponseSEP24,
       setUrlIntervalSEP24,

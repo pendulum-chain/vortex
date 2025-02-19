@@ -1,6 +1,6 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { useState, useRef, useEffect, RefObject } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { Networks, getNetworkDisplayName, getNetworkId } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';

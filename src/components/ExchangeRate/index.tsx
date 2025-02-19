@@ -1,22 +1,19 @@
 import { FC } from 'react';
 import { InputTokenDetails } from '../../constants/tokenConfig';
-import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 
 interface ExchangeRateProps {
   fromToken: InputTokenDetails;
   toTokenSymbol: string;
-  tokenOutData: UseTokenOutAmountResult;
+  exchangeRate?: string;
 }
 
-export const ExchangeRate: FC<ExchangeRateProps> = ({ tokenOutData, fromToken, toTokenSymbol }) => {
-  const exchangeRate =
-    fromToken !== undefined && !tokenOutData.isLoading && tokenOutData.data ? (
-      <>{`1 ${fromToken.assetSymbol} = ${Number(tokenOutData.data.effectiveExchangeRate).toFixed(
-        4,
-      )} ${toTokenSymbol}`}</>
+export const ExchangeRate: FC<ExchangeRateProps> = ({ exchangeRate, fromToken, toTokenSymbol }) => {
+  const exchangeRateElement =
+    fromToken !== undefined && exchangeRate ? (
+      <>{`1 ${fromToken.assetSymbol} = ${Number(exchangeRate).toFixed(4)} ${toTokenSymbol}`}</>
     ) : (
       `-`
     );
 
-  return <span className="text-center">{exchangeRate}</span>;
+  return <span className="text-center">{exchangeRateElement}</span>;
 };

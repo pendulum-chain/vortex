@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
 import { ApiPromise } from '@polkadot/api';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
@@ -17,8 +17,13 @@ import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { PoweredBy } from '../../components/PoweredBy';
 
+import { PitchSection } from '../../sections/Pitch';
+import { TrustedBy } from '../../sections/TrustedBy';
+import { WhyVortex } from '../../sections/WhyVortex';
+
 import {
   getInputTokenDetailsOrDefault,
+  getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
@@ -49,13 +54,12 @@ import {
   useOfframpState,
   useOfframpStarted,
   useOfframpInitiating,
+  useOfframpExecutionInput,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { swapConfirm } from './helpers/swapConfirm';
-import { TrustedBy } from '../../components/TrustedBy';
-import { WhyVortex } from '../../components/WhyVortex';
-import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
+import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
   PendulumFundingAccountError,
@@ -65,19 +69,22 @@ import {
 import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
 import satoshipayLogo from '../../assets/logo/satoshipay.svg';
+import { FAQAccordion } from '../../sections/FAQAccordion';
+import { HowToSell } from '../../sections/HowToSell';
+import { PopularTokens } from '../../sections/PopularTokens';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<FeeComparisonRef>(null);
-
+  const pendulumNode = usePendulumNode();
+  const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [showCompareFees, setShowCompareFees] = useState(false);
+  const [_, setIsReady] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
@@ -90,8 +97,6 @@ export const SwapPage = () => {
 
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
-  const { walletAccount } = usePolkadotWalletState();
-  const pendulumNode = usePendulumNode();
 
   const {
     error: signingServiceError,
@@ -112,6 +117,14 @@ export const SwapPage = () => {
     }
   }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
+  // Maybe go into a state of UI errors??
+  const setInitializeFailed = useCallback((message?: string | null) => {
+    setInitializeFailedMessage(
+      message ??
+        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
+    );
+  }, []);
+
   useEffect(() => {
     if (isSigningServiceError && !isSigningServiceLoading) {
       if (signingServiceError instanceof StellarFundingAccountError) {
@@ -125,7 +138,7 @@ export const SwapPage = () => {
       }
       setInitializeFailed();
     }
-  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, trackEvent]);
+  }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, setInitializeFailed, trackEvent]);
 
   useEffect(() => {
     if (api && !isSigningServiceError && !isSigningServiceLoading) {
@@ -133,14 +146,6 @@ export const SwapPage = () => {
       clearPersistentErrorEventStore();
     }
   }, [api, isSigningServiceError, isSigningServiceLoading]);
-
-  // Maybe go into a state of UI errors??
-  const setInitializeFailed = useCallback((message?: string | null) => {
-    setInitializeFailedMessage(
-      message ??
-        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
-    );
-  }, []);
 
   // Main process hook
   const {
@@ -157,6 +162,7 @@ export const SwapPage = () => {
   const offrampSigningPhase = useOfframpSigningPhase();
   const offrampInitiating = useOfframpInitiating();
   const { setOfframpInitiating } = useOfframpActions();
+  const executionInput = useOfframpExecutionInput();
 
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
@@ -187,10 +193,10 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
-  useSwapUrlParams({ form, setShowCompareFees });
+  useSwapUrlParams({ form, feeComparisonRef });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = OUTPUT_TOKEN_CONFIG[to];
+  const toToken = getOutputTokenDetails(to);
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
@@ -244,8 +250,6 @@ export const SwapPage = () => {
 
         // We don't automatically close the window, as this could be confusing for the user.
         // event.source.close();
-
-        setIsOfframpSummaryDialogVisible(false);
         showToast(ToastMessage.KYC_COMPLETED);
       }
     };
@@ -290,6 +294,8 @@ export const SwapPage = () => {
           onChange={() => {
             // User interacted with the input field
             trackEvent({ event: 'amount_type' });
+            // This also enables the quote tracking events
+            trackQuote.current = true;
           }}
           id="fromAmount"
         />
@@ -437,12 +443,8 @@ export const SwapPage = () => {
   const main = (
     <main ref={formRef}>
       <OfframpSummaryDialog
-        fromToken={fromToken}
-        fromAmountString={fromAmountString}
-        toToken={toToken}
-        formToAmount={formToAmount}
-        tokenOutAmount={tokenOutAmount}
-        visible={isOfframpSummaryDialogVisible}
+        executionInput={executionInput}
+        visible={true}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={() => {
           handleOnAnchorWindowOpen();
@@ -454,7 +456,7 @@ export const SwapPage = () => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="px-4 pt-4 mx-4 mt-8 mb-4 pb-2 rounded-lg shadow-custom md:mx-auto md:w-96"
+        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
         onSubmit={onSwapConfirm}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
@@ -469,7 +471,7 @@ export const SwapPage = () => {
           exchangeRate={
             <ExchangeRate
               {...{
-                tokenOutData: tokenOutAmount,
+                exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
                 fromToken,
                 toTokenSymbol: toToken.fiat.symbol,
               }}
@@ -499,12 +501,12 @@ export const SwapPage = () => {
             disabled={!inputAmountIsStable}
             onClick={(e) => {
               e.preventDefault();
-              // We always show the fees comparison when the user clicks on the button. It will not be hidden again.
-              if (!showCompareFees) setShowCompareFees(true);
               // Scroll to the comparison fees section (with a small delay to allow the component to render first)
               setTimeout(() => {
                 feeComparisonRef.current?.scrollIntoView();
               }, 200);
+              // We track the user interaction with the button, for tracking the quote requested.
+              trackQuote.current = true;
             }}
           >
             Compare fees
@@ -533,23 +535,27 @@ export const SwapPage = () => {
           href="https://satoshipay.io"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex gap-1 text-sm transition hover:opacity-80 items-center"
+          className="flex items-center gap-1 text-sm transition hover:opacity-80"
         >
-          A <img src={satoshipayLogo} alt="Satoshipay" className="h-4" /> Company
+          Developed by <img src={satoshipayLogo} alt="Satoshipay" className="h-4" />
         </a>
       </p>
-      {showCompareFees && fromToken && fromAmount && toToken && (
-        <FeeComparison
-          sourceAssetSymbol={fromToken.assetSymbol}
-          amount={fromAmount}
-          targetAssetSymbol={toToken.fiat.symbol}
-          vortexPrice={vortexPrice}
-          network={selectedNetwork}
-          ref={feeComparisonRef}
-        />
-      )}
+      <PitchSection />
       <TrustedBy />
+      <FeeComparison
+        sourceAssetSymbol={fromToken.assetSymbol}
+        amount={fromAmount ?? Big(100)}
+        targetAssetSymbol={toToken.fiat.symbol}
+        vortexPrice={vortexPrice}
+        network={selectedNetwork}
+        ref={feeComparisonRef}
+        trackQuote={trackQuote.current}
+      />
       <WhyVortex />
+      <HowToSell />
+      <PopularTokens />
+      <FAQAccordion />
+      <GotQuestions />
     </main>
   );
 

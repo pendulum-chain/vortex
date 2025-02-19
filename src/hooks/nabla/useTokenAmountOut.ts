@@ -13,11 +13,12 @@ import { NABLA_ROUTER } from '../../constants/constants';
 import { useContractRead } from './useContractRead';
 import { useDebouncedValue } from '../useDebouncedValue';
 import { ApiPromise } from '@polkadot/api';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  getBaseOutputTokenDetails,
   getInputTokenDetailsOrDefault,
   InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
+  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { Networks } from '../../helpers/networks';
@@ -62,6 +63,8 @@ export function useTokenOutAmount({
 }: UseTokenOutAmountProps) {
   const { setError, clearErrors } = form;
   const { trackEvent } = useEventsContext();
+  const [pending, setPending] = useState(true);
+  const [initializing, setInitializing] = useState(true);
 
   const debouncedFromAmountString = useDebouncedValue(fromAmountString, 800);
   let debouncedAmountBigDecimal: Big | undefined;
@@ -72,7 +75,7 @@ export function useTokenOutAmount({
   }
 
   const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputToken = OUTPUT_TOKEN_CONFIG[outputTokenType];
+  const outputToken = getBaseOutputTokenDetails(outputTokenType);
 
   const fromTokenDecimals = inputToken?.pendulumDecimals;
 
@@ -144,15 +147,21 @@ export function useTokenOutAmount({
     },
   );
 
-  const pending = (isLoading && fetchStatus !== 'idle') || debouncedFromAmountString !== fromAmountString;
   useEffect(() => {
+    const pending =
+      (isLoading && fetchStatus !== 'idle') || debouncedFromAmountString !== fromAmountString || initializing;
+    if (fetchStatus === 'fetching' && initializing) {
+      setInitializing(false);
+    }
+    setPending(pending);
+
     if (pending) return;
     if (error === null) {
       clearErrors('root');
     } else {
       setError('root', { type: 'custom', message: error });
     }
-  }, [error, pending, clearErrors, setError]);
+  }, [error, isLoading, fetchStatus, initializing, debouncedAmountBigDecimal, fromAmountString, clearErrors, setError]);
 
   const isInputStable = debouncedFromAmountString === fromAmountString;
   const stableAmountInUnits = isInputStable ? debouncedFromAmountString : undefined;

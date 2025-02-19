@@ -3,7 +3,7 @@ import { Keypair } from 'stellar-sdk';
 import { ApiPromise, Keyring } from '@polkadot/api';
 import { ApiComponents } from '../../../../contexts/polkadotNode';
 import { getVaultsForCurrency, VaultService } from '../spacewalk';
-import { OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../../../../constants/tokenConfig';
+import { getOutputTokenDetailsSpacewalk, OutputTokenType } from '../../../../constants/tokenConfig';
 
 // The secret phrase of a substrate account on Pendulum used for requesting a redeem
 const TEST_ACCOUNT_SECRET_PHRASE = process.env.TEST_ACCOUNT_SECRET_PHRASE || '';
@@ -29,7 +29,7 @@ function checkRequirements(): boolean {
 async function setupTest(apiComponents: ApiComponents) {
   const { api } = apiComponents;
 
-  const testToken = OUTPUT_TOKEN_CONFIG[TEST_CURRENCY_SYMBOL.toLowerCase() as OutputTokenType];
+  const testToken = getOutputTokenDetailsSpacewalk(TEST_CURRENCY_SYMBOL.toLowerCase() as OutputTokenType);
   const vaultsForCurrency = await getVaultsForCurrency(
     api,
     testToken.stellarAsset.code.hex,
