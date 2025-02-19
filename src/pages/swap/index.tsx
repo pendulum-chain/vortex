@@ -90,9 +90,9 @@ export const SwapPage = () => {
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
   const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
-    usdc: { ars: 1200, eurc: 0.95 },
-    usdce: { ars: 1200, eurc: 0.95 },
-    usdt: { ars: 1200, eurc: 0.95 },
+    usdc: { ars: 1200, eurc: 0.95, brl: 5.7 },
+    usdce: { ars: 1200, eurc: 0.95, brl: 5.7 },
+    usdt: { ars: 1200, eurc: 0.95, brl: 5.7 },
   });
 
   const { trackEvent } = useEventsContext();
