@@ -1,17 +1,17 @@
 import { create } from 'zustand';
 import Big from 'big.js';
-import { InputTokenDetails, OutputTokenDetails } from '../constants/tokenConfig';
+import { InputTokenDetails, BaseInputTokenDetails } from '../constants/tokenConfig';
 
 interface FormState {
   fromAmount?: Big;
   fromToken?: InputTokenDetails;
-  toToken?: OutputTokenDetails;
+  toToken?: BaseInputTokenDetails;
 }
 
 interface FormStoreActions {
   setFromAmount: (amount?: Big) => void;
   setFromToken: (token?: InputTokenDetails) => void;
-  setToToken: (token?: OutputTokenDetails) => void;
+  setToToken: (token?: BaseInputTokenDetails) => void;
 }
 
 type FormStore = FormState & {
@@ -26,7 +26,7 @@ const useFormStore = create<FormStore>((set) => ({
   actions: {
     setFromAmount: (amount?: Big) => set({ fromAmount: amount }),
     setFromToken: (token?: InputTokenDetails) => set({ fromToken: token }),
-    setToToken: (token?: OutputTokenDetails) => set({ toToken: token }),
+    setToToken: (token?: BaseInputTokenDetails) => set({ toToken: token }),
   },
 }));
 
