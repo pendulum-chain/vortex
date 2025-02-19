@@ -72,6 +72,7 @@ import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
+import { PIXKYCForm } from '../../components/PIXKYCForm';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -90,6 +91,7 @@ export const SwapPage = () => {
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
 
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+  const [isKYCActive, setIsKYCActive] = useState(true);
   const {
     error: signingServiceError,
     isLoading: isSigningServiceLoading,
@@ -433,84 +435,95 @@ export const SwapPage = () => {
         onClose={() => setIsOfframpSummaryDialogVisible(false)}
       />
       <SigningBox step={offrampSigningPhase} />
-      <motion.form
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
-        onSubmit={onSwapConfirm}
-      >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
-        <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-        <div className="my-10" />
-        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
-        <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-        <FeeCollapse
-          fromAmount={fromAmount?.toString()}
-          toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
-          toToken={toToken}
-          exchangeRate={
-            <ExchangeRate
-              {...{
-                exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
-                fromToken,
-                toTokenSymbol: toToken.fiat.symbol,
-              }}
-            />
-          }
+      {/* TODO: We definitely should move the swap form into a separate component */}
+      {isKYCActive ? (
+        <PIXKYCForm
+          onBack={() => {
+            setIsKYCActive(false);
+          }}
+          feeComparisonRef={feeComparisonRef}
         />
-        <section className="flex items-center justify-center w-full mt-5">
-          <BenefitsList amount={fromAmount} currency={from} />
-        </section>
-        <section className="flex justify-center w-full mt-5">
-          {(initializeFailedMessage || apiInitializeFailed) && (
-            <div className="flex items-center gap-4">
-              <p className="text-red-600">{initializeFailedMessage}</p>
-            </div>
-          )}
-        </section>
-        <section className="w-full mt-5">
-          <TermsAndConditions
-            key={termsAnimationKey}
-            {...{ toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError }}
-          />
-        </section>
-        <div className="flex gap-3 mt-5">
-          <button
-            className="btn-vortex-primary-inverse btn"
-            style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-            disabled={!inputAmountIsStable}
-            onClick={(e) => {
-              e.preventDefault();
-              // Scroll to the comparison fees section (with a small delay to allow the component to render first)
-              setTimeout(() => {
-                feeComparisonRef.current?.scrollIntoView();
-              }, 200);
-              // We track the user interaction with the button, for tracking the quote requested.
-              trackQuote.current = true;
-            }}
-          >
-            Compare fees
-          </button>
-          <SwapSubmitButton
-            text={
-              offrampInitiating
-                ? 'Confirming'
-                : offrampStarted && isOfframpSummaryDialogVisible
-                ? 'Processing'
-                : 'Confirm'
-            }
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
-            pending={
-              offrampInitiating ||
-              (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
-              offrampState !== undefined
+      ) : (
+        <motion.form
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
+          onSubmit={onSwapConfirm}
+        >
+          <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
+          <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
+          <div className="my-10" />
+          <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
+          <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
+          <FeeCollapse
+            fromAmount={fromAmount?.toString()}
+            toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
+            toToken={toToken}
+            exchangeRate={
+              <ExchangeRate
+                {...{
+                  exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
+                  fromToken,
+                  toTokenSymbol: toToken.fiat.symbol,
+                }}
+              />
             }
           />
-        </div>
-        <div className="mb-16" />
-        <PoweredBy />
-      </motion.form>
+          <section className="flex items-center justify-center w-full mt-5">
+            <BenefitsList amount={fromAmount} currency={from} />
+          </section>
+          <section className="flex justify-center w-full mt-5">
+            {(initializeFailedMessage || apiInitializeFailed) && (
+              <div className="flex items-center gap-4">
+                <p className="text-red-600">{initializeFailedMessage}</p>
+              </div>
+            )}
+          </section>
+          <section className="w-full mt-5">
+            <TermsAndConditions
+              key={termsAnimationKey}
+              {...{ toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError }}
+            />
+          </section>
+          <div className="flex gap-3 mt-5">
+            <button
+              className="btn-vortex-primary-inverse btn"
+              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
+              disabled={!inputAmountIsStable}
+              onClick={(e) => {
+                e.preventDefault();
+                // Scroll to the comparison fees section (with a small delay to allow the component to render first)
+                setTimeout(() => {
+                  feeComparisonRef.current?.scrollIntoView();
+                }, 200);
+                // We track the user interaction with the button, for tracking the quote requested.
+                trackQuote.current = true;
+              }}
+            >
+              Compare fees
+            </button>
+            <SwapSubmitButton
+              text={
+                offrampInitiating
+                  ? 'Confirming'
+                  : offrampStarted && isOfframpSummaryDialogVisible
+                  ? 'Processing'
+                  : 'Confirm'
+              }
+              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
+              pending={
+                offrampInitiating ||
+                (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
+                offrampState !== undefined
+              }
+            />
+          </div>
+          <div className="mb-16" />
+          <PoweredBy />
+        </motion.form>
+      )}
+
       <p className="flex items-center justify-center mr-1 text-gray-500">
         <a
           href="https://satoshipay.io"

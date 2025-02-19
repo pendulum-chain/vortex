@@ -93,6 +93,7 @@ function FeeProviderRow({
     providerPrice,
     vortexPrice,
     error,
+    trackQuote,
   ]);
 
   return (
