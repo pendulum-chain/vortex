@@ -10,7 +10,9 @@ declare global {
 }
 
 async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
-  req.derivedMemo = null;
+  // If the client didn't specify, we don't want to pass a derived memo even if a cookie was sent.
+
+  req.derivedMemo = null; // Explicit overwrite to avoid tampering, defensive.
 
   if (!req.body.usesMemo) {
     next();
@@ -26,6 +28,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
     const cookieKey = `authToken_${address}`;
     const authToken = cookies[cookieKey];
 
+    // Check if matches the address requested by client, otherwise ignore cookie
     if (!authToken?.signature || !authToken?.nonce) {
       res.status(401).json({
         error: 'Missing or invalid authentication token',
@@ -35,6 +38,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
 
     const memo = await validateSignatureAndGetMemo(authToken.nonce, authToken.signature);
 
+    // Client declared usage of memo, but it could not be derived from provided signatures
     if (!memo) {
       res.status(401).json({
         error: 'Missing or invalid authentication token',
@@ -46,6 +50,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
     next();
   } catch (error) {
     const err = error as Error;
+    // Distinguish between failed signature check and other errors
     if (err.message.includes('Could not verify signature')) {
       res.status(401).json({
         error: 'Signature validation failed.',
