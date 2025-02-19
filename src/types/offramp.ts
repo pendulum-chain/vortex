@@ -7,9 +7,14 @@ export interface OfframpExecutionInput {
   inputTokenType: InputTokenType;
   outputTokenType: OutputTokenType;
   inputAmountUnits: string;
-  outputAmountUnits: { beforeFees: string; afterFees: string };
+  outputAmountUnits: {
+    beforeFees: string;
+    afterFees: string;
+  };
   effectiveExchangeRate: string;
   stellarEphemeralSecret?: string;
+  taxId?: string;
+  pixId?: string;
   setInitializeFailed: (message?: string | null) => void;
 }
 

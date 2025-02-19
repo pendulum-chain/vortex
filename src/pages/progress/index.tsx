@@ -56,8 +56,8 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   prepareTransactions: 1,
   squidRouter: 1,
   pendulumFundEphemeral: 80,
-  executeMoonbeamXCM: 40,
-  executeAssetHubXCM: 24,
+  executeMoonbeamToPendulumXCM: 40,
+  executeAssetHubToPendulumXCM: 24,
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,
@@ -66,6 +66,8 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   pendulumCleanup: 6,
   stellarOfframp: 6,
   stellarCleanup: 6,
+  executePendulumToMoonbeamXCM: 60,
+  performBrlaPayoutOnMoonbeam: 120,
 };
 
 const CIRCLE_RADIUS = 80;

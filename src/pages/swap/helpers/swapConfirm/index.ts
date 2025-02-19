@@ -105,6 +105,8 @@ export function swapConfirm(e: FormEvent<HTMLFormElement>, params: SwapConfirmPa
         inputAmountUnits,
         outputAmountUnits,
         setInitializeFailed,
+        pixId: '1234',
+        taxId: '25246094561',
       });
     })
     .catch((_error) => {

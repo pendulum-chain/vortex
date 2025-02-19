@@ -8,7 +8,6 @@ import {
   getBaseOutputTokenDetails,
   getInputTokenDetails,
   InputTokenType,
-  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';

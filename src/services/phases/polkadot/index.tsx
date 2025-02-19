@@ -37,6 +37,11 @@ export async function prepareSpacewalkRedeemTransaction(
   }
 
   const { outputAmount, stellarEphemeralSecret, pendulumEphemeralSeed, outputTokenType, executeSpacewalkNonce } = state;
+
+  if (!stellarEphemeralSecret) {
+    throw new Error('Stellar ephemeral secret not available');
+  }
+
   const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
   const { ss58Format } = pendulumNode;
 
@@ -94,8 +99,8 @@ export async function executeSpacewalkRedeem(
   } = state;
   const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
 
-  if (!transactions) {
-    const message = 'Transactions not prepared, cannot execute Spacewalk redeem';
+  if (!transactions || !stellarEphemeralSecret || !executeSpacewalkNonce) {
+    const message = 'Invalid state. Missing values.';
     console.error(message);
     return { ...state, failure: { type: 'unrecoverable', message } };
   }

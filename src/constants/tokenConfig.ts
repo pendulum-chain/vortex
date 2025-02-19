@@ -43,8 +43,6 @@ export interface Fiat {
 }
 
 export interface BaseOutputTokenDetails {
-  anchorHomepageUrl: string;
-  tomlFileUrl: string;
   decimals: number;
   fiat: Fiat;
   minWithdrawalAmountRaw: string;
@@ -68,6 +66,8 @@ export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
   };
   vaultAccountId: string;
   supportsClientDomain: boolean;
+  anchorHomepageUrl: string;
+  tomlFileUrl: string;
   usesMemo: boolean;
 };
 
@@ -92,6 +92,7 @@ export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
+  partnerUrl: string;
 };
 
 export function isStellarOutputTokenDetails(
@@ -359,20 +360,19 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
     usesMemo: true,
     supportsClientDomain: true,
   },
-  // TODO - most values are placeholders. Must be updated.
+  // TODO - maximum and minimum amounts need to be clarified.
   brl: {
     type: 'moonbeam',
-    anchorHomepageUrl: '???',
-    tomlFileUrl: '??',
+    partnerUrl: 'https://brla.digital',
     decimals: 18,
     fiat: {
       assetIcon: 'brl',
       symbol: 'BRL',
       name: 'Brazilian Real',
     },
-    erc20WrapperAddress: '6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv',
-    minWithdrawalAmountRaw: '1',
-    maxWithdrawalAmountRaw: '50000000000000000000000000000000',
+    erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
+    minWithdrawalAmountRaw: '1000000000000000000', // 1 BRL.
+    maxWithdrawalAmountRaw: '56000000000000000000000',
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL
     ...PENDULUM_BRLA_MOONBEAM,
