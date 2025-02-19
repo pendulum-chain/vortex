@@ -17,14 +17,6 @@ export type CryptoCurrency = (typeof SUPPORTED_CRYPTO_CURRENCIES)[number];
 export const SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars'] as const;
 export type FiatCurrency = (typeof SUPPORTED_FIAT_CURRENCIES)[number];
 
-export interface QuoteRequest {
-  provider: Provider;
-  fromCrypto: CryptoCurrency;
-  toFiat: FiatCurrency;
-  amount: string;
-  network?: string;
-}
-
 type AnyQuote = AlchemyPayQuote | MoonpayQuote | TransakQuoteResult;
 
 type QuoteHandler = (
