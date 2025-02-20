@@ -203,12 +203,15 @@ export const SwapPage = () => {
 
   useEffect(() => {
     if (fromAmountFieldTouched) {
+      // We need this check to avoid tracking the amount for the default value of fromAmount.
+      if (debouncedFromAmount !== fromAmount) return;
+
       trackEvent({
         event: 'amount_type',
         input_amount: debouncedFromAmount ? debouncedFromAmount.toString() : '0',
       });
     }
-  }, [fromAmountFieldTouched, debouncedFromAmount, trackEvent]);
+  }, [fromAmountFieldTouched, debouncedFromAmount, fromAmount, trackEvent]);
 
   useSwapUrlParams({ form, feeComparisonRef });
 
