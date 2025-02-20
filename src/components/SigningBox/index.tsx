@@ -1,6 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
 import { OfframpSigningPhase } from '../../types/offramp';
 import { isNetworkEVM } from '../../helpers/networks';
@@ -50,6 +51,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
   const { selectedNetwork } = useNetwork();
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
+  const { confirmations } = useSafeWalletSignatureStore();
 
   const [progress, setProgress] = useState(0);
   const [signatureState, setSignatureState] = useState({ max: 0, current: 0 });
@@ -115,6 +117,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
               <Spinner />
               <p className="ml-2.5 my-2 text-xs">
                 Waiting for signature {signatureState.current}/{signatureState.max}
+                {confirmations.required > 0 ? `. (Signers ${confirmations.current}/${confirmations.required})` : ''}
               </p>
             </motion.footer>
           </div>
