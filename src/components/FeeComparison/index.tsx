@@ -92,6 +92,7 @@ function FeeProviderRow({
     targetAssetSymbol,
     providerPrice,
     vortexPrice,
+    trackQuote,
     error,
   ]);
 

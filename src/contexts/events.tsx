@@ -1,7 +1,6 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
-import * as Sentry from '@sentry/react';
 import { getBaseOutputTokenDetails, getInputTokenDetails } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
@@ -11,6 +10,7 @@ import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
+import { useFromAmount } from '../stores/formStore';
 
 declare global {
   interface Window {
@@ -19,7 +19,6 @@ declare global {
 }
 
 const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
-  'amount_type',
   'click_details',
   'click_support',
   'transaction_confirmation',
@@ -33,7 +32,8 @@ const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
 ];
 
 export interface AmountTypeEvent {
-  event: `amount_type`;
+  event: 'amount_type';
+  input_amount: string;
 }
 
 export interface ClickDetailsEvent {
@@ -43,7 +43,9 @@ export interface ClickDetailsEvent {
 export interface WalletConnectEvent {
   event: 'wallet_connect';
   wallet_action: 'connect' | 'disconnect' | 'change';
+  input_amount?: string;
   account_address?: string;
+  network_selected?: string;
 }
 
 export interface OfframpingParameters {
@@ -105,6 +107,7 @@ export interface NetworkChangeEvent {
 
 export interface FormErrorEvent {
   event: 'form_error';
+  input_amount: string;
   error_message:
     | 'insufficient_balance'
     | 'insufficient_liquidity'
@@ -149,6 +152,7 @@ const useEvents = () => {
   const previousChainId = useRef<number | undefined>(undefined);
   const firstRender = useRef(true);
   const { selectedNetwork } = useNetwork();
+  const fromAmount = useFromAmount();
 
   const scheduledQuotes = useRef<
     | {
@@ -279,12 +283,16 @@ const useEvents = () => {
         event: 'wallet_connect',
         wallet_action: 'disconnect',
         account_address: previous,
+        input_amount: fromAmount ? fromAmount.toString() : '0',
+        network_selected: getNetworkId(selectedNetwork).toString(),
       });
     } else if (wasChanged) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: wasConnected ? 'change' : 'connect',
         account_address: address,
+        input_amount: fromAmount ? fromAmount.toString() : '0',
+        network_selected: getNetworkId(selectedNetwork).toString(),
       });
     }
 
@@ -293,7 +301,7 @@ const useEvents = () => {
     } else {
       storageService.remove(storageKey);
     }
-  }, [selectedNetwork, address, trackEvent]);
+  }, [fromAmount, selectedNetwork, address, trackEvent]);
 
   return {
     trackEvent,

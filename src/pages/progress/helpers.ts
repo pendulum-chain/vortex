@@ -4,7 +4,6 @@ import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   isStellarOutputTokenDetails,
-  OutputTokenDetailsSpacewalk,
 } from '../../constants/tokenConfig';
 import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 import { OfframpingState } from '../../services/offrampingFlow';

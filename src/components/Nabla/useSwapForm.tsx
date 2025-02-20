@@ -8,7 +8,6 @@ import {
   getBaseOutputTokenDetails,
   getInputTokenDetails,
   InputTokenType,
-  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
@@ -16,6 +15,7 @@ import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
 import { getCaseSensitiveNetwork } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
+import { useFormStoreActions } from '../../stores/formStore';
 
 type SwapSettings = {
   from: string;
@@ -41,6 +41,7 @@ export const useSwapForm = () => {
   const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
   const [tokenSelectModalType, setTokenModalType] = useState<TokenSelectType>('from');
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
+  const { setFromAmount } = useFormStoreActions();
 
   const initialState = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -130,11 +131,13 @@ export const useSwapForm = () => {
 
   const fromAmount: Big | undefined = useMemo(() => {
     try {
-      return new Big(fromAmountString);
+      const fromAmount = new Big(fromAmountString);
+      setFromAmount(fromAmount);
+      return fromAmount;
     } catch {
       return undefined;
     }
-  }, [fromAmountString]);
+  }, [fromAmountString, setFromAmount]);
 
   const openTokenSelectModal = useCallback((type: TokenSelectType) => {
     setTokenModalType(type);
