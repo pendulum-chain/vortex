@@ -111,8 +111,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   // component will not render if the executionInput is undefined.
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
-  const toToken = getBaseOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
-  const toTokenFullConfig = getOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
+  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
@@ -141,11 +140,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         fiatSymbol={toToken.fiat.symbol}
         fromToken={fromToken}
         toToken={toToken}
-        partnerUrl={
-          isStellarOutputTokenDetails(toTokenFullConfig)
-            ? toTokenFullConfig.anchorHomepageUrl
-            : toTokenFullConfig.partnerUrl
-        }
+        partnerUrl={isStellarOutputTokenDetails(toToken) ? toToken.anchorHomepageUrl : toToken.partnerUrl}
         exchangeRate={executionInput.effectiveExchangeRate}
         network={selectedNetwork}
         feesCost={feesCost}
