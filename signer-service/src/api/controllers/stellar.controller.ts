@@ -91,7 +91,6 @@ export const signSep10ChallengeHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    console.log('req.body.derivedMemo', req.body.derivedMemo);
     const { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
       req.body.challengeXDR,
       req.body.outToken,
