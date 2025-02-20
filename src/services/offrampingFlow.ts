@@ -309,7 +309,7 @@ export async function constructInitialState({
     offramperAddress,
   });
 
-  const completeState: OfframpingState = {
+  const completeInitialState: OfframpingState = {
     ...baseState,
     sep24Id,
     stellarEphemeralSecret,
@@ -317,8 +317,8 @@ export async function constructInitialState({
     executeSpacewalkNonce: 2,
   };
 
-  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, completeState);
-  return completeState;
+  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, completeInitialState);
+  return completeInitialState;
 }
 
 export async function constructBrlaInitialState({
@@ -343,15 +343,15 @@ export async function constructBrlaInitialState({
     pendulumNode,
   });
 
-  const completeState: OfframpingState = {
+  const completeInitialState: OfframpingState = {
     ...baseState,
     brlaEvmAddress,
     pixDestination,
     taxId,
   };
 
-  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, completeState);
-  return completeState;
+  storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, completeInitialState);
+  return completeInitialState;
 }
 
 export const clearOfframpingState = () => {
