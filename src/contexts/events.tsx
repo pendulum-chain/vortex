@@ -20,7 +20,6 @@ declare global {
 }
 
 const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
-  'amount_type',
   'click_details',
   'click_support',
   'transaction_confirmation',
@@ -34,7 +33,7 @@ const UNIQUE_EVENT_TYPES: TrackableEvent['event'][] = [
 ];
 
 export interface AmountTypeEvent {
-  event: `amount_type`;
+  event: 'amount_type';
   input_amount: string;
 }
 
