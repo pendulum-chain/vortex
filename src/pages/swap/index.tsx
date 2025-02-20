@@ -73,6 +73,8 @@ import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
 
+type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
+
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<FeeComparisonRef>(null);
@@ -86,10 +88,18 @@ export const SwapPage = () => {
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
+  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+  // This cache is used to show an error message to the user if the chosen input amount
+  // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
+  const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
+    usdc: { ars: 1200, eurc: 0.95, brl: 5.7 },
+    usdce: { ars: 1200, eurc: 0.95, brl: 5.7 },
+    usdt: { ars: 1200, eurc: 0.95, brl: 5.7 },
+  });
+
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
 
-  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
   const {
     error: signingServiceError,
     isLoading: isSigningServiceLoading,
@@ -217,7 +227,11 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount, toToken);
       form.setValue('toAmount', totalReceive);
-    } else if (tokenOutAmount.error) {
+      setExchangeRateCache((prev) => ({
+        ...prev,
+        [from]: { ...prev[from], [to]: tokenOutAmount.data!.effectiveExchangeRate },
+      }));
+    } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing
@@ -305,17 +319,20 @@ export const SwapPage = () => {
 
     const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
 
+    const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
+    const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
+
+    const exchangeRate = tokenOutAmount.data?.effectiveExchangeRate || exchangeRateCache[from]?.[to];
+
+    if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
+      console.log(exchangeRate, fromAmount!.mul(exchangeRate).toNumber());
+      trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
+      return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+        toToken.fiat.symbol
+      }.`;
+    }
+
     if (amountOut !== undefined) {
-      const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
-      const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
-
-      if (maxAmountUnits.lt(amountOut)) {
-        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
-        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
-
       if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
         trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
@@ -324,6 +341,9 @@ export const SwapPage = () => {
       }
     }
 
+    if (tokenOutAmount.error?.includes('Insufficient liquidity')) {
+      return 'The amount is temporarily not available. Please, try with a smaller amount.';
+    }
     return tokenOutAmount.error;
   }
 

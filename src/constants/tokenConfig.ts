@@ -370,7 +370,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
       symbol: 'BRL',
       name: 'Brazilian Real',
     },
-    erc20WrapperAddress: '6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv',
+    erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
     minWithdrawalAmountRaw: '1',
     maxWithdrawalAmountRaw: '50000000000000000000000000000000',
     offrampFeesBasisPoints: 0,
