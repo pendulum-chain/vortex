@@ -38,7 +38,7 @@ export const useSubmitOfframp = () => {
   } = useSep24Actions();
   const { apiComponents: pendulumNode } = usePendulumNode();
 
-  const submitOfframpCallback = useCallback(
+  return useCallback(
     (executionInput: OfframpExecutionInput) => {
       if (offrampStarted || offrampState !== undefined || !pendulumNode) {
         setOfframpInitiating(false);
@@ -179,6 +179,4 @@ export const useSubmitOfframp = () => {
       updateOfframpHookStateFromState,
     ],
   );
-
-  return { submitOfframpCallback };
 };

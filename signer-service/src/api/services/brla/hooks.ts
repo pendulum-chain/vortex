@@ -1,7 +1,6 @@
 import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
 
 type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT';
-type Status = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
 
 export interface Event {
   userId: string;
@@ -35,6 +34,7 @@ export class EventPoller {
       const response = await fetch(this.apiUrl);
       const events: Event[] = await response.json();
 
+      // Group received events by user, then append only new events to the cache
       const groupedEvents = events.reduce((acc: Map<string, Event[]>, event: Event) => {
         if (!acc.has(event.userId)) {
           acc.set(event.userId, []);
