@@ -92,6 +92,7 @@ export async function pendulumFundEphemeral(
     if (squidRouterSwapHash === undefined) {
       throw new Error('No squid router swap hash found');
     }
+
     await waitForTransactionReceipt(wagmiConfig, { hash: squidRouterSwapHash });
   }
 
