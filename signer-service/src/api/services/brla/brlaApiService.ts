@@ -32,7 +32,6 @@ export class BrlaApiService {
   private token: string | null = null;
 
   private readonly loginUrl: string = `${BRLA_BASE_URL}/login`;
-  private readonly credentials = { username: 'your_username', password: 'your_password' };
 
   private constructor() {}
 
@@ -116,7 +115,7 @@ export class BrlaApiService {
 
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
     const endpoint = `/subaccounts`;
-    const query = `taxId=${encodeURIComponent(taxId)}`; // could be also id=.....
+    const query = `taxId=${encodeURIComponent(taxId)}`;
     const repsonse = await this.sendRequest(endpoint, 'GET', query);
     return repsonse.subaccounts[0];
   }
