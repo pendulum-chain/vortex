@@ -42,6 +42,7 @@ import { isNetworkEVM } from '../../helpers/networks';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { BaseLayout } from '../../layouts';
@@ -197,6 +198,23 @@ export const SwapPage = () => {
     to,
   } = useSwapForm();
 
+  // We need to keep track of the amount the user has entered. We use a debounced value to avoid tracking the amount while the user is typing.
+  const debouncedFromAmount = useDebouncedValue(fromAmount, 1000);
+  // Tracks if the user has interacted with the input field.
+  const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
+
+  useEffect(() => {
+    if (fromAmountFieldTouched) {
+      // We need this check to avoid tracking the amount for the default value of fromAmount.
+      if (debouncedFromAmount !== fromAmount) return;
+
+      trackEvent({
+        event: 'amount_type',
+        input_amount: debouncedFromAmount ? debouncedFromAmount.toString() : '0',
+      });
+    }
+  }, [fromAmountFieldTouched, debouncedFromAmount, fromAmount, trackEvent]);
+
   useSwapUrlParams({ form, feeComparisonRef });
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
@@ -297,7 +315,7 @@ export const SwapPage = () => {
           onClick={() => openTokenSelectModal('from')}
           onChange={() => {
             // User interacted with the input field
-            trackEvent({ event: 'amount_type' });
+            setFromAmountFieldTouched(true);
             // This also enables the quote tracking events
             trackQuote.current = true;
           }}
@@ -306,7 +324,7 @@ export const SwapPage = () => {
         <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
       </>
     ),
-    [form, fromToken, openTokenSelectModal, trackEvent],
+    [form, fromToken, openTokenSelectModal],
   );
 
   function getCurrentErrorMessage() {
@@ -314,7 +332,11 @@ export const SwapPage = () => {
 
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+        trackEvent({
+          event: 'form_error',
+          error_message: 'insufficient_balance',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
@@ -328,7 +350,11 @@ export const SwapPage = () => {
 
     if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
       console.log(exchangeRate, fromAmount!.mul(exchangeRate).toNumber());
-      trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
+      trackEvent({
+        event: 'form_error',
+        error_message: 'more_than_maximum_withdrawal',
+        input_amount: fromAmount ? fromAmount.toString() : '0',
+      });
       return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
         toToken.fiat.symbol
       }.`;
@@ -336,7 +362,11 @@ export const SwapPage = () => {
 
     if (amountOut !== undefined) {
       if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
-        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
+        trackEvent({
+          event: 'form_error',
+          error_message: 'less_than_minimum_withdrawal',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;

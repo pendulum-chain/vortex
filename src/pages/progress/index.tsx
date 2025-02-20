@@ -49,7 +49,7 @@ const useProgressUpdate = (
     }, 100);
 
     return () => clearInterval(progressUpdateInterval);
-  }, [currentPhase, currentPhaseIndex, setDisplayedPercentage, setShowCheckmark]);
+  }, [currentPhase, currentPhaseIndex, displayedPercentage, setDisplayedPercentage, setShowCheckmark]);
 };
 
 export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
