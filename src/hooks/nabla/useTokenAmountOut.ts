@@ -18,7 +18,6 @@ import {
   getBaseOutputTokenDetails,
   getInputTokenDetailsOrDefault,
   InputTokenType,
-  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { Networks } from '../../helpers/networks';

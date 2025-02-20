@@ -73,7 +73,6 @@ import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
-import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);

@@ -1,7 +1,6 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
-import * as Sentry from '@sentry/react';
 import { getBaseOutputTokenDetails, getInputTokenDetails } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
