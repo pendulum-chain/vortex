@@ -17,7 +17,7 @@ export enum InputTokenTypes {
   Substrate = 'substrate',
 }
 
-type EvmInputTokenDetails = BaseInputTokenDetails & {
+export type EvmInputTokenDetails = BaseInputTokenDetails & {
   erc20AddressSourceChain: `0x${string}`;
   type: InputTokenTypes.Evm;
 };
@@ -121,7 +121,7 @@ const PENDULUM_USDC_ASSETHUB = {
 };
 
 const PENDULUM_BRLA_MOONBEAM = {
-  pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF', // TODO. Placeholder address.
+  pendulumErc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
   pendulumCurrencyId: { XCM: 13 },
   pendulumAssetSymbol: 'BRLA',
   pendulumDecimals: 18,
@@ -370,7 +370,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
       symbol: 'BRL',
       name: 'Brazilian Real',
     },
-    erc20WrapperAddress: '6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv',
+    erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
     minWithdrawalAmountRaw: '1',
     maxWithdrawalAmountRaw: '50000000000000000000000000000000',
     offrampFeesBasisPoints: 0,

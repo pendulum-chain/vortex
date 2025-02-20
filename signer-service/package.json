@@ -1,25 +1,22 @@
 {
-  "name": "@pendulum-network/token-api",
+  "name": "vortex-signer-service",
   "version": "1.0.0",
   "description": "",
   "author": "Pendulum Chain",
-  "main": "src/index.js",
   "license": "MIT",
   "engines": {
     "node": ">=12",
     "yarn": "*"
   },
   "scripts": {
-    "precommit": "yarn lint-staged && yarn lint",
-    "start": "node ./src/index.js",
-    "dev": "nodemon ./src/index.js",
-    "lint-staged": "prettier --write --ignore-unknown",
-    "lint": "eslint ./src/ --ignore-path .gitignore --ignore-pattern internals/scripts",
-    "lint:fix": "yarn lint --fix",
-    "lint:watch": "yarn lint --watch",
+    "lint": "eslint ./src/**/*.{js,ts} --ignore-path .gitignore --ignore-pattern internals/scripts",
+    "lint-staged": "prettier --write",
     "test": "vitest",
-    "validate": "yarn lint && yarn test",
-    "postpublish": "git push --tags"
+    "precommit": "yarn lint-staged && yarn lint",
+    "build": "swc src -d dist --strip-leading-paths",
+    "serve": "node dist/index.js",
+    "start": "yarn build && yarn serve",
+    "dev": "nodemon --ext ts --watch src --exec \"node -r @swc-node/register src/index.ts\""
   },
   "dependencies": {
     "@polkadot/api": "^13.2.1",
@@ -43,11 +40,23 @@
     "mongoose": "^5.2.17",
     "morgan": "^1.8.1",
     "siwe": "^2.3.2",
-    "stellar-sdk": "^11.3.0",
+    "stellar-sdk": "^13.1.0",
     "viem": "^2.21.3",
     "winston": "^3.1.0"
   },
   "devDependencies": {
+    "@pendulum-chain/types": "^1.1.1",
+    "@stellar/stellar-sdk": "^13.1.0",
+    "@swc-node/register": "^1.10.9",
+    "@swc/cli": "^0.5.2",
+    "@swc/core": "^1.10.4",
+    "@types/body-parser": "^1.19.5",
+    "@types/compression": "^1.7.5",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/method-override": "^3.0.0",
+    "@types/morgan": "^1.9.9",
     "eslint": "^7.29.0",
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-config-prettier": "^8.8.0",
@@ -55,7 +64,8 @@
     "husky": "^3.0.7",
     "mocha": "^6.2.2",
     "nodemon": "^2.0.1",
-    "prettier": "^2.8.7"
+    "prettier": "^2.8.7",
+    "typescript": "^5.7.2"
   },
   "packageManager": "yarn@4.4.1"
 }

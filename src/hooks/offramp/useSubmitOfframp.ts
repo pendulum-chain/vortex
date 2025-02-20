@@ -71,7 +71,7 @@ export const useSubmitOfframp = () => {
 
           const stellarEphemeralSecret = createStellarEphemeralSecret();
           const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
-          const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
+          const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 
           if (!address) {
             throw new Error('useSubmitOfframp: Address must be defined at this stage');
