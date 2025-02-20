@@ -310,7 +310,7 @@ export const SwapPage = () => {
 
     //TODO - commented for testing and preview only. REMOVE COMMENT.
     // if (typeof userInputTokenBalance === 'string') {
-    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0) && walletAccount) {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
     //     trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
     //     return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
     //   }
