@@ -11,6 +11,7 @@ import {
   FiatCurrency,
   CryptoCurrency,
 } from '../controllers/quote.controller';
+import { TriggerOfframpRequest } from '../services/brla/types';
 
 interface CreationBody {
   accountId: string;
@@ -278,6 +279,27 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
 
   if (!siweMessage) {
     res.status(400).json({ error: 'Missing param: siweMessage' });
+    return;
+  }
+
+  next();
+};
+
+export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) => {
+  const { taxId, pixKey, amount } = req.body as TriggerOfframpRequest;
+
+  if (!taxId) {
+    res.status(400).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!pixKey) {
+    res.status(400).json({ error: 'Missing pixKey parameter' });
+    return;
+  }
+
+  if (!amount) {
+    res.status(400).json({ error: 'Missing amount parameter' });
     return;
   }
 

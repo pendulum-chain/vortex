@@ -115,7 +115,7 @@ export async function pendulumFundEphemeral(
 
   return {
     ...state,
-    phase: isNetworkEVM(state.network) ? 'executeMoonbeamXCM' : 'executeAssetHubXCM',
+    phase: isNetworkEVM(state.network) ? 'executeMoonbeamToPendulumXCM' : 'executeAssetHubToPendulumXCM',
   };
 }
 
@@ -294,6 +294,13 @@ export async function subsidizePostSwap(state: OfframpingState, context: Executi
       const currentBalance = await getRawOutputBalance(state, context);
       return currentBalance.gte(Big(state.outputAmount.raw));
     });
+  }
+
+  if (state.outputTokenType === 'brl') {
+    return {
+      ...state,
+      phase: 'executePendulumToMoonbeamXCM',
+    };
   }
 
   return {

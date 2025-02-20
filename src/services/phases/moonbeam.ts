@@ -22,7 +22,10 @@ export const moonbeamConfig = createConfig({
   },
 });
 
-export async function executeMoonbeamXCM(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function executeMoonbeamToPendulumXCM(
+  state: OfframpingState,
+  context: ExecutionContext,
+): Promise<OfframpingState> {
   const { pendulumNode } = context;
 
   const { ss58Format } = pendulumNode;
@@ -59,7 +62,7 @@ export async function executeMoonbeamXCM(state: OfframpingState, context: Execut
         // and not just after this function call here would usually end (i.e. after the
         // tokens arrived on Pendulum).
         // For that reason we return early here and the outer logic of the `useMainProcess` hook
-        // will ensure that this function `executeMoonbeamXCM` will be called again shortly after
+        // will ensure that this function `executeMoonbeamToPendulumXCM` will be called again shortly after
         // where this time `moonbeamXcmTransactionHash` is already defined right at the beginning
         // of the call
         return { ...state, moonbeamXcmTransactionHash };

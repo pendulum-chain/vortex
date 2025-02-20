@@ -7,6 +7,8 @@ import {
   getBaseOutputTokenDetails,
   InputTokenDetails,
   BaseOutputTokenDetails,
+  isStellarOutputTokenDetails,
+  getOutputTokenDetails,
 } from '../../constants/tokenConfig';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
@@ -43,9 +45,18 @@ interface FeeDetailsProps {
   exchangeRate: string;
   fromToken: InputTokenDetails;
   toToken: BaseOutputTokenDetails;
+  partnerUrl: string;
 }
 
-const FeeDetails = ({ network, feesCost, fiatSymbol, fromToken, toToken, exchangeRate }: FeeDetailsProps) => (
+const FeeDetails = ({
+  network,
+  feesCost,
+  fiatSymbol,
+  fromToken,
+  toToken,
+  exchangeRate,
+  partnerUrl,
+}: FeeDetailsProps) => (
   <section className="mt-6">
     <div className="flex justify-between mb-2">
       <p>
@@ -69,13 +80,8 @@ const FeeDetails = ({ network, feesCost, fiatSymbol, fromToken, toToken, exchang
     </div>
     <div className="flex justify-between">
       <p>Partner</p>
-      <a
-        href={toToken.anchorHomepageUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-500 hover:underline"
-      >
-        {toToken.anchorHomepageUrl}
+      <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+        {partnerUrl}
       </a>
     </div>
   </section>
@@ -106,6 +112,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
   const toToken = getBaseOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
+  const toTokenFullConfig = getOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
@@ -134,6 +141,11 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         fiatSymbol={toToken.fiat.symbol}
         fromToken={fromToken}
         toToken={toToken}
+        partnerUrl={
+          isStellarOutputTokenDetails(toTokenFullConfig)
+            ? toTokenFullConfig.anchorHomepageUrl
+            : toTokenFullConfig.partnerUrl
+        }
         exchangeRate={executionInput.effectiveExchangeRate}
         network={selectedNetwork}
         feesCost={feesCost}
