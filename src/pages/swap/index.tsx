@@ -89,6 +89,8 @@ export const SwapPage = () => {
   const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+  // This cache is used to show an error message to the user if the chosen input amount
+  // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
   const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
     usdc: { ars: 1200, eurc: 0.95, brl: 5.7 },
     usdce: { ars: 1200, eurc: 0.95, brl: 5.7 },
