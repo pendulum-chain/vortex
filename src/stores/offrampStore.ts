@@ -6,10 +6,11 @@ interface OfframpStore extends OfframpState {
   actions: OfframpActions;
 }
 
-const useOfframpStore = create<OfframpStore>()((set) => ({
+export const useOfframpStore = create<OfframpStore>()((set) => ({
   // Initial state
   offrampStarted: false,
   offrampInitiating: false,
+  offrampKycStarted: false,
   offrampState: undefined,
   offrampSigningPhase: undefined,
   offrampExecutionInput: undefined,
@@ -21,6 +22,7 @@ const useOfframpStore = create<OfframpStore>()((set) => ({
     setOfframpState: (state) => set({ offrampState: state }),
     setOfframpExecutionInput: (executionInput) => set({ offrampExecutionInput: executionInput }),
     setOfframpSigningPhase: (phase) => set({ offrampSigningPhase: phase }),
+    setOfframpKycStarted: (kycStarted) => set({ offrampKycStarted: kycStarted }),
 
     // Business logic
     updateOfframpHookStateFromState: (state) => {
@@ -35,6 +37,7 @@ const useOfframpStore = create<OfframpStore>()((set) => ({
       set({
         offrampStarted: false,
         offrampInitiating: false,
+        offrampKycStarted: false,
         offrampState: undefined,
         offrampSigningPhase: undefined,
         offrampExecutionInput: undefined,
@@ -48,5 +51,6 @@ export const useOfframpState = () => useOfframpStore((state) => state.offrampSta
 export const useOfframpStarted = () => useOfframpStore((state) => state.offrampStarted);
 export const useOfframpInitiating = () => useOfframpStore((state) => state.offrampInitiating);
 export const useOfframpExecutionInput = () => useOfframpStore((state) => state.offrampExecutionInput);
+export const useOfframpKycStarted = () => useOfframpStore((state) => state.offrampKycStarted);
 
 export const useOfframpActions = () => useOfframpStore((state) => state.actions);

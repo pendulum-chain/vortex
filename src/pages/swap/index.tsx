@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
 import { motion } from 'motion/react';
 
@@ -56,10 +56,10 @@ import {
   useOfframpStarted,
   useOfframpInitiating,
   useOfframpExecutionInput,
+  useOfframpKycStarted,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
-import { swapConfirm } from './helpers/swapConfirm';
 import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
@@ -74,6 +74,12 @@ import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
 import { PIXKYCForm } from '../../components/PIXKYCForm';
+import { BrlaInput } from '../../components/PIXKYCForm/input';
+import { SubmitHandler } from 'react-hook-form';
+import { SwapFormValues } from '../../components/Nabla/schema';
+import { calculateSwapAmountsWithMargin } from './helpers/swapConfirm/calculateSwapAmountsWithMargin';
+import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
+import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
 
@@ -102,7 +108,6 @@ export const SwapPage = () => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
 
-  const [isKYCActive, setIsKYCActive] = useState(true);
   const {
     error: signingServiceError,
     isLoading: isSigningServiceLoading,
@@ -164,9 +169,10 @@ export const SwapPage = () => {
 
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
+  const offrampKycStarted = useOfframpKycStarted();
   const offrampSigningPhase = useOfframpSigningPhase();
   const offrampInitiating = useOfframpInitiating();
-  const { setOfframpInitiating } = useOfframpActions();
+  const { setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
   const executionInput = useOfframpExecutionInput();
 
   // Store the id as it is cleared after the user opens the anchor window
@@ -196,6 +202,8 @@ export const SwapPage = () => {
     fromAmountString,
     from,
     to,
+    taxId,
+    pixId,
   } = useSwapForm();
 
   // We need to keep track of the amount the user has entered. We use a debounced value to avoid tracking the amount while the user is typing.
@@ -437,8 +445,8 @@ export const SwapPage = () => {
     }
   }
 
-  const onSwapConfirm = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSwapConfirm: SubmitHandler<SwapFormValues> = (data) => {
+    //e.preventDefault();
 
     if (offrampStarted) {
       setIsOfframpSummaryDialogVisible(true);
@@ -453,22 +461,64 @@ export const SwapPage = () => {
       return;
     }
 
-    swapConfirm(e, {
-      inputAmountIsStable,
-      address,
-      fromAmount,
-      tokenOutAmount,
-      api,
-      to,
-      from,
-      selectedNetwork,
-      fromAmountString,
-      requiresSquidRouter: isNetworkEVM(selectedNetwork),
-      setOfframpInitiating,
+    const validInputs = validateSwapInputs(inputAmountIsStable, address, fromAmount, tokenOutAmount.data);
+    if (!validInputs) {
+      return;
+    }
+
+    setOfframpInitiating(true);
+
+    const outputToken = getOutputTokenDetails(to);
+    const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
+
+    const { expectedRedeemAmountRaw, inputAmountRaw } = calculateSwapAmountsWithMargin(
+      validInputs.fromAmount,
+      validInputs.tokenOutAmountData.preciseQuotedAmountOut,
+      inputToken,
+      outputToken,
+    );
+
+    const effectiveExchangeRate = validInputs.tokenOutAmountData.effectiveExchangeRate;
+    const inputAmountUnits = fromAmountString;
+
+    const outputAmountBeforeFees = validInputs.tokenOutAmountData.roundedDownQuotedAmountOut;
+    const outputAmountAfterFees = calculateTotalReceive(outputAmountBeforeFees, outputToken);
+    const outputAmountUnits = {
+      beforeFees: outputAmountBeforeFees.toFixed(2, 0),
+      afterFees: outputAmountAfterFees,
+    };
+
+    const executionInput = {
+      inputTokenType: from,
+      outputTokenType: to,
+      effectiveExchangeRate,
+      inputAmountUnits,
+      outputAmountUnits,
       setInitializeFailed,
-      handleOnSubmit,
-      setTermsAccepted,
-    });
+      taxId: taxId,
+      pixId: pixId,
+      api: api!,
+      requiresSquidRouter: isNetworkEVM(selectedNetwork),
+      expectedRedeemAmountRaw,
+      inputAmountRaw,
+      address: address!,
+      network: selectedNetwork,
+    };
+
+    setOfframpExecutionInput(executionInput);
+
+    performSwapInitialChecks()
+      .then(() => {
+        console.log('Initial checks completed. Starting process..');
+        // here we should set that the user has accepted the terms and conditions in the local storage
+        setTermsAccepted(true);
+        handleOnSubmit(executionInput);
+      })
+      .catch((_error) => {
+        console.error('Error during swap confirmation:', _error);
+        setOfframpInitiating(false);
+        setInitializeFailed();
+      });
 
     setIsOfframpSummaryDialogVisible(true);
   };
@@ -486,26 +536,22 @@ export const SwapPage = () => {
       />
       <SigningBox step={offrampSigningPhase} />
       {/* TODO: We definitely should move the swap form into a separate component */}
-      {isKYCActive ? (
-        <PIXKYCForm
-          onBack={() => {
-            setIsKYCActive(false);
-          }}
-          feeComparisonRef={feeComparisonRef}
-        />
+      {offrampKycStarted ? (
+        <PIXKYCForm feeComparisonRef={feeComparisonRef} />
       ) : (
         <motion.form
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
           className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
-          onSubmit={onSwapConfirm}
+          onSubmit={form.handleSubmit(onSwapConfirm)}
         >
           <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
           <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
           <div className="my-10" />
           <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
           <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
+          <BrlaInput form={form} toToken={to}></BrlaInput>
           <FeeCollapse
             fromAmount={fromAmount?.toString()}
             toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}

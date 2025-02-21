@@ -8,6 +8,8 @@ export type SwapFormValues = {
   toAmount: string;
   slippage: number | undefined;
   deadline: number;
+  taxId: string | undefined;
+  pixId: string | undefined;
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -24,6 +26,16 @@ const schema = Yup.object<SwapFormValues>().shape({
   toAmount: Yup.string().required(),
   slippage: Yup.number().nullable().transform(transformNumber),
   deadline: Yup.number().nullable().transform(transformNumber),
+  taxId: Yup.string().when('to', {
+    is: 'brl',
+    then: (schema) => schema.required('Tax ID is required when converting to BRL'),
+    otherwise: (schema) => schema.optional(),
+  }),
+  pixId: Yup.string().when('to', {
+    is: 'brl',
+    then: (schema) => schema.required('PIX ID is required when converting to BRL'),
+    otherwise: (schema) => schema.optional(),
+  }),
 });
 
 export default schema;

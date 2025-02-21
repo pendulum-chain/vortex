@@ -28,8 +28,13 @@ export const useSubmitOfframp = () => {
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
-  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput, updateOfframpHookStateFromState } =
-    useOfframpActions();
+  const {
+    setOfframpStarted,
+    setOfframpInitiating,
+    setOfframpExecutionInput,
+    updateOfframpHookStateFromState,
+    setOfframpKycStarted,
+  } = useOfframpActions();
   const {
     setAnchorSessionParams,
     setInitialResponse: setInitialResponseSEP24,
@@ -40,7 +45,7 @@ export const useSubmitOfframp = () => {
 
   return useCallback(
     (executionInput: OfframpExecutionInput) => {
-      if (offrampStarted || offrampState !== undefined || !pendulumNode) {
+      if (offrampStarted || offrampState !== undefined || !pendulumNode || !executionInput) {
         setOfframpInitiating(false);
         return;
       }
@@ -65,6 +70,7 @@ export const useSubmitOfframp = () => {
           if (executionInput.outputTokenType === 'brl') {
             const { taxId, pixId } = executionInput;
             if (!taxId || !pixId) {
+              console.log('no tax id or pix id defined');
               setOfframpStarted(false);
               setOfframpInitiating(false);
               return;
@@ -76,6 +82,8 @@ export const useSubmitOfframp = () => {
               // to be valid, or retry.
               if (response.status === 404) {
                 // TODO: Redirect to subaccount creation/KYC flow.
+                console.log('status 404 on brla user');
+                setOfframpKycStarted(true);
                 setOfframpStarted(false);
                 setOfframpInitiating(false);
                 return;
@@ -83,9 +91,12 @@ export const useSubmitOfframp = () => {
               throw new Error('Error while fetching funding account signature');
             }
             const { evmAddress: brlaEvmAddress } = await response.json();
-            const brlaOfframpExecution = { ...executionInput, brlaEvmAddress };
-            setOfframpExecutionInput(brlaOfframpExecution);
 
+            // append EVM address to execution input
+            const updatedBrlaOfframpExecution = { ...executionInput, brlaEvmAddress };
+            setOfframpExecutionInput(updatedBrlaOfframpExecution);
+
+            console.log('taxId', taxId, 'pixId', pixId, 'brlaEvmAddress', brlaEvmAddress);
             const initialState = await constructBrlaInitialState({
               inputTokenType: executionInput.inputTokenType,
               outputTokenType: executionInput.outputTokenType,

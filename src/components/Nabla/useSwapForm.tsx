@@ -1,6 +1,6 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import Big from 'big.js';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
@@ -41,7 +41,7 @@ export const useSwapForm = () => {
   const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
   const [tokenSelectModalType, setTokenModalType] = useState<TokenSelectType>('from');
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
-  const { setFromAmount } = useFormStoreActions();
+  const { setFromAmount, setPixId, setTaxId } = useFormStoreActions();
 
   const initialState = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -148,6 +148,19 @@ export const useSwapForm = () => {
     setIsTokenSelectModalVisible(false);
   }, []);
 
+  const taxId = useWatch({ control, name: 'taxId' });
+  const pixId = useWatch({ control, name: 'pixId' });
+
+  useEffect(() => {
+    if (!taxId) return;
+    setTaxId(taxId);
+  }, [taxId, setTaxId]);
+
+  useEffect(() => {
+    if (!pixId) return;
+    setPixId(pixId);
+  }, [pixId, setPixId]);
+
   return {
     form,
     from,
@@ -163,5 +176,7 @@ export const useSwapForm = () => {
     fromToken,
     toToken,
     reset: form.reset,
+    taxId,
+    pixId,
   };
 };
