@@ -95,7 +95,7 @@ export const signSep10ChallengeHandler = async (
       req.body.challengeXDR,
       req.body.outToken,
       req.body.clientPublicKey,
-      req.body.derivedMemo,
+      req.derivedMemo,
     );
     res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
     return;
