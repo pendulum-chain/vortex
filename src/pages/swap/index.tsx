@@ -1,19 +1,11 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
-import { motion } from 'motion/react';
 
 import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
-import { TermsAndConditions } from '../../components/TermsAndConditions';
-import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
-import { BenefitsList } from '../../components/BenefitsList';
-import { ExchangeRate } from '../../components/ExchangeRate';
-import { LabeledInput } from '../../components/LabeledInput';
-import { UserBalance } from '../../components/UserBalance';
 import { SigningBox } from '../../components/SigningBox';
 import { PoweredBy } from '../../components/PoweredBy';
 
@@ -42,7 +34,6 @@ import { isNetworkEVM } from '../../helpers/networks';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { BaseLayout } from '../../layouts';
@@ -59,7 +50,6 @@ import {
   useOfframpKycStarted,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
-import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
@@ -74,12 +64,13 @@ import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
 import { PIXKYCForm } from '../../components/PIXKYCForm';
-import { BrlaInput } from '../../components/PIXKYCForm/input';
 import { SubmitHandler } from 'react-hook-form';
 import { SwapFormValues } from '../../components/Nabla/schema';
 import { calculateSwapAmountsWithMargin } from './helpers/swapConfirm/calculateSwapAmountsWithMargin';
 import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
 import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
+import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
+import { Swap } from '../../components/Swap';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
 
@@ -94,9 +85,7 @@ export const SwapPage = () => {
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
-  const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
-  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
   // This cache is used to show an error message to the user if the chosen input amount
   // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
   const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
@@ -113,9 +102,6 @@ export const SwapPage = () => {
     isLoading: isSigningServiceLoading,
     isError: isSigningServiceError,
   } = useSigningService();
-
-  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
-    useTermsAndConditions();
 
   useEffect(() => {
     if (!pendulumNode.apiComponents?.api && pendulumNode?.isFetched) {
@@ -175,20 +161,13 @@ export const SwapPage = () => {
   const { setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
   const executionInput = useOfframpExecutionInput();
 
+  const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
     if (firstSep24ResponseState?.id != undefined) {
       setCachedId(firstSep24ResponseState?.id);
     }
   }, [firstSep24ResponseState?.id]);
-
-  // Store the anchor URL when it becomes available
-  useEffect(() => {
-    if (firstSep24ResponseState?.url) {
-      setCachedAnchorUrl(firstSep24ResponseState.url);
-      setIsOfframpSummaryDialogVisible(true);
-    }
-  }, [firstSep24ResponseState?.url]);
 
   const {
     isTokenSelectModalVisible,
@@ -205,23 +184,6 @@ export const SwapPage = () => {
     taxId,
     pixId,
   } = useSwapForm();
-
-  // We need to keep track of the amount the user has entered. We use a debounced value to avoid tracking the amount while the user is typing.
-  const debouncedFromAmount = useDebouncedValue(fromAmount, 1000);
-  // Tracks if the user has interacted with the input field.
-  const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
-
-  useEffect(() => {
-    if (fromAmountFieldTouched) {
-      // We need this check to avoid tracking the amount for the default value of fromAmount.
-      if (debouncedFromAmount !== fromAmount) return;
-
-      trackEvent({
-        event: 'amount_type',
-        input_amount: debouncedFromAmount ? debouncedFromAmount.toString() : '0',
-      });
-    }
-  }, [fromAmountFieldTouched, debouncedFromAmount, fromAmount, trackEvent]);
 
   useSwapUrlParams({ form, feeComparisonRef });
 
@@ -297,43 +259,6 @@ export const SwapPage = () => {
     const isNetworkSelectorDisabled = offrampState?.phase !== undefined;
     setNetworkSelectorDisabled(isNetworkSelectorDisabled);
   }, [offrampState, setNetworkSelectorDisabled]);
-
-  const ReceiveNumericInput = useMemo(
-    () => (
-      <AssetNumericInput
-        assetIcon={toToken.fiat.assetIcon}
-        tokenSymbol={toToken.fiat.symbol}
-        onClick={() => openTokenSelectModal('to')}
-        registerInput={form.register('toAmount')}
-        disabled={tokenOutAmount.isLoading}
-        readOnly={true}
-        id="toAmount"
-      />
-    ),
-    [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
-  );
-
-  const WithdrawNumericInput = useMemo(
-    () => (
-      <>
-        <AssetNumericInput
-          registerInput={form.register('fromAmount')}
-          tokenSymbol={fromToken.assetSymbol}
-          assetIcon={fromToken.networkAssetIcon}
-          onClick={() => openTokenSelectModal('from')}
-          onChange={() => {
-            // User interacted with the input field
-            setFromAmountFieldTouched(true);
-            // This also enables the quote tracking events
-            trackQuote.current = true;
-          }}
-          id="fromAmount"
-        />
-        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
-      </>
-    ),
-    [form, fromToken, openTokenSelectModal],
-  );
 
   function getCurrentErrorMessage() {
     if (isDisconnected) return;
@@ -446,18 +371,8 @@ export const SwapPage = () => {
   }
 
   const onSwapConfirm: SubmitHandler<SwapFormValues> = (data) => {
-    //e.preventDefault();
-
     if (offrampStarted) {
       setIsOfframpSummaryDialogVisible(true);
-      return;
-    }
-
-    if (!termsAccepted && !termsChecked) {
-      setTermsError(true);
-
-      // We need to trigger a re-render of the TermsAndConditions component to animate
-      setTermsAnimationKey((prev) => prev + 1);
       return;
     }
 
@@ -510,8 +425,6 @@ export const SwapPage = () => {
     performSwapInitialChecks()
       .then(() => {
         console.log('Initial checks completed. Starting process..');
-        // here we should set that the user has accepted the terms and conditions in the local storage
-        setTermsAccepted(true);
         handleOnSubmit(executionInput);
       })
       .catch((_error) => {
@@ -539,87 +452,23 @@ export const SwapPage = () => {
       {offrampKycStarted ? (
         <PIXKYCForm feeComparisonRef={feeComparisonRef} />
       ) : (
-        <motion.form
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
-          onSubmit={form.handleSubmit(onSwapConfirm)}
-        >
-          <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
-          <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-          <div className="my-10" />
-          <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
-          <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-          <BrlaInput form={form} toToken={to}></BrlaInput>
-          <FeeCollapse
-            fromAmount={fromAmount?.toString()}
-            toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
-            toToken={toToken}
-            exchangeRate={
-              <ExchangeRate
-                {...{
-                  exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
-                  fromToken,
-                  toTokenSymbol: toToken.fiat.symbol,
-                }}
-              />
-            }
-          />
-          <section className="flex items-center justify-center w-full mt-5">
-            <BenefitsList amount={fromAmount} currency={from} />
-          </section>
-          <section className="flex justify-center w-full mt-5">
-            {(initializeFailedMessage || apiInitializeFailed) && (
-              <div className="flex items-center gap-4">
-                <p className="text-red-600">{initializeFailedMessage}</p>
-              </div>
-            )}
-          </section>
-          <section className="w-full mt-5">
-            <TermsAndConditions
-              key={termsAnimationKey}
-              {...{ toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError }}
-            />
-          </section>
-          <div className="flex gap-3 mt-5">
-            <button
-              className="btn-vortex-primary-inverse btn"
-              style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-              disabled={!inputAmountIsStable}
-              onClick={(e) => {
-                e.preventDefault();
-                // Scroll to the comparison fees section (with a small delay to allow the component to render first)
-                setTimeout(() => {
-                  feeComparisonRef.current?.scrollIntoView();
-                }, 200);
-                // We track the user interaction with the button, for tracking the quote requested.
-                trackQuote.current = true;
-              }}
-            >
-              Compare fees
-            </button>
-            <SwapSubmitButton
-              text={
-                offrampInitiating
-                  ? 'Confirming'
-                  : offrampStarted && isOfframpSummaryDialogVisible
-                  ? 'Processing'
-                  : 'Confirm'
-              }
-              disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
-              pending={
-                offrampInitiating ||
-                (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
-                offrampState !== undefined
-              }
-            />
-          </div>
-          <div className="mb-16" />
-          <PoweredBy />
-        </motion.form>
+        <Swap
+          form={form}
+          from={from}
+          to={to}
+          tokenOutAmount={tokenOutAmount}
+          fromAmount={fromAmount}
+          feeComparisonRef={feeComparisonRef}
+          inputAmountIsStable={inputAmountIsStable}
+          trackQuote={trackQuote}
+          isOfframpSummaryDialogVisible={isOfframpSummaryDialogVisible}
+          apiInitializeFailed={apiInitializeFailed}
+          initializeFailedMessage={initializeFailedMessage}
+          getCurrentErrorMessage={getCurrentErrorMessage}
+          openTokenSelectModal={openTokenSelectModal}
+          onSwapConfirm={onSwapConfirm}
+        />
       )}
-
       <p className="flex items-center justify-center mr-1 text-gray-500">
         <a
           href="https://satoshipay.io"
