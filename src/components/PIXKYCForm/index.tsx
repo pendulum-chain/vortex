@@ -9,6 +9,7 @@ import { fetchKycStatus } from '../../services/signingService';
 
 interface PIXKYCFormProps {
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
+  setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void;
 }
 
 interface KYCFormData {
@@ -37,8 +38,8 @@ const Spinner = () => (
   </motion.svg>
 );
 
-export const PIXKYCForm = ({ feeComparisonRef }: PIXKYCFormProps) => {
-  const { setOfframpInitiating, setOfframpKycStarted, resetOfframpState } = useOfframpActions();
+export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible }: PIXKYCFormProps) => {
+  const { setOfframpKycStarted, resetOfframpState } = useOfframpActions();
   const executionInput = useOfframpExecutionInput();
   const submitOfframp = useSubmitOfframp();
   const [isVerifying, setIsVerifying] = useState(false);
@@ -61,17 +62,16 @@ export const PIXKYCForm = ({ feeComparisonRef }: PIXKYCFormProps) => {
     performSwapInitialChecks()
       .then(() => {
         console.log('Initial checks completed after KYC. Starting process..');
-        submitOfframp(executionInput);
+        submitOfframp(executionInput, setIsOfframpSummaryDialogVisible);
       })
       .catch((_error) => {
         console.error('Error during swap confirmation:', _error);
-        setOfframpInitiating(false);
         executionInput?.setInitializeFailed();
       })
       .finally(() => {
         setOfframpKycStarted(false);
       });
-  }, [executionInput, setOfframpInitiating, setOfframpKycStarted, submitOfframp]);
+  }, [executionInput, setOfframpKycStarted, submitOfframp, setIsOfframpSummaryDialogVisible]);
 
   const onBackClick = () => {
     setOfframpKycStarted(false);
@@ -99,7 +99,6 @@ export const PIXKYCForm = ({ feeComparisonRef }: PIXKYCFormProps) => {
       if (result === 'validated') {
         setStatusMessage('Você foi validado');
         setTimeout(() => {
-          setIsVerifying(false);
           handleKycReady();
         }, 5000);
       } else if (result === 'rejected') {

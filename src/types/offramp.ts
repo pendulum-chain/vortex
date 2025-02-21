@@ -17,6 +17,7 @@ export interface OfframpExecutionInput {
   stellarEphemeralSecret?: string;
   taxId?: string;
   pixId?: string;
+  brlaEvmAddress?: string;
   api: ApiPromise;
   address: string;
   network: Networks;

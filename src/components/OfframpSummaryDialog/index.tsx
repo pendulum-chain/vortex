@@ -118,7 +118,8 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   const { feesCost } = useOfframpFees(toAmount, toToken);
 
   if (!visible) return null;
-  if (!anchorUrl) return null;
+  if (!anchorUrl && toToken.type === 'spacewalk') return null;
+  if (!executionInput?.brlaEvmAddress && toToken.type === 'moonbeam') return null;
   if (!executionInput) return null;
 
   const content = (
@@ -155,7 +156,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       onClick={() => {
         setIsSubmitted(true);
         onSubmit();
-        window.open(anchorUrl, '_blank');
+        toToken.type !== 'moonbeam' ? open(anchorUrl, '_blank') : null;
       }}
     >
       {offrampState !== undefined ? (
@@ -166,10 +167,12 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         <>
           <Spinner /> Continue on Partner&apos;s page
         </>
-      ) : (
+      ) : toToken.type !== 'moonbeam' ? (
         <>
           Continue with Partner <ArrowTopRightOnSquareIcon className="w-4 h-4" />
         </>
+      ) : (
+        <>Continue</>
       )}
     </button>
   );

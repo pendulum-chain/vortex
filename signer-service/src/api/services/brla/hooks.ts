@@ -1,6 +1,6 @@
 import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
 
-type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT';
+type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT' | 'KYC';
 
 export interface Event {
   userId: string;

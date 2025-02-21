@@ -151,7 +151,7 @@ export const fetchSubaccountKycStatus = async (
       res.status(404).json({ error: `No status events found for ${taxId}` });
       return;
     }
-
+    //res.status(200).json({ type: "KYC", status: "SUCCESS" });
     res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
   } catch (error) {
     console.error('Error while requesting KYC status: ', error);

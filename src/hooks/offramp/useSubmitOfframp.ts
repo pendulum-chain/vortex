@@ -44,8 +44,9 @@ export const useSubmitOfframp = () => {
   const { apiComponents: pendulumNode } = usePendulumNode();
 
   return useCallback(
-    (executionInput: OfframpExecutionInput) => {
-      if (offrampStarted || offrampState !== undefined || !pendulumNode || !executionInput) {
+    (executionInput: OfframpExecutionInput, setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void) => {
+      //offrampStarted || offrampState !== undefined ||
+      if (!pendulumNode || !executionInput) {
         setOfframpInitiating(false);
         return;
       }
@@ -81,35 +82,19 @@ export const useSubmitOfframp = () => {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
               if (response.status === 404) {
-                // TODO: Redirect to subaccount creation/KYC flow.
                 console.log('status 404 on brla user');
                 setOfframpKycStarted(true);
-                setOfframpStarted(false);
-                setOfframpInitiating(false);
                 return;
               }
               throw new Error('Error while fetching funding account signature');
             }
             const { evmAddress: brlaEvmAddress } = await response.json();
-
+            //const brlaEvmAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877'
             // append EVM address to execution input
             const updatedBrlaOfframpExecution = { ...executionInput, brlaEvmAddress };
             setOfframpExecutionInput(updatedBrlaOfframpExecution);
 
-            console.log('taxId', taxId, 'pixId', pixId, 'brlaEvmAddress', brlaEvmAddress);
-            const initialState = await constructBrlaInitialState({
-              inputTokenType: executionInput.inputTokenType,
-              outputTokenType: executionInput.outputTokenType,
-              amountIn: executionInput.inputAmountUnits,
-              amountOut: Big(executionInput.outputAmountUnits.beforeFees),
-              network: selectedNetwork,
-              pendulumNode,
-              offramperAddress: address,
-              brlaEvmAddress,
-              pixDestination: pixId,
-              taxId,
-            });
-            updateOfframpHookStateFromState(initialState);
+            setIsOfframpSummaryDialogVisible(true);
           } else {
             const stellarEphemeralSecret = createStellarEphemeralSecret();
             const outputToken = getOutputTokenDetailsSpacewalk(executionInput.outputTokenType);
@@ -145,7 +130,7 @@ export const useSubmitOfframp = () => {
               firstSep24Response.url = url.toString();
               setInitialResponseSEP24(firstSep24Response);
             };
-
+            setIsOfframpSummaryDialogVisible(true);
             setUrlIntervalSEP24(window.setInterval(fetchAndUpdateSep24Url, 20000));
             try {
               await fetchAndUpdateSep24Url();

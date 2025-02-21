@@ -120,7 +120,6 @@ export const SwapPage = () => {
         "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
     );
   }, []);
-
   useEffect(() => {
     if (isSigningServiceError && !isSigningServiceLoading) {
       if (signingServiceError instanceof StellarFundingAccountError) {
@@ -151,14 +150,14 @@ export const SwapPage = () => {
     firstSep24ResponseState,
     handleOnAnchorWindowOpen,
     maybeCancelSep24First,
+    handleBrlaOfframpStart,
   } = useMainProcess();
 
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
   const offrampKycStarted = useOfframpKycStarted();
   const offrampSigningPhase = useOfframpSigningPhase();
-  const offrampInitiating = useOfframpInitiating();
-  const { setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
+  const { setOfframpInitiating, setOfframpExecutionInput, updateOfframpHookStateFromState } = useOfframpActions();
   const executionInput = useOfframpExecutionInput();
 
   const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
@@ -425,32 +424,34 @@ export const SwapPage = () => {
     performSwapInitialChecks()
       .then(() => {
         console.log('Initial checks completed. Starting process..');
-        handleOnSubmit(executionInput);
+        handleOnSubmit(executionInput, setIsOfframpSummaryDialogVisible);
       })
       .catch((_error) => {
         console.error('Error during swap confirmation:', _error);
         setOfframpInitiating(false);
         setInitializeFailed();
       });
-
-    setIsOfframpSummaryDialogVisible(true);
   };
 
   const main = (
     <main ref={formRef}>
       <OfframpSummaryDialog
+        visible={isOfframpSummaryDialogVisible}
         executionInput={executionInput}
-        visible={true}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={() => {
-          handleOnAnchorWindowOpen();
+          to === 'brl'
+            ? handleBrlaOfframpStart(executionInput, selectedNetwork, address!, pendulumNode.apiComponents!)
+            : handleOnAnchorWindowOpen();
         }}
         onClose={() => setIsOfframpSummaryDialogVisible(false)}
       />
       <SigningBox step={offrampSigningPhase} />
-      {/* TODO: We definitely should move the swap form into a separate component */}
       {offrampKycStarted ? (
-        <PIXKYCForm feeComparisonRef={feeComparisonRef} />
+        <PIXKYCForm
+          feeComparisonRef={feeComparisonRef}
+          setIsOfframpSummaryDialogVisible={setIsOfframpSummaryDialogVisible}
+        />
       ) : (
         <Swap
           form={form}
