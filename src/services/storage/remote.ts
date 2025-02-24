@@ -11,6 +11,7 @@ interface DumpData {
   spacewalkRedeemTx?: string;
   stellarOfframpTx?: string;
   stellarCleanupTx?: string;
+  pendulumToMoonbeamXcmTx?: string;
   inputAmount: string;
   inputTokenType: string;
   outputAmount: string;

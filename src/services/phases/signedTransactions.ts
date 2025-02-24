@@ -85,7 +85,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
         ...dataCommon,
         nablaApprovalTx: transactions.nablaApproveTransaction,
         nablaSwapTx: transactions.nablaSwapTransaction,
-        pendulumToMoonbeamXcmTransaction: transactions.pendulumToMoonbeamXcmTransaction,
+        pendulumToMoonbeamXcmTx: transactions.pendulumToMoonbeamXcmTransaction,
       };
       await storeDataInBackend(data);
     }

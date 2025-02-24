@@ -18,7 +18,7 @@ export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, r
       res.status(404).json({ error: 'Subaccount not found' });
       return;
     }
-    if (subaccount.kyc.level !== 1) {
+    if (subaccount.kyc.level < 1) {
       res.status(400).json({ error: 'KYC invalid' });
       return;
     }
