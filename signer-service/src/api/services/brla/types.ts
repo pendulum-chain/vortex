@@ -2,6 +2,7 @@ export interface TriggerOfframpRequest {
   taxId: string;
   pixKey: string;
   amount: string;
+  receiverTaxId: string;
 }
 
 export interface SubaccountData {
@@ -31,24 +32,30 @@ export interface KYCData {
 
 type TaxIdType = 'CPF' | 'CNPJ';
 
+type BrlaAddress = {
+  cep: string;
+  city: string;
+  state: string;
+  street: string;
+  number: string;
+  district: string;
+};
+
 export interface RegisterSubaccountPayload {
   phone: string;
   taxIdType: TaxIdType;
-  address: {
-    cep: string;
-    city: string;
-    state: string;
-    street: string;
-    number: string;
-    district: string;
-  };
+  address: BrlaAddress;
   fullName: string;
   cpf: string;
   birthDate: string;
+  companyName?: string;
+  startDate?: string;
+  cnpj?: string;
 }
 
 export interface OfframpPayload {
   subaccountId: string;
   pixKey: string;
   amount: string;
+  receiverTaxId: string;
 }

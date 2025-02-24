@@ -14,7 +14,7 @@ interface EndpointMapping {
   };
   '/pay-out': {
     POST: {
-      body: OfframpPayload; //TODO test if the taxId of the RECEIVER is actaully needed
+      body: OfframpPayload;
       response: { id: string };
     };
     GET: {

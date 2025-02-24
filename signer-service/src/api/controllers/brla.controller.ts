@@ -15,8 +15,6 @@ export const getBrlaUser = async (
       return;
     }
 
-    // TODO how to check that pixId is valid, as a later offramp will get stuck if it's not valid..
-
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
@@ -41,7 +39,7 @@ export const getBrlaUser = async (
 
 export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequest>, res: Response): Promise<void> => {
   try {
-    const { taxId, pixKey, amount } = req.body;
+    const { taxId, pixKey, amount, receiverTaxId } = req.body;
     console.log('Triggering offramp. Amount ', amount, 'taxId ', taxId, 'pixKey ', pixKey);
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
@@ -52,7 +50,7 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
     }
 
     const subaccountId = subaccount.id;
-    const { id: offrampId } = await brlaApiService.triggerOfframp({ subaccountId, pixKey, amount });
+    const { id: offrampId } = await brlaApiService.triggerOfframp({ subaccountId, pixKey, amount, receiverTaxId });
     res.status(200).json({ offrampId });
     return;
   } catch (error) {
