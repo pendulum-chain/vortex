@@ -127,19 +127,25 @@ export interface BaseOfframpingState {
   offramperAddress: string;
 }
 
+export type BrlaOfframpTransactions = {
+  nablaApproveTransaction: string;
+  nablaSwapTransaction: string;
+  pendulumToMoonbeamXcmTransaction: string;
+};
+
+export type SpacewalkOfframpTransactions = {
+  stellarOfframpingTransaction: string;
+  stellarCleanupTransaction: string;
+  spacewalkRedeemTransaction: string;
+  nablaApproveTransaction: string;
+  nablaSwapTransaction: string;
+};
 export interface OfframpingState extends BaseOfframpingState {
   sep24Id?: string;
   sepResult?: SepResult;
   stellarEphemeralSecret?: string;
   executeSpacewalkNonce?: number;
-  transactions?: {
-    stellarOfframpingTransaction: string;
-    stellarCleanupTransaction: string;
-    spacewalkRedeemTransaction: string;
-    nablaApproveTransaction: string;
-    nablaSwapTransaction: string;
-    pendulumToMoonbeamXcmTransaction?: string;
-  };
+  transactions?: BrlaOfframpTransactions | SpacewalkOfframpTransactions;
   brlaEvmAddress?: string;
   pixDestination?: string;
   taxId?: string;

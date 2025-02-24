@@ -3,7 +3,7 @@ import { parseEventXcmSent, XcmSentEvent } from '../eventParsers';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 
-export const submitUnsignedXcm = async (
+export const signAndSubmitXcm = async (
   walletAccount: WalletAccount,
   extrinsic: SubmittableExtrinsic<'promise'>,
   afterSignCallback: () => void,
@@ -50,7 +50,7 @@ export const submitUnsignedXcm = async (
   });
 };
 
-export const submitSignedXcm = async (
+export const submitXcm = async (
   address: string,
   extrinsic: SubmittableExtrinsic<'promise'>,
 ): Promise<{ event: XcmSentEvent; hash: string }> => {

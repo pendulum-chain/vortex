@@ -66,7 +66,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
   pendulumCleanup: 6,
   stellarOfframp: 6,
   stellarCleanup: 6,
-  executePendulumToMoonbeamXCM: 60,
+  executePendulumToMoonbeamXCM: 40,
   performBrlaPayoutOnMoonbeam: 120,
 };
 

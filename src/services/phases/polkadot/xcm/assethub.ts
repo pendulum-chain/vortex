@@ -6,7 +6,7 @@ import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
-import { submitUnsignedXcm } from '../xcm';
+import { signAndSubmitXcm } from '../xcm';
 
 export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
@@ -56,7 +56,7 @@ export async function executeAssetHubToPendulumXCM(
       context.setOfframpSigningPhase('started');
 
       const afterSignCallback = () => setOfframpSigningPhase?.('finished');
-      const { hash } = await submitUnsignedXcm(walletAccount, tx, afterSignCallback);
+      const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
 
       return { ...state, assetHubXcmTransactionHash: hash.toString() };
     }

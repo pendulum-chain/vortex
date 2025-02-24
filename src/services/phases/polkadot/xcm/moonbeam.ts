@@ -2,7 +2,7 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 
 import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 
-import { submitSignedXcm } from '.';
+import { submitXcm } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
 import { decodeSubmittableExtrinsic } from '../../signedTransactions';
 
@@ -58,7 +58,7 @@ export async function executePendulumToMoonbeamXCM(
 
   const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
-  const { event, hash } = await submitSignedXcm(pendulumEphemeralAddress, xcmExtrinsic);
+  const { hash } = await submitXcm(pendulumEphemeralAddress, xcmExtrinsic);
   state.pendulumToMoonbeamXcmHash = hash;
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };
