@@ -3,15 +3,12 @@ import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
 
-export const getBrlaUser = async (
-  req: Request<{}, {}, {}, { taxId: string; pixId: string }>,
-  res: Response,
-): Promise<void> => {
+export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, res: Response): Promise<void> => {
   try {
-    const { taxId, pixId } = req.query;
+    const { taxId } = req.query;
 
-    if (!taxId || !pixId) {
-      res.status(400).json({ error: 'Missing taxId or pixId query parameters' });
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId query parameters' });
       return;
     }
 
