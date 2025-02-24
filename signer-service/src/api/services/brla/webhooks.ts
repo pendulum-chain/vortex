@@ -15,6 +15,7 @@ export class EventPoller {
   private cache: Map<string, Event[]> = new Map();
   private pollingInterval: number;
   private apiUrl: string;
+  private started: boolean = false;
 
   constructor(pollingInterval: number = 1000) {
     this.apiUrl = WEBHOOKS_CACHE_URL!;
@@ -22,6 +23,9 @@ export class EventPoller {
   }
 
   public start() {
+    if (this.started) {
+      return;
+    }
     this.poll();
 
     setInterval(() => {
