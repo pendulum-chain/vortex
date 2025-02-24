@@ -229,14 +229,14 @@ export const SwapPage = () => {
       form.setValue('toAmount', totalReceive);
       setExchangeRateCache((prev) => ({
         ...prev,
-        [from]: { ...prev[from], [to]: tokenOutAmount.data!.effectiveExchangeRate },
+        [from]: { ...prev[from], [to]: tokenOutAmount.data?.effectiveExchangeRate },
       }));
     } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing
     }
-  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken]);
+  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken, from, to]);
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
@@ -325,7 +325,7 @@ export const SwapPage = () => {
     const exchangeRate = tokenOutAmount.data?.effectiveExchangeRate || exchangeRateCache[from]?.[to];
 
     if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
-      console.log(exchangeRate, fromAmount!.mul(exchangeRate).toNumber());
+      console.log(exchangeRate, fromAmount?.mul(exchangeRate).toNumber());
       trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
       return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
         toToken.fiat.symbol
