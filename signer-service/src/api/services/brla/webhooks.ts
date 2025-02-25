@@ -27,6 +27,7 @@ export class EventPoller {
       return;
     }
     this.poll();
+    this.started = true;
 
     setInterval(() => {
       this.poll();

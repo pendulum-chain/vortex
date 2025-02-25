@@ -360,7 +360,6 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
     usesMemo: true,
     supportsClientDomain: true,
   },
-  // TODO - maximum and minimum amounts need to be clarified.
   brl: {
     type: 'moonbeam',
     partnerUrl: 'https://brla.digital',
@@ -372,7 +371,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
     },
     erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
     minWithdrawalAmountRaw: '1000000000000000000', // 1 BRL.
-    maxWithdrawalAmountRaw: '56000000000000000000000',
+    maxWithdrawalAmountRaw: '10000000000000000000000', // 10,000 BRL. Maximum value for a KYC level 1 user.
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL
     ...PENDULUM_BRLA_MOONBEAM,
