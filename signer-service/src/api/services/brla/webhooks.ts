@@ -4,13 +4,17 @@ type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT';
 
 export interface Event {
   userId: string;
-  data: any;
+  data: EventData;
   subscription: SubscriptionType;
   createdAt: string;
   id: string;
   acknowledged: boolean;
 }
 
+interface EventData {
+  status: string;
+  [key: string]: unknown;
+}
 export class EventPoller {
   private cache: Map<string, Event[]> = new Map();
   private pollingInterval: number;
@@ -24,6 +28,7 @@ export class EventPoller {
 
   public start() {
     if (this.started) {
+      console.warn('EventPoller already started');
       return;
     }
     this.poll();

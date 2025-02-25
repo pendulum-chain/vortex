@@ -6,10 +6,11 @@ import { submitXcm } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
 import { decodeSubmittableExtrinsic } from '../../signedTransactions';
 import { isBrlaOfframpTransactions } from '../../../../types/offramp';
+import { ApiComponents } from '../../../../contexts/polkadotNode';
 
 // Fee was 38,722,802,500,000,000 GLMR when testing
 export function createPendulumToMoonbeamTransfer(
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number },
+  pendulumNode: ApiComponents,
   destinationAddress: string,
   rawAmount: string,
   pendulumEphemeralSeed: string,
@@ -60,7 +61,7 @@ export async function executePendulumToMoonbeamXCM(
   const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
   const { hash } = await submitXcm(pendulumEphemeralAddress, xcmExtrinsic);
-  state.pendulumToMoonbeamXcmHash = hash;
+  state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };
 }

@@ -8,10 +8,10 @@ import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
 import { signAndSubmitXcm } from '../xcm';
 
-export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
+function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
 
-  const dest = { V2: { parents: 1, interior: { X1: { Parachain: 2094 } } } };
+  const destination = { V2: { parents: 1, interior: { X1: { Parachain: 2094 } } } };
   const beneficiary = { V2: { parents: 0, interior: { X1: { AccountId32: { network: undefined, id: receiverId } } } } };
   const assets = {
     V2: [
@@ -26,7 +26,13 @@ export function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAdd
   const feeAssetItem = 0;
   const weightLimit = 'Unlimited';
 
-  return assethubApi.tx.polkadotXcm.limitedReserveTransferAssets(dest, beneficiary, assets, feeAssetItem, weightLimit);
+  return assethubApi.tx.polkadotXcm.limitedReserveTransferAssets(
+    destination,
+    beneficiary,
+    assets,
+    feeAssetItem,
+    weightLimit,
+  );
 }
 
 export async function executeAssetHubToPendulumXCM(
@@ -58,7 +64,7 @@ export async function executeAssetHubToPendulumXCM(
       const afterSignCallback = () => setOfframpSigningPhase?.('finished');
       const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
 
-      return { ...state, assetHubXcmTransactionHash: hash.toString() };
+      return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
     }
 
     await waitUntilTrue(didInputTokenArrivedOnPendulum, 1000);
