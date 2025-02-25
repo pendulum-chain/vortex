@@ -18,7 +18,6 @@ import {
   getBaseOutputTokenDetails,
   getInputTokenDetailsOrDefault,
   InputTokenType,
-  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { Networks } from '../../helpers/networks';
@@ -127,7 +126,11 @@ export function useTokenOutAmount({
       },
       parseError: (error) => {
         const insufficientLiquidityMessage = () => {
-          trackEvent({ event: 'form_error', error_message: 'insufficient_liquidity' });
+          trackEvent({
+            event: 'form_error',
+            error_message: 'insufficient_liquidity',
+            input_amount: amountIn ? amountIn : '0',
+          });
           return 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.';
         };
 
@@ -161,7 +164,17 @@ export function useTokenOutAmount({
     } else {
       setError('root', { type: 'custom', message: error });
     }
-  }, [error, isLoading, fetchStatus, initializing, debouncedAmountBigDecimal, fromAmountString, clearErrors, setError]);
+  }, [
+    error,
+    isLoading,
+    fetchStatus,
+    initializing,
+    debouncedAmountBigDecimal,
+    fromAmountString,
+    clearErrors,
+    setError,
+    debouncedFromAmountString,
+  ]);
 
   const isInputStable = debouncedFromAmountString === fromAmountString;
   const stableAmountInUnits = isInputStable ? debouncedFromAmountString : undefined;

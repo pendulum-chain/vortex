@@ -1,4 +1,4 @@
-import { FC, JSX } from 'react';
+import { FC } from 'react';
 import { create } from 'zustand';
 import { motion, AnimatePresence } from 'motion/react';
 
