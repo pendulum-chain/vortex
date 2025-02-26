@@ -11,6 +11,10 @@ interface EndpointMapping {
       body: undefined;
       response: { subaccounts: SubaccountData[] };
     };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
   };
   '/pay-out': {
     POST: {
@@ -19,6 +23,24 @@ interface EndpointMapping {
     };
     GET: {
       body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  '/webhooks/events': {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: { ids: string[] };
       response: undefined;
     };
   };
@@ -128,5 +150,11 @@ export class BrlaApiService {
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
     const endpoint = `/subaccounts`;
     return await this.sendRequest(endpoint, 'POST', undefined, registerSubaccountPayload);
+  }
+
+  public async acknowledgeEvents(ids: string[]): Promise<void> {
+    const endpoint = `/webhooks/events`;
+    console.log('Calling acknowledgeEvents with ids: ', ids);
+    return await this.sendRequest(endpoint, 'PATCH', undefined, { ids });
   }
 }

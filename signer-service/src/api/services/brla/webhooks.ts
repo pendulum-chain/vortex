@@ -1,4 +1,5 @@
-import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
+import { WEBHOOKS_CACHE_URL, WEBHOOKS_CACHE_PASSWORD } from '../../../constants/constants';
+import { BrlaApiService } from './brlaApiService';
 
 type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT';
 
@@ -20,6 +21,7 @@ export class EventPoller {
   private pollingInterval: number;
   private apiUrl: string;
   private started: boolean = false;
+  private brlaApiService: BrlaApiService;
 
   constructor(pollingInterval: number = 1000) {
     if (!WEBHOOKS_CACHE_URL) {
@@ -28,6 +30,7 @@ export class EventPoller {
 
     this.apiUrl = WEBHOOKS_CACHE_URL;
     this.pollingInterval = pollingInterval;
+    this.brlaApiService = BrlaApiService.getInstance();
   }
 
   public start() {
@@ -55,7 +58,15 @@ export class EventPoller {
 
   private async poll() {
     try {
-      const response = await fetch(this.apiUrl);
+      if (!WEBHOOKS_CACHE_PASSWORD) {
+        throw new Error('WEBHOOKS_CACHE_PASSWORD is not defined!');
+      }
+
+      const headers = new Headers([
+        ['Content-Type', 'application/json'],
+        ['Auth-password', WEBHOOKS_CACHE_PASSWORD],
+      ]);
+      const response = await fetch(this.apiUrl, { headers });
       const events: Event[] = await response.json();
 
       const groupedEvents = this.groupEventsByUser(events);
@@ -73,8 +84,20 @@ export class EventPoller {
             (event) => new Date(event.createdAt) > new Date(lastTimestamp),
           );
           userEvents.push(...eventsNotRegistered);
+
+          // async acknowledge events
+          eventsNotRegistered.length > 0
+            ? this.brlaApiService.acknowledgeEvents(eventsNotRegistered.flatMap((event) => event.id)).catch((error) => {
+                console.log('Poll: Error while acknowledging events: ', error);
+              })
+            : null;
         } else {
           userEvents.push(...fetchedUserEvents);
+          fetchedUserEvents.length > 0
+            ? this.brlaApiService.acknowledgeEvents(fetchedUserEvents.flatMap((event) => event.id)).catch((error) => {
+                console.log('Poll: Error while acknowledging events: ', error);
+              })
+            : null;
         }
         this.cache.set(userId, userEvents);
       });
