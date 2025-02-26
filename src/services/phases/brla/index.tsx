@@ -5,8 +5,8 @@ import { moonbeam } from 'viem/chains';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 import { OfframpingState } from '../../offrampingFlow';
 import { fetchOfframpStatus } from '../../signingService';
-import { default as MoonbeamErc20Abi } from '../../../../mooncontracts/Erc20ABI.json';
-import { getOutputTokenDetails, getOutputTokenDetailsMoonbeam } from '../../../constants/tokenConfig';
+import erc20ABI from '../../../contracts/ERC20';
+import { getOutputTokenDetailsMoonbeam } from '../../../constants/tokenConfig';
 
 export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promise<OfframpingState> {
   const { taxId, pixDestination, outputAmount, brlaEvmAddress, outputTokenType } = state;
@@ -98,7 +98,7 @@ export function checkMoonbeamBalancePeriodically(
 
         const result = (await publicClient.readContract({
           address: tokenAddress,
-          abi: MoonbeamErc20Abi,
+          abi: erc20ABI,
           functionName: 'balanceOf',
           args: [brlaEvmAddress],
         })) as String;
