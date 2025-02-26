@@ -21,7 +21,7 @@ export const SuccessPage = ({ finishOfframping, transactionId, toToken }: Succes
   const eurcArrivalText =
     'Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.';
   const arsArrivalText = 'Your funds will arrive in your bank account in a few minutes.';
-  const arrivalText = toToken === 'eurc' ? eurcArrivalText : arsArrivalText;
+  const arrivalText = toToken === OutputTokenType.EURC ? eurcArrivalText : arsArrivalText;
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12 ">

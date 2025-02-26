@@ -39,6 +39,7 @@ type BrlaAddress = {
   street: string;
   number: string;
   district: string;
+  complement?: string;
 };
 
 export interface RegisterSubaccountPayload {

@@ -9,6 +9,7 @@ import {
   BaseOutputTokenDetails,
   isStellarOutputTokenDetails,
   getOutputTokenDetails,
+  OutputTokenType,
 } from '../../constants/tokenConfig';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
@@ -111,7 +112,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   // component will not render if the executionInput is undefined.
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
-  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
+  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || OutputTokenType.EURC);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);

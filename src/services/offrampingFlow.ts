@@ -219,7 +219,7 @@ function selectNextStateAdvancementHandler(
   outToken: OutputTokenType,
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
-    if (outToken === 'brl') {
+    if (outToken === OutputTokenType.BRL) {
       return STATE_ADVANCEMENT_HANDLERS[HandlerType.BRLA][phase];
     }
     return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];

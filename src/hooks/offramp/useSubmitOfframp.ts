@@ -8,6 +8,7 @@ import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   getOutputTokenDetailsSpacewalk,
+  OutputTokenType,
 } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
@@ -62,7 +63,7 @@ export const useSubmitOfframp = () => {
             throw new Error('Address must be defined at this stage');
           }
 
-          if (executionInput.outputTokenType === 'brl') {
+          if (executionInput.outputTokenType === OutputTokenType.BRL) {
             const { taxId, pixId } = executionInput;
             if (!taxId || !pixId) {
               setOfframpStarted(false);
