@@ -2,12 +2,11 @@ import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
 
-import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
+import { calculateTotalReceive } from '../../components/FeeCollapse';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
 import { SigningBox } from '../../components/SigningBox';
-import { PoweredBy } from '../../components/PoweredBy';
 
 import { PitchSection } from '../../sections/Pitch';
 import { TrustedBy } from '../../sections/TrustedBy';
@@ -45,7 +44,6 @@ import {
   useOfframpSigningPhase,
   useOfframpState,
   useOfframpStarted,
-  useOfframpInitiating,
   useOfframpExecutionInput,
   useOfframpKycStarted,
 } from '../../stores/offrampStore';
@@ -157,7 +155,7 @@ export const SwapPage = () => {
   const offrampState = useOfframpState();
   const offrampKycStarted = useOfframpKycStarted();
   const offrampSigningPhase = useOfframpSigningPhase();
-  const { setOfframpInitiating, setOfframpExecutionInput, updateOfframpHookStateFromState } = useOfframpActions();
+  const { setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
   const executionInput = useOfframpExecutionInput();
 
   const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
@@ -218,14 +216,14 @@ export const SwapPage = () => {
       form.setValue('toAmount', totalReceive);
       setExchangeRateCache((prev) => ({
         ...prev,
-        [from]: { ...prev[from], [to]: tokenOutAmount.data!.effectiveExchangeRate },
+        [from]: { ...prev[from], [to]: tokenOutAmount.data?.effectiveExchangeRate },
       }));
     } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing
     }
-  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken]);
+  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken, from, to]);
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
@@ -281,7 +279,7 @@ export const SwapPage = () => {
     const exchangeRate = tokenOutAmount.data?.effectiveExchangeRate || exchangeRateCache[from]?.[to];
 
     if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
-      console.log(exchangeRate, fromAmount!.mul(exchangeRate).toNumber());
+      console.log(exchangeRate, fromAmount.mul(exchangeRate).toNumber());
       trackEvent({
         event: 'form_error',
         error_message: 'more_than_maximum_withdrawal',
@@ -369,7 +367,7 @@ export const SwapPage = () => {
     }
   }
 
-  const onSwapConfirm: SubmitHandler<SwapFormValues> = (data) => {
+  const onSwapConfirm: SubmitHandler<SwapFormValues> = () => {
     if (offrampStarted) {
       setIsOfframpSummaryDialogVisible(true);
       return;
@@ -411,11 +409,11 @@ export const SwapPage = () => {
       setInitializeFailed,
       taxId: taxId,
       pixId: pixId,
-      api: api!,
+      api: api,
       requiresSquidRouter: isNetworkEVM(selectedNetwork),
       expectedRedeemAmountRaw,
       inputAmountRaw,
-      address: address!,
+      address: address,
       network: selectedNetwork,
     };
 
@@ -441,7 +439,7 @@ export const SwapPage = () => {
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={() => {
           to === 'brl'
-            ? handleBrlaOfframpStart(executionInput, selectedNetwork, address!, pendulumNode.apiComponents!)
+            ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents)
             : handleOnAnchorWindowOpen();
         }}
         onClose={() => setIsOfframpSummaryDialogVisible(false)}

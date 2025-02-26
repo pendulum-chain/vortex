@@ -7,6 +7,17 @@ import { useSubmitOfframp } from '../../hooks/offramp/useSubmitOfframp';
 import { useOfframpActions, useOfframpExecutionInput } from '../../stores/offrampStore';
 import { fetchKycStatus } from '../../services/signingService';
 
+enum KYCStatus {
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  PENDING = 'PENDING',
+}
+
+enum KYCResult {
+  VALIDATED = 'validated',
+  REJECTED = 'rejected',
+}
+
 interface PIXKYCFormProps {
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
   setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void;
@@ -19,6 +30,10 @@ interface KYCFormData {
   cpf: string;
   birthdate: string;
 }
+
+const POLLING_INTERVAL_MS = 2000;
+const VALIDATION_SUCCESS_DELAY_MS = 5000;
+const VALIDATION_FAILURE_DELAY_MS = 3000;
 
 const Spinner = () => (
   <motion.svg
@@ -37,6 +52,14 @@ const Spinner = () => (
     <circle cx="25" cy="25" r="20" fill="none" stroke="url(#spinnerGradient)" strokeWidth="5" strokeDasharray="31.4" />
   </motion.svg>
 );
+
+const PIXKYCForm_FIELDS = [
+  { id: 'phone', label: 'Phone Number', type: 'text', placeholder: 'Phone Number' },
+  { id: 'address', label: 'Address', type: 'text', placeholder: 'Address' },
+  { id: 'fullName', label: 'Full Name', type: 'text', placeholder: 'Full Name' },
+  { id: 'cpf', label: 'CPF', type: 'text', placeholder: 'CPF' },
+  { id: 'birthdate', label: 'Birthdate', type: 'date', placeholder: '' },
+];
 
 export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible }: PIXKYCFormProps) => {
   const { setOfframpKycStarted, resetOfframpState } = useOfframpActions();
@@ -59,6 +82,7 @@ export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible 
       console.log('No execution input found');
       return;
     }
+
     performSwapInitialChecks()
       .then(() => {
         console.log('Initial checks completed after KYC. Starting process..');
@@ -73,47 +97,64 @@ export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible 
       });
   }, [executionInput, setOfframpKycStarted, submitOfframp, setIsOfframpSummaryDialogVisible]);
 
-  const onBackClick = () => {
+  const onBackClick = useCallback(() => {
     setOfframpKycStarted(false);
     resetOfframpState();
-  };
+  }, [setOfframpKycStarted, resetOfframpState]);
 
-  const pollKycStatus = async (): Promise<'validated' | 'rejected'> => {
-    while (true) {
-      const statusResult = await fetchKycStatus(kycForm.getValues('cpf'));
-      if (statusResult.status === 'FAILED') {
-        return 'rejected';
-      } else if (statusResult.status === 'SUCCESS') {
-        return 'validated';
+  const pollKycStatus = useCallback(async (): Promise<KYCResult> => {
+    let shouldContinuePolling = true;
+
+    while (shouldContinuePolling) {
+      try {
+        const statusResult = await fetchKycStatus(kycForm.getValues('cpf'));
+
+        if (statusResult.status === KYCStatus.FAILED) {
+          return KYCResult.REJECTED;
+        }
+
+        if (statusResult.status === KYCStatus.SUCCESS) {
+          return KYCResult.VALIDATED;
+        }
+
+        // Wait before polling again
+        await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL_MS));
+      } catch (error) {
+        console.error('Error polling KYC status:', error);
+        shouldContinuePolling = false;
+        throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-  };
 
-  const handleKYCSubmit = async (data: KYCFormData) => {
-    setIsVerifying(true);
-    setStatusMessage('Estamos verificando seus dados, aguarde');
+    throw new Error('KYC polling stopped unexpectedly');
+  }, [kycForm]);
 
-    try {
-      const result = await pollKycStatus();
-      if (result === 'validated') {
-        setStatusMessage('Você foi validado');
-        setTimeout(() => {
-          handleKycReady();
-        }, 5000);
-      } else if (result === 'rejected') {
-        setStatusMessage('Seu kyc foi rejeitado');
-        setTimeout(() => {
-          setIsVerifying(false);
-          onBackClick();
-        }, 3000);
+  const handleKYCSubmit = useCallback(
+    async (data: KYCFormData) => {
+      setIsVerifying(true);
+      setStatusMessage('Estamos verificando seus dados, aguarde');
+
+      try {
+        const result = await pollKycStatus();
+
+        if (result === KYCResult.VALIDATED) {
+          setStatusMessage('Você foi validado');
+          setTimeout(handleKycReady, VALIDATION_SUCCESS_DELAY_MS);
+        } else {
+          setStatusMessage('Seu kyc foi rejeitado');
+          setTimeout(() => {
+            setIsVerifying(false);
+            onBackClick();
+          }, VALIDATION_FAILURE_DELAY_MS);
+        }
+      } catch (error) {
+        console.error('Error during KYC polling:', error);
+        setIsVerifying(false);
+        onBackClick();
       }
-    } catch (error) {
-      console.error('Error during KYC polling:', error);
-      setIsVerifying(false);
-      onBackClick();
-    }
-  };
+    },
+    [pollKycStatus, handleKycReady, onBackClick],
+  );
 
   return (
     <div className="relative">
@@ -124,65 +165,20 @@ export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible 
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col"
         onSubmit={kycForm.handleSubmit(handleKYCSubmit)}
       >
-        <div className="mb-4">
-          <label htmlFor="phone" className="block mb-1">
-            Phone Number
-          </label>
-          <input
-            id="phone"
-            {...kycForm.register('phone', { required: true })}
-            className="w-full p-2 rounded"
-            placeholder="Phone Number"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="address" className="block mb-1">
-            Address
-          </label>
-          <input
-            id="address"
-            {...kycForm.register('address', { required: true })}
-            className="w-full p-2 rounded"
-            placeholder="Address"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="fullName" className="block mb-1">
-            Full Name
-          </label>
-          <input
-            id="fullName"
-            {...kycForm.register('fullName', { required: true })}
-            className="w-full p-2 rounded"
-            placeholder="Full Name"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="cpf" className="block mb-1">
-            CPF
-          </label>
-          <input
-            id="cpf"
-            {...kycForm.register('cpf', { required: true })}
-            className="w-full p-2 rounded"
-            placeholder="CPF"
-          />
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="birthdate" className="block mb-1">
-            Birthdate
-          </label>
-          <input
-            id="birthdate"
-            type="date"
-            {...kycForm.register('birthdate', { required: true })}
-            className="w-full p-2 rounded"
-          />
-        </div>
+        {PIXKYCForm_FIELDS.map((field) => (
+          <div className="mb-4" key={field.id}>
+            <label htmlFor={field.id} className="block mb-1">
+              {field.label}
+            </label>
+            <input
+              id={field.id}
+              type={field.type}
+              {...kycForm.register(field.id as keyof KYCFormData, { required: true })}
+              className="w-full p-2 rounded"
+              placeholder={field.placeholder}
+            />
+          </div>
+        ))}
 
         <div className="grid gap-3 mt-8 mb-12">
           <div className="flex gap-3">

@@ -1,15 +1,7 @@
 import React, { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FeeComparisonRef } from '../FeeComparison';
-import { performSwapInitialChecks } from '../../pages/swap/helpers/swapConfirm/performSwapInitialChecks';
-import { useSubmitOfframp } from '../../hooks/offramp/useSubmitOfframp';
-import {
-  useOfframpActions,
-  useOfframpExecutionInput,
-  useOfframpInitiating,
-  useOfframpStarted,
-  useOfframpState,
-} from '../../stores/offrampStore';
+import { useOfframpInitiating, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
 import { BrlaInput } from '../PIXKYCForm/input';
@@ -35,8 +27,19 @@ import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useEventsContext } from '../../contexts/events';
 
+enum SwapButtonState {
+  CONFIRMING = 'Confirming',
+  PROCESSING = 'Processing',
+  CONFIRM = 'Confirm',
+}
+
+enum TokenSelectType {
+  FROM = 'from',
+  TO = 'to',
+}
+
 interface SwapProps {
-  form: UseFormReturn<SwapFormValues, any, undefined>;
+  form: UseFormReturn<SwapFormValues, unknown, undefined>;
   from: InputTokenType;
   to: OutputTokenType;
   tokenOutAmount: UseTokenOutAmountResult;
@@ -47,7 +50,7 @@ interface SwapProps {
   apiInitializeFailed: boolean;
   initializeFailedMessage: string | null;
   isOfframpSummaryDialogVisible: boolean;
-  openTokenSelectModal: (token: 'from' | 'to') => void;
+  openTokenSelectModal: (token: TokenSelectType) => void;
   onSwapConfirm: (data: SwapFormValues) => void;
   getCurrentErrorMessage: () => string | null | undefined;
 }
@@ -70,6 +73,7 @@ export const Swap = ({
 }: SwapProps) => {
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
+  const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
 
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getOutputTokenDetails(to);
@@ -81,25 +85,28 @@ export const Swap = ({
   const offrampState = useOfframpState();
   const offrampInitiating = useOfframpInitiating();
 
-  const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
-
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
 
-  // We need to keep track of the amount the user has entered. We use a debounced value to avoid tracking the amount while the user is typing.
+  // Debounced value to avoid tracking the amount while the user is typing
   const debouncedFromAmount = useDebouncedValue(fromAmount, 1000);
 
+  // Track amount changes after user interaction
   useEffect(() => {
-    if (fromAmountFieldTouched) {
-      // We need this check to avoid tracking the amount for the default value of fromAmount.
-      if (debouncedFromAmount !== fromAmount) return;
+    if (!fromAmountFieldTouched || debouncedFromAmount !== fromAmount) return;
 
-      trackEvent({
-        event: 'amount_type',
-        input_amount: debouncedFromAmount ? debouncedFromAmount.toString() : '0',
-      });
-    }
+    trackEvent({
+      event: 'amount_type',
+      input_amount: debouncedFromAmount ? debouncedFromAmount.toString() : '0',
+    });
   }, [fromAmountFieldTouched, debouncedFromAmount, fromAmount, trackEvent]);
+
+  const handleInputChange = useCallback(() => {
+    setFromAmountFieldTouched(true);
+    trackQuote.current = true;
+  }, [trackQuote]);
+
+  const handleBalanceClick = useCallback((amount: string) => form.setValue('fromAmount', amount), [form]);
 
   const WithdrawNumericInput = useMemo(
     () => (
@@ -108,19 +115,14 @@ export const Swap = ({
           registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.networkAssetIcon}
-          onClick={() => openTokenSelectModal('from')}
-          onChange={() => {
-            // User interacted with the input field
-            setFromAmountFieldTouched(true);
-            // This also enables the quote tracking events
-            trackQuote.current = true;
-          }}
+          onClick={() => openTokenSelectModal(TokenSelectType.FROM)}
+          onChange={handleInputChange}
           id="fromAmount"
         />
-        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
+        <UserBalance token={fromToken} onClick={handleBalanceClick} />
       </>
     ),
-    [form, fromToken, openTokenSelectModal],
+    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick],
   );
 
   const ReceiveNumericInput = useMemo(
@@ -128,7 +130,7 @@ export const Swap = ({
       <AssetNumericInput
         assetIcon={toToken.fiat.assetIcon}
         tokenSymbol={toToken.fiat.symbol}
-        onClick={() => openTokenSelectModal('to')}
+        onClick={() => openTokenSelectModal(TokenSelectType.TO)}
         registerInput={form.register('toAmount')}
         disabled={tokenOutAmount.isLoading}
         readOnly={true}
@@ -138,17 +140,43 @@ export const Swap = ({
     [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
   );
 
+  const handleCompareFeesClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setTimeout(() => {
+        feeComparisonRef.current?.scrollIntoView();
+      }, 200);
+      trackQuote.current = true;
+    },
+    [feeComparisonRef, trackQuote],
+  );
+
   const onConfirm = useCallback(() => {
     if (!termsAccepted && !termsChecked) {
       setTermsError(true);
-
-      // We need to trigger a re-render of the TermsAndConditions component to animate
       setTermsAnimationKey((prev) => prev + 1);
       return;
     }
 
     onSwapConfirm(form.getValues());
-  }, [form, onSwapConfirm]);
+  }, [form, onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
+
+  const getButtonState = (): SwapButtonState => {
+    if (offrampInitiating) {
+      return SwapButtonState.CONFIRMING;
+    }
+    if (offrampStarted && isOfframpSummaryDialogVisible) {
+      return SwapButtonState.PROCESSING;
+    }
+    return SwapButtonState.CONFIRM;
+  };
+
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage;
+
+  const isSubmitButtonPending =
+    offrampInitiating ||
+    (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
+    offrampState !== undefined;
 
   return (
     <motion.form
@@ -163,70 +191,53 @@ export const Swap = ({
       <div className="my-10" />
       <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
       <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-      <BrlaInput form={form} toToken={to}></BrlaInput>
+      <BrlaInput form={form} toToken={to} />
       <FeeCollapse
         fromAmount={fromAmount?.toString()}
         toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
         toToken={toToken}
         exchangeRate={
           <ExchangeRate
-            {...{
-              exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
-              fromToken,
-              toTokenSymbol: toToken.fiat.symbol,
-            }}
+            exchangeRate={tokenOutAmount.data?.effectiveExchangeRate}
+            fromToken={fromToken}
+            toTokenSymbol={toToken.fiat.symbol}
           />
         }
       />
       <section className="flex items-center justify-center w-full mt-5">
         <BenefitsList amount={fromAmount} currency={from} />
       </section>
-      <section className="flex justify-center w-full mt-5">
-        {(initializeFailedMessage || apiInitializeFailed) && (
+
+      {(initializeFailedMessage || apiInitializeFailed) && (
+        <section className="flex justify-center w-full mt-5">
           <div className="flex items-center gap-4">
             <p className="text-red-600">{initializeFailedMessage}</p>
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
       <section className="w-full mt-5">
         <TermsAndConditions
           key={termsAnimationKey}
-          {...{ toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError }}
+          toggleTermsChecked={toggleTermsChecked}
+          termsChecked={termsChecked}
+          termsAccepted={termsAccepted}
+          termsError={termsError}
+          setTermsError={setTermsError}
           setTermsAccepted={setTermsAccepted}
         />
       </section>
+
       <div className="flex gap-3 mt-5">
         <button
           className="btn-vortex-primary-inverse btn"
           style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
           disabled={!inputAmountIsStable}
-          onClick={(e) => {
-            e.preventDefault();
-            // Scroll to the comparison fees section (with a small delay to allow the component to render first)
-            setTimeout(() => {
-              feeComparisonRef.current?.scrollIntoView();
-            }, 200);
-            // We track the user interaction with the button, for tracking the quote requested.
-            trackQuote.current = true;
-          }}
+          onClick={handleCompareFeesClick}
         >
           Compare fees
         </button>
-        <SwapSubmitButton
-          text={
-            offrampInitiating
-              ? 'Confirming'
-              : offrampStarted && isOfframpSummaryDialogVisible
-              ? 'Processing'
-              : 'Confirm'
-          }
-          disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
-          pending={
-            offrampInitiating ||
-            (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
-            offrampState !== undefined
-          }
-        />
+        <SwapSubmitButton text={getButtonState()} disabled={isSubmitButtonDisabled} pending={isSubmitButtonPending} />
       </div>
       <div className="mb-16" />
       <PoweredBy />
