@@ -61,7 +61,7 @@ import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
-import { PIXKYCForm } from '../../components/PIXKYCForm';
+import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { SubmitHandler } from 'react-hook-form';
 import { SwapFormValues } from '../../components/Nabla/schema';
 import { calculateSwapAmountsWithMargin } from './helpers/swapConfirm/calculateSwapAmountsWithMargin';

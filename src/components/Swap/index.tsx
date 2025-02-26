@@ -4,7 +4,7 @@ import { FeeComparisonRef } from '../FeeComparison';
 import { useOfframpInitiating, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
-import { BrlaInput } from '../PIXKYCForm/input';
+import { BrlaStandardInputs } from '../BrlaComponents/BrlaStandardInputs';
 import { SwapFormValues } from '../Nabla/schema';
 import { UseFormReturn } from 'react-hook-form';
 import { AssetNumericInput } from '../AssetNumericInput';
@@ -191,7 +191,7 @@ export const Swap = ({
       <div className="my-10" />
       <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
       <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-      <BrlaInput form={form} toToken={to} />
+      <BrlaStandardInputs form={form} toToken={to} />
       <FeeCollapse
         fromAmount={fromAmount?.toString()}
         toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}

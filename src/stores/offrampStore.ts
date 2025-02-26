@@ -7,7 +7,6 @@ interface OfframpStore extends OfframpState {
 }
 
 export const useOfframpStore = create<OfframpStore>()((set) => ({
-  // Initial state
   offrampStarted: false,
   offrampInitiating: false,
   offrampKycStarted: false,
@@ -16,7 +15,6 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
   offrampExecutionInput: undefined,
 
   actions: {
-    // Simple setters
     setOfframpStarted: (started) => set({ offrampStarted: started }),
     setOfframpInitiating: (initiating) => set({ offrampInitiating: initiating }),
     setOfframpState: (state) => set({ offrampState: state }),
@@ -24,7 +22,6 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
     setOfframpSigningPhase: (phase) => set({ offrampSigningPhase: phase }),
     setOfframpKycStarted: (kycStarted) => set({ offrampKycStarted: kycStarted }),
 
-    // Business logic
     updateOfframpHookStateFromState: (state) => {
       if (!state || state.phase === 'success' || state.failure !== undefined) {
         set({ offrampSigningPhase: undefined });

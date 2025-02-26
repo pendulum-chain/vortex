@@ -1,11 +1,14 @@
 import { RefObject, useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'motion/react';
-import { FeeComparisonRef } from '../FeeComparison';
+
 import { performSwapInitialChecks } from '../../pages/swap/helpers/swapConfirm/performSwapInitialChecks';
-import { useSubmitOfframp } from '../../hooks/offramp/useSubmitOfframp';
 import { useOfframpActions, useOfframpExecutionInput } from '../../stores/offrampStore';
+import { useSubmitOfframp } from '../../hooks/offramp/useSubmitOfframp';
 import { fetchKycStatus } from '../../services/signingService';
+import { FeeComparisonRef } from '../FeeComparison';
+import { Spinner } from '../Spinner';
+import { Input } from '../Input';
 
 enum KYCStatus {
   SUCCESS = 'SUCCESS',
@@ -34,24 +37,6 @@ interface KYCFormData {
 const POLLING_INTERVAL_MS = 2000;
 const VALIDATION_SUCCESS_DELAY_MS = 5000;
 const VALIDATION_FAILURE_DELAY_MS = 3000;
-
-const Spinner = () => (
-  <motion.svg
-    className="w-16 h-16"
-    viewBox="0 0 50 50"
-    initial={{ rotate: 0 }}
-    animate={{ rotate: 360 }}
-    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-  >
-    <defs>
-      <linearGradient id="spinnerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#60A5FA" />
-        <stop offset="100%" stopColor="#3B82F6" />
-      </linearGradient>
-    </defs>
-    <circle cx="25" cy="25" r="20" fill="none" stroke="url(#spinnerGradient)" strokeWidth="5" strokeDasharray="31.4" />
-  </motion.svg>
-);
 
 const PIXKYCForm_FIELDS = [
   { id: 'phone', label: 'Phone Number', type: 'text', placeholder: 'Phone Number' },
@@ -162,22 +147,57 @@ export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col"
+        className="overflow-hidden px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col"
         onSubmit={kycForm.handleSubmit(handleKYCSubmit)}
       >
-        {PIXKYCForm_FIELDS.map((field) => (
-          <div className="mb-4" key={field.id}>
-            <label htmlFor={field.id} className="block mb-1">
+        <motion.h2
+          className="mb-2 text-2xl font-bold text-center text-blue-700"
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.4,
+            delay: 0.1,
+            type: 'spring',
+            stiffness: 300,
+            damping: 15,
+          }}
+        >
+          KYC Details
+        </motion.h2>
+        {PIXKYCForm_FIELDS.map((field, index) => (
+          <motion.div
+            className="mb-4"
+            key={field.id}
+            initial={{ y: 20 }}
+            animate={{ y: 0 }}
+            transition={{
+              duration: 0.3,
+              delay: index * 0.1,
+            }}
+          >
+            <motion.label
+              htmlFor={field.id}
+              className="block mb-1"
+              initial={{ y: 20 }}
+              animate={{ y: 0 }}
+              transition={{ duration: 0.2, delay: index * 0.1 + 0.1 }}
+            >
               {field.label}
-            </label>
-            <input
-              id={field.id}
-              type={field.type}
-              {...kycForm.register(field.id as keyof KYCFormData, { required: true })}
-              className="w-full p-2 rounded"
-              placeholder={field.placeholder}
-            />
-          </div>
+            </motion.label>
+            <motion.div
+              initial={{ x: '50%' }}
+              animate={{ x: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 + 0.2 }}
+            >
+              <Input
+                register={kycForm.register(field.id as keyof KYCFormData, { required: true })}
+                id={field.id}
+                type={field.type}
+                className="w-full p-2 rounded"
+                placeholder={field.placeholder}
+              />
+            </motion.div>
+          </motion.div>
         ))}
 
         <div className="grid gap-3 mt-8 mb-12">
