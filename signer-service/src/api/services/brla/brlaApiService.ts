@@ -116,19 +116,17 @@ export class BrlaApiService {
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
     const endpoint = `/subaccounts`;
     const query = `taxId=${encodeURIComponent(taxId)}`;
-    const repsonse = await this.sendRequest(endpoint, 'GET', query);
-    return repsonse.subaccounts[0];
+    const response = await this.sendRequest(endpoint, 'GET', query);
+    return response.subaccounts[0];
   }
 
   public async triggerOfframp(offrampParams: OfframpPayload): Promise<{ id: string }> {
     const endpoint = `/pay-out`;
-    const repsonse = await this.sendRequest(endpoint, 'POST', undefined, offrampParams);
-    return repsonse;
+    return await this.sendRequest(endpoint, 'POST', undefined, offrampParams);
   }
 
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
     const endpoint = `/subaccounts`;
-    const repsonse = await this.sendRequest(endpoint, 'POST', undefined, registerSubaccountPayload);
-    return repsonse;
+    return await this.sendRequest(endpoint, 'POST', undefined, registerSubaccountPayload);
   }
 }
