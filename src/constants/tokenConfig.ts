@@ -301,7 +301,14 @@ export function getInputTokenDetails(network: Networks, inputTokenType: InputTok
   }
 }
 
-export type OutputTokenType = 'eurc' | 'ars' | 'brl';
+export enum OutputTokenTypes {
+  EURC = 'eurc',
+  ARS = 'ars',
+  BRL = 'brl',
+}
+
+export type OutputTokenType = (typeof OutputTokenTypes)[keyof typeof OutputTokenTypes];
+
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
   eurc: {
     type: 'spacewalk',
