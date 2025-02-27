@@ -76,7 +76,7 @@ export const getOfframpStatus = async (req: Request<{}, {}, {}, { taxId: string 
       return;
     }
 
-    const lastEventCached = eventPoller.getLatestEventForUser(subaccount.id);
+    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id);
 
     if (!lastEventCached) {
       res.status(404).json({ error: `No status events found for ${taxId}` });
@@ -140,7 +140,7 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    const lastEventCached = eventPoller.getLatestEventForUser(subaccount.id);
+    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id);
 
     if (!lastEventCached) {
       res.status(404).json({ error: `No status events found for ${taxId}` });

@@ -1,5 +1,6 @@
 import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
 import { SubaccountData, RegisterSubaccountPayload, OfframpPayload } from './types';
+import { Event } from './webhooks';
 
 interface EndpointMapping {
   '/subaccounts': {
@@ -37,7 +38,7 @@ interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: undefined;
+      response: { events: Event[] };
     };
     PATCH: {
       body: { ids: string[] };
@@ -150,6 +151,13 @@ export class BrlaApiService {
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
     const endpoint = `/subaccounts`;
     return await this.sendRequest(endpoint, 'POST', undefined, registerSubaccountPayload);
+  }
+
+  public async getAllEventsByUser(userId: string): Promise<Event[] | undefined> {
+    const endpoint = `/webhooks/events`;
+    const query = `subaccountId=${encodeURIComponent(userId)}`;
+    const response = await this.sendRequest(endpoint, 'GET', query);
+    return response.events;
   }
 
   public async acknowledgeEvents(ids: string[]): Promise<void> {

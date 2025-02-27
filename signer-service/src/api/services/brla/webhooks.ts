@@ -7,7 +7,7 @@ export interface Event {
   userId: string;
   data: EventData;
   subscription: SubscriptionType;
-  createdAt: string;
+  createdAt: number;
   id: string;
   acknowledged: boolean;
 }
@@ -71,6 +71,8 @@ export class EventPoller {
   }
 
   private appendEventsToCache(userId: string, userEvents: Event[], fetchedUserEvents: Event[]) {
+    // Order by createdAt, increasing
+    fetchedUserEvents.sort((a, b) => a.createdAt - b.createdAt);
     // Get the timestamp of the last event registered in the cache, for that user.
     const lastTimestamp = userEvents[userEvents.length - 1].createdAt;
 
@@ -78,12 +80,16 @@ export class EventPoller {
     const eventsNotRegistered = fetchedUserEvents.filter(
       (event) => new Date(event.createdAt) > new Date(lastTimestamp),
     );
+    console.log('Poll: Appending events to cache: ', eventsNotRegistered);
     userEvents.push(...eventsNotRegistered);
     this.cache.set(userId, userEvents);
     this.acknowledgeEvents(eventsNotRegistered);
   }
 
   private createNewEventCache(userId: string, userEvents: Event[], fetchedUserEvents: Event[]) {
+    // Order by createdAt, increasing
+    fetchedUserEvents.sort((a, b) => a.createdAt - b.createdAt);
+    console.log('Poll: Creating new cache for user: ', fetchedUserEvents);
     userEvents.push(...fetchedUserEvents);
     this.cache.set(userId, userEvents);
     this.acknowledgeEvents(fetchedUserEvents);
@@ -122,8 +128,26 @@ export class EventPoller {
     }
   }
 
-  public getLatestEventForUser(userId: string): Event | null {
+  private async forceSyncEvents(userId: string) {
+    // Fetch all events for user from BRLA, get cache.
+    const fetchedUserEvents = await this.brlaApiService.getAllEventsByUser(userId);
+    const userEvents = this.cache.get(userId) || [];
+
+    if (!fetchedUserEvents) {
+      return;
+    }
+
+    if (userEvents.length > 0) {
+      this.appendEventsToCache(userId, userEvents, fetchedUserEvents);
+    } else {
+      this.createNewEventCache(userId, userEvents, fetchedUserEvents);
+    }
+  }
+
+  public async getLatestEventForUser(userId: string): Promise<Event | null> {
+    await this.forceSyncEvents(userId);
     const events = this.cache.get(userId);
+
     if (!events || events.length === 0) {
       return null;
     }
