@@ -4,13 +4,14 @@ import { SIGNING_SERVICE_URL } from '../../constants/constants';
 interface DumpData {
   timestamp: string;
   offramperAddress: string;
-  stellarEphemeralPublicKey: string;
+  stellarEphemeralPublicKey?: string;
   pendulumEphemeralPublicKey: string;
   nablaApprovalTx: string;
   nablaSwapTx: string;
-  spacewalkRedeemTx: string;
-  stellarOfframpTx: string;
-  stellarCleanupTx: string;
+  spacewalkRedeemTx?: string;
+  stellarOfframpTx?: string;
+  stellarCleanupTx?: string;
+  pendulumToMoonbeamXcmTx?: string;
   inputAmount: string;
   inputTokenType: string;
   outputAmount: string;

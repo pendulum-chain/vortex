@@ -9,6 +9,8 @@ import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   CLIENT_DOMAIN_SECRET,
 } from './constants/constants';
+import { EventPoller } from './api/services/brla/webhooks';
+import { DEFAULT_POLLING_INTERVAL } from './constants/constants';
 
 const { port, env } = config;
 
@@ -33,6 +35,9 @@ const validateRequiredEnvVars = () => {
 
 // Validate environment variables before starting the server
 validateRequiredEnvVars();
+
+export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
+eventPoller.start();
 
 // listen to requests
 app.listen(port, () => logger.info(`server started on port ${port} (${env})`));

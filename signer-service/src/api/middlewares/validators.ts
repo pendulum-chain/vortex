@@ -11,6 +11,7 @@ import {
   FiatCurrency,
   CryptoCurrency,
 } from '../controllers/quote.controller';
+import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 
 interface CreationBody {
   accountId: string;
@@ -278,6 +279,85 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
 
   if (!siweMessage) {
     res.status(400).json({ error: 'Missing param: siweMessage' });
+    return;
+  }
+
+  next();
+};
+
+export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) => {
+  const { taxId, pixKey, amount, receiverTaxId } = req.body as TriggerOfframpRequest;
+
+  if (!taxId) {
+    res.status(400).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!pixKey) {
+    res.status(400).json({ error: 'Missing pixKey parameter' });
+    return;
+  }
+
+  if (!amount) {
+    res.status(400).json({ error: 'Missing amount parameter' });
+    return;
+  }
+
+  if (!receiverTaxId) {
+    res.status(400).json({ error: 'Missing receiverTaxId parameter' });
+    return;
+  }
+
+  next();
+};
+
+export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
+  const { phone, taxIdType, address, fullName, cpf, birthDate, companyName, startDate, cnpj } =
+    req.body as RegisterSubaccountPayload;
+
+  if (taxIdType !== 'CPF' && taxIdType !== 'CNPJ') {
+    res.status(400).json({ error: 'taxIdType parameter must be either CPF or CNPJ' });
+    return;
+  }
+
+  if (!cpf) {
+    res.status(400).json({ error: "Missing cpf parameter. If taxIdType is CNPJ, should be a partner's CPF" });
+    return;
+  }
+
+  if (!phone) {
+    res.status(400).json({ error: 'Missing phone parameter' });
+    return;
+  }
+
+  if (!address) {
+    res.status(400).json({ error: 'Missing address parameter' });
+    return;
+  }
+
+  if (!fullName) {
+    res.status(400).json({ error: 'Missing fullName parameter' });
+    return;
+  }
+
+  if (!birthDate) {
+    res.status(400).json({ error: 'Missing birthDate parameter' });
+    return;
+  }
+
+  // CNPJ specific validations
+  if (taxIdType === 'CNPJ' && !companyName) {
+    res.status(400).json({ error: 'Missing companyName parameter' });
+    return;
+  }
+
+  if (taxIdType === 'CNPJ' && !startDate) {
+    res.status(400).json({ error: 'Missing startDate parameter' });
+    return;
+  }
+
+  if (taxIdType === 'CNPJ' && !cnpj) {
+    res.status(400).json({ error: 'Missing cnpj parameter' });
     return;
   }
 

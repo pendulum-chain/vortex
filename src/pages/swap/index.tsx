@@ -75,6 +75,7 @@ import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
+type Definitions = InputTokenType | OutputTokenType;
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -247,14 +248,14 @@ export const SwapPage = () => {
       form.setValue('toAmount', totalReceive);
       setExchangeRateCache((prev) => ({
         ...prev,
-        [from]: { ...prev[from], [to]: tokenOutAmount.data!.effectiveExchangeRate },
+        [from]: { ...prev[from], [to]: tokenOutAmount.data?.effectiveExchangeRate },
       }));
     } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing
     }
-  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken]);
+  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken, from, to]);
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
@@ -385,7 +386,7 @@ export const SwapPage = () => {
           assetIcon: value.networkAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: key as OutputTokenType,
+          type: OutputTokenType[key as keyof typeof OutputTokenType],
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
           name: value.fiat.name,
@@ -393,7 +394,7 @@ export const SwapPage = () => {
 
   const modals = (
     <>
-      <PoolSelectorModal
+      <PoolSelectorModal<Definitions>
         open={isTokenSelectModalVisible}
         onSelect={(token) => {
           tokenSelectModalType === 'from' ? onFromChange(token) : onToChange(token);
@@ -425,7 +426,7 @@ export const SwapPage = () => {
   if (offrampState !== undefined || offrampStarted) {
     const isAssetHubFlow =
       !isNetworkEVM(selectedNetwork) &&
-      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubXCM');
+      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubToPendulumXCM');
     const showMainScreenAnyway =
       offrampState === undefined ||
       ['prepareTransactions', 'squidRouter'].includes(offrampState.phase) ||

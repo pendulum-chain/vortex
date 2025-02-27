@@ -9,6 +9,7 @@ import {
   getInputTokenDetails,
   getInputTokenDetailsOrDefault,
   getPendulumCurrencyId,
+  OutputTokenType,
 } from '../../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 
@@ -115,7 +116,7 @@ export async function pendulumFundEphemeral(
 
   return {
     ...state,
-    phase: isNetworkEVM(state.network) ? 'executeMoonbeamXCM' : 'executeAssetHubXCM',
+    phase: isNetworkEVM(state.network) ? 'executeMoonbeamToPendulumXCM' : 'executeAssetHubToPendulumXCM',
   };
 }
 
@@ -294,6 +295,13 @@ export async function subsidizePostSwap(state: OfframpingState, context: Executi
       const currentBalance = await getRawOutputBalance(state, context);
       return currentBalance.gte(Big(state.outputAmount.raw));
     });
+  }
+
+  if (state.outputTokenType === OutputTokenType.BRL) {
+    return {
+      ...state,
+      phase: 'executePendulumToMoonbeamXCM',
+    };
   }
 
   return {
