@@ -1,0 +1,62 @@
+import { FC } from 'react';
+import { useFormContext, useFormState } from 'react-hook-form';
+import { motion } from 'motion/react';
+
+import { Field, FieldProps } from '../../Field';
+
+export enum StandardBrlaFieldOptions {
+  TAX_ID = 'taxId',
+  PIX_ID = 'pixId',
+}
+
+export enum ExtendedBrlaFieldOptions {
+  PHONE = 'phone',
+  ADDRESS = 'address',
+  FULL_NAME = 'fullName',
+  CPF = 'cpf',
+  BIRTHDATE = 'birthdate',
+  EMAIL = 'email',
+}
+
+export type BrlaFieldOptions = StandardBrlaFieldOptions | ExtendedBrlaFieldOptions;
+
+export interface BrlaFieldProps extends FieldProps {
+  id: BrlaFieldOptions;
+  label: string;
+  index: number;
+  validationPattern?: {
+    value: RegExp;
+    message: string;
+  };
+}
+
+export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern }) => {
+  // It required to be inside a FormProvider (react-hook-form)
+  const { register } = useFormContext();
+  const { errors } = useFormState();
+
+  return (
+    <motion.div
+      className="mb-4"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{
+        duration: 0.4,
+        delay: index * 0.15,
+        type: 'spring',
+        stiffness: 300,
+        damping: 15,
+      }}
+    >
+      <label htmlFor={id} className="block mb-1">
+        {label}
+      </label>
+      <Field
+        register={register(id, { required: true, pattern: validationPattern })}
+        className={`w-full p-2 ${errors[id] ? 'border border-red-500' : ''}`}
+        id={id}
+      />
+    </motion.div>
+  );
+};
