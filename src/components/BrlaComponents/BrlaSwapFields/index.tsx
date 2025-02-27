@@ -21,7 +21,7 @@ const STANDARD_FIELDS = [
 ];
 
 /**
- * BrlaStandardInputs component
+ * BrlaSwapFields component
  *
  * Renders PIX payment details form fields when Brazilian Real (BRL) is selected
  * as the destination currency in the Swap form. Collects necessary information
