@@ -46,6 +46,20 @@ export class EventPoller {
     }, this.pollingInterval);
   }
 
+  private async fetchEvents(): Promise<Event[]> {
+    if (!WEBHOOKS_CACHE_PASSWORD) {
+      throw new Error('WEBHOOKS_CACHE_PASSWORD is not defined!');
+    }
+
+    const headers = new Headers([
+      ['Content-Type', 'application/json'],
+      ['Auth-password', WEBHOOKS_CACHE_PASSWORD],
+    ]);
+    const response = await fetch(this.apiUrl, { headers });
+    const events: Event[] = await response.json();
+    return events;
+  }
+
   private groupEventsByUser(events: Event[]): Map<string, Event[]> {
     return events.reduce((acc: Map<string, Event[]>, event: Event) => {
       if (!acc.has(event.userId)) {
@@ -56,19 +70,38 @@ export class EventPoller {
     }, new Map<string, Event[]>());
   }
 
+  private appendEventsToCache(userId: string, userEvents: Event[], fetchedUserEvents: Event[]) {
+    // Get the timestamp of the last event registered in the cache, for that user.
+    const lastTimestamp = userEvents[userEvents.length - 1].createdAt;
+
+    // Append all events that are not registered in the cache.
+    const eventsNotRegistered = fetchedUserEvents.filter(
+      (event) => new Date(event.createdAt) > new Date(lastTimestamp),
+    );
+    userEvents.push(...eventsNotRegistered);
+    this.cache.set(userId, userEvents);
+    this.acknowledgeEvents(eventsNotRegistered);
+  }
+
+  private createNewEventCache(userId: string, userEvents: Event[], fetchedUserEvents: Event[]) {
+    userEvents.push(...fetchedUserEvents);
+    this.cache.set(userId, userEvents);
+    this.acknowledgeEvents(fetchedUserEvents);
+  }
+
+  private async acknowledgeEvents(eventsToAcknowledge: Event[]) {
+    // async acknowledge events
+    if (eventsToAcknowledge.length > 0) {
+      this.brlaApiService.acknowledgeEvents(eventsToAcknowledge.flatMap((event) => event.id)).catch((error) => {
+        console.log('Poll: Error while acknowledging events: ', error);
+      });
+    }
+  }
+
   private async poll() {
     try {
-      if (!WEBHOOKS_CACHE_PASSWORD) {
-        throw new Error('WEBHOOKS_CACHE_PASSWORD is not defined!');
-      }
-
-      const headers = new Headers([
-        ['Content-Type', 'application/json'],
-        ['Auth-password', WEBHOOKS_CACHE_PASSWORD],
-      ]);
-      const response = await fetch(this.apiUrl, { headers });
-      const events: Event[] = await response.json();
-
+      // Fetch all events currently cached and group them by user
+      const events = await this.fetchEvents();
       const groupedEvents = this.groupEventsByUser(events);
 
       // For each user, appends all new events that are not registered in the cache,
@@ -77,29 +110,12 @@ export class EventPoller {
         // Get the events from the cache or create an empty array
         const userEvents = this.cache.get(userId) || [];
 
-        // If there are new events, append those. Otherwise, initialize the cache with the fetched events.
+        // If there are some events in the cache, append only new events
         if (userEvents.length > 0) {
-          const lastTimestamp = userEvents[userEvents.length - 1].createdAt;
-          const eventsNotRegistered = fetchedUserEvents.filter(
-            (event) => new Date(event.createdAt) > new Date(lastTimestamp),
-          );
-          userEvents.push(...eventsNotRegistered);
-
-          // async acknowledge events
-          eventsNotRegistered.length > 0
-            ? this.brlaApiService.acknowledgeEvents(eventsNotRegistered.flatMap((event) => event.id)).catch((error) => {
-                console.log('Poll: Error while acknowledging events: ', error);
-              })
-            : null;
+          this.appendEventsToCache(userId, userEvents, fetchedUserEvents);
         } else {
-          userEvents.push(...fetchedUserEvents);
-          fetchedUserEvents.length > 0
-            ? this.brlaApiService.acknowledgeEvents(fetchedUserEvents.flatMap((event) => event.id)).catch((error) => {
-                console.log('Poll: Error while acknowledging events: ', error);
-              })
-            : null;
+          this.createNewEventCache(userId, userEvents, fetchedUserEvents);
         }
-        this.cache.set(userId, userEvents);
       });
     } catch (error: any) {
       console.error('Error polling events:', error.message);
