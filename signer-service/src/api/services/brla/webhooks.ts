@@ -1,7 +1,7 @@
 import { WEBHOOKS_CACHE_URL, WEBHOOKS_CACHE_PASSWORD } from '../../../constants/constants';
 import { BrlaApiService } from './brlaApiService';
 
-type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT';
+type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT' | 'KYC';
 
 export interface Event {
   userId: string;
