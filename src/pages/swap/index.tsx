@@ -400,6 +400,16 @@ export const SwapPage = () => {
       afterFees: outputAmountAfterFees,
     };
 
+    if (!api) {
+      setInitializeFailed('No API found');
+      return;
+    }
+
+    if (!address) {
+      setInitializeFailed('No address found');
+      return;
+    }
+
     const executionInput = {
       inputTokenType: from,
       outputTokenType: to,
