@@ -126,29 +126,13 @@ export class EventPoller {
     }
   }
 
-  private async forceSyncEvents(userId: string) {
-    // Fetch all events for user from BRLA, get cache.
-    const fetchedUserEvents = await this.brlaApiService.getAllEventsByUser(userId);
-    const userEvents = this.cache.get(userId) || [];
-
-    if (!fetchedUserEvents) {
-      return;
-    }
-
-    if (userEvents.length > 0) {
-      this.appendEventsToCache(userId, userEvents, fetchedUserEvents);
-    } else {
-      this.createNewEventCache(userId, userEvents, fetchedUserEvents);
-    }
-  }
-
   public async getLatestEventForUser(userId: string): Promise<Event | null> {
-    await this.forceSyncEvents(userId);
-    const events = this.cache.get(userId);
+    const events = await this.brlaApiService.getAllEventsByUser(userId);
 
     if (!events || events.length === 0) {
       return null;
     }
+    events.sort((a, b) => a.createdAt - b.createdAt);
     return events[events.length - 1];
   }
 }

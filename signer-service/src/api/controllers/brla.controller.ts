@@ -83,6 +83,15 @@ export const getOfframpStatus = async (req: Request<{}, {}, {}, { taxId: string 
       return;
     }
 
+    if (
+      lastEventCached.subscription !== 'MONEY-TRANSFER' &&
+      lastEventCached.subscription !== 'BURN' &&
+      lastEventCached.subscription !== 'BALANCE-UPDATE'
+    ) {
+      res.status(404).json({ error: `No offramp status event found for ${taxId}` });
+      return;
+    }
+
     res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
   } catch (error) {
     console.error('Error while requesting offramp status: ', error);
@@ -144,6 +153,11 @@ export const fetchSubaccountKycStatus = async (
 
     if (!lastEventCached) {
       res.status(404).json({ error: `No status events found for ${taxId}` });
+      return;
+    }
+
+    if (lastEventCached.subscription !== 'KYC') {
+      res.status(404).json({ error: `No KYC status event found for ${taxId}` });
       return;
     }
 
