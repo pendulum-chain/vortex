@@ -42,6 +42,7 @@ import {
   pendulumCleanup,
   createPendulumEphemeralSeed,
 } from './phases/polkadot/ephemeral';
+import { ApiComponents } from '../contexts/polkadotNode';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -71,7 +72,7 @@ export interface ExecutionContext {
   wagmiConfig: Config;
   setOfframpSigningPhase: (n: OfframpSigningPhase) => void;
   trackEvent: (event: TrackableEvent) => void;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   assetHubNode: { api: ApiPromise };
   walletAccount?: WalletAccount;
 }
@@ -85,7 +86,7 @@ export interface InitiateStateArguments {
   amountOut: Big;
   sepResult: SepResult;
   network: Networks;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   offramperAddress: string;
 }
 
@@ -95,7 +96,7 @@ export interface BrlaInitiateStateArguments {
   amountIn: string;
   amountOut: Big;
   network: Networks;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   offramperAddress: string;
   brlaEvmAddress: string;
   pixDestination: string;
@@ -150,8 +151,8 @@ export interface OfframpingState extends BaseOfframpingState {
   pixDestination?: string;
   taxId?: string;
   moonbeamXcmTransactionHash?: `0x${string}`;
-  assetHubXcmTransactionHash?: string;
-  pendulumToMoonbeamXcmHash?: string;
+  assetHubXcmTransactionHash?: `0x${string}`;
+  pendulumToMoonbeamXcmHash?: `0x${string}`;
 }
 
 export type StateTransitionFunction = (
@@ -218,7 +219,7 @@ function selectNextStateAdvancementHandler(
   outToken: OutputTokenType,
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
-    if (outToken === 'brl') {
+    if (outToken === OutputTokenType.BRL) {
       return STATE_ADVANCEMENT_HANDLERS[HandlerType.BRLA][phase];
     }
     return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];
@@ -240,7 +241,7 @@ async function constructBaseInitialState({
   amountIn: string;
   amountOut: Big;
   network: Networks;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   offramperAddress: string;
 }): Promise<BaseOfframpingState> {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed(

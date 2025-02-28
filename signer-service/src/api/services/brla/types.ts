@@ -10,7 +10,7 @@ export interface SubaccountData {
   fullName: string;
   phone: string;
   kyc: KYCData;
-  address: any;
+  address: BrlaAddress;
   createdAt: string;
   wallets: { evm: string; tron: string };
   brCode: string;
@@ -39,6 +39,7 @@ type BrlaAddress = {
   street: string;
   number: string;
   district: string;
+  complement?: string;
 };
 
 export interface RegisterSubaccountPayload {

@@ -93,7 +93,7 @@ export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
-  partnerUrl: string;
+  anchorUrl: string;
 };
 
 export function isStellarOutputTokenDetails(
@@ -308,7 +308,11 @@ export function getInputTokenDetails(network: Networks, inputTokenType: InputTok
   }
 }
 
-export type OutputTokenType = 'eurc' | 'ars' | 'brl';
+export enum OutputTokenType {
+  EURC = 'eurc',
+  ARS = 'ars',
+  BRL = 'brl',
+}
 export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
   eurc: {
     type: 'spacewalk',
@@ -369,7 +373,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
   },
   brl: {
     type: 'moonbeam',
-    partnerUrl: 'https://brla.digital',
+    anchorUrl: 'https://brla.digital',
     decimals: 18,
     fiat: {
       assetIcon: 'brl',
