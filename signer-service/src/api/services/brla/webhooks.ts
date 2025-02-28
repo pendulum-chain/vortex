@@ -80,7 +80,6 @@ export class EventPoller {
     const eventsNotRegistered = fetchedUserEvents.filter(
       (event) => new Date(event.createdAt) > new Date(lastTimestamp),
     );
-    console.log('Poll: Appending events to cache: ', eventsNotRegistered);
     userEvents.push(...eventsNotRegistered);
     this.cache.set(userId, userEvents);
     this.acknowledgeEvents(eventsNotRegistered);
@@ -89,7 +88,6 @@ export class EventPoller {
   private createNewEventCache(userId: string, userEvents: Event[], fetchedUserEvents: Event[]) {
     // Order by createdAt, increasing
     fetchedUserEvents.sort((a, b) => a.createdAt - b.createdAt);
-    console.log('Poll: Creating new cache for user: ', fetchedUserEvents);
     userEvents.push(...fetchedUserEvents);
     this.cache.set(userId, userEvents);
     this.acknowledgeEvents(fetchedUserEvents);

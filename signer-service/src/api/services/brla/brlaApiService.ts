@@ -132,8 +132,11 @@ export class BrlaApiService {
     if (!response.ok) {
       throw new Error(`Request failed with status ${response.status}, ${await response.text()}`);
     }
-
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      return undefined;
+    }
   }
 
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
@@ -162,7 +165,6 @@ export class BrlaApiService {
 
   public async acknowledgeEvents(ids: string[]): Promise<void> {
     const endpoint = `/webhooks/events`;
-    console.log('Calling acknowledgeEvents with ids: ', ids);
     return await this.sendRequest(endpoint, 'PATCH', undefined, { ids });
   }
 }
