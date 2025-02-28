@@ -115,7 +115,6 @@ export const useSwapForm = () => {
         to: tokenKey,
         from: prev?.from,
       };
-
       setStorageForSwapSettings(updated);
       setValue('to', tokenKey as OutputTokenType);
       setIsTokenSelectModalVisible(false);
