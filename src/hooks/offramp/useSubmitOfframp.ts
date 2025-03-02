@@ -8,16 +8,16 @@ import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   getOutputTokenDetailsSpacewalk,
+  OutputTokenTypes,
 } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
-import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
+import { useOfframpActions } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { showToast, ToastMessage } from '../../helpers/notifications';
 import Big from 'big.js';
 import { OfframpExecutionInput } from '../../types/offramp';
-import { constructBrlaInitialState } from '../../services/offrampingFlow';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
@@ -26,15 +26,10 @@ export const useSubmitOfframp = () => {
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
-  const offrampStarted = useOfframpStarted();
-  const offrampState = useOfframpState();
-  const {
-    setOfframpStarted,
-    setOfframpInitiating,
-    setOfframpExecutionInput,
-    updateOfframpHookStateFromState,
-    setOfframpKycStarted,
-  } = useOfframpActions();
+
+  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput, setOfframpKycStarted } =
+    useOfframpActions();
+
   const {
     setAnchorSessionParams,
     setInitialResponse: setInitialResponseSEP24,
@@ -45,7 +40,6 @@ export const useSubmitOfframp = () => {
 
   return useCallback(
     (executionInput: OfframpExecutionInput, setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void) => {
-      //offrampStarted || offrampState !== undefined ||
       if (!pendulumNode || !executionInput) {
         setOfframpInitiating(false);
         return;
@@ -68,7 +62,8 @@ export const useSubmitOfframp = () => {
             throw new Error('Address must be defined at this stage');
           }
 
-          if (executionInput.outputTokenType === 'brl') {
+          // @TODO: BRL-related logic should be in a separate function/hook
+          if (executionInput.outputTokenType === OutputTokenTypes.BRL) {
             const { taxId, pixId } = executionInput;
             if (!taxId || !pixId) {
               console.log('no tax id or pix id defined');
@@ -77,6 +72,7 @@ export const useSubmitOfframp = () => {
               return;
             }
 
+            // @TODO: Why don't we use getSubaccount from brlaApiService?
             const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}&pixId=${pixId}`);
             if (!response.ok) {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
@@ -98,7 +94,7 @@ export const useSubmitOfframp = () => {
           } else {
             const stellarEphemeralSecret = createStellarEphemeralSecret();
             const outputToken = getOutputTokenDetailsSpacewalk(executionInput.outputTokenType);
-            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
+            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 
             const { token: sep10Token, sep10Account } = await sep10(
               tomlValues,
@@ -156,23 +152,21 @@ export const useSubmitOfframp = () => {
       })();
     },
     [
-      offrampStarted,
-      offrampState,
+      pendulumNode,
       setOfframpInitiating,
       setOfframpStarted,
-      trackEvent,
+      setSelectedNetwork,
       selectedNetwork,
+      trackEvent,
       address,
+      setOfframpExecutionInput,
+      setOfframpKycStarted,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
-      setOfframpExecutionInput,
       setAnchorSessionParams,
-      setInitialResponseSEP24,
       setUrlIntervalSEP24,
+      setInitialResponseSEP24,
       cleanupSEP24,
-      setSelectedNetwork,
-      pendulumNode,
-      updateOfframpHookStateFromState,
     ],
   );
 };
