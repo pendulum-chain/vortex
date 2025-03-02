@@ -8,7 +8,7 @@ import { BrlaField, BrlaFieldProps } from '../BrlaField';
 interface KYCFormProps<T extends Record<string, string>> {
   fields: BrlaFieldProps[];
   form: UseFormReturn<T>;
-  onSubmit: (data: T) => void;
+  onSubmit: () => void;
   onBackClick: () => void;
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
 }
@@ -35,6 +35,7 @@ export const KYCForm = <T extends Record<string, string>>({
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col"
         onSubmit={handleSubmit(onSubmit)}
       >
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">KYC Details</h1>
         {fields.map((field, index) => (
           <BrlaField key={field.id} id={field.id} label={field.label} index={index} />
         ))}
