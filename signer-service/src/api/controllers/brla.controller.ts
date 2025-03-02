@@ -2,7 +2,19 @@ import { Request, Response } from 'express';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
-
+/**
+ * Retrieves a BRLA user's information based on Tax ID
+ *
+ * This endpoint fetches a user's subaccount information from the BRLA API service.
+ * It validates that the user exists and has completed KYC level 1 verification.
+ * If successful, it returns the user's EVM wallet address which is needed for offramp operations.
+ *
+ * @returns void - Sends JSON response with evmAddress on success, or appropriate error status
+ *
+ * @throws 400 - If taxId or pixId are missing or if KYC level is invalid
+ * @throws 404 - If the subaccount cannot be found
+ * @throws 500 - For any server-side errors during processing
+ */
 export const getBrlaUser = async (
   req: Request<{}, {}, {}, { taxId: string; pixId: string }>,
   res: Response,
@@ -16,7 +28,6 @@ export const getBrlaUser = async (
     }
 
     // TODO how to check that pixId is valid, as a later offramp will get stuck if it's not valid..
-
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
