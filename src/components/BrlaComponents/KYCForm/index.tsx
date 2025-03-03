@@ -36,8 +36,8 @@ export const KYCForm = <T extends Record<string, string>>({
         onSubmit={handleSubmit(onSubmit)}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">KYC Details</h1>
-        {fields.map((field, index) => (
-          <BrlaField key={field.id} id={field.id} label={field.label} index={index} />
+        {fields.map((field) => (
+          <BrlaField key={field.id} {...field} />
         ))}
 
         <div className="grid gap-3 mt-8 mb-12">

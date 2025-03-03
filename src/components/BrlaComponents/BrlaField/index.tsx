@@ -30,10 +30,11 @@ export interface BrlaFieldProps extends FieldProps {
   };
 }
 
-export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern }) => {
+export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern, ...rest }) => {
   // It required to be inside a FormProvider (react-hook-form)
   const { register } = useFormContext();
   const { errors } = useFormState();
+  const errorMessage = errors[id]?.message as string;
 
   return (
     <motion.div
@@ -53,10 +54,12 @@ export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPatt
         {label}
       </label>
       <Field
+        id={id}
         register={register(id, { required: true, pattern: validationPattern })}
         className={`w-full p-2 ${errors[id] ? 'border border-red-500' : ''}`}
-        id={id}
+        {...rest}
       />
+      {errorMessage && <span className="text-red-500 text-sm mt-1">{errorMessage}</span>}
     </motion.div>
   );
 };
