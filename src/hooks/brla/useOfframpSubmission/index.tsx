@@ -1,0 +1,33 @@
+import { useCallback } from 'react';
+import { useSubmitOfframp } from '../../offramp/useSubmitOfframp';
+import { useOfframpActions, useOfframpExecutionInput } from '../../../stores/offrampStore';
+import { performSwapInitialChecks } from '../../../pages/swap/helpers/swapConfirm/performSwapInitialChecks';
+
+export const useOfframpSubmission = (
+  handleError: (message?: string) => Promise<void>,
+  setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void,
+) => {
+  const { setOfframpKycStarted } = useOfframpActions();
+  const offrampInput = useOfframpExecutionInput();
+  const submitOfframp = useSubmitOfframp();
+
+  return useCallback(() => {
+    if (!offrampInput) {
+      return handleError('No execution input found for KYC process');
+    }
+
+    performSwapInitialChecks()
+      .then(() => {
+        console.info('Initial checks completed after KYC. Starting process..');
+        submitOfframp(offrampInput, setIsOfframpSummaryDialogVisible);
+      })
+      .catch((error) => {
+        console.error('Error during swap confirmation after KYC', { error });
+        offrampInput?.setInitializeFailed();
+        handleError('Error during swap confirmation after KYC');
+      })
+      .finally(() => {
+        setOfframpKycStarted(false);
+      });
+  }, [offrampInput, handleError, submitOfframp, setIsOfframpSummaryDialogVisible, setOfframpKycStarted]);
+};
