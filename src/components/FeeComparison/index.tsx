@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { useEffect, useRef, useMemo, useImperativeHandle } from 'react';
+import { useEffect, useRef, useMemo, useImperativeHandle, useCallback, useState } from 'react';
 import { forwardRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
@@ -21,6 +21,15 @@ interface BaseComparisonProps {
 
 type VortexRowProps = Pick<BaseComparisonProps, 'targetAssetSymbol' | 'vortexPrice'>;
 
+export function formatPrice(price: Big | null | undefined): string {
+  if (!price) return '0.00';
+
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(parseFloat(price.toFixed(2)));
+}
+
 function VortexRow({ targetAssetSymbol, vortexPrice }: VortexRowProps) {
   return (
     <div className="flex items-center justify-between w-full">
@@ -29,7 +38,7 @@ function VortexRow({ targetAssetSymbol, vortexPrice }: VortexRowProps) {
       </div>
       <div className="flex items-center justify-center w-full gap-4 grow">
         <div className="flex flex-col items-center">
-          <span className="font-bold text-md">{`${vortexPrice.toFixed(2)} ${targetAssetSymbol}`}</span>
+          <span className="font-bold text-md">{`${formatPrice(vortexPrice)} ${targetAssetSymbol}`}</span>
         </div>
       </div>
     </div>
@@ -38,6 +47,7 @@ function VortexRow({ targetAssetSymbol, vortexPrice }: VortexRowProps) {
 
 interface FeeProviderRowProps extends BaseComparisonProps {
   provider: QuoteProvider;
+  onPriceFetched: (providerName: string, price: Big) => void;
 }
 
 function FeeProviderRow({
@@ -48,11 +58,13 @@ function FeeProviderRow({
   vortexPrice,
   network,
   trackQuote,
+  onPriceFetched,
 }: FeeProviderRowProps) {
   const { scheduleQuote } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
   const prevVortexPrice = useRef<Big | null>(null);
+  const prevProviderPrice = useRef<Big | null>(null);
 
   const {
     isLoading,
@@ -68,6 +80,14 @@ function FeeProviderRow({
     if (isLoading || error || !providerPrice) return undefined;
     return providerPrice.minus(vortexPrice);
   }, [isLoading, error, providerPrice, vortexPrice]);
+
+  useEffect(() => {
+    if (isLoading || !providerPrice || !error) return;
+    if (prevProviderPrice.current?.eq(providerPrice)) return;
+
+    onPriceFetched(provider.name, providerPrice);
+    prevProviderPrice.current = providerPrice;
+  }, [isLoading, providerPrice, error, onPriceFetched]);
 
   useEffect(() => {
     if (isLoading || (!providerPrice && !error)) return;
@@ -106,14 +126,21 @@ function FeeProviderRow({
           <Skeleton className="w-20 h-10 mb-2" />
         ) : (
           <div className="flex flex-col items-center">
-            <span className="font-bold text-md">
-              {error || !providerPrice ? 'N/A' : `${providerPrice.toFixed(2)} ${targetAssetSymbol}`}
-            </span>
+            <div className="flex justify-end w-full">
+              {error || !providerPrice ? (
+                <span className="font-bold text-md">N/A</span>
+              ) : (
+                <>
+                  <span className="font-bold text-md text-right">
+                    {`${formatPrice(providerPrice)} ${targetAssetSymbol}`}
+                  </span>
+                </>
+              )}
+            </div>
             {priceDiff && (
-              <span className={`flex items-center ${priceDiff.gt(0) ? 'text-green-600' : 'text-red-600'}`}>
-                <ChevronDownIcon className={`w-5 h-5 ${priceDiff.gt(0) ? 'rotate-180' : ''}`} />
-                {`${priceDiff.toFixed(2)} ${targetAssetSymbol}`}
-              </span>
+              <div className={`flex justify-end w-full  ${priceDiff.gt(0) ? 'text-green-600' : 'text-red-600'}`}>
+                <span className="text-right font-bold">{`${formatPrice(priceDiff)} ${targetAssetSymbol}`}</span>
+              </div>
             )}
           </div>
         )}
@@ -124,6 +151,18 @@ function FeeProviderRow({
 
 function FeeComparisonTable(props: BaseComparisonProps) {
   const { amount, sourceAssetSymbol, network, targetAssetSymbol, vortexPrice } = props;
+
+  const [providerPrices, setProviderPrices] = useState<{ [key: string]: Big }>({});
+
+  const handlePriceUpdate = useCallback((providerName: string, price: Big) => {
+    setProviderPrices((prev) => ({ ...prev, [providerName]: price }));
+  }, []);
+
+  const bestProviderPrice = useMemo(() => {
+    return Object.values(providerPrices).reduce((max, price) => (price.gt(max) ? price : max), new Big(0));
+  }, [providerPrices]);
+
+  const isVortexWinner = vortexPrice.gte(bestProviderPrice);
 
   return (
     <div className="p-4 transition-all pb-8 duration-300 bg-white rounded-2xl shadow-custom hover:scale-[101%]">
@@ -150,11 +189,13 @@ function FeeComparisonTable(props: BaseComparisonProps) {
         </div>
       </div>
       <div className="w-full my-4 border-b border-gray-200" />
-      <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
+      <div className={`${isVortexWinner ? 'bg-green-500/10 rounded-md mb-4 py-2' : ''}`}>
+        <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
+      </div>
       {quoteProviders.map((provider) => (
         <div key={provider.name}>
           <div className="w-full my-4 border-b border-gray-200" />
-          <FeeProviderRow {...props} provider={provider} />
+          <FeeProviderRow {...props} provider={provider} onPriceFetched={handlePriceUpdate} />
         </div>
       ))}
     </div>
