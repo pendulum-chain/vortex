@@ -4,9 +4,10 @@ import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
 import { useKYCForm } from '../../hooks/brla/useKYCForm';
 
 import { FeeComparisonRef } from '../FeeComparison';
-import { KYCStatus, VerificationStatus } from './VerificationStatus';
+import { VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 import { KYCForm } from './KYCForm';
+
 interface PIXKYCFormProps {
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
   setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void;
@@ -54,7 +55,6 @@ const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
     id: ExtendedBrlaFieldOptions.BIRTHDATE,
     label: 'Birthdate',
     type: 'date',
-    placeholder: '',
     required: true,
     index: 4,
   },
