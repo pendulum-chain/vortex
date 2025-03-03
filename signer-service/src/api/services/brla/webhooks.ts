@@ -135,4 +135,13 @@ export class EventPoller {
     events.sort((a, b) => a.createdAt - b.createdAt);
     return events[events.length - 1];
   }
+
+  public async getSubscriptionEventsForUser(userId: string, subscription: SubscriptionType): Promise<Event[] | null> {
+    const events = await this.brlaApiService.getAllEventsByUser(userId);
+
+    if (!events || events.length === 0) {
+      return null;
+    }
+    return events.filter((event) => event.subscription === subscription);
+  }
 }
