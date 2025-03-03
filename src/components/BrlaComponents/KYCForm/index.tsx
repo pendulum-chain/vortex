@@ -3,12 +3,12 @@ import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 
 import { FeeComparisonRef } from '../../FeeComparison';
-import { BrlaField, BrlaFieldProps } from '../BrlaField';
+import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 
 interface KYCFormProps<T extends Record<string, string>> {
   fields: BrlaFieldProps[];
   form: UseFormReturn<T>;
-  onSubmit: () => void;
+  onSubmit: (formData: Record<ExtendedBrlaFieldOptions, string>) => Promise<void>;
   onBackClick: () => void;
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
 }

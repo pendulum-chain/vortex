@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
-import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
+import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
 import { SigningBox } from '../../components/SigningBox';
@@ -307,7 +307,7 @@ export const SwapPage = () => {
     return tokenOutAmount.error;
   }
 
-  const definitions =
+  const definitions: TokenDefinition[] =
     tokenSelectModalType === 'from'
       ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
           type: key as InputTokenType,
@@ -336,6 +336,29 @@ export const SwapPage = () => {
       />
     </>
   );
+
+  const handleOfframpSubmit = useCallback(() => {
+    if (!address) {
+      setInitializeFailed('No address found');
+      return;
+    }
+    if (!pendulumNode.apiComponents) {
+      setInitializeFailed('No API components found');
+      return;
+    }
+    to === 'brl'
+      ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents)
+      : handleOnAnchorWindowOpen();
+  }, [
+    address,
+    pendulumNode.apiComponents,
+    to,
+    handleBrlaOfframpStart,
+    executionInput,
+    selectedNetwork,
+    handleOnAnchorWindowOpen,
+    setInitializeFailed,
+  ]);
 
   if (offrampState?.phase === 'success') {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} toToken={to} />;
@@ -445,11 +468,7 @@ export const SwapPage = () => {
         visible={isOfframpSummaryDialogVisible}
         executionInput={executionInput}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
-        onSubmit={() => {
-          to === 'brl'
-            ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents)
-            : handleOnAnchorWindowOpen();
-        }}
+        onSubmit={handleOfframpSubmit}
         onClose={() => setIsOfframpSummaryDialogVisible(false)}
       />
       <SigningBox step={offrampSigningPhase} />
