@@ -189,7 +189,8 @@ function FeeComparisonTable(props: BaseComparisonProps) {
         </div>
       </div>
       <div className="w-full my-4 border-b border-gray-200" />
-      <div className={`${isVortexWinner ? 'bg-green-500/10 rounded-md mb-4 py-2' : ''}`}>
+      <div className={`${isVortexWinner ? 'bg-green-500/10 rounded-md py-2' : ''}`}>
+        {isVortexWinner ? <span className="italic ml-4 text-sm text-green-700">Best rate</span> : null}
         <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
       </div>
       {quoteProviders.map((provider) => (
