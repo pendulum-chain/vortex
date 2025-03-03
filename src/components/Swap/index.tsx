@@ -1,18 +1,19 @@
 import React, { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FeeComparisonRef } from '../FeeComparison';
-import { useOfframpInitiating, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
+import { useOfframpActions, useOfframpInitiating, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
-import { BrlaStandardInputs } from '../BrlaComponents/BrlaStandardInputs';
+import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
 import { SwapFormValues } from '../Nabla/schema';
-import { UseFormReturn } from 'react-hook-form';
+import { FormProvider, SubmitHandler, UseFormReturn } from 'react-hook-form';
 import { AssetNumericInput } from '../AssetNumericInput';
 import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   InputTokenType,
   OutputTokenType,
+  OutputTokenTypes,
 } from '../../constants/tokenConfig';
 import { useNetwork } from '../../contexts/network';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
@@ -51,7 +52,7 @@ interface SwapProps {
   initializeFailedMessage: string | null;
   isOfframpSummaryDialogVisible: boolean;
   openTokenSelectModal: (token: TokenSelectType) => void;
-  onSwapConfirm: (data: SwapFormValues) => void;
+  onSwapConfirm: () => void;
   getCurrentErrorMessage: () => string | null | undefined;
 }
 
@@ -158,8 +159,8 @@ export const Swap = ({
       return;
     }
 
-    onSwapConfirm(form.getValues());
-  }, [form, onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
+    onSwapConfirm();
+  }, [onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
 
   const getButtonState = (): SwapButtonState => {
     if (offrampInitiating) {
@@ -179,68 +180,70 @@ export const Swap = ({
     offrampState !== undefined;
 
   return (
-    <motion.form
-      initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
-      onSubmit={form.handleSubmit(onSwapConfirm)}
-    >
-      <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
-      <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-      <div className="my-10" />
-      <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
-      <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-      <BrlaStandardInputs form={form} toToken={to} />
-      <FeeCollapse
-        fromAmount={fromAmount?.toString()}
-        toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
-        toToken={toToken}
-        exchangeRate={
-          <ExchangeRate
-            exchangeRate={tokenOutAmount.data?.effectiveExchangeRate}
-            fromToken={fromToken}
-            toTokenSymbol={toToken.fiat.symbol}
-          />
-        }
-      />
-      <section className="flex items-center justify-center w-full mt-5">
-        <BenefitsList amount={fromAmount} currency={from} />
-      </section>
-
-      {(initializeFailedMessage || apiInitializeFailed) && (
-        <section className="flex justify-center w-full mt-5">
-          <div className="flex items-center gap-4">
-            <p className="text-red-600">{initializeFailedMessage}</p>
-          </div>
-        </section>
-      )}
-
-      <section className="w-full mt-5">
-        <TermsAndConditions
-          key={termsAnimationKey}
-          toggleTermsChecked={toggleTermsChecked}
-          termsChecked={termsChecked}
-          termsAccepted={termsAccepted}
-          termsError={termsError}
-          setTermsError={setTermsError}
-          setTermsAccepted={setTermsAccepted}
+    <FormProvider {...form}>
+      <motion.form
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
+        onSubmit={form.handleSubmit(onConfirm)}
+      >
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
+        <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
+        <div className="my-10" />
+        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
+        <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
+        <BrlaSwapFields toToken={to} />
+        <FeeCollapse
+          fromAmount={fromAmount?.toString()}
+          toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
+          toToken={toToken}
+          exchangeRate={
+            <ExchangeRate
+              exchangeRate={tokenOutAmount.data?.effectiveExchangeRate}
+              fromToken={fromToken}
+              toTokenSymbol={toToken.fiat.symbol}
+            />
+          }
         />
-      </section>
+        <section className="flex items-center justify-center w-full mt-5">
+          <BenefitsList amount={fromAmount} currency={from} />
+        </section>
 
-      <div className="flex gap-3 mt-5">
-        <button
-          className="btn-vortex-primary-inverse btn"
-          style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-          disabled={!inputAmountIsStable}
-          onClick={handleCompareFeesClick}
-        >
-          Compare fees
-        </button>
-        <SwapSubmitButton text={getButtonState()} disabled={isSubmitButtonDisabled} pending={isSubmitButtonPending} />
-      </div>
-      <div className="mb-16" />
-      <PoweredBy />
-    </motion.form>
+        {(initializeFailedMessage || apiInitializeFailed) && (
+          <section className="flex justify-center w-full mt-5">
+            <div className="flex items-center gap-4">
+              <p className="text-red-600">{initializeFailedMessage}</p>
+            </div>
+          </section>
+        )}
+
+        <section className="w-full mt-5">
+          <TermsAndConditions
+            key={termsAnimationKey}
+            toggleTermsChecked={toggleTermsChecked}
+            termsChecked={termsChecked}
+            termsAccepted={termsAccepted}
+            termsError={termsError}
+            setTermsError={setTermsError}
+            setTermsAccepted={setTermsAccepted}
+          />
+        </section>
+
+        <div className="flex gap-3 mt-5">
+          <button
+            className="btn-vortex-primary-inverse btn"
+            style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
+            disabled={!inputAmountIsStable}
+            onClick={handleCompareFeesClick}
+          >
+            Compare fees
+          </button>
+          <SwapSubmitButton text={getButtonState()} disabled={isSubmitButtonDisabled} pending={isSubmitButtonPending} />
+        </div>
+        <div className="mb-16" />
+        <PoweredBy />
+      </motion.form>
+    </FormProvider>
   );
 };

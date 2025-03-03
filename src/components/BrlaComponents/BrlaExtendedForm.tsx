@@ -9,6 +9,7 @@ import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 interface PIXKYCFormProps {
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
   setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void;
+  onSwapConfirm: () => void;
 }
 
 const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [

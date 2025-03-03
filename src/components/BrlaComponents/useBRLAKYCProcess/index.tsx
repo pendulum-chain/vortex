@@ -21,7 +21,6 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
   const [statusMessage, setStatusMessage] = useState<string>('');
 
   const { setOfframpKycStarted, resetOfframpState } = useOfframpActions();
-
   const offrampInput = useOfframpExecutionInput();
   const submitOfframp = useSubmitOfframp();
 

@@ -62,8 +62,6 @@ import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
-import { SubmitHandler } from 'react-hook-form';
-import { SwapFormValues } from '../../components/Nabla/schema';
 import { calculateSwapAmountsWithMargin } from './helpers/swapConfirm/calculateSwapAmountsWithMargin';
 import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
 import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
@@ -367,7 +365,7 @@ export const SwapPage = () => {
     }
   }
 
-  const onSwapConfirm: SubmitHandler<SwapFormValues> = () => {
+  const onSwapConfirm = () => {
     if (offrampStarted) {
       setIsOfframpSummaryDialogVisible(true);
       return;
@@ -459,6 +457,7 @@ export const SwapPage = () => {
         <PIXKYCForm
           feeComparisonRef={feeComparisonRef}
           setIsOfframpSummaryDialogVisible={setIsOfframpSummaryDialogVisible}
+          onSwapConfirm={onSwapConfirm}
         />
       ) : (
         <Swap
