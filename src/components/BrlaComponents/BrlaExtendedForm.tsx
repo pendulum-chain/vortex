@@ -1,11 +1,12 @@
 import { RefObject } from 'react';
 
+import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
+import { useKYCForm } from '../../hooks/brla/useKYCForm';
+
 import { FeeComparisonRef } from '../FeeComparison';
-import { KYCForm } from './KYCForm';
-import { useKYCProcess } from './useBRLAKYCProcess';
 import { KYCStatus, VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
-
+import { KYCForm } from './KYCForm';
 interface PIXKYCFormProps {
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
   setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void;
@@ -60,13 +61,15 @@ const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
 ];
 
 export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible }: PIXKYCFormProps) => {
-  const { verificationStatus, statusMessage, kycForm, handleFormSubmit, handleBackClick } = useKYCProcess(
+  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, isSubmitted } = useKYCProcess(
     setIsOfframpSummaryDialogVisible,
   );
 
+  const { kycForm } = useKYCForm();
+
   return (
     <div className="relative">
-      {verificationStatus === KYCStatus.PENDING && (
+      {!isSubmitted ? (
         <KYCForm
           fields={PIXKYCFORM_FIELDS}
           form={kycForm}
@@ -74,9 +77,7 @@ export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible 
           onBackClick={handleBackClick}
           feeComparisonRef={feeComparisonRef}
         />
-      )}
-
-      {verificationStatus !== KYCStatus.PENDING && (
+      ) : (
         <VerificationStatus status={verificationStatus} message={statusMessage} />
       )}
     </div>
