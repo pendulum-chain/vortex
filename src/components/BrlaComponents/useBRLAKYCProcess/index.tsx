@@ -1,41 +1,100 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { KYCStatus, KYCResult } from '../VerificationStatus';
+import { KYCStatus } from '../VerificationStatus';
 import { useSubmitOfframp } from '../../../hooks/offramp/useSubmitOfframp';
 import { performSwapInitialChecks } from '../../../pages/swap/helpers/swapConfirm/performSwapInitialChecks';
 import { useOfframpActions, useOfframpExecutionInput } from '../../../stores/offrampStore';
 import { fetchKycStatus } from '../../../services/signingService';
 import { ExtendedBrlaFieldOptions } from '../BrlaField';
 
-function getEnumInitialValues(enumType: Record<string, string>) {
-  return Object.values(enumType).reduce((acc, field) => ({ ...acc, [field]: '' }), {} as Record<string, string>);
+export interface BrlaKycStatus {
+  status: string;
 }
 
-export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void) {
+enum KYCResponseStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+}
+
+const STATUS_MESSAGES = {
+  PENDING: 'Estamos verificando seus dados, aguarde',
+  SUCCESS: 'Você foi validado',
+  FAILED: 'Seu KYC foi rejeitado',
+  ERROR: 'Erro durante a verificação',
+};
+
+type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
+
+const POLLING_INTERVAL_MS = 2000;
+const ERROR_DISPLAY_DURATION_MS = 3000;
+const SUCCESS_DISPLAY_DURATION_MS = 2000;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getEnumInitialValues = (enumType: Record<string, string>): Record<string, string> => {
+  return Object.values(enumType).reduce((acc, field) => ({ ...acc, [field]: '' }), {} as Record<string, string>);
+};
+
+const useKYCForm = () => {
   const kycForm = useForm<Record<ExtendedBrlaFieldOptions, string>>({
     defaultValues: getEnumInitialValues(ExtendedBrlaFieldOptions),
   });
 
-  const [verificationStatus, setVerificationStatus] = useState<KYCStatus>(KYCStatus.PENDING);
-  const [statusMessage, setStatusMessage] = useState<string>('');
+  return { kycForm };
+};
 
-  const { setOfframpKycStarted, resetOfframpState } = useOfframpActions();
+const useKYCStatusQuery = (cpf: string | null) => {
+  return useQuery<BrlaKycStatus, Error>({
+    queryKey: ['kyc-status', cpf],
+    queryFn: async () => {
+      if (!cpf) throw new Error('CPF is required');
+      return fetchKycStatus(cpf);
+    },
+    enabled: !!cpf,
+    refetchInterval: (query) => {
+      if (!query.state.data || query.state.data.status === 'PENDING') return POLLING_INTERVAL_MS;
+      return false;
+    },
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 0,
+  });
+};
+
+const useVerificationStatusUI = () => {
+  const [verificationStatus, setVerificationStatus] = useState<KYCStatus>(KYCStatus.PENDING);
+  const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
+
+  const updateStatus = useCallback((status: KYCStatus, message: StatusMessageType) => {
+    setVerificationStatus(status);
+    setStatusMessage(message);
+  }, []);
+
+  return {
+    verificationStatus,
+    statusMessage,
+    updateStatus,
+    resetToDefault: useCallback(() => {
+      setVerificationStatus(KYCStatus.PENDING);
+      setStatusMessage(STATUS_MESSAGES.PENDING);
+    }, []),
+  };
+};
+
+const useOfframpSubmission = (
+  handleError: (message?: string) => Promise<void>,
+  setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void,
+) => {
+  const { setOfframpKycStarted } = useOfframpActions();
   const offrampInput = useOfframpExecutionInput();
   const submitOfframp = useSubmitOfframp();
 
-  const handleBackClick = useCallback(() => {
-    setOfframpKycStarted(false);
-    resetOfframpState();
-  }, [setOfframpKycStarted, resetOfframpState]);
-
-  const proceedWithOfframp = useCallback(() => {
+  return useCallback(() => {
     if (!offrampInput) {
-      console.error('No execution input found for KYC process');
-      setVerificationStatus(KYCStatus.FAILED);
-      setStatusMessage('Error: Missing execution data');
-      setTimeout(() => handleBackClick(), 3000);
-      return;
+      return handleError('No execution input found for KYC process');
     }
 
     performSwapInitialChecks()
@@ -46,77 +105,92 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
       .catch((error) => {
         console.error('Error during swap confirmation after KYC', { error });
         offrampInput?.setInitializeFailed();
-        setVerificationStatus(KYCStatus.FAILED);
-        setStatusMessage('Error during process initialization');
-        setTimeout(() => handleBackClick(), 3000);
+        handleError('Error during swap confirmation after KYC');
       })
       .finally(() => {
         setOfframpKycStarted(false);
       });
-  }, [offrampInput, handleBackClick, submitOfframp, setIsOfframpSummaryDialogVisible, setOfframpKycStarted]);
+  }, [offrampInput, handleError, submitOfframp, setIsOfframpSummaryDialogVisible, setOfframpKycStarted]);
+};
 
-  const checkKycStatusRepeatedly = useCallback(async (cpf: string): Promise<KYCResult> => {
-    const POLLING_INTERVAL_MS = 2000; // 2 seconds between polls
-    const shouldContinuePolling = true;
+export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void) {
+  const { kycForm } = useKYCForm();
+  const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
 
-    while (shouldContinuePolling) {
-      try {
-        const response = await fetchKycStatus(cpf);
+  const [cpf, setCpf] = useState<string | null>(null);
 
-        if (response.status === 'FAILED') {
-          return KYCResult.REJECTED;
-        }
+  const queryClient = useQueryClient();
+  const { data: kycResponse, error } = useKYCStatusQuery(cpf);
+  const { setOfframpKycStarted, resetOfframpState } = useOfframpActions();
 
-        if (response.status === 'SUCCESS') {
-          return KYCResult.VALIDATED;
-        }
+  const handleBackClick = useCallback(() => {
+    setOfframpKycStarted(false);
+    resetOfframpState();
+  }, [setOfframpKycStarted, resetOfframpState]);
 
-        // Wait before polling again
-        await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL_MS));
-      } catch (error) {
-        console.warn('Error polling KYC status', { error });
-        // Continue polling despite errors
-        await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL_MS));
-      }
-    }
+  const handleError = useCallback(
+    (errorMessage?: string) => {
+      console.error(errorMessage || 'KYC process error');
+      updateStatus(KYCStatus.FAILED, STATUS_MESSAGES.ERROR);
 
-    throw new Error('KYC polling stopped unexpectedly');
-  }, []);
+      return delay(ERROR_DISPLAY_DURATION_MS).then(() => {
+        resetToDefault();
+        handleBackClick();
+      });
+    },
+    [handleBackClick, updateStatus, resetToDefault],
+  );
+
+  const proceedWithOfframp = useOfframpSubmission(handleError, setIsOfframpSummaryDialogVisible);
 
   const handleFormSubmit = useCallback(
     async (formData: Record<ExtendedBrlaFieldOptions, string>) => {
-      setVerificationStatus(KYCStatus.PENDING);
-      setStatusMessage('Estamos verificando seus dados, aguarde');
+      resetToDefault();
+      setCpf(formData.cpf);
 
-      try {
-        const verificationResult = await checkKycStatusRepeatedly(formData.cpf);
-
-        if (verificationResult === KYCResult.VALIDATED) {
-          setVerificationStatus(KYCStatus.SUCCESS);
-          setStatusMessage('Você foi validado');
-          setTimeout(() => {
-            proceedWithOfframp();
-          }, 2000);
-        } else {
-          setVerificationStatus(KYCStatus.FAILED);
-          setStatusMessage('Seu KYC foi rejeitado');
-          setTimeout(() => {
-            setVerificationStatus(KYCStatus.PENDING);
-            handleBackClick();
-          }, 3000);
-        }
-      } catch (error) {
-        console.error('Error during KYC polling', { error });
-        setVerificationStatus(KYCStatus.FAILED);
-        setStatusMessage('Erro durante a verificação');
-        setTimeout(() => {
-          setVerificationStatus(KYCStatus.PENDING);
-          handleBackClick();
-        }, 3000);
-      }
+      // Invalidate any existing queries for this CPF
+      await queryClient.invalidateQueries({ queryKey: ['kyc-status', formData.cpf] });
     },
-    [proceedWithOfframp, handleBackClick, checkKycStatusRepeatedly],
+    [queryClient, resetToDefault],
   );
+
+  useEffect(() => {
+    if (!kycResponse) return;
+
+    const handleStatus = async (status: string) => {
+      const mappedStatus = status as KYCResponseStatus;
+
+      const statusHandlers: Record<KYCResponseStatus, () => Promise<void>> = {
+        [KYCResponseStatus.SUCCESS]: async () => {
+          updateStatus(KYCStatus.SUCCESS, STATUS_MESSAGES.SUCCESS);
+          await delay(SUCCESS_DISPLAY_DURATION_MS);
+          proceedWithOfframp();
+        },
+        [KYCResponseStatus.FAILED]: async () => {
+          updateStatus(KYCStatus.FAILED, STATUS_MESSAGES.FAILED);
+          await delay(ERROR_DISPLAY_DURATION_MS);
+          resetToDefault();
+          handleBackClick();
+        },
+        [KYCResponseStatus.PENDING]: async () => undefined,
+      };
+
+      const handler = statusHandlers[mappedStatus];
+      if (handler) {
+        await handler();
+      }
+    };
+
+    if (kycResponse.status) {
+      handleStatus(kycResponse.status);
+    }
+  }, [kycResponse, handleBackClick, proceedWithOfframp, updateStatus, resetToDefault]);
+
+  useEffect(() => {
+    if (error) {
+      handleError(error.message);
+    }
+  }, [error, handleError]);
 
   return {
     verificationStatus,
