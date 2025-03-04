@@ -12,6 +12,12 @@ export enum StandardBrlaFieldOptions {
 export enum ExtendedBrlaFieldOptions {
   PHONE = 'phone',
   ADDRESS = 'address',
+  CEP = 'cep',
+  CITY = 'city',
+  STATE = 'state',
+  STREET = 'street',
+  NUMBER = 'number',
+  DISTRICT = 'district',
   FULL_NAME = 'fullName',
   CPF = 'cpf',
   BIRTHDATE = 'birthdate',

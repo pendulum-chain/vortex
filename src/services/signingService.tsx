@@ -49,7 +49,7 @@ export interface RegisterSubaccountPayload {
   };
   fullName: string;
   cpf: string;
-  birthDate: string;
+  birthdate: string;
 }
 
 export interface SignerServiceSep10Request {

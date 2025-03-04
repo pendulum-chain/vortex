@@ -22,7 +22,7 @@ type FormStore = FormState & {
   actions: FormStoreActions;
 };
 
-const useFormStore = create<FormStore>((set) => ({
+export const useFormStore = create<FormStore>((set) => ({
   fromAmount: undefined,
   fromToken: undefined,
   toToken: undefined,

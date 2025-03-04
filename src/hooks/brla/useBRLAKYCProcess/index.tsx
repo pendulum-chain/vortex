@@ -2,10 +2,12 @@ import { useCallback, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { KYCStatus } from '../../../components/BrlaComponents/VerificationStatus';
-import { useOfframpActions } from '../../../stores/offrampStore';
+import { useOfframpActions, useOfframpStore } from '../../../stores/offrampStore';
 import { useOfframpSubmission } from '../useOfframpSubmission';
 import { useKYCStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
+import { createSubaccount } from '../../../services/signingService';
+import { useFormStore } from '../../../stores/formStore';
 
 export interface BrlaKycStatus {
   status: string;
@@ -53,6 +55,7 @@ const useVerificationStatusUI = () => {
 
 export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void) {
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
+  const { taxId } = useFormStore();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const [cpf, setCpf] = useState<string | null>(null);
@@ -83,11 +86,32 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
 
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {
+      if (!taxId) {
+        throw new Error('useKYCProcess: Tax ID must be defined at this point');
+      }
       resetToDefault();
-      setCpf(formData.cpf);
       setIsSubmitted(true);
 
-      await queryClient.invalidateQueries({ queryKey: ['kyc-status', formData.cpf] });
+      await queryClient.invalidateQueries({ queryKey: ['kyc-status', taxId] });
+      const addressObject = {
+        cep: formData.cep,
+        city: formData.city,
+        street: formData.street,
+        number: formData.number,
+        district: formData.district,
+        state: formData.state,
+      };
+      createSubaccount({
+        ...formData,
+        cpf: taxId,
+        birthdate: formData.birthdate.toDateString(),
+        address: addressObject,
+        taxIdType: 'CPF',
+      })
+        .catch((error) => handleError(error.message))
+        .then(() => {
+          setCpf(taxId); // Only define cpf after the subaccount creation is successful. Otherwise query will fail.
+        });
     },
     [queryClient, resetToDefault],
   );
@@ -97,21 +121,24 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
 
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KYCResponseStatus;
-      setIsSubmitted(false);
 
       const statusHandlers: Record<KYCResponseStatus, () => Promise<void>> = {
         [KYCResponseStatus.SUCCESS]: async () => {
           updateStatus(KYCStatus.SUCCESS, STATUS_MESSAGES.SUCCESS);
           await delay(SUCCESS_DISPLAY_DURATION_MS);
+          setIsSubmitted(false);
           proceedWithOfframp();
         },
         [KYCResponseStatus.FAILED]: async () => {
           updateStatus(KYCStatus.FAILED, STATUS_MESSAGES.FAILED);
           await delay(ERROR_DISPLAY_DURATION_MS);
+          setIsSubmitted(false);
           resetToDefault();
           handleBackClick();
         },
-        [KYCResponseStatus.PENDING]: async () => undefined,
+        [KYCResponseStatus.PENDING]: async () => {
+          undefined;
+        },
       };
 
       const handler = statusHandlers[mappedStatus];

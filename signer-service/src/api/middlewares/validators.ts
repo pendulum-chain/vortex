@@ -312,7 +312,7 @@ export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) 
 };
 
 export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
-  const { phone, taxIdType, address, fullName, cpf, birthDate, companyName, startDate, cnpj } =
+  const { phone, taxIdType, address, fullName, cpf, birthdate, companyName, startDate, cnpj } =
     req.body as RegisterSubaccountPayload;
 
   if (taxIdType !== 'CPF' && taxIdType !== 'CNPJ') {
@@ -340,8 +340,8 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
     return;
   }
 
-  if (!birthDate) {
-    res.status(400).json({ error: 'Missing birthDate parameter' });
+  if (!birthdate) {
+    res.status(400).json({ error: 'Missing birthdate parameter' });
     return;
   }
 

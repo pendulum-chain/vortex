@@ -48,7 +48,7 @@ export interface RegisterSubaccountPayload {
   address: BrlaAddress;
   fullName: string;
   cpf: string;
-  birthDate: string;
+  birthdate: string;
   companyName?: string;
   startDate?: string;
   cnpj?: string;

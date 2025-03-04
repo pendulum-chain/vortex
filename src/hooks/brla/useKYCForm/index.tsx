@@ -15,21 +15,38 @@ const kycFormSchema = yup
       .required('Phone number is required')
       .matches(/^\+?[1-9]\d{9,14}$/, 'Invalid phone number format'),
 
-    [ExtendedBrlaFieldOptions.ADDRESS]: yup
-      .string()
-      .required('Address is required')
-      .min(5, 'Address must be at least 5 characters'),
-
     [ExtendedBrlaFieldOptions.FULL_NAME]: yup
       .string()
       .required('Full name is required')
       .min(3, 'Name must be at least 3 characters')
       .matches(/^[a-zA-Z\s]*$/, 'Name can only contain letters and spaces'),
 
-    [ExtendedBrlaFieldOptions.CPF]: yup
+    [ExtendedBrlaFieldOptions.CEP]: yup
       .string()
-      .required('CPF is required')
-      .matches(/^\d{11}$/, 'CPF must be 11 digits'),
+      .required('CEP is required')
+      .min(3, 'CEP must be at least 3 characters'),
+
+    [ExtendedBrlaFieldOptions.CITY]: yup
+      .string()
+      .required('City is required')
+      .min(5, 'City must be at least 5 characters'),
+
+    [ExtendedBrlaFieldOptions.STATE]: yup
+      .string()
+      .required('State is required')
+      .min(3, 'State must be at least 3 characters'),
+
+    [ExtendedBrlaFieldOptions.STREET]: yup
+      .string()
+      .required('Street is required')
+      .min(5, 'Street must be at least 5 characters'),
+
+    [ExtendedBrlaFieldOptions.NUMBER]: yup.string().required('Number is required'),
+
+    [ExtendedBrlaFieldOptions.DISTRICT]: yup
+      .string()
+      .required('District is required')
+      .min(3, 'District must be at least 3 characters'),
 
     [ExtendedBrlaFieldOptions.BIRTHDATE]: yup
       .date()
