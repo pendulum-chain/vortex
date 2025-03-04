@@ -17,7 +17,7 @@ const containerAnimation: MotionProps = {
 
 const STANDARD_FIELDS = [
   { id: StandardBrlaFieldOptions.TAX_ID, label: 'Tax ID', index: 0 },
-  { id: StandardBrlaFieldOptions.PIX_ID, label: 'PIX ID', index: 1 },
+  { id: StandardBrlaFieldOptions.PIX_ID, label: 'Pix Key', index: 1 },
 ];
 
 /**
@@ -32,36 +32,14 @@ export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => (
   <AnimatePresence>
     {toToken === OutputTokenTypes.BRL && (
       <motion.div {...containerAnimation}>
-        <motion.h2
-          className="mb-2 text-2xl font-bold text-center text-blue-700"
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.4,
-            delay: 0.1,
-            type: 'spring',
-            stiffness: 300,
-            damping: 15,
-          }}
-        >
-          PIX Details
-        </motion.h2>
-        <motion.p
-          className="text-gray-400 mb-4"
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.4,
-            delay: 0.2,
-            type: 'spring',
-            stiffness: 300,
-            damping: 15,
-          }}
-        >
-          Which bank account should we send the funds to?
-        </motion.p>
         {STANDARD_FIELDS.map((field) => (
-          <BrlaField key={field.id} id={field.id} label={field.label} index={field.index} />
+          <BrlaField
+            key={field.id}
+            id={field.id}
+            label={field.label}
+            index={field.index}
+            placeholder={`Enter your ${field.label}`}
+          />
         ))}
       </motion.div>
     )}

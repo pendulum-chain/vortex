@@ -53,10 +53,18 @@ type Methods = keyof EndpointMapping[keyof EndpointMapping];
 export class BrlaApiService {
   private static instance: BrlaApiService;
   private token: string | null = null;
+  private brlaBusinessUsername: string;
+  private brlaBusinessPassword: string;
 
   private readonly loginUrl: string = `${BRLA_BASE_URL}/login`;
 
-  private constructor() {}
+  private constructor() {
+    if (!BRLA_LOGIN_USERNAME || !BRLA_LOGIN_PASSWORD) {
+      throw new Error('BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined');
+    }
+    this.brlaBusinessUsername = BRLA_LOGIN_USERNAME;
+    this.brlaBusinessPassword = BRLA_LOGIN_PASSWORD;
+  }
 
   public static getInstance(): BrlaApiService {
     if (!BrlaApiService.instance) {
@@ -72,7 +80,7 @@ export class BrlaApiService {
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email: BRLA_LOGIN_USERNAME, password: BRLA_LOGIN_PASSWORD }),
+      body: JSON.stringify({ email: this.brlaBusinessUsername, password: this.brlaBusinessPassword }),
     });
 
     if (!response.ok) {
@@ -138,6 +146,7 @@ export class BrlaApiService {
       return undefined;
     }
   }
+
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
     const query = `taxId=${encodeURIComponent(taxId)}`;
     const response = await this.sendRequest('/subaccounts', 'GET', query);

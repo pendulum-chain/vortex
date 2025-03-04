@@ -193,7 +193,6 @@ export const Swap = ({
         <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-        <BrlaSwapFields toToken={to} />
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
           toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
@@ -209,7 +208,7 @@ export const Swap = ({
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
-
+        <BrlaSwapFields toToken={to} />
         {(initializeFailedMessage || apiInitializeFailed) && (
           <section className="flex justify-center w-full mt-5">
             <div className="flex items-center gap-4">

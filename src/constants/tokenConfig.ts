@@ -323,7 +323,8 @@ export function getEnumKeyByStringValue<T extends { [key: string]: string }>(
   const key = Object.keys(enumObj).find((k) => enumObj[k as keyof T] === value) as keyof T | undefined;
   return key ? enumObj[key] : undefined;
 }
-export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
+
+export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
   eurc: {
     type: 'spacewalk',
     anchorHomepageUrl: 'https://mykobo.co',

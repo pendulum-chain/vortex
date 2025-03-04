@@ -30,6 +30,7 @@ export interface BrlaFieldProps extends FieldProps {
   id: BrlaFieldOptions;
   label: string;
   index: number;
+  placeholder?: string;
   validationPattern?: {
     value: RegExp;
     message: string;

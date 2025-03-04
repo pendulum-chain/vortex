@@ -35,6 +35,7 @@ export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, r
       res.status(400).json({ error: 'KYC invalid' });
       return;
     }
+
     res.json({ evmAddress: subaccount.wallets.evm });
     return;
   } catch (error) {

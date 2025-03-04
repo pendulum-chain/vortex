@@ -316,15 +316,12 @@ export const SwapPage = () => {
           assetSymbol: value.assetSymbol,
           assetIcon: value.networkAssetIcon,
         }))
-      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => {
-          const tokenType = getEnumKeyByStringValue(OutputTokenTypes, key);
-          return {
-            type: tokenType!,
-            assetSymbol: value.fiat.symbol,
-            assetIcon: value.fiat.assetIcon,
-            name: value.fiat.name,
-          };
-        });
+      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
+          type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
+          assetSymbol: value.fiat.symbol,
+          assetIcon: value.fiat.assetIcon,
+          name: value.fiat.name,
+        }));
 
   const modals = (
     <>
