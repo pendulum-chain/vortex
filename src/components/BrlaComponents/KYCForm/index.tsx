@@ -3,23 +3,18 @@ import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 
 import { FeeComparisonRef } from '../../FeeComparison';
-import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
+import { BrlaField, BrlaFieldProps } from '../BrlaField';
+import { KYCFormData } from '../../../hooks/brla/useKYCForm';
 
-interface KYCFormProps<T extends Record<string, string>> {
+interface KYCFormProps {
   fields: BrlaFieldProps[];
-  form: UseFormReturn<T>;
-  onSubmit: (formData: Record<ExtendedBrlaFieldOptions, string>) => Promise<void>;
+  form: UseFormReturn<KYCFormData>;
+  onSubmit: (formData: KYCFormData) => Promise<void>;
   onBackClick: () => void;
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
 }
 
-export const KYCForm = <T extends Record<string, string>>({
-  form,
-  onSubmit,
-  onBackClick,
-  fields,
-  feeComparisonRef,
-}: KYCFormProps<T>) => {
+export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef }: KYCFormProps) => {
   const { handleSubmit } = form;
 
   const compareFeesClick = useCallback(() => {

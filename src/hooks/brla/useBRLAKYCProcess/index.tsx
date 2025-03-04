@@ -3,9 +3,9 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { KYCStatus } from '../../../components/BrlaComponents/VerificationStatus';
 import { useOfframpActions } from '../../../stores/offrampStore';
-import { ExtendedBrlaFieldOptions } from '../../../components/BrlaComponents/BrlaField';
 import { useOfframpSubmission } from '../useOfframpSubmission';
 import { useKYCStatusQuery } from '../useKYCStatusQuery';
+import { KYCFormData } from '../useKYCForm';
 
 export interface BrlaKycStatus {
   status: string;
@@ -82,7 +82,7 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
   const proceedWithOfframp = useOfframpSubmission(handleError, setIsOfframpSummaryDialogVisible);
 
   const handleFormSubmit = useCallback(
-    async (formData: Record<ExtendedBrlaFieldOptions, string>) => {
+    async (formData: KYCFormData) => {
       resetToDefault();
       setCpf(formData.cpf);
       setIsSubmitted(true);

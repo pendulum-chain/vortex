@@ -4,8 +4,8 @@ import * as yup from 'yup';
 
 import { ExtendedBrlaFieldOptions } from '../../../components/BrlaComponents/BrlaField';
 
-const getEnumInitialValues = (enumType: Record<string, string>): Record<string, string> => {
-  return Object.values(enumType).reduce((acc, field) => ({ ...acc, [field]: '' }), {} as Record<string, string>);
+const getEnumInitialValues = (enumType: Record<string, string>): Record<string, unknown> => {
+  return Object.values(enumType).reduce((acc, field) => ({ ...acc, [field]: undefined }), {});
 };
 
 const kycFormSchema = yup
@@ -42,7 +42,7 @@ const kycFormSchema = yup
   })
   .required();
 
-type KYCFormData = yup.InferType<typeof kycFormSchema>;
+export type KYCFormData = yup.InferType<typeof kycFormSchema>;
 
 export const useKYCForm = () => {
   const kycForm = useForm<KYCFormData>({
