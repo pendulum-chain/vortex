@@ -15,15 +15,12 @@ import { eventPoller } from '../..';
  * @throws 404 - If the subaccount cannot be found
  * @throws 500 - For any server-side errors during processing
  */
-export const getBrlaUser = async (
-  req: Request<{}, {}, {}, { taxId: string; pixId: string }>,
-  res: Response,
-): Promise<void> => {
+export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, res: Response): Promise<void> => {
   try {
-    const { taxId, pixId } = req.query;
+    const { taxId } = req.query;
 
-    if (!taxId || !pixId) {
-      res.status(400).json({ error: 'Missing taxId or pixId query parameters' });
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId query parameters' });
       return;
     }
 
@@ -34,7 +31,7 @@ export const getBrlaUser = async (
       res.status(404).json({ error: 'Subaccount not found' });
       return;
     }
-    if (subaccount.kyc.level !== 1) {
+    if (subaccount.kyc.level < 1) {
       res.status(400).json({ error: 'KYC invalid' });
       return;
     }
@@ -52,7 +49,7 @@ export const getBrlaUser = async (
 
 export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequest>, res: Response): Promise<void> => {
   try {
-    const { taxId, pixKey, amount } = req.body;
+    const { taxId, pixKey, amount, receiverTaxId } = req.body;
     console.log('Triggering offramp. Amount ', amount, 'taxId ', taxId, 'pixKey ', pixKey);
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
@@ -63,7 +60,7 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
     }
 
     const subaccountId = subaccount.id;
-    const { id: offrampId } = await brlaApiService.triggerOfframp({ subaccountId, pixKey, amount });
+    const { id: offrampId } = await brlaApiService.triggerOfframp({ subaccountId, pixKey, amount, receiverTaxId });
     res.status(200).json({ offrampId });
     return;
   } catch (error) {

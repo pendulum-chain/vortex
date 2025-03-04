@@ -72,8 +72,7 @@ export const useSubmitOfframp = () => {
               return;
             }
 
-            // @TODO: Why don't we use getSubaccount from brlaApiService?
-            const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}&pixId=${pixId}`);
+            const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}`);
             if (!response.ok) {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.

@@ -17,6 +17,7 @@ import {
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
+  OutputTokenTypes,
 } from '../constants/tokenConfig';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 
@@ -42,6 +43,7 @@ import {
   pendulumCleanup,
   createPendulumEphemeralSeed,
 } from './phases/polkadot/ephemeral';
+import { ApiComponents } from '../contexts/polkadotNode';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -71,7 +73,7 @@ export interface ExecutionContext {
   wagmiConfig: Config;
   setOfframpSigningPhase: (n: OfframpSigningPhase) => void;
   trackEvent: (event: TrackableEvent) => void;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   assetHubNode: { api: ApiPromise };
   walletAccount?: WalletAccount;
 }
@@ -85,7 +87,7 @@ export interface InitiateStateArguments {
   amountOut: Big;
   sepResult: SepResult;
   network: Networks;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   offramperAddress: string;
 }
 
@@ -95,7 +97,7 @@ export interface BrlaInitiateStateArguments {
   amountIn: string;
   amountOut: Big;
   network: Networks;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   offramperAddress: string;
   brlaEvmAddress: string;
   pixDestination: string;
@@ -127,25 +129,31 @@ export interface BaseOfframpingState {
   offramperAddress: string;
 }
 
+export type BrlaOfframpTransactions = {
+  nablaApproveTransaction: string;
+  nablaSwapTransaction: string;
+  pendulumToMoonbeamXcmTransaction: string;
+};
+
+export type SpacewalkOfframpTransactions = {
+  stellarOfframpingTransaction: string;
+  stellarCleanupTransaction: string;
+  spacewalkRedeemTransaction: string;
+  nablaApproveTransaction: string;
+  nablaSwapTransaction: string;
+};
 export interface OfframpingState extends BaseOfframpingState {
   sep24Id?: string;
   sepResult?: SepResult;
   stellarEphemeralSecret?: string;
   executeSpacewalkNonce?: number;
-  transactions?: {
-    stellarOfframpingTransaction: string;
-    stellarCleanupTransaction: string;
-    spacewalkRedeemTransaction: string;
-    nablaApproveTransaction: string;
-    nablaSwapTransaction: string;
-    pendulumToMoonbeamXcmTransaction?: string;
-  };
+  transactions?: BrlaOfframpTransactions | SpacewalkOfframpTransactions;
   brlaEvmAddress?: string;
   pixDestination?: string;
   taxId?: string;
   moonbeamXcmTransactionHash?: `0x${string}`;
-  assetHubXcmTransactionHash?: string;
-  pendulumToMoonbeamXcmHash?: string;
+  assetHubXcmTransactionHash?: `0x${string}`;
+  pendulumToMoonbeamXcmHash?: `0x${string}`;
 }
 
 export type StateTransitionFunction = (
@@ -212,7 +220,7 @@ function selectNextStateAdvancementHandler(
   outToken: OutputTokenType,
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
-    if (outToken === 'brl') {
+    if (outToken === OutputTokenTypes.BRL) {
       return STATE_ADVANCEMENT_HANDLERS[HandlerType.BRLA][phase];
     }
     return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];
@@ -234,7 +242,7 @@ async function constructBaseInitialState({
   amountIn: string;
   amountOut: Big;
   network: Networks;
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number };
+  pendulumNode: ApiComponents;
   offramperAddress: string;
 }): Promise<BaseOfframpingState> {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed(

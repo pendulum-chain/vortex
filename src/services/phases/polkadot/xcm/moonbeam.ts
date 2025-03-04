@@ -2,13 +2,15 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 
 import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 
-import { submitSignedXcm } from '.';
+import { submitXcm } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
 import { decodeSubmittableExtrinsic } from '../../signedTransactions';
+import { isBrlaOfframpTransactions } from '../../../../types/offramp';
+import { ApiComponents } from '../../../../contexts/polkadotNode';
 
 // Fee was 38,722,802,500,000,000 GLMR when testing
 export function createPendulumToMoonbeamTransfer(
-  pendulumNode: { ss58Format: number; api: ApiPromise; decimals: number },
+  pendulumNode: ApiComponents,
   destinationAddress: string,
   rawAmount: string,
   pendulumEphemeralSeed: string,
@@ -50,7 +52,7 @@ export async function executePendulumToMoonbeamXCM(
   const { pendulumNode } = context;
   const { pendulumEphemeralAddress, transactions, outputAmount } = state;
 
-  if (transactions === undefined || !transactions.pendulumToMoonbeamXcmTransaction) {
+  if (transactions === undefined || !isBrlaOfframpTransactions(transactions)) {
     const message = 'Missing transactions for xcm to Moonbeam';
     console.error(message);
     return { ...state, failure: { type: 'unrecoverable', message } };
@@ -58,8 +60,8 @@ export async function executePendulumToMoonbeamXCM(
 
   const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
-  const { event, hash } = await submitSignedXcm(pendulumEphemeralAddress, xcmExtrinsic);
-  state.pendulumToMoonbeamXcmHash = hash;
+  const { hash } = await submitXcm(pendulumEphemeralAddress, xcmExtrinsic);
+  state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };
 }

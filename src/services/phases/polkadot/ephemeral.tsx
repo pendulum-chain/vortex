@@ -9,6 +9,7 @@ import {
   getInputTokenDetails,
   getInputTokenDetailsOrDefault,
   getPendulumCurrencyId,
+  OutputTokenTypes,
 } from '../../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 
@@ -296,7 +297,7 @@ export async function subsidizePostSwap(state: OfframpingState, context: Executi
     });
   }
 
-  if (state.outputTokenType === 'brl') {
+  if (state.outputTokenType === OutputTokenTypes.BRL) {
     return {
       ...state,
       phase: 'executePendulumToMoonbeamXCM',

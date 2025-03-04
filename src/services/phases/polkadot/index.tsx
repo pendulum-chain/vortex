@@ -12,6 +12,7 @@ import { decodeSubmittableExtrinsic } from '../signedTransactions';
 import { getVaultsForCurrency, prettyPrintVaultId, VaultService } from './spacewalk';
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { EventListener } from './eventListener';
+import { isSpacewalkOfframpTransactions } from '../../../types/offramp';
 
 async function createVaultService(
   apiComponents: ApiComponents,
@@ -140,7 +141,7 @@ export async function executeSpacewalkRedeem(
     return successorState;
   }
 
-  if (!transactions) {
+  if (!transactions || !isSpacewalkOfframpTransactions(transactions)) {
     const message = 'Transactions not prepared, cannot execute Spacewalk redeem';
     console.error(message);
     return { ...state, failure: { type: 'unrecoverable', message } };

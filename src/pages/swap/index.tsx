@@ -69,6 +69,7 @@ import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
+type Definitions = InputTokenType | OutputTokenType;
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -315,7 +316,7 @@ export const SwapPage = () => {
           assetIcon: value.networkAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: key as OutputTokenType,
+          type: OutputTokenType[key as keyof typeof OutputTokenType],
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
           name: value.fiat.name,
@@ -323,7 +324,7 @@ export const SwapPage = () => {
 
   const modals = (
     <>
-      <PoolSelectorModal
+      <PoolSelectorModal<Definitions>
         open={isTokenSelectModalVisible}
         onSelect={(token) => {
           tokenSelectModalType === 'from' ? onFromChange(token) : onToChange(token);

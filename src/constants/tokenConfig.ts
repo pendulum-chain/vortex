@@ -89,16 +89,23 @@ export type PendulumXcmCurrencyId = {
 export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   type: 'moonbeam';
   pendulumErc20WrapperAddress: string;
+  moonbeamErc20Address: string;
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
-  partnerUrl: string;
+  anchorUrl: string;
 };
 
 export function isStellarOutputTokenDetails(
   outputTokenDetails: OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam,
 ): outputTokenDetails is OutputTokenDetailsSpacewalk {
   return outputTokenDetails.type === 'spacewalk';
+}
+
+export function isMoonbeamOutputTokenDetails(
+  outputTokenDetails: OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam,
+): outputTokenDetails is OutputTokenDetailsMoonbeam {
+  return outputTokenDetails.type === 'moonbeam';
 }
 
 export function isStellarOutputToken(outputToken: OutputTokenType): boolean {
@@ -367,10 +374,9 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
     usesMemo: true,
     supportsClientDomain: true,
   },
-  // TODO - maximum and minimum amounts need to be clarified.
   brl: {
     type: 'moonbeam',
-    partnerUrl: 'https://brla.digital',
+    anchorUrl: 'https://brla.digital',
     decimals: 18,
     fiat: {
       assetIcon: 'brl',
@@ -378,8 +384,9 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
       name: 'Brazilian Real',
     },
     erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
+    moonbeamErc20Address: '0xfeB25F3fDDad13F82C4d6dbc1481516F62236429',
     minWithdrawalAmountRaw: '1000000000000000000', // 1 BRL.
-    maxWithdrawalAmountRaw: '56000000000000000000000',
+    maxWithdrawalAmountRaw: '10000000000000000000000', // 10,000 BRL. Maximum value for a KYC level 1 user.
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL
     ...PENDULUM_BRLA_MOONBEAM,
@@ -393,6 +400,15 @@ export function getOutputTokenDetailsSpacewalk(outputTokenType: OutputTokenType)
     return maybeOutputTokenDetails;
   }
   throw new Error(`Invalid output token type: ${outputTokenType}. Token type is not Stellar.`);
+}
+
+export function getOutputTokenDetailsMoonbeam(outputTokenType: OutputTokenType): OutputTokenDetailsMoonbeam {
+  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputTokenType];
+
+  if (isMoonbeamOutputTokenDetails(maybeOutputTokenDetails)) {
+    return maybeOutputTokenDetails;
+  }
+  throw new Error(`Invalid output token type: ${outputTokenType}. Token type is not Moonbeam.`);
 }
 
 export function getBaseOutputTokenDetails(outputTokenType: OutputTokenType): BaseOutputTokenDetails {

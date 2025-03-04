@@ -90,7 +90,8 @@ router.use('/rating', ratingRoutes);
 router.use('/siwe', siweRoutes);
 
 /**
- * POST/GET v1/brla
+ * GET v1/brla
+ * POST v1/brla
  */
 router.use('/brla', brlaRoutes);
 

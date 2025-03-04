@@ -11,14 +11,36 @@ interface EndpointMapping {
       body: undefined;
       response: { subaccounts: SubaccountData[] };
     };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
   };
   '/pay-out': {
     POST: {
-      body: OfframpPayload; //TODO test if the taxId of the RECEIVER is actaully needed
+      body: OfframpPayload;
       response: { id: string };
     };
     GET: {
       body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  '/webhooks/events': {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: { ids: string[] };
       response: undefined;
     };
   };
@@ -119,10 +141,17 @@ export class BrlaApiService {
   }
 
   public async triggerOfframp(offrampParams: OfframpPayload): Promise<{ id: string }> {
-    return this.sendRequest('/pay-out', 'POST', undefined, offrampParams);
+    const endpoint = `/pay-out`;
+    return await this.sendRequest(endpoint, 'POST', undefined, offrampParams);
   }
 
-  public async createSubaccount(payload: RegisterSubaccountPayload): Promise<{ id: string }> {
-    return this.sendRequest('/subaccounts', 'POST', undefined, payload);
+  public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
+    const endpoint = `/subaccounts`;
+    return await this.sendRequest(endpoint, 'POST', undefined, registerSubaccountPayload);
+  }
+
+  public async acknowledgeEvents(ids: string[]): Promise<void> {
+    const endpoint = `/webhooks/events`;
+    return await this.sendRequest(endpoint, 'PATCH', undefined, { ids });
   }
 }

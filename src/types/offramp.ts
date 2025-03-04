@@ -1,4 +1,4 @@
-import { OfframpingState } from '../services/offrampingFlow';
+import { BrlaOfframpTransactions, OfframpingState, SpacewalkOfframpTransactions } from '../services/offrampingFlow';
 import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
 import { Networks } from '../helpers/networks';
 import { ApiPromise } from '@polkadot/api';
@@ -45,4 +45,24 @@ export interface OfframpActions {
   setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
   updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
   resetOfframpState: () => void;
+}
+
+export function isBrlaOfframpTransactions(tx: any): tx is BrlaOfframpTransactions {
+  return (
+    tx &&
+    typeof tx.nablaApproveTransaction === 'string' &&
+    typeof tx.nablaSwapTransaction === 'string' &&
+    typeof tx.pendulumToMoonbeamXcmTransaction === 'string'
+  );
+}
+
+export function isSpacewalkOfframpTransactions(tx: any): tx is SpacewalkOfframpTransactions {
+  return (
+    tx &&
+    typeof tx.nablaApproveTransaction === 'string' &&
+    typeof tx.nablaSwapTransaction === 'string' &&
+    typeof tx.stellarOfframpingTransaction === 'string' &&
+    typeof tx.stellarCleanupTransaction === 'string' &&
+    typeof tx.spacewalkRedeemTransaction === 'string'
+  );
 }

@@ -3,7 +3,12 @@ import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
 
 import { isNetworkEVM, Networks } from '../../helpers/networks';
-import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+import {
+  ExecutionContext,
+  OfframpingState,
+  BrlaOfframpTransactions,
+  SpacewalkOfframpTransactions,
+} from '../offrampingFlow';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { storeDataInBackend } from '../storage/remote';
 
@@ -11,6 +16,7 @@ import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './n
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { prepareSpacewalkRedeemTransaction } from './polkadot';
 import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
+import { OutputTokenTypes } from '../../constants/tokenConfig';
 
 const getNextPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
   // For AssetHub we skip the squidRouter and go straight to the pendulumFundEphemeral phase
@@ -41,42 +47,53 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
 
   const { pendulumNode } = context;
 
-  let transactions: any = undefined;
-
-  if (outputTokenType !== 'brl') {
-    transactions = await prepareSpacewalkOfframpTransactions(state, context);
-  } else {
-    transactions = await prepareBrlaOfframpTransactions(state, context);
-  }
+  let transactions: BrlaOfframpTransactions | SpacewalkOfframpTransactions | undefined = undefined;
+  let stellarEphemeralPublicKey: string | undefined = undefined;
 
   const { ss58Format } = pendulumNode;
   const keyring = new Keyring({ type: 'sr25519', ss58Format });
   const pendulumEphemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
   const pendulumEphemeralPublicKey = pendulumEphemeralKeypair.address;
 
-  // Try to store the data in the backend
+  const dataCommon = {
+    timestamp: new Date().toISOString(),
+    offramperAddress: state.offramperAddress,
+    pendulumEphemeralPublicKey,
+    inputAmount: inputAmount.raw.toString(),
+    inputTokenType,
+    outputAmount: outputAmount.raw.toString(),
+    outputTokenType,
+    squidRouterReceiverId,
+    squidRouterReceiverHash,
+  };
+
   try {
-    const data = {
-      timestamp: new Date().toISOString(),
-      offramperAddress: state.offramperAddress,
-      stellarEphemeralPublicKey: transactions.stellarEphemeralPublicKey,
-      pendulumEphemeralPublicKey,
-      nablaApprovalTx: transactions.nablaApproveTransaction,
-      nablaSwapTx: transactions.nablaSwapTransaction,
-      spacewalkRedeemTx: transactions.spacewalkRedeemTransaction,
-      stellarOfframpTx: transactions.stellarOfframpingTransaction,
-      stellarCleanupTx: transactions.stellarCleanupTransaction,
-      pendulumToMoonbeamXcmTx: transactions.pendulumToMoonbeamXcmTransaction,
-      inputAmount: inputAmount.raw.toString(),
-      inputTokenType,
-      outputAmount: outputAmount.raw.toString(),
-      outputTokenType,
-      squidRouterReceiverId,
-      squidRouterReceiverHash,
-    };
-    await storeDataInBackend(data);
-  } catch (error) {
-    console.error('Error storing data', error);
+    if (outputTokenType !== OutputTokenTypes.BRL) {
+      ({ transactions, stellarEphemeralPublicKey } = await prepareSpacewalkOfframpTransactions(state, context));
+      const data = {
+        ...dataCommon,
+        nablaApprovalTx: transactions.nablaApproveTransaction,
+        nablaSwapTx: transactions.nablaSwapTransaction,
+        spacewalkRedeemTx: transactions.spacewalkRedeemTransaction,
+        stellarOfframpTx: transactions.stellarOfframpingTransaction,
+        stellarCleanupTx: transactions.stellarCleanupTransaction,
+        stellarEphemeralPublicKey,
+      };
+      await storeDataInBackend(data);
+    } else {
+      transactions = await prepareBrlaOfframpTransactions(state, context);
+      const data = {
+        ...dataCommon,
+        nablaApprovalTx: transactions.nablaApproveTransaction,
+        nablaSwapTx: transactions.nablaSwapTransaction,
+        pendulumToMoonbeamXcmTx: transactions.pendulumToMoonbeamXcmTransaction,
+      };
+      await storeDataInBackend(data);
+    }
+  } catch (err) {
+    const error = err as Error;
+    console.log(error);
+    return { ...state, failure: { type: 'unrecoverable', message: error.message } };
   }
 
   return {
@@ -96,15 +113,16 @@ async function prepareCommonTransactions(state: OfframpingState, context: Execut
   };
 }
 
-async function prepareSpacewalkOfframpTransactions(state: OfframpingState, context: ExecutionContext): Promise<any> {
+async function prepareSpacewalkOfframpTransactions(
+  state: OfframpingState,
+  context: ExecutionContext,
+): Promise<{ transactions: SpacewalkOfframpTransactions; stellarEphemeralPublicKey: string }> {
   const { nablaApproveTransaction, nablaSwapTransaction } = await prepareCommonTransactions(state, context);
 
   const { stellarEphemeralSecret, outputTokenType, sepResult } = state;
 
   if (!stellarEphemeralSecret || !sepResult) {
-    const message = 'Missing variables on initial state. This is a bug.';
-    console.error(message);
-    return { ...state, failure: { type: 'unrecoverable', message } };
+    throw new Error('Missing variables on initial state. This is a bug.');
   }
   const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction(state, context);
 
@@ -127,22 +145,22 @@ async function prepareSpacewalkOfframpTransactions(state: OfframpingState, conte
     spacewalkRedeemTransaction: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
     nablaSwapTransaction: encodeSubmittableExtrinsic(nablaSwapTransaction),
     nablaApproveTransaction: encodeSubmittableExtrinsic(nablaApproveTransaction),
-    stellarEphemeralPublicKey,
   };
 
-  return transactions;
+  return { transactions, stellarEphemeralPublicKey };
 }
 
-async function prepareBrlaOfframpTransactions(state: OfframpingState, context: ExecutionContext): Promise<any> {
+async function prepareBrlaOfframpTransactions(
+  state: OfframpingState,
+  context: ExecutionContext,
+): Promise<BrlaOfframpTransactions> {
   const { nablaApproveTransaction, nablaSwapTransaction } = await prepareCommonTransactions(state, context);
 
   const { brlaEvmAddress, outputAmount } = state;
   const { pendulumNode } = context;
 
   if (!brlaEvmAddress) {
-    const message = 'Missing variables on initial state. This is a bug.';
-    console.error(message);
-    return { ...state, failure: { type: 'unrecoverable', message } };
+    throw new Error('Missing variables on initial state. This is a bug.');
   }
 
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
@@ -153,7 +171,7 @@ async function prepareBrlaOfframpTransactions(state: OfframpingState, context: E
   );
 
   const transactions = {
-    pendulumToMoonbeamXcmTransaction,
+    pendulumToMoonbeamXcmTransaction: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
     nablaSwapTransaction: encodeSubmittableExtrinsic(nablaSwapTransaction),
     nablaApproveTransaction: encodeSubmittableExtrinsic(nablaApproveTransaction),
   };
