@@ -13,6 +13,7 @@ import { TrustedBy } from '../../sections/TrustedBy';
 import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
+  getEnumKeyByStringValue,
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
@@ -316,7 +317,7 @@ export const SwapPage = () => {
           assetIcon: value.networkAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: OutputTokenTypes[key as keyof typeof OutputTokenTypes],
+          type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
           name: value.fiat.name,
