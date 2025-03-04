@@ -17,7 +17,6 @@ interface BaseComparisonProps {
   vortexPrice: Big;
   network: Networks;
   trackQuote: boolean;
-  isBestRate: boolean;
 }
 
 type VortexRowProps = Pick<BaseComparisonProps, 'targetAssetSymbol' | 'vortexPrice'>;
@@ -49,6 +48,7 @@ function VortexRow({ targetAssetSymbol, vortexPrice }: VortexRowProps) {
 
 interface FeeProviderRowProps extends BaseComparisonProps {
   provider: QuoteProvider;
+  isBestRate: boolean;
   onPriceFetched: (providerName: string, price: Big) => void;
 }
 
@@ -90,7 +90,7 @@ function FeeProviderRow({
 
     onPriceFetched(provider.name, providerPrice);
     prevProviderPrice.current = providerPrice;
-  }, [isLoading, providerPrice, error, onPriceFetched]);
+  }, [isLoading, providerPrice, error, provider.name, onPriceFetched]);
 
   useEffect(() => {
     if (isLoading || (!providerPrice && !error)) return;
