@@ -11,13 +11,12 @@ const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to th
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
 const DEFAULT_POLLING_INTERVAL = 3000;
+const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
 
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const WEBHOOKS_CACHE_URL = process.env.WEBHOOKS_CACHE_URL;
-const WEBHOOKS_CACHE_PASSWORD = process.env.WEBHOOKS_CACHE_PASSWORD;
 const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
 const FUNDING_SECRET = process.env.FUNDING_SECRET;
 const MOONBEAM_EXECUTOR_PRIVATE_KEY = process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY;
