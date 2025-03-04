@@ -37,7 +37,6 @@ const validateRequiredEnvVars = () => {
 validateRequiredEnvVars();
 
 export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
-eventPoller.start();
 
 // listen to requests
 app.listen(port, () => logger.info(`server started on port ${port} (${env})`));

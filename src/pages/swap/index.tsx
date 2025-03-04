@@ -22,6 +22,7 @@ import { TrustedBy } from '../../sections/TrustedBy';
 import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
+  getEnumKeyByStringValue,
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
@@ -385,12 +386,15 @@ export const SwapPage = () => {
           assetSymbol: value.assetSymbol,
           assetIcon: value.networkAssetIcon,
         }))
-      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: OutputTokenType[key as keyof typeof OutputTokenType],
-          assetSymbol: value.fiat.symbol,
-          assetIcon: value.fiat.assetIcon,
-          name: value.fiat.name,
-        }));
+      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => {
+          const tokenType = getEnumKeyByStringValue(OutputTokenType, key);
+          return {
+            type: tokenType!,
+            assetSymbol: value.fiat.symbol,
+            assetIcon: value.fiat.assetIcon,
+            name: value.fiat.name,
+          };
+        });
 
   const modals = (
     <>
