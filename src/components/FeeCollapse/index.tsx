@@ -52,7 +52,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
           </div>
         </div>
         <div className="flex justify-between">
-          <p>Offramp fees</p>
+          <p>Vortex fee</p>
           <div className="flex">
             <span>
               - {feesCost} {toTokenSymbol}
