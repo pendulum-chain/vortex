@@ -7,7 +7,7 @@ export interface Event {
   userId: string;
   data: EventData;
   subscription: SubscriptionType;
-  createdAt: string;
+  createdAt: number;
   id: string;
   acknowledged: boolean;
 }
@@ -71,6 +71,8 @@ export class EventPoller {
   }
 
   private appendEventsToCache(userId: string, userEvents: Event[], fetchedUserEvents: Event[]) {
+    // Order by createdAt, increasing
+    fetchedUserEvents.sort((a, b) => a.createdAt - b.createdAt);
     // Get the timestamp of the last event registered in the cache, for that user.
     const lastTimestamp = userEvents[userEvents.length - 1].createdAt;
 
@@ -84,6 +86,8 @@ export class EventPoller {
   }
 
   private createNewEventCache(userId: string, userEvents: Event[], fetchedUserEvents: Event[]) {
+    // Order by createdAt, increasing
+    fetchedUserEvents.sort((a, b) => a.createdAt - b.createdAt);
     userEvents.push(...fetchedUserEvents);
     this.cache.set(userId, userEvents);
     this.acknowledgeEvents(fetchedUserEvents);
@@ -122,11 +126,22 @@ export class EventPoller {
     }
   }
 
-  public getLatestEventForUser(userId: string): Event | null {
-    const events = this.cache.get(userId);
+  public async getLatestEventForUser(userId: string): Promise<Event | null> {
+    const events = await this.brlaApiService.getAllEventsByUser(userId);
+
     if (!events || events.length === 0) {
       return null;
     }
+    events.sort((a, b) => a.createdAt - b.createdAt);
     return events[events.length - 1];
+  }
+
+  public async getSubscriptionEventsForUser(userId: string, subscription: SubscriptionType): Promise<Event[] | null> {
+    const events = await this.brlaApiService.getAllEventsByUser(userId);
+
+    if (!events || events.length === 0) {
+      return null;
+    }
+    return events.filter((event) => event.subscription === subscription);
   }
 }
