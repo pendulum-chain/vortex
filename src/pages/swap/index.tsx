@@ -227,6 +227,11 @@ export const SwapPage = () => {
     }
   }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken, from, to]);
 
+  // Clear initialize failed message when the user changes output token, amount or tax id field
+  useEffect(() => {
+    clearInitializeFailedMessage();
+  }, [to, taxId, fromAmount, setInitializeFailed]);
+
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -464,11 +469,6 @@ export const SwapPage = () => {
         setInitializeFailed();
       });
   };
-
-  // Clear initialize failed message when the user changes output token, amount or tax id field
-  useEffect(() => {
-    clearInitializeFailedMessage();
-  }, [to, taxId, fromAmount, setInitializeFailed]);
 
   const main = (
     <main ref={formRef}>
