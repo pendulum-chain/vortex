@@ -16,13 +16,13 @@ export interface BrlaKycStatus {
 enum KYCResponseStatus {
   PENDING = 'PENDING',
   SUCCESS = 'SUCCESS',
-  FAILED = 'FAILED',
+  REJECTED = 'REJECTED',
 }
 
 const STATUS_MESSAGES = {
   PENDING: 'Estamos verificando seus dados, aguarde',
   SUCCESS: 'Você foi validado',
-  FAILED: 'Seu KYC foi rejeitado',
+  REJECTED: 'Seu KYC foi rejeitado',
   ERROR: 'Erro durante a verificação',
 };
 
@@ -72,7 +72,7 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
   const handleError = useCallback(
     (errorMessage?: string) => {
       console.error(errorMessage || 'KYC process error');
-      updateStatus(KYCStatus.FAILED, STATUS_MESSAGES.ERROR);
+      updateStatus(KYCStatus.REJECTED, STATUS_MESSAGES.ERROR);
 
       return delay(ERROR_DISPLAY_DURATION_MS).then(() => {
         resetToDefault();
@@ -130,8 +130,8 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
           setOfframpKycStarted(false);
           proceedWithOfframp();
         },
-        [KYCResponseStatus.FAILED]: async () => {
-          updateStatus(KYCStatus.FAILED, STATUS_MESSAGES.FAILED);
+        [KYCResponseStatus.REJECTED]: async () => {
+          updateStatus(KYCStatus.REJECTED, STATUS_MESSAGES.REJECTED);
           await delay(ERROR_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
           setOfframpKycStarted(false);

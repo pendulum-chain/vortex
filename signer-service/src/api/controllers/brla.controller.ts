@@ -165,17 +165,13 @@ export const fetchSubaccountKycStatus = async (
 
     const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id);
 
-    if (!lastEventCached) {
-      res.status(404).json({ error: `No status events found for ${taxId}` });
+    // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
+    if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
+      res.status(200).json({ type: 'KYC', status: 'PENDING' });
       return;
     }
 
-    if (lastEventCached.subscription !== 'KYC') {
-      res.status(404).json({ error: `No KYC status event found for ${taxId}` });
-      return;
-    }
-
-    res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
+    res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.kycStatus });
   } catch (error) {
     console.error('Error while requesting KYC status: ', error);
     res.status(500).json({
