@@ -33,6 +33,7 @@ export const useSubmitOfframp = () => {
     setOfframpExecutionInput,
     setOfframpKycStarted,
     setInitializeFailedMessage,
+    setOfframpSummaryVisible,
   } = useOfframpActions();
 
   const {
@@ -44,7 +45,7 @@ export const useSubmitOfframp = () => {
   const { apiComponents: pendulumNode } = usePendulumNode();
 
   return useCallback(
-    (executionInput: OfframpExecutionInput, setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void) => {
+    (executionInput: OfframpExecutionInput) => {
       if (!pendulumNode || !executionInput) {
         setOfframpInitiating(false);
         return;
@@ -100,7 +101,7 @@ export const useSubmitOfframp = () => {
             const updatedBrlaOfframpExecution = { ...executionInput, brlaEvmAddress };
             setOfframpExecutionInput(updatedBrlaOfframpExecution);
 
-            setIsOfframpSummaryDialogVisible(true);
+            setOfframpSummaryVisible(true);
           } else {
             const stellarEphemeralSecret = createStellarEphemeralSecret();
             const outputToken = getOutputTokenDetailsSpacewalk(executionInput.outputTokenType);
@@ -136,7 +137,7 @@ export const useSubmitOfframp = () => {
               firstSep24Response.url = url.toString();
               setInitialResponseSEP24(firstSep24Response);
             };
-            setIsOfframpSummaryDialogVisible(true);
+            setOfframpSummaryVisible(true);
             setUrlIntervalSEP24(window.setInterval(fetchAndUpdateSep24Url, 20000));
             try {
               await fetchAndUpdateSep24Url();

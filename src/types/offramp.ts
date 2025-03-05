@@ -35,6 +35,7 @@ export interface OfframpState {
   offrampExecutionInput: OfframpExecutionInput | undefined;
   offrampKycStarted: boolean;
   initializeFailedMessage: string | undefined;
+  offrampSummaryVisible: boolean;
 }
 
 export interface OfframpActions {
@@ -45,6 +46,7 @@ export interface OfframpActions {
   setOfframpKycStarted: (kycStarted: boolean) => void;
   setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
   setInitializeFailedMessage: (message: string | undefined) => void;
+  setOfframpSummaryVisible: (visible: boolean) => void;
   updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
   clearInitializeFailedMessage: () => void;
   resetOfframpState: () => void;

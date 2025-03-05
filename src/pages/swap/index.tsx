@@ -48,6 +48,7 @@ import {
   useOfframpStarted,
   useOfframpExecutionInput,
   useOfframpKycStarted,
+  useOfframpSummaryVisible,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { GotQuestions } from '../../sections/GotQuestions';
@@ -82,7 +83,6 @@ export const SwapPage = () => {
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
-  const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   // This cache is used to show an error message to the user if the chosen input amount
   // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
@@ -111,7 +111,7 @@ export const SwapPage = () => {
     }
   }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
-  // Maybe go into a state of UI errors??
+  // TODO Replace with initializeFailed from offrampActions.
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
       message ??
@@ -155,7 +155,9 @@ export const SwapPage = () => {
   const offrampState = useOfframpState();
   const offrampKycStarted = useOfframpKycStarted();
   const offrampSigningPhase = useOfframpSigningPhase();
-  const { setOfframpInitiating, setOfframpExecutionInput, clearInitializeFailedMessage } = useOfframpActions();
+  const { setOfframpInitiating, setOfframpExecutionInput, clearInitializeFailedMessage, setOfframpSummaryVisible } =
+    useOfframpActions();
+  const isOfframpSummaryVisible = useOfframpSummaryVisible();
   const executionInput = useOfframpExecutionInput();
 
   const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
@@ -392,7 +394,6 @@ export const SwapPage = () => {
 
   const onSwapConfirm = () => {
     if (offrampStarted) {
-      setIsOfframpSummaryDialogVisible(true);
       return;
     }
 
@@ -455,7 +456,7 @@ export const SwapPage = () => {
     performSwapInitialChecks()
       .then(() => {
         console.log('Initial checks completed. Starting process..');
-        handleOnSubmit(executionInput, setIsOfframpSummaryDialogVisible);
+        handleOnSubmit(executionInput);
       })
       .catch((_error) => {
         console.error('Error during swap confirmation:', _error);
@@ -472,17 +473,17 @@ export const SwapPage = () => {
   const main = (
     <main ref={formRef}>
       <OfframpSummaryDialog
-        visible={isOfframpSummaryDialogVisible}
+        visible={isOfframpSummaryVisible}
         executionInput={executionInput}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
         onSubmit={handleOfframpSubmit}
-        onClose={() => setIsOfframpSummaryDialogVisible(false)}
+        onClose={() => setOfframpSummaryVisible(false)}
       />
       <SigningBox step={offrampSigningPhase} />
       {offrampKycStarted ? (
         <PIXKYCForm
           feeComparisonRef={feeComparisonRef}
-          setIsOfframpSummaryDialogVisible={setIsOfframpSummaryDialogVisible}
+          setIsOfframpSummaryDialogVisible={setOfframpSummaryVisible}
           onSwapConfirm={onSwapConfirm}
         />
       ) : (
@@ -495,7 +496,7 @@ export const SwapPage = () => {
           feeComparisonRef={feeComparisonRef}
           inputAmountIsStable={inputAmountIsStable}
           trackQuote={trackQuote}
-          isOfframpSummaryDialogVisible={isOfframpSummaryDialogVisible}
+          isOfframpSummaryDialogVisible={isOfframpSummaryVisible}
           apiInitializeFailed={apiInitializeFailed}
           initializeFailedMessage={initializeFailedMessage}
           getCurrentErrorMessage={getCurrentErrorMessage}

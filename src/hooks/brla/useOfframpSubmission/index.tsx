@@ -3,12 +3,10 @@ import { useSubmitOfframp } from '../../offramp/useSubmitOfframp';
 import { useOfframpActions, useOfframpExecutionInput } from '../../../stores/offrampStore';
 import { performSwapInitialChecks } from '../../../pages/swap/helpers/swapConfirm/performSwapInitialChecks';
 
-export const useOfframpSubmission = (
-  handleError: (message?: string) => Promise<void>,
-  setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void,
-) => {
+export const useOfframpSubmission = (handleError: (message?: string) => Promise<void>) => {
   const offrampInput = useOfframpExecutionInput();
   const submitOfframp = useSubmitOfframp();
+  //const { setOfframpSummaryVisible } = useOfframpActions();
 
   return useCallback(() => {
     if (!offrampInput) {
@@ -18,12 +16,13 @@ export const useOfframpSubmission = (
     performSwapInitialChecks()
       .then(() => {
         console.info('Initial checks completed after KYC. Starting process..');
-        submitOfframp(offrampInput, setIsOfframpSummaryDialogVisible);
+        submitOfframp(offrampInput);
+        //setOfframpSummaryVisible(true);
       })
       .catch((error) => {
         console.error('Error during swap confirmation after KYC', { error });
         offrampInput?.setInitializeFailed();
         handleError('Error during swap confirmation after KYC');
       });
-  }, [offrampInput, handleError, submitOfframp, setIsOfframpSummaryDialogVisible]);
+  }, [offrampInput, handleError, submitOfframp]);
 };

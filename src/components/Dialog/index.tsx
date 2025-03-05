@@ -58,6 +58,7 @@ export const Dialog: FC<DialogProps> = ({
 
   // Manage native <dialog> events and visibility
   useEffect(() => {
+    const dialog = ref.current;
     if (dialog) {
       dialog.addEventListener('close', closeListener);
       if (visible && !dialog.open) {
@@ -70,7 +71,7 @@ export const Dialog: FC<DialogProps> = ({
         dialog.removeEventListener('close', closeListener);
       };
     }
-  }, [visible, closeListener, headerText, dialog]);
+  }, [visible, closeListener, headerText, ref.current]);
 
   // This useEffect handles disableNativeEvents ( prevents the dialog from closing on Escape key press )
   useEffect(() => {
