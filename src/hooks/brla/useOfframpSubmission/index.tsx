@@ -6,7 +6,6 @@ import { performSwapInitialChecks } from '../../../pages/swap/helpers/swapConfir
 export const useOfframpSubmission = (handleError: (message?: string) => Promise<void>) => {
   const offrampInput = useOfframpExecutionInput();
   const submitOfframp = useSubmitOfframp();
-  //const { setOfframpSummaryVisible } = useOfframpActions();
 
   return useCallback(() => {
     if (!offrampInput) {
@@ -17,7 +16,6 @@ export const useOfframpSubmission = (handleError: (message?: string) => Promise<
       .then(() => {
         console.info('Initial checks completed after KYC. Starting process..');
         submitOfframp(offrampInput);
-        //setOfframpSummaryVisible(true);
       })
       .catch((error) => {
         console.error('Error during swap confirmation after KYC', { error });

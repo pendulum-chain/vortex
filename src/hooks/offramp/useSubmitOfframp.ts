@@ -94,7 +94,7 @@ export const useSubmitOfframp = () => {
                 cleanupSEP24();
                 return;
               }
-              throw new Error('User KYC is invalid');
+              throw new Error('Error while fetching BRLA user');
             }
             const { evmAddress: brlaEvmAddress } = await response.json();
             // append EVM address to execution input

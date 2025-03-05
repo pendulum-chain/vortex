@@ -82,7 +82,7 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
     [handleBackClick, updateStatus, resetToDefault],
   );
 
-  const proceedWithOfframp = useOfframpSubmission(handleError, setIsOfframpSummaryDialogVisible);
+  const proceedWithOfframp = useOfframpSubmission(handleError);
 
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {
