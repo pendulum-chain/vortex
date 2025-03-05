@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, use } from 'react';
 import { ApiPromise } from '@polkadot/api';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
@@ -155,7 +155,7 @@ export const SwapPage = () => {
   const offrampState = useOfframpState();
   const offrampKycStarted = useOfframpKycStarted();
   const offrampSigningPhase = useOfframpSigningPhase();
-  const { setOfframpInitiating, setOfframpExecutionInput } = useOfframpActions();
+  const { setOfframpInitiating, setOfframpExecutionInput, clearInitializeFailedMessage } = useOfframpActions();
   const executionInput = useOfframpExecutionInput();
 
   const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
@@ -463,6 +463,11 @@ export const SwapPage = () => {
         setInitializeFailed();
       });
   };
+
+  // Clear initialize failed message when the user changes output token, amount or tax id field
+  useEffect(() => {
+    clearInitializeFailedMessage();
+  }, [to, taxId, fromAmount, setInitializeFailed]);
 
   const main = (
     <main ref={formRef}>

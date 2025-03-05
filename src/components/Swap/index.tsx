@@ -1,7 +1,7 @@
 import React, { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FeeComparisonRef } from '../FeeComparison';
-import { useOfframpActions, useOfframpInitiating, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
+import { useOfframpInitiating, useOfframpStarted, useOfframpState, useOfframpStore } from '../../stores/offrampStore';
 import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
 import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
@@ -85,6 +85,7 @@ export const Swap = ({
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
   const offrampInitiating = useOfframpInitiating();
+  const { initializeFailedMessage: internalInitializeFailedMessage } = useOfframpStore();
 
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
@@ -179,6 +180,7 @@ export const Swap = ({
     (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
     offrampState !== undefined;
 
+  const displayInitializeFailedMessage = initializeFailedMessage || internalInitializeFailedMessage;
   return (
     <FormProvider {...form}>
       <motion.form
@@ -209,10 +211,10 @@ export const Swap = ({
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
         <BrlaSwapFields toToken={to} />
-        {(initializeFailedMessage || apiInitializeFailed) && (
+        {(initializeFailedMessage || apiInitializeFailed || internalInitializeFailedMessage) && (
           <section className="flex justify-center w-full mt-5">
             <div className="flex items-center gap-4">
-              <p className="text-red-600">{initializeFailedMessage}</p>
+              <p className="text-red-600">{displayInitializeFailedMessage}</p>
             </div>
           </section>
         )}

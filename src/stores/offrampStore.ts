@@ -14,6 +14,8 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
   offrampSigningPhase: undefined,
   offrampExecutionInput: undefined,
 
+  initializeFailedMessage: undefined,
+
   actions: {
     setOfframpStarted: (started) => set({ offrampStarted: started }),
     setOfframpInitiating: (initiating) => set({ offrampInitiating: initiating }),
@@ -29,6 +31,13 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
       set({ offrampState: state });
     },
 
+    setInitializeFailedMessage: (message: string | undefined) => {
+      const displayMessage =
+        message ??
+        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!";
+      set({ initializeFailedMessage: displayMessage });
+    },
+
     resetOfframpState: () => {
       clearOfframpingState();
       set({
@@ -40,6 +49,8 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
         offrampExecutionInput: undefined,
       });
     },
+
+    clearInitializeFailedMessage: () => set({ initializeFailedMessage: undefined }),
   },
 }));
 
@@ -49,5 +60,7 @@ export const useOfframpStarted = () => useOfframpStore((state) => state.offrampS
 export const useOfframpInitiating = () => useOfframpStore((state) => state.offrampInitiating);
 export const useOfframpExecutionInput = () => useOfframpStore((state) => state.offrampExecutionInput);
 export const useOfframpKycStarted = () => useOfframpStore((state) => state.offrampKycStarted);
+export const useInitializeFailedMessage = () => useOfframpStore((state) => state.initializeFailedMessage);
+export const clearInitializeFailedMessage = () => useOfframpStore.getState().actions.clearInitializeFailedMessage();
 
 export const useOfframpActions = () => useOfframpStore((state) => state.actions);

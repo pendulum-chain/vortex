@@ -34,6 +34,7 @@ export interface OfframpState {
   offrampSigningPhase: OfframpSigningPhase | undefined;
   offrampExecutionInput: OfframpExecutionInput | undefined;
   offrampKycStarted: boolean;
+  initializeFailedMessage: string | undefined;
 }
 
 export interface OfframpActions {
@@ -43,7 +44,9 @@ export interface OfframpActions {
   setOfframpSigningPhase: (phase: OfframpSigningPhase | undefined) => void;
   setOfframpKycStarted: (kycStarted: boolean) => void;
   setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
+  setInitializeFailedMessage: (message: string | undefined) => void;
   updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
+  clearInitializeFailedMessage: () => void;
   resetOfframpState: () => void;
 }
 

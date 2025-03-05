@@ -138,9 +138,7 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
           resetToDefault();
           handleBackClick();
         },
-        [KYCResponseStatus.PENDING]: async () => {
-          undefined;
-        },
+        [KYCResponseStatus.PENDING]: async () => undefined,
       };
 
       const handler = statusHandlers[mappedStatus];

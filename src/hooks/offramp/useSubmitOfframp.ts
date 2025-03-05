@@ -27,8 +27,13 @@ export const useSubmitOfframp = () => {
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
 
-  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput, setOfframpKycStarted } =
-    useOfframpActions();
+  const {
+    setOfframpStarted,
+    setOfframpInitiating,
+    setOfframpExecutionInput,
+    setOfframpKycStarted,
+    setInitializeFailedMessage,
+  } = useOfframpActions();
 
   const {
     setAnchorSessionParams,
@@ -81,10 +86,16 @@ export const useSubmitOfframp = () => {
                 setOfframpKycStarted(true);
                 return;
               }
-              throw new Error('Error while fetching funding account signature');
+              if ((await response.text()).includes('KYC invalid')) {
+                setInitializeFailedMessage('Your KYC level is invalid. Please contact support.');
+                setOfframpStarted(false);
+                setOfframpInitiating(false);
+                cleanupSEP24();
+                return;
+              }
+              throw new Error('User KYC is invalid');
             }
             const { evmAddress: brlaEvmAddress } = await response.json();
-            //const brlaEvmAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877'
             // append EVM address to execution input
             const updatedBrlaOfframpExecution = { ...executionInput, brlaEvmAddress };
             setOfframpExecutionInput(updatedBrlaOfframpExecution);

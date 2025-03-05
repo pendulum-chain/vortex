@@ -130,8 +130,10 @@ export const createSubaccount = async (
       res.status(400).json({ error: 'Subaccount already created' });
       return;
     }
+    //rename birthdate to birthDate
+    const subaccountPayload = { ...req.body, birthDate: req.body.birthdate };
 
-    const { id } = await brlaApiService.createSubaccount(req.body);
+    const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
     res.status(200).json({ subaccountId: id });
   } catch (error) {
