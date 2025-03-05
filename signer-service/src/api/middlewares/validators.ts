@@ -2,7 +2,11 @@ import { RequestHandler } from 'express';
 import { isStellarTokenConfig, TOKEN_CONFIG, TokenConfig } from '../../constants/tokenConfig';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
-import { DUMP_SHEET_HEADER_VALUES_ASSETHUB, DUMP_SHEET_HEADER_VALUES_EVM } from '../controllers/storage.controller';
+import {
+  DUMP_SHEET_HEADER_VALUES_ASSETHUB,
+  DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM,
+  DUMP_SHEET_HEADER_VALUES_EVM_STELLAR,
+} from '../controllers/storage.controller';
 import {
   SUPPORTED_PROVIDERS,
   SUPPORTED_CRYPTO_CURRENCIES,
@@ -154,7 +158,9 @@ const validateRequestBodyValuesForTransactionStore = (): RequestHandler => (req,
   }
 
   const requiredRequestBodyKeys = offramperAddress.includes('0x')
-    ? DUMP_SHEET_HEADER_VALUES_EVM
+    ? req.body.stellarEphemeralPublicKey
+      ? DUMP_SHEET_HEADER_VALUES_EVM_STELLAR
+      : DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM
     : DUMP_SHEET_HEADER_VALUES_ASSETHUB;
 
   validateRequestBodyValues(requiredRequestBodyKeys)(req, res, next);

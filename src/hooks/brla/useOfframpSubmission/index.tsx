@@ -7,7 +7,6 @@ export const useOfframpSubmission = (
   handleError: (message?: string) => Promise<void>,
   setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void,
 ) => {
-  const { setOfframpKycStarted } = useOfframpActions();
   const offrampInput = useOfframpExecutionInput();
   const submitOfframp = useSubmitOfframp();
 
@@ -25,9 +24,6 @@ export const useOfframpSubmission = (
         console.error('Error during swap confirmation after KYC', { error });
         offrampInput?.setInitializeFailed();
         handleError('Error during swap confirmation after KYC');
-      })
-      .finally(() => {
-        setOfframpKycStarted(false);
       });
-  }, [offrampInput, handleError, submitOfframp, setIsOfframpSummaryDialogVisible, setOfframpKycStarted]);
+  }, [offrampInput, handleError, submitOfframp, setIsOfframpSummaryDialogVisible]);
 };

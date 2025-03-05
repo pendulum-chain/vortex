@@ -127,12 +127,14 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
           updateStatus(KYCStatus.SUCCESS, STATUS_MESSAGES.SUCCESS);
           await delay(SUCCESS_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
+          setOfframpKycStarted(false);
           proceedWithOfframp();
         },
         [KYCResponseStatus.FAILED]: async () => {
           updateStatus(KYCStatus.FAILED, STATUS_MESSAGES.FAILED);
           await delay(ERROR_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
+          setOfframpKycStarted(false);
           resetToDefault();
           handleBackClick();
         },
