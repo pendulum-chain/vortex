@@ -11,7 +11,7 @@ const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to th
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
 const DEFAULT_POLLING_INTERVAL = 3000;
-
+const GLMR_FUNDING_AMOUNT_RAW = '38822802500000000';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -27,6 +27,7 @@ const BRLA_LOGIN_PASSWORD = process.env.BRLA_LOGIN_PASSWORD;
 const BRLA_LOGIN_USERNAME = process.env.BRLA_LOGIN_USERNAME;
 
 export {
+  GLMR_FUNDING_AMOUNT_RAW,
   HORIZON_URL,
   PENDULUM_WSS,
   NETWORK,

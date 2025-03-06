@@ -11,6 +11,7 @@ import { SlackNotifier } from '../services/slack.service';
 
 interface FundEphemeralRequest {
   ephemeralAddress: string;
+  requiresGlmr?: boolean;
 }
 
 type ApiResponse<T> =
@@ -27,7 +28,7 @@ export const fundEphemeralAccountController = async (
   req: Request<{}, {}, FundEphemeralRequest>,
   res: Response<ApiResponse<void>>,
 ) => {
-  const { ephemeralAddress } = req.body;
+  const { ephemeralAddress, requiresGlmr } = req.body;
 
   if (!ephemeralAddress) {
     res.status(400).send({ error: 'Invalid request parameters' });
@@ -35,7 +36,7 @@ export const fundEphemeralAccountController = async (
   }
 
   try {
-    const result = await fundEphemeralAccount(ephemeralAddress);
+    const result = await fundEphemeralAccount(ephemeralAddress, Boolean(requiresGlmr));
     if (result) {
       res.json({ status: 'success', data: undefined });
       return;

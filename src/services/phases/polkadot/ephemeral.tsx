@@ -86,7 +86,7 @@ export async function pendulumFundEphemeral(
   context: ExecutionContext,
 ): Promise<OfframpingState> {
   console.log('Pendulum funding ephemeral account');
-  const { squidRouterSwapHash } = state;
+  const { squidRouterSwapHash, outputTokenType } = state;
   const { wagmiConfig } = context;
 
   if (isNetworkEVM(state.network)) {
@@ -101,7 +101,12 @@ export async function pendulumFundEphemeral(
 
   if (!isAlreadyFunded) {
     const ephemeralAddress = await getEphemeralAddress(state, context);
-    const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, { ephemeralAddress });
+    let maybeFundGlmr = outputTokenType === OutputTokenTypes.BRL ? true : false;
+
+    const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, {
+      ephemeralAddress,
+      maybeFundGlmr,
+    });
 
     if (response.data.status !== 'success') {
       throw new Error('Error funding ephemeral account: funding timed out or failed');

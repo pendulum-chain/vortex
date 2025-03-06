@@ -304,8 +304,8 @@ export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) 
     return;
   }
 
-  if (!amount) {
-    res.status(400).json({ error: 'Missing amount parameter' });
+  if (!amount || isNaN(Number(amount))) {
+    res.status(400).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
 
