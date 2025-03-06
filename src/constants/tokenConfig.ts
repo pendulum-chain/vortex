@@ -393,7 +393,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
     },
     erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
     moonbeamErc20Address: '0xfeB25F3fDDad13F82C4d6dbc1481516F62236429',
-    minWithdrawalAmountRaw: '1000000000000000000', // 1 BRL.
+    minWithdrawalAmountRaw: '3000000000000000000', // 3 BRL.
     maxWithdrawalAmountRaw: '10000000000000000000000', // 10,000 BRL. Maximum value for a KYC level 1 user.
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL

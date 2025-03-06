@@ -19,6 +19,8 @@ const transformNumber = (value: any, originalValue: any) => {
   return value;
 };
 
+const cpfRegex = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
+
 const schema = Yup.object<SwapFormValues>().shape({
   from: Yup.string().required(),
   fromAmount: Yup.string().required(),
@@ -28,7 +30,7 @@ const schema = Yup.object<SwapFormValues>().shape({
   deadline: Yup.number().nullable().transform(transformNumber),
   taxId: Yup.string().when('to', {
     is: 'brl',
-    then: (schema) => schema.required('Tax ID is required when converting to BRL'),
+    then: (schema) => schema.matches(cpfRegex).required('Tax ID is required when converting to BRL'),
     otherwise: (schema) => schema.optional(),
   }),
   pixId: Yup.string().when('to', {
