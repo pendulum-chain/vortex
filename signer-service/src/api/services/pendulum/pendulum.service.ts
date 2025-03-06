@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { multiplyByPowerOfTen } from './helpers';
 import { createPolkadotApi } from './createPolkadotApi';
 import { GLMR_FUNDING_AMOUNT_RAW } from '../../../constants/constants';
+import { TOKEN_CONFIG } from '../../../constants/tokenConfig';
 dotenv.config();
 
 const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
@@ -33,7 +34,7 @@ export const fundEphemeralAccount = async (ephemeralAddress: string, requiresGlm
 
     if (requiresGlmr) {
       const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
-      const pendulumCurrencyId = { XCM: 6 }; // GLMR
+      const pendulumCurrencyId = TOKEN_CONFIG.glmr.pendulumCurrencyId;
 
       const penFundingTx = apiData.api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw);
       const glmrFundingTx = apiData.api.tx.tokens.transfer(

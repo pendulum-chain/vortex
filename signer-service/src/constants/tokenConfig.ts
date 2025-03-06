@@ -24,6 +24,8 @@ export interface XCMTokenConfig {
   pendulumCurrencyId: { XCM: number };
 }
 
+export type MoonbeamTokenConfig = XCMTokenConfig;
+
 export function isStellarTokenConfig(config: StellarTokenConfig | XCMTokenConfig): config is StellarTokenConfig {
   return (
     'assetCode' in config &&
@@ -46,7 +48,9 @@ export function isXCMTokenConfig(config: StellarTokenConfig | XCMTokenConfig): c
 export type TokenConfig = {
   ars: StellarTokenConfig;
   eurc: StellarTokenConfig;
+  brl: MoonbeamTokenConfig;
   usdc: XCMTokenConfig;
+  glmr: XCMTokenConfig;
   'usdc.axl': XCMTokenConfig;
 };
 
@@ -93,6 +97,11 @@ const ars: StellarTokenConfig = {
 export const TOKEN_CONFIG: TokenConfig = {
   ars,
   eurc,
+  brl: {
+    pendulumCurrencyId: { XCM: 13 },
+    decimals: 18,
+    maximumSubsidyAmountRaw: '86000000000000000000', // 86 units = 15 usd @ Mar/2025
+  },
   usdc: {
     pendulumCurrencyId: { XCM: 2 },
     decimals: 6,
@@ -102,6 +111,11 @@ export const TOKEN_CONFIG: TokenConfig = {
     pendulumCurrencyId: { XCM: 12 },
     decimals: 6,
     maximumSubsidyAmountRaw: '15000000', // 15 units
+  },
+  glmr: {
+    pendulumCurrencyId: { XCM: 6 },
+    decimals: 18,
+    maximumSubsidyAmountRaw: '0', // This definition is not used to subsidize swaps.
   },
 };
 
