@@ -30,7 +30,7 @@ const schema = Yup.object<SwapFormValues>().shape({
   deadline: Yup.number().nullable().transform(transformNumber),
   taxId: Yup.string().when('to', {
     is: 'brl',
-    then: (schema) => schema.matches(cpfRegex).required('Tax ID is required when converting to BRL'),
+    then: (schema) => schema.matches(cpfRegex, 'Invalid Tax ID').required('Tax ID is required when converting to BRL'),
     otherwise: (schema) => schema.optional(),
   }),
   pixId: Yup.string().when('to', {

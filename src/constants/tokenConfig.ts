@@ -89,7 +89,7 @@ export type PendulumXcmCurrencyId = {
 export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   type: 'moonbeam';
   pendulumErc20WrapperAddress: string;
-  moonbeamErc20Address: string;
+  polygonErc20Address: string;
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
@@ -392,7 +392,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
       name: 'Brazilian Real',
     },
     erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
-    moonbeamErc20Address: '0xfeB25F3fDDad13F82C4d6dbc1481516F62236429',
+    polygonErc20Address: '0xe6a537a407488807f0bbeb0038b79004f19dddfb',
     minWithdrawalAmountRaw: '3000000000000000000', // 3 BRL.
     maxWithdrawalAmountRaw: '10000000000000000000000', // 10,000 BRL. Maximum value for a KYC level 1 user.
     offrampFeesBasisPoints: 0,

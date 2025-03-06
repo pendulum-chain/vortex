@@ -51,7 +51,6 @@ export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, r
 export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequest>, res: Response): Promise<void> => {
   try {
     const { taxId, pixKey, amount, receiverTaxId } = req.body;
-    console.log('Triggering offramp. Amount ', amount, 'taxId ', taxId, 'pixKey ', pixKey);
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
@@ -59,9 +58,25 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
       res.status(404).json({ error: 'Subaccount not found' });
       return;
     }
+    const receiverTaxIdClean = receiverTaxId.replace(/\.|-/g, '');
+    const pixKeyClean = pixKey.replace(/\.|-/g, '');
 
     const subaccountId = subaccount.id;
-    const { id: offrampId } = await brlaApiService.triggerOfframp({ subaccountId, pixKey, amount, receiverTaxId });
+    console.log(
+      'Triggering offramp. Subaccount: ',
+      subaccountId,
+      ' Amount ',
+      amount,
+      'pixKey ',
+      pixKeyClean,
+      'receiverTaxId ',
+      receiverTaxIdClean,
+    );
+    const { id: offrampId } = await brlaApiService.triggerOfframp(subaccountId, {
+      pixKey: pixKeyClean,
+      amount,
+      taxId: receiverTaxIdClean,
+    });
     res.status(200).json({ offrampId });
     return;
   } catch (error) {

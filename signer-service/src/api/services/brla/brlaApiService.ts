@@ -153,9 +153,10 @@ export class BrlaApiService {
     return response.subaccounts[0];
   }
 
-  public async triggerOfframp(offrampParams: OfframpPayload): Promise<{ id: string }> {
+  public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
     const endpoint = `/pay-out`;
-    return await this.sendRequest(endpoint, 'POST', undefined, offrampParams);
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(endpoint, 'POST', query, offrampParams);
   }
 
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {

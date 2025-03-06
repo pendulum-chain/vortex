@@ -55,8 +55,7 @@ export interface RegisterSubaccountPayload {
 }
 
 export interface OfframpPayload {
-  subaccountId: string;
   pixKey: string;
   amount: string;
-  receiverTaxId: string;
+  taxId: string;
 }

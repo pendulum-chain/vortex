@@ -174,7 +174,9 @@ export async function pendulumCleanup(state: OfframpingState, context: Execution
   } catch (error) {
     console.error('Error cleaning pendulum ephemeral account', error);
   }
-
+  if (state.outputTokenType === OutputTokenTypes.BRL) {
+    return { ...state, phase: 'success' };
+  }
   return { ...state, phase: 'stellarOfframp' };
 }
 

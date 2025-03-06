@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { createPublicClient, http } from 'viem';
-import { moonbeam } from 'viem/chains';
+import { polygon } from 'viem/chains';
 
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 import { OfframpingState } from '../../offrampingFlow';
@@ -17,15 +17,15 @@ export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promi
 
   const tokenDetails = getOutputTokenDetailsMoonbeam(outputTokenType);
 
-  const moonbeamPollingTimeMs = 1000;
+  const pollingTimeMs = 1000;
   const maxWaitingTimeMs = 5 * 60 * 1000; // 5 minutes
 
   try {
     await checkMoonbeamBalancePeriodically(
-      tokenDetails.moonbeamErc20Address,
+      tokenDetails.polygonErc20Address,
       brlaEvmAddress,
       outputAmount.raw,
-      moonbeamPollingTimeMs,
+      pollingTimeMs,
       maxWaitingTimeMs,
     );
   } catch (balanceCheckError) {
@@ -53,7 +53,7 @@ export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promi
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ taxId, pixKey: pixDestination, amount: amount.toString() }),
+    body: JSON.stringify({ taxId, pixKey: pixDestination, amount: amount.toString(), receiverTaxId: taxId }),
   });
   if (response.status !== 200) {
     throw new Error(`Failed request BRLA offramp from server: ${response.statusText}`);
@@ -92,7 +92,7 @@ export function checkMoonbeamBalancePeriodically(
     const intervalId = setInterval(async () => {
       try {
         const publicClient = createPublicClient({
-          chain: moonbeam,
+          chain: polygon,
           transport: http(),
         });
 
@@ -103,7 +103,7 @@ export function checkMoonbeamBalancePeriodically(
           args: [brlaEvmAddress],
         })) as String;
 
-        console.log(`Moonbeam balance check: ${result.toString()} / ${amountDesiredRaw.toString()}`);
+        console.log(`Polygon balance check: ${result.toString()} / ${amountDesiredRaw.toString()}`);
         const someBalanceBig = new Big(result.toString());
         const amountDesiredUnitsBig = new Big(amountDesiredRaw);
 
