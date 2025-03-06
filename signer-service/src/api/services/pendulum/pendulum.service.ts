@@ -42,8 +42,8 @@ export const fundEphemeralAccount = async (ephemeralAddress: string, requiresGlm
         GLMR_FUNDING_AMOUNT_RAW,
       );
 
-      const batch = apiData.api.tx.utility.batch([penFundingTx, glmrFundingTx]);
-      await batch.signAndSend(fundingAccountKeypair);
+      const batchTx = apiData.api.tx.utility.batchAll([penFundingTx, glmrFundingTx]);
+      await batchTx.signAndSend(fundingAccountKeypair);
     } else {
       await apiData.api.tx.balances
         .transferKeepAlive(ephemeralAddress, fundingAmountRaw)

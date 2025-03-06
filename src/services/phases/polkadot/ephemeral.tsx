@@ -105,7 +105,7 @@ export async function pendulumFundEphemeral(
 
     const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, {
       ephemeralAddress,
-      maybeFundGlmr,
+      requiresGlmr: maybeFundGlmr,
     });
 
     if (response.data.status !== 'success') {

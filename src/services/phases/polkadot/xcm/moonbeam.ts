@@ -17,7 +17,7 @@ export function createPendulumToMoonbeamTransfer(
   nonce = -1,
 ) {
   const currencyId = { XCM: 13 };
-  const currencyFeeId = { XCM: 1 };
+  const currencyFeeId = { XCM: 6 };
   const destination = {
     V2: {
       parents: 1,
@@ -38,7 +38,7 @@ export function createPendulumToMoonbeamTransfer(
         [currencyId, rawAmount],
         [currencyFeeId, '38822802500000000'],
       ],
-      0,
+      1,
       destination,
       'Unlimited',
     )
