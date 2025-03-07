@@ -2,7 +2,7 @@ import { Keyring } from '@polkadot/api';
 import Big from 'big.js';
 import { PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
 import { KeyringPair } from '@polkadot/keyring/types';
-
+import { Hash } from '@polkadot/types/interfaces';
 import dotenv from 'dotenv';
 import { multiplyByPowerOfTen } from './helpers';
 import { createPolkadotApi } from './createPolkadotApi';

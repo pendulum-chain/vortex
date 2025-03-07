@@ -77,23 +77,24 @@ export const signAndSubmitXcm = async (
   });
 };
 
-async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 60000): Promise<SignedBlock> {
-  const pollIntervalMs = 1000;
-  const start = Date.now();
-
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const block = await api.rpc.chain.getBlock(blockHash);
-
-      if (block) {
-        return block;
-      }
-    } catch (error) {
-      console.log(error);
+const MAX_RETRIES = 120;
+const RETRY_DELAY_MS = 1000;
+async function waitForBlock(api: ApiPromise, blockHash: string, retries = MAX_RETRIES): Promise<SignedBlock> {
+  try {
+    const block = await api.rpc.chain.getBlock(blockHash);
+    if (block) {
+      return block;
     }
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  } catch (error) {
+    console.log(error);
   }
-  throw new Error(`Block ${blockHash} not found after ${timeoutMs}ms`);
+
+  if (retries <= 0) {
+    throw new Error(`Block ${blockHash} not found after ${MAX_RETRIES} attempts`);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  return waitForBlock(api, blockHash, retries - 1);
 }
 
 export async function verifyXcmSentEvent(
@@ -109,21 +110,17 @@ export async function verifyXcmSentEvent(
 
   const apiAt = await api.at(blockHash);
   const events = await apiAt.query.system.events();
-  const xcmSentEvents = events.filter((record) => {
-    return record.event.section === 'polkadotXcm' && record.event.method === 'Sent';
-  });
 
-  const event = xcmSentEvents
-    .map((event) => parseEventXcmSent(event))
-    .filter((event) => {
-      return event.originAddress == address;
-    });
+  const xcmSentEvent = events
+    .filter((record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent')
+    .map(parseEventXcmSent)
+    .find((event) => event.originAddress === address);
 
-  if (event.length == 0) {
+  if (!xcmSentEvent) {
     throw new Error(`No XcmSent event found for account ${address}`);
   }
 
-  return { event: event[0], hash: blockHash };
+  return { event: xcmSentEvent, hash: blockHash };
 }
 
 export const submitXcm = async (
