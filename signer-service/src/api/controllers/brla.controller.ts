@@ -95,16 +95,6 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
     }
 
     const subaccountId = subaccount.id;
-    console.log(
-      'Triggering offramp. Subaccount: ',
-      subaccountId,
-      ' Amount ',
-      amount,
-      'pixKey ',
-      pixKey,
-      'receiverTaxId ',
-      receiverTaxId,
-    );
     const { id: offrampId } = await brlaApiService.triggerOfframp(subaccountId, {
       pixKey,
       amount: Number(amount),
