@@ -1,16 +1,10 @@
-import { ApiPromise } from '@polkadot/api';
-
 import {
   getInputTokenDetails,
   getOutputTokenDetails,
-  InputTokenDetails,
   isStellarOutputTokenDetails,
-  OutputTokenDetailsMoonbeam,
-  OutputTokenDetailsSpacewalk,
 } from '../../../../constants/tokenConfig';
 import { getVaultsForCurrency } from '../../../../services/phases/polkadot/spacewalk';
 import { testRoute } from '../../../../services/phases/squidrouter/route';
-import { Networks } from '../../../../helpers/networks';
 import { useOfframpStore } from '../../../../stores/offrampStore';
 
 export const performSwapInitialChecks = async () => {
