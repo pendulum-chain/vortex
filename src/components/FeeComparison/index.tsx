@@ -72,12 +72,18 @@ function FeeProviderRow({
   const {
     isLoading,
     error,
-    data: providerPrice,
+    data: providerPriceRaw,
   } = useQuery({
     queryKey: [amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, network],
     queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, network),
     retry: false, // We don't want to retry the request to avoid spamming the server
   });
+
+  const providerPrice = useMemo(() => {
+    if (!providerPriceRaw) return undefined;
+    if (providerPriceRaw.lt(0)) return undefined;
+    return providerPriceRaw;
+  }, [providerPriceRaw]);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) return undefined;
@@ -92,7 +98,10 @@ function FeeProviderRow({
   }, [isLoading, providerPrice, error, provider.name]);
 
   useEffect(() => {
-    if (isLoading || (!providerPrice && !error)) return;
+    if (isLoading) return;
+    onPriceFetched(provider.name, providerPrice ? providerPrice : new Big('0'));
+
+    if (!providerPrice && !error) return;
 
     const parameters: OfframpingParameters = {
       from_amount: amount.toFixed(2),
@@ -102,7 +111,6 @@ function FeeProviderRow({
     };
 
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
-    onPriceFetched(provider.name, providerPrice ? providerPrice : new Big('0'));
     scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, trackQuote);
     prevVortexPrice.current = vortexPrice;
   }, [
