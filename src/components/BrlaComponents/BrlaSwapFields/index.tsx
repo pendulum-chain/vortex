@@ -34,6 +34,7 @@ export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => (
       <motion.div {...containerAnimation}>
         {STANDARD_FIELDS.map((field) => (
           <BrlaField
+            className="mt-2"
             key={field.id}
             id={field.id}
             label={field.label}
@@ -41,6 +42,9 @@ export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => (
             placeholder={`Enter your ${field.label}`}
           />
         ))}
+        <div className="mt-2">
+          Tax ID and Pix key need to belong to the <b>same person</b>.
+        </div>
       </motion.div>
     )}
   </AnimatePresence>
