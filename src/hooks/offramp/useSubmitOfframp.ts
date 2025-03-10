@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import Big from 'big.js';
 
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useNetwork } from '../../contexts/network';
@@ -16,7 +17,6 @@ import { sep10 } from '../../services/anchor/sep10';
 import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import Big from 'big.js';
 import { OfframpExecutionInput } from '../../types/offramp';
 import { constructBrlaInitialState } from '../../services/offrampingFlow';
 import { usePendulumNode } from '../../contexts/polkadotNode';
@@ -38,6 +38,8 @@ export const useSubmitOfframp = () => {
     cleanup: cleanupSEP24,
   } = useSep24Actions();
   const { apiComponents: pendulumNode } = usePendulumNode();
+
+  const { chainId } = useVortexAccount();
 
   return useCallback(
     (executionInput: OfframpExecutionInput) => {
@@ -61,6 +63,10 @@ export const useSubmitOfframp = () => {
 
           if (!address) {
             throw new Error('Address must be defined at this stage');
+          }
+
+          if (!chainId) {
+            throw new Error('ChainId must be defined at this stage');
           }
 
           if (executionInput.outputTokenType === OutputTokenType.BRL) {
@@ -93,6 +99,7 @@ export const useSubmitOfframp = () => {
               amountIn: executionInput.inputAmountUnits,
               amountOut: Big(executionInput.outputAmountUnits.beforeFees),
               network: selectedNetwork,
+              networkId: chainId,
               pendulumNode,
               offramperAddress: address,
               brlaEvmAddress,
@@ -103,7 +110,7 @@ export const useSubmitOfframp = () => {
           } else {
             const stellarEphemeralSecret = createStellarEphemeralSecret();
             const outputToken = getOutputTokenDetailsSpacewalk(executionInput.outputTokenType);
-            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
+            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 
             const { token: sep10Token, sep10Account } = await sep10(
               tomlValues,
@@ -163,21 +170,22 @@ export const useSubmitOfframp = () => {
     [
       offrampStarted,
       offrampState,
+      pendulumNode,
       setOfframpInitiating,
       setOfframpStarted,
-      trackEvent,
+      setSelectedNetwork,
       selectedNetwork,
+      trackEvent,
       address,
+      setOfframpExecutionInput,
+      chainId,
+      updateOfframpHookStateFromState,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
-      setOfframpExecutionInput,
       setAnchorSessionParams,
-      setInitialResponseSEP24,
       setUrlIntervalSEP24,
+      setInitialResponseSEP24,
       cleanupSEP24,
-      setSelectedNetwork,
-      pendulumNode,
-      updateOfframpHookStateFromState,
     ],
   );
 };

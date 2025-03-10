@@ -29,7 +29,7 @@ export const useAnchorWindowHandler = () => {
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
-  const { address } = useVortexAccount();
+  const { address, chainId } = useVortexAccount();
 
   const firstSep24Response = useSep24InitialResponse();
   const anchorSessionParams = useSep24AnchorSessionParams();
@@ -62,6 +62,14 @@ export const useAnchorWindowHandler = () => {
         throw new Error('Missing stellarEphemeralSecret on executionInput');
       }
 
+      if (!address) {
+        throw new Error('Missing address');
+      }
+
+      if (!chainId) {
+        throw new Error('Missing chainId');
+      }
+
       const initialState = await constructInitialState({
         sep24Id: firstSep24Response.id,
         stellarEphemeralSecret: executionInput.stellarEphemeralSecret,
@@ -71,8 +79,9 @@ export const useAnchorWindowHandler = () => {
         amountOut: Big(executionInput.outputAmountUnits.beforeFees),
         sepResult: secondSep24Response,
         network: selectedNetwork,
+        networkId: chainId,
         pendulumNode,
-        offramperAddress: address!,
+        offramperAddress: address,
       });
 
       trackKYCCompleted(initialState, selectedNetwork);
@@ -88,6 +97,7 @@ export const useAnchorWindowHandler = () => {
     trackKYCStarted,
     selectedNetwork,
     cleanupSep24State,
+    chainId,
     address,
     trackKYCCompleted,
     updateOfframpHookStateFromState,
