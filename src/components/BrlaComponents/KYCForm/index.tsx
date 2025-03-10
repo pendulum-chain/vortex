@@ -30,7 +30,15 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef 
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px]"
         onSubmit={handleSubmit(onSubmit)}
       >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">KYC Details</h1>
+        <h1 className="mt-2 mb-2 text-3xl font-bold text-center text-blue-700">KYC Details</h1>
+        <div className="text-primary-500 text-center mb-6">
+          KYC verification is required to complete your transaction. The information you provide is processed securely
+          by our local partner{' '}
+          <a className="underline" target="_blank" rel="noreferrer" href="https://www.brla.digital">
+            BRLA
+          </a>
+          .
+        </div>
         <div className="grid grid-cols-2 gap-4">
           {fields.map((field) => (
             <BrlaField
@@ -49,7 +57,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef 
           ))}
         </div>
 
-        <div className="grid gap-3 mt-8 mb-12">
+        <div className="grid gap-3 mt-8 mb-8">
           <div className="flex gap-3">
             <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick}>
               Back
