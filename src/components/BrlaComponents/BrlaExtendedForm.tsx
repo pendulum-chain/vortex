@@ -14,18 +14,18 @@ interface PIXKYCFormProps {
 
 const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
   {
-    id: ExtendedBrlaFieldOptions.PHONE,
-    label: 'Phone Number',
-    type: 'text',
-    placeholder: 'Phone Number',
-    required: true,
-    index: 0,
-  },
-  {
     id: ExtendedBrlaFieldOptions.FULL_NAME,
     label: 'Full Name',
     type: 'text',
     placeholder: 'Full Name',
+    required: true,
+    index: 0,
+  },
+  {
+    id: ExtendedBrlaFieldOptions.PHONE,
+    label: 'Phone Number',
+    type: 'text',
+    placeholder: 'Phone Number',
     required: true,
     index: 1,
   },
