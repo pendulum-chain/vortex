@@ -10,8 +10,6 @@ import { KYCForm } from './KYCForm';
 
 interface PIXKYCFormProps {
   feeComparisonRef: RefObject<FeeComparisonRef | null>;
-  setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void;
-  onSwapConfirm: () => void;
 }
 
 const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
@@ -88,10 +86,8 @@ const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
   },
 ];
 
-export const PIXKYCForm = ({ feeComparisonRef, setIsOfframpSummaryDialogVisible }: PIXKYCFormProps) => {
-  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, isSubmitted } = useKYCProcess(
-    setIsOfframpSummaryDialogVisible,
-  );
+export const PIXKYCForm = ({ feeComparisonRef }: PIXKYCFormProps) => {
+  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, isSubmitted } = useKYCProcess();
 
   const { kycForm } = useKYCForm();
 
