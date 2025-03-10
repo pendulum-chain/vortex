@@ -83,7 +83,7 @@ export const useSubmitOfframp = () => {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
               if (response.status === 404) {
-                console.log('status 404 on brla user');
+                console.log("User doesn't exist yet.");
                 setOfframpKycStarted(true);
                 return;
               }
@@ -178,6 +178,8 @@ export const useSubmitOfframp = () => {
       setUrlIntervalSEP24,
       setInitialResponseSEP24,
       cleanupSEP24,
+      setInitializeFailedMessage,
+      setOfframpSummaryVisible,
     ],
   );
 };

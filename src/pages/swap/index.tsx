@@ -230,7 +230,7 @@ export const SwapPage = () => {
   // Clear initialize failed message when the user changes output token, amount or tax id field
   useEffect(() => {
     clearInitializeFailedMessage();
-  }, [to, taxId, fromAmount, setInitializeFailed]);
+  }, [clearInitializeFailedMessage, to, taxId, fromAmount]);
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {

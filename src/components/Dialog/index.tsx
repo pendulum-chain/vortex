@@ -71,7 +71,7 @@ export const Dialog: FC<DialogProps> = ({
         dialog.removeEventListener('close', closeListener);
       };
     }
-  }, [visible, closeListener, headerText, ref.current]);
+  }, [visible, closeListener, headerText]);
 
   // This useEffect handles disableNativeEvents ( prevents the dialog from closing on Escape key press )
   useEffect(() => {

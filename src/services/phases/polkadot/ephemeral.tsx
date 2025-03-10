@@ -101,7 +101,7 @@ export async function pendulumFundEphemeral(
 
   if (!isAlreadyFunded) {
     const ephemeralAddress = await getEphemeralAddress(state, context);
-    let maybeFundGlmr = outputTokenType === OutputTokenTypes.BRL ? true : false;
+    const maybeFundGlmr = outputTokenType === OutputTokenTypes.BRL ? true : false;
 
     const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, {
       ephemeralAddress,
