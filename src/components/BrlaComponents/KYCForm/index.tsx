@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 
 import { FeeComparisonRef } from '../../FeeComparison';
-import { BrlaField, BrlaFieldProps } from '../BrlaField';
+import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
 
 interface KYCFormProps {
@@ -27,13 +27,27 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col"
+        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px]"
         onSubmit={handleSubmit(onSubmit)}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">KYC Details</h1>
-        {fields.map((field) => (
-          <BrlaField key={field.id} {...field} />
-        ))}
+        <div className="grid grid-cols-2 gap-4">
+          {fields.map((field) => (
+            <BrlaField
+              key={field.id}
+              className={
+                [
+                  ExtendedBrlaFieldOptions.PHONE,
+                  ExtendedBrlaFieldOptions.FULL_NAME,
+                  ExtendedBrlaFieldOptions.BIRTHDATE,
+                ].includes(field.id as ExtendedBrlaFieldOptions)
+                  ? 'col-span-2'
+                  : ''
+              }
+              {...field}
+            />
+          ))}
+        </div>
 
         <div className="grid gap-3 mt-8 mb-12">
           <div className="flex gap-3">

@@ -37,7 +37,7 @@ export interface BrlaFieldProps extends FieldProps {
   };
 }
 
-export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern, ...rest }) => {
+export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPattern, className, ...rest }) => {
   // It required to be inside a FormProvider (react-hook-form)
   const { register } = useFormContext();
   const { errors } = useFormState();
@@ -45,7 +45,7 @@ export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPatt
 
   return (
     <motion.div
-      className="mb-4"
+      className={className}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
