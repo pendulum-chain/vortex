@@ -6,6 +6,7 @@ interface AccountStatusResponse {
   status: boolean;
   public: string;
 }
+
 interface SigningServiceStatus {
   pendulum: AccountStatusResponse;
   stellar: AccountStatusResponse;
@@ -23,7 +24,7 @@ type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
 type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
 
 type BrlaKycState = 'KYC';
-type KycStatus = 'PENDING' | 'REJECTED' | 'SUCCESS';
+type KycStatus = 'PENDING' | 'REJECTED' | 'APPROVED';
 
 interface BrlaOfframpStatus {
   type: BrlaOfframpState;
@@ -36,6 +37,7 @@ interface BrlaKycStatus {
 }
 
 type TaxIdType = 'CPF' | 'CNPJ';
+
 export interface RegisterSubaccountPayload {
   phone: string;
   taxIdType: TaxIdType;
@@ -199,6 +201,11 @@ export const createSubaccount = async (kycData: RegisterSubaccountPayload): Prom
     credentials: 'include',
     body: JSON.stringify(kycData),
   });
+
+  if (accountCreationResponse.status === 400) {
+    const { details } = await accountCreationResponse.json();
+    throw new Error('Failed to create user. Reason: ' + details.error);
+  }
 
   if (accountCreationResponse.status !== 200) {
     throw new Error(`Failed to fetch KYC status from server: ${accountCreationResponse.statusText}`);
