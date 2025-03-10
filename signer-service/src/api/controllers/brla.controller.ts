@@ -27,6 +27,16 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
   });
 }
 
+// BRLA API requires the date in the format YYYY-MMM-DD
+function convertDateToBRLAFormat(dateNumber: number) {
+  const date = new Date(dateNumber);
+  const year = date.getFullYear(); // YYYY
+  const month = date.toLocaleString('en-us', { month: 'short' }); // MMM
+  const day = String(date.getDate()).padStart(2, '0'); // DD with leading zero
+
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * Retrieves a BRLA user's information based on Tax ID
  *
@@ -154,7 +164,7 @@ export const createSubaccount = async (
       return;
     }
     //rename birthdate to birthDate
-    const subaccountPayload = { ...req.body, birthDate: req.body.birthdate };
+    const subaccountPayload = { ...req.body, birthDate: convertDateToBRLAFormat(req.body.birthdate) };
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 

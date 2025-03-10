@@ -58,7 +58,7 @@ export interface RegisterSubaccountPayload {
   };
   fullName: string;
   cpf: string;
-  birthdate: string;
+  birthdate: number; // number representing the date, converted to a string on the server
 }
 
 export interface SignerServiceSep10Request {

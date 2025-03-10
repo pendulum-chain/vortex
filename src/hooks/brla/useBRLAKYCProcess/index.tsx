@@ -101,7 +101,7 @@ export function useKYCProcess() {
         await createSubaccount({
           ...formData,
           cpf: taxId,
-          birthdate: formData.birthdate.toDateString(), // TODO use the format required from BRLA API ie YYYY-MMM-DD
+          birthdate: formData.birthdate.getDate(),
           address: addressObject,
           taxIdType: 'CPF',
         });
