@@ -9,7 +9,7 @@ import {
   getInputTokenDetails,
   getInputTokenDetailsOrDefault,
   getPendulumCurrencyId,
-  OutputTokenType,
+  OutputTokenTypes,
 } from '../../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 
@@ -86,7 +86,7 @@ export async function pendulumFundEphemeral(
   context: ExecutionContext,
 ): Promise<OfframpingState> {
   console.log('Pendulum funding ephemeral account');
-  const { squidRouterSwapHash } = state;
+  const { squidRouterSwapHash, outputTokenType } = state;
   const { wagmiConfig } = context;
 
   if (isNetworkEVM(state.network)) {
@@ -101,7 +101,12 @@ export async function pendulumFundEphemeral(
 
   if (!isAlreadyFunded) {
     const ephemeralAddress = await getEphemeralAddress(state, context);
-    const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, { ephemeralAddress });
+    const maybeFundGlmr = outputTokenType === OutputTokenTypes.BRL ? true : false;
+
+    const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, {
+      ephemeralAddress,
+      requiresGlmr: maybeFundGlmr,
+    });
 
     if (response.data.status !== 'success') {
       throw new Error('Error funding ephemeral account: funding timed out or failed');
@@ -174,7 +179,9 @@ export async function pendulumCleanup(state: OfframpingState, context: Execution
   } catch (error) {
     console.error('Error cleaning pendulum ephemeral account', error);
   }
-
+  if (state.outputTokenType === OutputTokenTypes.BRL) {
+    return { ...state, phase: 'success' };
+  }
   return { ...state, phase: 'stellarOfframp' };
 }
 
@@ -297,7 +304,7 @@ export async function subsidizePostSwap(state: OfframpingState, context: Executi
     });
   }
 
-  if (state.outputTokenType === OutputTokenType.BRL) {
+  if (state.outputTokenType === OutputTokenTypes.BRL) {
     return {
       ...state,
       phase: 'executePendulumToMoonbeamXCM',

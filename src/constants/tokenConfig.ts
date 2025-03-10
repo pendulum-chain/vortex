@@ -89,7 +89,7 @@ export type PendulumXcmCurrencyId = {
 export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   type: 'moonbeam';
   pendulumErc20WrapperAddress: string;
-  moonbeamErc20Address: string;
+  polygonErc20Address: string;
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
@@ -308,11 +308,13 @@ export function getInputTokenDetails(network: Networks, inputTokenType: InputTok
   }
 }
 
-export enum OutputTokenType {
+export enum OutputTokenTypes {
   EURC = 'eurc',
   ARS = 'ars',
   BRL = 'brl',
 }
+
+export type OutputTokenType = (typeof OutputTokenTypes)[keyof typeof OutputTokenTypes];
 
 export function getEnumKeyByStringValue<T extends { [key: string]: string }>(
   enumObj: T,
@@ -321,7 +323,8 @@ export function getEnumKeyByStringValue<T extends { [key: string]: string }>(
   const key = Object.keys(enumObj).find((k) => enumObj[k as keyof T] === value) as keyof T | undefined;
   return key ? enumObj[key] : undefined;
 }
-export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
+
+export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
   eurc: {
     type: 'spacewalk',
     anchorHomepageUrl: 'https://mykobo.co',
@@ -389,8 +392,8 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenType, OutputTokenDetailsSpac
       name: 'Brazilian Real',
     },
     erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
-    moonbeamErc20Address: '0xfeB25F3fDDad13F82C4d6dbc1481516F62236429',
-    minWithdrawalAmountRaw: '1000000000000000000', // 1 BRL.
+    polygonErc20Address: '0xe6a537a407488807f0bbeb0038b79004f19dddfb',
+    minWithdrawalAmountRaw: '3000000000000000000', // 3 BRL.
     maxWithdrawalAmountRaw: '10000000000000000000000', // 10,000 BRL. Maximum value for a KYC level 1 user.
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL

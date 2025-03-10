@@ -8,6 +8,8 @@ export type SwapFormValues = {
   toAmount: string;
   slippage: number | undefined;
   deadline: number;
+  taxId: string | undefined;
+  pixId: string | undefined;
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -17,6 +19,17 @@ const transformNumber = (value: any, originalValue: any) => {
   return value;
 };
 
+const cpfRegex = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
+
+// Regex adopted from here https://developers.international.pagseguro.com/reference/pix-key-validation-and-regex-1
+const pixKeyRegex = [
+  cpfRegex,
+  /^[0-9]{14}$/, // CNPJ
+  /^\+[1-9][0-9]\d{1,14}$/, // Phone
+  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, // Email
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, // Random
+];
+
 const schema = Yup.object<SwapFormValues>().shape({
   from: Yup.string().required(),
   fromAmount: Yup.string().required(),
@@ -24,6 +37,22 @@ const schema = Yup.object<SwapFormValues>().shape({
   toAmount: Yup.string().required(),
   slippage: Yup.number().nullable().transform(transformNumber),
   deadline: Yup.number().nullable().transform(transformNumber),
+  taxId: Yup.string().when('to', {
+    is: 'brl',
+    then: (schema) => schema.matches(cpfRegex, 'Invalid Tax ID').required('Tax ID is required when transferring BRL'),
+    otherwise: (schema) => schema.optional(),
+  }),
+  pixId: Yup.string().when('to', {
+    is: 'brl',
+    then: (schema) =>
+      schema
+        .required('Pix key is required when transferring BRL')
+        .test('matches-one', 'Pix key does not match any of the valid formats', (value) => {
+          if (!value) return false;
+          return pixKeyRegex.some((regex) => regex.test(value));
+        }),
+    otherwise: (schema) => schema.optional(),
+  }),
 });
 
 export default schema;

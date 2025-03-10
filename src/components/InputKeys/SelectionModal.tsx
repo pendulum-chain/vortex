@@ -6,26 +6,33 @@ import { PoolListItem } from './PoolListItem';
 import { AssetIconType } from '../../hooks/useGetAssetIcon';
 import { SearchInput } from '../SearchInput';
 
-interface PoolSelectorModalProps<T extends InputTokenType | OutputTokenType> extends PoolListProps<T> {
+interface PoolSelectorModalProps extends PoolListProps {
   isLoading?: boolean;
   onClose: () => void;
   open: boolean;
 }
 
-interface PoolListProps<T extends InputTokenType | OutputTokenType> {
-  definitions: { assetSymbol: string; type: T; assetIcon: AssetIconType; name?: string }[];
+export interface TokenDefinition {
+  assetSymbol: string;
+  type: InputTokenType | OutputTokenType;
+  assetIcon: AssetIconType;
+  name?: string;
+}
+
+interface PoolListProps {
+  definitions: TokenDefinition[];
   onSelect: (tokenType: InputTokenType | OutputTokenType) => void;
   selected: InputTokenType | OutputTokenType;
 }
 
-export function PoolSelectorModal<T extends InputTokenType | OutputTokenType>({
+export function PoolSelectorModal({
   selected,
   isLoading,
   definitions,
   onSelect,
   onClose,
   open,
-}: PoolSelectorModalProps<T>) {
+}: PoolSelectorModalProps) {
   const content = isLoading ? (
     <Skeleton className="w-full h-10 mb-2" />
   ) : (
@@ -35,7 +42,7 @@ export function PoolSelectorModal<T extends InputTokenType | OutputTokenType>({
   return <Dialog visible={open} onClose={onClose} headerText="Select a token" content={content} />;
 }
 
-function PoolList<T extends InputTokenType | OutputTokenType>({ onSelect, definitions, selected }: PoolListProps<T>) {
+function PoolList({ onSelect, definitions, selected }: PoolListProps) {
   const [filter, setFilter] = useState<string>('');
 
   const filteredDefinitions = definitions.filter(({ assetSymbol, name }) => {

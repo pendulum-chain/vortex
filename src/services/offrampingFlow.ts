@@ -17,6 +17,7 @@ import {
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
+  OutputTokenTypes,
 } from '../constants/tokenConfig';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 
@@ -222,7 +223,7 @@ function selectNextStateAdvancementHandler(
   outToken: OutputTokenType,
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
-    if (outToken === OutputTokenType.BRL) {
+    if (outToken === OutputTokenTypes.BRL) {
       return STATE_ADVANCEMENT_HANDLERS[HandlerType.BRLA][phase];
     }
     return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];
