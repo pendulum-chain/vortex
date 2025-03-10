@@ -24,7 +24,14 @@ type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
 type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
 
 type BrlaKycState = 'KYC';
-type KycStatus = 'PENDING' | 'REJECTED' | 'APPROVED';
+
+export enum KycStatus {
+  PENDING = 'PENDING',
+  REJECTED = 'REJECTED',
+  APPROVED = 'APPROVED',
+}
+
+export type KycStatusType = keyof typeof KycStatus;
 
 interface BrlaOfframpStatus {
   type: BrlaOfframpState;
@@ -33,7 +40,7 @@ interface BrlaOfframpStatus {
 
 interface BrlaKycStatus {
   type: BrlaKycState;
-  status: KycStatus;
+  status: KycStatusType;
 }
 
 type TaxIdType = 'CPF' | 'CNPJ';

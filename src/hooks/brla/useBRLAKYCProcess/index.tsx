@@ -1,22 +1,16 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { KYCStatus } from '../../../components/BrlaComponents/VerificationStatus';
 import { useOfframpActions } from '../../../stores/offrampStore';
 import { useOfframpSubmission } from '../useOfframpSubmission';
-import { useKYCStatusQuery } from '../useKYCStatusQuery';
+import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
-import { createSubaccount } from '../../../services/signingService';
+import { createSubaccount, KycStatus } from '../../../services/signingService';
 import { useFormStore } from '../../../stores/formStore';
+import { showToast, ToastMessage } from '../../../helpers/notifications';
 
 export interface BrlaKycStatus {
   status: string;
-}
-
-enum KYCResponseStatus {
-  PENDING = 'PENDING',
-  SUCCESS = 'SUCCESS',
-  REJECTED = 'REJECTED',
 }
 
 const STATUS_MESSAGES = {
@@ -34,10 +28,10 @@ const SUCCESS_DISPLAY_DURATION_MS = 2000;
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 const useVerificationStatusUI = () => {
-  const [verificationStatus, setVerificationStatus] = useState<KYCStatus>(KYCStatus.PENDING);
+  const [verificationStatus, setVerificationStatus] = useState<KycStatus>(KycStatus.PENDING);
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
 
-  const updateStatus = useCallback((status: KYCStatus, message: StatusMessageType) => {
+  const updateStatus = useCallback((status: KycStatus, message: StatusMessageType) => {
     setVerificationStatus(status);
     setStatusMessage(message);
   }, []);
@@ -47,7 +41,7 @@ const useVerificationStatusUI = () => {
     statusMessage,
     updateStatus,
     resetToDefault: useCallback(() => {
-      setVerificationStatus(KYCStatus.PENDING);
+      setVerificationStatus(KycStatus.PENDING);
       setStatusMessage(STATUS_MESSAGES.PENDING);
     }, []),
   };
@@ -61,7 +55,7 @@ export function useKYCProcess() {
   const [cpf, setCpf] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
-  const { data: kycResponse, error } = useKYCStatusQuery(cpf);
+  const { data: kycResponse, error } = useKycStatusQuery(cpf);
   const { setOfframpKycStarted, resetOfframpState } = useOfframpActions();
 
   const handleBackClick = useCallback(() => {
@@ -72,7 +66,8 @@ export function useKYCProcess() {
   const handleError = useCallback(
     (errorMessage?: string) => {
       console.error(errorMessage || 'KYC process error');
-      updateStatus(KYCStatus.REJECTED, STATUS_MESSAGES.ERROR);
+      updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.ERROR);
+      showToast(ToastMessage.KYC_VERIFICATION_FAILED, errorMessage);
 
       return delay(ERROR_DISPLAY_DURATION_MS).then(() => {
         resetToDefault();
@@ -102,10 +97,11 @@ export function useKYCProcess() {
       };
 
       try {
+        console.log('Calling createSubaccount ');
         await createSubaccount({
           ...formData,
           cpf: taxId,
-          birthdate: formData.birthdate.toDateString(),
+          birthdate: formData.birthdate.toDateString(), // TODO use the format required from BRLA API ie YYYY-MMM-DD
           address: addressObject,
           taxIdType: 'CPF',
         });
@@ -120,28 +116,29 @@ export function useKYCProcess() {
   );
 
   useEffect(() => {
+    console.log('in useEffect kycResponse', kycResponse);
     if (!kycResponse) return;
 
     const handleStatus = async (status: string) => {
-      const mappedStatus = status as KYCResponseStatus;
+      const mappedStatus = status as KycStatus;
 
-      const statusHandlers: Record<KYCResponseStatus, () => Promise<void>> = {
-        [KYCResponseStatus.SUCCESS]: async () => {
-          updateStatus(KYCStatus.SUCCESS, STATUS_MESSAGES.SUCCESS);
+      const statusHandlers: Record<KycStatus, () => Promise<void>> = {
+        [KycStatus.APPROVED]: async () => {
+          updateStatus(KycStatus.APPROVED, STATUS_MESSAGES.SUCCESS);
           await delay(SUCCESS_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
           setOfframpKycStarted(false);
           proceedWithOfframp();
         },
-        [KYCResponseStatus.REJECTED]: async () => {
-          updateStatus(KYCStatus.REJECTED, STATUS_MESSAGES.REJECTED);
+        [KycStatus.REJECTED]: async () => {
+          updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.REJECTED);
           await delay(ERROR_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
           setOfframpKycStarted(false);
           resetToDefault();
           handleBackClick();
         },
-        [KYCResponseStatus.PENDING]: async () => undefined,
+        [KycStatus.PENDING]: async () => undefined,
       };
 
       const handler = statusHandlers[mappedStatus];

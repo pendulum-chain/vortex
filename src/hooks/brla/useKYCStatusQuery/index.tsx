@@ -6,7 +6,7 @@ const POLLING_INTERVAL_MS = 2000;
 const RETRY_DELAY_MS = 5000; // 5 seconds
 const MAX_RETRIES = 5;
 
-export const useKYCStatusQuery = (cpf: string | null) => {
+export const useKycStatusQuery = (cpf: string | null) => {
   return useQuery<BrlaKycStatus, Error>({
     queryKey: ['kyc-status', cpf],
     queryFn: async () => {

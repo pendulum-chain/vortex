@@ -1,19 +1,9 @@
 import { Spinner } from '../../Spinner';
 import { motion } from 'framer-motion';
-
-export enum KYCStatus {
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  PENDING = 'PENDING',
-}
-
-export enum KYCResult {
-  VALIDATED = 'validated',
-  REJECTED = 'rejected',
-}
+import { KycStatus } from '../../../services/signingService';
 
 interface VerificationStatusProps {
-  status: KYCStatus;
+  status: KycStatus;
   message: string;
 }
 
@@ -24,9 +14,9 @@ export const VerificationStatus = ({ status, message }: VerificationStatusProps)
     animate={{ scale: 1, opacity: 1 }}
     transition={{ duration: 0.3 }}
   >
-    {status === KYCStatus.PENDING && <Spinner />}
-    {status === KYCStatus.APPROVED && <SuccessIcon />}
-    {status === KYCStatus.REJECTED && <ErrorIcon />}
+    {status === KycStatus.PENDING && <Spinner />}
+    {status === KycStatus.APPROVED && <SuccessIcon />}
+    {status === KycStatus.REJECTED && <ErrorIcon />}
     <motion.p
       className="mt-4 text-lg font-bold"
       initial={{ opacity: 0 }}
