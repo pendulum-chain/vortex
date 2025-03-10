@@ -13,10 +13,12 @@ import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
 import { OfframpExecutionInput } from '../../types/offramp';
 import { Networks } from '../../helpers/networks';
 import { ApiComponents } from '../../contexts/polkadotNode';
+import { useVortexAccount } from '../useVortexAccount';
 
 export const useMainProcess = () => {
   const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();
   const offrampState = useOfframpState();
+  const { chainId } = useVortexAccount();
 
   // Sep 24 states
   const firstSep24Response = useSep24InitialResponse();
@@ -54,12 +56,17 @@ export const useMainProcess = () => {
       throw new Error('Missing values on execution input');
     }
 
+    if (!chainId) {
+      throw new Error('Missing chainId');
+    }
+
     const initialState = await constructBrlaInitialState({
       inputTokenType: executionInput.inputTokenType,
       outputTokenType: executionInput.outputTokenType,
       amountIn: executionInput.inputAmountUnits,
       amountOut: Big(executionInput.outputAmountUnits.beforeFees),
       network,
+      networkId: chainId,
       pendulumNode,
       offramperAddress: address!,
       brlaEvmAddress: executionInput.brlaEvmAddress,

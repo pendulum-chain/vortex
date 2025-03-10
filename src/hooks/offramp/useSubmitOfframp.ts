@@ -170,7 +170,6 @@ export const useSubmitOfframp = () => {
     },
     [
       pendulumNode,
-      pendulumNode,
       setOfframpInitiating,
       setOfframpStarted,
       setSelectedNetwork,
@@ -179,7 +178,6 @@ export const useSubmitOfframp = () => {
       address,
       setOfframpExecutionInput,
       setOfframpKycStarted,
-      setOfframpExecutionInput,
       chainId,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
