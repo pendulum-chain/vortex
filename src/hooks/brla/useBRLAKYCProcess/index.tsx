@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { KYCStatus } from '../../../components/BrlaComponents/VerificationStatus';
-import { useOfframpActions, useOfframpStore } from '../../../stores/offrampStore';
+import { useOfframpActions } from '../../../stores/offrampStore';
 import { useOfframpSubmission } from '../useOfframpSubmission';
 import { useKYCStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
@@ -53,7 +53,7 @@ const useVerificationStatusUI = () => {
   };
 };
 
-export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: boolean) => void) {
+export function useKYCProcess() {
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
   const { taxId } = useFormStore();
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -92,7 +92,6 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
       resetToDefault();
       setIsSubmitted(true);
 
-      await queryClient.invalidateQueries({ queryKey: ['kyc-status', taxId] });
       const addressObject = {
         cep: formData.cep,
         city: formData.city,
@@ -101,19 +100,23 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
         district: formData.district,
         state: formData.state,
       };
-      createSubaccount({
-        ...formData,
-        cpf: taxId,
-        birthdate: formData.birthdate.toDateString(),
-        address: addressObject,
-        taxIdType: 'CPF',
-      })
-        .catch((error) => handleError(error.message))
-        .then(() => {
-          setCpf(taxId); // Only define cpf after the subaccount creation is successful. Otherwise query will fail.
+
+      try {
+        await createSubaccount({
+          ...formData,
+          cpf: taxId,
+          birthdate: formData.birthdate.toDateString(),
+          address: addressObject,
+          taxIdType: 'CPF',
         });
+
+        setCpf(taxId);
+        await queryClient.invalidateQueries({ queryKey: ['kyc-status', taxId] });
+      } catch (error) {
+        await handleError(error instanceof Error ? error.message : 'Unknown error');
+      }
     },
-    [queryClient, resetToDefault],
+    [handleError, queryClient, resetToDefault, taxId],
   );
 
   useEffect(() => {
@@ -150,7 +153,7 @@ export function useKYCProcess(setIsOfframpSummaryDialogVisible: (isVisible: bool
     if (kycResponse.status) {
       handleStatus(kycResponse.status);
     }
-  }, [kycResponse, handleBackClick, proceedWithOfframp, updateStatus, resetToDefault]);
+  }, [kycResponse, handleBackClick, proceedWithOfframp, updateStatus, resetToDefault, setOfframpKycStarted]);
 
   useEffect(() => {
     if (error) {
