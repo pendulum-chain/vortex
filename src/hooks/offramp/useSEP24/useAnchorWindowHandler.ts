@@ -29,8 +29,7 @@ export const useAnchorWindowHandler = () => {
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
-  const { address } = useVortexAccount();
-  const { chainId } = useVortexAccount();
+  const { address, chainId } = useVortexAccount();
 
   const firstSep24Response = useSep24InitialResponse();
   const anchorSessionParams = useSep24AnchorSessionParams();
