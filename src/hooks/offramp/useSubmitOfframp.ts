@@ -21,6 +21,7 @@ import { OfframpExecutionInput } from '../../types/offramp';
 import { constructBrlaInitialState } from '../../services/offrampingFlow';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { useChainId } from 'wagmi';
 
 export const useSubmitOfframp = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -38,6 +39,8 @@ export const useSubmitOfframp = () => {
     cleanup: cleanupSEP24,
   } = useSep24Actions();
   const { apiComponents: pendulumNode } = usePendulumNode();
+
+  const selectedNetworkId = useChainId();
 
   return useCallback(
     (executionInput: OfframpExecutionInput) => {
@@ -93,6 +96,7 @@ export const useSubmitOfframp = () => {
               amountIn: executionInput.inputAmountUnits,
               amountOut: Big(executionInput.outputAmountUnits.beforeFees),
               network: selectedNetwork,
+              networkId: selectedNetworkId,
               pendulumNode,
               offramperAddress: address,
               brlaEvmAddress,
@@ -103,7 +107,7 @@ export const useSubmitOfframp = () => {
           } else {
             const stellarEphemeralSecret = createStellarEphemeralSecret();
             const outputToken = getOutputTokenDetailsSpacewalk(executionInput.outputTokenType);
-            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
+            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 
             const { token: sep10Token, sep10Account } = await sep10(
               tomlValues,
@@ -163,21 +167,22 @@ export const useSubmitOfframp = () => {
     [
       offrampStarted,
       offrampState,
+      pendulumNode,
       setOfframpInitiating,
       setOfframpStarted,
-      trackEvent,
+      setSelectedNetwork,
       selectedNetwork,
+      trackEvent,
       address,
+      setOfframpExecutionInput,
+      selectedNetworkId,
+      updateOfframpHookStateFromState,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
-      setOfframpExecutionInput,
       setAnchorSessionParams,
-      setInitialResponseSEP24,
       setUrlIntervalSEP24,
+      setInitialResponseSEP24,
       cleanupSEP24,
-      setSelectedNetwork,
-      pendulumNode,
-      updateOfframpHookStateFromState,
     ],
   );
 };
