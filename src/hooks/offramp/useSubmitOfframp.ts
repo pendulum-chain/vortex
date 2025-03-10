@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import Big from 'big.js';
 
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useNetwork } from '../../contexts/network';
@@ -16,12 +17,10 @@ import { sep10 } from '../../services/anchor/sep10';
 import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import Big from 'big.js';
 import { OfframpExecutionInput } from '../../types/offramp';
 import { constructBrlaInitialState } from '../../services/offrampingFlow';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
-import { useChainId } from 'wagmi';
 
 export const useSubmitOfframp = () => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -40,7 +39,7 @@ export const useSubmitOfframp = () => {
   } = useSep24Actions();
   const { apiComponents: pendulumNode } = usePendulumNode();
 
-  const selectedNetworkId = useChainId();
+  const { chainId } = useVortexAccount();
 
   return useCallback(
     (executionInput: OfframpExecutionInput) => {
@@ -64,6 +63,10 @@ export const useSubmitOfframp = () => {
 
           if (!address) {
             throw new Error('Address must be defined at this stage');
+          }
+
+          if (!chainId) {
+            throw new Error('ChainId must be defined at this stage');
           }
 
           if (executionInput.outputTokenType === OutputTokenType.BRL) {
@@ -96,7 +99,7 @@ export const useSubmitOfframp = () => {
               amountIn: executionInput.inputAmountUnits,
               amountOut: Big(executionInput.outputAmountUnits.beforeFees),
               network: selectedNetwork,
-              networkId: selectedNetworkId,
+              networkId: chainId,
               pendulumNode,
               offramperAddress: address,
               brlaEvmAddress,
@@ -175,7 +178,7 @@ export const useSubmitOfframp = () => {
       trackEvent,
       address,
       setOfframpExecutionInput,
-      selectedNetworkId,
+      chainId,
       updateOfframpHookStateFromState,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
