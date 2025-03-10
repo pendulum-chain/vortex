@@ -101,7 +101,7 @@ export function useKYCProcess() {
         await createSubaccount({
           ...formData,
           cpf: taxId,
-          birthdate: formData.birthdate.getDate(),
+          birthdate: formData.birthdate.getTime(),
           address: addressObject,
           taxIdType: 'CPF',
         });

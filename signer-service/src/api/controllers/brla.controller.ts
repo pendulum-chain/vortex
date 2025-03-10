@@ -3,6 +3,16 @@ import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
 
+// BRLA API requires the date in the format YYYY-MMM-DD
+function convertDateToBRLAFormat(dateNumber: number) {
+  const date = new Date(dateNumber);
+  const year = date.getFullYear(); // YYYY
+  const month = date.toLocaleString('en-us', { month: 'short' }); // MMM
+  const day = String(date.getDate()).padStart(2, '0'); // DD with leading zero
+
+  return `${year}-${month}-${day}`;
+}
+
 // Helper function to use in the catch block of the controller functions.
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
   console.error(`Error while performing ${apiMethod}: `, error);
@@ -12,9 +22,14 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
     // Split the error message to get the actual error message from the BRLA API
     const splitError = error.message.split('Error: ');
     if (splitError.length > 1) {
-      const errorMessage = splitError[1];
-      const details = JSON.parse(errorMessage);
-      res.status(400).json({ error: 'Invalid request', details });
+      const errorMessageString = splitError[1];
+      try {
+        const details = JSON.parse(errorMessageString);
+        res.status(400).json({ error: 'Invalid request', details });
+      } catch (e) {
+        // The error was not encoded as JSON
+        res.status(400).json({ error: 'Invalid request', details: errorMessageString });
+      }
     } else {
       res.status(400).json({ error: 'Invalid request', details: error.message });
     }
@@ -25,16 +40,6 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
     error: 'Server error',
     details: error instanceof Error ? error.message : 'Unknown error',
   });
-}
-
-// BRLA API requires the date in the format YYYY-MMM-DD
-function convertDateToBRLAFormat(dateNumber: number) {
-  const date = new Date(dateNumber);
-  const year = date.getFullYear(); // YYYY
-  const month = date.toLocaleString('en-us', { month: 'short' }); // MMM
-  const day = String(date.getDate()).padStart(2, '0'); // DD with leading zero
-
-  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -151,7 +156,7 @@ export const getOfframpStatus = async (req: Request<{}, {}, {}, { taxId: string 
 };
 
 export const createSubaccount = async (
-  req: Request<{}, {}, RegisterSubaccountPayload>,
+  req: Request<{}, {}, RegisterSubaccountPayload & { birthdate: number }>, // We get the birthdate as a number
   res: Response,
 ): Promise<void> => {
   try {
@@ -163,8 +168,9 @@ export const createSubaccount = async (
       res.status(400).json({ error: 'Subaccount already created' });
       return;
     }
-    //rename birthdate to birthDate
-    const subaccountPayload = { ...req.body, birthDate: convertDateToBRLAFormat(req.body.birthdate) };
+    // Convert birthdate from number to BRLA format
+    const birthdate = convertDateToBRLAFormat(req.body.birthdate);
+    const subaccountPayload = { ...req.body, birthdate };
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
