@@ -6,14 +6,13 @@ import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
 import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
 import { SwapFormValues } from '../Nabla/schema';
-import { FormProvider, SubmitHandler, UseFormReturn } from 'react-hook-form';
+import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { AssetNumericInput } from '../AssetNumericInput';
 import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   InputTokenType,
   OutputTokenType,
-  OutputTokenTypes,
 } from '../../constants/tokenConfig';
 import { useNetwork } from '../../contexts/network';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
@@ -227,7 +226,6 @@ export const Swap = ({
             termsAccepted={termsAccepted}
             termsError={termsError}
             setTermsError={setTermsError}
-            setTermsAccepted={setTermsAccepted}
           />
         </section>
 

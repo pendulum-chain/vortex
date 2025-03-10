@@ -481,7 +481,7 @@ export const SwapPage = () => {
       />
       <SigningBox step={offrampSigningPhase} />
       {offrampKycStarted ? (
-        <PIXKYCForm feeComparisonRef={feeComparisonRef} setIsOfframpSummaryDialogVisible={setOfframpSummaryVisible} />
+        <PIXKYCForm feeComparisonRef={feeComparisonRef} />
       ) : (
         <Swap
           form={form}
