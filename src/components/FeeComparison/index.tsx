@@ -88,9 +88,8 @@ function FeeProviderRow({
     if (isLoading || !providerPrice || error) return;
     if (prevProviderPrice.current?.eq(providerPrice)) return;
 
-    onPriceFetched(provider.name, providerPrice);
     prevProviderPrice.current = providerPrice;
-  }, [isLoading, providerPrice, error, provider.name, onPriceFetched]);
+  }, [isLoading, providerPrice, error, provider.name]);
 
   useEffect(() => {
     if (isLoading || (!providerPrice && !error)) return;
@@ -103,7 +102,7 @@ function FeeProviderRow({
     };
 
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
-
+    onPriceFetched(provider.name, providerPrice ? providerPrice : new Big('0'));
     scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, trackQuote);
     prevVortexPrice.current = vortexPrice;
   }, [
