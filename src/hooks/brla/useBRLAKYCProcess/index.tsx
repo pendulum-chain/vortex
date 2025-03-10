@@ -20,10 +20,10 @@ enum KYCResponseStatus {
 }
 
 const STATUS_MESSAGES = {
-  PENDING: 'Estamos verificando seus dados, aguarde',
-  SUCCESS: 'Você foi validado',
-  REJECTED: 'Seu KYC foi rejeitado',
-  ERROR: 'Erro durante a verificação',
+  PENDING: 'Verifying your data, please wait',
+  SUCCESS: 'Verification successful',
+  REJECTED: 'KYC verification rejected',
+  ERROR: 'Verification error',
 };
 
 type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
