@@ -40,7 +40,7 @@ export async function isTransactionHashSafeWallet(hash: Hash, chainId: number) {
     });
 
     try {
-      const safeWalletTx = await safeApiKit.getSafeOperation(hash);
+      const safeTx = await safeApiKit.getTransaction(hash);
 
       return true;
     } catch (e) {
