@@ -39,17 +39,16 @@ export async function isTransactionHashSafeWallet(hash: Hash, chainId: number) {
       chainId: BigInt(chainId),
     });
 
-    const safeWalletTx = await safeApiKit.getSafeInfo(hash);
+    try {
+      const safeTx = await safeApiKit.getTransaction(hash);
 
-    // If we found information in the Safe API, it's a Safe Wallet transaction
-    if (safeWalletTx) {
       return true;
+    } catch (e) {
+      // Wait for 1 second before retrying to help the node index the transaction
+      await delay(1000);
+
+      // Retry, maybe the node we're querying now has the transaction indexed
+      return isTransactionHashSafeWallet(hash, chainId);
     }
-
-    // Wait for 1 second before retrying to help the node index the transaction
-    await delay(1000);
-
-    // Retry, maybe the node we're querying now has the transaction indexed
-    return isTransactionHashSafeWallet(hash, chainId);
   }
 }

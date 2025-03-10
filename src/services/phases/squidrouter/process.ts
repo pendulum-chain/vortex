@@ -147,6 +147,8 @@ export async function squidRouter(
       phase: 'pendulumFundEphemeral',
     };
   } catch (error) {
+    storageService.remove(storageKeys.SQUIDROUTER_RECOVERY_STATE_APPROVAL);
+    storageService.remove(storageKeys.SQUIDROUTER_RECOVERY_STATE_SWAP);
     return { ...state, failure: { type: 'unrecoverable', message: error?.toString() } };
   }
 }
