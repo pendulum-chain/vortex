@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import Big from 'big.js';
 
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useNetwork } from '../../contexts/network';
@@ -16,7 +17,6 @@ import { sep10 } from '../../services/anchor/sep10';
 import { useOfframpActions } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import Big from 'big.js';
 import { OfframpExecutionInput } from '../../types/offramp';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
@@ -44,6 +44,8 @@ export const useSubmitOfframp = () => {
   } = useSep24Actions();
   const { apiComponents: pendulumNode } = usePendulumNode();
 
+  const { chainId } = useVortexAccount();
+
   return useCallback(
     (executionInput: OfframpExecutionInput) => {
       if (!pendulumNode || !executionInput) {
@@ -66,6 +68,10 @@ export const useSubmitOfframp = () => {
 
           if (!address) {
             throw new Error('Address must be defined at this stage');
+          }
+
+          if (!chainId) {
+            throw new Error('ChainId must be defined at this stage');
           }
 
           // @TODO: BRL-related logic should be in a separate function/hook
@@ -164,6 +170,7 @@ export const useSubmitOfframp = () => {
     },
     [
       pendulumNode,
+      pendulumNode,
       setOfframpInitiating,
       setOfframpStarted,
       setSelectedNetwork,
@@ -172,6 +179,8 @@ export const useSubmitOfframp = () => {
       address,
       setOfframpExecutionInput,
       setOfframpKycStarted,
+      setOfframpExecutionInput,
+      chainId,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
       setAnchorSessionParams,

@@ -76,7 +76,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   }, [setSelectedNetwork]);
 
   return (
-    <NetworkContext.Provider
+    <NetworkContext
       value={{
         walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID,
         selectedNetwork,
@@ -86,7 +86,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
       }}
     >
       {children}
-    </NetworkContext.Provider>
+    </NetworkContext>
   );
 };
 

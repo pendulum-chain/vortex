@@ -87,6 +87,7 @@ export interface InitiateStateArguments {
   amountOut: Big;
   sepResult: SepResult;
   network: Networks;
+  networkId: number;
   pendulumNode: ApiComponents;
   offramperAddress: string;
 }
@@ -97,6 +98,7 @@ export interface BrlaInitiateStateArguments {
   amountIn: string;
   amountOut: Big;
   network: Networks;
+  networkId: number;
   pendulumNode: ApiComponents;
   offramperAddress: string;
   brlaEvmAddress: string;
@@ -126,6 +128,7 @@ export interface BaseOfframpingState {
   createdAt: number;
   failureTimeoutAt: number;
   network: Networks;
+  networkId: number;
   offramperAddress: string;
 }
 
@@ -234,6 +237,7 @@ async function constructBaseInitialState({
   amountIn,
   amountOut,
   network,
+  networkId,
   pendulumNode,
   offramperAddress,
 }: {
@@ -242,6 +246,7 @@ async function constructBaseInitialState({
   amountIn: string;
   amountOut: Big;
   network: Networks;
+  networkId: number;
   pendulumNode: ApiComponents;
   offramperAddress: string;
 }): Promise<BaseOfframpingState> {
@@ -290,6 +295,7 @@ async function constructBaseInitialState({
     createdAt: now,
     failureTimeoutAt: now + minutesInMs(10),
     network,
+    networkId,
     pendulumEphemeralAddress,
     offramperAddress,
   };
@@ -304,6 +310,7 @@ export async function constructInitialState({
   amountOut,
   sepResult,
   network,
+  networkId,
   pendulumNode,
   offramperAddress,
 }: InitiateStateArguments) {
@@ -313,6 +320,7 @@ export async function constructInitialState({
     amountIn,
     amountOut,
     network,
+    networkId,
     pendulumNode,
     offramperAddress,
   });
@@ -335,6 +343,7 @@ export async function constructBrlaInitialState({
   amountIn,
   amountOut,
   network,
+  networkId,
   offramperAddress,
   brlaEvmAddress,
   pixDestination,
@@ -347,6 +356,7 @@ export async function constructBrlaInitialState({
     amountIn,
     amountOut,
     network,
+    networkId,
     offramperAddress,
     pendulumNode,
   });
