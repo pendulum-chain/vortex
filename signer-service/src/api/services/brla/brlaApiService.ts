@@ -138,7 +138,8 @@ export class BrlaApiService {
     }
 
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}, ${await response.text()}`);
+      // This format matters and is used in the BRLA controller.
+      throw new Error(`Request failed with status '${response.status}'. Error: ${await response.text()}`);
     }
     try {
       return await response.json();

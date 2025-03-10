@@ -2,6 +2,31 @@ import { Request, Response } from 'express';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
+
+// Helper function to use in the catch block of the controller functions.
+function handleApiError(error: unknown, res: Response, apiMethod: string): void {
+  console.error(`Error while performing ${apiMethod}: `, error);
+
+  // Check in the error message if it's a 400 error from the BRLA API
+  if (error instanceof Error && error.message.includes("status '400'")) {
+    // Split the error message to get the actual error message from the BRLA API
+    const splitError = error.message.split('Error: ');
+    if (splitError.length > 1) {
+      const errorMessage = splitError[1];
+      const details = JSON.parse(errorMessage);
+      res.status(400).json({ error: 'Invalid request', details });
+    } else {
+      res.status(400).json({ error: 'Invalid request', details: error.message });
+    }
+    return;
+  }
+
+  res.status(500).json({
+    error: 'Server error',
+    details: error instanceof Error ? error.message : 'Unknown error',
+  });
+}
+
 /**
  * Retrieves a BRLA user's information based on Tax ID
  *
@@ -39,12 +64,7 @@ export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, r
     res.json({ evmAddress: subaccount.wallets.evm });
     return;
   } catch (error) {
-    console.error('Error while fetching subaccount: ', error);
-    res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-    return;
+    handleApiError(error, res, 'getBrlaUser');
   }
 };
 
@@ -78,12 +98,7 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
     res.status(200).json({ offrampId });
     return;
   } catch (error) {
-    console.error('Error while requesting offramp: ', error);
-    res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-    return;
+    handleApiError(error, res, 'triggerOfframp');
   }
 };
 
@@ -121,12 +136,7 @@ export const getOfframpStatus = async (req: Request<{}, {}, {}, { taxId: string 
 
     res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.status });
   } catch (error) {
-    console.error('Error while requesting offramp status: ', error);
-    res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-    return;
+    handleApiError(error, res, 'getOfframpStatus');
   }
 };
 
@@ -150,12 +160,7 @@ export const createSubaccount = async (
 
     res.status(200).json({ subaccountId: id });
   } catch (error) {
-    console.error('Error while creating subaccount: ', error);
-    res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-    return;
+    handleApiError(error, res, 'createSubaccount');
   }
 };
 
@@ -188,11 +193,6 @@ export const fetchSubaccountKycStatus = async (
 
     res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.kycStatus });
   } catch (error) {
-    console.error('Error while requesting KYC status: ', error);
-    res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    });
-    return;
+    handleApiError(error, res, 'fetchSubaccountKycStatus');
   }
 };
