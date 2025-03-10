@@ -58,8 +58,6 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
       res.status(404).json({ error: 'Subaccount not found' });
       return;
     }
-    const receiverTaxIdClean = receiverTaxId.replace(/\.|-/g, '');
-    const pixKeyClean = pixKey.replace(/\.|-/g, '');
 
     const subaccountId = subaccount.id;
     console.log(
@@ -68,14 +66,14 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
       ' Amount ',
       amount,
       'pixKey ',
-      pixKeyClean,
+      pixKey,
       'receiverTaxId ',
-      receiverTaxIdClean,
+      receiverTaxId,
     );
     const { id: offrampId } = await brlaApiService.triggerOfframp(subaccountId, {
-      pixKey: pixKeyClean,
+      pixKey,
       amount: Number(amount),
-      taxId: receiverTaxIdClean,
+      taxId: receiverTaxId,
     });
     res.status(200).json({ offrampId });
     return;
