@@ -31,24 +31,10 @@ export function formatPrice(price: Big | null | undefined): string {
   }).format(parseFloat(price.toFixed(2)));
 }
 
-function VortexRow({ targetAssetSymbol, vortexPrice }: VortexRowProps) {
-  return (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center w-full gap-4 ml-4 grow">
-        <img src={vortexIcon} className="h-10 w-36" alt="Vortex" />
-      </div>
-      <div className="flex items-center justify-center w-full gap-4 grow">
-        <div className="flex flex-col items-center">
-          <span className="font-bold text-md">{`${formatPrice(vortexPrice)} ${targetAssetSymbol}`}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 interface FeeProviderRowProps extends BaseComparisonProps {
   provider: QuoteProvider;
   isBestRate: boolean;
+  bestPrice: Big;
   onPriceFetched: (providerName: string, price: Big) => void;
 }
 
@@ -61,6 +47,7 @@ function FeeProviderRow({
   network,
   trackQuote,
   isBestRate,
+  bestPrice,
   onPriceFetched,
 }: FeeProviderRowProps) {
   const { scheduleQuote } = useEventsContext();
@@ -80,15 +67,17 @@ function FeeProviderRow({
   });
 
   const providerPrice = useMemo(() => {
+    if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
+
     if (!providerPriceRaw) return undefined;
     if (providerPriceRaw.lt(0)) return undefined;
     return providerPriceRaw;
-  }, [providerPriceRaw]);
+  }, [providerPriceRaw, vortexPrice]);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) return undefined;
-    return providerPrice.minus(vortexPrice);
-  }, [isLoading, error, providerPrice, vortexPrice]);
+    return providerPrice.minus(bestPrice);
+  }, [isLoading, error, providerPrice, bestPrice]);
 
   useEffect(() => {
     if (isLoading || !providerPrice || error) return;
@@ -127,8 +116,13 @@ function FeeProviderRow({
   ]);
 
   return (
-    <div className={`${isBestRate ? 'bg-green-500/10 rounded-md py-2' : ''}`}>
-      {isBestRate ? <span className="italic ml-4 text-sm text-green-700">Best rate</span> : null}
+    <div className={`${isBestRate ? 'bg-green-500/10 rounded-md py-1' : ''}`}>
+      {isBestRate ? (
+        <div className="pb-1">
+          {' '}
+          <span className="italic ml-4 text-sm text-green-700">Best rate</span>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between w-full">
         <a href={provider.href} rel="noreferrer" target="_blank" className="flex items-center w-full gap-4 ml-4 grow">
           {provider.icon}
@@ -149,8 +143,8 @@ function FeeProviderRow({
                   </>
                 )}
               </div>
-              {priceDiff && (
-                <div className={`flex justify-end w-full  ${priceDiff.gt(0) ? 'text-green-600' : 'text-red-600'}`}>
+              {priceDiff && priceDiff.lt(0) && (
+                <div className={`flex justify-end w-full text-red-600`}>
                   <span className="text-right font-bold">{`${formatPrice(priceDiff)} ${targetAssetSymbol}`}</span>
                 </div>
               )}
@@ -163,7 +157,7 @@ function FeeProviderRow({
 }
 
 function FeeComparisonTable(props: BaseComparisonProps) {
-  const { amount, sourceAssetSymbol, network, targetAssetSymbol, vortexPrice } = props;
+  const { amount, sourceAssetSymbol, network, vortexPrice } = props;
 
   const [providerPrices, setProviderPrices] = useState<{ [key: string]: Big }>({});
 
@@ -171,14 +165,18 @@ function FeeComparisonTable(props: BaseComparisonProps) {
     setProviderPrices((prev) => ({ ...prev, [providerName]: price }));
   }, []);
 
-  const allProviders = { vortex: vortexPrice, ...providerPrices };
-  const bestProvider = Object.entries(allProviders).reduce(
+  const bestProvider = Object.entries(providerPrices).reduce(
     (best, [provider, price]) => {
       return price.gt(best.bestPrice) ? { bestPrice: price, bestProvider: provider } : best;
     },
     { bestPrice: new Big(0), bestProvider: '' },
   );
 
+  const quoteProvidersOrdered = quoteProviders.sort((a, b) => {
+    const aPrice = providerPrices[a.name] ?? new Big(0);
+    const bPrice = providerPrices[b.name] ?? new Big(0);
+    return bPrice.minus(aPrice).toNumber();
+  });
   return (
     <div className="p-4 transition-all pb-8 duration-300 bg-white rounded-2xl shadow-custom hover:scale-[101%]">
       <div className="flex items-center justify-center w-full mb-3">
@@ -203,14 +201,8 @@ function FeeComparisonTable(props: BaseComparisonProps) {
           <span className="text-sm">(Total after fees)</span>
         </div>
       </div>
-      <div className="w-full my-4 border-b border-gray-200" />
-      <div className={`${bestProvider.bestProvider === 'vortex' ? 'bg-green-500/10 rounded-md py-2' : ''}`}>
-        {bestProvider.bestProvider === 'vortex' ? (
-          <span className="italic ml-4 text-sm text-green-700">Best rate</span>
-        ) : null}
-        <VortexRow targetAssetSymbol={targetAssetSymbol} vortexPrice={vortexPrice} />
-      </div>
-      {quoteProviders.map((provider) => (
+
+      {quoteProvidersOrdered.map((provider) => (
         <div key={provider.name}>
           <div className="w-full my-4 border-b border-gray-200" />
           <FeeProviderRow
@@ -218,6 +210,8 @@ function FeeComparisonTable(props: BaseComparisonProps) {
             provider={provider}
             onPriceFetched={handlePriceUpdate}
             isBestRate={provider.name === bestProvider.bestProvider}
+            bestPrice={bestProvider.bestPrice}
+            vortexPrice={vortexPrice}
           />
         </div>
       ))}
