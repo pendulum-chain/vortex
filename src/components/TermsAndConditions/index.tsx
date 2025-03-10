@@ -4,7 +4,6 @@ import { Dispatch, SetStateAction } from 'react';
 interface TermsAndConditionsProps {
   toggleTermsChecked: () => void;
   setTermsError: Dispatch<SetStateAction<boolean>>;
-  setTermsAccepted: (accepted: boolean) => void;
   termsChecked: boolean;
   termsAccepted: boolean;
   termsError: boolean;
@@ -27,7 +26,6 @@ const TermsAndConditionsContent = ({
   setTermsError,
   termsChecked,
   termsError,
-  setTermsAccepted,
 }: TermsAndConditionsProps) => (
   <motion.div key="terms-conditions" exit={fadeOutAnimation}>
     <div className="mb-5 text-sm" />
@@ -37,7 +35,6 @@ const TermsAndConditionsContent = ({
         className="checkbox checkbox-primary checkbox-sm"
         checked={termsChecked}
         onChange={() => {
-          setTermsAccepted(true);
           toggleTermsChecked();
           setTermsError(false);
         }}
