@@ -12,7 +12,7 @@ export interface BaseComparisonProps {
   network: Networks;
   trackQuote: boolean;
   children?: React.ReactNode;
-  ref?: React.RefObject<HTMLDivElement>;
+  ref?: React.RefObject<HTMLDivElement | null>;
 }
 
 export const FeeComparison: FC<BaseComparisonProps> = ({

@@ -9,7 +9,7 @@ import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
 import { TermsAndConditions } from '../../components/TermsAndConditions';
 import { AssetNumericInput } from '../../components/AssetNumericInput';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
+import { FeeComparison } from '../../components/FeeComparison';
 import { BenefitsList } from '../../components/BenefitsList';
 import { ExchangeRate } from '../../components/ExchangeRate';
 import { LabeledInput } from '../../components/LabeledInput';
@@ -80,7 +80,7 @@ type Definitions = InputTokenType | OutputTokenType;
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
-  const feeComparisonRef = useRef<FeeComparisonRef>(null);
+  const feeComparisonRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
   const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
