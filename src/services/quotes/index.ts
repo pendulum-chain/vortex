@@ -6,7 +6,7 @@ import { isNetworkEVM, Networks } from '../../helpers/networks';
 
 const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
 
-export type QuoteService = 'moonpay' | 'transak' | 'alchemypay';
+export type QuoteService = 'moonpay' | 'transak' | 'alchemypay' | 'vortex';
 
 export type SupportedNetworks = typeof polygon.name;
 
@@ -28,6 +28,7 @@ async function getQuoteFromService(
   amount: Big,
   network: Networks,
 ): Promise<Big> {
+  if (provider === 'vortex') return new Big(0);
   let compatibleNetwork = network;
   if (!isNetworkEVM(network)) {
     console.error(`Network ${network} is not supported`);

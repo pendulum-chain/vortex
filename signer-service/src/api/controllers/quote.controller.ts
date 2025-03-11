@@ -14,7 +14,7 @@ export type Provider = (typeof SUPPORTED_PROVIDERS)[number];
 export const SUPPORTED_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
 export type CryptoCurrency = (typeof SUPPORTED_CRYPTO_CURRENCIES)[number];
 
-export const SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars'] as const;
+export const SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
 export type FiatCurrency = (typeof SUPPORTED_FIAT_CURRENCIES)[number];
 
 type AnyQuote = AlchemyPayQuote | MoonpayQuote | TransakQuoteResult;

@@ -1,6 +1,6 @@
 import React, { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { FeeComparisonRef } from '../FeeComparison';
+
 import { useOfframpInitiating, useOfframpStarted, useOfframpState, useOfframpStore } from '../../stores/offrampStore';
 import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
@@ -44,7 +44,7 @@ interface SwapProps {
   to: OutputTokenType;
   tokenOutAmount: UseTokenOutAmountResult;
   fromAmount: Big.Big | undefined;
-  feeComparisonRef: RefObject<FeeComparisonRef | null>;
+  feeComparisonRef: RefObject<HTMLDivElement | null>;
   inputAmountIsStable: boolean;
   trackQuote: React.RefObject<boolean>;
   apiInitializeFailed: boolean;
@@ -78,8 +78,7 @@ export const Swap = ({
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getOutputTokenDetails(to);
 
-  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
-    useTermsAndConditions();
+  const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
 
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
@@ -145,7 +144,7 @@ export const Swap = ({
     (e: React.MouseEvent) => {
       e.preventDefault();
       setTimeout(() => {
-        feeComparisonRef.current?.scrollIntoView();
+        feeComparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 200);
       trackQuote.current = true;
     },
