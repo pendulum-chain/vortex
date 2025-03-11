@@ -60,24 +60,8 @@ export async function executePendulumToMoonbeamXCM(
 
   const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
-  try {
-    const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
-    state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
-  } catch (error) {
-    console.error('Failed to submit XCM transfer to Moonbeam', error);
-
-    const xcm = encodeSubmittableExtrinsic(
-      await createPendulumToMoonbeamTransfer(
-        pendulumNode,
-        state.brlaEvmAddress!,
-        outputAmount.raw,
-        state.pendulumEphemeralSeed,
-      ),
-    );
-
-    const newTransactions: BrlaOfframpTransactions = { ...transactions, pendulumToMoonbeamXcmTransaction: xcm };
-    return { ...state, transactions: newTransactions, phase: 'performBrlaPayoutOnMoonbeam' };
-  }
+  const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
+  state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };
 }
