@@ -107,7 +107,7 @@ export const submitXTokens = async (
             reject('Xcm transaction failed');
           }
 
-          // Try to find 'polkadotXcm.Sent' events
+          // Try to find 'xTokens.TransferredMultiAssets' events
           const xTokenEvents = events.filter((record) => {
             return record.event.section === 'xTokens' && record.event.method === 'TransferredMultiAssets';
           });
