@@ -1,6 +1,7 @@
-import { Spinner } from '../../Spinner';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
+
 import { KycStatus } from '../../../services/signingService';
+import { Spinner } from '../../Spinner';
 
 interface VerificationStatusProps {
   status: KycStatus;
@@ -14,7 +15,7 @@ export const VerificationStatus = ({ status, message }: VerificationStatusProps)
     animate={{ scale: 1, opacity: 1 }}
     transition={{ duration: 0.3 }}
   >
-    {status === KycStatus.PENDING && <Spinner />}
+    {status === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
     {status === KycStatus.APPROVED && <SuccessIcon />}
     {status === KycStatus.REJECTED && <ErrorIcon />}
     <motion.p

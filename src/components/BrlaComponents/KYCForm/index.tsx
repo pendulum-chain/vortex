@@ -63,7 +63,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef 
               Back
             </button>
             <button type="submit" className="btn-vortex-primary btn flex-1">
-              Continue
+              Finish
             </button>
           </div>
           <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={compareFeesClick}>
