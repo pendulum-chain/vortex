@@ -1,6 +1,6 @@
 import Big from 'big.js';
 
-const ChainDecimals = 12;
+export const ChainDecimals = 12;
 
 export const nativeToDecimal = (value: Big, decimals: number = ChainDecimals): Big => {
   const divisor = new Big(10).pow(decimals);

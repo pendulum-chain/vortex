@@ -53,10 +53,18 @@ type Methods = keyof EndpointMapping[keyof EndpointMapping];
 export class BrlaApiService {
   private static instance: BrlaApiService;
   private token: string | null = null;
+  private brlaBusinessUsername: string;
+  private brlaBusinessPassword: string;
 
   private readonly loginUrl: string = `${BRLA_BASE_URL}/login`;
 
-  private constructor() {}
+  private constructor() {
+    if (!BRLA_LOGIN_USERNAME || !BRLA_LOGIN_PASSWORD) {
+      throw new Error('BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined');
+    }
+    this.brlaBusinessUsername = BRLA_LOGIN_USERNAME;
+    this.brlaBusinessPassword = BRLA_LOGIN_PASSWORD;
+  }
 
   public static getInstance(): BrlaApiService {
     if (!BrlaApiService.instance) {
@@ -72,7 +80,7 @@ export class BrlaApiService {
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email: BRLA_LOGIN_USERNAME, password: BRLA_LOGIN_PASSWORD }),
+      body: JSON.stringify({ email: this.brlaBusinessUsername, password: this.brlaBusinessPassword }),
     });
 
     if (!response.ok) {
@@ -130,7 +138,8 @@ export class BrlaApiService {
     }
 
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}, ${await response.text()}`);
+      // This format matters and is used in the BRLA controller.
+      throw new Error(`Request failed with status '${response.status}'. Error: ${await response.text()}`);
     }
     try {
       return await response.json();
@@ -140,15 +149,15 @@ export class BrlaApiService {
   }
 
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
-    const endpoint = `/subaccounts`;
     const query = `taxId=${encodeURIComponent(taxId)}`;
-    const response = await this.sendRequest(endpoint, 'GET', query);
+    const response = await this.sendRequest('/subaccounts', 'GET', query);
     return response.subaccounts[0];
   }
 
-  public async triggerOfframp(offrampParams: OfframpPayload): Promise<{ id: string }> {
+  public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
     const endpoint = `/pay-out`;
-    return await this.sendRequest(endpoint, 'POST', undefined, offrampParams);
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(endpoint, 'POST', query, offrampParams);
   }
 
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {

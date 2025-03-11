@@ -122,13 +122,13 @@ export async function squidRouter(
 
     const approvalHash = await handleTokenApproval(inputToken, transactionRequest, state, wagmiConfig, trackEvent);
 
-    const confirmedApprovalHash = await waitForTransactionConfirmation(approvalHash);
+    const confirmedApprovalHash = await waitForTransactionConfirmation(approvalHash, state.networkId);
 
     setOfframpSigningPhase?.('approved');
 
     const swapHash = await handleSwapTransaction(transactionRequest, wagmiConfig, trackEvent);
 
-    const confirmedSwapHash = await waitForTransactionConfirmation(swapHash);
+    const confirmedSwapHash = await waitForTransactionConfirmation(swapHash, state.networkId);
 
     setOfframpSigningPhase?.('signed');
 
@@ -147,6 +147,8 @@ export async function squidRouter(
       phase: 'pendulumFundEphemeral',
     };
   } catch (error) {
+    storageService.remove(storageKeys.SQUIDROUTER_RECOVERY_STATE_APPROVAL);
+    storageService.remove(storageKeys.SQUIDROUTER_RECOVERY_STATE_SWAP);
     return { ...state, failure: { type: 'unrecoverable', message: error?.toString() } };
   }
 }

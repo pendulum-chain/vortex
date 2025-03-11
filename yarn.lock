@@ -10043,7 +10043,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-hook-form@npm:^7.51.5":
+"react-hook-form@npm:^7.54.2":
   version: 7.54.2
   resolution: "react-hook-form@npm:7.54.2"
   peerDependencies:
@@ -11983,7 +11983,7 @@ __metadata:
     prettier: "npm:^2.8.4"
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
-    react-hook-form: "npm:^7.51.5"
+    react-hook-form: "npm:^7.54.2"
     react-toastify: "npm:^10.0.6"
     stellar-base: "npm:^11.0.1"
     stellar-sdk: "npm:^13.1.0"

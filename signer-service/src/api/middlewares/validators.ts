@@ -2,7 +2,11 @@ import { RequestHandler } from 'express';
 import { isStellarTokenConfig, TOKEN_CONFIG, TokenConfig } from '../../constants/tokenConfig';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
-import { DUMP_SHEET_HEADER_VALUES_ASSETHUB, DUMP_SHEET_HEADER_VALUES_EVM } from '../controllers/storage.controller';
+import {
+  DUMP_SHEET_HEADER_VALUES_ASSETHUB,
+  DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM,
+  DUMP_SHEET_HEADER_VALUES_EVM_STELLAR,
+} from '../controllers/storage.controller';
 import {
   SUPPORTED_PROVIDERS,
   SUPPORTED_CRYPTO_CURRENCIES,
@@ -154,7 +158,9 @@ const validateRequestBodyValuesForTransactionStore = (): RequestHandler => (req,
   }
 
   const requiredRequestBodyKeys = offramperAddress.includes('0x')
-    ? DUMP_SHEET_HEADER_VALUES_EVM
+    ? req.body.stellarEphemeralPublicKey
+      ? DUMP_SHEET_HEADER_VALUES_EVM_STELLAR
+      : DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM
     : DUMP_SHEET_HEADER_VALUES_ASSETHUB;
 
   validateRequestBodyValues(requiredRequestBodyKeys)(req, res, next);
@@ -298,8 +304,8 @@ export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) 
     return;
   }
 
-  if (!amount) {
-    res.status(400).json({ error: 'Missing amount parameter' });
+  if (!amount || isNaN(Number(amount))) {
+    res.status(400).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
 
@@ -312,7 +318,7 @@ export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) 
 };
 
 export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
-  const { phone, taxIdType, address, fullName, cpf, birthDate, companyName, startDate, cnpj } =
+  const { phone, taxIdType, address, fullName, cpf, birthdate, companyName, startDate, cnpj } =
     req.body as RegisterSubaccountPayload;
 
   if (taxIdType !== 'CPF' && taxIdType !== 'CNPJ') {
@@ -340,8 +346,8 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
     return;
   }
 
-  if (!birthDate) {
-    res.status(400).json({ error: 'Missing birthDate parameter' });
+  if (!birthdate) {
+    res.status(400).json({ error: 'Missing birthdate parameter' });
     return;
   }
 

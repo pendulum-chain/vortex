@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import Big from 'big.js';
 
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useNetwork } from '../../contexts/network';
@@ -8,17 +9,15 @@ import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   getOutputTokenDetailsSpacewalk,
-  OutputTokenType,
+  OutputTokenTypes,
 } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
-import { useOfframpActions, useOfframpStarted, useOfframpState } from '../../stores/offrampStore';
+import { useOfframpActions } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import Big from 'big.js';
 import { OfframpExecutionInput } from '../../types/offramp';
-import { constructBrlaInitialState } from '../../services/offrampingFlow';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
@@ -27,10 +26,16 @@ export const useSubmitOfframp = () => {
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
-  const offrampStarted = useOfframpStarted();
-  const offrampState = useOfframpState();
-  const { setOfframpStarted, setOfframpInitiating, setOfframpExecutionInput, updateOfframpHookStateFromState } =
-    useOfframpActions();
+
+  const {
+    setOfframpStarted,
+    setOfframpInitiating,
+    setOfframpExecutionInput,
+    setOfframpKycStarted,
+    setInitializeFailedMessage,
+    setOfframpSummaryVisible,
+  } = useOfframpActions();
+
   const {
     setAnchorSessionParams,
     setInitialResponse: setInitialResponseSEP24,
@@ -39,9 +44,11 @@ export const useSubmitOfframp = () => {
   } = useSep24Actions();
   const { apiComponents: pendulumNode } = usePendulumNode();
 
+  const { chainId } = useVortexAccount();
+
   return useCallback(
     (executionInput: OfframpExecutionInput) => {
-      if (offrampStarted || offrampState !== undefined || !pendulumNode) {
+      if (!pendulumNode || !executionInput) {
         setOfframpInitiating(false);
         return;
       }
@@ -63,9 +70,15 @@ export const useSubmitOfframp = () => {
             throw new Error('Address must be defined at this stage');
           }
 
-          if (executionInput.outputTokenType === OutputTokenType.BRL) {
+          if (!chainId) {
+            throw new Error('ChainId must be defined at this stage');
+          }
+
+          // @TODO: BRL-related logic should be in a separate function/hook
+          if (executionInput.outputTokenType === OutputTokenTypes.BRL) {
             const { taxId, pixId } = executionInput;
             if (!taxId || !pixId) {
+              console.log('no tax id or pix id defined');
               setOfframpStarted(false);
               setOfframpInitiating(false);
               return;
@@ -76,34 +89,29 @@ export const useSubmitOfframp = () => {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
               if (response.status === 404) {
-                // TODO: Redirect to subaccount creation/KYC flow.
-                setOfframpStarted(false);
-                setOfframpInitiating(false);
+                console.log("User doesn't exist yet.");
+                setOfframpKycStarted(true);
                 return;
               }
-              throw new Error('Error while fetching funding account signature');
+              if ((await response.text()).includes('KYC invalid')) {
+                setInitializeFailedMessage('Your KYC level is invalid. Please contact support.');
+                setOfframpStarted(false);
+                setOfframpInitiating(false);
+                cleanupSEP24();
+                return;
+              }
+              throw new Error('Error while fetching BRLA user');
             }
             const { evmAddress: brlaEvmAddress } = await response.json();
-            const brlaOfframpExecution = { ...executionInput, brlaEvmAddress };
-            setOfframpExecutionInput(brlaOfframpExecution);
+            // append EVM address to execution input
+            const updatedBrlaOfframpExecution = { ...executionInput, brlaEvmAddress };
+            setOfframpExecutionInput(updatedBrlaOfframpExecution);
 
-            const initialState = await constructBrlaInitialState({
-              inputTokenType: executionInput.inputTokenType,
-              outputTokenType: executionInput.outputTokenType,
-              amountIn: executionInput.inputAmountUnits,
-              amountOut: Big(executionInput.outputAmountUnits.beforeFees),
-              network: selectedNetwork,
-              pendulumNode,
-              offramperAddress: address,
-              brlaEvmAddress,
-              pixDestination: pixId,
-              taxId,
-            });
-            updateOfframpHookStateFromState(initialState);
+            setOfframpSummaryVisible(true);
           } else {
             const stellarEphemeralSecret = createStellarEphemeralSecret();
             const outputToken = getOutputTokenDetailsSpacewalk(executionInput.outputTokenType);
-            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl!);
+            const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 
             const { token: sep10Token, sep10Account } = await sep10(
               tomlValues,
@@ -135,7 +143,7 @@ export const useSubmitOfframp = () => {
               firstSep24Response.url = url.toString();
               setInitialResponseSEP24(firstSep24Response);
             };
-
+            setOfframpSummaryVisible(true);
             setUrlIntervalSEP24(window.setInterval(fetchAndUpdateSep24Url, 20000));
             try {
               await fetchAndUpdateSep24Url();
@@ -161,23 +169,24 @@ export const useSubmitOfframp = () => {
       })();
     },
     [
-      offrampStarted,
-      offrampState,
+      pendulumNode,
       setOfframpInitiating,
       setOfframpStarted,
-      trackEvent,
+      setSelectedNetwork,
       selectedNetwork,
+      trackEvent,
       address,
+      setOfframpExecutionInput,
+      setOfframpKycStarted,
+      chainId,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
-      setOfframpExecutionInput,
       setAnchorSessionParams,
-      setInitialResponseSEP24,
       setUrlIntervalSEP24,
+      setInitialResponseSEP24,
       cleanupSEP24,
-      setSelectedNetwork,
-      pendulumNode,
-      updateOfframpHookStateFromState,
+      setInitializeFailedMessage,
+      setOfframpSummaryVisible,
     ],
   );
 };

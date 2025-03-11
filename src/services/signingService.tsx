@@ -6,6 +6,7 @@ interface AccountStatusResponse {
   status: boolean;
   public: string;
 }
+
 interface SigningServiceStatus {
   pendulum: AccountStatusResponse;
   stellar: AccountStatusResponse;
@@ -23,7 +24,14 @@ type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
 type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
 
 type BrlaKycState = 'KYC';
-type KycStatus = 'POSTED' | 'FAILED' | 'SUCCESS';
+
+export enum KycStatus {
+  PENDING = 'PENDING',
+  REJECTED = 'REJECTED',
+  APPROVED = 'APPROVED',
+}
+
+export type KycStatusType = keyof typeof KycStatus;
 
 interface BrlaOfframpStatus {
   type: BrlaOfframpState;
@@ -32,10 +40,11 @@ interface BrlaOfframpStatus {
 
 interface BrlaKycStatus {
   type: BrlaKycState;
-  status: KycStatus;
+  status: KycStatusType;
 }
 
 type TaxIdType = 'CPF' | 'CNPJ';
+
 export interface RegisterSubaccountPayload {
   phone: string;
   taxIdType: TaxIdType;
@@ -49,7 +58,7 @@ export interface RegisterSubaccountPayload {
   };
   fullName: string;
   cpf: string;
-  birthDate: string;
+  birthdate: number; // Denoted in milliseconds since epoch
 }
 
 export interface SignerServiceSep10Request {
@@ -184,11 +193,7 @@ export const fetchKycStatus = async (taxId: string) => {
   const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}`);
 
   if (statusResponse.status !== 200) {
-    if (statusResponse.status === 404) {
-      throw new Error('No KYC status found');
-    } else {
-      throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
-    }
+    throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
   }
 
   const eventStatus: BrlaKycStatus = await statusResponse.json();
@@ -203,6 +208,11 @@ export const createSubaccount = async (kycData: RegisterSubaccountPayload): Prom
     credentials: 'include',
     body: JSON.stringify(kycData),
   });
+
+  if (accountCreationResponse.status === 400) {
+    const { details } = await accountCreationResponse.json();
+    throw new Error('Failed to create user. Reason: ' + details.error);
+  }
 
   if (accountCreationResponse.status !== 200) {
     throw new Error(`Failed to fetch KYC status from server: ${accountCreationResponse.statusText}`);

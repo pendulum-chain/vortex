@@ -7,45 +7,83 @@ const { spreadsheet } = config;
 type CommonHeaderValues = [
   'timestamp',
   'offramperAddress',
-  'stellarEphemeralPublicKey',
   'pendulumEphemeralPublicKey',
   'nablaApprovalTx',
   'nablaSwapTx',
-  'spacewalkRedeemTx',
-  'stellarOfframpTx',
-  'stellarCleanupTx',
   'inputAmount',
   'inputTokenType',
   'outputAmount',
   'outputTokenType',
 ];
 
-type EVMExtraHeaders = ['squidRouterReceiverId', 'squidRouterReceiverHash'];
+type AssethubExtraHeaders = ['stellarEphemeralPublicKey', 'spacewalkRedeemTx', 'stellarOfframpTx', 'stellarCleanupTx'];
 
-export const DUMP_SHEET_HEADER_VALUES_ASSETHUB: CommonHeaderValues = [
-  'timestamp',
-  'offramperAddress',
+type EVMExtraHeaders = [
   'stellarEphemeralPublicKey',
-  'pendulumEphemeralPublicKey',
-  'nablaApprovalTx',
-  'nablaSwapTx',
   'spacewalkRedeemTx',
   'stellarOfframpTx',
   'stellarCleanupTx',
+  'squidRouterReceiverId',
+  'squidRouterReceiverHash',
+];
+
+type MoonbeamExtraHeaders = ['squidRouterReceiverId', 'squidRouterReceiverHash', 'pendulumToMoonbeamXcmTx'];
+
+export const DUMP_SHEET_HEADER_VALUES_ASSETHUB: [...CommonHeaderValues, ...AssethubExtraHeaders] = [
+  'timestamp',
+  'offramperAddress',
+  'pendulumEphemeralPublicKey',
+  'nablaApprovalTx',
+  'nablaSwapTx',
   'inputAmount',
   'inputTokenType',
   'outputAmount',
   'outputTokenType',
+  'stellarEphemeralPublicKey',
+  'spacewalkRedeemTx',
+  'stellarOfframpTx',
+  'stellarCleanupTx',
 ] as const;
 
-export const DUMP_SHEET_HEADER_VALUES_EVM: [...CommonHeaderValues, ...EVMExtraHeaders] = [
+export const DUMP_SHEET_HEADER_VALUES_EVM_STELLAR: [...CommonHeaderValues, ...EVMExtraHeaders] = [
   ...DUMP_SHEET_HEADER_VALUES_ASSETHUB,
   'squidRouterReceiverId',
   'squidRouterReceiverHash',
 ] as const;
 
+export const DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM: [...CommonHeaderValues, ...MoonbeamExtraHeaders] = [
+  'timestamp',
+  'offramperAddress',
+  'pendulumEphemeralPublicKey',
+  'nablaApprovalTx',
+  'nablaSwapTx',
+  'inputAmount',
+  'inputTokenType',
+  'outputAmount',
+  'outputTokenType',
+  'squidRouterReceiverId',
+  'squidRouterReceiverHash',
+  'pendulumToMoonbeamXcmTx',
+] as const;
+
 interface StorageRequestBody {
   offramperAddress: string;
+  timestamp?: string;
+  pendulumEphemeralPublicKey?: string;
+  nablaApprovalTx?: string;
+  nablaSwapTx?: string;
+  inputAmount?: string;
+  inputTokenType?: string;
+  outputAmount?: string;
+  outputTokenType?: string;
+  squidRouterReceiverId?: string;
+  squidRouterReceiverHash?: string;
+  pendulumToMoonbeamXcmT?: string;
+  stellarEphemeralPublicKey?: string;
+  spacewalkRedeemTx?: string;
+  stellarOfframpTx?: string;
+  stellarCleanupTx?: string;
+  squidRouterReceiverHas?: string;
 }
 
 export const storeData = async (req: Request<{}, {}, StorageRequestBody>, res: Response): Promise<void> => {
@@ -54,7 +92,9 @@ export const storeData = async (req: Request<{}, {}, StorageRequestBody>, res: R
   }
 
   const sheetHeaderValues = req.body.offramperAddress.includes('0x')
-    ? DUMP_SHEET_HEADER_VALUES_EVM
+    ? req.body.stellarEphemeralPublicKey
+      ? DUMP_SHEET_HEADER_VALUES_EVM_STELLAR
+      : DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM
     : DUMP_SHEET_HEADER_VALUES_ASSETHUB;
 
   console.log(sheetHeaderValues);

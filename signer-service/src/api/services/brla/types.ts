@@ -48,15 +48,14 @@ export interface RegisterSubaccountPayload {
   address: BrlaAddress;
   fullName: string;
   cpf: string;
-  birthDate: string;
+  birthdate: string;
   companyName?: string;
   startDate?: string;
   cnpj?: string;
 }
 
 export interface OfframpPayload {
-  subaccountId: string;
   pixKey: string;
-  amount: string;
-  receiverTaxId: string;
+  amount: number;
+  taxId: string;
 }

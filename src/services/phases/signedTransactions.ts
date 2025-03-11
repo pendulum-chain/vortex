@@ -16,7 +16,7 @@ import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './n
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { prepareSpacewalkRedeemTransaction } from './polkadot';
 import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
-import { OutputTokenType } from '../../constants/tokenConfig';
+import { OutputTokenTypes } from '../../constants/tokenConfig';
 
 const getNextPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
   // For AssetHub we skip the squidRouter and go straight to the pendulumFundEphemeral phase
@@ -68,7 +68,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   };
 
   try {
-    if (outputTokenType !== OutputTokenType.BRL) {
+    if (outputTokenType !== OutputTokenTypes.BRL) {
       ({ transactions, stellarEphemeralPublicKey } = await prepareSpacewalkOfframpTransactions(state, context));
       const data = {
         ...dataCommon,

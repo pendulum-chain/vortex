@@ -14,8 +14,8 @@ import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesSt
  * @param hash - The transaction hash to monitor
  * @returns A promise that resolves to the final transaction hash
  */
-export async function waitForTransactionConfirmation(hash: Hash): Promise<Hash> {
-  const isSafeWalletTransaction = await isTransactionHashSafeWallet(hash);
+export async function waitForTransactionConfirmation(hash: Hash, chainId: number): Promise<Hash> {
+  const isSafeWalletTransaction = await isTransactionHashSafeWallet(hash, chainId);
 
   if (isSafeWalletTransaction) {
     // Wait for all required signatures via Safe API
