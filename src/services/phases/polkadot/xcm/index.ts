@@ -1,5 +1,5 @@
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { parseEventXcmSent, XcmSentEvent } from '../eventParsers';
+import { parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from '../eventParsers';
 import { WalletAccount } from '@talismn/connect-wallets';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 
@@ -76,6 +76,46 @@ export const submitXcm = async (
             .map((event) => parseEventXcmSent(event))
             .filter((event) => {
               return event.originAddress == address;
+            });
+
+          if (event.length == 0) {
+            reject(new Error(`No XcmSent event found for account ${address}`));
+          }
+          resolve({ event: event[0], hash });
+        }
+      })
+      .catch((error) => {
+        reject(new Error(`Failed to do XCM transfer: ${error}`));
+      });
+  });
+};
+
+export const submitXTokens = async (
+  address: string,
+  extrinsic: SubmittableExtrinsic<'promise'>,
+): Promise<{ event: XTokensEvent; hash: string }> => {
+  return new Promise((resolve, reject) => {
+    extrinsic
+      .send((submissionResult: ISubmittableResult) => {
+        const { status, events, dispatchError } = submissionResult;
+
+        if (status.isFinalized) {
+          const hash = status.asFinalized.toString();
+
+          // Try to find a 'system.ExtrinsicFailed' event
+          if (dispatchError) {
+            reject('Xcm transaction failed');
+          }
+
+          // Try to find 'polkadotXcm.Sent' events
+          const xTokenEvents = events.filter((record) => {
+            return record.event.section === 'xTokens' && record.event.method === 'TransferredMultiAssets';
+          });
+
+          const event = xTokenEvents
+            .map((event) => parseEventXTokens(event))
+            .filter((event) => {
+              return event.sender == address;
             });
 
           if (event.length == 0) {
