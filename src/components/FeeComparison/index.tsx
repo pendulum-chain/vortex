@@ -2,9 +2,7 @@ import Big from 'big.js';
 import { useEffect, useRef, useMemo, useImperativeHandle, useCallback, useState } from 'react';
 import { forwardRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
-import vortexIcon from '../../assets/logo/blue.svg';
 import { getNetworkDisplayName, isNetworkEVM, Networks } from '../../helpers/networks';
 import { Skeleton } from '../Skeleton';
 import { QuoteProvider, quoteProviders } from './quoteProviders';
@@ -18,8 +16,6 @@ interface BaseComparisonProps {
   network: Networks;
   trackQuote: boolean;
 }
-
-type VortexRowProps = Pick<BaseComparisonProps, 'targetAssetSymbol' | 'vortexPrice'>;
 
 export function formatPrice(price: Big | null | undefined): string {
   if (!price) return '0.00';
@@ -69,13 +65,11 @@ function FeeProviderRow({
   const providerPrice = useMemo(() => {
     if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
 
-    if (!providerPriceRaw) return undefined;
-    if (providerPriceRaw.lt(0)) return undefined;
-    return providerPriceRaw;
-  }, [providerPriceRaw, vortexPrice]);
+    return providerPriceRaw && providerPriceRaw.gte(0) ? providerPriceRaw : undefined;
+  }, [providerPriceRaw, vortexPrice, provider.name]);
 
   const priceDiff = useMemo(() => {
-    if (isLoading || error || !providerPrice) return undefined;
+    if (isLoading || error || !providerPrice) return;
     return providerPrice.minus(bestPrice);
   }, [isLoading, error, providerPrice, bestPrice]);
 
@@ -113,16 +107,12 @@ function FeeProviderRow({
     vortexPrice,
     trackQuote,
     error,
+    onPriceFetched,
   ]);
 
   return (
     <div className={`${isBestRate ? 'bg-green-500/10 rounded-md py-1' : ''}`}>
-      {isBestRate ? (
-        <div className="pb-1">
-          {' '}
-          <span className="italic ml-4 text-sm text-green-700">Best rate</span>
-        </div>
-      ) : null}
+      {isBestRate && <div className="pb-1 ml-4 text-sm italic text-green-700">Best rate</div>}
       <div className="flex items-center justify-between w-full">
         <a href={provider.href} rel="noreferrer" target="_blank" className="flex items-center w-full gap-4 ml-4 grow">
           {provider.icon}
