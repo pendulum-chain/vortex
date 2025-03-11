@@ -6,7 +6,7 @@ import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
-import { signAndSubmitXcm } from '../xcm';
+import { signAndSubmitXcm, TransactionInclusionError, verifyXcmSentEvent } from '../xcm';
 
 function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
@@ -62,9 +62,22 @@ export async function executeAssetHubToPendulumXCM(
       context.setOfframpSigningPhase('started');
 
       const afterSignCallback = () => setOfframpSigningPhase?.('finished');
-      const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
-
-      return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
+      try {
+        const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
+        return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
+      } catch (error) {
+        if (error instanceof TransactionInclusionError) {
+          try {
+            const { hash } = await verifyXcmSentEvent(assetHubNode.api, error.blockHash, walletAccount.address);
+            return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
+          } catch (err) {
+            const error = err as Error;
+            console.error('Error while verifying XcmSent event, this is unrecoverable:', error.message);
+            return { ...state, failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM' } };
+          }
+        }
+        return { ...state, failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM' } };
+      }
     }
 
     await waitUntilTrue(didInputTokenArrivedOnPendulum, 1000);
