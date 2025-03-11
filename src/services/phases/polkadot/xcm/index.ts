@@ -77,24 +77,23 @@ export const signAndSubmitXcm = async (
   });
 };
 
-const MAX_RETRIES = 120;
-const RETRY_DELAY_MS = 1000;
-async function waitForBlock(api: ApiPromise, blockHash: string, retries = MAX_RETRIES): Promise<SignedBlock> {
-  try {
-    const block = await api.rpc.chain.getBlock(blockHash);
-    if (block) {
-      return block;
+async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 60000): Promise<SignedBlock> {
+  const pollIntervalMs = 1000;
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const block = await api.rpc.chain.getBlock(blockHash);
+
+      if (block) {
+        return block;
+      }
+    } catch (error) {
+      console.log(error);
     }
-  } catch (error) {
-    console.log(error);
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
-
-  if (retries <= 0) {
-    throw new Error(`Block ${blockHash} not found after ${MAX_RETRIES} attempts`);
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-  return waitForBlock(api, blockHash, retries - 1);
+  throw new Error(`Block ${blockHash} not found after ${timeoutMs}ms`);
 }
 
 export async function verifyXcmSentEvent(
