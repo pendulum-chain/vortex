@@ -9,7 +9,7 @@ import { BaseComparisonProps } from '..';
 export function FeeComparisonTable(props: BaseComparisonProps) {
   const { amount, sourceAssetSymbol, network, vortexPrice } = props;
 
-  const [providerPrices, setProviderPrices] = useState<{ [key: string]: Big }>({});
+  const [providerPrices, setProviderPrices] = useState<Record<string, Big>>({});
 
   const handlePriceUpdate = useCallback((providerName: string, price: Big) => {
     setProviderPrices((prev) => ({ ...prev, [providerName]: price }));
@@ -22,28 +22,26 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
     { bestPrice: new Big(0), bestProvider: '' },
   );
 
-  const quoteProvidersOrdered = quoteProviders.sort((a, b) => {
+  const sortedProviders = quoteProviders.sort((a, b) => {
     const aPrice = providerPrices[a.name] ?? new Big(0);
     const bPrice = providerPrices[b.name] ?? new Big(0);
     return bPrice.minus(aPrice).toNumber();
   });
+  const networkDisplay = !isNetworkEVM(network) ? (
+    <div
+      className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
+      data-tip={`Quotes are for Polygon, as the providers don't support ${getNetworkDisplayName(network)}.`}
+    >
+      <span translate="no">(Polygon)</span>
+    </div>
+  ) : null;
+
   return (
     <div className="p-4 transition-all pb-8 duration-300 bg-white rounded-2xl shadow-custom hover:scale-[101%]">
       <div className="flex items-center justify-center w-full mb-3">
         <div className="flex items-center justify-center w-full gap-4">
           <span className="font-bold text-md">
-            Sending {amount.toFixed(2)} {sourceAssetSymbol}{' '}
-            {isNetworkEVM(network) ? (
-              <></>
-            ) : (
-              <div
-                className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-                data-tip={`Quotes are for Polygon, as the providers don't support ${getNetworkDisplayName(network)}.`}
-              >
-                <span translate="no">(Polygon)</span>
-              </div>
-            )}{' '}
-            with
+            Sending {amount.toFixed(2)} {sourceAssetSymbol} {networkDisplay} with
           </span>
         </div>
         <div className="flex flex-col items-center justify-center w-full">
@@ -52,9 +50,10 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
         </div>
       </div>
 
-      {quoteProvidersOrdered.map((provider) => (
+      {sortedProviders.map((provider) => (
         <div key={provider.name}>
           <div className="w-full my-4 border-b border-gray-200" />
+
           <FeeProviderRow
             {...props}
             provider={provider}
