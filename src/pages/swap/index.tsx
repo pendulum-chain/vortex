@@ -1,11 +1,12 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback, use } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
 import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
+
+import { FeeComparison } from '../../components/FeeComparison';
 import { SigningBox } from '../../components/SigningBox';
 
 import { PitchSection } from '../../sections/Pitch';
@@ -75,7 +76,7 @@ type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTok
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
-  const feeComparisonRef = useRef<FeeComparisonRef>(null);
+  const feeComparisonRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
   const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);

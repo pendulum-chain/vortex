@@ -14,6 +14,7 @@ const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
 const DEFAULT_POLLING_INTERVAL = 3000;
 const GLMR_FUNDING_AMOUNT_RAW = '38822802500000000';
 const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
+const WEBHOOKS_CACHE_PASSWORD = 'password'; // EXAMPLE PASSWORD
 
 import * as dotenv from 'dotenv';
 

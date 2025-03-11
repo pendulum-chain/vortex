@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { SwapFormValues } from '../../components/Nabla/schema';
-import { FeeComparisonRef } from '../../components/FeeComparison';
 import { OutputTokenType } from '../../constants/tokenConfig';
 
 interface UseSwapUrlParamsProps {
   form: UseFormReturn<SwapFormValues, unknown, undefined>;
-  feeComparisonRef: React.RefObject<FeeComparisonRef | null>;
+  feeComparisonRef: React.RefObject<HTMLDivElement | null>;
 }
 const defaultFromAmounts: Record<OutputTokenType, number> = { eurc: 1000, ars: 200, brl: 300 };
 

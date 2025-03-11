@@ -3,13 +3,12 @@ import { RefObject } from 'react';
 import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
 import { useKYCForm } from '../../hooks/brla/useKYCForm';
 
-import { FeeComparisonRef } from '../FeeComparison';
 import { VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 import { KYCForm } from './KYCForm';
 
 interface PIXKYCFormProps {
-  feeComparisonRef: RefObject<FeeComparisonRef | null>;
+  feeComparisonRef: RefObject<HTMLDivElement | null>;
 }
 
 const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
