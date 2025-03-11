@@ -1,10 +1,10 @@
 import { ApiPromise, Keyring } from '@polkadot/api';
 
-import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
+import { BrlaOfframpTransactions, ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 
-import { submitXcm } from '.';
+import { submitXTokens } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
-import { decodeSubmittableExtrinsic } from '../../signedTransactions';
+import { decodeSubmittableExtrinsic, encodeSubmittableExtrinsic } from '../../signedTransactions';
 import { isBrlaOfframpTransactions } from '../../../../types/offramp';
 import { ApiComponents } from '../../../../contexts/polkadotNode';
 
@@ -21,7 +21,7 @@ export function createPendulumToMoonbeamTransfer(
   const destination = {
     V2: {
       parents: 1,
-      interior: { X2: [{ AccountKey20: { key: destinationAddress, network: 'Any' } }, { Parachain: 2004 }] },
+      interior: { X2: [{ Parachain: 2004 }, { AccountKey20: { key: destinationAddress, network: 'Any' } }] },
     },
   };
   const { ss58Format, api: pendulumApi } = pendulumNode;
@@ -60,7 +60,7 @@ export async function executePendulumToMoonbeamXCM(
 
   const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
-  const { hash } = await submitXcm(pendulumEphemeralAddress, xcmExtrinsic);
+  const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
   state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };

@@ -156,18 +156,20 @@ async function prepareBrlaOfframpTransactions(
 ): Promise<BrlaOfframpTransactions> {
   const { nablaApproveTransaction, nablaSwapTransaction } = await prepareCommonTransactions(state, context);
 
-  const { brlaEvmAddress, outputAmount } = state;
+  const { brlaEvmAddress, outputAmount, nablaSwapNonce } = state;
   const { pendulumNode } = context;
 
   if (!brlaEvmAddress) {
     throw new Error('Missing variables on initial state. This is a bug.');
   }
 
+  const pendulumToMoonbeamNonce = nablaSwapNonce + 1;
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
     pendulumNode,
     brlaEvmAddress,
     outputAmount.raw,
-    state.inputAmount.raw,
+    state.pendulumEphemeralSeed,
+    pendulumToMoonbeamNonce,
   );
 
   const transactions = {

@@ -7,6 +7,7 @@ import { stellarHexToPublic, hexToString } from './convert';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
 export type XcmSentEvent = ReturnType<typeof parseEventXcmSent>;
+export type XTokensEvent = ReturnType<typeof parseEventXTokens>;
 
 export type TokenTransferEvent = ReturnType<typeof parseTokenDepositEvent>;
 
@@ -60,6 +61,14 @@ export function parseEventXcmSent(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
   const mappedData = {
     originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId32.id.toString()),
+  };
+  return mappedData;
+}
+
+export function parseEventXTokens(event: any) {
+  const rawEventData = JSON.parse(event.event.data.toString());
+  const mappedData = {
+    sender: rawEventData[0].toString(),
   };
   return mappedData;
 }
