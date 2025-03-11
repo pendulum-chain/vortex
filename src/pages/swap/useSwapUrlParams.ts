@@ -22,11 +22,7 @@ export const useSwapUrlParams = ({ form, feeComparisonRef }: UseSwapUrlParamsPro
       }
     }
 
-    const showCompareFeesParam = params.get('showCompareFees');
-    if (showCompareFeesParam === 'true') {
-      feeComparisonRef.current?.scrollIntoView();
-      // toToken should always exist due to hardcoded default values. Defensive.
-    } else if (toTokenForm) {
+    if (toTokenForm) {
       const defaultAmount = defaultFromAmounts[toTokenForm];
       form.setValue('fromAmount', defaultAmount.toFixed(2));
     }
