@@ -17,7 +17,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef 
   const { handleSubmit } = form;
 
   const compareFeesClick = useCallback(() => {
-    feeComparisonRef.current?.scrollIntoView();
+    feeComparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [feeComparisonRef]);
 
   return (

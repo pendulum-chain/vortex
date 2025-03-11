@@ -144,7 +144,7 @@ export const Swap = ({
     (e: React.MouseEvent) => {
       e.preventDefault();
       setTimeout(() => {
-        feeComparisonRef.current?.scrollIntoView();
+        feeComparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 200);
       trackQuote.current = true;
     },
