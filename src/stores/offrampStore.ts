@@ -1,12 +1,17 @@
 import { create } from 'zustand';
 import { OfframpState, OfframpActions } from '../types/offramp';
-import { clearOfframpingState } from '../services/offrampingFlow';
+import { clearOfframpingState, advanceOfframpingState, ExecutionContext } from '../services/offrampingFlow';
 
+type FlowContext = any;
 interface OfframpStore extends OfframpState {
-  actions: OfframpActions;
+  flowContext?: FlowContext;
+  actions: OfframpActions & {
+    startFlow: () => Promise<void>;
+    updateFlowContext: (context: ExecutionContext) => void;
+  };
 }
 
-export const useOfframpStore = create<OfframpStore>()((set) => ({
+export const useOfframpStore = create<OfframpStore>()((set, get) => ({
   offrampStarted: false,
   offrampInitiating: false,
   offrampKycStarted: false,
@@ -15,6 +20,7 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
   offrampExecutionInput: undefined,
   offrampSummaryVisible: false,
   initializeFailedMessage: undefined,
+  flowOngoing: false,
 
   actions: {
     setOfframpStarted: (started) => set({ offrampStarted: started }),
@@ -24,13 +30,6 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
     setOfframpSigningPhase: (phase) => set({ offrampSigningPhase: phase }),
     setOfframpKycStarted: (kycStarted) => set({ offrampKycStarted: kycStarted }),
     setOfframpSummaryVisible: (visible) => set({ offrampSummaryVisible: visible }),
-    updateOfframpHookStateFromState: (state) => {
-      if (!state || state.phase === 'success' || state.failure !== undefined) {
-        set({ offrampSigningPhase: undefined });
-      }
-      set({ offrampState: state });
-    },
-
     setInitializeFailedMessage: (message: string | undefined) => {
       const displayMessage =
         message ??
@@ -51,6 +50,46 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
     },
 
     clearInitializeFailedMessage: () => set({ initializeFailedMessage: undefined }),
+
+    updateFlowContext: (context: any) => {
+      // On reload, context is restored and updated after the state.
+      // Only then we can start the flow again
+      set({ flowContext: context });
+      if (get().offrampState && !get().flowOngoing) {
+        get().actions.startFlow();
+      }
+    },
+
+    // Iadvances the state until a final state is reached.
+    // Initial state is defined after prepare transactions, and this is triggered.
+    startFlow: async () => {
+      let currentState = get().offrampState;
+      console.log('Starting offramp flow with initial state:', currentState);
+      if (!currentState) {
+        console.error('No initial state present; cannot start flow.');
+        return;
+      }
+      while (true) {
+        // Move finality check out of advanceOfframpingState
+        if (currentState!.phase === 'success' || currentState!.failure !== undefined) {
+          console.log('Offramping process is in a final phase:', currentState!.phase);
+          break;
+        }
+        set({ flowOngoing: true });
+        try {
+          // We get the current context values updated throught the apply
+          const currentContext = get().flowContext;
+          // Advance to the next state
+          currentState = get().offrampState;
+          const nextState = await advanceOfframpingState(currentState, currentContext);
+          set({ offrampState: nextState });
+        } catch (error: unknown) {
+          console.error('Error advancing offramping state:', error);
+        }
+      }
+
+      set({ flowOngoing: false });
+    },
   },
 }));
 
