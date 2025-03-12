@@ -93,7 +93,7 @@ export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
-  anchorUrl: string;
+  partnerUrl: string;
 };
 
 export function isStellarOutputTokenDetails(
@@ -384,7 +384,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
   },
   brl: {
     type: 'moonbeam',
-    anchorUrl: 'https://brla.digital',
+    partnerUrl: 'https://brla.digital',
     decimals: 18,
     fiat: {
       assetIcon: 'brl',
