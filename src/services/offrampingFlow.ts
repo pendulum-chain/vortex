@@ -44,6 +44,7 @@ import {
   createPendulumEphemeralSeed,
 } from './phases/polkadot/ephemeral';
 import { ApiComponents } from '../contexts/polkadotNode';
+import { storageKeys } from '../constants/localStorage';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -145,6 +146,7 @@ export type SpacewalkOfframpTransactions = {
   nablaApproveTransaction: string;
   nablaSwapTransaction: string;
 };
+
 export interface OfframpingState extends BaseOfframpingState {
   sep24Id?: string;
   sepResult?: SepResult;
@@ -374,6 +376,7 @@ export async function constructBrlaInitialState({
 
 export const clearOfframpingState = () => {
   storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+  storageService.remove(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX);
 };
 
 export const recoverFromFailure = (state: OfframpingState | undefined) => {
