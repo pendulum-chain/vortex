@@ -16,6 +16,16 @@
       "contactedSupport": "Entrou em contato com o suporte e está pronto para começar de novo com uma nova transação?",
       "tapToReset": "Toque",
       "resetAndRestart": "Reiniciar e Recomeçar"
+    },
+    "progress": {
+      "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
+      "bridgingAssetHub": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
+      "executeMoonbeamToPendulumXCM": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
+      "executePendulumToMoonbeamXCM": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
+      "swappingTo": "Trocando para {{assetSymbol}} na Vortex DEX",
+      "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
+      "transferringToLocalPartner": "Transferindo para parceiro local para transferência bancária",
+      "success": "Transação concluída com sucesso!"
     }
   }
 }

@@ -8,7 +8,7 @@ import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
-import { createOfframpingPhaseMessage } from './helpers';
+import { useCreateOfframpingPhaseMessage } from './helpers';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
 
@@ -189,7 +189,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
 
   const currentPhase = offrampingState.phase as OfframpingPhase;
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-  const message = createOfframpingPhaseMessage(offrampingState, selectedNetwork);
+  const message = useCreateOfframpingPhaseMessage(offrampingState, selectedNetwork);
 
   useEffect(() => {
     trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });

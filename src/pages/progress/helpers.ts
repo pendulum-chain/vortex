@@ -7,38 +7,49 @@ import {
 } from '../../constants/tokenConfig';
 import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 import { OfframpingState } from '../../services/offrampingFlow';
+import { useTranslation } from 'react-i18next';
 
-export function createOfframpingPhaseMessage(offrampingState: OfframpingState, network: Networks): string {
-  const inputToken = getInputTokenDetailsOrDefault(network, offrampingState.inputTokenType);
+export function useCreateOfframpingPhaseMessage(offrampingState: OfframpingState, networkName: Networks): string {
+  const { assetSymbol } = getInputTokenDetailsOrDefault(networkName, offrampingState.inputTokenType);
   const outputTokenDetails = getOutputTokenDetails(offrampingState.outputTokenType);
   const { phase } = offrampingState;
+  const { t } = useTranslation();
+  const network = getNetworkDisplayName(networkName);
+  const isEVM = isNetworkEVM(networkName);
 
-  if (phase === 'success') return 'Transaction completed successfully';
+  if (phase === 'success') return t('pages.progress.success');
+
+  const getBridgingMessage = () =>
+    isEVM
+      ? t('pages.progress.bridgingEVM', { assetSymbol, network })
+      : t('pages.progress.bridgingAssetHub', { assetSymbol });
+
+  const getSwappingMessage = () => t('pages.progress.swappingTo', { assetSymbol: outputTokenDetails.fiat.symbol });
+
+  const getTransferringMessage = () => t('pages.progress.transferringToLocalPartner');
 
   const messages: Record<OfframpingPhase, string> = {
-    prepareTransactions: isNetworkEVM(network)
-      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
-      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
-    squidRouter: isNetworkEVM(network)
-      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
-      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
-    pendulumFundEphemeral: isNetworkEVM(network)
-      ? `Bridging ${inputToken.assetSymbol} from ${getNetworkDisplayName(network)} --> Moonbeam`
-      : `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
-    executeMoonbeamToPendulumXCM: `Transferring ${inputToken.assetSymbol} from Moonbeam --> Pendulum`,
-    executeAssetHubToPendulumXCM: `Bridging ${inputToken.assetSymbol} from AssetHub --> Pendulum`,
-    executePendulumToMoonbeamXCM: `Transferring ${outputTokenDetails.fiat.symbol} from Pendulum --> Moonbeam`,
-    subsidizePreSwap: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
-    nablaApprove: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
-    nablaSwap: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
-    subsidizePostSwap: `Swapping to ${outputTokenDetails.fiat.symbol} on Vortex DEX`,
+    prepareTransactions: getBridgingMessage(),
+    squidRouter: getBridgingMessage(),
+    pendulumFundEphemeral: getBridgingMessage(),
+
+    executeMoonbeamToPendulumXCM: t('pages.progress.executeMoonbeamToPendulumXCM', { assetSymbol }),
+    executeAssetHubToPendulumXCM: t('pages.progress.bridgingAssetHub', { assetSymbol }),
+    executePendulumToMoonbeamXCM: t('pages.progress.executePendulumToMoonbeamXCM', { assetSymbol }),
+
+    subsidizePreSwap: getSwappingMessage(),
+    nablaApprove: getSwappingMessage(),
+    nablaSwap: getSwappingMessage(),
+    subsidizePostSwap: getSwappingMessage(),
+
     executeSpacewalkRedeem: isStellarOutputTokenDetails(outputTokenDetails)
-      ? `Bridging ${outputTokenDetails.stellarAsset.code.string} to Stellar via Spacewalk`
+      ? t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputTokenDetails.stellarAsset.code.string })
       : '',
-    pendulumCleanup: 'Transferring to local partner for bank transfer',
-    stellarOfframp: 'Transferring to local partner for bank transfer',
-    stellarCleanup: 'Transferring to local partner for bank transfer',
-    performBrlaPayoutOnMoonbeam: `Transferring to local partner for bank transfer`,
+
+    pendulumCleanup: getTransferringMessage(),
+    stellarOfframp: getTransferringMessage(),
+    stellarCleanup: getTransferringMessage(),
+    performBrlaPayoutOnMoonbeam: getTransferringMessage(),
   };
 
   return messages[phase as OfframpingPhase];
