@@ -8,7 +8,7 @@ import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
 import { signAndSubmitXcm, TransactionInclusionError, verifyXcmSentEvent } from '../xcm';
 import { storageService } from '../../../storage/local';
-import { storageKeys } from '../../../../constants/localStorage';
+import { storageKeys, TransactionSubmissionIndices } from '../../../../constants/localStorage';
 
 function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
