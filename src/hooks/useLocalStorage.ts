@@ -121,14 +121,4 @@ export enum LocalStorageKeys {
   SELECTED_POLKADOT_WALLET = 'SELECTED_POLKADOT_WALLET',
   SELECTED_POLKADOT_ACCOUNT = 'SELECTED_POLKADOT_ACCOUNT',
   FIRED_INITIALIZATION_EVENTS = 'FIRED_INITIALIZATION_EVENTS',
-  LAST_TRANSACTION_SUBMISSION_INDEX = 'LAST_TRANSACTION_SUBMISSION_INDEX',
-}
-
-/// This enum is used to keep track of the last transaction submission index. This is used to determine if a transaction has been submitted before.
-/// The indices are used to determine which transaction was last submitted.
-export enum TransactionSubmissionIndices {
-  SQUIDROUTER_APPROVE = 0,
-  SQUIDROUTER_SWAP = 1,
-
-  ASSETHUB_XCM = 0,
 }

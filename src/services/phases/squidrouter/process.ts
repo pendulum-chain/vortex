@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react';
 import { Config, getAccount, sendTransaction, writeContract } from '@wagmi/core';
 import { Hash, SendTransactionErrorType, WriteContractErrorType } from 'viem';
 
-import { storageKeys } from '../../../constants/localStorage';
+import { storageKeys, TransactionSubmissionIndices } from '../../../constants/localStorage';
 import { EvmInputTokenDetails, getInputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
 
 import { waitForTransactionConfirmation } from '../../../helpers/safe-wallet/waitForTransactionConfirmation';
@@ -13,7 +13,6 @@ import { storageService } from '../../../services/storage/local';
 
 import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
 import { getRouteTransactionRequest } from './route';
-import { LocalStorageKeys, TransactionSubmissionIndices } from '../../../hooks/useLocalStorage';
 
 type TrackEvent = (event: TrackableEvent) => void;
 type TransactionRequest = { target: string; data: Hash; value: bigint; gasLimit: string };
@@ -25,7 +24,7 @@ async function handleTokenApproval(
   wagmiConfig: Config,
   trackEvent: TrackEvent,
 ): Promise<Hash> {
-  const lastSubmissionIndex = Number(storageService.get(LocalStorageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, '-1'));
+  const lastSubmissionIndex = Number(storageService.get(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, '-1'));
   let approvalHash = storageService.get(storageKeys.SQUIDROUTER_RECOVERY_STATE_APPROVAL) as Hash;
 
   if (!approvalHash && lastSubmissionIndex === TransactionSubmissionIndices.SQUIDROUTER_APPROVE - 1) {
@@ -41,7 +40,7 @@ async function handleTokenApproval(
 
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE_APPROVAL, approvalHash);
       storageService.set(
-        LocalStorageKeys.LAST_TRANSACTION_SUBMISSION_INDEX,
+        storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX,
         TransactionSubmissionIndices.SQUIDROUTER_APPROVE,
       );
 
@@ -61,7 +60,7 @@ async function handleSwapTransaction(
   wagmiConfig: Config,
   trackEvent: TrackEvent,
 ): Promise<Hash> {
-  const lastSubmissionIndex = Number(storageService.get(LocalStorageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, '-1'));
+  const lastSubmissionIndex = Number(storageService.get(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, '-1'));
   let swapHash = storageService.get(storageKeys.SQUIDROUTER_RECOVERY_STATE_SWAP) as Hash;
 
   if (!swapHash && lastSubmissionIndex === TransactionSubmissionIndices.SQUIDROUTER_SWAP - 1) {
@@ -75,10 +74,7 @@ async function handleSwapTransaction(
       });
 
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE_SWAP, swapHash);
-      storageService.set(
-        LocalStorageKeys.LAST_TRANSACTION_SUBMISSION_INDEX,
-        TransactionSubmissionIndices.SQUIDROUTER_SWAP,
-      );
+      storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.SQUIDROUTER_SWAP);
 
       trackEvent({ event: 'transaction_signed', index: 2 });
     } catch (e) {

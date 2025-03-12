@@ -8,7 +8,7 @@ import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
 import { signAndSubmitXcm, TransactionInclusionError, verifyXcmSentEvent } from '../xcm';
 import { storageService } from '../../../storage/local';
-import { LocalStorageKeys, TransactionSubmissionIndices } from '../../../../hooks/useLocalStorage';
+import { storageKeys } from '../../../../constants/localStorage';
 
 function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
@@ -58,7 +58,7 @@ export async function executeAssetHubToPendulumXCM(
 
   if (!(await didInputTokenArrivedOnPendulum())) {
     const { assetHubXcmTransactionHash, inputAmount } = state;
-    const lastTxSubmissionIndex = Number(storageService.get(LocalStorageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, '-1'));
+    const lastTxSubmissionIndex = Number(storageService.get(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, '-1'));
 
     if (
       assetHubXcmTransactionHash === undefined &&
@@ -70,10 +70,7 @@ export async function executeAssetHubToPendulumXCM(
       const afterSignCallback = () => setOfframpSigningPhase?.('finished');
       try {
         const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
-        storageService.set(
-          LocalStorageKeys.LAST_TRANSACTION_SUBMISSION_INDEX,
-          TransactionSubmissionIndices.ASSETHUB_XCM,
-        );
+        storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.ASSETHUB_XCM);
         return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
       } catch (error) {
         if (error instanceof TransactionInclusionError) {
