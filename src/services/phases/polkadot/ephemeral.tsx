@@ -26,7 +26,7 @@ const FUNDING_AMOUNT_UNITS = '0.1';
 async function isEphemeralFunded(state: OfframpingState, context: ExecutionContext) {
   const { pendulumNode } = context;
   const { pendulumEphemeralSeed } = state;
-  if (!pendulumNode) {
+  if (!pendulumNode || !pendulumNode.api.isConnected) {
     throw new Error('Pendulum node not available');
   }
 
