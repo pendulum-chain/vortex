@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useConfig } from 'wagmi';
 
-import { advanceOfframpingState } from '../../services/offrampingFlow';
+import { advanceOfframpingState, OFFRAMPING_STATE_LOCAL_STORAGE_KEY } from '../../services/offrampingFlow';
 
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
@@ -11,6 +11,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
+import { storageService } from '../../services/storage/local';
 
 export const useOfframpAdvancement = () => {
   const { walletAccount } = usePolkadotWalletState();
