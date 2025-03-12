@@ -83,6 +83,7 @@ export const useMainProcess = () => {
     finishOfframping: () => {
       events.resetUniqueEvents();
       resetOfframpState();
+      cleanupSep24();
     },
     continueFailedFlow: () => {
       updateOfframpHookStateFromState(recoverFromFailure(offrampState));
