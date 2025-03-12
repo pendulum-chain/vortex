@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useConfig } from 'wagmi';
 
-import { advanceOfframpingState, OFFRAMPING_STATE_LOCAL_STORAGE_KEY } from '../../services/offrampingFlow';
+import { advanceOfframpingState } from '../../services/offrampingFlow';
 
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
