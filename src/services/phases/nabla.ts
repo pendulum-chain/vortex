@@ -13,7 +13,6 @@ import {
 
 import Big from 'big.js';
 
-import { EventStatus } from '../../components/GenericEvent';
 import {
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
@@ -113,7 +112,7 @@ export async function prepareNablaApproveTransaction(
 
   if (response.type !== 'success') {
     const message = 'Could not load token allowance';
-    console.log(message, EventStatus.Error);
+    console.log(message);
     throw new Error(message);
   }
 
@@ -122,7 +121,7 @@ export async function prepareNablaApproveTransaction(
   //maybe do allowance
   if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(pendulumAmountRaw))) {
     try {
-      console.log(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
+      console.log(`Preparing transaction to approve tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`);
       return createAndSignApproveExtrinsic({
         api: api,
         amount: pendulumAmountRaw,
@@ -133,7 +132,7 @@ export async function prepareNablaApproveTransaction(
         nonce: nablaApproveNonce,
       });
     } catch (e) {
-      console.log(`Could not approve token: ${e}`, EventStatus.Error);
+      console.log(`Could not approve token: ${e}`);
       return Promise.reject('Could not approve token');
     }
   }
@@ -170,14 +169,14 @@ export async function nablaApprove(state: OfframpingState, context: ExecutionCon
   }
 
   try {
-    console.log(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`, EventStatus.Waiting);
+    console.log(`Approving tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`);
 
     const approvalExtrinsic = decodeSubmittableExtrinsic(transactions.nablaApproveTransaction, api);
 
     const result = await submitExtrinsic(approvalExtrinsic);
 
     if (result.status.type === 'error') {
-      console.log(`Could not approve token: ${result.status.error.toString()}`, EventStatus.Error);
+      console.log(`Could not approve token: ${result.status.error.toString()}`);
       return Promise.reject('Could not approve token');
     }
   } catch (e) {
@@ -190,7 +189,7 @@ export async function nablaApprove(state: OfframpingState, context: ExecutionCon
     } else {
       errorMessage = 'Something went wrong';
     }
-    console.log(`Could not approve the required amount of token: ${errorMessage}`, EventStatus.Error);
+    console.log(`Could not approve the required amount of token: ${errorMessage}`);
     return Promise.reject('Could not approve token');
   }
 
@@ -285,8 +284,7 @@ export async function prepareNablaSwapTransaction(
     // Try swap
     try {
       console.log(
-        `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
-        EventStatus.Waiting,
+        `Preparing transaction to swap ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
       );
 
       return createAndSignSwapExtrinsic({
@@ -355,7 +353,6 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
   try {
     console.log(
       `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
-      EventStatus.Waiting,
     );
 
     console.log('before RESPONSE prepareNablaSwapTransaction');
@@ -385,7 +382,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     const result = await submitExtrinsic(swapExtrinsic);
 
     if (result.status.type === 'error') {
-      console.log(`Could not swap token: ${result.status.error.toString()}`, EventStatus.Error);
+      console.log(`Could not swap token: ${result.status.error.toString()}`);
       return Promise.reject('Could not swap token');
     }
   } catch (e) {
@@ -398,7 +395,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     } else {
       errorMessage = 'Something went wrong';
     }
-    console.log(`Could not swap the required amount of token: ${errorMessage}`, EventStatus.Error);
+    console.log(`Could not swap the required amount of token: ${errorMessage}`);
     return Promise.reject('Could not swap token');
   }
   //verify token balance before releasing this process.
@@ -408,10 +405,7 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
   const actualOfframpValueRaw = rawBalanceAfter.sub(rawBalanceBefore);
   const actualOfframpValue = multiplyByPowerOfTen(actualOfframpValueRaw, -outputToken.decimals);
 
-  console.log(
-    `Swap successful. Amount received: ${stringifyBigWithSignificantDecimals(actualOfframpValue, 2)}`,
-    EventStatus.Success,
-  );
+  console.log(`Swap successful. Amount received: ${stringifyBigWithSignificantDecimals(actualOfframpValue, 2)}`);
 
   console.log('Swap successful');
 
