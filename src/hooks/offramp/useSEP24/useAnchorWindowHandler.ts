@@ -48,7 +48,6 @@ export const useAnchorWindowHandler = () => {
     }
 
     trackKYCStarted(executionInput, selectedNetwork);
-    cleanupSep24State();
 
     try {
       const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);

@@ -44,6 +44,7 @@ import {
   createPendulumEphemeralSeed,
 } from './phases/polkadot/ephemeral';
 import { ApiComponents } from '../contexts/polkadotNode';
+import { storageKeys } from '../constants/localStorage';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -145,6 +146,7 @@ export type SpacewalkOfframpTransactions = {
   nablaApproveTransaction: string;
   nablaSwapTransaction: string;
 };
+
 export interface OfframpingState extends BaseOfframpingState {
   sep24Id?: string;
   sepResult?: SepResult;
@@ -374,6 +376,7 @@ export async function constructBrlaInitialState({
 
 export const clearOfframpingState = () => {
   storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
+  storageService.remove(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX);
 };
 
 export const recoverFromFailure = (state: OfframpingState | undefined) => {
@@ -418,7 +421,7 @@ export const advanceOfframpingState = async (
     return state;
   }
 
-  console.log('Advance offramping state in phase', phase);
+  console.log('Trying to advance offramping state from current phase', phase);
 
   let newState: OfframpingState | undefined;
   try {
@@ -426,7 +429,10 @@ export const advanceOfframpingState = async (
     if (!nextHandler) {
       throw new Error(`No handler for phase ${phase} on network ${state.network}`);
     }
+
+    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, { ...state, currentPhaseInProgress: true });
     newState = await nextHandler(state, context);
+
     if (newState) {
       Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
     }
@@ -439,6 +445,8 @@ export const advanceOfframpingState = async (
     if (Date.now() < state.failureTimeoutAt) {
       console.error('Possible transient error within 10 minutes. Reloading page in 30 seconds.', error);
       await new Promise((resolve) => setTimeout(resolve, 30000));
+
+      // Since we are reloading, we cannot rely on useOfframpAdvancement to properly update that the state is not in progress.
       window.location.reload();
       return state;
     }
