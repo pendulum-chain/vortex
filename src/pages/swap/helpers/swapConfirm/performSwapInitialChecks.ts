@@ -1,36 +1,38 @@
-import { ApiPromise } from '@polkadot/api';
-
 import {
-  InputTokenDetails,
+  getInputTokenDetails,
+  getOutputTokenDetails,
   isStellarOutputTokenDetails,
-  OutputTokenDetailsMoonbeam,
-  OutputTokenDetailsSpacewalk,
 } from '../../../../constants/tokenConfig';
 import { getVaultsForCurrency } from '../../../../services/phases/polkadot/spacewalk';
 import { testRoute } from '../../../../services/phases/squidrouter/route';
-import { Networks } from '../../../../helpers/networks';
+import { useOfframpStore } from '../../../../stores/offrampStore';
 
-export const performSwapInitialChecks = async (
-  api: ApiPromise,
-  outputToken: OutputTokenDetailsMoonbeam | OutputTokenDetailsSpacewalk,
-  fromToken: InputTokenDetails,
-  expectedRedeemAmountRaw: string,
-  inputAmountRaw: string,
-  address: string,
-  requiresSquidRouter: boolean,
-  selectedNetwork: Networks,
-) => {
-  if (isStellarOutputTokenDetails(outputToken)) {
+export const performSwapInitialChecks = async () => {
+  const offrampState = useOfframpStore.getState();
+  const {
+    api,
+    outputTokenType,
+    inputTokenType,
+    network,
+    address,
+    requiresSquidRouter,
+    expectedRedeemAmountRaw,
+    inputAmountRaw,
+  } = offrampState.offrampExecutionInput!;
+  const outputTokenDetails = getOutputTokenDetails(outputTokenType);
+  const inputTokenDetails = getInputTokenDetails(network, inputTokenType)!;
+
+  if (isStellarOutputTokenDetails(outputTokenDetails)) {
     await Promise.all([
       getVaultsForCurrency(
         api,
-        outputToken.stellarAsset.code.hex,
-        outputToken.stellarAsset.issuer.hex,
+        outputTokenDetails.stellarAsset.code.hex,
+        outputTokenDetails.stellarAsset.issuer.hex,
         expectedRedeemAmountRaw,
       ),
-      requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address, selectedNetwork) : Promise.resolve(),
+      requiresSquidRouter ? testRoute(inputTokenDetails, inputAmountRaw, address, network) : Promise.resolve(),
     ]);
   } else {
-    await (requiresSquidRouter ? testRoute(fromToken, inputAmountRaw, address, selectedNetwork) : Promise.resolve());
+    await (requiresSquidRouter ? testRoute(inputTokenDetails, inputAmountRaw, address, network) : Promise.resolve());
   }
 };

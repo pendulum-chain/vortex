@@ -57,7 +57,11 @@ export const useVortexAccount = () => {
         if (!polkadotWalletAccount) {
           throw new Error('getMessageSignature: Polkadot wallet account not found. Wallet must be connected to sign.');
         }
-        const { signature: substrateSignature } = await (polkadotWalletAccount.signer as Signer).signRaw!({
+        const signer = polkadotWalletAccount.signer as Signer;
+        if (!signer.signRaw) {
+          throw new Error('Signer does not support raw signing');
+        }
+        const { signature: substrateSignature } = await signer.signRaw({
           type: 'payload',
           data: siweMessage,
           address: polkadotWalletAccount.address,

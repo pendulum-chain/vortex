@@ -1,6 +1,6 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import Big from 'big.js';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
@@ -8,7 +8,6 @@ import {
   getBaseOutputTokenDetails,
   getInputTokenDetails,
   InputTokenType,
-  isStellarOutputToken,
   OutputTokenType,
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
@@ -16,6 +15,7 @@ import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
 import { getCaseSensitiveNetwork } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
+import { useFormStoreActions } from '../../stores/formStore';
 
 type SwapSettings = {
   from: string;
@@ -41,6 +41,7 @@ export const useSwapForm = () => {
   const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
   const [tokenSelectModalType, setTokenModalType] = useState<TokenSelectType>('from');
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
+  const { setFromAmount, setPixId, setTaxId } = useFormStoreActions();
 
   const initialState = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -114,7 +115,6 @@ export const useSwapForm = () => {
         to: tokenKey,
         from: prev?.from,
       };
-
       setStorageForSwapSettings(updated);
       setValue('to', tokenKey as OutputTokenType);
       setIsTokenSelectModalVisible(false);
@@ -130,11 +130,13 @@ export const useSwapForm = () => {
 
   const fromAmount: Big | undefined = useMemo(() => {
     try {
-      return new Big(fromAmountString);
+      const fromAmount = new Big(fromAmountString);
+      setFromAmount(fromAmount);
+      return fromAmount;
     } catch {
       return undefined;
     }
-  }, [fromAmountString]);
+  }, [fromAmountString, setFromAmount]);
 
   const openTokenSelectModal = useCallback((type: TokenSelectType) => {
     setTokenModalType(type);
@@ -144,6 +146,19 @@ export const useSwapForm = () => {
   const closeTokenSelectModal = useCallback(() => {
     setIsTokenSelectModalVisible(false);
   }, []);
+
+  const taxId = useWatch({ control, name: 'taxId' });
+  const pixId = useWatch({ control, name: 'pixId' });
+
+  useEffect(() => {
+    if (!taxId) return;
+    setTaxId(taxId);
+  }, [taxId, setTaxId]);
+
+  useEffect(() => {
+    if (!pixId) return;
+    setPixId(pixId);
+  }, [pixId, setPixId]);
 
   return {
     form,
@@ -160,5 +175,7 @@ export const useSwapForm = () => {
     fromToken,
     toToken,
     reset: form.reset,
+    taxId,
+    pixId,
   };
 };

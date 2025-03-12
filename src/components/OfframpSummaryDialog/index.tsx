@@ -4,9 +4,11 @@ import Big from 'big.js';
 
 import {
   getInputTokenDetailsOrDefault,
-  getBaseOutputTokenDetails,
   InputTokenDetails,
   BaseOutputTokenDetails,
+  isStellarOutputTokenDetails,
+  getOutputTokenDetails,
+  OutputTokenTypes,
 } from '../../constants/tokenConfig';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
@@ -43,9 +45,18 @@ interface FeeDetailsProps {
   exchangeRate: string;
   fromToken: InputTokenDetails;
   toToken: BaseOutputTokenDetails;
+  partnerUrl: string;
 }
 
-const FeeDetails = ({ network, feesCost, fiatSymbol, fromToken, toToken, exchangeRate }: FeeDetailsProps) => (
+const FeeDetails = ({
+  network,
+  feesCost,
+  fiatSymbol,
+  fromToken,
+  toToken,
+  exchangeRate,
+  partnerUrl,
+}: FeeDetailsProps) => (
   <section className="mt-6">
     <div className="flex justify-between mb-2">
       <p>
@@ -69,13 +80,8 @@ const FeeDetails = ({ network, feesCost, fiatSymbol, fromToken, toToken, exchang
     </div>
     <div className="flex justify-between">
       <p>Partner</p>
-      <a
-        href={toToken.anchorHomepageUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-500 hover:underline"
-      >
-        {toToken.anchorHomepageUrl}
+      <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+        {partnerUrl}
       </a>
     </div>
   </section>
@@ -105,14 +111,15 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   // component will not render if the executionInput is undefined.
   const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
-  const toToken = getBaseOutputTokenDetails(executionInput?.outputTokenType || 'eurc');
+  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || OutputTokenTypes.EURC);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
   const { feesCost } = useOfframpFees(toAmount, toToken);
 
   if (!visible) return null;
-  if (!anchorUrl) return null;
+  if (!anchorUrl && toToken.type === 'spacewalk') return null;
+  if (!executionInput?.brlaEvmAddress && toToken.type === 'moonbeam') return null;
   if (!executionInput) return null;
 
   const content = (
@@ -134,6 +141,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         fiatSymbol={toToken.fiat.symbol}
         fromToken={fromToken}
         toToken={toToken}
+        partnerUrl={isStellarOutputTokenDetails(toToken) ? toToken.anchorHomepageUrl : toToken.partnerUrl}
         exchangeRate={executionInput.effectiveExchangeRate}
         network={selectedNetwork}
         feesCost={feesCost}
@@ -148,7 +156,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       onClick={() => {
         setIsSubmitted(true);
         onSubmit();
-        window.open(anchorUrl, '_blank');
+        toToken.type !== 'moonbeam' ? open(anchorUrl, '_blank') : null;
       }}
     >
       {offrampState !== undefined ? (
@@ -159,10 +167,12 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         <>
           <Spinner /> Continue on Partner&apos;s page
         </>
-      ) : (
+      ) : toToken.type !== 'moonbeam' ? (
         <>
           Continue with Partner <ArrowTopRightOnSquareIcon className="w-4 h-4" />
         </>
+      ) : (
+        <>Continue</>
       )}
     </button>
   );

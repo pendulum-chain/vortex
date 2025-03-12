@@ -27,6 +27,7 @@ import {
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { OfframpingState } from '../../offrampingFlow';
 import { SepResult } from '../../../types/sep';
+import { isSpacewalkOfframpTransactions } from '../../../types/offramp';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
@@ -80,10 +81,8 @@ export async function stellarCreateEphemeral(
 ): Promise<void> {
   const fundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const ephemeralAccountExists = await isEphemeralCreated(stellarEphemeralSecret);
-
   if (!ephemeralAccountExists) {
     await setupStellarAccount(fundingAccountId, stellarEphemeralSecret, outputTokenType);
-
     // eslint-disable-next-line no-constant-condition
     while (true) {
       if (await isEphemeralCreated(stellarEphemeralSecret)) {
@@ -322,7 +321,7 @@ async function createOfframpAndMergeTransaction(
 // if we are on recovery mode we can ignore this error.
 // Alternative improvement: check the balance of the destination (offramp) account to see if the funds arrived.
 export async function stellarOfframp(state: OfframpingState): Promise<OfframpingState> {
-  if (state.transactions === undefined) {
+  if (state.transactions === undefined || !isSpacewalkOfframpTransactions(state.transactions)) {
     throw new Error('Transactions not prepared');
   }
 
@@ -348,7 +347,7 @@ export async function stellarOfframp(state: OfframpingState): Promise<Offramping
 }
 
 export async function stellarCleanup(state: OfframpingState): Promise<OfframpingState> {
-  if (state.transactions === undefined) {
+  if (state.transactions === undefined || !isSpacewalkOfframpTransactions(state.transactions)) {
     throw new Error('Transactions not prepared');
   }
 

@@ -1,33 +1,27 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback, FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
-import { motion } from 'motion/react';
 
-import { calculateTotalReceive, FeeCollapse } from '../../components/FeeCollapse';
-import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { SwapSubmitButton } from '../../components/buttons/SwapSubmitButton';
-import { TermsAndConditions } from '../../components/TermsAndConditions';
-import { AssetNumericInput } from '../../components/AssetNumericInput';
+import { calculateTotalReceive } from '../../components/FeeCollapse';
+import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
-import { FeeComparison, FeeComparisonRef } from '../../components/FeeComparison';
-import { BenefitsList } from '../../components/BenefitsList';
-import { ExchangeRate } from '../../components/ExchangeRate';
-import { LabeledInput } from '../../components/LabeledInput';
-import { UserBalance } from '../../components/UserBalance';
+
+import { FeeComparison } from '../../components/FeeComparison';
 import { SigningBox } from '../../components/SigningBox';
-import { PoweredBy } from '../../components/PoweredBy';
 
 import { PitchSection } from '../../sections/Pitch';
 import { TrustedBy } from '../../sections/TrustedBy';
 import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
+  getEnumKeyByStringValue,
   getInputTokenDetailsOrDefault,
   getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
+  OutputTokenTypes,
 } from '../../constants/tokenConfig';
 import { config } from '../../config';
 
@@ -53,12 +47,11 @@ import {
   useOfframpSigningPhase,
   useOfframpState,
   useOfframpStarted,
-  useOfframpInitiating,
   useOfframpExecutionInput,
+  useOfframpKycStarted,
+  useOfframpSummaryVisible,
 } from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
-import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
-import { swapConfirm } from './helpers/swapConfirm';
 import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
@@ -72,10 +65,18 @@ import satoshipayLogo from '../../assets/logo/satoshipay.svg';
 import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
+import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
+import { calculateSwapAmountsWithMargin } from './helpers/swapConfirm/calculateSwapAmountsWithMargin';
+import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
+import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
+import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
+import { Swap } from '../../components/Swap';
+
+type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
-  const feeComparisonRef = useRef<FeeComparisonRef>(null);
+  const feeComparisonRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
   const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
@@ -83,21 +84,23 @@ export const SwapPage = () => {
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
-  const [isOfframpSummaryDialogVisible, setIsOfframpSummaryDialogVisible] = useState(false);
-  const [cachedAnchorUrl, setCachedAnchorUrl] = useState<string | undefined>(undefined);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
+  // This cache is used to show an error message to the user if the chosen input amount
+  // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
+  const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
+    usdc: { ars: 1200, eurc: 0.95, brl: 5.7 },
+    usdce: { ars: 1200, eurc: 0.95, brl: 5.7 },
+    usdt: { ars: 1200, eurc: 0.95, brl: 5.7 },
+  });
+
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
 
-  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
   const {
     error: signingServiceError,
     isLoading: isSigningServiceLoading,
     isError: isSigningServiceError,
   } = useSigningService();
-
-  const { setTermsAccepted, toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } =
-    useTermsAndConditions();
 
   useEffect(() => {
     if (!pendulumNode.apiComponents?.api && pendulumNode?.isFetched) {
@@ -109,14 +112,13 @@ export const SwapPage = () => {
     }
   }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
-  // Maybe go into a state of UI errors??
+  // TODO Replace with initializeFailed from offrampActions.
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
       message ??
         "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
     );
   }, []);
-
   useEffect(() => {
     if (isSigningServiceError && !isSigningServiceLoading) {
       if (signingServiceError instanceof StellarFundingAccountError) {
@@ -147,29 +149,25 @@ export const SwapPage = () => {
     firstSep24ResponseState,
     handleOnAnchorWindowOpen,
     maybeCancelSep24First,
+    handleBrlaOfframpStart,
   } = useMainProcess();
 
   const offrampStarted = useOfframpStarted();
   const offrampState = useOfframpState();
+  const offrampKycStarted = useOfframpKycStarted();
   const offrampSigningPhase = useOfframpSigningPhase();
-  const offrampInitiating = useOfframpInitiating();
-  const { setOfframpInitiating } = useOfframpActions();
+  const { setOfframpInitiating, setOfframpExecutionInput, clearInitializeFailedMessage, setOfframpSummaryVisible } =
+    useOfframpActions();
+  const isOfframpSummaryVisible = useOfframpSummaryVisible();
   const executionInput = useOfframpExecutionInput();
 
+  const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
     if (firstSep24ResponseState?.id != undefined) {
       setCachedId(firstSep24ResponseState?.id);
     }
   }, [firstSep24ResponseState?.id]);
-
-  // Store the anchor URL when it becomes available
-  useEffect(() => {
-    if (firstSep24ResponseState?.url) {
-      setCachedAnchorUrl(firstSep24ResponseState.url);
-      setIsOfframpSummaryDialogVisible(true);
-    }
-  }, [firstSep24ResponseState?.url]);
 
   const {
     isTokenSelectModalVisible,
@@ -183,6 +181,8 @@ export const SwapPage = () => {
     fromAmountString,
     from,
     to,
+    taxId,
+    pixId,
   } = useSwapForm();
 
   useSwapUrlParams({ form, feeComparisonRef });
@@ -217,12 +217,21 @@ export const SwapPage = () => {
       // Calculate the final amount after the offramp fees
       const totalReceive = calculateTotalReceive(toAmount, toToken);
       form.setValue('toAmount', totalReceive);
-    } else if (tokenOutAmount.error) {
+      setExchangeRateCache((prev) => ({
+        ...prev,
+        [from]: { ...prev[from], [to]: tokenOutAmount.data?.effectiveExchangeRate },
+      }));
+    } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
       form.setValue('toAmount', '0');
     } else {
       // Do nothing
     }
-  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken]);
+  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken, from, to]);
+
+  // Clear initialize failed message when the user changes output token, amount or tax id field
+  useEffect(() => {
+    clearInitializeFailedMessage();
+  }, [clearInitializeFailedMessage, to, taxId, fromAmount]);
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
@@ -256,78 +265,59 @@ export const SwapPage = () => {
     setNetworkSelectorDisabled(isNetworkSelectorDisabled);
   }, [offrampState, setNetworkSelectorDisabled]);
 
-  const ReceiveNumericInput = useMemo(
-    () => (
-      <AssetNumericInput
-        assetIcon={toToken.fiat.assetIcon}
-        tokenSymbol={toToken.fiat.symbol}
-        onClick={() => openTokenSelectModal('to')}
-        registerInput={form.register('toAmount')}
-        disabled={tokenOutAmount.isLoading}
-        readOnly={true}
-        id="toAmount"
-      />
-    ),
-    [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
-  );
-
-  const WithdrawNumericInput = useMemo(
-    () => (
-      <>
-        <AssetNumericInput
-          registerInput={form.register('fromAmount')}
-          tokenSymbol={fromToken.assetSymbol}
-          assetIcon={fromToken.networkAssetIcon}
-          onClick={() => openTokenSelectModal('from')}
-          onChange={() => {
-            // User interacted with the input field
-            trackEvent({ event: 'amount_type' });
-            // This also enables the quote tracking events
-            trackQuote.current = true;
-          }}
-          id="fromAmount"
-        />
-        <UserBalance token={fromToken} onClick={(amount: string) => form.setValue('fromAmount', amount)} />
-      </>
-    ),
-    [form, fromToken, openTokenSelectModal, trackEvent],
-  );
-
   function getCurrentErrorMessage() {
     if (isDisconnected) return;
 
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        trackEvent({ event: 'form_error', error_message: 'insufficient_balance' });
+        trackEvent({
+          event: 'form_error',
+          error_message: 'insufficient_balance',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
 
     const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
 
+    const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
+    const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
+
+    const exchangeRate = tokenOutAmount.data?.effectiveExchangeRate || exchangeRateCache[from]?.[to];
+
+    if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
+      console.log(exchangeRate, fromAmount.mul(exchangeRate).toNumber());
+      trackEvent({
+        event: 'form_error',
+        error_message: 'more_than_maximum_withdrawal',
+        input_amount: fromAmount ? fromAmount.toString() : '0',
+      });
+      return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+        toToken.fiat.symbol
+      }.`;
+    }
+
     if (amountOut !== undefined) {
-      const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
-      const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
-
-      if (maxAmountUnits.lt(amountOut)) {
-        trackEvent({ event: 'form_error', error_message: 'more_than_maximum_withdrawal' });
-        return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
-
       if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
-        trackEvent({ event: 'form_error', error_message: 'less_than_minimum_withdrawal' });
+        trackEvent({
+          event: 'form_error',
+          error_message: 'less_than_minimum_withdrawal',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
         }.`;
       }
     }
 
+    if (tokenOutAmount.error?.includes('Insufficient liquidity')) {
+      return 'The amount is temporarily not available. Please, try with a smaller amount.';
+    }
     return tokenOutAmount.error;
   }
 
-  const definitions =
+  const definitions: TokenDefinition[] =
     tokenSelectModalType === 'from'
       ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
           type: key as InputTokenType,
@@ -335,7 +325,7 @@ export const SwapPage = () => {
           assetIcon: value.networkAssetIcon,
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: key as OutputTokenType,
+          type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
           name: value.fiat.name,
@@ -357,6 +347,29 @@ export const SwapPage = () => {
     </>
   );
 
+  const handleOfframpSubmit = useCallback(() => {
+    if (!address) {
+      setInitializeFailed('No address found');
+      return;
+    }
+    if (!pendulumNode.apiComponents) {
+      setInitializeFailed('No API components found');
+      return;
+    }
+    to === 'brl'
+      ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents)
+      : handleOnAnchorWindowOpen();
+  }, [
+    address,
+    pendulumNode.apiComponents,
+    to,
+    handleBrlaOfframpStart,
+    executionInput,
+    selectedNetwork,
+    handleOnAnchorWindowOpen,
+    setInitializeFailed,
+  ]);
+
   if (offrampState?.phase === 'success') {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} toToken={to} />;
   }
@@ -375,7 +388,7 @@ export const SwapPage = () => {
   if (offrampState !== undefined || offrampStarted) {
     const isAssetHubFlow =
       !isNetworkEVM(selectedNetwork) &&
-      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubXCM');
+      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubToPendulumXCM');
     const showMainScreenAnyway =
       offrampState === undefined ||
       ['prepareTransactions', 'squidRouter'].includes(offrampState.phase) ||
@@ -385,132 +398,109 @@ export const SwapPage = () => {
     }
   }
 
-  const onSwapConfirm = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
+  const onSwapConfirm = () => {
     if (offrampStarted) {
-      setIsOfframpSummaryDialogVisible(true);
       return;
     }
 
-    if (!termsAccepted && !termsChecked) {
-      setTermsError(true);
-
-      // We need to trigger a re-render of the TermsAndConditions component to animate
-      setTermsAnimationKey((prev) => prev + 1);
+    const validInputs = validateSwapInputs(inputAmountIsStable, address, fromAmount, tokenOutAmount.data);
+    if (!validInputs) {
       return;
     }
 
-    swapConfirm(e, {
-      inputAmountIsStable,
-      address,
-      fromAmount,
-      tokenOutAmount,
-      api,
-      to,
-      from,
-      selectedNetwork,
-      fromAmountString,
-      requiresSquidRouter: isNetworkEVM(selectedNetwork),
-      setOfframpInitiating,
+    setOfframpInitiating(true);
+
+    const outputToken = getOutputTokenDetails(to);
+    const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
+
+    const { expectedRedeemAmountRaw, inputAmountRaw } = calculateSwapAmountsWithMargin(
+      validInputs.fromAmount,
+      validInputs.tokenOutAmountData.preciseQuotedAmountOut,
+      inputToken,
+      outputToken,
+    );
+
+    const effectiveExchangeRate = validInputs.tokenOutAmountData.effectiveExchangeRate;
+    const inputAmountUnits = fromAmountString;
+
+    const outputAmountBeforeFees = validInputs.tokenOutAmountData.roundedDownQuotedAmountOut;
+    const outputAmountAfterFees = calculateTotalReceive(outputAmountBeforeFees, outputToken);
+    const outputAmountUnits = {
+      beforeFees: outputAmountBeforeFees.toFixed(2, 0),
+      afterFees: outputAmountAfterFees,
+    };
+
+    if (!api) {
+      setInitializeFailed('No API found');
+      return;
+    }
+
+    if (!address) {
+      setInitializeFailed('No address found');
+      return;
+    }
+
+    const executionInput = {
+      inputTokenType: from,
+      outputTokenType: to,
+      effectiveExchangeRate,
+      inputAmountUnits,
+      outputAmountUnits,
       setInitializeFailed,
-      handleOnSubmit,
-      setTermsAccepted,
-    });
+      taxId: taxId,
+      pixId: pixId,
+      api: api,
+      requiresSquidRouter: isNetworkEVM(selectedNetwork),
+      expectedRedeemAmountRaw,
+      inputAmountRaw,
+      address: address,
+      network: selectedNetwork,
+    };
 
-    setIsOfframpSummaryDialogVisible(true);
+    setOfframpExecutionInput(executionInput);
+
+    performSwapInitialChecks()
+      .then(() => {
+        console.log('Initial checks completed. Starting process..');
+        handleOnSubmit(executionInput);
+      })
+      .catch((_error) => {
+        console.error('Error during swap confirmation:', _error);
+        setOfframpInitiating(false);
+        setInitializeFailed();
+      });
   };
 
   const main = (
     <main ref={formRef}>
       <OfframpSummaryDialog
+        visible={isOfframpSummaryVisible}
         executionInput={executionInput}
-        visible={true}
         anchorUrl={firstSep24ResponseState?.url || cachedAnchorUrl}
-        onSubmit={() => {
-          handleOnAnchorWindowOpen();
-        }}
-        onClose={() => setIsOfframpSummaryDialogVisible(false)}
+        onSubmit={handleOfframpSubmit}
+        onClose={() => setOfframpSummaryVisible(false)}
       />
       <SigningBox step={offrampSigningPhase} />
-      <motion.form
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
-        onSubmit={onSwapConfirm}
-      >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
-        <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
-        <div className="my-10" />
-        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
-        <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-        <FeeCollapse
-          fromAmount={fromAmount?.toString()}
-          toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
-          toToken={toToken}
-          exchangeRate={
-            <ExchangeRate
-              {...{
-                exchangeRate: tokenOutAmount.data?.effectiveExchangeRate,
-                fromToken,
-                toTokenSymbol: toToken.fiat.symbol,
-              }}
-            />
-          }
+      {offrampKycStarted ? (
+        <PIXKYCForm feeComparisonRef={feeComparisonRef} />
+      ) : (
+        <Swap
+          form={form}
+          from={from}
+          to={to}
+          tokenOutAmount={tokenOutAmount}
+          fromAmount={fromAmount}
+          feeComparisonRef={feeComparisonRef}
+          inputAmountIsStable={inputAmountIsStable}
+          trackQuote={trackQuote}
+          isOfframpSummaryDialogVisible={isOfframpSummaryVisible}
+          apiInitializeFailed={apiInitializeFailed}
+          initializeFailedMessage={initializeFailedMessage}
+          getCurrentErrorMessage={getCurrentErrorMessage}
+          openTokenSelectModal={openTokenSelectModal}
+          onSwapConfirm={onSwapConfirm}
         />
-        <section className="flex items-center justify-center w-full mt-5">
-          <BenefitsList amount={fromAmount} currency={from} />
-        </section>
-        <section className="flex justify-center w-full mt-5">
-          {(initializeFailedMessage || apiInitializeFailed) && (
-            <div className="flex items-center gap-4">
-              <p className="text-red-600">{initializeFailedMessage}</p>
-            </div>
-          )}
-        </section>
-        <section className="w-full mt-5">
-          <TermsAndConditions
-            key={termsAnimationKey}
-            {...{ toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError }}
-          />
-        </section>
-        <div className="flex gap-3 mt-5">
-          <button
-            className="btn-vortex-primary-inverse btn"
-            style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-            disabled={!inputAmountIsStable}
-            onClick={(e) => {
-              e.preventDefault();
-              // Scroll to the comparison fees section (with a small delay to allow the component to render first)
-              setTimeout(() => {
-                feeComparisonRef.current?.scrollIntoView();
-              }, 200);
-              // We track the user interaction with the button, for tracking the quote requested.
-              trackQuote.current = true;
-            }}
-          >
-            Compare fees
-          </button>
-          <SwapSubmitButton
-            text={
-              offrampInitiating
-                ? 'Confirming'
-                : offrampStarted && isOfframpSummaryDialogVisible
-                ? 'Processing'
-                : 'Confirm'
-            }
-            disabled={Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage}
-            pending={
-              offrampInitiating ||
-              (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
-              offrampState !== undefined
-            }
-          />
-        </div>
-        <div className="mb-16" />
-        <PoweredBy />
-      </motion.form>
+      )}
       <p className="flex items-center justify-center mr-1 text-gray-500">
         <a
           href="https://satoshipay.io"

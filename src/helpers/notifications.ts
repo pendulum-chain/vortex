@@ -3,6 +3,7 @@ import { ToastOptions, toast } from 'react-toastify';
 export enum ToastMessage {
   AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
   KYC_COMPLETED = 'KYC_COMPLETED',
+  KYC_VERIFICATION_FAILED = 'KYC_VERIFICATION_FAILED',
   SIGNING_FAILED = 'SIGNING_FAILED',
   POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = 'POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION',
   ERROR = 'ERROR',
@@ -27,6 +28,13 @@ const ToastProperties: Record<ToastMessage, ToastSettings> = {
     options: {
       toastId: ToastMessage.KYC_COMPLETED,
       type: 'success',
+    },
+  },
+  [ToastMessage.KYC_VERIFICATION_FAILED]: {
+    message: 'Could not verify KYC status. Please try again.',
+    options: {
+      toastId: ToastMessage.KYC_VERIFICATION_FAILED,
+      type: 'error',
     },
   },
   [ToastMessage.SIGNING_FAILED]: {

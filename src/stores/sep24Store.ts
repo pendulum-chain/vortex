@@ -17,6 +17,7 @@ export interface Sep24Actions {
 
 interface Sep24Store extends Sep24State {
   actions: Sep24Actions;
+  cachedAnchorUrl: string | undefined;
 }
 
 const useSep24Store = create<Sep24Store>()((set, get) => ({
@@ -24,10 +25,14 @@ const useSep24Store = create<Sep24Store>()((set, get) => ({
   initialResponse: undefined,
   executionInput: undefined,
   urlInterval: undefined,
+  cachedAnchorUrl: undefined,
 
   actions: {
     setAnchorSessionParams: (params) => set({ anchorSessionParams: params }),
-    setInitialResponse: (response) => set({ initialResponse: response }),
+    setInitialResponse: (response) => {
+      set({ cachedAnchorUrl: response?.url });
+      set({ initialResponse: response });
+    },
     setUrlInterval: (interval) => set({ urlInterval: interval }),
 
     reset: () =>
@@ -55,3 +60,4 @@ export const useSep24Actions = () => useSep24Store((state) => state.actions);
 export const useSep24InitialResponse = () => useSep24Store((state) => state.initialResponse);
 export const useSep24UrlInterval = () => useSep24Store((state) => state.urlInterval);
 export const useSep24AnchorSessionParams = () => useSep24Store((state) => state.anchorSessionParams);
+export const useSep24StoreCachedAnchorUrl = () => useSep24Store((state) => state.cachedAnchorUrl);

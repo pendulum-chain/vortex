@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
+import Big from 'big.js';
 
-import { recoverFromFailure, readCurrentState } from '../../services/offrampingFlow';
+import { recoverFromFailure, readCurrentState, constructBrlaInitialState } from '../../services/offrampingFlow';
 
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
@@ -9,10 +10,15 @@ import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 import { useSep24UrlInterval, useSep24InitialResponse } from '../../stores/sep24Store';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
+import { OfframpExecutionInput } from '../../types/offramp';
+import { Networks } from '../../helpers/networks';
+import { ApiComponents } from '../../contexts/polkadotNode';
+import { useVortexAccount } from '../useVortexAccount';
 
 export const useMainProcess = () => {
   const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();
   const offrampState = useOfframpState();
+  const { chainId } = useVortexAccount();
 
   // Sep 24 states
   const firstSep24Response = useSep24InitialResponse();
@@ -36,17 +42,54 @@ export const useMainProcess = () => {
   // Determines the current offramping phase
   useOfframpAdvancement();
 
+  const handleBrlaOfframpStart = async (
+    executionInput: OfframpExecutionInput | undefined,
+    network: Networks,
+    address: string,
+    pendulumNode: ApiComponents,
+  ) => {
+    if (!executionInput) {
+      throw new Error('Missing execution input');
+    }
+
+    if (!executionInput.taxId || !executionInput.pixId || !executionInput.brlaEvmAddress) {
+      throw new Error('Missing values on execution input');
+    }
+
+    if (!chainId) {
+      throw new Error('Missing chainId');
+    }
+
+    const initialState = await constructBrlaInitialState({
+      inputTokenType: executionInput.inputTokenType,
+      outputTokenType: executionInput.outputTokenType,
+      amountIn: executionInput.inputAmountUnits,
+      amountOut: Big(executionInput.outputAmountUnits.beforeFees),
+      network,
+      networkId: chainId,
+      pendulumNode,
+      offramperAddress: address!,
+      brlaEvmAddress: executionInput.brlaEvmAddress,
+      pixDestination: executionInput.pixId,
+      taxId: executionInput.taxId,
+    });
+    updateOfframpHookStateFromState(initialState);
+    return;
+  };
+
   return {
     handleOnSubmit: useSubmitOfframp(),
     firstSep24ResponseState: firstSep24Response,
     finishOfframping: () => {
       events.resetUniqueEvents();
       resetOfframpState();
+      cleanupSep24();
     },
     continueFailedFlow: () => {
       updateOfframpHookStateFromState(recoverFromFailure(offrampState));
     },
     handleOnAnchorWindowOpen: handleOnAnchorWindowOpen,
+    handleBrlaOfframpStart: handleBrlaOfframpStart,
     maybeCancelSep24First: () => {
       if (firstSep24Interval !== undefined) {
         setOfframpStarted(false);

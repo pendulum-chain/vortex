@@ -2,6 +2,7 @@ import { getQueryFnForService, QuoteQuery, QuoteService } from '../../services/q
 import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
+import vortexIcon from '../../assets/logo/blue.svg';
 import { JSX } from 'react';
 
 export interface QuoteProvider {
@@ -29,5 +30,11 @@ export const quoteProviders: QuoteProvider[] = [
     icon: <img src={transakIcon} className="h-10 w-30" alt="Transak" />,
     query: getQueryFnForService('transak'),
     href: 'https://transak.com',
+  },
+  {
+    name: 'vortex',
+    icon: <img src={vortexIcon} className="h-10 w-36" alt="Vortex" />,
+    query: getQueryFnForService('vortex'),
+    href: '',
   },
 ];

@@ -6,6 +6,7 @@ interface AccountStatusResponse {
   status: boolean;
   public: string;
 }
+
 interface SigningServiceStatus {
   pendulum: AccountStatusResponse;
   stellar: AccountStatusResponse;
@@ -17,6 +18,47 @@ interface SignerServiceSep10Response {
   clientPublic: string;
   masterClientSignature: string;
   masterClientPublic: string;
+}
+
+type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
+type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
+
+type BrlaKycState = 'KYC';
+
+export enum KycStatus {
+  PENDING = 'PENDING',
+  REJECTED = 'REJECTED',
+  APPROVED = 'APPROVED',
+}
+
+export type KycStatusType = keyof typeof KycStatus;
+
+interface BrlaOfframpStatus {
+  type: BrlaOfframpState;
+  status: OfframpStatus;
+}
+
+interface BrlaKycStatus {
+  type: BrlaKycState;
+  status: KycStatusType;
+}
+
+type TaxIdType = 'CPF' | 'CNPJ';
+
+export interface RegisterSubaccountPayload {
+  phone: string;
+  taxIdType: TaxIdType;
+  address: {
+    cep: string;
+    city: string;
+    state: string;
+    street: string;
+    number: string;
+    district: string;
+  };
+  fullName: string;
+  cpf: string;
+  birthdate: number; // Denoted in milliseconds since epoch
 }
 
 export interface SignerServiceSep10Request {
@@ -129,4 +171,52 @@ export const fetchSep10Signatures = async ({
 
   const { clientSignature, clientPublic, masterClientSignature, masterClientPublic } = await response.json();
   return { clientSignature, clientPublic, masterClientSignature, masterClientPublic };
+};
+
+export const fetchOfframpStatus = async (taxId: string) => {
+  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getOfframpStatus?taxId=${taxId}`);
+
+  if (statusResponse.status !== 200) {
+    if (statusResponse.status === 404) {
+      throw new Error('Offramp not found');
+    } else {
+      throw new Error(`Failed to fetch offramp status from server: ${statusResponse.statusText}`);
+    }
+  }
+
+  const eventStatus: BrlaOfframpStatus = await statusResponse.json();
+  console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
+  return eventStatus;
+};
+
+export const fetchKycStatus = async (taxId: string) => {
+  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getKycStatus?taxId=${taxId}`);
+
+  if (statusResponse.status !== 200) {
+    throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
+  }
+
+  const eventStatus: BrlaKycStatus = await statusResponse.json();
+  console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
+  return eventStatus;
+};
+
+export const createSubaccount = async (kycData: RegisterSubaccountPayload): Promise<{ subaccountId: string }> => {
+  const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(kycData),
+  });
+
+  if (accountCreationResponse.status === 400) {
+    const { details } = await accountCreationResponse.json();
+    throw new Error('Failed to create user. Reason: ' + details.error);
+  }
+
+  if (accountCreationResponse.status !== 200) {
+    throw new Error(`Failed to fetch KYC status from server: ${accountCreationResponse.statusText}`);
+  }
+
+  return await accountCreationResponse.json();
 };
