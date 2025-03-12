@@ -117,6 +117,7 @@ export interface BaseOfframpingState {
   pendulumAmountRaw: string;
   outputAmount: { units: string; raw: string };
   phase: OfframpingPhase | FinalOfframpingPhase;
+  currentPhaseInProgress: boolean;
   failure?: FailureType;
   squidRouterReceiverId: `0x${string}`;
   squidRouterReceiverHash: `0x${string}`;
@@ -167,7 +168,7 @@ export type StateTransitionFunction = (
 ) => Promise<OfframpingState | undefined>;
 
 // Constants
-const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
+export const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
 enum HandlerType {
@@ -288,6 +289,7 @@ async function constructBaseInitialState({
     pendulumAmountRaw,
     outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },
     phase: 'prepareTransactions',
+    currentPhaseInProgress: false,
     squidRouterReceiverId,
     squidRouterReceiverHash,
     nablaHardMinimumOutputRaw,
@@ -413,12 +415,16 @@ export const advanceOfframpingState = async (
     return undefined;
   }
 
-  const { phase, failure } = state;
+  const { phase, currentPhaseInProgress, failure } = state;
   const phaseIsFinal = phase === 'success' || failure !== undefined;
 
   if (phaseIsFinal) {
     console.log('Offramping is already in a final phase:', phase);
     return state;
+  }
+
+  if (currentPhaseInProgress) {
+    console.log(`Current phase ${phase} is in progress, ignoring advance request`);
   }
 
   console.log('Advance offramping state in phase', phase);
@@ -429,11 +435,18 @@ export const advanceOfframpingState = async (
     if (!nextHandler) {
       throw new Error(`No handler for phase ${phase} on network ${state.network}`);
     }
+
+    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, { ...state, currentPhaseInProgress: true });
     newState = await nextHandler(state, context);
+
     if (newState) {
+      newState.currentPhaseInProgress = false;
       Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
     }
   } catch (error: unknown) {
+    state.currentPhaseInProgress = false;
+    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, state);
+
     if ((error as Error)?.message === 'Wallet not connected') {
       console.error('Wallet not connected. Try to connect wallet');
       return state;
@@ -442,6 +455,8 @@ export const advanceOfframpingState = async (
     if (Date.now() < state.failureTimeoutAt) {
       console.error('Possible transient error within 10 minutes. Reloading page in 30 seconds.', error);
       await new Promise((resolve) => setTimeout(resolve, 30000));
+
+      // Since we are reloading, we cannot rely on useOfframpAdvancement to properly update that the state is not in progress.
       window.location.reload();
       return state;
     }
