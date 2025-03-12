@@ -117,7 +117,6 @@ export interface BaseOfframpingState {
   pendulumAmountRaw: string;
   outputAmount: { units: string; raw: string };
   phase: OfframpingPhase | FinalOfframpingPhase;
-  currentPhaseInProgress: boolean;
   failure?: FailureType;
   squidRouterReceiverId: `0x${string}`;
   squidRouterReceiverHash: `0x${string}`;
@@ -168,7 +167,7 @@ export type StateTransitionFunction = (
 ) => Promise<OfframpingState | undefined>;
 
 // Constants
-export const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
+const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
 enum HandlerType {
@@ -289,7 +288,6 @@ async function constructBaseInitialState({
     pendulumAmountRaw,
     outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },
     phase: 'prepareTransactions',
-    currentPhaseInProgress: false,
     squidRouterReceiverId,
     squidRouterReceiverHash,
     nablaHardMinimumOutputRaw,
@@ -415,7 +413,7 @@ export const advanceOfframpingState = async (
     return undefined;
   }
 
-  const { phase, currentPhaseInProgress, failure } = state;
+  const { phase, failure } = state;
   const phaseIsFinal = phase === 'success' || failure !== undefined;
 
   if (phaseIsFinal) {
@@ -423,11 +421,7 @@ export const advanceOfframpingState = async (
     return state;
   }
 
-  if (currentPhaseInProgress) {
-    console.log(`Current phase ${phase} is in progress, ignoring advance request`);
-  }
-
-  console.log('Advance offramping state in phase', phase);
+  console.log('Trying to advance offramping state from current phase', phase);
 
   let newState: OfframpingState | undefined;
   try {
@@ -440,13 +434,9 @@ export const advanceOfframpingState = async (
     newState = await nextHandler(state, context);
 
     if (newState) {
-      newState.currentPhaseInProgress = false;
       Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
     }
   } catch (error: unknown) {
-    state.currentPhaseInProgress = false;
-    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, state);
-
     if ((error as Error)?.message === 'Wallet not connected') {
       console.error('Wallet not connected. Try to connect wallet');
       return state;
