@@ -48,10 +48,10 @@ export const useAnchorWindowHandler = () => {
     }
 
     trackKYCStarted(executionInput, selectedNetwork);
-    cleanupSep24State();
 
     try {
       const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
+      cleanupSep24State();
 
       if (!Big(secondSep24Response.amount).eq(executionInput.outputAmountUnits.beforeFees)) {
         handleAmountMismatch(setOfframpStarted);
