@@ -1,0 +1,21 @@
+{
+  "pages": {
+    "failure": {
+      "title": "Oops! Something went wrong",
+      "recoverable": {
+        "description": "Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary problem such as bad internet connection.",
+        "cta": "Either try to continue or start over.",
+        "retry": "Retry"
+      },
+      "copyTransactionId": "In case you experience any issues, please copy this",
+      "contactSupport": {
+        "beforeUrl": "Contact our",
+        "url": "support team",
+        "afterUrl": ". We’re here to help!"
+      },
+      "contactedSupport": "Contacted support and ready to start fresh with a new transaction?",
+      "tapToReset": "Tap",
+      "resetAndRestart": "Reset and Restart"
+    }
+  }
+}

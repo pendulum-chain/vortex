@@ -1,0 +1,21 @@
+{
+  "pages": {
+    "failure": {
+      "title": "Ops! Algo deu errado",
+      "recoverable": {
+        "description": "Infelizmente, sua solicitação de saque não pôde ser processada a tempo. Isso pode ser devido a um problema temporário, como uma conexão de internet ruim.",
+        "cta": "Tente continuar ou começar novamente.",
+        "retry": "Tentar novamente"
+      },
+      "copyTransactionId": "Caso você encontre algum problema, por favor copie isto",
+      "contactSupport": {
+        "beforeUrl": "Entre em contato com nossa",
+        "url": "equipe de suporte",
+        "afterUrl": ". Estamos aqui para ajudar!"
+      },
+      "contactedSupport": "Entrou em contato com o suporte e está pronto para começar de novo com uma nova transação?",
+      "tapToReset": "Toque",
+      "resetAndRestart": "Reiniciar e Recomeçar"
+    }
+  }
+}
