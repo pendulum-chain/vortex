@@ -415,7 +415,7 @@ export const advanceOfframpingState = async (
     return undefined;
   }
 
-  const { phase, currentPhaseInProgress, failure } = state;
+  const { phase, failure } = state;
   const phaseIsFinal = phase === 'success' || failure !== undefined;
 
   if (phaseIsFinal) {
@@ -423,7 +423,8 @@ export const advanceOfframpingState = async (
     return state;
   }
 
-  if (currentPhaseInProgress) {
+  const stateFromStore = readCurrentState();
+  if (stateFromStore?.currentPhaseInProgress) {
     console.log(`Current phase ${phase} is in progress, ignoring advance request`);
   }
 
