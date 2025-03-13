@@ -14,10 +14,12 @@ router.route('/getOfframpStatus').get(brlaController.getOfframpStatus);
 
 router.route('/getKycStatus').get(brlaController.fetchSubaccountKycStatus);
 
+router.route('/validatePixKey').get(brlaController.validatePixKey);
+
 router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaController.triggerBrlaOfframp);
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
 
-router.route('/pay-in').post(validataPayIn, brlaController.triggerOnramp);
+router.route('/payIn').post(validataPayIn, brlaController.triggerOnramp);
 
 export default router;

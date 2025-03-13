@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
+import { validateMaskedNumber } from '../helpers/brla';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -91,6 +92,26 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
 
     if (!subaccount) {
       res.status(404).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
+    try {
+      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
+
+      // validate the recipient's taxId with partial information
+      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
+        res.status(400).json({ error: 'Invalid pixKey or receiverTaxId' });
+        return;
+      }
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid pixKey or receiverTaxId' });
+      return;
+    }
+
+    const limitBurn = subaccount.kyc.limits.limitBurn;
+    if (Number(amount) > limitBurn) {
+      res.status(400).json({ error: 'Amount exceeds limit' });
       return;
     }
 
@@ -249,6 +270,36 @@ export const triggerOnramp = async (
     });
 
     res.status(200).json({ brCode });
+  } catch (error) {
+    handleApiError(error, res, 'triggerOnramp');
+  }
+};
+
+/**
+ * Validates a pix key
+ *
+ * Uses BRLA's API to validate a pix key, returning valid if it exists
+ * or a 400 error if it does not or is not valid.
+ * Purposely does not return the pix key itself for security reasons.
+ *
+ * @returns Sends a valid boolean field.
+ *
+ * @throws 400 - If pix key is missing, invalid or does not exist.
+ * @throws 500 - For any server-side errors during processing
+ */
+export const validatePixKey = async (req: Request<{}, {}, {}, { pixKey: string }>, res: Response): Promise<void> => {
+  try {
+    const { pixKey } = req.query;
+
+    if (!pixKey) {
+      res.status(400).json({ error: 'pixKey must be provided' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    await brlaApiService.validatePixKey(pixKey);
+
+    res.status(200).json({ valid: true });
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }

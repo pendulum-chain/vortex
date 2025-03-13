@@ -65,3 +65,9 @@ export interface OnrampPayload {
   referenceLabel: string;
   subaccountId: string;
 }
+
+export interface PixKeyData {
+  name: string;
+  taxId: string;
+  bankName: string;
+}

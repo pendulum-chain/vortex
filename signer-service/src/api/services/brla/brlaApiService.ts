@@ -1,5 +1,5 @@
 import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
-import { SubaccountData, RegisterSubaccountPayload, OfframpPayload, OnrampPayload } from './types';
+import { SubaccountData, RegisterSubaccountPayload, OfframpPayload, OnrampPayload, PixKeyData } from './types';
 import { Event } from './webhooks';
 
 interface EndpointMapping {
@@ -56,6 +56,20 @@ interface EndpointMapping {
     };
     PATCH: {
       body: { ids: string[] };
+      response: undefined;
+    };
+  };
+  '/pay-out/pix-info': {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: PixKeyData;
+    };
+    PATCH: {
+      body: undefined;
       response: undefined;
     };
   };
@@ -196,6 +210,13 @@ export class BrlaApiService {
     const query = `subaccountId=${encodeURIComponent(onrampPayload.subaccountId)}&amount=${
       onrampPayload.amount
     }&referenceLabel=${onrampPayload.referenceLabel}`;
+    return await this.sendRequest(endpoint, 'GET', query);
+  }
+
+  public async validatePixKey(pixKey: string): Promise<PixKeyData> {
+    const endpoint = `/pay-out/pix-info`;
+    const query = `pixKey=${encodeURIComponent(pixKey)}`;
+
     return await this.sendRequest(endpoint, 'GET', query);
   }
 }
