@@ -165,6 +165,10 @@
         "continue": "Continue",
         "quote": "Quote",
         "partner": "Partner"
+      },
+      "selectionModal": {
+        "title": "Select a token",
+        "searchPlaceholder": "Find by name or address"
       }
     },
     "navbar": {

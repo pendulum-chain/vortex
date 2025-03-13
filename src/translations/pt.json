@@ -165,6 +165,10 @@
         "continue": "Continuar",
         "quote": "Cotação",
         "partner": "Parceiro"
+      },
+      "selectionModal": {
+        "title": "Selecione um token",
+        "searchPlaceholder": "Encontre por nome ou endereço"
       }
     },
     "navbar": {
