@@ -43,7 +43,7 @@ export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => (
           />
         ))}
         <div className="mt-2">
-          CPF and Pix key need to belong to the <b>same person</b>.
+          CPF and PIX key need to belong to the <b>same person</b>.
         </div>
       </motion.div>
     )}
