@@ -369,3 +369,19 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
 
   next();
 };
+
+export const validataPayIn: RequestHandler = (req, res, next) => {
+  const { taxId, amount } = req.body;
+
+  if (!taxId) {
+    res.status(400).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!amount || isNaN(Number(amount))) {
+    res.status(400).json({ error: 'Missing or invalid amount parameter' });
+    return;
+  }
+
+  next();
+};

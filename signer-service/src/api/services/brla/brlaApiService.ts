@@ -1,5 +1,5 @@
 import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
-import { SubaccountData, RegisterSubaccountPayload, OfframpPayload } from './types';
+import { SubaccountData, RegisterSubaccountPayload, OfframpPayload, OnrampPayload } from './types';
 import { Event } from './webhooks';
 
 interface EndpointMapping {
@@ -25,6 +25,20 @@ interface EndpointMapping {
     GET: {
       body: undefined;
       response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  '/pay-in/br-code': {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: { brCode: string };
     };
     PATCH: {
       body: undefined;
@@ -175,5 +189,13 @@ export class BrlaApiService {
   public async acknowledgeEvents(ids: string[]): Promise<void> {
     const endpoint = `/webhooks/events`;
     return await this.sendRequest(endpoint, 'PATCH', undefined, { ids });
+  }
+
+  public async generateBrCode(onrampPayload: OnrampPayload): Promise<{ brCode: string }> {
+    const endpoint = `/pay-in/br-code`;
+    const query = `subaccountId=${encodeURIComponent(onrampPayload.subaccountId)}&amount=${
+      onrampPayload.amount
+    }&referenceLabel=${onrampPayload.referenceLabel}`;
+    return await this.sendRequest(endpoint, 'GET', query);
   }
 }

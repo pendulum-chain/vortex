@@ -202,3 +202,54 @@ export const fetchSubaccountKycStatus = async (
     handleApiError(error, res, 'fetchSubaccountKycStatus');
   }
 };
+
+/**
+ * Retrieves a a BR Code that can be used to onramp into BRLA
+ *
+ * Fetches a user's subaccount information from the BRLA API service.
+ * It validates that the user exists and has completed a KYC verification.
+ * It returns the corresponding BR Code given the amount and reference label, if any.
+ *
+ * @returns  Sends JSON response with brCode on success.
+ *
+ * @throws 400 - If subaccount's KYC is invalid, or the amount exceeds KYC limits.
+ * @throws 404 - If the subaccount cannot be found
+ * @throws 500 - For any server-side errors during processing
+ */
+export const triggerOnramp = async (
+  req: Request<{}, {}, { taxId: string; amount: Number; reference: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { taxId, amount, reference } = req.body;
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      res.status(404).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    if (subaccount.kyc.level < 1) {
+      res.status(400).json({ error: 'KYC invalid' });
+      return;
+    }
+
+    const limitMint = subaccount.kyc.limits.limitMint;
+
+    if (Number(amount) > limitMint) {
+      res.status(400).json({ error: 'Amount exceeds limit' });
+      return;
+    }
+
+    const brCode = await brlaApiService.generateBrCode({
+      subaccountId: subaccount.id,
+      amount: String(amount),
+      referenceLabel: reference,
+    });
+
+    res.status(200).json({ brCode });
+  } catch (error) {
+    handleApiError(error, res, 'triggerOnramp');
+  }
+};

@@ -59,3 +59,9 @@ export interface OfframpPayload {
   amount: number;
   taxId: string;
 }
+
+export interface OnrampPayload {
+  amount: string;
+  referenceLabel: string;
+  subaccountId: string;
+}
