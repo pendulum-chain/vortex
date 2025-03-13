@@ -1,5 +1,12 @@
 import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
-import { SubaccountData, RegisterSubaccountPayload, OfframpPayload, OnrampPayload, PixKeyData } from './types';
+import {
+  SubaccountData,
+  RegisterSubaccountPayload,
+  OfframpPayload,
+  OnrampPayload,
+  PixKeyData,
+  DepositLog,
+} from './types';
 import { Event } from './webhooks';
 
 interface EndpointMapping {
@@ -67,6 +74,20 @@ interface EndpointMapping {
     GET: {
       body: undefined;
       response: PixKeyData;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  '/pay-in/pix/history': {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: { depositsLogs: DepositLog[] };
     };
     PATCH: {
       body: undefined;
@@ -218,5 +239,12 @@ export class BrlaApiService {
     const query = `pixKey=${encodeURIComponent(pixKey)}`;
 
     return await this.sendRequest(endpoint, 'GET', query);
+  }
+
+  public async getPayInHistory(userId: string): Promise<DepositLog[]> {
+    const endpoint = `/pay-in/pix/history`;
+    const query = `subaccountId=${encodeURIComponent(userId)}`;
+
+    return (await this.sendRequest(endpoint, 'GET', query)).depositsLogs;
   }
 }

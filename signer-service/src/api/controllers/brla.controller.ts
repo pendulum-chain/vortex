@@ -237,12 +237,22 @@ export const fetchSubaccountKycStatus = async (
  * @throws 404 - If the subaccount cannot be found
  * @throws 500 - For any server-side errors during processing
  */
-export const triggerOnramp = async (
-  req: Request<{}, {}, { taxId: string; amount: Number; reference: string }>,
+export const getPayInCode = async (
+  req: Request<{}, {}, {}, { taxId: string; amount: Number; reference: string }>,
   res: Response,
 ): Promise<void> => {
   try {
-    const { taxId, amount, reference } = req.body;
+    const { taxId, amount, reference } = req.query;
+
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId parameter' });
+      return;
+    }
+
+    if (!amount || isNaN(Number(amount))) {
+      res.status(400).json({ error: 'Missing or invalid amount parameter' });
+      return;
+    }
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
@@ -300,6 +310,41 @@ export const validatePixKey = async (req: Request<{}, {}, {}, { pixKey: string }
     await brlaApiService.validatePixKey(pixKey);
 
     res.status(200).json({ valid: true });
+  } catch (error) {
+    handleApiError(error, res, 'triggerOnramp');
+  }
+};
+
+/**
+ * Trigger an onramp operation
+ *
+ * Given the confirmation of payment, it triggers an onramp operation.
+ * Assuming operation was successfully started, this will start the process to
+ * teleport the funds to the corresponding Moonbeam address, once they arrive.
+ *
+ * @returns void?.
+ *
+ * @throws 400 - If taxId is invalid. No Pay In could have been generated.
+ * @throws 500 - For any server-side errors during processing
+ */
+export const triggerPayIn = async (req: Request<{}, {}, { taxId: string }>, res: Response): Promise<void> => {
+  try {
+    const { taxId } = req.body;
+
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId parameter' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      res.status(400).json({ error: 'taxId invalid' });
+      return;
+    }
+    // TODO
+
+    res.status(200).json({});
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }

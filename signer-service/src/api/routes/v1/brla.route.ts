@@ -1,10 +1,6 @@
 import { Router } from 'express';
 import * as brlaController from '../../controllers/brla.controller';
-import {
-  validateBrlaTriggerOfframpInput,
-  validataSubaccountCreation,
-  validataPayIn,
-} from '../../middlewares/validators';
+import { validateBrlaTriggerOfframpInput, validataSubaccountCreation } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
 
@@ -16,10 +12,12 @@ router.route('/getKycStatus').get(brlaController.fetchSubaccountKycStatus);
 
 router.route('/validatePixKey').get(brlaController.validatePixKey);
 
+router.route('/payIn').get(brlaController.getPayInCode);
+
 router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaController.triggerBrlaOfframp);
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
 
-router.route('/payIn').post(validataPayIn, brlaController.triggerOnramp);
+router.route('/triggerPayIn').post(brlaController.triggerPayIn);
 
 export default router;

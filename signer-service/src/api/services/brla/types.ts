@@ -71,3 +71,50 @@ export interface PixKeyData {
   taxId: string;
   bankName: string;
 }
+// Interface response from /pay-in/pix/history
+export interface DepositLog {
+  chain: string;
+  walletAddress: string;
+  amount: number;
+  taxId: string;
+  due: string;
+  id: string;
+  createdAt: string;
+  status: string;
+  payerName: string;
+  updatedAt: string;
+  mintOps: MintOp[];
+  referenceLabel: string;
+  externalId: string;
+  payerBankCode: string;
+  payerBranchCode: string;
+  payerAccountNumber: string;
+  payerAccountType: string;
+}
+
+interface Feedback {
+  id: string;
+  success: boolean;
+  errorMsg: string;
+  createdAt: string;
+}
+
+interface SmartContractOp {
+  id: string;
+  operationName: string;
+  posted: boolean;
+  tx: string;
+  notPostedReason: string;
+  createdAt: string;
+  isRetry: boolean;
+  feedback: Feedback;
+}
+
+interface MintOp {
+  id: string;
+  amount: number;
+  createdReason: string;
+  createdAt: string;
+  fee: number;
+  smartContractOps: SmartContractOp[];
+}
