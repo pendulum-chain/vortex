@@ -49,9 +49,9 @@
         "insufficientFunds": "Insufficient balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
         "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
         "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
-        "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
-        "developedBy": "Developed by"
-      }
+        "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount."
+      },
+      "developedBy": "Developed by"
     }
   },
   "sections": {
@@ -170,6 +170,12 @@
       "sellCrypto": "Sell Crypto",
       "howItWorks": "How it works",
       "community": "Community"
+    },
+    "swap": {
+      "sellCrypto": "Sell Crypto",
+      "firstInputLabel": "You sell",
+      "secondInputLabel": "You receive",
+      "compareFees": "Compare fees"
     }
   }
 }

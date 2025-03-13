@@ -117,7 +117,7 @@ export const SwapPage = () => {
   // TODO Replace with initializeFailed from offrampActions.
   const setInitializeFailed = useCallback(
     (message?: string | null) => {
-      setInitializeFailedMessage(message ?? t('pages.swap.initializeFailed'));
+      setInitializeFailedMessage(message ?? t('pages.swap.error.initializeFailed'));
     },
     [t],
   );
@@ -278,7 +278,7 @@ export const SwapPage = () => {
           input_amount: fromAmount ? fromAmount.toString() : '0',
         });
 
-        return t('pages.swap.insufficientFunds', {
+        return t('pages.swap.error.insufficientFunds', {
           userInputTokenBalance,
           assetSymbol: fromToken?.assetSymbol,
         });
@@ -321,7 +321,7 @@ export const SwapPage = () => {
     }
 
     if (tokenOutAmount.error?.includes('Insufficient liquidity')) {
-      return t('pages.swap.insufficientLiquidity');
+      return t('pages.swap.error.insufficientLiquidity');
     }
     return tokenOutAmount.error;
   }
