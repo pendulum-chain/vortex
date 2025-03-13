@@ -25,7 +25,18 @@
       "swappingTo": "Swapping to {{assetSymbol}} on Vortex DEX",
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
       "transferringToLocalPartner": "Transferring to local partner for bank transfer",
-      "success": "Transaction completed successfully!"
+      "success": "Transaction completed successfully!",
+      "transactionInProgress": "Your transaction is in progress."
+    },
+    "success": {
+      "title": "All set! The withdrawal has been sent to your bank.",
+      "returnHome": "Return Home",
+      "arrivalText": {
+        "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
+        "ARS": "Your funds will arrive in your bank account in a few minutes.",
+        "BRL": "Your funds will arrive in your bank account in a few minutes.",
+        "default": "Your funds will arrive in your bank account soon."
+      }
     }
   }
 }

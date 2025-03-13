@@ -1,6 +1,7 @@
 import { FC, useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { CheckIcon } from '@heroicons/react/20/solid';
+import { useTranslation } from 'react-i18next';
 
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
@@ -148,6 +149,8 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
   const [displayedPercentage, setDisplayedPercentage] = useState(0);
   const circumference = CIRCLE_RADIUS * 2 * Math.PI;
 
+  const { t } = useTranslation();
+
   useProgressUpdate(currentPhase, currentPhaseIndex, displayedPercentage, setDisplayedPercentage, setShowCheckmark);
 
   return (
@@ -165,7 +168,7 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          Your transaction is in progress.
+          {t('pages.progress.transactionInProgress')}
         </motion.h1>
         <motion.h1
           className="mb-3 text-base text-blue-700"

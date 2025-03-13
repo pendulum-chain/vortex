@@ -25,7 +25,9 @@
       "swappingTo": "Trocando para {{assetSymbol}} na Vortex DEX",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "transferringToLocalPartner": "Transferindo para parceiro local para transferência bancária",
-      "success": "Transação concluída com sucesso!"
-    }
+      "success": "Transação concluída com sucesso!",
+      "transactionInProgress": "Sua transação está em andamento."
+    },
+    "success": {}
   }
 }
