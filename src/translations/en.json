@@ -95,6 +95,15 @@
     "pitch": {
       "title": "Sell <1>Stablecoins</1> and receive <br class='hidden sm:block' /> the money directly in your Bank Account",
       "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market."
+    },
+    "howToSell": {
+      "title": "How to sell cryptocurrency online <br class='hidden md:block' /> with Vortex Finance",
+      "steps": {
+        "1": "Connect your wallet and enter the amount in cryptocurrency you wish to sell.",
+        "2": "Continue to the partner site and provide your email and payment details.",
+        "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
+        "4": "Wait for the funds to arrive in your account."
+      }
     }
   },
   "components": {
