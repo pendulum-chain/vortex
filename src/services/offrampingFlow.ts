@@ -430,23 +430,22 @@ export const advanceOfframpingState = async (
       throw new Error(`No handler for phase ${phase} on network ${state.network}`);
     }
 
-    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, { ...state, currentPhaseInProgress: true });
     newState = await nextHandler(state, context);
 
     if (newState) {
       Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
     }
   } catch (error: unknown) {
-    if ((error as Error)?.message === 'Wallet not connected') {
-      console.error('Wallet not connected. Try to connect wallet');
-      return state;
-    }
+    // TODO why was this condition required?
+    // if ((error as Error)?.message === 'Wallet not connected') {
+    //   console.error('Wallet not connected. Try to connect wallet');
+    //   return state;
+    // }
 
     if (Date.now() < state.failureTimeoutAt) {
       console.error('Possible transient error within 10 minutes. Reloading page in 30 seconds.', error);
       await new Promise((resolve) => setTimeout(resolve, 30000));
 
-      // Since we are reloading, we cannot rely on useOfframpAdvancement to properly update that the state is not in progress.
       window.location.reload();
       return state;
     }

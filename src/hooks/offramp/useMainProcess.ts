@@ -16,7 +16,7 @@ import { ApiComponents } from '../../contexts/polkadotNode';
 import { useVortexAccount } from '../useVortexAccount';
 
 export const useMainProcess = () => {
-  const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();
+  const { resetOfframpState, setOfframpStarted, setOfframpState, startFlow } = useOfframpActions();
   const offrampState = useOfframpState();
   const { chainId } = useVortexAccount();
 
@@ -33,11 +33,11 @@ export const useMainProcess = () => {
   // Initialize state from storage
   useEffect(() => {
     const recoveryState = readCurrentState();
-    updateOfframpHookStateFromState(recoveryState);
+    setOfframpState(recoveryState);
     events.trackOfframpingEvent(recoveryState);
     // Previously, adding events to the array was causeing a re-rendering loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateOfframpHookStateFromState, events.trackOfframpingEvent]);
+  }, [setOfframpState, events.trackOfframpingEvent]);
 
   // Determines the current offramping phase
   useOfframpAdvancement();
@@ -73,7 +73,8 @@ export const useMainProcess = () => {
       pixDestination: executionInput.pixId,
       taxId: executionInput.taxId,
     });
-    updateOfframpHookStateFromState(initialState);
+    setOfframpState(initialState);
+    startFlow();
     return;
   };
 
@@ -86,7 +87,8 @@ export const useMainProcess = () => {
       cleanupSep24();
     },
     continueFailedFlow: () => {
-      updateOfframpHookStateFromState(recoverFromFailure(offrampState));
+      setOfframpState(recoverFromFailure(offrampState));
+      startFlow();
     },
     handleOnAnchorWindowOpen: handleOnAnchorWindowOpen,
     handleBrlaOfframpStart: handleBrlaOfframpStart,
