@@ -81,6 +81,16 @@
     "trustedBy": {
       "title": "Trusted by",
       "comingSoon": "Coming soon"
+    },
+    "popularTokens": {
+      "networks": {
+        "title": "Supported Networks",
+        "description": "Trade across multiple blockchain networks"
+      },
+      "tokens": {
+        "title": "Supported Tokens",
+        "description": "Trade these popular stablecoins"
+      }
     }
   },
   "components": {
