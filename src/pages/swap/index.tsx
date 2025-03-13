@@ -117,7 +117,7 @@ export const SwapPage = () => {
   // TODO Replace with initializeFailed from offrampActions.
   const setInitializeFailed = useCallback(
     (message?: string | null) => {
-      setInitializeFailedMessage(message ?? t('pages.swap.error.initializeFailed'));
+      setInitializeFailedMessage(message ?? t('pages.swap.error.initializeFailed.default'));
     },
     [t],
   );
