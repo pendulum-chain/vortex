@@ -74,9 +74,9 @@
         "smartKYC": {
           "title": "Smart KYC",
           "description": "Get verified quickly and enjoy high transaction limits and a seamless and user-friendly verification process."
-        },
-        "withVortexFinance": "with <1>Vortex Finance</1>?"
-      }
+        }
+      },
+      "withVortexFinance": "with <1>Vortex Finance</1>?"
     }
   },
   "components": {

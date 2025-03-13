@@ -53,7 +53,7 @@ export const WhyVortex = () => {
     },
     {
       icon: USER_CHECK,
-      title: t('sections.whyVortex.features.smartKYC'),
+      title: t('sections.whyVortex.features.smartKYC.title'),
       description: t('sections.whyVortex.features.smartKYC.description'),
     },
   ];
@@ -69,7 +69,7 @@ export const WhyVortex = () => {
           viewport={{ once: true }}
         >
           <br className="hidden lg:block" />{' '}
-          <Trans i18nKey="sections.whyVortex.titleBreak">
+          <Trans i18nKey="sections.whyVortex.withVortexFinance">
             with <strong className="text-primary">Vortex Finance</strong>?
           </Trans>
         </motion.h1>
