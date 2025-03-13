@@ -104,6 +104,11 @@
         "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
         "4": "Wait for the funds to arrive in your account."
       }
+    },
+    "gotQuestions": {
+      "title": "Got Questions? We're here to help!",
+      "description": "Get in touch with us for answers and support.",
+      "contactUs": "Contact Us"
     }
   },
   "components": {
