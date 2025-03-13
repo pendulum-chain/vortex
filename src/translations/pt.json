@@ -7,7 +7,7 @@
         "cta": "Tente continuar ou começar novamente.",
         "retry": "Tentar novamente"
       },
-      "copyTransactionId": "Caso você encontre algum problema, por favor copie isto",
+      "copyTransactionId": "Caso você encontre algum problema, por favor copie isso",
       "contactSupport": {
         "beforeUrl": "Entre em contato com nossa",
         "url": "equipe de suporte",
@@ -15,19 +15,86 @@
       },
       "contactedSupport": "Entrou em contato com o suporte e está pronto para começar de novo com uma nova transação?",
       "tapToReset": "Toque",
-      "resetAndRestart": "Reiniciar e Recomeçar"
+      "resetAndRestart": "Redefinir e Reiniciar"
     },
     "progress": {
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
       "bridgingAssetHub": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
       "executeMoonbeamToPendulumXCM": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "executePendulumToMoonbeamXCM": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
-      "swappingTo": "Trocando para {{assetSymbol}} na Vortex DEX",
+      "swappingTo": "Trocando para {{assetSymbol}} no Vortex DEX",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "transferringToLocalPartner": "Transferindo para parceiro local para transferência bancária",
       "success": "Transação concluída com sucesso!",
       "transactionInProgress": "Sua transação está em andamento."
     },
-    "success": {}
+    "success": {
+      "title": "Tudo pronto! O saque foi enviado para seu banco.",
+      "returnHome": "Voltar para Início",
+      "arrivalText": {
+        "EURC": "Os fundos serão recebidos em 1 minuto (SEPA Instantâneo) ou 2 dias (SEPA Padrão). O tipo de SEPA depende do suporte do banco destinatário.",
+        "ARS": "Seus fundos chegarão à sua conta bancária em alguns minutos.",
+        "BRL": "Seus fundos chegarão à sua conta bancária em alguns minutos.",
+        "default": "Seus fundos chegarão à sua conta bancária em breve."
+      }
+    },
+    "swap": {
+      "error": {
+        "initializeFailed": {
+          "default": "Estamos enfrentando um congestionamento digital. Por favor, aguarde enquanto liberamos o caminho e fazemos as coisas funcionarem novamente!",
+          "noAddress": "Nenhum endereço encontrado.",
+          "noApiComponents": "Nenhum componente de API encontrado.",
+          "noApi": "Nenhuma API encontrada."
+        },
+        "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
+        "moreThanMaximumWithdrawal": "O valor máximo de saque é {{maxAmountUnits}} {{assetSymbol}}.",
+        "lessThanMinimumWithdrawal": "O valor mínimo de saque é {{minAmountUnits}} {{assetSymbol}}.",
+        "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
+        "developedBy": "Desenvolvido por"
+      }
+    }
+  },
+  "sections": {
+    "whyVortex": {
+      "title": "Venda Criptomoedas de forma segura",
+      "description": "Vortex é uma exchange não-custodial que permite trocar entre diferentes criptomoedas. É construída sobre o blockchain Stellar e usa o SDK Stellar para interagir com a rede Stellar.",
+      "features": {
+        "lowFees": {
+          "title": "Taxas Menores, Melhor Valor",
+          "description": "As taxas são de apenas 0,25%, muito abaixo da média do mercado. Não há taxas ocultas nas taxas de câmbio."
+        },
+        "easyToUse": {
+          "title": "Fácil de Usar",
+          "description": "Venda suas criptomoedas facilmente sem a necessidade de uma exchange centralizada."
+        },
+        "securityFirst": {
+          "title": "Segurança em Primeiro Lugar, Sempre",
+          "description": "Vortex é não-custodial por design. Seus ativos são tratados com cuidado e segurança."
+        },
+        "smartKYC": {
+          "title": "KYC Inteligente",
+          "description": "Seja verificado rapidamente e aproveite limites de transação elevados e um processo de verificação simples e amigável."
+        }
+      },
+      "withVortexFinance": "com <1>Vortex Finance</1>?"
+    },
+    "trustedBy": {
+      "title": "Avaliado por",
+      "comingSoon": "Em breve"
+    }
+  },
+  "components": {
+    "dialogs": {
+      "OfframpSummaryDialog": {
+        "headerText": "Você está vendendo",
+        "offrampFee": "Taxa de saque",
+        "continueWithPartner": "Continuar com Parceiro",
+        "continueOnPartnersPage": "Continuar na página do Parceiro",
+        "processing": "Processando",
+        "continue": "Continuar",
+        "quote": "Cotação",
+        "partner": "Parceiro"
+      }
+    }
   }
 }

@@ -9,10 +9,13 @@ import enTranslations from './translations/en.json';
 import ptTranslations from './translations/pt.json';
 
 import '../App.css';
+import { getLanguageFromPath } from './translations/helpers';
 
 export function App() {
+  const lng = getLanguageFromPath();
+
   i18n.use(initReactI18next).init({
-    lng: 'en',
+    lng,
     fallbackLng: 'en',
     resources: {
       en: {

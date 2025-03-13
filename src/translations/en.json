@@ -77,6 +77,10 @@
         }
       },
       "withVortexFinance": "with <1>Vortex Finance</1>?"
+    },
+    "trustedBy": {
+      "title": "Trusted by",
+      "comingSoon": "Coming soon"
     }
   },
   "components": {

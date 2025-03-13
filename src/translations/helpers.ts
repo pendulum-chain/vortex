@@ -18,7 +18,7 @@ const getLanguageFromPath = (): Language => {
 
   const languageValues = Object.values(Language);
   for (const lang of languageValues) {
-    if (path.includes(`/${lang}/`)) {
+    if (path.includes(`/${lang}`)) {
       return lang as Language;
     }
   }
