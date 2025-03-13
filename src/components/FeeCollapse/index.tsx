@@ -1,9 +1,10 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
+import { useTranslation } from 'react-i18next';
+
 import { BaseOutputTokenDetails } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
-
 export function calculateTotalReceive(toAmount: Big, outputToken: BaseOutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
   const fixedFees = new Big(outputToken.offrampFeesFixedComponent ? outputToken.offrampFeesFixedComponent : 0);
@@ -26,6 +27,7 @@ interface CollapseProps {
 
 export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exchangeRate }) => {
   const { trackEvent } = useEventsContext();
+  const { t } = useTranslation();
   const toTokenSymbol = toToken.fiat.symbol;
 
   const trackFeeCollapseOpen = () => {
@@ -39,12 +41,14 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
       <input type="checkbox" />
       <div className="min-h-0 px-4 py-2 collapse-title">
         <div className="flex items-center justify-between">
-          <p>Details</p>
+          <p>{t('components.feeCollapse.details')}</p>
         </div>
       </div>
       <div className="text-[15px] collapse-content">
         <div className="flex justify-between mt-2 ">
-          <p>Your quote ({exchangeRate})</p>
+          <p>
+            {t('components.feeCollapse.yourQuote')} ({exchangeRate})
+          </p>
           <div className="flex">
             <span>
               {toAmountFixed} {toTokenSymbol}
@@ -52,7 +56,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
           </div>
         </div>
         <div className="flex justify-between">
-          <p>Vortex fee</p>
+          <p>{t('components.feeCollapse.vortexFee')}</p>
           <div className="flex">
             <span>
               - {feesCost} {toTokenSymbol}
@@ -60,7 +64,7 @@ export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exc
           </div>
         </div>
         <div className="flex justify-between">
-          <strong className="font-bold">Final Amount</strong>
+          <strong className="font-bold">{t('components.feeCollapse.finalAmount')}</strong>
           <div className="flex">
             <span>
               {totalReceiveFormatted} {toTokenSymbol}
