@@ -68,7 +68,7 @@ export const useMainProcess = () => {
       network,
       networkId: chainId,
       pendulumNode,
-      offramperAddress: address!,
+      offramperAddress: address,
       brlaEvmAddress: executionInput.brlaEvmAddress,
       pixDestination: executionInput.pixId,
       taxId: executionInput.taxId,

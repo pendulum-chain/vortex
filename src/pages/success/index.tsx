@@ -1,4 +1,6 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
+import { useTranslation } from 'react-i18next';
+
 import { BaseLayout } from '../../layouts';
 import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
@@ -18,23 +20,27 @@ interface SuccessPageProps {
 }
 
 export const SuccessPage = ({ finishOfframping, transactionId, toToken }: SuccessPageProps) => {
-  const eurcArrivalText =
-    'Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.';
-  const arsArrivalText = 'Your funds will arrive in your bank account in a few minutes.';
-  const arrivalText = toToken === OutputTokenTypes.EURC ? eurcArrivalText : arsArrivalText;
+  const { t } = useTranslation();
+
+  const ARRIVAL_TEXT_BY_TOKEN: Record<OutputTokenType, string> = {
+    [OutputTokenTypes.EURC]: t('pages.success.arrivalText.EURC'),
+    [OutputTokenTypes.ARS]: t('pages.success.arrivalText.ARS'),
+    [OutputTokenTypes.BRL]: t('pages.success.arrivalText.BRL'),
+  };
+
+  const arrivalText = ARRIVAL_TEXT_BY_TOKEN[toToken] || t('pages.success.arrivalText.default');
+
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12 ">
         <Checkmark />
-        <h1 className="mt-6 text-2xl font-bold text-center text-blue-700">
-          All set! The withdrawal has been sent to your bank.
-        </h1>
+        <h1 className="mt-6 text-2xl font-bold text-center text-blue-700">{t('pages.success.title')}</h1>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         <p className="text-center text-gray-400">{arrivalText}</p>
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         <EmailForm transactionId={transactionId} transactionSuccess={true} />
         <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={finishOfframping}>
-          Return Home
+          {t('pages.success.returnHome')}
         </button>
       </Box>
       <Rating />

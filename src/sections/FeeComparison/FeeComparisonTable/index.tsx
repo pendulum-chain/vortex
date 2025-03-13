@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import Big from 'big.js';
+import { useTranslation } from 'react-i18next';
 
 import { getNetworkDisplayName, isNetworkEVM } from '../../../helpers/networks';
 import { quoteProviders } from '../quoteProviders';
@@ -21,6 +22,7 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
     },
     { bestPrice: new Big(0), bestProvider: '' },
   );
+  const { t } = useTranslation();
 
   const sortedProviders = quoteProviders.sort((a, b) => {
     const aPrice = providerPrices[a.name] ?? new Big(0);
@@ -30,7 +32,7 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
   const networkDisplay = !isNetworkEVM(network) ? (
     <div
       className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-      data-tip={`Quotes are for Polygon, as the providers don't support ${getNetworkDisplayName(network)}.`}
+      data-tip={t('sections.feeComparison.table.tooltip', { network: getNetworkDisplayName(network) })}
     >
       <span translate="no">(Polygon)</span>
     </div>
@@ -41,12 +43,13 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
       <div className="flex items-center justify-center w-full mb-3">
         <div className="flex items-center justify-center w-full gap-4">
           <span className="font-bold text-md">
-            Sending {amount.toFixed(2)} {sourceAssetSymbol} {networkDisplay} with
+            {t('sections.feeComparison.table.sending')} {amount.toFixed(2)} {sourceAssetSymbol} {networkDisplay}{' '}
+            {t('sections.feeComparison.table.with')}
           </span>
         </div>
         <div className="flex flex-col items-center justify-center w-full">
-          <span className="font-bold text-md">Recipient gets</span>
-          <span className="text-sm">(Total after fees)</span>
+          <span className="font-bold text-md">{t('sections.feeComparison.table.recipientGets')}</span>
+          <span className="text-sm">{t('sections.feeComparison.table.totalAfterFees')}</span>
         </div>
       </div>
 

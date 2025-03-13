@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Wallet, WalletAccount } from '@talismn/connect-wallets';
 import { ArrowLeftEndOnRectangleIcon } from '@heroicons/react/20/solid';
 
@@ -6,7 +7,6 @@ import accountBalanceWalletIconPink from '../../../../assets/account-balance-wal
 import { trimAddress } from '../../../../helpers/addressFormatter';
 import { CopyablePublicKey } from '../../../PublicKey/CopyablePublicKey';
 import { usePolkadotWalletState } from '../../../../contexts/polkadotWallet';
-
 interface WalletButtonProps {
   wallet?: Wallet;
   balance?: string;
@@ -30,20 +30,24 @@ interface WalletDropdownMenuProps {
   removeWalletAccount: () => void;
 }
 
-const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: WalletDropdownMenuProps) => (
-  <ul className="dropdown-content menu right-0 mt-2 min-w-[240px] border border-base-300 bg-base-200 p-3 text-center shadow-lg rounded-2xl">
-    <li className="text-sm text-neutral-400">{walletAccount?.name}</li>
-    <li className="mt-2 text-neutral-500">
-      <CopyablePublicKey publicKey={address} variant="short" inline={true} />
-    </li>
-    <li>
-      <button className="mt-2 text-base btn btn-sm bg-base-300" onClick={removeWalletAccount}>
-        <ArrowLeftEndOnRectangleIcon className="w-5 mr-2" />
-        Disconnect
-      </button>
-    </li>
-  </ul>
-);
+const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: WalletDropdownMenuProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <ul className="dropdown-content menu right-0 mt-2 min-w-[240px] border border-base-300 bg-base-200 p-3 text-center shadow-lg rounded-2xl">
+      <li className="text-sm text-neutral-400">{walletAccount?.name}</li>
+      <li className="mt-2 text-neutral-500">
+        <CopyablePublicKey publicKey={address} variant="short" inline={true} />
+      </li>
+      <li>
+        <button className="mt-2 text-base btn btn-sm bg-base-300" onClick={removeWalletAccount}>
+          <ArrowLeftEndOnRectangleIcon className="w-5 mr-2" />
+          {t('components.dialogs.polkadotDisconnectWallet.disconnect')}
+        </button>
+      </li>
+    </ul>
+  );
+};
 
 export const DisconnectModal = () => {
   const { walletAccount, removeWalletAccount } = usePolkadotWalletState();

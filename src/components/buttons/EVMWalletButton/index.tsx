@@ -7,6 +7,7 @@ import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet
 import { wagmiConfig } from '../../../wagmiConfig';
 import { trimAddress } from '../../../helpers/addressFormatter';
 import { useVortexAccount } from '../../../hooks/useVortexAccount';
+import { useTranslation } from 'react-i18next';
 
 const WalletButton = ({
   onClick,
@@ -50,7 +51,7 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
   const { isConnected } = useAppKitAccount();
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
   const { open } = useAppKit();
-
+  const { t } = useTranslation();
   const isOnSupportedNetwork = wagmiConfig.chains.find((chain) => chain.id === walletChainId) !== undefined;
 
   if (!isConnected) {
@@ -64,7 +65,7 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
         showPlayIcon
       >
         <p className="flex">
-          Connect <span className="hidden lg:block lg:ml-1">Wallet</span>
+          {t('components.dialogs.connectWallet.connect')} <span className="hidden lg:block lg:ml-1">Wallet</span>
         </p>
       </WalletButton>
     );
@@ -81,7 +82,7 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
         hideIcon={hideIcon}
         showPlayIcon
       >
-        Wrong network
+        {t('components.dialogs.connectWallet.wrongNetwork')}
       </WalletButton>
     );
   }
