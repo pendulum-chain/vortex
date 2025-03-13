@@ -1,3 +1,3 @@
-/api/production/*  https://signer-service.pendulumchain.tech/:splat  200
+/api/production/*  https://signer-service-staging.pendulumchain.tech/:splat  200
 /api/staging/*  https://signer-service-staging.pendulumchain.tech/:splat  200
 /* /index.html 200
