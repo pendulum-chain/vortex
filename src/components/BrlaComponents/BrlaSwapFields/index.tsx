@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { AnimatePresence, motion, MotionProps } from 'motion/react';
 
 import { OutputTokenType, OutputTokenTypes } from '../../../constants/tokenConfig';
@@ -28,24 +29,30 @@ const STANDARD_FIELDS = [
  * for processing PIX transfers to Brazilian bank accounts.
  */
 
-export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => (
-  <AnimatePresence>
-    {toToken === OutputTokenTypes.BRL && (
-      <motion.div {...containerAnimation}>
-        {STANDARD_FIELDS.map((field) => (
-          <BrlaField
-            className="mt-2"
-            key={field.id}
-            id={field.id}
-            label={field.label}
-            index={field.index}
-            placeholder={`Enter your ${field.label}`}
-          />
-        ))}
-        <div className="mt-2">
-          Tax ID and Pix key need to belong to the <b>same person</b>.
-        </div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => {
+  const { t } = useTranslation();
+
+  return (
+    <AnimatePresence>
+      {toToken === OutputTokenTypes.BRL && (
+        <motion.div {...containerAnimation}>
+          {STANDARD_FIELDS.map((field) => (
+            <BrlaField
+              className="mt-2"
+              key={field.id}
+              id={field.id}
+              label={field.label}
+              index={field.index}
+              placeholder={t(`components.brlaSwapField.placeholder`, { label: field.label })}
+            />
+          ))}
+          <div className="mt-2">
+            <Trans i18nKey="components.brlaSwapField.disclaimer">
+              Tax ID and Pix key need to belong to the <b>same person</b>.
+            </Trans>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
