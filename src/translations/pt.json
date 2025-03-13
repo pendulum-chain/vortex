@@ -200,6 +200,16 @@
       "yourQuote": "Sua cotação",
       "vortexFee": "Taxa da Vortex",
       "finalAmount": "Valor final"
+    },
+    "brlaExtendedForm": {
+      "fullName": "Nome completo",
+      "phoneNumber": "Telefone",
+      "city": "Cidade",
+      "state": "Estado",
+      "street": "Rua",
+      "number": "Número",
+      "district": "Bairro",
+      "birthdate": "Data de nascimento"
     }
   }
 }

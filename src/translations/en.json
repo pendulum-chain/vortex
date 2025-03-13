@@ -200,6 +200,16 @@
       "yourQuote": "Your quote",
       "vortexFee": "Vortex fee",
       "finalAmount": "Final Amount"
+    },
+    "brlaExtendedForm": {
+      "fullName": "Full Name",
+      "phoneNumber": "Phone Number",
+      "city": "City",
+      "state": "State",
+      "street": "Street",
+      "number": "Number",
+      "district": "District",
+      "birthdate": "Birthdate"
     }
   }
 }
