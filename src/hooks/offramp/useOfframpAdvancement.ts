@@ -11,6 +11,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
+import { storageService } from '../../services/storage/local';
 
 export const useOfframpAdvancement = () => {
   const { walletAccount } = usePolkadotWalletState();

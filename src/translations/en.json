@@ -188,7 +188,7 @@
     },
     "brlaSwapField": {
       "placeholder": "Enter your {{label}}",
-      "disclaimer": "Tax ID and Pix key need to belong to the <1>same person</1>."
+      "disclaimer": "CPF and Pix key need to belong to the <1>same person</1>."
     },
     "swapSubmitButton": {
       "confirming": "Confirming",

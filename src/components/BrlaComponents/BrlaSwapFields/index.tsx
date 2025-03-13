@@ -17,8 +17,8 @@ const containerAnimation: MotionProps = {
 };
 
 const STANDARD_FIELDS = [
-  { id: StandardBrlaFieldOptions.TAX_ID, label: 'Tax ID', index: 0 },
-  { id: StandardBrlaFieldOptions.PIX_ID, label: 'Pix Key', index: 1 },
+  { id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 },
+  { id: StandardBrlaFieldOptions.PIX_ID, label: 'PIX key', index: 1 },
 ];
 
 /**
@@ -48,7 +48,7 @@ export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => {
           ))}
           <div className="mt-2">
             <Trans i18nKey="components.brlaSwapField.disclaimer">
-              Tax ID and Pix key need to belong to the <b>same person</b>.
+              CPF and Pix key need to belong to the <b>same person</b>.
             </Trans>
           </div>
         </motion.div>

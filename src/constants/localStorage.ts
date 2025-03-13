@@ -15,4 +15,15 @@ export const storageKeys = {
   // Internal squidrouter recovery states
   SQUIDROUTER_RECOVERY_STATE_APPROVAL: 'SQUIDROUTER_TRANSACTION_STATE_APPROVAL',
   SQUIDROUTER_RECOVERY_STATE_SWAP: 'SQUIDROUTER_TRANSACTION_STATE_SWAP',
+
+  LAST_TRANSACTION_SUBMISSION_INDEX: 'LAST_TRANSACTION_SUBMISSION_INDEX',
 };
+
+/// This enum is used to keep track of the last transaction submission index. This is used to determine if a transaction has been submitted before.
+/// The indices are used to determine which transaction was last submitted.
+export enum TransactionSubmissionIndices {
+  SQUIDROUTER_APPROVE = 0,
+  SQUIDROUTER_SWAP = 1,
+
+  ASSETHUB_XCM = 0,
+}
