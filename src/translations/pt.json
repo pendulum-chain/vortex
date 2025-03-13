@@ -169,6 +169,18 @@
       "selectionModal": {
         "title": "Selecione um token",
         "searchPlaceholder": "Encontre por nome ou endereço"
+      },
+      "polkadotDisconnectWallet": {
+        "disconnect": "Desconectar"
+      },
+      "polkadotWalletSelectorDialog": {
+        "title": "Conectar wallet",
+        "selectWallet": "Selecionar wallet",
+        "chooseAccount": "Escolher Conta",
+        "noWalletInstalled": "Nenhuma carteira instalada"
+      },
+      "connectWallet": {
+        "connect": "Conectar"
       }
     },
     "navbar": {
