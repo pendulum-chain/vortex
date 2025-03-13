@@ -1,6 +1,7 @@
 import { RefObject, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
@@ -15,6 +16,7 @@ interface KYCFormProps {
 
 export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef }: KYCFormProps) => {
   const { handleSubmit } = form;
+  const { t } = useTranslation();
 
   const compareFeesClick = useCallback(() => {
     feeComparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -29,10 +31,9 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef 
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px]"
         onSubmit={handleSubmit(onSubmit)}
       >
-        <h1 className="mt-2 mb-2 text-3xl font-bold text-center text-blue-700">KYC Details</h1>
+        <h1 className="mt-2 mb-2 text-3xl font-bold text-center text-blue-700">{t('components.brlaKYCForm.title')}</h1>
         <div className="text-primary-500 text-center mb-6">
-          KYC verification is required to complete your transaction. The information you provide is processed securely
-          by our local partner{' '}
+          {t('components.brlaKYCForm.description')}
           <a className="underline" target="_blank" rel="noreferrer" href="https://www.brla.digital">
             BRLA
           </a>
@@ -59,14 +60,14 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields, feeComparisonRef 
         <div className="grid gap-3 mt-8 mb-8">
           <div className="flex gap-3">
             <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick}>
-              Back
+              {t('components.brlaKYCForm.buttons.back')}
             </button>
             <button type="submit" className="btn-vortex-primary btn flex-1">
-              Finish
+              {t('components.brlaKYCForm.buttons.finish')}
             </button>
           </div>
           <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={compareFeesClick}>
-            Compare Fees
+            {t('components.brlaKYCForm.buttons.compareFees')}
           </button>
         </div>
       </motion.form>

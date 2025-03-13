@@ -201,15 +201,32 @@
       "vortexFee": "Taxa da Vortex",
       "finalAmount": "Valor final"
     },
+    "brlaKYCForm": {
+      "title": "Detalhes KYC",
+      "description": "A verificação KYC é necessária para completar sua transação. As informações fornecidas são processadas com segurança pelo nosso parceiro local ",
+      "buttons": {
+        "back": "Voltar",
+        "finish": "Finalizar",
+        "compareFees": "Comparar Taxas"
+      }
+    },
     "brlaExtendedForm": {
-      "fullName": "Nome completo",
-      "phoneNumber": "Telefone",
-      "city": "Cidade",
-      "state": "Estado",
-      "street": "Rua",
-      "number": "Número",
-      "district": "Bairro",
-      "birthdate": "Data de nascimento"
+      "form": {
+        "fullName": "Nome Completo",
+        "phoneNumber": "Número de Telefone",
+        "city": "Cidade",
+        "state": "Estado",
+        "street": "Rua",
+        "number": "Número",
+        "district": "Bairro",
+        "birthdate": "Data de Nascimento"
+      },
+      "verificationStatus": {
+        "pending": "Verificando seus dados, por favor aguarde",
+        "success": "Verificação bem-sucedida",
+        "rejected": "Verificação KYC rejeitada",
+        "error": "Erro na verificação"
+      }
     }
   }
 }

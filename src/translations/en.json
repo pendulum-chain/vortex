@@ -201,6 +201,15 @@
       "vortexFee": "Vortex fee",
       "finalAmount": "Final Amount"
     },
+    "brlaKYCForm": {
+      "title": "KYC Details",
+      "description": "KYC verification is required to complete your transaction. The information you provide is processed securely by our local partner ",
+      "buttons": {
+        "back": "Back",
+        "finish": "Finish",
+        "compareFees": "Compare Fees"
+      }
+    },
     "brlaExtendedForm": {
       "form": {
         "fullName": "Full Name",
