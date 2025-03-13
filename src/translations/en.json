@@ -139,6 +139,18 @@
           "answer": "Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex’s competitive rates, ease of use, and seamless transactions. If you’re interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business."
         }
       }
+    },
+    "feeComparison": {
+      "title": "<0>Save</0> on exchange rate markups",
+      "description": "The cost of your transfer comes from the fee and the exchange rate. Many providers offer <1>”no fee”</1>, while hiding a markup in the exchange rate, making you pay more.",
+      "description2": "At Vortex, we’ll never do that and show our fees upfront.",
+      "table": {
+        "sending": "Sending",
+        "with": "with",
+        "recipientGets": "Recipient gets",
+        "totalAfterFees": "Total after fees",
+        "bestRate": "Best rate"
+      }
     }
   },
   "components": {
@@ -153,6 +165,11 @@
         "quote": "Quote",
         "partner": "Partner"
       }
+    },
+    "navbar": {
+      "sellCrypto": "Sell Crypto",
+      "howItWorks": "How it works",
+      "community": "Community"
     }
   }
 }

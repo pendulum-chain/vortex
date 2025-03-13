@@ -7,7 +7,7 @@ import { calculateTotalReceive } from '../../components/FeeCollapse';
 import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 
-import { FeeComparison } from '../../components/FeeComparison';
+import { FeeComparison } from '../../sections/FeeComparison';
 import { SigningBox } from '../../components/SigningBox';
 
 import { PitchSection } from '../../sections/Pitch';
