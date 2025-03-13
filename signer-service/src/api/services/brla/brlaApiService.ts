@@ -7,97 +7,8 @@ import {
   PixKeyData,
   DepositLog,
 } from './types';
+import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
-
-interface EndpointMapping {
-  '/subaccounts': {
-    POST: {
-      body: RegisterSubaccountPayload;
-      response: { id: string };
-    };
-    GET: {
-      body: undefined;
-      response: { subaccounts: SubaccountData[] };
-    };
-    PATCH: {
-      body: undefined;
-      response: undefined;
-    };
-  };
-  '/pay-out': {
-    POST: {
-      body: OfframpPayload;
-      response: { id: string };
-    };
-    GET: {
-      body: undefined;
-      response: undefined;
-    };
-    PATCH: {
-      body: undefined;
-      response: undefined;
-    };
-  };
-  '/pay-in/br-code': {
-    POST: {
-      body: undefined;
-      response: undefined;
-    };
-    GET: {
-      body: undefined;
-      response: { brCode: string };
-    };
-    PATCH: {
-      body: undefined;
-      response: undefined;
-    };
-  };
-  '/webhooks/events': {
-    POST: {
-      body: undefined;
-      response: undefined;
-    };
-    GET: {
-      body: undefined;
-      response: { events: Event[] };
-    };
-    PATCH: {
-      body: { ids: string[] };
-      response: undefined;
-    };
-  };
-  '/pay-out/pix-info': {
-    POST: {
-      body: undefined;
-      response: undefined;
-    };
-    GET: {
-      body: undefined;
-      response: PixKeyData;
-    };
-    PATCH: {
-      body: undefined;
-      response: undefined;
-    };
-  };
-  '/pay-in/pix/history': {
-    POST: {
-      body: undefined;
-      response: undefined;
-    };
-    GET: {
-      body: undefined;
-      response: { depositsLogs: DepositLog[] };
-    };
-    PATCH: {
-      body: undefined;
-      response: undefined;
-    };
-  };
-}
-
-type Endpoints = keyof EndpointMapping;
-type Methods = keyof EndpointMapping[keyof EndpointMapping];
 
 export class BrlaApiService {
   private static instance: BrlaApiService;
@@ -199,52 +110,44 @@ export class BrlaApiService {
 
   public async getSubaccount(taxId: string): Promise<SubaccountData | undefined> {
     const query = `taxId=${encodeURIComponent(taxId)}`;
-    const response = await this.sendRequest('/subaccounts', 'GET', query);
+    const response = await this.sendRequest(Endpoint.Subaccounts, 'GET', query);
     return response.subaccounts[0];
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
-    const endpoint = `/pay-out`;
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest(endpoint, 'POST', query, offrampParams);
+    return await this.sendRequest(Endpoint.PayOut, 'POST', query, offrampParams);
   }
 
   public async createSubaccount(registerSubaccountPayload: RegisterSubaccountPayload): Promise<{ id: string }> {
-    const endpoint = `/subaccounts`;
-    return await this.sendRequest(endpoint, 'POST', undefined, registerSubaccountPayload);
+    return await this.sendRequest(Endpoint.Subaccounts, 'POST', undefined, registerSubaccountPayload);
   }
 
   public async getAllEventsByUser(userId: string): Promise<Event[] | undefined> {
-    const endpoint = `/webhooks/events`;
     const query = `subaccountId=${encodeURIComponent(userId)}`;
-    const response = await this.sendRequest(endpoint, 'GET', query);
+    const response = await this.sendRequest(Endpoint.WebhookEvents, 'GET', query);
     return response.events;
   }
 
   public async acknowledgeEvents(ids: string[]): Promise<void> {
-    const endpoint = `/webhooks/events`;
-    return await this.sendRequest(endpoint, 'PATCH', undefined, { ids });
+    return await this.sendRequest(Endpoint.WebhookEvents, 'PATCH', undefined, { ids });
   }
 
   public async generateBrCode(onrampPayload: OnrampPayload): Promise<{ brCode: string }> {
-    const endpoint = `/pay-in/br-code`;
     const query = `subaccountId=${encodeURIComponent(onrampPayload.subaccountId)}&amount=${
       onrampPayload.amount
     }&referenceLabel=${onrampPayload.referenceLabel}`;
-    return await this.sendRequest(endpoint, 'GET', query);
+    return await this.sendRequest(Endpoint.BrCode, 'GET', query);
   }
 
   public async validatePixKey(pixKey: string): Promise<PixKeyData> {
-    const endpoint = `/pay-out/pix-info`;
     const query = `pixKey=${encodeURIComponent(pixKey)}`;
 
-    return await this.sendRequest(endpoint, 'GET', query);
+    return await this.sendRequest(Endpoint.PixInfo, 'GET', query);
   }
 
   public async getPayInHistory(userId: string): Promise<DepositLog[]> {
-    const endpoint = `/pay-in/pix/history`;
     const query = `subaccountId=${encodeURIComponent(userId)}`;
-
-    return (await this.sendRequest(endpoint, 'GET', query)).depositsLogs;
+    return (await this.sendRequest(Endpoint.PixHistory, 'GET', query)).depositsLogs;
   }
 }
