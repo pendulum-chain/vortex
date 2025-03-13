@@ -81,6 +81,10 @@
     "trustedBy": {
       "title": "Avaliado por",
       "comingSoon": "Em breve"
+    },
+    "pitch": {
+      "title": "Venda <1>Stablecoins</1> e receba o dinheiro diretamente na sua conta bancária",
+      "description": "Complete tudo em um único passo simples. Com nossos parceiros locais confiáveis, <br class='hidden sm:block' /> aproveite transações rápidas e seguras e as melhores taxas do mercado."
     }
   },
   "components": {

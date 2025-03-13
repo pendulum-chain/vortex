@@ -91,6 +91,10 @@
         "title": "Supported Tokens",
         "description": "Trade these popular stablecoins"
       }
+    },
+    "pitch": {
+      "title": "Sell <1>Stablecoins</1> and receive <br class='hidden sm:block' /> the money directly in your Bank Account",
+      "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market."
     }
   },
   "components": {
