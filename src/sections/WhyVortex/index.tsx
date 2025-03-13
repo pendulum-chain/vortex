@@ -1,4 +1,6 @@
 import { motion } from 'motion/react';
+import { Trans, useTranslation } from 'react-i18next';
+
 import PERCENT from '../../assets/why-vortex/percent.svg';
 import COFFEE from '../../assets/why-vortex/coffee.svg';
 import LOCK from '../../assets/why-vortex/lock.svg';
@@ -9,31 +11,6 @@ interface Feature {
   title: string;
   description: string;
 }
-
-const features: Feature[] = [
-  {
-    icon: PERCENT,
-    title: 'Lower Fees, Better Value',
-    description:
-      'Fees are at just 0.25%, far below the market average. There are no hidden fees in the exchange rates.',
-  },
-  {
-    icon: COFFEE,
-    title: 'Easy to Use',
-    description: 'Sell your crypto easily without the need for a centralized exchange.',
-  },
-  {
-    icon: LOCK,
-    title: 'Security First, Always',
-    description: 'Vortex is non-custodial by design. Your assets are handled with care and security.',
-  },
-  {
-    icon: USER_CHECK,
-    title: 'Smart KYC',
-    description:
-      'Get verified quickly and enjoy high transaction limits and a seamless and user-friendly verification process.',
-  },
-];
 
 const FeatureCard = ({ icon, title, description }: Feature) => (
   <motion.div
@@ -55,24 +32,53 @@ const FeatureCard = ({ icon, title, description }: Feature) => (
   </motion.div>
 );
 
-export const WhyVortex = () => (
-  <motion.section className="container pb-24 mx-auto">
-    <div className="relative grid grid-cols-1 lg:grid-cols-2">
-      <motion.h1
-        className="lg:sticky text-center lg:pl-4 lg:text-left  text-3xl text-black lg:top-24 sm:text-5xl lg:text-4xl lg:h-[100px]"
-        initial={{ x: -50 }}
-        animate={{ x: 0 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-      >
-        Sell Crypto the secure Way <br className="hidden lg:block" /> with{' '}
-        <strong className="text-primary">Vortex Finance</strong>?
-      </motion.h1>
-      <div className="grid grid-cols-1 mt-12 lg:mt-0 gap-x-20 gap-y-8 md:grid-cols-2">
-        {features.map((feature) => (
-          <FeatureCard key={feature.title} {...feature} />
-        ))}
+export const WhyVortex = () => {
+  const { t } = useTranslation();
+
+  const features: Feature[] = [
+    {
+      icon: PERCENT,
+      title: t('sections.whyVortex.features.lowFees.title'),
+      description: t('sections.whyVortex.features.lowFees.description'),
+    },
+    {
+      icon: COFFEE,
+      title: t('sections.whyVortex.features.easyToUse.title'),
+      description: t('sections.whyVortex.features.easyToUse.description'),
+    },
+    {
+      icon: LOCK,
+      title: t('sections.whyVortex.features.securityFirst.title'),
+      description: t('sections.whyVortex.features.securityFirst.description'),
+    },
+    {
+      icon: USER_CHECK,
+      title: t('sections.whyVortex.features.smartKYC'),
+      description: t('sections.whyVortex.features.smartKYC.description'),
+    },
+  ];
+
+  return (
+    <motion.section className="container pb-24 mx-auto">
+      <div className="relative grid grid-cols-1 lg:grid-cols-2">
+        <motion.h1
+          className="lg:sticky text-center lg:pl-4 lg:text-left  text-3xl text-black lg:top-24 sm:text-5xl lg:text-4xl lg:h-[100px]"
+          initial={{ x: -50 }}
+          animate={{ x: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <br className="hidden lg:block" />{' '}
+          <Trans i18nKey="sections.whyVortex.titleBreak">
+            with <strong className="text-primary">Vortex Finance</strong>?
+          </Trans>
+        </motion.h1>
+        <div className="grid grid-cols-1 mt-12 lg:mt-0 gap-x-20 gap-y-8 md:grid-cols-2">
+          {features.map((feature) => (
+            <FeatureCard key={feature.title} {...feature} />
+          ))}
+        </div>
       </div>
-    </div>
-  </motion.section>
-);
+    </motion.section>
+  );
+};

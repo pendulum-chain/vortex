@@ -36,21 +36,60 @@
         "ARS": "Your funds will arrive in your bank account in a few minutes.",
         "BRL": "Your funds will arrive in your bank account in a few minutes.",
         "default": "Your funds will arrive in your bank account soon."
-      },
-      "swap": {
-        "error": {
-          "initializeFailed": {
-            "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
-            "noAddress": "No address found.",
-            "noApiComponents": "No API components found.",
-            "noApi": "No API found."
-          },
-          "insufficientFunds": "Insufficient balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
-          "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
-          "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
-          "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
-          "developedBy": "Developed by"
-        }
+      }
+    },
+    "swap": {
+      "error": {
+        "initializeFailed": {
+          "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
+          "noAddress": "No address found.",
+          "noApiComponents": "No API components found.",
+          "noApi": "No API found."
+        },
+        "insufficientFunds": "Insufficient balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
+        "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
+        "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
+        "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
+        "developedBy": "Developed by"
+      }
+    }
+  },
+  "sections": {
+    "whyVortex": {
+      "title": "Sell Crypto the secure Way",
+      "description": "Vortex is a non-custodial exchange that allows you to swap between different cryptocurrencies. It is built on top of the Stellar blockchain and uses the Stellar SDK to interact with the Stellar network.",
+      "features": {
+        "lowFees": {
+          "title": "Lower Fees, Better Value",
+          "description": "Fees are at just 0.25%, far below the market average. There are no hidden fees in the exchange rates."
+        },
+        "easyToUse": {
+          "title": "Easy to Use",
+          "description": "Sell your crypto easily without the need for a centralized exchange."
+        },
+        "securityFirst": {
+          "title": "Security First, Always",
+          "description": "Vortex is non-custodial by design. Your assets are handled with care and security."
+        },
+        "smartKYC": {
+          "title": "Smart KYC",
+          "description": "Get verified quickly and enjoy high transaction limits and a seamless and user-friendly verification process."
+        },
+        "withVortexFinance": "with <1>Vortex Finance</1>?"
+      }
+    }
+  },
+  "components": {
+    "dialogs": {
+      "OfframpSummaryDialog": {
+        "headerText": "You're selling",
+        "offrampFee": "Offramp fee",
+        "continueWithPartner": "Continue with Partner",
+        "continueOnPartnersPage": "Continue on Partner's page",
+        "processing": "Processing",
+        "continue": "Continue",
+        "quote": "Quote",
+        "partner": "Partner"
       }
     }
   }
