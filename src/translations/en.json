@@ -149,7 +149,8 @@
         "with": "with",
         "recipientGets": "Recipient gets",
         "totalAfterFees": "Total after fees",
-        "bestRate": "Best rate"
+        "bestRate": "Best rate",
+        "tooltip": "Quotes are for Polygon, as the providers don't support {{network}}."
       }
     }
   },
@@ -176,6 +177,25 @@
       "firstInputLabel": "You sell",
       "secondInputLabel": "You receive",
       "compareFees": "Compare fees"
+    },
+    "benefitsList": {
+      "noHiddenFees": "No hidden fees",
+      "takes5Minutes": "Takes <1>5 minutes</1>"
+    },
+    "brlaSwapField": {
+      "placeholder": "Enter your {{label}}",
+      "disclaimer": "Tax ID and Pix key need to belong to the <1>same person</1>."
+    },
+    "swapSubmitButton": {
+      "confirming": "Confirming",
+      "processing": "Processing",
+      "confirm": "Confirm"
+    },
+    "feeCollapse": {
+      "details": "Details",
+      "yourQuote": "Your quote",
+      "vortexFee": "Vortex fee",
+      "finalAmount": "Final Amount"
     }
   }
 }

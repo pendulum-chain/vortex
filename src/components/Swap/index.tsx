@@ -28,12 +28,6 @@ import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useEventsContext } from '../../contexts/events';
 
-enum SwapButtonState {
-  CONFIRMING = 'Confirming',
-  PROCESSING = 'Processing',
-  CONFIRM = 'Confirm',
-}
-
 enum TokenSelectType {
   FROM = 'from',
   TO = 'to',
@@ -163,14 +157,14 @@ export const Swap = ({
     onSwapConfirm();
   }, [onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
 
-  const getButtonState = (): SwapButtonState => {
+  const getButtonState = (): string => {
     if (offrampInitiating) {
-      return SwapButtonState.CONFIRMING;
+      return t('components.swapSubmitButton.confirming');
     }
     if (offrampStarted && isOfframpSummaryDialogVisible) {
-      return SwapButtonState.PROCESSING;
+      return t('components.swapSubmitButton.processing');
     }
-    return SwapButtonState.CONFIRM;
+    return t('components.swapSubmitButton.confirm');
   };
 
   const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage;
@@ -191,7 +185,7 @@ export const Swap = ({
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
         onSubmit={form.handleSubmit(onConfirm)}
       >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">{t('swap.sellCrypto')}</h1>
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">{t('components.swap.sellCrypto')}</h1>
         <LabeledInput label={t('components.swap.firstInputLabel')} htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <div className="my-10" />
         <LabeledInput label={t('components.swap.secondInputLabel')} htmlFor="toAmount" Input={ReceiveNumericInput} />

@@ -15,7 +15,7 @@
       },
       "contactedSupport": "Entrou em contato com o suporte e está pronto para começar de novo com uma nova transação?",
       "tapToReset": "Toque",
-      "resetAndRestart": "Redefinir e Reiniciar"
+      "resetAndRestart": "Reiniciar e Recomeçar"
     },
     "progress": {
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
@@ -49,14 +49,14 @@
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "moreThanMaximumWithdrawal": "O valor máximo de saque é {{maxAmountUnits}} {{assetSymbol}}.",
         "lessThanMinimumWithdrawal": "O valor mínimo de saque é {{minAmountUnits}} {{assetSymbol}}.",
-        "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
-        "developedBy": "Desenvolvido por"
-      }
+        "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor."
+      },
+      "developedBy": "Desenvolvido por"
     }
   },
   "sections": {
     "whyVortex": {
-      "title": "Venda Criptomoedas de forma segura",
+      "title": "Venda Cripto de forma segura",
       "description": "Vortex é uma exchange não-custodial que permite trocar entre diferentes criptomoedas. É construída sobre o blockchain Stellar e usa o SDK Stellar para interagir com a rede Stellar.",
       "features": {
         "lowFees": {
@@ -73,18 +73,85 @@
         },
         "smartKYC": {
           "title": "KYC Inteligente",
-          "description": "Seja verificado rapidamente e aproveite limites de transação elevados e um processo de verificação simples e amigável."
+          "description": "Seja verificado rapidamente e desfrute de altos limites de transação e um processo de verificação simples e amigável."
         }
       },
       "withVortexFinance": "com <1>Vortex Finance</1>?"
     },
     "trustedBy": {
-      "title": "Avaliado por",
+      "title": "Confiado por",
       "comingSoon": "Em breve"
     },
+    "popularTokens": {
+      "networks": {
+        "title": "Redes Suportadas",
+        "description": "Negocie em várias redes blockchain"
+      },
+      "tokens": {
+        "title": "Tokens Suportados",
+        "description": "Negocie estas stablecoins populares"
+      }
+    },
     "pitch": {
-      "title": "Venda <1>Stablecoins</1> e receba o dinheiro diretamente na sua conta bancária",
-      "description": "Complete tudo em um único passo simples. Com nossos parceiros locais confiáveis, <br class='hidden sm:block' /> aproveite transações rápidas e seguras e as melhores taxas do mercado."
+      "title": "Venda <1>Stablecoins</1> e receba <br class='hidden sm:block' /> o dinheiro diretamente na sua Conta Bancária",
+      "description": "Complete tudo em uma única etapa simples. Com nossos parceiros locais confiáveis, <br class='hidden sm:block' /> desfrute de transações rápidas, seguras e as melhores taxas do mercado."
+    },
+    "howToSell": {
+      "title": "Como vender criptomoedas online <br class='hidden md:block' /> com Vortex Finance",
+      "steps": {
+        "1": "Conecte sua carteira e insira o valor em criptomoeda que deseja vender.",
+        "2": "Continue para o site do parceiro e forneça seu e-mail e detalhes de pagamento.",
+        "3": "Retorne ao VortexFinance.co e confirme a transação em sua carteira.",
+        "4": "Aguarde a chegada dos fundos em sua conta."
+      }
+    },
+    "gotQuestions": {
+      "title": "Tem Perguntas? Estamos aqui para ajudar!",
+      "description": "Entre em contato conosco para respostas e suporte.",
+      "contactUs": "Fale Conosco"
+    },
+    "faq": {
+      "title": "Perguntas frequentes",
+      "learnMore": "SAIBA MAIS",
+      "items": {
+        "fees": {
+          "question": "Quanto a Vortex cobra em taxas?",
+          "answer": "As taxas da Vortex são completamente transparentes e dependem do método de pagamento escolhido. São taxas completas, o que significa que não há cobranças ocultas da Vortex ou de parceiros bancários locais. O custo da sua transferência vem da taxa claramente divulgada e da taxa de câmbio. Ao contrário de muitos provedores que afirmam 'sem taxas', mas escondem custos extras em taxas de câmbio inflacionadas, a Vortex garante que você nunca seja cobrado em excesso. Nossas taxas são mostradas antecipadamente para que você sempre saiba exatamente o que está pagando."
+        },
+        "countries": {
+          "question": "Quais países e moedas a Vortex suporta?",
+          "answer": "A Vortex está disponível em todos os 44 países europeus e também atende usuários no Brasil e na Argentina. Nossa cobertura de serviço está em constante expansão, com novos países sendo adicionados a cada poucas semanas. À medida que crescemos, nosso objetivo é fornecer acesso a ainda mais regiões e moedas para melhor atender nossos usuários globais."
+        },
+        "verification": {
+          "question": "Quanto tempo leva a verificação?",
+          "answer": "Nosso processo de KYC foi projetado para ser o mais rápido e simples possível, geralmente levando menos de seis minutos para ser concluído. Em casos raros em que verificações adicionais são necessárias, a verificação pode levar até o próximo dia útil. O tempo necessário depende em grande parte da validade e integridade dos documentos fornecidos. Recomendamos verificar duas vezes sua submissão para garantir um processo tranquilo."
+        },
+        "cryptocurrencies": {
+          "question": "Quais criptomoedas são suportadas?",
+          "answer": "A Vortex suporta uma variedade de stablecoins, incluindo USDC e USDT. Essas stablecoins estão disponíveis em várias redes blockchain, como Polkadot, Arbitrum, Avalanche, Base, BNB, Ethereum e Polygon. Estamos constantemente trabalhando para expandir nossas ofertas e adicionaremos criptomoedas e redes adicionais no futuro para atender às crescentes demandas dos usuários."
+        },
+        "timing": {
+          "question": "Quanto tempo leva para vender cripto (para o dinheiro chegar)?",
+          "answer": "O processo de transação cripto-para-fiat com a Vortex é excepcionalmente rápido, levando apenas cerca de três minutos. Se o seu banco suporta pagamentos instantâneos, você verá os fundos em sua conta dentro de cinco minutos. Para bancos sem recursos de pagamento instantâneo, o tempo de processamento depende do seu banco, mas geralmente leva de um a dois dias úteis para o dinheiro chegar."
+        },
+        "business": {
+          "question": "A Vortex oferece soluções para empresas?",
+          "answer": "Absolutamente! A Vortex oferece soluções personalizadas para empresas que desejam integrar nossa plataforma em seus serviços. As empresas podem fornecer aos seus usuários as taxas competitivas, facilidade de uso e transações sem problemas da Vortex. Se você estiver interessado, nossa equipe de vendas está pronta para discutir como podemos ajudar a atender às suas necessidades específicas e estabelecer uma parceria que entregue valor para o seu negócio."
+        }
+      }
+    },
+    "feeComparison": {
+      "title": "<0>Economize</0> em margens de taxa de câmbio",
+      "description": "O custo da sua transferência vem da taxa e da taxa de câmbio. Muitos provedores oferecem <1>”sem taxa”</1>, enquanto escondem uma margem na taxa de câmbio, fazendo você pagar mais.",
+      "description2": "Na Vortex, nunca faremos isso e mostraremos nossas taxas antecipadamente.",
+      "table": {
+        "sending": "Enviando",
+        "with": "com",
+        "recipientGets": "Destinatário recebe",
+        "totalAfterFees": "Total após taxas",
+        "bestRate": "Melhor taxa",
+        "tooltip": "Cotações são para Polygon, como os provedores não suportam {{network}}."
+      }
     }
   },
   "components": {
@@ -99,6 +166,36 @@
         "quote": "Cotação",
         "partner": "Parceiro"
       }
+    },
+    "navbar": {
+      "sellCrypto": "Vender Cripto",
+      "howItWorks": "Como funciona",
+      "community": "Comunidade"
+    },
+    "swap": {
+      "sellCrypto": "Vender Cripto",
+      "firstInputLabel": "Você vende",
+      "secondInputLabel": "Você recebe",
+      "compareFees": "Comparar taxas"
+    },
+    "benefitsList": {
+      "noHiddenFees": "Sem taxas ocultas",
+      "takes5Minutes": "Leva <1>5 minutos</1>"
+    },
+    "brlaSwapField": {
+      "placeholder": "Digite seu {{label}}",
+      "disclaimer": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>."
+    },
+    "swapSubmitButton": {
+      "confirming": "Confirmando",
+      "processing": "Processando",
+      "confirm": "Confirmar"
+    },
+    "feeCollapse": {
+      "details": "Detalhes",
+      "yourQuote": "Sua cotação",
+      "vortexFee": "Taxa da Vortex",
+      "finalAmount": "Valor final"
     }
   }
 }
