@@ -82,7 +82,7 @@ export function useKYCProcess() {
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {
       if (!taxId) {
-        throw new Error('useKYCProcess: Tax ID must be defined at this point');
+        throw new Error('useKYCProcess: CPF must be defined at this point');
       }
       resetToDefault();
       setIsSubmitted(true);
