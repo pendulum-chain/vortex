@@ -5,7 +5,7 @@ import { KeyringPair } from '@polkadot/keyring/types';
 import { Hash } from '@polkadot/types/interfaces';
 import dotenv from 'dotenv';
 import { multiplyByPowerOfTen } from './helpers';
-import { createPolkadotApi } from './createPolkadotApi';
+import { apiManager } from '../../..';
 import { GLMR_FUNDING_AMOUNT_RAW } from '../../../constants/constants';
 import { TOKEN_CONFIG } from '../../../constants/tokenConfig';
 dotenv.config();
@@ -29,7 +29,7 @@ export function getFundingData(
 
 export const fundEphemeralAccount = async (ephemeralAddress: string, requiresGlmr?: boolean): Promise<boolean> => {
   try {
-    const apiData = await createPolkadotApi();
+    const apiData = await apiManager.getApi();
     const { fundingAccountKeypair, fundingAmountRaw } = getFundingData(apiData.ss58Format, apiData.decimals);
 
     if (requiresGlmr) {

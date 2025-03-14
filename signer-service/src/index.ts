@@ -11,7 +11,7 @@ import {
 } from './constants/constants';
 import { EventPoller } from './api/services/brla/webhooks';
 import { DEFAULT_POLLING_INTERVAL } from './constants/constants';
-
+import { ApiManager } from './api/services/pendulum/createPolkadotApi';
 const { port, env } = config;
 
 dotenv.config();
@@ -37,6 +37,8 @@ const validateRequiredEnvVars = () => {
 validateRequiredEnvVars();
 
 export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
+export const apiManager = new ApiManager();
+apiManager.populateApi();
 
 // listen to requests
 app.listen(port, () => logger.info(`server started on port ${port} (${env})`));

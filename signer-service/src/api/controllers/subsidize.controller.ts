@@ -11,6 +11,7 @@ import {
   getPaddedAssetCode,
   isXCMTokenConfig,
 } from '../../constants/tokenConfig';
+import { apiManager } from '../..';
 
 interface SubsidizePreSwapRequest {
   address: string;
@@ -23,13 +24,6 @@ interface SubsidizePostSwapRequest {
   amountRaw: string;
   token: string;
 }
-
-const initializePendulum = async () => {
-  const wsProvider = new WsProvider(PENDULUM_WSS);
-  const api = await ApiPromise.create({ provider: wsProvider });
-  await api.isReady;
-  return api;
-};
 
 const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {
@@ -67,9 +61,10 @@ export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequ
     validateSubsidyAmount(amountRaw, config.maximumSubsidyAmountRaw);
 
     const fundingAccountKeypair = getFundingAccount();
-    const api = await initializePendulum();
 
-    await api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
+    await apiManager.executeApiCall((api) => {
+      return api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw);
+    }, fundingAccountKeypair);
 
     res.json({ message: 'Subsidy transferred successfully' });
     return;
@@ -107,9 +102,10 @@ export const subsidizePostSwap = async (
     };
 
     const fundingAccountKeypair = getFundingAccount();
-    const api = await initializePendulum();
 
-    await api.tx.tokens.transfer(address, pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
+    await apiManager.executeApiCall((api) => {
+      return api.tx.tokens.transfer(address, pendulumCurrencyId, amountRaw);
+    }, fundingAccountKeypair);
 
     res.json({ message: 'Subsidy transferred successfully' });
     return;

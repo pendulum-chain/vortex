@@ -1,5 +1,5 @@
 const HORIZON_URL = 'https://horizon.stellar.org';
-const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
+const PENDULUM_WSS = 'ws://localhost:8000';
 const NETWORK = 'Pendulum';
 const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN. Minimum balance of funding account
 const PENDULUM_GLMR_FUNDING_AMOUNT_UNITS = '0.5'; // 10 GLMR. Minimum balance of funding account
