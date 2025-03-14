@@ -8,10 +8,10 @@ import {
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
 } from '../../constants/constants';
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '../../constants/tokenConfig';
-import { createPolkadotApi } from '../services/pendulum/createPolkadotApi';
 import { fundEphemeralAccount, getFundingData } from '../services/pendulum/pendulum.service';
 import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../services/pendulum/helpers';
 import { SlackNotifier } from '../services/slack.service';
+import { apiManager } from '../..';
 
 interface FundEphemeralRequest {
   ephemeralAddress: string;
@@ -62,7 +62,7 @@ interface StatusResponse {
 
 export const sendStatusWithPk = async (): Promise<StatusResponse> => {
   const slackNotifier = new SlackNotifier();
-  const apiData = await createPolkadotApi();
+  const apiData = await apiManager.getApi();
   const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = (await apiData.api.query.system.account(fundingAccountKeypair.address)) as AccountInfo;
 

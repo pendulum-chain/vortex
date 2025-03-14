@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
+import { validateMaskedNumber } from '../helpers/brla';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -91,6 +92,26 @@ export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequ
 
     if (!subaccount) {
       res.status(404).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
+    try {
+      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
+
+      // validate the recipient's taxId with partial information
+      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
+        res.status(400).json({ error: 'Invalid pixKey or receiverTaxId' });
+        return;
+      }
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid pixKey or receiverTaxId' });
+      return;
+    }
+
+    const limitBurn = subaccount.kyc.limits.limitBurn;
+    if (Number(amount) > limitBurn) {
+      res.status(400).json({ error: 'Amount exceeds limit' });
       return;
     }
 
@@ -200,5 +221,131 @@ export const fetchSubaccountKycStatus = async (
     res.status(200).json({ type: lastEventCached.subscription, status: lastEventCached.data.kycStatus });
   } catch (error) {
     handleApiError(error, res, 'fetchSubaccountKycStatus');
+  }
+};
+
+/**
+ * Retrieves a a BR Code that can be used to onramp into BRLA
+ *
+ * Fetches a user's subaccount information from the BRLA API service.
+ * It validates that the user exists and has completed a KYC verification.
+ * It returns the corresponding BR Code given the amount and reference label, if any.
+ *
+ * @returns  Sends JSON response with brCode on success.
+ *
+ * @throws 400 - If subaccount's KYC is invalid, or the amount exceeds KYC limits.
+ * @throws 404 - If the subaccount cannot be found
+ * @throws 500 - For any server-side errors during processing
+ */
+export const getPayInCode = async (
+  req: Request<{}, {}, {}, { taxId: string; amount: Number; reference: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { taxId, amount, reference } = req.query;
+
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId parameter' });
+      return;
+    }
+
+    if (!amount || isNaN(Number(amount))) {
+      res.status(400).json({ error: 'Missing or invalid amount parameter' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      res.status(404).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    if (subaccount.kyc.level < 1) {
+      res.status(400).json({ error: 'KYC invalid' });
+      return;
+    }
+
+    const limitMint = subaccount.kyc.limits.limitMint;
+
+    if (Number(amount) > limitMint) {
+      res.status(400).json({ error: 'Amount exceeds limit' });
+      return;
+    }
+
+    const brCode = await brlaApiService.generateBrCode({
+      subaccountId: subaccount.id,
+      amount: String(amount),
+      referenceLabel: reference,
+    });
+
+    res.status(200).json({ brCode });
+  } catch (error) {
+    handleApiError(error, res, 'triggerOnramp');
+  }
+};
+
+/**
+ * Validates a pix key
+ *
+ * Uses BRLA's API to validate a pix key, returning valid if it exists
+ * or a 400 error if it does not or is not valid.
+ * Purposely does not return the pix key itself for security reasons.
+ *
+ * @returns Sends a valid boolean field.
+ *
+ * @throws 400 - If pix key is missing, invalid or does not exist.
+ * @throws 500 - For any server-side errors during processing
+ */
+export const validatePixKey = async (req: Request<{}, {}, {}, { pixKey: string }>, res: Response): Promise<void> => {
+  try {
+    const { pixKey } = req.query;
+
+    if (!pixKey) {
+      res.status(400).json({ error: 'pixKey must be provided' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    await brlaApiService.validatePixKey(pixKey);
+
+    res.status(200).json({ valid: true });
+  } catch (error) {
+    handleApiError(error, res, 'triggerOnramp');
+  }
+};
+
+/**
+ * Trigger an onramp operation
+ *
+ * Given the confirmation of payment, it triggers an onramp operation.
+ * Assuming operation was successfully started, this will start the process to
+ * teleport the funds to the corresponding Moonbeam address, once they arrive.
+ *
+ * @returns void?.
+ *
+ * @throws 400 - If taxId is invalid. No Pay In could have been generated.
+ * @throws 500 - For any server-side errors during processing
+ */
+export const triggerPayIn = async (req: Request<{}, {}, { taxId: string }>, res: Response): Promise<void> => {
+  try {
+    const { taxId } = req.body;
+
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId parameter' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      res.status(400).json({ error: 'taxId invalid' });
+      return;
+    }
+    // TODO
+
+    res.status(200).json({});
+  } catch (error) {
+    handleApiError(error, res, 'triggerOnramp');
   }
 };
