@@ -118,3 +118,94 @@ interface MintOp {
   fee: number;
   smartContractOps: SmartContractOp[];
 }
+
+// /fast-quote endpoint related types
+
+type FastQuoteOperationType = 'swap';
+type FastQuoteCoin = 'BRLA';
+enum BrlaSupportedChain {
+  BRLA = 'Moonbeam',
+  // etc
+}
+type BrlaSupportedChainValues = BrlaSupportedChain;
+export interface FastQuoteQueryParams {
+  subaccountId: string;
+  operation: FastQuoteOperationType;
+  amount: number;
+  inputCoin: FastQuoteCoin;
+  outputCoin: FastQuoteCoin;
+  chain: BrlaSupportedChainValues;
+  markup?: string;
+  fixOutput: boolean;
+}
+
+export interface FastQuoteResponse {
+  basePrice: string;
+  token: string;
+  sub: string;
+  operation: string;
+  amountBrl: string;
+  amountUsd: string;
+  amountToken: string;
+  baseFee: string;
+  gasFee: string;
+  markupFee: string;
+  inputCoin: string;
+  outputCoin: string;
+  chain: string;
+  subaccountId: string;
+}
+
+// on-chain/history/out endpoint related types
+
+export interface OnchainLogs {
+  id: string;
+  userId: string;
+  fromChain: string;
+  toChain: string;
+  from: string;
+  to: string;
+  value: string;
+  outputValue: string;
+  outputCoin: string;
+  inputCoin: string;
+  createdAt: string;
+  externalId: string;
+  fromBusinessAccount: boolean;
+  exactOutput: boolean;
+  coverDifference: boolean;
+  usdcPermit: null | string;
+  usdtPermit: null | string;
+  brlaPermit: null | string;
+  smartContractOps: SmartContractOperation[];
+  notifyEmail: boolean;
+  forced: boolean;
+  reason: string;
+  receiverName: string;
+  receiverTaxId: string;
+}
+
+interface SmartContractOperation {
+  id: string;
+  operationName: string;
+  operationId: string;
+  operationType: string;
+  executed: boolean;
+  tx: string;
+  reason: string;
+  createdAt: string;
+  isRetry: boolean;
+  feedback: OperationFeedback;
+}
+
+interface OperationFeedback {
+  id: string;
+  feedbackType: string;
+  operationId: string;
+  smartcontractOperationId: string;
+  success: boolean;
+  errorMsg: string;
+  createdAt: string;
+}
+
+// /swap Endpoint related types

@@ -6,6 +6,8 @@ import {
   OnrampPayload,
   PixKeyData,
   DepositLog,
+  FastQuoteQueryParams,
+  FastQuoteResponse,
 } from './types';
 import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
@@ -149,5 +151,18 @@ export class BrlaApiService {
   public async getPayInHistory(userId: string): Promise<DepositLog[]> {
     const query = `subaccountId=${encodeURIComponent(userId)}`;
     return (await this.sendRequest(Endpoint.PixHistory, 'GET', query)).depositsLogs;
+  }
+
+  public async createFastQuote(fastQuoteParams: FastQuoteQueryParams): Promise<FastQuoteResponse> {
+    const query = [
+      `subaccountId=${encodeURIComponent(fastQuoteParams.subaccountId)}`,
+      `operation=${fastQuoteParams.operation}`,
+      `amount=${fastQuoteParams.amount.toString()}`,
+      `inputCoin=${fastQuoteParams.inputCoin}`,
+      `outputCoin=${fastQuoteParams.outputCoin}`,
+      `chain=${fastQuoteParams.chain}`,
+      `fixOutput=${fastQuoteParams.fixOutput.toString()}`,
+    ].join('&');
+    return await this.sendRequest(Endpoint.FastQuote, 'GET', query);
   }
 }

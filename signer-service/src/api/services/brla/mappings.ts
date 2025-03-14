@@ -1,4 +1,12 @@
-import { RegisterSubaccountPayload, SubaccountData, OfframpPayload, PixKeyData, DepositLog } from './types';
+import {
+  RegisterSubaccountPayload,
+  SubaccountData,
+  OfframpPayload,
+  PixKeyData,
+  DepositLog,
+  FastQuoteResponse,
+  OnchainLogs,
+} from './types';
 import { Event } from './webhooks';
 
 export enum Endpoint {
@@ -8,6 +16,8 @@ export enum Endpoint {
   WebhookEvents = '/webhooks/events',
   PixInfo = '/pay-out/pix-info',
   PixHistory = '/pay-in/pix/history',
+  FastQuote = '/fast-quote',
+  Swap = '/swap',
 }
 
 export interface EndpointMapping {
@@ -89,6 +99,34 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: { depositsLogs: DepositLog[] };
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.FastQuote]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: FastQuoteResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Swap]: {
+    POST: {
+      body: undefined;
+      response: { onChainLogs: OnchainLogs[] };
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
     };
     PATCH: {
       body: undefined;
