@@ -155,6 +155,9 @@
     }
   },
   "components": {
+    "searchInput": {
+      "placeholder": "Pesquisar"
+    },
     "dialogs": {
       "OfframpSummaryDialog": {
         "headerText": "Você está vendendo",
