@@ -9,7 +9,7 @@ import {
   FastQuoteQueryParams,
   FastQuoteResponse,
   SwapPayload,
-  OnchainLogs,
+  OnchainLog,
 } from './types';
 import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
@@ -172,7 +172,7 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.Swap, 'POST', undefined, swapPayload);
   }
 
-  public async getOnChainHistoryOut(userId: string): Promise<OnchainLogs[]> {
+  public async getOnChainHistoryOut(userId: string): Promise<OnchainLog[]> {
     const query = `subaccountId=${encodeURIComponent(userId)}`;
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, 'GET', query)).onchainLogs;
   }

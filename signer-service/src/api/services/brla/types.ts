@@ -121,11 +121,11 @@ interface MintOp {
 
 // /fast-quote endpoint related types
 
-type FastQuoteOperationType = 'swap';
+export type FastQuoteOperationType = 'swap';
 
-type FastQuoteCoin = 'BRLA';
+export type FastQuoteCoin = 'BRLA';
 
-const enum BrlaSupportedChain {
+export const enum BrlaSupportedChain {
   BRLA = 'Moonbeam',
   // etc
 }
@@ -160,7 +160,7 @@ export interface FastQuoteResponse {
 
 // on-chain/history/out endpoint related types
 
-export interface OnchainLogs {
+export interface OnchainLog {
   id: string;
   userId: string;
   fromChain: string;
@@ -195,7 +195,7 @@ export interface SwapPayload {
 }
 
 // Other nested types
-const enum SmartContractOperationType {
+export const enum SmartContractOperationType {
   MINT = 'MINT',
   BURN = 'BURN',
 }

@@ -3,6 +3,7 @@ import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { eventPoller } from '../..';
 import { validateMaskedNumber } from '../helpers/brla';
+import { BrlaTeleportService, EvmAddress } from '../services/brla/brlaTeleportService';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -319,22 +320,20 @@ export const validatePixKey = async (req: Request<{}, {}, {}, { pixKey: string }
  * Trigger an onramp operation
  *
  * Given the confirmation of payment from the user, it triggers an onramp operation.
- * Assuming operation was successfully started, this will start the process to
- * teleport the funds to the corresponding Moonbeam address, once they arrive.
+ * This will start the process to teleport the funds to the corresponding Moonbeam address,
+ * once the pix payment has arrived, and the reference and amount matches.
  *
  * @returns void?.
  *
  * @throws 400 - If taxId is invalid. No Pay In could have been generated.
  * @throws 500 - For any server-side errors during processing
  */
-export const triggerPayIn = async (req: Request<{}, {}, { taxId: string }>, res: Response): Promise<void> => {
+export const triggerPayIn = async (
+  req: Request<{}, {}, { taxId: string; amount: number; receiverAddress: EvmAddress }>,
+  res: Response,
+): Promise<void> => {
   try {
-    const { taxId } = req.body;
-
-    if (!taxId) {
-      res.status(400).json({ error: 'Missing taxId parameter' });
-      return;
-    }
+    const { taxId, amount, receiverAddress } = req.body;
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
@@ -342,9 +341,11 @@ export const triggerPayIn = async (req: Request<{}, {}, { taxId: string }>, res:
       res.status(400).json({ error: 'taxId invalid' });
       return;
     }
-    // TODO
+    console.log('Requesting teleport:', subaccount.id, amount, receiverAddress);
+    const teleportService = BrlaTeleportService.getInstance();
+    await teleportService.requestTeleport(subaccount.id, Number(amount), receiverAddress);
 
-    res.status(200).json({});
+    res.status(200);
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }

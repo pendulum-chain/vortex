@@ -5,7 +5,7 @@ import {
   PixKeyData,
   DepositLog,
   FastQuoteResponse,
-  OnchainLogs,
+  OnchainLog,
   SwapPayload,
 } from './types';
 import { Event } from './webhooks';
@@ -142,7 +142,7 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: { onchainLogs: OnchainLogs[] };
+      response: { onchainLogs: OnchainLog[] };
     };
     PATCH: {
       body: undefined;
