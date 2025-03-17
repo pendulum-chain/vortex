@@ -122,19 +122,21 @@ interface MintOp {
 // /fast-quote endpoint related types
 
 type FastQuoteOperationType = 'swap';
+
 type FastQuoteCoin = 'BRLA';
-enum BrlaSupportedChain {
+
+const enum BrlaSupportedChain {
   BRLA = 'Moonbeam',
   // etc
 }
-type BrlaSupportedChainValues = BrlaSupportedChain;
+
 export interface FastQuoteQueryParams {
   subaccountId: string;
   operation: FastQuoteOperationType;
   amount: number;
   inputCoin: FastQuoteCoin;
   outputCoin: FastQuoteCoin;
-  chain: BrlaSupportedChainValues;
+  chain: BrlaSupportedChain;
   markup?: string;
   fixOutput: boolean;
 }
@@ -185,9 +187,22 @@ export interface OnchainLogs {
   receiverTaxId: string;
 }
 
+// /swap Endpoint related types
+export interface SwapPayload {
+  token: string;
+  receiverAddress: string;
+  externalId?: string;
+}
+
+// Other nested types
+const enum SmartContractOperationType {
+  MINT = 'MINT',
+  BURN = 'BURN',
+}
+
 interface SmartContractOperation {
   id: string;
-  operationName: string;
+  operationName: SmartContractOperationType;
   operationId: string;
   operationType: string;
   executed: boolean;
@@ -207,5 +222,3 @@ interface OperationFeedback {
   errorMsg: string;
   createdAt: string;
 }
-
-// /swap Endpoint related types

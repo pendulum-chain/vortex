@@ -318,7 +318,7 @@ export const validatePixKey = async (req: Request<{}, {}, {}, { pixKey: string }
 /**
  * Trigger an onramp operation
  *
- * Given the confirmation of payment, it triggers an onramp operation.
+ * Given the confirmation of payment from the user, it triggers an onramp operation.
  * Assuming operation was successfully started, this will start the process to
  * teleport the funds to the corresponding Moonbeam address, once they arrive.
  *

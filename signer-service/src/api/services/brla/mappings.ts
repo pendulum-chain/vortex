@@ -6,6 +6,7 @@ import {
   DepositLog,
   FastQuoteResponse,
   OnchainLogs,
+  SwapPayload,
 } from './types';
 import { Event } from './webhooks';
 
@@ -18,6 +19,7 @@ export enum Endpoint {
   PixHistory = '/pay-in/pix/history',
   FastQuote = '/fast-quote',
   Swap = '/swap',
+  OnChainHistoryOut = '/on-chain/history/out',
 }
 
 export interface EndpointMapping {
@@ -121,12 +123,26 @@ export interface EndpointMapping {
   };
   [Endpoint.Swap]: {
     POST: {
-      body: undefined;
-      response: { onChainLogs: OnchainLogs[] };
+      body: SwapPayload;
+      response: { id: string };
     };
     GET: {
       body: undefined;
       response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.OnChainHistoryOut]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: { onchainLogs: OnchainLogs[] };
     };
     PATCH: {
       body: undefined;
