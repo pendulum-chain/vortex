@@ -64,8 +64,7 @@ const FeeDetails = ({
     <section className="mt-6">
       <div className="flex justify-between mb-2">
         <p>
-          {t('pages.swap.components.dialogs.OfframpSummaryDialog.offrampFee')} (
-          {`${toToken.offrampFeesBasisPoints / 100}%`}
+          {t('components.dialogs.OfframpSummaryDialog.offrampFee')} ({`${toToken.offrampFeesBasisPoints / 100}%`}
           {toToken.offrampFeesFixedComponent ? ` + ${toToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
         </p>
         <p className="flex items-center gap-2">
@@ -76,7 +75,7 @@ const FeeDetails = ({
         </p>
       </div>
       <div className="flex justify-between mb-2">
-        <p>{t('pages.swap.components.dialogs.OfframpSummaryDialog.quote')}</p>
+        <p>{t('components.dialogs.OfframpSummaryDialog.quote')}</p>
         <p>
           <strong>
             <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
@@ -84,7 +83,7 @@ const FeeDetails = ({
         </p>
       </div>
       <div className="flex justify-between">
-        <p>{t('pages.swap.components.dialogs.OfframpSummaryDialog.partner')}</p>
+        <p>{t('components.dialogs.OfframpSummaryDialog.partner')}</p>
         <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           {partnerUrl}
         </a>
@@ -168,19 +167,19 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
     >
       {offrampState !== undefined ? (
         <>
-          <Spinner /> {t('pages.swap.components.dialogs.OfframpSummaryDialog.processing')}
+          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
         </>
       ) : isSubmitted ? (
         <>
-          <Spinner /> {t('pages.swap.components.dialogs.OfframpSummaryDialog.continueOnPartnersPage')}
+          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.continueOnPartnersPage')}
         </>
       ) : toToken.type !== 'moonbeam' ? (
         <>
-          {t('pages.swap.components.dialogs.OfframpSummaryDialog.continueWithPartner')}{' '}
+          {t('components.dialogs.OfframpSummaryDialog.continueWithPartner')}{' '}
           <ArrowTopRightOnSquareIcon className="w-4 h-4" />
         </>
       ) : (
-        <>{t('pages.swap.components.dialogs.OfframpSummaryDialog.continue')}</>
+        <>{t('components.dialogs.OfframpSummaryDialog.continue')}</>
       )}
     </button>
   );
@@ -190,7 +189,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       content={content}
       visible={visible}
       actions={actions}
-      headerText={t('pages.swap.components.dialogs.OfframpSummaryDialog.headerText')}
+      headerText={t('components.dialogs.OfframpSummaryDialog.headerText')}
       onClose={() => {
         setIsSubmitted(false);
         setOfframpExecutionInput(undefined);
