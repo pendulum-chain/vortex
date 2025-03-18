@@ -1,11 +1,10 @@
 import { Keyring } from '@polkadot/api';
 import Big from 'big.js';
-import { PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
+import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
 import { KeyringPair } from '@polkadot/keyring/types';
 import dotenv from 'dotenv';
 import { multiplyByPowerOfTen } from './helpers';
 import { apiManager } from '../../..';
-import { GLMR_FUNDING_AMOUNT_RAW } from '../../../constants/constants';
 import { TOKEN_CONFIG } from '../../../constants/tokenConfig';
 dotenv.config();
 

@@ -90,22 +90,9 @@ export const subsidizePostSwap = async (
 
     validateSubsidyAmount(amountRaw, config.maximumSubsidyAmountRaw);
 
-    if (isXCMTokenConfig(config)) {
-      throw new Error('Token config must be a Stellar token config');
-    }
-
-    const assetIssuerHex = `0x${Keypair.fromPublicKey(config.assetIssuer).rawPublicKey().toString('hex')}`;
-    const pendulumCurrencyId = {
-      Stellar: {
-        AlphaNum4: { code: getPaddedAssetCode(config.assetCode), issuer: assetIssuerHex },
-      },
-    };
-
     const fundingAccountKeypair = getFundingAccount();
 
-    await apiManager.executeApiCall((api) => {
-      return api.tx.tokens.transfer(address, pendulumCurrencyId, amountRaw);
-    }, fundingAccountKeypair);
+    await api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
 
     res.json({ message: 'Subsidy transferred successfully' });
     return;

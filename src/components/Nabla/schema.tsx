@@ -39,15 +39,15 @@ const schema = Yup.object<SwapFormValues>().shape({
   deadline: Yup.number().nullable().transform(transformNumber),
   taxId: Yup.string().when('to', {
     is: 'brl',
-    then: (schema) => schema.matches(cpfRegex, 'Invalid Tax ID').required('Tax ID is required when transferring BRL'),
+    then: (schema) => schema.matches(cpfRegex, 'Invalid CPF').required('CPF is required when transferring BRL'),
     otherwise: (schema) => schema.optional(),
   }),
   pixId: Yup.string().when('to', {
     is: 'brl',
     then: (schema) =>
       schema
-        .required('Pix key is required when transferring BRL')
-        .test('matches-one', 'Pix key does not match any of the valid formats', (value) => {
+        .required('PIX key is required when transferring BRL')
+        .test('matches-one', 'PIX key does not match any of the valid formats', (value) => {
           if (!value) return false;
           return pixKeyRegex.some((regex) => regex.test(value));
         }),
