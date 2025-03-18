@@ -1,12 +1,14 @@
 import { Keyring } from '@polkadot/api';
 import Big from 'big.js';
-import { PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
+import {
+  PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
+  PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
+} from '../../../constants/constants';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { Hash } from '@polkadot/types/interfaces';
 import dotenv from 'dotenv';
 import { multiplyByPowerOfTen } from './helpers';
 import { createPolkadotApi } from './createPolkadotApi';
-import { GLMR_FUNDING_AMOUNT_RAW } from '../../../constants/constants';
 import { TOKEN_CONFIG } from '../../../constants/tokenConfig';
 dotenv.config();
 
@@ -36,12 +38,13 @@ export const fundEphemeralAccount = async (ephemeralAddress: string, requiresGlm
       const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
       const pendulumCurrencyId = TOKEN_CONFIG.glmr.pendulumCurrencyId;
 
+      const glmrFundingAmountRaw = multiplyByPowerOfTen(
+        Big(PENDULUM_GLMR_FUNDING_AMOUNT_UNITS),
+        TOKEN_CONFIG.glmr.decimals,
+      ).toFixed();
+
       const penFundingTx = apiData.api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw);
-      const glmrFundingTx = apiData.api.tx.tokens.transfer(
-        ephemeralAddress,
-        pendulumCurrencyId,
-        GLMR_FUNDING_AMOUNT_RAW,
-      );
+      const glmrFundingTx = apiData.api.tx.tokens.transfer(ephemeralAddress, pendulumCurrencyId, glmrFundingAmountRaw);
 
       const batchTx = apiData.api.tx.utility.batchAll([penFundingTx, glmrFundingTx]);
       await batchTx.signAndSend(fundingAccountKeypair);

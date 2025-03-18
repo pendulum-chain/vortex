@@ -13,6 +13,7 @@ const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
 const DEFAULT_POLLING_INTERVAL = 3000;
 const GLMR_FUNDING_AMOUNT_RAW = '50000000000000000';
+
 const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
 const WEBHOOKS_CACHE_PASSWORD = 'password'; // EXAMPLE PASSWORD
 
@@ -29,7 +30,6 @@ const BRLA_LOGIN_PASSWORD = process.env.BRLA_LOGIN_PASSWORD;
 const BRLA_LOGIN_USERNAME = process.env.BRLA_LOGIN_USERNAME;
 
 export {
-  GLMR_FUNDING_AMOUNT_RAW,
   HORIZON_URL,
   PENDULUM_WSS,
   NETWORK,
