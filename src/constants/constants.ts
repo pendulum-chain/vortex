@@ -16,3 +16,5 @@ export const TRANSFER_WAITING_TIME_SECONDS = 6000;
 export const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 export const SIGNING_SERVICE_URL =
   config.maybeSignerServiceUrl || (config.isProd ? '/api/production' : 'http://localhost:3000');
+
+export const MOONBEAM_XCM_FEE_GLMR = '50000000000000000';
