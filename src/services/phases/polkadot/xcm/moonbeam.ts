@@ -37,7 +37,7 @@ export function createPendulumToMoonbeamTransfer(
     .transferMulticurrencies(
       [
         [currencyId, rawAmount],
-        [currencyFeeId, MOONBEAM_XCM_FEE_GLMR],
+        [currencyFeeId, MOONBEAM_XCM_FEE_GLMR], // TODO must be fetched.
       ],
       1,
       destination,
