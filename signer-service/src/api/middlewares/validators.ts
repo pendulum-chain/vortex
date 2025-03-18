@@ -233,12 +233,6 @@ export const validatePostSwapSubsidizationInput: RequestHandler = (req, res, nex
     return;
   }
 
-  const tokenConfig = TOKEN_CONFIG[token];
-  if (!isStellarTokenConfig(tokenConfig)) {
-    res.status(400).json({ error: 'Invalid "token" parameter - must be a Stellar token' });
-    return;
-  }
-
   next();
 };
 
