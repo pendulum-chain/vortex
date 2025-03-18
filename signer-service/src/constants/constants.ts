@@ -2,7 +2,7 @@ const HORIZON_URL = 'https://horizon.stellar.org';
 const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 const NETWORK = 'Pendulum';
 const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN. Minimum balance of funding account
-const PENDULUM_GLMR_FUNDING_AMOUNT_UNITS = '0.5'; // 0.5 GLMR. Minimum balance of funding account
+const PENDULUM_GLMR_FUNDING_AMOUNT_UNITS = '10'; // 10 GLMR. Minimum balance of funding account
 const STELLAR_FUNDING_AMOUNT_UNITS = '10'; // 10 XLM.  Minimum balance of funding account
 const MOONBEAM_FUNDING_AMOUNT_UNITS = '10'; // 10 GLMR. Minimum balance of funding account
 const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = '5'; // 5 Subsidies considering maximum subsidy amount use on each (worst case scenario)
@@ -12,6 +12,8 @@ const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to th
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
 const DEFAULT_POLLING_INTERVAL = 3000;
+const GLMR_FUNDING_AMOUNT_RAW = '50000000000000000';
+
 const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
 const WEBHOOKS_CACHE_PASSWORD = 'password'; // EXAMPLE PASSWORD
 
