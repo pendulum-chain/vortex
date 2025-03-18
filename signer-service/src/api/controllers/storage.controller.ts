@@ -29,7 +29,7 @@ type EVMExtraHeaders = [
 
 type MoonbeamExtraHeaders = ['squidRouterReceiverId', 'squidRouterReceiverHash', 'pendulumToMoonbeamXcmTx'];
 
-export const DUMP_SHEET_HEADER_VALUES_ASSETHUB: [...CommonHeaderValues, ...AssethubExtraHeaders] = [
+export const DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR: [...CommonHeaderValues, ...AssethubExtraHeaders] = [
   'timestamp',
   'offramperAddress',
   'pendulumEphemeralPublicKey',
@@ -45,13 +45,28 @@ export const DUMP_SHEET_HEADER_VALUES_ASSETHUB: [...CommonHeaderValues, ...Asset
   'stellarCleanupTx',
 ] as const;
 
-export const DUMP_SHEET_HEADER_VALUES_EVM_STELLAR: [...CommonHeaderValues, ...EVMExtraHeaders] = [
-  ...DUMP_SHEET_HEADER_VALUES_ASSETHUB,
+export const DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR: [...CommonHeaderValues, ...EVMExtraHeaders] = [
+  ...DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR,
   'squidRouterReceiverId',
   'squidRouterReceiverHash',
 ] as const;
 
-export const DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM: [...CommonHeaderValues, ...MoonbeamExtraHeaders] = [
+export const DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_BRLA: [...CommonHeaderValues, ...MoonbeamExtraHeaders] = [
+  'timestamp',
+  'offramperAddress',
+  'pendulumEphemeralPublicKey',
+  'nablaApprovalTx',
+  'nablaSwapTx',
+  'inputAmount',
+  'inputTokenType',
+  'outputAmount',
+  'outputTokenType',
+  'squidRouterReceiverId',
+  'squidRouterReceiverHash',
+  'pendulumToMoonbeamXcmTx',
+] as const;
+
+export const DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA: [...CommonHeaderValues, ...MoonbeamExtraHeaders] = [
   'timestamp',
   'offramperAddress',
   'pendulumEphemeralPublicKey',
@@ -93,9 +108,11 @@ export const storeData = async (req: Request<{}, {}, StorageRequestBody>, res: R
 
   const sheetHeaderValues = req.body.offramperAddress.includes('0x')
     ? req.body.stellarEphemeralPublicKey
-      ? DUMP_SHEET_HEADER_VALUES_EVM_STELLAR
-      : DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM
-    : DUMP_SHEET_HEADER_VALUES_ASSETHUB;
+      ? DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR
+      : DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA
+    : req.body.stellarEphemeralPublicKey
+    ? DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR
+    : DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_BRLA;
 
   console.log(sheetHeaderValues);
 
