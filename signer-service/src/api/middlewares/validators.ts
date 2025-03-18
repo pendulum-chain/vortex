@@ -3,9 +3,9 @@ import { isStellarTokenConfig, TOKEN_CONFIG, TokenConfig } from '../../constants
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import {
-  DUMP_SHEET_HEADER_VALUES_ASSETHUB,
-  DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM,
-  DUMP_SHEET_HEADER_VALUES_EVM_STELLAR,
+  DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR,
+  DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA,
+  DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR,
 } from '../controllers/storage.controller';
 import {
   SUPPORTED_PROVIDERS,
@@ -159,9 +159,11 @@ const validateRequestBodyValuesForTransactionStore = (): RequestHandler => (req,
 
   const requiredRequestBodyKeys = offramperAddress.includes('0x')
     ? req.body.stellarEphemeralPublicKey
-      ? DUMP_SHEET_HEADER_VALUES_EVM_STELLAR
-      : DUMP_SHEET_HEADER_VALUES_EVM_MOONBEAM
-    : DUMP_SHEET_HEADER_VALUES_ASSETHUB;
+      ? DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR
+      : DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA
+    : req.body.stellarEphemeralPublicKey
+    ? DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR
+    : DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA;
 
   validateRequestBodyValues(requiredRequestBodyKeys)(req, res, next);
 };
