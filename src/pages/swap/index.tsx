@@ -31,7 +31,7 @@ import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { showToast, ToastMessage } from '../../helpers/notifications';
+import { useToastMessage } from '../../hooks/useToastMessage';
 import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
@@ -87,6 +87,7 @@ export const SwapPage = () => {
   const [_, setIsReady] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const { t } = useTranslation();
+  const { showToast, ToastMessage } = useToastMessage();
   // This cache is used to show an error message to the user if the chosen input amount
   // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
   const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
@@ -260,7 +261,7 @@ export const SwapPage = () => {
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, []);
+  }, [ToastMessage.KYC_COMPLETED, showToast]);
 
   useEffect(() => {
     const isNetworkSelectorDisabled = offrampState?.phase !== undefined;

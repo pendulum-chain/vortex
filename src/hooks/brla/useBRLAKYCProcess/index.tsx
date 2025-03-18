@@ -8,7 +8,8 @@ import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
 import { useFormStore } from '../../../stores/formStore';
-import { showToast, ToastMessage } from '../../../helpers/notifications';
+import { useToastMessage } from '../../../hooks/useToastMessage';
+
 export interface BrlaKycStatus {
   status: string;
 }
@@ -58,7 +59,7 @@ const useVerificationStatusUI = () => {
 
 export function useKYCProcess() {
   const { STATUS_MESSAGES } = useStatusMessages();
-
+  const { showToast, ToastMessage } = useToastMessage();
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
   const { taxId } = useFormStore();
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -85,7 +86,14 @@ export function useKYCProcess() {
         handleBackClick();
       });
     },
-    [updateStatus, STATUS_MESSAGES.ERROR, resetToDefault, handleBackClick],
+    [
+      updateStatus,
+      STATUS_MESSAGES.ERROR,
+      showToast,
+      ToastMessage.KYC_VERIFICATION_FAILED,
+      resetToDefault,
+      handleBackClick,
+    ],
   );
 
   const proceedWithOfframp = useOfframpSubmission(handleError);

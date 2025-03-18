@@ -16,12 +16,13 @@ import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 import { useOfframpActions } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
-import { showToast, ToastMessage } from '../../helpers/notifications';
+import { useToastMessage } from '../../hooks/useToastMessage';
 import { OfframpExecutionInput } from '../../types/offramp';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 export const useSubmitOfframp = () => {
+  const { showToast, ToastMessage } = useToastMessage();
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
@@ -176,17 +177,19 @@ export const useSubmitOfframp = () => {
       selectedNetwork,
       trackEvent,
       address,
-      setOfframpExecutionInput,
-      setOfframpKycStarted,
       chainId,
+      setOfframpExecutionInput,
+      setOfframpSummaryVisible,
+      setOfframpKycStarted,
+      setInitializeFailedMessage,
+      cleanupSEP24,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
       setAnchorSessionParams,
       setUrlIntervalSEP24,
       setInitialResponseSEP24,
-      cleanupSEP24,
-      setInitializeFailedMessage,
-      setOfframpSummaryVisible,
+      showToast,
+      ToastMessage.ERROR,
     ],
   );
 };

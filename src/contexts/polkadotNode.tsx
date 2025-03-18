@@ -1,8 +1,7 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { createContext, useContext, JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ToastMessage } from '../helpers/notifications';
-import { showToast } from '../helpers/notifications';
+import { useToastMessage } from '../hooks/useToastMessage';
 import { ASSETHUB_WSS, PENDULUM_WSS } from '../constants/constants';
 
 export interface ApiComponents {
@@ -81,25 +80,27 @@ const usePendulumNode = () => {
   return { apiComponents: state.pendulum, isFetched };
 };
 
-const initializeNetworks = async (): Promise<NetworkState> => {
-  try {
-    const [assetHub, pendulum] = await Promise.all([
-      createApiComponents(ASSETHUB_WSS),
-      createApiComponents(PENDULUM_WSS),
-    ]);
-
-    return {
-      assetHub,
-      pendulum,
-    };
-  } catch (error) {
-    console.error('Error initializing networks:', error);
-    showToast(ToastMessage.NODE_CONNECTION_ERROR);
-    throw error;
-  }
-};
-
 const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
+  const { showToast, ToastMessage } = useToastMessage();
+
+  const initializeNetworks = async (): Promise<NetworkState> => {
+    try {
+      const [assetHub, pendulum] = await Promise.all([
+        createApiComponents(ASSETHUB_WSS),
+        createApiComponents(PENDULUM_WSS),
+      ]);
+
+      return {
+        assetHub,
+        pendulum,
+      };
+    } catch (error) {
+      console.error('Error initializing networks:', error);
+      showToast(ToastMessage.NODE_CONNECTION_ERROR);
+      throw error;
+    }
+  };
+
   const {
     data: state = {},
     error,
