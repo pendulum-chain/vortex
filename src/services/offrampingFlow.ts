@@ -171,13 +171,14 @@ const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
 enum HandlerType {
-  SQUIDROUTER = 'squidrouter',
-  XCM = 'xcm',
-  BRLA = 'brla',
+  EVM_TO_STELLAR = 'evm-to-stellar',
+  ASSETHUB_TO_STELLAR = 'assethub-to-stellar',
+  EVM_TO_BRLA = 'evm-to-brla',
+  ASSETHUB_TO_BRLA = 'assethub-to-brla',
 }
 
 const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingPhase, StateTransitionFunction>>> = {
-  [HandlerType.SQUIDROUTER]: {
+  [HandlerType.EVM_TO_STELLAR]: {
     prepareTransactions,
     squidRouter,
     pendulumFundEphemeral,
@@ -191,7 +192,7 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
     stellarOfframp,
     stellarCleanup,
   },
-  [HandlerType.XCM]: {
+  [HandlerType.ASSETHUB_TO_STELLAR]: {
     prepareTransactions,
     pendulumFundEphemeral,
     executeAssetHubToPendulumXCM,
@@ -204,11 +205,23 @@ const STATE_ADVANCEMENT_HANDLERS: Record<HandlerType, Partial<Record<OfframpingP
     stellarOfframp,
     stellarCleanup,
   },
-  [HandlerType.BRLA]: {
+  [HandlerType.EVM_TO_BRLA]: {
     prepareTransactions,
     squidRouter,
     pendulumFundEphemeral,
     executeMoonbeamToPendulumXCM,
+    subsidizePreSwap,
+    nablaApprove,
+    nablaSwap,
+    subsidizePostSwap,
+    executePendulumToMoonbeamXCM,
+    performBrlaPayoutOnMoonbeam,
+    pendulumCleanup,
+  },
+  [HandlerType.ASSETHUB_TO_BRLA]: {
+    prepareTransactions,
+    pendulumFundEphemeral,
+    executeAssetHubToPendulumXCM,
     subsidizePreSwap,
     nablaApprove,
     nablaSwap,
@@ -226,11 +239,15 @@ function selectNextStateAdvancementHandler(
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
     if (outToken === OutputTokenTypes.BRL) {
-      return STATE_ADVANCEMENT_HANDLERS[HandlerType.BRLA][phase];
+      return STATE_ADVANCEMENT_HANDLERS[HandlerType.EVM_TO_BRLA][phase];
     }
-    return STATE_ADVANCEMENT_HANDLERS[HandlerType.SQUIDROUTER][phase];
+    return STATE_ADVANCEMENT_HANDLERS[HandlerType.EVM_TO_STELLAR][phase];
+  } else {
+    if (outToken === OutputTokenTypes.BRL) {
+      return STATE_ADVANCEMENT_HANDLERS[HandlerType.ASSETHUB_TO_BRLA][phase];
+    }
+    return STATE_ADVANCEMENT_HANDLERS[HandlerType.ASSETHUB_TO_STELLAR][phase];
   }
-  return STATE_ADVANCEMENT_HANDLERS[HandlerType.XCM][phase];
 }
 
 async function constructBaseInitialState({
