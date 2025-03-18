@@ -7,8 +7,9 @@ import { SignerOptions } from '@polkadot/api-base/types';
 import { decodeSubmittableExtrinsic, encodeSubmittableExtrinsic } from '../../signedTransactions';
 import { isBrlaOfframpTransactions } from '../../../../types/offramp';
 import { ApiComponents } from '../../../../contexts/polkadotNode';
+import { MOONBEAM_XCM_FEE_GLMR } from '../../../../constants/constants';
 
-// Fee was 38,722,802,500,000,000 GLMR when testing
+// We send a fixed fee amount of 0.05 GLMR.
 export function createPendulumToMoonbeamTransfer(
   pendulumNode: ApiComponents,
   destinationAddress: string,
@@ -36,7 +37,7 @@ export function createPendulumToMoonbeamTransfer(
     .transferMulticurrencies(
       [
         [currencyId, rawAmount],
-        [currencyFeeId, '38822802500000000'],
+        [currencyFeeId, MOONBEAM_XCM_FEE_GLMR], // TODO must be fetched.
       ],
       1,
       destination,
