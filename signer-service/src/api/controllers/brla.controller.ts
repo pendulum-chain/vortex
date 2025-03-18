@@ -4,6 +4,8 @@ import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/br
 import { eventPoller } from '../..';
 import { validateMaskedNumber } from '../helpers/brla';
 import { BrlaTeleportService, EvmAddress } from '../services/brla/brlaTeleportService';
+import { generateReferenceLabel } from '../services/brla/helpers';
+import { PayInCodeQuery } from '../middlewares/validators';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -238,22 +240,9 @@ export const fetchSubaccountKycStatus = async (
  * @throws 404 - If the subaccount cannot be found
  * @throws 500 - For any server-side errors during processing
  */
-export const getPayInCode = async (
-  req: Request<{}, {}, {}, { taxId: string; amount: Number; reference: string }>,
-  res: Response,
-): Promise<void> => {
+export const getPayInCode = async (req: Request<{}, {}, {}, PayInCodeQuery>, res: Response): Promise<void> => {
   try {
-    const { taxId, amount, reference } = req.query;
-
-    if (!taxId) {
-      res.status(400).json({ error: 'Missing taxId parameter' });
-      return;
-    }
-
-    if (!amount || isNaN(Number(amount))) {
-      res.status(400).json({ error: 'Missing or invalid amount parameter' });
-      return;
-    }
+    const { taxId, amount, receiverAddress } = req.query;
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
@@ -277,10 +266,10 @@ export const getPayInCode = async (
     const brCode = await brlaApiService.generateBrCode({
       subaccountId: subaccount.id,
       amount: String(amount),
-      referenceLabel: reference,
+      referenceLabel: generateReferenceLabel(receiverAddress),
     });
 
-    res.status(200).json({ brCode });
+    res.status(200).json(brCode);
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }

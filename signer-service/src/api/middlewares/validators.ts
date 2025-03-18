@@ -17,6 +17,9 @@ import {
 } from '../controllers/quote.controller';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 
+import { ParsedQs } from 'qs';
+import { EvmAddress } from '../services/brla/brlaTeleportService';
+
 interface CreationBody {
   accountId: string;
   maxTime: number;
@@ -57,6 +60,12 @@ interface SiweValidateBody {
   nonce: string;
   signature: string;
   siweMessage: string;
+}
+
+export interface PayInCodeQuery extends ParsedQs {
+  taxId: string;
+  amount: string;
+  receiverAddress: EvmAddress;
 }
 
 export const validateCreationInput: RequestHandler = (req, res, next) => {
@@ -384,6 +393,29 @@ export const validateTriggerPayIn: RequestHandler = (req, res, next) => {
   }
 
   if (!receiverAddress || !receiverAddress.startsWith('0x')) {
+    res
+      .status(400)
+      .json({ error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address' });
+    return;
+  }
+
+  next();
+};
+
+export const validateGetPayInCode: RequestHandler = (req, res, next) => {
+  const { taxId, receiverAddress, amount } = req.query as PayInCodeQuery;
+
+  if (!taxId) {
+    res.status(400).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!amount || isNaN(Number(amount))) {
+    res.status(400).json({ error: 'Missing or invalid amount parameter' });
+    return;
+  }
+
+  if (!receiverAddress || !(receiverAddress as string).startsWith('0x')) {
     res
       .status(400)
       .json({ error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address' });

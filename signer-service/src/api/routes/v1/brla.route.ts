@@ -4,6 +4,7 @@ import {
   validateBrlaTriggerOfframpInput,
   validataSubaccountCreation,
   validateTriggerPayIn,
+  validateGetPayInCode,
 } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
@@ -16,7 +17,7 @@ router.route('/getKycStatus').get(brlaController.fetchSubaccountKycStatus);
 
 router.route('/validatePixKey').get(brlaController.validatePixKey);
 
-router.route('/payIn').get(brlaController.getPayInCode);
+router.route('/payIn').get(validateGetPayInCode, brlaController.getPayInCode);
 
 router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaController.triggerBrlaOfframp);
 

@@ -1,12 +1,6 @@
 import { BrlaApiService } from './brlaApiService';
-import { sha256 } from 'viem';
-import {
-  FastQuoteQueryParams,
-  FastQuoteOperationType,
-  BrlaSupportedChain,
-  OnchainLog,
-  SmartContractOperationType,
-} from './types';
+import { FastQuoteQueryParams, BrlaSupportedChain, OnchainLog, SmartContractOperationType } from './types';
+import { verifyReferenceLabel } from './helpers';
 
 // This service is used to request and keep tracks of teleports (transfers) from BRLA's
 // controlled accounts.
@@ -164,7 +158,7 @@ export class BrlaTeleportService {
         // Check the referceLabel to match the address requested, and amount.
         // Last mintOp should match the amount.
         if (
-          this.verifyReferenceLabel(lastPayIn.referenceLabel, teleport.receiverAddress) &&
+          verifyReferenceLabel(lastPayIn.referenceLabel, teleport.receiverAddress) &&
           lastPayIn.mintOps[0].amount === teleport.amount
         ) {
           this.teleports.set(subaccountId, { ...teleport, status: 'arrived' });
@@ -177,10 +171,5 @@ export class BrlaTeleportService {
         }
       }
     });
-  }
-
-  private verifyReferenceLabel(referenceLabel: string, receiverAddress: EvmAddress): boolean {
-    const referenceLabelClaimed = sha256(receiverAddress).toString().slice(0, 18);
-    return referenceLabel === referenceLabelClaimed;
   }
 }
