@@ -28,7 +28,7 @@ export const useAnchorWindowHandler = () => {
   const { trackKYCStarted, trackKYCCompleted } = useTrackSEP24Events();
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
-  const { setOfframpStarted, updateOfframpHookStateFromState } = useOfframpActions();
+  const { setOfframpStarted, startFlow, setOfframpState } = useOfframpActions();
   const { address, chainId } = useVortexAccount();
 
   const firstSep24Response = useSep24InitialResponse();
@@ -84,7 +84,8 @@ export const useAnchorWindowHandler = () => {
       });
 
       trackKYCCompleted(initialState, selectedNetwork);
-      updateOfframpHookStateFromState(initialState);
+      setOfframpState(initialState);
+      startFlow();
     } catch (error) {
       handleError(error, setOfframpStarted);
     }
@@ -99,7 +100,7 @@ export const useAnchorWindowHandler = () => {
     chainId,
     address,
     trackKYCCompleted,
-    updateOfframpHookStateFromState,
+    startFlow,
     setOfframpStarted,
   ]);
 };

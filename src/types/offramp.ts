@@ -29,6 +29,7 @@ export interface OfframpExecutionInput {
 
 export interface OfframpState {
   offrampStarted: boolean;
+  flowOngoing: boolean;
   offrampInitiating: boolean;
   offrampState: OfframpingState | undefined;
   offrampSigningPhase: OfframpSigningPhase | undefined;
@@ -47,7 +48,6 @@ export interface OfframpActions {
   setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
   setInitializeFailedMessage: (message: string | undefined) => void;
   setOfframpSummaryVisible: (visible: boolean) => void;
-  updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
   clearInitializeFailedMessage: () => void;
   resetOfframpState: () => void;
 }
