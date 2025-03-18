@@ -135,7 +135,6 @@ export function useKYCProcess() {
   );
 
   useEffect(() => {
-    console.log('in useEffect kycResponse', kycResponse);
     if (!kycResponse) return;
 
     const handleStatus = async (status: string) => {

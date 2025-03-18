@@ -246,6 +246,45 @@
         "success": "Verification successful",
         "rejected": "KYC verification rejected",
         "error": "Verification error"
+      },
+      "validation": {
+        "phone": {
+          "required": "Phone number is required",
+          "format": "Invalid phone number format"
+        },
+        "fullName": {
+          "required": "Full name is required",
+          "minLength": "Name must be at least 3 characters",
+          "format": "Name can only contain letters and spaces"
+        },
+        "cep": {
+          "required": "CEP is required",
+          "minLength": "CEP must be at least 3 characters"
+        },
+        "city": {
+          "required": "City is required",
+          "minLength": "City must be at least 5 characters"
+        },
+        "state": {
+          "required": "State is required",
+          "minLength": "State must be at least 3 characters"
+        },
+        "street": {
+          "required": "Street is required",
+          "minLength": "Street must be at least 5 characters"
+        },
+        "number": {
+          "required": "Number is required"
+        },
+        "district": {
+          "required": "District is required",
+          "minLength": "District must be at least 3 characters"
+        },
+        "birthdate": {
+          "required": "Birthdate is required",
+          "future": "Birthdate cannot be in the future",
+          "tooOld": "Invalid birthdate"
+        }
       }
     },
     "footer": {

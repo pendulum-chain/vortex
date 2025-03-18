@@ -245,6 +245,45 @@
         "success": "Verificação bem-sucedida",
         "rejected": "Verificação KYC rejeitada",
         "error": "Erro na verificação"
+      },
+      "validation": {
+        "phone": {
+          "required": "Número de telefone é obrigatório",
+          "format": "Formato de número de telefone inválido"
+        },
+        "fullName": {
+          "required": "Nome completo é obrigatório",
+          "minLength": "O nome deve ter pelo menos 3 caracteres",
+          "format": "O nome só pode conter letras e espaços"
+        },
+        "cep": {
+          "required": "CEP é obrigatório",
+          "minLength": "CEP deve ter pelo menos 3 caracteres"
+        },
+        "city": {
+          "required": "Cidade é obrigatória",
+          "minLength": "Cidade deve ter pelo menos 5 caracteres"
+        },
+        "state": {
+          "required": "Estado é obrigatório",
+          "minLength": "Estado deve ter pelo menos 3 caracteres"
+        },
+        "street": {
+          "required": "Rua é obrigatória",
+          "minLength": "Rua deve ter pelo menos 5 caracteres"
+        },
+        "number": {
+          "required": "Número é obrigatório"
+        },
+        "district": {
+          "required": "Bairro é obrigatório",
+          "minLength": "Bairro deve ter pelo menos 3 caracteres"
+        },
+        "birthdate": {
+          "required": "Data de nascimento é obrigatória",
+          "future": "Data de nascimento não pode ser no futuro",
+          "tooOld": "Data de nascimento inválida"
+        }
       }
     },
     "footer": {
