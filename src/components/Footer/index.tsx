@@ -1,4 +1,5 @@
 import { ComponentType } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Telegram } from '../../assets/SocialsTelegram';
 import { Github } from '../../assets/SocialsGithub';
 import { X } from '../../assets/SocialsX';
@@ -35,16 +36,22 @@ const SocialIcon = ({ social }: { social: SocialLink }) => (
   </a>
 );
 
-const Copyright = () => <p>Copyright © {new Date().getFullYear()}, Vortex. All rights reserved.</p>;
+const Copyright = () => {
+  const { t } = useTranslation();
+  return <p>{t('components.footer.copyright', { year: new Date().getFullYear() })}</p>;
+};
 
-const PoweredBySatoshipay = () => (
-  <div className="flex">
-    <p className="mr-1 text-xs text-gray-500">Powered by</p>
-    <a href="https://satoshipay.io" target="_blank" rel="noopener noreferrer" className="transition hover:opacity-80">
-      <img src={SATOSHIPAY_LOGO} alt="Satoshipay" />
-    </a>
-  </div>
-);
+const PoweredBySatoshipay = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex">
+      <p className="mr-1 text-xs text-gray-500">{t('components.footer.poweredBy')}</p>
+      <a href="https://satoshipay.io" target="_blank" rel="noopener noreferrer" className="transition hover:opacity-80">
+        <img src={SATOSHIPAY_LOGO} alt="Satoshipay" />
+      </a>
+    </div>
+  );
+};
 
 export function Footer() {
   return (

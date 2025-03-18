@@ -247,6 +247,10 @@
         "rejected": "KYC verification rejected",
         "error": "Verification error"
       }
+    },
+    "footer": {
+      "poweredBy": "Powered by",
+      "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
     }
   }
 }
