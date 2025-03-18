@@ -68,6 +68,7 @@ export const WhyVortex = () => {
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
         >
+          {t('sections.whyVortex.title')}
           <br className="hidden lg:block" />{' '}
           <Trans i18nKey="sections.whyVortex.withVortexFinance">
             with <strong className="text-primary">Vortex Finance</strong>?
