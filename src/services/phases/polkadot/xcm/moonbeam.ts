@@ -36,7 +36,7 @@ export function createPendulumToMoonbeamTransfer(
     .transferMulticurrencies(
       [
         [currencyId, rawAmount],
-        [currencyFeeId, '38822802500000000'],
+        [currencyFeeId, '50000000000000000'],
       ],
       1,
       destination,
