@@ -3,7 +3,7 @@ import { createContext, useContext, JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ToastMessage } from '../helpers/notifications';
 import { showToast } from '../helpers/notifications';
-import { ASSETHUB_WSS, PENDULUM_WSS } from '../constants/constants';
+import { ASSETHUB_WSS, PENDULUM_WSS, MOONBEAM_WSS } from '../constants/constants';
 
 export interface ApiComponents {
   api: ApiPromise;
@@ -19,6 +19,7 @@ export interface ApiComponents {
 interface NetworkState {
   assetHub?: ApiComponents;
   pendulum?: ApiComponents;
+  moonbeam?: ApiComponents;
 }
 
 interface PolkadotNodeContextInterface {
@@ -81,16 +82,23 @@ const usePendulumNode = () => {
   return { apiComponents: state.pendulum, isFetched };
 };
 
+const useMoonbeamNode = () => {
+  const { state, isFetched } = usePolkadotNodes();
+  return { apiComponents: state.moonbeam, isFetched };
+};
+
 const initializeNetworks = async (): Promise<NetworkState> => {
   try {
-    const [assetHub, pendulum] = await Promise.all([
+    const [assetHub, pendulum, moonbeam] = await Promise.all([
       createApiComponents(ASSETHUB_WSS),
       createApiComponents(PENDULUM_WSS),
+      createApiComponents(MOONBEAM_WSS),
     ]);
 
     return {
       assetHub,
       pendulum,
+      moonbeam,
     };
   } catch (error) {
     console.error('Error initializing networks:', error);
@@ -117,4 +125,4 @@ const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
   return <PolkadotNodeContext.Provider value={{ state, isFetched }}>{children}</PolkadotNodeContext.Provider>;
 };
 
-export { PolkadotNodeProvider, usePolkadotNodes, useAssetHubNode, usePendulumNode };
+export { PolkadotNodeProvider, usePolkadotNodes, useAssetHubNode, usePendulumNode, useMoonbeamNode };

@@ -3,12 +3,8 @@ import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
 
 import { isNetworkEVM, Networks } from '../../helpers/networks';
-import {
-  ExecutionContext,
-  OfframpingState,
-  BrlaOfframpTransactions,
-  SpacewalkOfframpTransactions,
-} from '../offrampingFlow';
+import { OfframpingState, BrlaOfframpTransactions, SpacewalkOfframpTransactions } from '../offrampingFlow';
+import { ExecutionContext } from '../flowCommons';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { storeDataInBackend } from '../storage/remote';
 

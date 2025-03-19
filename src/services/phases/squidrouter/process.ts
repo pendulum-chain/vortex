@@ -11,7 +11,8 @@ import { TrackableEvent } from '../../../contexts/events';
 import erc20ABI from '../../../contracts/ERC20';
 import { storageService } from '../../../services/storage/local';
 
-import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
+import { OfframpingState } from '../../offrampingFlow';
+import { ExecutionContext } from '../../flowCommons';
 import { getRouteTransactionRequest } from './route';
 
 type TrackEvent = (event: TrackableEvent) => void;

@@ -90,6 +90,7 @@ export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
   type: 'moonbeam';
   pendulumErc20WrapperAddress: string;
   polygonErc20Address: string;
+  moonbeamErc20Address: string;
   pendulumCurrencyId: { XCM: number };
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
@@ -393,6 +394,7 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
     },
     erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
     polygonErc20Address: '0xe6a537a407488807f0bbeb0038b79004f19dddfb',
+    moonbeamErc20Address: '0xfeb25f3fddad13f82c4d6dbc1481516f62236429',
     minWithdrawalAmountRaw: '3000000000000000000', // 3 BRL.
     maxWithdrawalAmountRaw: '10000000000000000000000', // 10,000 BRL. Maximum value for a KYC level 1 user.
     offrampFeesBasisPoints: 0,
@@ -439,5 +441,49 @@ export function getPendulumCurrencyId(outputTokenType: OutputTokenType): Pendulu
     };
   } else {
     return tokenDetails.pendulumCurrencyId;
+  }
+}
+
+export interface PendulumDetails {
+  pendulumErc20WrapperAddress: string;
+  currencyId: PendulumCurrencyId;
+  pendulumAssetSymbol: string;
+  pendulumDecimals: number;
+}
+
+export function getPendulumDetails(network: Networks, tokenType: OutputTokenType | InputTokenType): PendulumDetails {
+  if (tokenType === 'usdc' || tokenType === 'usdce' || tokenType === 'usdt') {
+    const inputDetails = getInputTokenDetailsOrDefault(network, tokenType as InputTokenType);
+    return {
+      pendulumErc20WrapperAddress: inputDetails.pendulumErc20WrapperAddress,
+      currencyId: inputDetails.pendulumCurrencyId,
+      pendulumAssetSymbol: inputDetails.pendulumAssetSymbol,
+      pendulumDecimals: inputDetails.pendulumDecimals,
+    };
+  } else {
+    const outputDetails = getOutputTokenDetails(tokenType as OutputTokenType);
+    if (isStellarOutputTokenDetails(outputDetails)) {
+      return {
+        pendulumErc20WrapperAddress: outputDetails.erc20WrapperAddress,
+        currencyId: {
+          Stellar: {
+            AlphaNum4: {
+              code: outputDetails.stellarAsset.code.hex,
+              issuer: outputDetails.stellarAsset.issuer.hex,
+            },
+          },
+        },
+        pendulumAssetSymbol: outputDetails.fiat.symbol,
+        pendulumDecimals: outputDetails.decimals,
+      };
+    } else if (isMoonbeamOutputTokenDetails(outputDetails)) {
+      return {
+        pendulumErc20WrapperAddress: outputDetails.pendulumErc20WrapperAddress,
+        currencyId: outputDetails.pendulumCurrencyId,
+        pendulumAssetSymbol: outputDetails.pendulumAssetSymbol,
+        pendulumDecimals: outputDetails.pendulumDecimals,
+      };
+    }
+    throw new Error(`Unsupported output token details type for token: ${tokenType}`);
   }
 }

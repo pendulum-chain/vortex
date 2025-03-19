@@ -9,7 +9,8 @@ import { getStellarBalanceUnits } from '../stellar/utils';
 import { getEphemeralNonce } from './ephemeral';
 import { decodeSubmittableExtrinsic } from '../signedTransactions';
 import { getVaultsForCurrency, prettyPrintVaultId, VaultService } from './spacewalk';
-import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
+import { OfframpingState } from '../../offrampingFlow';
+import { ExecutionContext } from '../../flowCommons';
 import { EventListener } from './eventListener';
 import { isSpacewalkOfframpTransactions } from '../../../types/offramp';
 

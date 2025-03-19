@@ -1,14 +1,18 @@
-import { ApiPromise } from '@polkadot/api';
+import { ApiPromise, Keyring } from '@polkadot/api';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import Big from 'big.js';
 
-import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
+import { OfframpingState } from '../../../offrampingFlow';
+import { ExecutionContext } from '../../../flowCommons';
 import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
 import { signAndSubmitXcm, TransactionInclusionError, verifyXcmSentEvent } from '../xcm';
 import { storageService } from '../../../storage/local';
 import { storageKeys, TransactionSubmissionIndices } from '../../../../constants/localStorage';
+import { ApiComponents } from '../../../../contexts/polkadotNode';
+import { SignerOptions, SubmittableExtrinsic } from '@polkadot/api-base/types';
+import { ISubmittableResult } from '@polkadot/types/types';
 
 function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
@@ -35,6 +39,32 @@ function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: s
     feeAssetItem,
     weightLimit,
   );
+}
+
+export function createPendulumToAssethubTransfer(
+  pendulumNode: ApiComponents,
+  destinationAddress: string,
+  currencyId: { XCM: number },
+  rawAmount: string,
+  pendulumEphemeralSeed: string,
+  nonce = -1,
+): Promise<SubmittableExtrinsic<'promise', ISubmittableResult>> {
+  const destination = {
+    V3: {
+      parents: 1,
+      interior: { X2: [{ Parachain: 1000 }, { AccountKey20: { network: undefined, key: destinationAddress } }] },
+    },
+  };
+  const { ss58Format, api: pendulumApi } = pendulumNode;
+
+  const keyring = new Keyring({ type: 'sr25519', ss58Format });
+  const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
+
+  const options: Partial<SignerOptions> = { nonce };
+  options.era = 0;
+  return pendulumApi.tx.xTokens
+    .transfer(currencyId, rawAmount, destination, 'Unlimited')
+    .signAsync(ephemeralKeypair, options);
 }
 
 export async function executeAssetHubToPendulumXCM(
