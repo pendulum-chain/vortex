@@ -57,22 +57,22 @@
   "sections": {
     "whyVortex": {
       "title": "Venda criptomoedas com segurança",
-      "description": "Vortex é uma exchange não-custodial que permite trocar entre diferentes criptomoedas. É construída sobre o blockchain Stellar e usa o SDK Stellar para interagir com a rede Stellar.",
+      "description": "A Vortex é uma plataforma de troca não custodial, permitindo que você negocie diversas criptomoedas com facilidade.",
       "features": {
         "lowFees": {
-          "title": "Taxas Menores, Melhor Valor",
+          "title": "Taxas reduzidas para mais economia",
           "description": "As taxas são de apenas 0,25%, muito abaixo da média do mercado. Não há taxas ocultas nas taxas de câmbio."
         },
         "easyToUse": {
-          "title": "Fácil de Usar",
+          "title": "Simples de usar",
           "description": "Venda suas criptomoedas facilmente sem a necessidade de uma exchange centralizada."
         },
         "securityFirst": {
-          "title": "Segurança em Primeiro Lugar, Sempre",
+          "title": "Priorizamos sua segurança acima de tudo",
           "description": "Vortex é não-custodial por design. Seus ativos são tratados com cuidado e segurança."
         },
         "smartKYC": {
-          "title": "KYC Inteligente",
+          "title": "KYC rápido e fácil",
           "description": "Seja verificado rapidamente e desfrute de altos limites de transação e um processo de verificação simples e amigável."
         }
       },
