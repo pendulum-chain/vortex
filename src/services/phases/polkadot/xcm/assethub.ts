@@ -79,11 +79,18 @@ export async function executeAssetHubToPendulumXCM(
             return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
           } catch (err) {
             const error = err as Error;
-            console.error('Error while verifying XcmSent event, this is unrecoverable:', error.message);
-            return { ...state, failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM' } };
+            console.error('Error while verifying XcmSent event, this is unrecoverable:', error);
+            return {
+              ...state,
+              failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM. ' + (error || '') },
+            };
           }
         }
-        return { ...state, failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM' } };
+        console.log('(Outer) error in executeAssetHubToPendulumXCM', error);
+        return {
+          ...state,
+          failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM. ' + (error || '') },
+        };
       }
     }
 
