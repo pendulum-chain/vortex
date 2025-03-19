@@ -155,6 +155,15 @@
     }
   },
   "components": {
+    "emailForm": {
+      "success": "Successfully saved!",
+      "loading": "Loading...",
+      "error": "Error while saving your email. Please try again.",
+      "title": "Thank you for using our new product!",
+      "description": "We’re always looking to improve, and we’d greatly appreciate your feedback. If you’re willing, please leave your email below so we can reach out for a quick chat about your experience.",
+      "noNewslettersNoSpam": "No newsletters, no spam — just your honest thoughts.",
+      "submit": "Submit"
+    },
     "termsAndConditions": {
       "text": "I have read and accept the",
       "link": "Terms and Conditions"
