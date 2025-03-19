@@ -1,4 +1,4 @@
-import { Signer } from '@polkadot/types/types';
+import { Signer, SignerResult } from '@polkadot/types/types';
 import { WalletAccount } from '@talismn/connect-wallets';
 import type { SessionTypes } from '@walletconnect/types/dist/types/sign-client/session';
 import UniversalProvider, { UniversalProviderOpts } from '@walletconnect/universal-provider';
@@ -43,31 +43,42 @@ export const walletConnectService = {
     const signer: Signer = {
       signPayload: async (data) => {
         const { address } = data;
-        return provider.client.request({
-          chainId,
-          topic: session.topic,
-          request: {
-            method: 'polkadot_signTransaction',
-            params: {
-              address,
-              transactionPayload: data,
+
+        try {
+          return await provider.client.request({
+            chainId,
+            topic: session.topic,
+            request: {
+              method: 'polkadot_signTransaction',
+              params: {
+                address,
+                transactionPayload: data,
+              },
             },
-          },
-        });
+          });
+        } catch (error) {
+          console.error('Error signing transaction with signPayload():', error);
+          throw error;
+        }
       },
       signRaw: async (data) => {
         const { address } = data;
-        return provider.client.request({
-          chainId,
-          topic: session.topic,
-          request: {
-            method: 'polkadot_signMessage',
-            params: {
-              address,
-              message: data.data,
+        try {
+          return provider.client.request({
+            chainId,
+            topic: session.topic,
+            request: {
+              method: 'polkadot_signMessage',
+              params: {
+                address,
+                message: data.data,
+              },
             },
-          },
-        });
+          });
+        } catch (error) {
+          console.error('Error signing transaction with signRaw():', error);
+          throw error;
+        }
       },
     };
     return {
