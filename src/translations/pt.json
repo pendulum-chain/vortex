@@ -155,6 +155,15 @@
     }
   },
   "components": {
+    "emailForm": {
+      "success": "Salvo com sucesso!",
+      "loading": "Carregando...",
+      "error": "Erro ao salvar seu e-mail. Por favor, tente novamente.",
+      "title": "Obrigado por usar nosso novo produto!",
+      "description": "Estamos sempre buscando melhorar e gostaríamos muito de receber seu feedback. Se possível, deixe seu e-mail abaixo para que possamos entrar em contato para uma rápida conversa sobre sua experiência.",
+      "noNewslettersNoSpam": "Sem newsletters, sem spam — apenas suas opiniões sinceras.",
+      "submit": "Enviar"
+    },
     "termsAndConditions": {
       "text": "Eu li e aceito os",
       "link": "Termos e Condições"
