@@ -4,6 +4,7 @@ import { WalletAccount } from '@talismn/connect-wallets';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { ApiPromise } from '@polkadot/api';
 import { SignedBlock } from '@polkadot/types/interfaces';
+import { encodeAddress } from '@polkadot/util-crypto';
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -15,6 +16,12 @@ export class TransactionInclusionError extends Error {
   }
 }
 
+/// Compare two substrate addresses with arbitrary ss58 format
+function substrateAddressEqual(a: string, b: string): boolean {
+  // Convert both addresses to same ss58 format before comparing
+  return encodeAddress(a, 0) === encodeAddress(b, 0);
+}
+
 export const signAndSubmitXcm = async (
   walletAccount: WalletAccount,
   extrinsic: SubmittableExtrinsic<'promise'>,
@@ -22,6 +29,8 @@ export const signAndSubmitXcm = async (
 ): Promise<{ event: XcmSentEvent; hash: string }> => {
   return new Promise((resolve, reject) => {
     let inBlockHash: string | null = null;
+
+    console.log('Signing and sending extrinsic from walletAccount', walletAccount, walletAccount.address);
 
     extrinsic
       .signAndSend(
@@ -51,7 +60,7 @@ export const signAndSubmitXcm = async (
             const event = xcmSentEvents
               .map((event) => parseEventXcmSent(event))
               .filter((event) => {
-                return event.originAddress == walletAccount.address;
+                return substrateAddressEqual(event.originAddress, walletAccount.address);
               });
 
             if (event.length == 0) {
@@ -113,7 +122,7 @@ export async function verifyXcmSentEvent(
   const xcmSentEvent = events
     .filter((record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent')
     .map(parseEventXcmSent)
-    .find((event) => event.originAddress === address);
+    .find((event) => substrateAddressEqual(event.originAddress, address));
 
   if (!xcmSentEvent) {
     throw new Error(`No XcmSent event found for account ${address}`);
@@ -125,7 +134,7 @@ export async function verifyXcmSentEvent(
 export const submitXcm = async (
   address: string,
   extrinsic: SubmittableExtrinsic<'promise'>,
-): Promise<{ event: XcmSentEvent; hash: string }> => {
+): Promise<{ event: XcmSentEvent; hash: string | undefined }> => {
   return new Promise((resolve, reject) => {
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
@@ -147,7 +156,7 @@ export const submitXcm = async (
           const event = xcmSentEvents
             .map((event) => parseEventXcmSent(event))
             .filter((event) => {
-              return event.originAddress == address;
+              return substrateAddressEqual(event.originAddress, address);
             });
 
           if (event.length == 0) {
@@ -157,6 +166,11 @@ export const submitXcm = async (
         }
       })
       .catch((error) => {
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes('1012:')) {
+          // We assume that the previous submission worked and return the address
+          resolve({ event: { originAddress: address }, hash: undefined });
+        }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
@@ -165,9 +179,9 @@ export const submitXcm = async (
 export const submitXTokens = async (
   address: string,
   extrinsic: SubmittableExtrinsic<'promise'>,
-): Promise<{ event: XTokensEvent; hash: string }> => {
+): Promise<{ event: XTokensEvent; hash: string | undefined }> => {
   return new Promise((resolve, reject) => {
-    extrinsic
+    return extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
 
@@ -187,7 +201,7 @@ export const submitXTokens = async (
           const event = xTokenEvents
             .map((event) => parseEventXTokens(event))
             .filter((event) => {
-              return event.sender == address;
+              return substrateAddressEqual(event.sender, address);
             });
 
           if (event.length == 0) {
@@ -197,6 +211,11 @@ export const submitXTokens = async (
         }
       })
       .catch((error) => {
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes('1012:')) {
+          // We assume that the previous submission worked and return the address
+          resolve({ event: { sender: address }, hash: undefined });
+        }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
