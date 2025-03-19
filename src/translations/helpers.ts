@@ -1,6 +1,6 @@
 export enum Language {
   English = 'en',
-  Portuguese = 'pt',
+  Portuguese_Brazil = 'pt',
 }
 
 const DEFAULT_LANGUAGE = Language.English;

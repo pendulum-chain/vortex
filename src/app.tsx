@@ -9,7 +9,7 @@ import enTranslations from './translations/en.json';
 import ptTranslations from './translations/pt.json';
 
 import '../App.css';
-import { getLanguageFromPath } from './translations/helpers';
+import { getLanguageFromPath, Language } from './translations/helpers';
 
 export function App() {
   const lng = getLanguageFromPath();
@@ -18,10 +18,10 @@ export function App() {
     lng,
     fallbackLng: 'en',
     resources: {
-      en: {
+      [Language.English]: {
         translation: enTranslations,
       },
-      pt: {
+      [Language.Portuguese_Brazil]: {
         translation: ptTranslations,
       },
     },
