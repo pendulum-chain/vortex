@@ -339,6 +339,9 @@
     "useTokenAmountOut": {
       "insufficientLiquidity": "Insuficiente liquidez para esta troca. Por favor, tente com um valor menor ou tente novamente mais tarde.",
       "default": "Algo deu errado"
+    },
+    "useSubmitOfframp": {
+      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."
     }
   }
 }

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import Big from 'big.js';
+import { useTranslation } from 'react-i18next';
 
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useNetwork } from '../../contexts/network';
@@ -22,6 +23,7 @@ import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
 export const useSubmitOfframp = () => {
+  const { t } = useTranslation();
   const { showToast, ToastMessage } = useToastMessage();
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
@@ -95,7 +97,7 @@ export const useSubmitOfframp = () => {
                 return;
               }
               if ((await response.text()).includes('KYC invalid')) {
-                setInitializeFailedMessage('Your KYC level is invalid. Please contact support.');
+                setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
                 setOfframpStarted(false);
                 setOfframpInitiating(false);
                 cleanupSEP24();
@@ -182,6 +184,7 @@ export const useSubmitOfframp = () => {
       setOfframpSummaryVisible,
       setOfframpKycStarted,
       setInitializeFailedMessage,
+      t,
       cleanupSEP24,
       checkAndWaitForSignature,
       forceRefreshAndWaitForSignature,
