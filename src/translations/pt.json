@@ -199,7 +199,17 @@
       "sellCrypto": "Vender Cripto",
       "firstInputLabel": "Você vende",
       "secondInputLabel": "Você recebe",
-      "compareFees": "Comparar taxas"
+      "compareFees": "Comparar taxas",
+      "validation": {
+        "taxId": {
+          "required": "CPF é obrigatório para transferências em BRL",
+          "format": "CPF inválido"
+        },
+        "pixId": {
+          "required": "Chave PIX é obrigatória para transferências em BRL",
+          "format": "A chave PIX não corresponde a nenhum dos formatos válidos"
+        }
+      }
     },
     "benefitsList": {
       "noHiddenFees": "Sem taxas ocultas",

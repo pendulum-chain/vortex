@@ -200,7 +200,17 @@
       "sellCrypto": "Sell Crypto",
       "firstInputLabel": "You sell",
       "secondInputLabel": "You receive",
-      "compareFees": "Compare fees"
+      "compareFees": "Compare fees",
+      "validation": {
+        "taxId": {
+          "required": "CPF is required when transferring BRL",
+          "format": "Invalid CPF"
+        },
+        "pixId": {
+          "required": "PIX key is required when transferring BRL",
+          "format": "PIX key does not match any of the valid formats"
+        }
+      }
     },
     "benefitsList": {
       "noHiddenFees": "No hidden fees",

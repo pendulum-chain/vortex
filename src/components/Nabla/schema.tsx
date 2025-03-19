@@ -1,4 +1,6 @@
 import * as Yup from 'yup';
+import { useTranslation } from 'react-i18next';
+
 import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
 
 export type SwapFormValues = {
@@ -12,8 +14,7 @@ export type SwapFormValues = {
   pixId: string | undefined;
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const transformNumber = (value: any, originalValue: any) => {
+const transformNumber = (value: unknown, originalValue: unknown) => {
   if (!originalValue) return 0;
   if (typeof originalValue === 'string' && originalValue !== '') value = Number(originalValue) ?? 0;
   return value;
@@ -30,29 +31,32 @@ const pixKeyRegex = [
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, // Random
 ];
 
-const schema = Yup.object<SwapFormValues>().shape({
-  from: Yup.string().required(),
-  fromAmount: Yup.string().required(),
-  to: Yup.string().required(),
-  toAmount: Yup.string().required(),
-  slippage: Yup.number().nullable().transform(transformNumber),
-  deadline: Yup.number().nullable().transform(transformNumber),
-  taxId: Yup.string().when('to', {
-    is: 'brl',
-    then: (schema) => schema.matches(cpfRegex, 'Invalid CPF').required('CPF is required when transferring BRL'),
-    otherwise: (schema) => schema.optional(),
-  }),
-  pixId: Yup.string().when('to', {
-    is: 'brl',
-    then: (schema) =>
-      schema
-        .required('PIX key is required when transferring BRL')
-        .test('matches-one', 'PIX key does not match any of the valid formats', (value) => {
-          if (!value) return false;
-          return pixKeyRegex.some((regex) => regex.test(value));
-        }),
-    otherwise: (schema) => schema.optional(),
-  }),
-});
+export const useSchema = () => {
+  const { t } = useTranslation();
 
-export default schema;
+  return Yup.object<SwapFormValues>().shape({
+    from: Yup.string().required(),
+    fromAmount: Yup.string().required(),
+    to: Yup.string().required(),
+    toAmount: Yup.string().required(),
+    slippage: Yup.number().nullable().transform(transformNumber),
+    deadline: Yup.number().nullable().transform(transformNumber),
+    taxId: Yup.string().when('to', {
+      is: 'brl',
+      then: (schema) =>
+        schema.matches(cpfRegex, t('swap.validation.taxId.format')).required(t('swap.validation.taxId.required')),
+      otherwise: (schema) => schema.optional(),
+    }),
+    pixId: Yup.string().when('to', {
+      is: 'brl',
+      then: (schema) =>
+        schema
+          .required(t('swap.validation.pixId.required'))
+          .test('matches-one', t('swap.validation.pixId.format'), (value) => {
+            if (!value) return false;
+            return pixKeyRegex.some((regex) => regex.test(value));
+          }),
+      otherwise: (schema) => schema.optional(),
+    }),
+  });
+};
