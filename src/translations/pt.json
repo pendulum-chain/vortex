@@ -25,17 +25,17 @@
       "swappingTo": "Trocando para {{assetSymbol}} no Vortex DEX",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "transferringToLocalPartner": "Transferindo para parceiro local para transferência bancária",
-      "success": "Transação concluída com sucesso!",
-      "transactionInProgress": "Sua transação está em andamento."
+      "success": "Sua transação foi concluída com sucesso!",
+      "transactionInProgress": "Estamos processando sua transação."
     },
     "success": {
-      "title": "Tudo pronto! O saque foi enviado para seu banco.",
-      "returnHome": "Voltar para Início",
+      "title": "Tudo certo! Enviamos o saque para sua conta bancária.",
+      "returnHome": "Voltar para a página inicial.",
       "arrivalText": {
-        "EURC": "Os fundos serão recebidos em 1 minuto (SEPA Instantâneo) ou 2 dias (SEPA Padrão). O tipo de SEPA depende do suporte do banco destinatário.",
-        "ARS": "Seus fundos chegarão à sua conta bancária em alguns minutos.",
-        "BRL": "Seus fundos chegarão à sua conta bancária em alguns minutos.",
-        "default": "Seus fundos chegarão à sua conta bancária em breve."
+        "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
+        "ARS": "Em breve os fundos estarão disponíveis em sua conta bancária.",
+        "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
+        "default": "Em breve os fundos estarão disponíveis em sua conta bancária."
       }
     },
     "swap": {
@@ -56,7 +56,7 @@
   },
   "sections": {
     "whyVortex": {
-      "title": "Venda Cripto de forma segura",
+      "title": "Venda criptomoedas com segurança",
       "description": "Vortex é uma exchange não-custodial que permite trocar entre diferentes criptomoedas. É construída sobre o blockchain Stellar e usa o SDK Stellar para interagir com a rede Stellar.",
       "features": {
         "lowFees": {
