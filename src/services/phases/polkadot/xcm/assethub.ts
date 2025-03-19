@@ -6,7 +6,12 @@ import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
-import { signAndSubmitXcm, TransactionInclusionError, verifyXcmSentEvent } from '../xcm';
+import {
+  signAndSubmitXcm,
+  TransactionInclusionError,
+  TransactionTemporarilyBannedError,
+  verifyXcmSentEvent,
+} from '../xcm';
 import { storageService } from '../../../storage/local';
 import { storageKeys, TransactionSubmissionIndices } from '../../../../constants/localStorage';
 
@@ -85,12 +90,15 @@ export async function executeAssetHubToPendulumXCM(
               failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM. ' + (error || '') },
             };
           }
+        } else if (error instanceof TransactionTemporarilyBannedError) {
+          console.log('Transaction temporarily banned. Waiting for tokens to arrive on Pendulum.');
+          // Do nothing but wait until tokens arrive on Pendulum
+        } else {
+          return {
+            ...state,
+            failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM. ' + (error || '') },
+          };
         }
-        console.log('(Outer) error in executeAssetHubToPendulumXCM', error);
-        return {
-          ...state,
-          failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM. ' + (error || '') },
-        };
       }
     }
 

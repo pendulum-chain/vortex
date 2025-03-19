@@ -16,6 +16,14 @@ export class TransactionInclusionError extends Error {
   }
 }
 
+/// Error thrown when a transaction is temporarily banned by the RPC node (Error code 1012)
+export class TransactionTemporarilyBannedError extends Error {
+  constructor(message?: string) {
+    super(message);
+    Object.setPrototypeOf(this, TransactionTemporarilyBannedError.prototype);
+  }
+}
+
 /// Compare two substrate addresses with arbitrary ss58 format
 function substrateAddressEqual(a: string, b: string): boolean {
   // Convert both addresses to same ss58 format before comparing
@@ -29,8 +37,6 @@ export const signAndSubmitXcm = async (
 ): Promise<{ event: XcmSentEvent; hash: string }> => {
   return new Promise((resolve, reject) => {
     let inBlockHash: string | null = null;
-
-    console.log('Signing and sending extrinsic from walletAccount', walletAccount, walletAccount.address);
 
     extrinsic
       .signAndSend(
@@ -72,6 +78,11 @@ export const signAndSubmitXcm = async (
       )
       .catch((error) => {
         afterSignCallback();
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes('1012:')) {
+          reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
+        }
+
         if (inBlockHash) {
           return reject(
             new TransactionInclusionError(
@@ -168,8 +179,7 @@ export const submitXcm = async (
       .catch((error) => {
         // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
         if (error?.message.includes('1012:')) {
-          // We assume that the previous submission worked and return the address
-          resolve({ event: { originAddress: address }, hash: undefined });
+          reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
         }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
@@ -213,8 +223,7 @@ export const submitXTokens = async (
       .catch((error) => {
         // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
         if (error?.message.includes('1012:')) {
-          // We assume that the previous submission worked and return the address
-          resolve({ event: { sender: address }, hash: undefined });
+          reject(new TransactionTemporarilyBannedError('Transaction for xtokens transfer is temporarily banned.'));
         }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
