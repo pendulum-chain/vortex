@@ -31,6 +31,10 @@ async function handleTokenApproval(
     try {
       trackEvent({ event: 'signing_requested', index: 1 });
 
+      storageService.set(
+        storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX,
+        TransactionSubmissionIndices.SQUIDROUTER_APPROVE,
+      );
       approvalHash = await writeContract(wagmiConfig, {
         abi: erc20ABI,
         address: inputToken.erc20AddressSourceChain,
@@ -39,10 +43,6 @@ async function handleTokenApproval(
       });
 
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE_APPROVAL, approvalHash);
-      storageService.set(
-        storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX,
-        TransactionSubmissionIndices.SQUIDROUTER_APPROVE,
-      );
 
       trackEvent({ event: 'transaction_signed', index: 1 });
     } catch (e) {
@@ -66,6 +66,7 @@ async function handleSwapTransaction(
   if (!swapHash && lastSubmissionIndex === TransactionSubmissionIndices.SQUIDROUTER_SWAP - 1) {
     try {
       trackEvent({ event: 'signing_requested', index: 2 });
+      storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.SQUIDROUTER_SWAP);
       swapHash = await sendTransaction(wagmiConfig, {
         to: transactionRequest.target,
         data: transactionRequest.data,
@@ -74,7 +75,6 @@ async function handleSwapTransaction(
       });
 
       storageService.set(storageKeys.SQUIDROUTER_RECOVERY_STATE_SWAP, swapHash);
-      storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.SQUIDROUTER_SWAP);
 
       trackEvent({ event: 'transaction_signed', index: 2 });
     } catch (e) {
