@@ -26,7 +26,9 @@
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "transferringToLocalPartner": "Transferindo para parceiro local para transferência bancária",
       "success": "Sua transação foi concluída com sucesso!",
-      "transactionInProgress": "Estamos processando sua transação."
+      "transactionInProgress": "Estamos processando sua transação.",
+      "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
+      "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos."
     },
     "success": {
       "title": "Tudo certo! Enviamos o saque para sua conta bancária.",
@@ -333,6 +335,10 @@
       "walletAlreadyOpen": "Carteira já aberta aguardando conexão. Por favor, tente novamente.",
       "nodeConnectionError": "Erro ao conectar ao nó. Atualize a página para reconectar.",
       "genericError": "Ocorreu um erro. Por favor, tente novamente."
+    },
+    "warningBanner": {
+      "title": "Mantenha esta janela aberta",
+      "description": "Fechar esta janela interromperá o processo."
     }
   },
   "hooks": {
