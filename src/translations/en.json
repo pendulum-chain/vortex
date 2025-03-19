@@ -204,6 +204,13 @@
         "wrongNetwork": "Wrong network"
       }
     },
+    "signingBox": {
+      "actionRequired": "Action Required",
+      "pleaseSignTransaction": "Please sign the transaction in",
+      "yourConnectedWallet": "your connected wallet to proceed",
+      "waitingForSignature": "Waiting for signature",
+      "signatures": "Signatures"
+    },
     "navbar": {
       "sellCrypto": "Sell Crypto",
       "howItWorks": "How it works",

@@ -203,6 +203,13 @@
         "connect": "Conectar"
       }
     },
+    "signingBox": {
+      "actionRequired": "Ação necessária",
+      "pleaseSignTransaction": "Por favor, assine a transação na",
+      "yourConnectedWallet": "sua carteira conectada para prosseguir",
+      "waitingForSignature": "Aguardando assinatura",
+      "signatures": "Assinaturas"
+    },
     "navbar": {
       "sellCrypto": "Vender Cripto",
       "howItWorks": "Como funciona",
