@@ -335,5 +335,11 @@
       "nodeConnectionError": "Error while connecting to the node. Refresh the page to re-connect.",
       "genericError": "An error occurred. Please try again."
     }
+  },
+  "hooks": {
+    "useTokenAmountOut": {
+      "insufficientLiquidity": "Insufficient liquidity for this exchange. Please try a smaller amount or try again later.",
+      "default": "Something went wrong"
+    }
   }
 }
