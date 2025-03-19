@@ -64,6 +64,8 @@ export const DUMP_SHEET_HEADER_VALUES_BRLA_TO_EVM = [
   ...DUMP_SHEET_COMMON_HEADERS,
   'moonbeamToPendulumXcmTx',
   'pendulumToMoonbeamXcmTx',
+  'squidRouterApproveTx',
+  'squidRouterSwapTx',
 ];
 
 export const DUMP_SHEET_HEADER_VALUES_BRLA_TO_ASSETHUB = [

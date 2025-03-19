@@ -1,13 +1,21 @@
 import axios from 'axios';
-import { encodeFunctionData } from 'viem';
+import { encodeFunctionData, Hash } from 'viem';
 
 import squidReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
-import { InputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
+import {
+  getInputTokenDetails,
+  getOutputTokenDetailsMoonbeam,
+  InputTokenDetails,
+  isEvmInputTokenDetails,
+  OutputTokenDetailsMoonbeam,
+  OutputTokenTypes,
+} from '../../../constants/tokenConfig';
 import erc20ABI from '../../../contracts/ERC20';
 import { getSquidRouterConfig, squidRouterConfigBase } from './config';
-import { Networks } from '../../../helpers/networks';
+import { getNetworkId, Networks } from '../../../helpers/networks';
+import { OnrampOutputTokenType } from '../../onrampingFlow';
 
-interface RouteParams {
+export interface RouteParams {
   fromAddress: string;
   fromChain: string;
   fromToken: string;
@@ -27,6 +35,8 @@ interface RouteParams {
     logoURI: string;
   };
 }
+
+export type TransactionRequest = { target: string; data: Hash; value: bigint; gasLimit: string };
 
 function createRouteParams(
   userAddress: string,
@@ -107,7 +117,43 @@ function createRouteParams(
   };
 }
 
-async function getRoute(params: RouteParams) {
+export function createOnrampRouteParams(
+  fromAddress: string,
+  amount: string,
+  outputToken: OnrampOutputTokenType,
+  toNetwork: Networks,
+  addressDestination: string,
+): RouteParams {
+  const { axlUSDC_MOONBEAM } = getSquidRouterConfig(Networks.Moonbeam);
+  const fromChainId = getNetworkId(Networks.Moonbeam);
+  const toChainId = getNetworkId(toNetwork);
+
+  // will throw if invalid. Must exist.
+  const outputTokenDetails = getInputTokenDetails(Networks.Moonbeam, outputToken);
+  if (!outputTokenDetails) {
+    throw new Error(`Token ${outputToken} is not supported for Squidrouter onramp`);
+  }
+
+  if (!isEvmInputTokenDetails(outputTokenDetails)) {
+    throw new Error(`Token ${outputToken} is not supported on EVM chains`);
+  }
+
+  return {
+    fromAddress: fromAddress,
+    fromChain: fromChainId.toString(),
+    fromToken: axlUSDC_MOONBEAM,
+    fromAmount: amount,
+    toChain: toChainId.toString(),
+    toToken: outputTokenDetails.erc20AddressSourceChain,
+    toAddress: addressDestination,
+    slippageConfig: {
+      autoMode: 1,
+    },
+    enableExpress: true,
+  };
+}
+
+export async function getRoute(params: RouteParams) {
   // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
   const { integratorId } = squidRouterConfigBase;
   const url = 'https://apiplus.squidrouter.com/v2/route';

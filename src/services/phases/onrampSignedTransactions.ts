@@ -10,6 +10,7 @@ import { ExecutionContext } from '../flowCommons';
 import { BrlaOnrampingState, BrlaOnrampTransactions } from '../onrampingFlow';
 import { createMoonbeamToPendulumXCM } from './moonbeam';
 import { createPendulumToAssethubTransfer } from './polkadot/xcm/assethub';
+import { createOnrampSquidrouterTransaction, OnrampSquidrouterParams } from './squidrouter/createTransaction';
 
 export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
   return extrinsic.toHex();
@@ -57,6 +58,8 @@ export async function prepareOnrampTransactions(
       nablaSwapTx: transactions.nablaSwapTransaction,
       moonbeamToPendulumXcmTx: transactions.moonbeamToPendulumXcmTransaction,
       pendulumToMoonbeamXcmTx: transactions.pendulumToMoonbeamXcmTransaction,
+      squidrouterApproveTx: transactions.squidrouterApproveTransaction,
+      squidrouterSwapTx: transactions.squidrouterSwapTransaction,
       pendulumToAssetHubXcmTx: transactions.pendulumToAssetHubXcmTransaction,
     };
     await storeDataInBackend(data);
@@ -86,7 +89,9 @@ async function prepareBrlaOnrampTransactions(
     inputAmount,
     outputAmount,
     inputTokenType,
+    outputTokenType,
     nablaSwapNonce,
+    toNetwork,
   } = state;
 
   const { moonbeamNode, pendulumNode } = context;
@@ -104,6 +109,15 @@ async function prepareBrlaOnrampTransactions(
     inputTokenAddressMoonbeam,
     moonbeamEphemeralSeed,
   );
+
+  const { squidrouterApproveTransaction, squidrouterSwapTransaction } = await createOnrampSquidrouterTransaction({
+    fromAddress: moonbeamEphemeralAddress,
+    amount: outputAmount.raw.toString(),
+    outputToken: outputTokenType,
+    toNetwork: toNetwork,
+    addressDestination,
+    moonbeamEphemeralSeed: moonbeamEphemeralSeed as `0x${string}`,
+  });
 
   const pendulumToMoonbeamNonce = nablaSwapNonce + 1;
 
@@ -131,6 +145,8 @@ async function prepareBrlaOnrampTransactions(
     nablaSwapTransaction: encodeSubmittableExtrinsic(nablaSwapTransaction),
     moonbeamToPendulumXcmTransaction: encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
     pendulumToMoonbeamXcmTransaction: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
+    squidrouterApproveTransaction,
+    squidrouterSwapTransaction,
     pendulumToAssetHubXcmTransaction: encodeSubmittableExtrinsic(pendulumToAssetHubXcmTransaction),
   };
 

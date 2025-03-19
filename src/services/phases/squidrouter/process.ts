@@ -13,10 +13,9 @@ import { storageService } from '../../../services/storage/local';
 
 import { OfframpingState } from '../../offrampingFlow';
 import { ExecutionContext } from '../../flowCommons';
-import { getRouteTransactionRequest } from './route';
+import { getRouteTransactionRequest, TransactionRequest } from './route';
 
 type TrackEvent = (event: TrackableEvent) => void;
-type TransactionRequest = { target: string; data: Hash; value: bigint; gasLimit: string };
 
 async function handleTokenApproval(
   inputToken: EvmInputTokenDetails,

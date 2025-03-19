@@ -40,6 +40,7 @@ export interface BrlaOnrampInitiateStateArguments {
   amountOut: Big;
   network: Networks;
   networkId: number;
+  toNetwork: Networks;
   pendulumNode: ApiComponents;
   moonbeamNode: ApiComponents;
   brlaEvmAddress: string;
@@ -71,6 +72,7 @@ export interface BrlaOnrampingState {
   failureTimeoutAt: number;
   network: Networks;
   networkId: number;
+  toNetwork: Networks;
   transactions?: BrlaOnrampTransactions;
   brlaEvmAddress?: string;
   addressDestination: string;
@@ -82,6 +84,8 @@ export type BrlaOnrampTransactions = {
   nablaSwapTransaction: string;
   pendulumToMoonbeamXcmTransaction: string;
   moonbeamToPendulumXcmTransaction: string;
+  squidrouterApproveTransaction: string;
+  squidrouterSwapTransaction: string;
   pendulumToAssetHubXcmTransaction: string;
 };
 
@@ -175,6 +179,7 @@ export async function constructBrlaOnrampInitialState({
     failureTimeoutAt: now + minutesInMs(10),
     network,
     networkId,
+    toNetwork: network,
     taxId,
     addressDestination,
   };

@@ -19,3 +19,5 @@ export const SIGNING_SERVICE_URL =
   config.maybeSignerServiceUrl || (config.isProd ? '/api/production' : 'http://localhost:3000');
 
 export const MOONBEAM_XCM_FEE_GLMR = '50000000000000000';
+
+export const AXL_USDC_MOONBEAM = '0xca01a1d0993565291051daff390892518acfad3a';
