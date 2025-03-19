@@ -14,50 +14,52 @@ const createKycFormSchema = (t: (key: string) => string) =>
     .object({
       [ExtendedBrlaFieldOptions.PHONE]: yup
         .string()
-        .required(t('forms.brlaExtendedForm.validation.phone.required'))
-        .matches(/^\+?[1-9]\d{9,14}$/, t('forms.brlaExtendedForm.validation.phone.format')),
+        .required(t('components.brlaExtendedForm.validation.phone.required'))
+        .matches(/^\+?[1-9]\d{9,14}$/, t('components.brlaExtendedForm.validation.phone.format')),
 
       [ExtendedBrlaFieldOptions.FULL_NAME]: yup
         .string()
-        .required(t('forms.brlaExtendedForm.validation.fullName.required'))
-        .min(3, t('forms.brlaExtendedForm.validation.fullName.minLength'))
-        .matches(/^[a-zA-Z\s]*$/, t('forms.brlaExtendedForm.validation.fullName.format')),
+        .required(t('components.brlaExtendedForm.validation.fullName.required'))
+        .min(3, t('components.brlaExtendedForm.validation.fullName.minLength'))
+        .matches(/^[a-zA-Z\s]*$/, t('components.brlaExtendedForm.validation.fullName.format')),
 
       [ExtendedBrlaFieldOptions.CEP]: yup
         .string()
-        .required(t('forms.brlaExtendedForm.validation.cep.required'))
-        .min(3, t('forms.brlaExtendedForm.validation.cep.minLength')),
+        .required(t('components.brlaExtendedForm.validation.cep.required'))
+        .min(3, t('components.brlaExtendedForm.validation.cep.minLength')),
 
       [ExtendedBrlaFieldOptions.CITY]: yup
         .string()
-        .required(t('forms.brlaExtendedForm.validation.city.required'))
-        .min(5, t('forms.brlaExtendedForm.validation.city.minLength')),
+        .required(t('components.brlaExtendedForm.validation.city.required'))
+        .min(5, t('components.brlaExtendedForm.validation.city.minLength')),
 
       [ExtendedBrlaFieldOptions.STATE]: yup
         .string()
-        .required(t('forms.brlaExtendedForm.validation.state.required'))
-        .min(3, t('forms.brlaExtendedForm.validation.state.minLength')),
+        .required(t('components.brlaExtendedForm.validation.state.required'))
+        .min(3, t('components.brlaExtendedForm.validation.state.minLength')),
 
       [ExtendedBrlaFieldOptions.STREET]: yup
         .string()
-        .required(t('forms.brlaExtendedForm.validation.street.required'))
-        .min(5, t('forms.brlaExtendedForm.validation.street.minLength')),
+        .required(t('components.brlaExtendedForm.validation.street.required'))
+        .min(5, t('components.brlaExtendedForm.validation.street.minLength')),
 
-      [ExtendedBrlaFieldOptions.NUMBER]: yup.string().required(t('forms.brlaExtendedForm.validation.number.required')),
+      [ExtendedBrlaFieldOptions.NUMBER]: yup
+        .string()
+        .required(t('components.brlaExtendedForm.validation.number.required')),
 
       [ExtendedBrlaFieldOptions.DISTRICT]: yup
         .string()
-        .required(t('forms.brlaExtendedForm.validation.district.required'))
-        .min(3, t('forms.brlaExtendedForm.validation.district.minLength')),
+        .required(t('components.brlaExtendedForm.validation.district.required'))
+        .min(3, t('components.brlaExtendedForm.validation.district.minLength')),
 
       [ExtendedBrlaFieldOptions.BIRTHDATE]: yup
         .date()
         .transform((value, originalValue) => {
           return originalValue === '' ? undefined : value;
         })
-        .required(t('forms.brlaExtendedForm.validation.birthdate.required'))
-        .max(new Date(), t('forms.brlaExtendedForm.validation.birthdate.future'))
-        .min(new Date(1900, 0, 1), t('forms.brlaExtendedForm.validation.birthdate.tooOld')),
+        .required(t('components.brlaExtendedForm.validation.birthdate.required'))
+        .max(new Date(), t('components.brlaExtendedForm.validation.birthdate.future'))
+        .min(new Date(1900, 0, 1), t('components.brlaExtendedForm.validation.birthdate.tooOld')),
     })
     .required();
 

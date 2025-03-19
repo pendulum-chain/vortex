@@ -44,15 +44,17 @@ export const useSchema = () => {
     taxId: Yup.string().when('to', {
       is: 'brl',
       then: (schema) =>
-        schema.matches(cpfRegex, t('swap.validation.taxId.format')).required(t('swap.validation.taxId.required')),
+        schema
+          .matches(cpfRegex, t('components.swap.validation.taxId.format'))
+          .required(t('components.swap.validation.taxId.required')),
       otherwise: (schema) => schema.optional(),
     }),
     pixId: Yup.string().when('to', {
       is: 'brl',
       then: (schema) =>
         schema
-          .required(t('swap.validation.pixId.required'))
-          .test('matches-one', t('swap.validation.pixId.format'), (value) => {
+          .required(t('components.swap.validation.pixId.required'))
+          .test('matches-one', t('components.swap.validation.pixId.format'), (value) => {
             if (!value) return false;
             return pixKeyRegex.some((regex) => regex.test(value));
           }),
