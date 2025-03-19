@@ -48,7 +48,7 @@
           "noApiComponents": "No API components found.",
           "noApi": "No API found."
         },
-        "insufficientFunds": "Insufficient balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
+        "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
         "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
         "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount."
@@ -219,7 +219,7 @@
       "community": "Community"
     },
     "swap": {
-      "sellCrypto": "Sell Crypto",
+      "sellCrypto": "Sell",
       "firstInputLabel": "You sell",
       "secondInputLabel": "You receive",
       "compareFees": "Compare fees",
