@@ -1,11 +1,11 @@
 {
   "pages": {
     "failure": {
-      "title": "Ops! Algo deu errado",
+      "title": "Ops! Algo não saiu como esperado.",
       "recoverable": {
-        "description": "Infelizmente, sua solicitação de saque não pôde ser processada a tempo. Isso pode ser devido a um problema temporário, como uma conexão de internet ruim.",
-        "cta": "Tente continuar ou começar novamente.",
-        "retry": "Tentar novamente"
+        "description": "Lamentamos, mas seu pedido de saque não foi processado a tempo, possivelmente devido a uma falha temporária na conexão de internet.",
+        "cta": "Você pode tentar prosseguir ou reiniciar o processo.",
+        "retry": "Tentar outra vez"
       },
       "copyTransactionId": "Caso você encontre algum problema, por favor copie isso",
       "contactSupport": {
@@ -13,9 +13,9 @@
         "url": "equipe de suporte",
         "afterUrl": ". Estamos aqui para ajudar!"
       },
-      "contactedSupport": "Entrou em contato com o suporte e está pronto para começar de novo com uma nova transação?",
-      "tapToReset": "Toque",
-      "resetAndRestart": "Reiniciar e Recomeçar"
+      "contactedSupport": "Já falou com o suporte e quer iniciar uma nova transação?",
+      "tapToReset": "Clique aqui",
+      "resetAndRestart": "Reinicie e comece de novo"
     },
     "progress": {
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
