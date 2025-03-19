@@ -5,7 +5,7 @@ import { storeDataInBackend } from '../storage/remote';
 
 import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './nabla';
 import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
-import { getOutputTokenDetailsMoonbeam, OutputTokenTypes } from '../../constants/tokenConfig';
+import { getOutputTokenDetailsMoonbeam } from '../../constants/tokenConfig';
 import { ExecutionContext } from '../flowCommons';
 import { BrlaOnrampingState, BrlaOnrampTransactions } from '../onrampingFlow';
 import { createMoonbeamToPendulumXCM } from './moonbeam';
@@ -25,12 +25,11 @@ export async function prepareOnrampTransactions(
   state: BrlaOnrampingState,
   context: ExecutionContext,
 ): Promise<BrlaOnrampingState> {
-  const { pendulumEphemeralSeed, outputTokenType, inputAmount, outputAmount, inputTokenType } = state;
+  const { pendulumEphemeralSeed, outputTokenType, inputAmount, outputAmount, inputTokenType, flowType } = state;
 
   const { pendulumNode, moonbeamNode } = context;
 
   let transactions: BrlaOnrampTransactions | undefined = undefined;
-  let stellarEphemeralPublicKey: string | undefined = undefined;
 
   const { ss58Format } = pendulumNode;
   const keyring = new Keyring({ type: 'sr25519', ss58Format });
@@ -38,6 +37,7 @@ export async function prepareOnrampTransactions(
   const pendulumEphemeralPublicKey = pendulumEphemeralKeypair.address;
 
   const dataCommon = {
+    flowType,
     timestamp: new Date().toISOString(),
     pendulumEphemeralPublicKey,
     inputAmount: inputAmount.raw.toString(),
@@ -53,7 +53,11 @@ export async function prepareOnrampTransactions(
 
     const data = {
       ...dataCommon,
-      stellarEphemeralPublicKey,
+      nablaApprovalTx: transactions.nablaApproveTransaction,
+      nablaSwapTx: transactions.nablaSwapTransaction,
+      moonbeamToPendulumXcmTx: transactions.moonbeamToPendulumXcmTransaction,
+      pendulumToMoonbeamXcmTx: transactions.pendulumToMoonbeamXcmTransaction,
+      pendulumToAssetHubXcmTx: transactions.pendulumToAssetHubXcmTransaction,
     };
     await storeDataInBackend(data);
   } catch (err) {

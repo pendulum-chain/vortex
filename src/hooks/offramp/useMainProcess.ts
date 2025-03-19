@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import Big from 'big.js';
 
-import { recoverFromFailure, readCurrentState, constructBrlaInitialState } from '../../services/offrampingFlow';
+import { constructBrlaInitialState } from '../../services/offrampingFlow';
+import { recoverFromFailure, readCurrentState } from '../../services/flowCommons';
 
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';

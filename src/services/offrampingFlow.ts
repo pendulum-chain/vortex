@@ -91,6 +91,7 @@ export interface BrlaInitiateStateArguments {
 }
 
 export interface BaseOfframpingState {
+  flowType: OfframpHandlerType;
   pendulumEphemeralSeed: string;
   pendulumEphemeralAddress: string;
   inputTokenType: InputTokenType;
@@ -209,22 +210,27 @@ export const OFFRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
   },
 };
 
+export function inferOframpFlowType(network: Networks, outToken: OutputTokenType): OfframpHandlerType {
+  if (isNetworkEVM(network)) {
+    if (outToken === OutputTokenTypes.BRL) {
+      return OfframpHandlerType.EVM_TO_BRLA;
+    }
+    return OfframpHandlerType.EVM_TO_STELLAR;
+  } else {
+    if (outToken === OutputTokenTypes.BRL) {
+      return OfframpHandlerType.ASSETHUB_TO_BRLA;
+    }
+    return OfframpHandlerType.ASSETHUB_TO_STELLAR;
+  }
+}
+
 export function selectNextOfframpStateAdvancementHandler(
   network: Networks,
   phase: OfframpingPhase,
   outToken: OutputTokenType,
 ): StateTransitionFunction | undefined {
-  if (isNetworkEVM(network)) {
-    if (outToken === OutputTokenTypes.BRL) {
-      return OFFRAMP_STATE_ADVANCEMENT_HANDLERS[OfframpHandlerType.EVM_TO_BRLA][phase];
-    }
-    return OFFRAMP_STATE_ADVANCEMENT_HANDLERS[OfframpHandlerType.EVM_TO_STELLAR][phase];
-  } else {
-    if (outToken === OutputTokenTypes.BRL) {
-      return OFFRAMP_STATE_ADVANCEMENT_HANDLERS[OfframpHandlerType.ASSETHUB_TO_BRLA][phase];
-    }
-    return OFFRAMP_STATE_ADVANCEMENT_HANDLERS[OfframpHandlerType.ASSETHUB_TO_STELLAR][phase];
-  }
+  const flowType = inferOframpFlowType(network, outToken);
+  return OFFRAMP_STATE_ADVANCEMENT_HANDLERS[flowType][phase];
 }
 
 async function constructBaseInitialState({
@@ -274,6 +280,7 @@ async function constructBaseInitialState({
   const now = Date.now();
 
   return {
+    flowType: inferOframpFlowType(network, outputTokenType),
     pendulumEphemeralSeed,
     inputTokenType,
     outputTokenType,

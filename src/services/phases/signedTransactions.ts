@@ -39,6 +39,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
     inputTokenType,
     squidRouterReceiverId,
     squidRouterReceiverHash,
+    flowType,
   } = state;
 
   const { pendulumNode } = context;
@@ -52,6 +53,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   const pendulumEphemeralPublicKey = pendulumEphemeralKeypair.address;
 
   const dataCommon = {
+    flowType,
     timestamp: new Date().toISOString(),
     offramperAddress: state.offramperAddress,
     pendulumEphemeralPublicKey,

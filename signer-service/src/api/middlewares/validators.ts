@@ -2,11 +2,7 @@ import { RequestHandler } from 'express';
 import { isStellarTokenConfig, TOKEN_CONFIG, TokenConfig } from '../../constants/tokenConfig';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
-import {
-  DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR,
-  DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA,
-  DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR,
-} from '../controllers/storage.controller';
+import { FLOW_HEADERS } from '../controllers/storage.controller';
 import {
   SUPPORTED_PROVIDERS,
   SUPPORTED_CRYPTO_CURRENCIES,
@@ -159,20 +155,21 @@ export const validateChangeOpInput: RequestHandler = (req, res, next) => {
 };
 
 const validateRequestBodyValuesForTransactionStore = (): RequestHandler => (req, res, next) => {
-  const { offramperAddress } = req.body;
+  const { flowType } = req.body;
 
-  if (!offramperAddress) {
-    res.status(400).json({ error: 'Missing offramperAddress parameter' });
+  if (!flowType) {
+    res.status(400).json({ error: 'Missing flowType parameter' });
     return;
   }
 
-  const requiredRequestBodyKeys = offramperAddress.includes('0x')
-    ? req.body.stellarEphemeralPublicKey
-      ? DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR
-      : DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA
-    : req.body.stellarEphemeralPublicKey
-    ? DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR
-    : DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA;
+  if (!FLOW_HEADERS[flowType as keyof typeof FLOW_HEADERS]) {
+    res
+      .status(400)
+      .json({ error: `Invalid flowType. Supported flowTypes are: ${Object.keys(FLOW_HEADERS).join(', ')}` });
+    return;
+  }
+
+  const requiredRequestBodyKeys = FLOW_HEADERS[flowType as keyof typeof FLOW_HEADERS];
 
   validateRequestBodyValues(requiredRequestBodyKeys)(req, res, next);
 };

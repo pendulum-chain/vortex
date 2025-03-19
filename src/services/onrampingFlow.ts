@@ -10,7 +10,6 @@ import { createMoonbeamEphemeralSeed, executeMoonbeamToPendulumXCM } from './pha
 
 import { createPendulumEphemeralSeed } from './phases/polkadot/ephemeral';
 import { ApiComponents } from '../contexts/polkadotNode';
-import { storageKeys } from '../constants/localStorage';
 import { StateTransitionFunction, FinalPhase, minutesInMs } from './flowCommons';
 
 export interface FailureType {
@@ -49,6 +48,7 @@ export interface BrlaOnrampInitiateStateArguments {
 }
 
 export interface BrlaOnrampingState {
+  flowType: OnrampHandlerType;
   moonbeamEphemeralSeed: string;
   moonbeamEphemeralAddress: string;
   pendulumEphemeralSeed: string;
@@ -102,7 +102,6 @@ export const ONRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
 export function selectNextOnrapStateAdvancementHandler(
   network: Networks,
   phase: OnrampingPhase,
-  outToken: OnrampOutputTokenType,
 ): StateTransitionFunction | undefined {
   if (isNetworkEVM(network)) {
     return ONRAMP_STATE_ADVANCEMENT_HANDLERS[OnrampHandlerType.BRLA_TO_EVM][phase];
@@ -156,6 +155,7 @@ export async function constructBrlaOnrampInitialState({
   const now = Date.now();
 
   return {
+    flowType: isNetworkEVM(network) ? OnrampHandlerType.BRLA_TO_EVM : OnrampHandlerType.BRLA_TO_ASSETHUB,
     moonbeamEphemeralSeed,
     moonbeamEphemeralAddress,
     pendulumEphemeralSeed,
