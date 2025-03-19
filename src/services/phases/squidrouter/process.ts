@@ -6,7 +6,7 @@ import { storageKeys, TransactionSubmissionIndices } from '../../../constants/lo
 import { EvmInputTokenDetails, getInputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
 
 import { waitForTransactionConfirmation } from '../../../helpers/safe-wallet/waitForTransactionConfirmation';
-import { showToast, ToastMessage } from '../../../helpers/notifications';
+import { showToastRaw, ToastMessage } from '../../../hooks/useToastMessage';
 import { TrackableEvent } from '../../../contexts/events';
 import erc20ABI from '../../../contracts/ERC20';
 import { storageService } from '../../../services/storage/local';
@@ -89,7 +89,7 @@ async function handleSwapTransaction(
 
 function handleError(error: Error, operation: string, message: string) {
   const errorMessage = 'shortMessage' in error ? error.shortMessage : error.message;
-  showToast(ToastMessage.SIGNING_FAILED, `${message}: ${errorMessage}`);
+  showToastRaw(ToastMessage.SIGNING_FAILED, `${message}: ${errorMessage}`);
 
   Sentry.captureException(error, {
     level: 'warning',

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ToastOptions, toast } from 'react-toastify';
 
 export enum ToastMessage {
@@ -10,68 +11,85 @@ export enum ToastMessage {
   NODE_CONNECTION_ERROR = 'NODE_CONNECTION_ERROR',
 }
 
-type ToastSettings = {
-  message: string;
-  options: ToastOptions;
-};
-
-const ToastProperties: Record<ToastMessage, ToastSettings> = {
+const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey: string }> = {
   [ToastMessage.AMOUNT_MISMATCH]: {
-    message: 'Mismatching offramp amounts detected. Please restart the offramp process.',
     options: {
       toastId: ToastMessage.AMOUNT_MISMATCH,
       type: 'error',
     },
+    translationKey: 'toasts.amountMismatch',
   },
   [ToastMessage.KYC_COMPLETED]: {
-    message: 'Success! Get ready to off-ramp.',
     options: {
       toastId: ToastMessage.KYC_COMPLETED,
       type: 'success',
     },
+    translationKey: 'toasts.kycCompleted',
   },
   [ToastMessage.KYC_VERIFICATION_FAILED]: {
-    message: 'Could not verify KYC status. Please try again.',
     options: {
       toastId: ToastMessage.KYC_VERIFICATION_FAILED,
       type: 'error',
     },
+    translationKey: 'toasts.kycVerificationFailed',
   },
   [ToastMessage.SIGNING_FAILED]: {
-    message: 'Signing failed. Please try again.',
     options: {
       toastId: ToastMessage.SIGNING_FAILED,
       type: 'error',
     },
+    translationKey: 'toasts.signingFailed',
   },
   [ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION]: {
-    message: 'Wallet already open pending connection. Please try again.',
     options: {
       toastId: ToastMessage.POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION,
       type: 'error',
     },
+    translationKey: 'toasts.walletAlreadyOpen',
   },
   [ToastMessage.NODE_CONNECTION_ERROR]: {
-    message: 'Error while connecting to the node. Refresh the page to re-connect.',
     options: {
       toastId: ToastMessage.NODE_CONNECTION_ERROR,
       type: 'error',
     },
+    translationKey: 'toasts.nodeConnectionError',
   },
   [ToastMessage.ERROR]: {
-    message: 'An error occurred',
     options: {
       type: 'error',
     },
+    translationKey: 'toasts.genericError',
   },
 };
 
-export function showToast(message: ToastMessage, customMessage?: string) {
-  if (customMessage) {
-    return toast(customMessage, ToastProperties[message].options);
-  }
+export function useToastMessage() {
+  const { t } = useTranslation();
 
-  return toast(ToastProperties[message].message, ToastProperties[message].options);
+  const getToastOptions = (message: ToastMessage): ToastOptions => {
+    return toastConfig[message].options;
+  };
+
+  const getToastMessage = (message: ToastMessage): string => {
+    return t(toastConfig[message].translationKey);
+  };
+
+  const showToast = (message: ToastMessage, customMessage?: string) => {
+    const options = getToastOptions(message);
+
+    if (customMessage) {
+      return toast(customMessage, options);
+    }
+
+    const translatedMessage = getToastMessage(message);
+    return toast(translatedMessage, options);
+  };
+
+  return {
+    ToastMessage,
+    showToast,
+  };
 }
 
-export type ShowToast = typeof showToast;
+export function showToastRaw(message: ToastMessage, customMessage: string) {
+  return toast(customMessage, toastConfig[message].options);
+}

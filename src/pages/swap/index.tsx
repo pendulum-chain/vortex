@@ -1,12 +1,13 @@
 import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
+import { useTranslation } from 'react-i18next';
 
 import { calculateTotalReceive } from '../../components/FeeCollapse';
 import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 
-import { FeeComparison } from '../../components/FeeComparison';
+import { FeeComparison } from '../../sections/FeeComparison';
 import { SigningBox } from '../../components/SigningBox';
 
 import { PitchSection } from '../../sections/Pitch';
@@ -30,7 +31,7 @@ import { useNetwork } from '../../contexts/network';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { showToast, ToastMessage } from '../../helpers/notifications';
+import { useToastMessage } from '../../hooks/useToastMessage';
 import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
@@ -85,6 +86,8 @@ export const SwapPage = () => {
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
+  const { t } = useTranslation();
+  const { showToast, ToastMessage } = useToastMessage();
   // This cache is used to show an error message to the user if the chosen input amount
   // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
   const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
@@ -113,12 +116,12 @@ export const SwapPage = () => {
   }, [pendulumNode, trackEvent, setApiInitializeFailed]);
 
   // TODO Replace with initializeFailed from offrampActions.
-  const setInitializeFailed = useCallback((message?: string | null) => {
-    setInitializeFailedMessage(
-      message ??
-        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
-    );
-  }, []);
+  const setInitializeFailed = useCallback(
+    (message?: string | null) => {
+      setInitializeFailedMessage(message ?? t('pages.swap.error.initializeFailed.default'));
+    },
+    [t],
+  );
   useEffect(() => {
     if (isSigningServiceError && !isSigningServiceLoading) {
       if (signingServiceError instanceof StellarFundingAccountError) {
@@ -258,7 +261,7 @@ export const SwapPage = () => {
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, []);
+  }, [ToastMessage.KYC_COMPLETED, showToast]);
 
   useEffect(() => {
     const isNetworkSelectorDisabled = offrampState?.phase !== undefined;
@@ -275,7 +278,11 @@ export const SwapPage = () => {
           error_message: 'insufficient_balance',
           input_amount: fromAmount ? fromAmount.toString() : '0',
         });
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+
+        return t('pages.swap.error.insufficientFunds', {
+          userInputTokenBalance,
+          assetSymbol: fromToken?.assetSymbol,
+        });
       }
     }
 
@@ -287,15 +294,16 @@ export const SwapPage = () => {
     const exchangeRate = tokenOutAmount.data?.effectiveExchangeRate || exchangeRateCache[from]?.[to];
 
     if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
-      console.log(exchangeRate, fromAmount.mul(exchangeRate).toNumber());
       trackEvent({
         event: 'form_error',
         error_message: 'more_than_maximum_withdrawal',
         input_amount: fromAmount ? fromAmount.toString() : '0',
       });
-      return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-        toToken.fiat.symbol
-      }.`;
+
+      return t('pages.swap.error.moreThanMaximumWithdrawal', {
+        maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+        assetSymbol: toToken.fiat.symbol,
+      });
     }
 
     if (amountOut !== undefined) {
@@ -305,14 +313,16 @@ export const SwapPage = () => {
           error_message: 'less_than_minimum_withdrawal',
           input_amount: fromAmount ? fromAmount.toString() : '0',
         });
-        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
+
+        return t('pages.swap.error.lessThanMinimumWithdrawal', {
+          minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2),
+          assetSymbol: toToken.fiat.symbol,
+        });
       }
     }
 
     if (tokenOutAmount.error?.includes('Insufficient liquidity')) {
-      return 'The amount is temporarily not available. Please, try with a smaller amount.';
+      return t('pages.swap.error.insufficientLiquidity');
     }
     return tokenOutAmount.error;
   }
@@ -349,14 +359,14 @@ export const SwapPage = () => {
 
   const handleOfframpSubmit = useCallback(() => {
     if (!address) {
-      setInitializeFailed('No address found');
+      setInitializeFailed(t('pages.swap.error.initializeFailed.noAddress'));
       return;
     }
     if (!pendulumNode.apiComponents) {
-      setInitializeFailed('No API components found');
+      setInitializeFailed(t('pages.swap.error.initializeFailed.noApiComponents'));
       return;
     }
-    to === 'brl'
+    to === OutputTokenTypes.BRL
       ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents)
       : handleOnAnchorWindowOpen();
   }, [
@@ -368,6 +378,7 @@ export const SwapPage = () => {
     selectedNetwork,
     handleOnAnchorWindowOpen,
     setInitializeFailed,
+    t,
   ]);
 
   if (offrampState?.phase === 'success') {
@@ -431,12 +442,12 @@ export const SwapPage = () => {
     };
 
     if (!api) {
-      setInitializeFailed('No API found');
+      setInitializeFailed(t('pages.swap.error.initializeFailed.noApi'));
       return;
     }
 
     if (!address) {
-      setInitializeFailed('No address found');
+      setInitializeFailed(t('pages.swap.error.initializeFailed.noAddress'));
       return;
     }
 
@@ -508,7 +519,7 @@ export const SwapPage = () => {
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-sm transition hover:opacity-80"
         >
-          Developed by <img src={satoshipayLogo} alt="Satoshipay" className="h-4" />
+          {t('pages.swap.developedBy')} <img src={satoshipayLogo} alt="Satoshipay" className="h-4" />
         </a>
       </p>
       <PitchSection />
