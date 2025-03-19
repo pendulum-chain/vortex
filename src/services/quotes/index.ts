@@ -31,7 +31,6 @@ async function getQuoteFromService(
   if (provider === 'vortex') return new Big(0);
   let compatibleNetwork = network;
   if (!isNetworkEVM(network)) {
-    console.error(`Network ${network} is not supported`);
     compatibleNetwork = Networks.Polygon;
   }
 
