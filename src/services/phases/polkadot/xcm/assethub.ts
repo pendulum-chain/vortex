@@ -74,8 +74,8 @@ export async function executeAssetHubToPendulumXCM(
 
       const afterSignCallback = () => setOfframpSigningPhase?.('finished');
       try {
-        const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
         storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.ASSETHUB_XCM);
+        const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
         return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
       } catch (error) {
         if (error instanceof TransactionInclusionError) {

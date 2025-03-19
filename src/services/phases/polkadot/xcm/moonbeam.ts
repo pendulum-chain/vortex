@@ -69,8 +69,8 @@ export async function executePendulumToMoonbeamXCM(
     const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
     try {
-      const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
       storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.MOONBEAM_XCM);
+      const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
       state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
     } catch (error) {
       if (error instanceof TransactionTemporarilyBannedError) {
