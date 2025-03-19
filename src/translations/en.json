@@ -195,6 +195,10 @@
         "chooseAccount": "Choose Account",
         "noWalletInstalled": "No wallet installed"
       },
+      "polkadotWalletSelectorDialogLoading": {
+        "title": "Connecting wallet",
+        "description": "Please approve {selectedWallet} and approve the transaction."
+      },
       "connectWallet": {
         "connect": "Connect",
         "wrongNetwork": "Wrong network"

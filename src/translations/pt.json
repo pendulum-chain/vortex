@@ -195,6 +195,10 @@
         "chooseAccount": "Escolher Conta",
         "noWalletInstalled": "Nenhuma carteira instalada"
       },
+      "polkadotWalletSelectorDialogLoading": {
+        "title": "Conectando wallet",
+        "description": "Por favor, aprove {selectedWallet} e aprove a transação."
+      },
       "connectWallet": {
         "connect": "Conectar"
       }
