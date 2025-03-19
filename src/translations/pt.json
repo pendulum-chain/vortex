@@ -286,6 +286,11 @@
         }
       }
     },
+    "rating": {
+      "title": "Sua opinião é importante!",
+      "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
+      "thankYou": "Obrigado!"
+    },
     "footer": {
       "poweredBy": "Desenvolvido por",
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados."
