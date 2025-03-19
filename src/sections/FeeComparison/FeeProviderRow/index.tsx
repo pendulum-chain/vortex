@@ -1,9 +1,10 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import Big from 'big.js';
 
 import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
-import { Skeleton } from '../../Skeleton';
+import { Skeleton } from '../../../components/Skeleton';
 import { QuoteProvider } from '../quoteProviders';
 import { formatPrice } from '../helpers';
 import { BaseComparisonProps } from '..';
@@ -91,9 +92,13 @@ export function FeeProviderRow({
     onPriceFetched,
   ]);
 
+  const { t } = useTranslation();
+
   return (
     <div className={`${isBestRate ? 'bg-green-500/10 rounded-md py-1' : ''}`}>
-      {isBestRate && <div className="pb-1 ml-4 text-sm italic text-green-700">Best rate</div>}
+      {isBestRate && (
+        <div className="pb-1 ml-4 text-sm italic text-green-700">{t('sections.feeComparison.table.bestRate')}</div>
+      )}
       <div className="flex items-center justify-between w-full">
         <a href={provider.href} rel="noreferrer" target="_blank" className="flex items-center w-full gap-4 ml-4 grow">
           {provider.icon}

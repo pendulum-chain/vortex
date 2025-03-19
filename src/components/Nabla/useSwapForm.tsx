@@ -12,7 +12,7 @@ import {
 } from '../../constants/tokenConfig';
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
-import schema, { SwapFormValues } from './schema';
+import { SwapFormValues, useSchema } from './schema';
 import { getCaseSensitiveNetwork } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { useFormStoreActions } from '../../stores/formStore';
@@ -42,6 +42,7 @@ export const useSwapForm = () => {
   const [tokenSelectModalType, setTokenModalType] = useState<TokenSelectType>('from');
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const { setFromAmount, setPixId, setTaxId } = useFormStoreActions();
+  const schema = useSchema();
 
   const initialState = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);

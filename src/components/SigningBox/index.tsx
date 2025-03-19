@@ -7,6 +7,7 @@ import { OfframpSigningPhase } from '../../types/offramp';
 import { isNetworkEVM } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
+import { useTranslation } from 'react-i18next';
 
 type ProgressConfig = {
   [key in OfframpSigningPhase]: number;
@@ -48,6 +49,7 @@ const isValidStep = (step: OfframpSigningPhase | undefined, isEVM: boolean): ste
 };
 
 export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
+  const { t } = useTranslation();
   const { selectedNetwork } = useNetwork();
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
@@ -87,7 +89,7 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
         >
           <div className="shadow-2xl">
             <motion.header className="bg-pink-500 rounded-t">
-              <h1 className="w-full py-2 text-center text-white">Action Required</h1>
+              <h1 className="w-full py-2 text-center text-white">{t('components.signingBox.actionRequired')}</h1>
             </motion.header>
 
             <main className="px-8 bg-white">
@@ -96,8 +98,8 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
                   <img src={accountBalanceWalletIcon} alt="wallet account button" />
                 </div>
                 <div className="mx-4 my-5 text-xs">
-                  <p>Please sign the transaction in</p>
-                  <p>your connected wallet to proceed</p>
+                  <p>{t('components.signingBox.pleaseSignTransaction')}</p>
+                  <p>{t('components.signingBox.yourConnectedWallet')}</p>
                 </div>
               </motion.div>
 
@@ -116,8 +118,10 @@ export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
             <motion.footer className="flex items-center justify-center bg-[#5E88D5] text-white rounded-b">
               <Spinner />
               <p className="ml-2.5 my-2 text-xs">
-                Waiting for signature {signatureState.current}/{signatureState.max}
-                {confirmations.required > 0 ? `. (Signers ${confirmations.current}/${confirmations.required})` : ''}
+                {t('components.signingBox.waitingForSignature')} {signatureState.current}/{signatureState.max}
+                {confirmations.required > 0
+                  ? `. (${t('components.signingBox.signatures')} ${confirmations.current}/${confirmations.required})`
+                  : ''}
               </p>
             </motion.footer>
           </div>

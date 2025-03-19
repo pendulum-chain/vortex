@@ -2,12 +2,14 @@ import { ApiPromise, Keyring } from '@polkadot/api';
 
 import { BrlaOfframpTransactions, ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 
-import { submitXTokens } from '.';
+import { submitXTokens, TransactionTemporarilyBannedError } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
 import { decodeSubmittableExtrinsic, encodeSubmittableExtrinsic } from '../../signedTransactions';
 import { isBrlaOfframpTransactions } from '../../../../types/offramp';
 import { ApiComponents } from '../../../../contexts/polkadotNode';
 import { MOONBEAM_XCM_FEE_GLMR } from '../../../../constants/constants';
+import { storageService } from '../../../storage/local';
+import { storageKeys, TransactionSubmissionIndices } from '../../../../constants/localStorage';
 
 // We send a fixed fee amount of 0.05 GLMR.
 export function createPendulumToMoonbeamTransfer(
@@ -52,6 +54,7 @@ export async function executePendulumToMoonbeamXCM(
 ): Promise<OfframpingState> {
   const { pendulumNode } = context;
   const { pendulumEphemeralAddress, transactions, outputAmount } = state;
+  const lastTxSubmissionIndex = Number(storageService.get(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, '-1'));
 
   if (transactions === undefined || !isBrlaOfframpTransactions(transactions)) {
     const message = 'Missing transactions for xcm to Moonbeam';
@@ -59,10 +62,24 @@ export async function executePendulumToMoonbeamXCM(
     return { ...state, failure: { type: 'unrecoverable', message } };
   }
 
-  const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
+  if (
+    state.moonbeamXcmTransactionHash === undefined &&
+    lastTxSubmissionIndex === TransactionSubmissionIndices.MOONBEAM_XCM - 1
+  ) {
+    const xcmExtrinsic = decodeSubmittableExtrinsic(transactions.pendulumToMoonbeamXcmTransaction, pendulumNode.api);
 
-  const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
-  state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
+    try {
+      storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.MOONBEAM_XCM);
+      const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
+      state.pendulumToMoonbeamXcmHash = hash as `0x${string}`;
+    } catch (error) {
+      if (error instanceof TransactionTemporarilyBannedError) {
+        console.log('Transaction temporarily banned. Ignoring...');
+      } else {
+        throw Error(`Failed to submit XCM to Moonbeam: ${error}`);
+      }
+    }
+  }
 
   return { ...state, phase: 'performBrlaPayoutOnMoonbeam' };
 }
