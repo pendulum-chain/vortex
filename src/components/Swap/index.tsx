@@ -188,7 +188,7 @@ export const Swap = ({
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
         onSubmit={form.handleSubmit(onConfirm)}
       >
-        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
+        <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell</h1>
         <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
         <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
