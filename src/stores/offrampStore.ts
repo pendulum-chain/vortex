@@ -31,11 +31,8 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
       set({ offrampState: state });
     },
 
-    setInitializeFailedMessage: (message: string | undefined) => {
-      const displayMessage =
-        message ??
-        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!";
-      set({ initializeFailedMessage: displayMessage });
+    setInitializeFailedMessage: (initializeFailedMessage: string) => {
+      set({ initializeFailedMessage });
     },
 
     resetOfframpState: () => {
