@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useConfig } from 'wagmi';
 
-import { advanceOfframpingState } from '../../services/offrampingFlow';
+import { advanceOfframpingState } from '../../services/flowCommons';
 
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
-import { useAssetHubNode } from '../../contexts/polkadotNode';
+import { useAssetHubNode, useMoonbeamNode } from '../../contexts/polkadotNode';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { useEventsContext } from '../../contexts/events';
 
@@ -21,6 +21,7 @@ export const useOfframpAdvancement = () => {
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { apiComponents: assetHubNode } = useAssetHubNode();
+  const { apiComponents: moonbeamNode } = useMoonbeamNode();
 
   const offrampState = useOfframpState();
   const { updateOfframpHookStateFromState, setOfframpSigningPhase } = useOfframpActions();
@@ -35,7 +36,7 @@ export const useOfframpAdvancement = () => {
       try {
         if (isProcessingAdvance.current) return;
         isProcessingAdvance.current = true;
-        if (!pendulumNode || !assetHubNode) {
+        if (!pendulumNode || !assetHubNode || !moonbeamNode) {
           return;
         }
 
@@ -45,6 +46,7 @@ export const useOfframpAdvancement = () => {
           trackEvent,
           pendulumNode,
           assetHubNode,
+          moonbeamNode,
           walletAccount,
         });
 

@@ -2,18 +2,21 @@ import { http, createConfig, readContract, waitForTransactionReceipt } from '@wa
 import { moonbeam } from '@wagmi/core/chains';
 import Big from 'big.js';
 
-import { decodeAddress } from '@polkadot/util-crypto';
+import { decodeAddress, mnemonicGenerate } from '@polkadot/util-crypto';
 import { u8aToHex } from '@polkadot/util';
-import { Keyring } from '@polkadot/api';
+import { ApiPromise, Keyring } from '@polkadot/api';
 
 import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { waitUntilTrue } from '../../helpers/function';
 import encodePayload from './squidrouter/payload';
-import { ExecutionContext, OfframpingState } from '../offrampingFlow';
+import { OfframpingState } from '../offrampingFlow';
+import { ExecutionContext } from '../flowCommons';
 
 import { getRawInputBalance } from './polkadot/ephemeral';
 import { squidRouterConfigBase } from './squidrouter/config';
+import { SignerOptions, SubmittableExtrinsic } from '@polkadot/api-base/types';
+import { ISubmittableResult } from '@polkadot/types/types';
 
 export const moonbeamConfig = createConfig({
   chains: [moonbeam],
@@ -21,6 +24,68 @@ export const moonbeamConfig = createConfig({
     [moonbeam.id]: http(),
   },
 });
+
+export async function createMoonbeamEphemeralSeed(moonbeamNode: {
+  ss58Format: number;
+  api: ApiPromise;
+  decimals: number;
+}) {
+  const seedPhrase = mnemonicGenerate();
+
+  if (!moonbeamNode) {
+    throw new Error('Pendulum node not available');
+  }
+
+  const keyring = new Keyring({ type: 'ethereum' });
+
+  const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
+
+  console.log('Moonbeam ephemeral account created:', ephemeralAccountKeypair.address);
+
+  return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
+}
+
+export async function createMoonbeamToPendulumXCM(
+  moonbeamApi: ApiPromise,
+  receiverAddress: string,
+  rawAmount: string,
+  assetAccounKey: string,
+  moonbeamEphemeralSeed: string,
+  nonce = -1,
+): Promise<SubmittableExtrinsic<'promise', ISubmittableResult>> {
+  const receiverAccountHex = u8aToHex(decodeAddress(receiverAddress));
+
+  const keyring = new Keyring({ type: 'ethereum' });
+  const ephemeralKeypair = keyring.addFromUri(moonbeamEphemeralSeed);
+
+  const destination = { V3: { parents: 1, interior: { X1: { Parachain: 2094 } } } };
+  const beneficiary = {
+    V3: { parents: 0, interior: { X1: { AccountId32: { network: undefined, id: receiverAccountHex } } } },
+  };
+  const assets = {
+    V3: [
+      {
+        id: {
+          Concrete: {
+            parents: 0,
+            interior: { X2: [{ PalletInstance: 110 }, { AccountKey20: { network: undefined, key: assetAccounKey } }] },
+          },
+        },
+        fun: { Fungible: rawAmount },
+      },
+    ],
+  };
+  const feeAssetItem = 0;
+  const weightLimit = 'Unlimited';
+
+  const xcm = moonbeamApi.tx.polkadotXcm.transferAssets(destination, beneficiary, assets, feeAssetItem, weightLimit);
+
+  const options: Partial<SignerOptions> = { nonce };
+  options.era = 0;
+
+  const signedXcm = await xcm.signAsync(ephemeralKeypair, options);
+  return signedXcm;
+}
 
 export async function executeMoonbeamToPendulumXCM(
   state: OfframpingState,

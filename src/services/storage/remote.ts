@@ -1,9 +1,12 @@
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { OfframpHandlerType } from '../offrampingFlow';
+import { OnrampHandlerType } from '../onrampingFlow';
 
 // These are the headers for the Google Spreadsheet
 interface DumpData {
+  flowType: OfframpHandlerType | OnrampHandlerType;
   timestamp: string;
-  offramperAddress: string;
+  offramperAddress?: string;
   stellarEphemeralPublicKey?: string;
   pendulumEphemeralPublicKey: string;
   nablaApprovalTx: string;
@@ -12,12 +15,14 @@ interface DumpData {
   stellarOfframpTx?: string;
   stellarCleanupTx?: string;
   pendulumToMoonbeamXcmTx?: string;
+  pendulumToAssetHubXcmTx?: string;
+  moonbeamToPendulumXcmTx?: string;
   inputAmount: string;
   inputTokenType: string;
   outputAmount: string;
   outputTokenType: string;
-  squidRouterReceiverId: string;
-  squidRouterReceiverHash: string;
+  squidRouterReceiverId?: string;
+  squidRouterReceiverHash?: string;
 }
 
 interface EmailData {

@@ -1,10 +1,11 @@
-import { ApiPromise, Keyring } from '@polkadot/api';
+import { Keyring } from '@polkadot/api';
 
-import { BrlaOfframpTransactions, ExecutionContext, OfframpingState } from '../../../offrampingFlow';
+import { OfframpingState } from '../../../offrampingFlow';
+import { ExecutionContext } from '../../../flowCommons';
 
 import { submitXTokens } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
-import { decodeSubmittableExtrinsic, encodeSubmittableExtrinsic } from '../../signedTransactions';
+import { decodeSubmittableExtrinsic } from '../../signedTransactions';
 import { isBrlaOfframpTransactions } from '../../../../types/offramp';
 import { ApiComponents } from '../../../../contexts/polkadotNode';
 import { MOONBEAM_XCM_FEE_GLMR } from '../../../../constants/constants';

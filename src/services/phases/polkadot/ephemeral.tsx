@@ -17,7 +17,8 @@ import { multiplyByPowerOfTen } from '../../../helpers/contracts';
 import { waitUntilTrue } from '../../../helpers/function';
 import { isNetworkEVM } from '../../../helpers/networks';
 
-import { ExecutionContext, OfframpingState } from '../../offrampingFlow';
+import { OfframpingState } from '../../offrampingFlow';
+import { ExecutionContext } from '../../flowCommons';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { isHashRegistered } from '../moonbeam';
 
