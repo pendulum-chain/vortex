@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { validator } from 'web3';
+import { useTranslation } from 'react-i18next';
 
 import { storeUserRatingInBackend } from '../../services/storage/remote';
 import { CloseButton } from '../buttons/CloseButton';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useRatingVisibility } from './useRatingVisibility';
-import RatingForm from './RatingForm';
+import { RatingForm } from './RatingForm';
 import './index.css';
 
 export function Rating() {
+  const { t } = useTranslation();
   const { isVisible, onClose } = useRatingVisibility();
   const { address: walletAddress } = useVortexAccount();
   const [rating, setRating] = useState(0);
@@ -56,7 +58,7 @@ export function Rating() {
             <div className="bg-white border rounded shadow-2xl border-neutral-200">
               <section className="px-6 py-5">
                 <div className="flex justify-between w-full">
-                  <h1 className="text-lg sm:text-2xl">Your opinion matters!</h1>
+                  <h1 className="text-lg sm:text-2xl">{t('rating.title')}</h1>
                   <CloseButton onClick={onClose} />
                 </div>
                 <div className="flex flex-wrap items-center justify-center w-full mt-10">

@@ -101,7 +101,7 @@ export function checkMoonbeamBalancePeriodically(
           abi: erc20ABI,
           functionName: 'balanceOf',
           args: [brlaEvmAddress],
-        })) as String;
+        })) as string;
 
         console.log(`Polygon balance check: ${result.toString()} / ${amountDesiredRaw.toString()}`);
         const someBalanceBig = new Big(result.toString());

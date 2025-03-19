@@ -6,12 +6,7 @@ import whiteLogo from '../../assets/logo/white.png';
 import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
 import { NetworkSelector } from '../NetworkSelector';
 import { useNetwork } from '../../contexts/network';
-
-const links = [
-  { title: 'Sell Crypto', href: '/' },
-  { title: 'How it works', href: 'https://www.vortexfinance.co/#lowest-code' },
-  { title: 'Community', href: 'https://www.vortexfinance.co/#call-to-action' },
-];
+import { useTranslation } from 'react-i18next';
 
 interface MobileMenuProps {
   onClick: () => void;
@@ -88,22 +83,32 @@ const MobileMenuList: FC<MobileMenuListProps> = () => (
   </motion.div>
 );
 
-const Links = () => (
-  <ul className="lg:flex lg:items-center lg:justify-around">
-    {links.map((link) => (
-      <li key={link.title} className="mr-4 mb-9 lg:mb-0">
-        <a
-          href={link.href}
-          target={link.href.startsWith('https') ? '_blank' : ''}
-          rel={link.href.startsWith('https') ? 'noreferrer' : ''}
-          className="px-3 text-lg font-thin text-white hover:text-amber-500 hover:underline lg:px-0"
-        >
-          {link.title}
-        </a>
-      </li>
-    ))}
-  </ul>
-);
+const Links = () => {
+  const { t } = useTranslation();
+
+  const links = [
+    { title: t('components.navbar.sellCrypto'), href: '/' },
+    { title: t('components.navbar.howItWorks'), href: 'https://www.vortexfinance.co/#lowest-code' },
+    { title: t('components.navbar.community'), href: 'https://www.vortexfinance.co/#call-to-action' },
+  ];
+
+  return (
+    <ul className="lg:flex lg:items-center lg:justify-around">
+      {links.map((link) => (
+        <li key={link.title} className="mr-4 mb-9 lg:mb-0">
+          <a
+            href={link.href}
+            target={link.href.startsWith('https') ? '_blank' : ''}
+            rel={link.href.startsWith('https') ? 'noreferrer' : ''}
+            className="px-3 text-lg font-thin text-white hover:text-amber-500 hover:underline lg:px-0"
+          >
+            {link.title}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+};
 
 export const Navbar = () => {
   const [showMenu, setShowMenu] = useState(false);

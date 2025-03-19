@@ -45,7 +45,7 @@ export interface OfframpActions {
   setOfframpSigningPhase: (phase: OfframpSigningPhase | undefined) => void;
   setOfframpKycStarted: (kycStarted: boolean) => void;
   setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
-  setInitializeFailedMessage: (message: string | undefined) => void;
+  setInitializeFailedMessage: (message: string) => void;
   setOfframpSummaryVisible: (visible: boolean) => void;
   updateOfframpHookStateFromState: (state: OfframpingState | undefined) => void;
   clearInitializeFailedMessage: () => void;

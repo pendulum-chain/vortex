@@ -6,7 +6,12 @@ import Big from 'big.js';
 import { ExecutionContext, OfframpingState } from '../../../offrampingFlow';
 import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
-import { signAndSubmitXcm, TransactionInclusionError, verifyXcmSentEvent } from '../xcm';
+import {
+  signAndSubmitXcm,
+  TransactionInclusionError,
+  TransactionTemporarilyBannedError,
+  verifyXcmSentEvent,
+} from '../xcm';
 import { storageService } from '../../../storage/local';
 import { storageKeys, TransactionSubmissionIndices } from '../../../../constants/localStorage';
 
@@ -69,8 +74,8 @@ export async function executeAssetHubToPendulumXCM(
 
       const afterSignCallback = () => setOfframpSigningPhase?.('finished');
       try {
-        const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
         storageService.set(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX, TransactionSubmissionIndices.ASSETHUB_XCM);
+        const { hash } = await signAndSubmitXcm(walletAccount, tx, afterSignCallback);
         return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
       } catch (error) {
         if (error instanceof TransactionInclusionError) {
@@ -79,11 +84,21 @@ export async function executeAssetHubToPendulumXCM(
             return { ...state, assetHubXcmTransactionHash: hash as `0x${string}` };
           } catch (err) {
             const error = err as Error;
-            console.error('Error while verifying XcmSent event, this is unrecoverable:', error.message);
-            return { ...state, failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM' } };
+            console.error('Error while verifying XcmSent event, this is unrecoverable:', error);
+            return {
+              ...state,
+              failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM. ' + (error || '') },
+            };
           }
+        } else if (error instanceof TransactionTemporarilyBannedError) {
+          console.log('Transaction temporarily banned. Waiting for tokens to arrive on Pendulum.');
+          // Do nothing but wait until tokens arrive on Pendulum
+        } else {
+          return {
+            ...state,
+            failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM. ' + (error || '') },
+          };
         }
-        return { ...state, failure: { type: 'unrecoverable', message: 'Error signing and submitting XCM' } };
       }
     }
 

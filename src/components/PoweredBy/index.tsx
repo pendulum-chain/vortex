@@ -3,6 +3,7 @@ import bank from '../../assets/payments/bank.svg';
 import VISA from '../../assets/payments/visa.svg';
 import vortexLogo from '../../assets/logo/blue.svg';
 import SEPA from '../../assets/payments/sepa.svg';
+import { useTranslation } from 'react-i18next';
 
 interface ImageProps {
   src: string;
@@ -34,11 +35,13 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
 );
 
 export function PoweredBy() {
+  const { t } = useTranslation();
+
   return (
     <section className="flex flex-col justify-between gap-y-2.5 my-2">
       <ImageList images={paymentImages} />
       <div className="flex items-center justify-center">
-        <p className="mr-1 text-xs text-gray-500">Powered by</p>
+        <p className="mr-1 text-xs text-gray-500">{t('components.footer.poweredBy')}</p>
         <a
           href="https://www.vortexfinance.co"
           target="_blank"

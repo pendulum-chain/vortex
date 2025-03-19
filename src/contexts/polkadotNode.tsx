@@ -1,9 +1,9 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { createContext, useContext, JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ToastMessage } from '../helpers/notifications';
-import { showToast } from '../helpers/notifications';
+
 import { ASSETHUB_WSS, PENDULUM_WSS } from '../constants/constants';
+import { useToastMessage } from '../hooks/useToastMessage';
 
 export interface ApiComponents {
   api: ApiPromise;
@@ -24,11 +24,13 @@ interface NetworkState {
 interface PolkadotNodeContextInterface {
   state: NetworkState;
   isFetched: boolean;
+  error: Error | null;
 }
 
 const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
   state: {},
   isFetched: false,
+  error: null,
 });
 
 async function createApiComponents(socketUrl: string, autoReconnect = true): Promise<ApiComponents> {
@@ -71,15 +73,25 @@ const usePolkadotNodes = () => {
   return context;
 };
 
-const useAssetHubNode = () => {
-  const { state, isFetched } = usePolkadotNodes();
-  return { apiComponents: state.assetHub, isFetched };
+enum NodeName {
+  AssetHub = 'assetHub',
+  Pendulum = 'pendulum',
+}
+
+const usePolkadotNode = (nodeName: NodeName) => {
+  const { showToast, ToastMessage } = useToastMessage();
+  const { state, isFetched, error } = usePolkadotNodes();
+
+  if (error) {
+    console.error(`Failed to initialize ${nodeName} node:`, error);
+    showToast(ToastMessage.NODE_CONNECTION_ERROR);
+  }
+
+  return { apiComponents: state[nodeName], isFetched, error };
 };
 
-const usePendulumNode = () => {
-  const { state, isFetched } = usePolkadotNodes();
-  return { apiComponents: state.pendulum, isFetched };
-};
+const useAssetHubNode = () => usePolkadotNode(NodeName.AssetHub);
+const usePendulumNode = () => usePolkadotNode(NodeName.Pendulum);
 
 const initializeNetworks = async (): Promise<NetworkState> => {
   try {
@@ -89,12 +101,11 @@ const initializeNetworks = async (): Promise<NetworkState> => {
     ]);
 
     return {
-      assetHub,
-      pendulum,
+      [NodeName.AssetHub]: assetHub,
+      [NodeName.Pendulum]: pendulum,
     };
   } catch (error) {
     console.error('Error initializing networks:', error);
-    showToast(ToastMessage.NODE_CONNECTION_ERROR);
     throw error;
   }
 };
@@ -114,7 +125,7 @@ const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
     console.error('Failed to initialize Polkadot nodes:', error);
   }
 
-  return <PolkadotNodeContext.Provider value={{ state, isFetched }}>{children}</PolkadotNodeContext.Provider>;
+  return <PolkadotNodeContext.Provider value={{ state, isFetched, error }}>{children}</PolkadotNodeContext.Provider>;
 };
 
-export { PolkadotNodeProvider, usePolkadotNodes, useAssetHubNode, usePendulumNode };
+export { PolkadotNodeProvider, useAssetHubNode, usePendulumNode };

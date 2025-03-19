@@ -1,6 +1,7 @@
 import { FC, useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { CheckIcon } from '@heroicons/react/20/solid';
+import { useTranslation } from 'react-i18next';
 
 import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
@@ -8,7 +9,7 @@ import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
-import { createOfframpingPhaseMessage } from './helpers';
+import { useCreateOfframpingPhaseMessage } from './helpers';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
 
@@ -148,6 +149,8 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
   const [displayedPercentage, setDisplayedPercentage] = useState(0);
   const circumference = CIRCLE_RADIUS * 2 * Math.PI;
 
+  const { t } = useTranslation();
+
   useProgressUpdate(currentPhase, currentPhaseIndex, displayedPercentage, setDisplayedPercentage, setShowCheckmark);
 
   return (
@@ -165,7 +168,7 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          Your transaction is in progress.
+          {t('pages.progress.transactionInProgress')}
         </motion.h1>
         <motion.h1
           className="mb-3 text-base text-blue-700"
@@ -173,7 +176,9 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
-          {!isNetworkEVM(selectedNetwork) ? 'This usually takes 4-6 minutes.' : 'This usually takes 6-8 minutes.'}
+          {!isNetworkEVM(selectedNetwork)
+            ? t('pages.progress.estimatedTimeAssetHub')
+            : t('pages.progress.estimatedTimeEVM')}
         </motion.h1>
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}>
           {message}
@@ -189,7 +194,7 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
 
   const currentPhase = offrampingState.phase as OfframpingPhase;
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-  const message = createOfframpingPhaseMessage(offrampingState, selectedNetwork);
+  const message = useCreateOfframpingPhaseMessage(offrampingState, selectedNetwork);
 
   useEffect(() => {
     trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });

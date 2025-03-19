@@ -1,6 +1,8 @@
 import BigNumber from 'big.js';
 import Big from 'big.js';
 import { UseFormReturn } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+
 import { activeOptions, cacheKeys } from '../../constants/cache';
 import { routerAbi } from '../../contracts/Router';
 import {
@@ -61,6 +63,7 @@ export function useTokenOutAmount({
   network,
 }: UseTokenOutAmountProps) {
   const { setError, clearErrors } = form;
+  const { t } = useTranslation();
   const { trackEvent } = useEventsContext();
   const [pending, setPending] = useState(true);
   const [initializing, setInitializing] = useState(true);
@@ -131,20 +134,20 @@ export function useTokenOutAmount({
             error_message: 'insufficient_liquidity',
             input_amount: amountIn ? amountIn : '0',
           });
-          return 'Insufficient liquidity for this exchange. Please try a smaller amount or try again later.';
+          return t('hooks.useTokenAmountOut.insufficientLiquidity');
         };
 
         switch (error.type) {
           case 'error':
-            return 'Something went wrong';
+            return t('hooks.useTokenAmountOut.default');
           case 'panic':
-            return error.errorCode === 0x11 ? insufficientLiquidityMessage() : 'Something went wrong';
+            return error.errorCode === 0x11 ? insufficientLiquidityMessage() : t('hooks.useTokenAmountOut.default');
           case 'reverted':
             return error.description === 'SwapPool: EXCEEDS_MAX_COVERAGE_RATIO'
               ? insufficientLiquidityMessage()
-              : 'Something went wrong';
+              : t('hooks.useTokenAmountOut.default');
           default:
-            return 'Something went wrong';
+            return t('hooks.useTokenAmountOut.default');
         }
       },
     },

@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
+
 import { Networks, getNetworkDisplayName } from '../../helpers/networks';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { AssetIconType, useGetAssetIcon } from '../../hooks/useGetAssetIcon';
-import { useEffect, useState } from 'react';
 import { useNetwork } from '../../contexts/network';
 
 const tokens: Array<{ name: string; assetIcon: AssetIconType }> = [
@@ -78,6 +80,8 @@ const TokenBadge = ({
 };
 
 export function PopularTokens() {
+  const { t } = useTranslation();
+
   const [animatingIndex, setAnimatingIndex] = useState<{ type: 'network' | 'token'; index: number }>({
     type: 'network',
     index: 0,
@@ -101,8 +105,8 @@ export function PopularTokens() {
   return (
     <div className="max-w-2xl p-8 mx-auto text-center mt-8">
       <div className="mb-12">
-        <h2 className="text-3xl font-bold text-gray-900">Supported Networks</h2>
-        <p className="mt-2 text-lg text-gray-600">Trade across multiple blockchain networks</p>
+        <h2 className="text-3xl font-bold text-gray-900">{t('sections.popularTokens.networks.title')}</h2>
+        <p className="mt-2 text-lg text-gray-600">{t('sections.popularTokens.networks.description')}</p>
 
         <ul className="flex flex-wrap items-center justify-center gap-2 mt-4">
           {networks.map((network, index) => (
@@ -116,8 +120,8 @@ export function PopularTokens() {
       </div>
 
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">Supported Tokens</h2>
-        <p className="mt-2 text-lg text-gray-600">Trade these popular stablecoins</p>
+        <h2 className="text-3xl font-bold text-gray-900">{t('sections.popularTokens.tokens.title')}</h2>
+        <p className="mt-2 text-lg text-gray-600">{t('sections.popularTokens.tokens.description')}</p>
         <motion.ul
           className="flex flex-wrap items-center justify-center gap-2 mt-4"
           initial={{ opacity: 0, y: 20 }}

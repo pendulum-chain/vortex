@@ -21,6 +21,7 @@ import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
 import { OfframpExecutionInput } from '../../types/offramp';
 import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
+import { useTranslation } from 'react-i18next';
 
 interface AssetDisplayProps {
   amount: string;
@@ -56,36 +57,40 @@ const FeeDetails = ({
   toToken,
   exchangeRate,
   partnerUrl,
-}: FeeDetailsProps) => (
-  <section className="mt-6">
-    <div className="flex justify-between mb-2">
-      <p>
-        Offramp fee ({`${toToken.offrampFeesBasisPoints / 100}%`}
-        {toToken.offrampFeesFixedComponent ? ` + ${toToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
-      </p>
-      <p className="flex items-center gap-2">
-        <NetworkIcon network={network} className="w-4 h-4" />
-        <strong>
-          {feesCost} {fiatSymbol}
-        </strong>
-      </p>
-    </div>
-    <div className="flex justify-between mb-2">
-      <p>Quote</p>
-      <p>
-        <strong>
-          <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
-        </strong>
-      </p>
-    </div>
-    <div className="flex justify-between">
-      <p>Partner</p>
-      <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-        {partnerUrl}
-      </a>
-    </div>
-  </section>
-);
+}: FeeDetailsProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <section className="mt-6">
+      <div className="flex justify-between mb-2">
+        <p>
+          {t('components.dialogs.OfframpSummaryDialog.offrampFee')} ({`${toToken.offrampFeesBasisPoints / 100}%`}
+          {toToken.offrampFeesFixedComponent ? ` + ${toToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
+        </p>
+        <p className="flex items-center gap-2">
+          <NetworkIcon network={network} className="w-4 h-4" />
+          <strong>
+            {feesCost} {fiatSymbol}
+          </strong>
+        </p>
+      </div>
+      <div className="flex justify-between mb-2">
+        <p>{t('components.dialogs.OfframpSummaryDialog.quote')}</p>
+        <p>
+          <strong>
+            <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
+          </strong>
+        </p>
+      </div>
+      <div className="flex justify-between">
+        <p>{t('components.dialogs.OfframpSummaryDialog.partner')}</p>
+        <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+          {partnerUrl}
+        </a>
+      </div>
+    </section>
+  );
+};
 
 interface OfframpSummaryDialogProps {
   anchorUrl?: string;
@@ -106,6 +111,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   const { selectedNetwork } = useNetwork();
   const { setOfframpExecutionInput, setOfframpInitiating, setOfframpStarted } = useOfframpActions();
   const offrampState = useOfframpState();
+  const { t } = useTranslation();
 
   // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
   // component will not render if the executionInput is undefined.
@@ -161,18 +167,19 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
     >
       {offrampState !== undefined ? (
         <>
-          <Spinner /> Processing
+          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
         </>
       ) : isSubmitted ? (
         <>
-          <Spinner /> Continue on Partner&apos;s page
+          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.continueOnPartnersPage')}
         </>
       ) : toToken.type !== 'moonbeam' ? (
         <>
-          Continue with Partner <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+          {t('components.dialogs.OfframpSummaryDialog.continueWithPartner')}{' '}
+          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
         </>
       ) : (
-        <>Continue</>
+        <>{t('components.dialogs.OfframpSummaryDialog.continue')}</>
       )}
     </button>
   );
@@ -182,7 +189,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       content={content}
       visible={visible}
       actions={actions}
-      headerText="You're selling"
+      headerText={t('components.dialogs.OfframpSummaryDialog.headerText')}
       onClose={() => {
         setIsSubmitted(false);
         setOfframpExecutionInput(undefined);
