@@ -275,7 +275,7 @@ export const SwapPage = () => {
           error_message: 'insufficient_balance',
           input_amount: fromAmount ? fromAmount.toString() : '0',
         });
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+        return `Exceeds balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
     }
 
