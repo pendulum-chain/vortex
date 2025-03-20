@@ -76,14 +76,14 @@ export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, r
       return;
     }
 
-    res.json({ evmAddress: subaccount.wallets.evm });
+    res.json({ id: subaccount.id, limits: subaccount.kyc.limits, wallets: subaccount.wallets });
     return;
   } catch (error) {
     handleApiError(error, res, 'getBrlaUser');
   }
 };
 
-export const getBrlaUserUsedLimits = async (
+export const getBrlaUserUsedLimit = async (
   req: Request<
     {},
     {},
@@ -103,16 +103,16 @@ export const getBrlaUserUsedLimits = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const usedLimits = await brlaApiService.getSubaccountUsedLimits(subaccountId);
-    if (!usedLimits) {
+    const usedLimit = await brlaApiService.getSubaccountUsedLimit(subaccountId);
+    if (!usedLimit) {
       res.status(404).json({ error: 'Limits not found' });
       return;
     }
 
-    res.json(usedLimits);
+    res.json(usedLimit);
     return;
   } catch (error) {
-    handleApiError(error, res, 'getBrlaUserUsedLimits');
+    handleApiError(error, res, 'getBrlaUserUsedLimit');
   }
 };
 

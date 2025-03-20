@@ -6,7 +6,7 @@ import {
 import { getVaultsForCurrency } from '../../../../services/phases/polkadot/spacewalk';
 import { testRoute } from '../../../../services/phases/squidrouter/route';
 import { useOfframpStore } from '../../../../stores/offrampStore';
-import { getSubaccount, getSubaccountUsedLimits } from '../../../../services/signingService';
+import { getSubaccount, getSubaccountUsedLimit } from '../../../../services/signingService';
 
 async function isOfframpAmountWithinAllowedLimits(amount: string, subaccountTaxId: string) {
   const { subaccountData } = await getSubaccount(subaccountTaxId);
@@ -14,14 +14,23 @@ async function isOfframpAmountWithinAllowedLimits(amount: string, subaccountTaxI
     throw new Error('Subaccount not found');
   }
 
-  const usedLimits = await getSubaccountUsedLimits(subaccountData.id);
-  if (!usedLimits) {
+  const usedLimit = await getSubaccountUsedLimit(subaccountData.id);
+  if (!usedLimit) {
     throw new Error(`Unable to query used limits for account ${subaccountData.id}`);
   }
 
-  const userBurnLimitOverall = subaccountData.kyc.limits.limitBurn;
-  const userBurnLimitUsed = usedLimits.limitBurn;
+  const userBurnLimitOverall = subaccountData.limits.limitBurn;
+  const userBurnLimitUsed = usedLimit.limitBurn;
   const remainingBurnLimit = userBurnLimitOverall - userBurnLimitUsed;
+
+  console.log(
+    'userBurnLimitOverall: ',
+    userBurnLimitOverall,
+    'userBurnLimitUsed: ',
+    userBurnLimitUsed,
+    'remainingBurnLimit: ',
+    remainingBurnLimit,
+  );
 
   return parseFloat(amount) <= remainingBurnLimit;
 }

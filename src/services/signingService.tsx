@@ -20,10 +20,8 @@ interface SignerServiceSep10Response {
   masterClientPublic: string;
 }
 
-export interface KYCData {
-  level: number;
-  documentData: string;
-  documentType: string;
+export interface SubaccountData {
+  id: string;
   limits: {
     limitMint: number;
     limitBurn: number;
@@ -32,17 +30,7 @@ export interface KYCData {
     limitBRLAOutOwnAccount: number;
     limitBRLAOutThirdParty: number;
   };
-}
-
-export interface SubaccountData {
-  id: string;
-  fullName: string;
-  phone: string;
-  kyc: KYCData;
-  address: string;
-  createdAt: string;
   wallets: { evm: string; tron: string };
-  brCode: string;
 }
 
 type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
@@ -86,7 +74,7 @@ export interface RegisterSubaccountPayload {
   birthdate: number; // Denoted in milliseconds since epoch
 }
 
-interface UsedLimitsData {
+interface UsedLimitData {
   limitMint: number;
   limitBurn: number;
   limitSwapBuy: number;
@@ -287,17 +275,20 @@ export const getSubaccount = async (
   };
 };
 
-export const getSubaccountUsedLimits = async (subaccountId: string): Promise<UsedLimitsData> => {
-  const usedLimitsResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/usedLimits?subaccountId=${subaccountId}`);
+export const getSubaccountUsedLimit = async (subaccountId: string): Promise<UsedLimitData> => {
+  if (!subaccountId) {
+    throw new Error('Subaccount ID is required');
+  }
+  const usedLimitResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/usedLimit?subaccountId=${subaccountId}`);
 
-  if (usedLimitsResponse.status === 400) {
-    const { details } = await usedLimitsResponse.json();
+  if (usedLimitResponse.status === 400) {
+    const { details } = await usedLimitResponse.json();
     throw new Error('Failed to create user. Reason: ' + details.error);
   }
 
-  if (usedLimitsResponse.status !== 200) {
-    throw new Error(`Failed to fetch KYC status from server: ${usedLimitsResponse.statusText}`);
+  if (usedLimitResponse.status !== 200) {
+    throw new Error(`Failed to fetch KYC status from server: ${usedLimitResponse.statusText}`);
   }
 
-  return await usedLimitsResponse.json();
+  return await usedLimitResponse.json();
 };

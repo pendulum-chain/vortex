@@ -5,7 +5,7 @@ export interface TriggerOfframpRequest {
   receiverTaxId: string;
 }
 
-export interface UsedLimitsData {
+export interface UsedLimitData {
   limitMint: number;
   limitBurn: number;
   limitSwapBuy: number;
