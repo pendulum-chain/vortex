@@ -21,6 +21,7 @@ import { useToastMessage } from '../../hooks/useToastMessage';
 import { OfframpExecutionInput } from '../../types/offramp';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { getSubaccount } from '../../services/signingService';
 
 export const useSubmitOfframp = () => {
   const { t } = useTranslation();
@@ -87,25 +88,23 @@ export const useSubmitOfframp = () => {
               return;
             }
 
-            const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}`);
-            if (!response.ok) {
-              // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
-              // to be valid, or retry.
-              if (response.status === 404) {
-                console.log("User doesn't exist yet.");
-                setOfframpKycStarted(true);
-                return;
-              }
-              if ((await response.text()).includes('KYC invalid')) {
-                setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
-                setOfframpStarted(false);
-                setOfframpInitiating(false);
-                cleanupSEP24();
-                return;
-              }
-              throw new Error('Error while fetching BRLA user');
+            const { userExists, kycInvalid, subaccountData } = await getSubaccount(taxId);
+            if (!userExists) {
+              console.log('User does not exist');
+              setOfframpKycStarted(true);
+              return;
+            } else if (kycInvalid) {
+              console.log('KYC invalid');
+              setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
+              setOfframpStarted(false);
+              setOfframpInitiating(false);
+              cleanupSEP24();
+              return;
             }
-            const { evmAddress: brlaEvmAddress } = await response.json();
+
+            const {
+              wallets: { evm: brlaEvmAddress },
+            } = subaccountData;
             // append EVM address to execution input
             const updatedBrlaOfframpExecution = { ...executionInput, brlaEvmAddress };
             setOfframpExecutionInput(updatedBrlaOfframpExecution);

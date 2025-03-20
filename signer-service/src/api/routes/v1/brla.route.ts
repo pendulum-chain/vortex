@@ -6,6 +6,8 @@ const router: Router = Router({ mergeParams: true });
 
 router.route('/getUser').get(brlaController.getBrlaUser);
 
+router.route('/usedLimit').get(brlaController.getBrlaUserUsedLimit);
+
 router.route('/getOfframpStatus').get(brlaController.getOfframpStatus);
 
 router.route('/getKycStatus').get(brlaController.fetchSubaccountKycStatus);
