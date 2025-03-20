@@ -83,6 +83,39 @@ export const getBrlaUser = async (req: Request<{}, {}, {}, { taxId: string }>, r
   }
 };
 
+export const getBrlaUserUsedLimits = async (
+  req: Request<
+    {},
+    {},
+    {},
+    {
+      subaccountId: string;
+    }
+  >,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { subaccountId } = req.query;
+
+    if (!subaccountId) {
+      res.status(400).json({ error: 'Missing subaccountId query parameters' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const usedLimits = await brlaApiService.getSubaccountUsedLimits(subaccountId);
+    if (!usedLimits) {
+      res.status(404).json({ error: 'Limits not found' });
+      return;
+    }
+
+    res.json(usedLimits);
+    return;
+  } catch (error) {
+    handleApiError(error, res, 'getBrlaUserUsedLimits');
+  }
+};
+
 export const triggerBrlaOfframp = async (req: Request<{}, {}, TriggerOfframpRequest>, res: Response): Promise<void> => {
   try {
     const { taxId, pixKey, amount, receiverTaxId } = req.body;
