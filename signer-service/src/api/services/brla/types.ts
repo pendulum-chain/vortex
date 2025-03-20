@@ -5,6 +5,15 @@ export interface TriggerOfframpRequest {
   receiverTaxId: string;
 }
 
+export interface UsedLimitsData {
+  limitMint: number;
+  limitBurn: number;
+  limitSwapBuy: number;
+  limitSwapSell: number;
+  limitBRLAOutOwnAccount: number;
+  limitBRLAOutThirdParty: number;
+}
+
 export interface SubaccountData {
   id: string;
   fullName: string;
