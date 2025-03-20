@@ -7,6 +7,7 @@ interface UseSwapUrlParamsProps {
   form: UseFormReturn<SwapFormValues, unknown, undefined>;
   feeComparisonRef: React.RefObject<HTMLDivElement | null>;
 }
+
 const defaultFromAmounts: Record<OutputTokenType, number> = { eurc: 1000, ars: 200, brl: 300 };
 
 export const useSwapUrlParams = ({ form, feeComparisonRef }: UseSwapUrlParamsProps) => {
@@ -20,9 +21,7 @@ export const useSwapUrlParams = ({ form, feeComparisonRef }: UseSwapUrlParamsPro
       if (!isNaN(parsedAmount) && parsedAmount >= 0) {
         form.setValue('fromAmount', parsedAmount.toFixed(2));
       }
-    }
-
-    if (toTokenForm) {
+    } else if (toTokenForm) {
       const defaultAmount = defaultFromAmounts[toTokenForm];
       form.setValue('fromAmount', defaultAmount.toFixed(2));
     }
