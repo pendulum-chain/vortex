@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
-import { getBaseOutputTokenDetails, getInputTokenDetails } from '../constants/tokenConfig';
+import { getPendulumDetails } from '../constants/tokenConfig';
 import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
@@ -11,6 +11,7 @@ import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
 import { useFromAmount } from '../stores/formStore';
+import { BrlaOnrampingState } from '../services/onrampingFlow';
 
 declare global {
   interface Window {
@@ -328,15 +329,17 @@ export function EventsProvider({ children }: PropsWithChildren) {
 
 export function createTransactionEvent(
   type: TransactionEvent['event'],
-  state: OfframpingState,
+  state: OfframpingState | BrlaOnrampingState,
   selectedNetwork: Networks,
 ) {
+  const inputTokenDetails = getPendulumDetails(selectedNetwork, state.inputTokenType);
+  const ouputTokenDetails = getPendulumDetails(selectedNetwork, state.outputTokenType);
   return {
     event: type,
-    from_asset: getInputTokenDetails(selectedNetwork, state.inputTokenType)?.assetSymbol ?? 'unknown',
-    to_asset: getBaseOutputTokenDetails(state.outputTokenType)?.fiat?.symbol,
+    from_asset: inputTokenDetails.pendulumAssetSymbol ?? 'unknown',
+    to_asset: ouputTokenDetails.pendulumAssetSymbol,
     from_amount: state.inputAmount.units,
-    to_amount: calculateTotalReceive(Big(state.outputAmount.units), getBaseOutputTokenDetails(state.outputTokenType)),
+    to_amount: calculateTotalReceive(state.flowType, Big(state.outputAmount.units), state.outputTokenType),
   };
 }
 

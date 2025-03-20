@@ -14,6 +14,7 @@ import erc20ABI from '../../../contracts/ERC20';
 import { getSquidRouterConfig, squidRouterConfigBase } from './config';
 import { getNetworkId, Networks } from '../../../helpers/networks';
 import { OnrampOutputTokenType } from '../../onrampingFlow';
+import { AXL_USDC_MOONBEAM } from '../../../constants/constants';
 
 export interface RouteParams {
   fromAddress: string;
@@ -124,12 +125,11 @@ export function createOnrampRouteParams(
   toNetwork: Networks,
   addressDestination: string,
 ): RouteParams {
-  const { axlUSDC_MOONBEAM } = getSquidRouterConfig(Networks.Moonbeam);
-  const fromChainId = getNetworkId(Networks.Moonbeam);
+  const fromChainId = '1284';
   const toChainId = getNetworkId(toNetwork);
 
   // will throw if invalid. Must exist.
-  const outputTokenDetails = getInputTokenDetails(Networks.Moonbeam, outputToken);
+  const outputTokenDetails = getInputTokenDetails(toNetwork, outputToken);
   if (!outputTokenDetails) {
     throw new Error(`Token ${outputToken} is not supported for Squidrouter onramp`);
   }
@@ -141,7 +141,7 @@ export function createOnrampRouteParams(
   return {
     fromAddress: fromAddress,
     fromChain: fromChainId.toString(),
-    fromToken: axlUSDC_MOONBEAM,
+    fromToken: AXL_USDC_MOONBEAM,
     fromAmount: amount,
     toChain: toChainId.toString(),
     toToken: outputTokenDetails.erc20AddressSourceChain,

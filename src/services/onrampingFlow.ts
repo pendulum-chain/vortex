@@ -10,7 +10,9 @@ import { createMoonbeamEphemeralSeed, executeMoonbeamToPendulumXCM } from './pha
 
 import { createPendulumEphemeralSeed } from './phases/polkadot/ephemeral';
 import { ApiComponents } from '../contexts/polkadotNode';
-import { StateTransitionFunction, FinalPhase, minutesInMs } from './flowCommons';
+import { StateTransitionFunction, FinalPhase, minutesInMs, BaseFlowState } from './flowCommons';
+import { prepareOnrampTransactions } from './phases/onrampSignedTransactions';
+import { nablaApprove } from './phases/nabla';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -43,13 +45,11 @@ export interface BrlaOnrampInitiateStateArguments {
   toNetwork: Networks;
   pendulumNode: ApiComponents;
   moonbeamNode: ApiComponents;
-  brlaEvmAddress: string;
   addressDestination: string;
   taxId: string;
 }
 
-export interface BrlaOnrampingState {
-  flowType: OnrampHandlerType;
+export interface BrlaOnrampingState extends BaseFlowState {
   moonbeamEphemeralSeed: string;
   moonbeamEphemeralAddress: string;
   pendulumEphemeralSeed: string;
@@ -60,8 +60,6 @@ export interface BrlaOnrampingState {
   inputAmount: { units: string; raw: string };
   pendulumAmountRaw: string;
   outputAmount: { units: string; raw: string };
-  phase: OnrampingPhase | FinalPhase;
-  failure?: FailureType;
   squidRouterApproveHash?: `0x${string}`;
   squidRouterSwapHash?: `0x${string}`;
   nablaSoftMinimumOutputRaw: string;
@@ -70,11 +68,9 @@ export interface BrlaOnrampingState {
   nablaSwapNonce: number;
   createdAt: number;
   failureTimeoutAt: number;
-  network: Networks;
   networkId: number;
   toNetwork: Networks;
   transactions?: BrlaOnrampTransactions;
-  brlaEvmAddress?: string;
   addressDestination: string;
   taxId?: string;
 }
@@ -97,16 +93,20 @@ export enum OnrampHandlerType {
 // TODO fill with actual phase functions.
 export const ONRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
   OnrampHandlerType,
-  Partial<Record<OnrampingPhase, StateTransitionFunction>>
+  Partial<Record<OnrampingPhase, StateTransitionFunction<BrlaOnrampingState>>>
 > = {
-  [OnrampHandlerType.BRLA_TO_EVM]: {},
-  [OnrampHandlerType.BRLA_TO_ASSETHUB]: {},
+  [OnrampHandlerType.BRLA_TO_EVM]: {
+    prepareOnrampTransactions,
+  },
+  [OnrampHandlerType.BRLA_TO_ASSETHUB]: {
+    prepareOnrampTransactions,
+  },
 };
 
 export function selectNextOnrapStateAdvancementHandler(
   network: Networks,
   phase: OnrampingPhase,
-): StateTransitionFunction | undefined {
+): StateTransitionFunction<BrlaOnrampingState> | undefined {
   if (isNetworkEVM(network)) {
     return ONRAMP_STATE_ADVANCEMENT_HANDLERS[OnrampHandlerType.BRLA_TO_EVM][phase];
   } else {
@@ -155,6 +155,22 @@ export async function constructBrlaOnrampInitialState({
   const nablaSoftMinimumOutput = amountOut.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(nablaHardMinimumOutput, outputTokenDecimals).toFixed();
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, outputTokenDecimals).toFixed();
+
+  // log all variables
+  console.log({
+    moonbeamEphemeralSeed,
+    moonbeamEphemeralAddress,
+    pendulumEphemeralSeed,
+    pendulumEphemeralAddress,
+    effectiveExchangeRate,
+    nablaHardMinimumOutputRaw,
+    nablaSoftMinimumOutputRaw,
+    outputAmount: { units: amountOut.toFixed(2, 0), raw: outputAmountRaw },
+    pendulumAmountRaw,
+    inputAmount: { units: amountIn, raw: inputAmountRaw },
+    inputTokenType,
+    outputTokenType,
+  });
 
   const now = Date.now();
 

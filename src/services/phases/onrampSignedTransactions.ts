@@ -47,8 +47,6 @@ export async function prepareOnrampTransactions(
     outputTokenType,
   };
 
-  const inputTokenAddressMoonbeam = getOutputTokenDetailsMoonbeam(inputTokenType).moonbeamErc20Address;
-
   try {
     transactions = await prepareBrlaOnrampTransactions(state, context);
 
@@ -101,6 +99,7 @@ async function prepareBrlaOnrampTransactions(
   // Improvement: Nabla could be moved to a transaction commons, also with offramp.
   const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
   const nablaSwapTransaction = await prepareNablaSwapTransaction(state, context);
+  console.log('Nabla transactions prepared');
 
   const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
     moonbeamNode.api,
@@ -109,7 +108,15 @@ async function prepareBrlaOnrampTransactions(
     inputTokenAddressMoonbeam,
     moonbeamEphemeralSeed,
   );
+  console.log('destination address: ', addressDestination);
+  console.log(
+    'Moonbeam to Pendulum XCM transaction prepared: ',
+    encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
+  );
+  // Second and third transactions of moonbeam's fresh account are Squidrouter transactions
 
+  // Will be it's second transaction, after Moonbeam to Pendulum XCM
+  const moonbeamEphemeralStartingNonce = 1;
   const { squidrouterApproveTransaction, squidrouterSwapTransaction } = await createOnrampSquidrouterTransaction({
     fromAddress: moonbeamEphemeralAddress,
     amount: outputAmount.raw.toString(),
@@ -117,8 +124,9 @@ async function prepareBrlaOnrampTransactions(
     toNetwork: toNetwork,
     addressDestination,
     moonbeamEphemeralSeed: moonbeamEphemeralSeed as `0x${string}`,
+    moonbeamEphemeralStartingNonce,
   });
-
+  console.log('Squid transactions prepared: ', squidrouterApproveTransaction, squidrouterSwapTransaction);
   const pendulumToMoonbeamNonce = nablaSwapNonce + 1;
 
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
@@ -128,7 +136,7 @@ async function prepareBrlaOnrampTransactions(
     state.pendulumEphemeralSeed,
     pendulumToMoonbeamNonce,
   );
-
+  console.log('Pendulum to Moonbeam XCM transaction prepared: ', pendulumToMoonbeamXcmTransaction);
   const pendulumToAssethubNonce = nablaSwapNonce + 1;
 
   const pendulumToAssetHubXcmTransaction = await createPendulumToAssethubTransfer(
@@ -139,7 +147,7 @@ async function prepareBrlaOnrampTransactions(
     pendulumEphemeralSeed,
     pendulumToAssethubNonce,
   );
-
+  console.log('Pendulum to Assethub XCM transaction prepared: ', pendulumToAssetHubXcmTransaction);
   const transactions = {
     nablaApproveTransaction: encodeSubmittableExtrinsic(nablaApproveTransaction),
     nablaSwapTransaction: encodeSubmittableExtrinsic(nablaSwapTransaction),

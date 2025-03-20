@@ -1,5 +1,5 @@
-import { createWalletClient, encodeFunctionData, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
+import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
 
 import { AXL_USDC_MOONBEAM } from '../../../constants/constants';
@@ -7,8 +7,10 @@ import { Networks } from '../../../helpers/networks';
 import { OnrampOutputTokenType } from '../../onrampingFlow';
 import { getRoute, RouteParams } from './route';
 import { createOnrampRouteParams } from './route';
-import { TransactionRequest } from './route';
+
 import erc20ABI from '../../../contracts/ERC20';
+
+import { ApiComponents } from '../../../contexts/polkadotNode';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -17,19 +19,27 @@ export interface OnrampSquidrouterParams {
   toNetwork: Networks;
   addressDestination: string;
   moonbeamEphemeralSeed: `0x${string}`;
+  moonbeamEphemeralStartingNonce: number;
 }
 
 export async function createOnrampSquidrouterTransaction(
   params: OnrampSquidrouterParams,
 ): Promise<{ squidrouterApproveTransaction: string; squidrouterSwapTransaction: string }> {
+  const account = mnemonicToAccount(params.moonbeamEphemeralSeed);
+
   const moonbeamWalletClient = createWalletClient({
-    account: privateKeyToAccount(params.moonbeamEphemeralSeed),
+    account,
+    chain: moonbeam,
+    transport: http(),
+  });
+
+  const publicClient = createPublicClient({
     chain: moonbeam,
     transport: http(),
   });
 
   const routeParams = createOnrampRouteParams(
-    params.fromAddress,
+    account.address,
     params.amount,
     params.outputToken,
     params.toNetwork,
@@ -40,9 +50,6 @@ export async function createOnrampSquidrouterTransaction(
   const route = routeResult.data.route;
   const requestId = routeResult.requestId;
 
-  console.log('Calculated onramp route:', route);
-  console.log('requestId:', requestId);
-
   const transactionRequest = route.transactionRequest;
 
   const approveTransactionData = encodeFunctionData({
@@ -51,18 +58,35 @@ export async function createOnrampSquidrouterTransaction(
     args: [transactionRequest?.target, params.amount],
   });
 
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
   const squidrouterApproveTransaction = await moonbeamWalletClient.signTransaction({
     to: AXL_USDC_MOONBEAM,
     data: approveTransactionData,
     value: 0n,
+    nonce: params.moonbeamEphemeralStartingNonce,
+    gas: BigInt(150000),
+    maxFeePerGas,
   });
 
   const squidrouterSwapTransaction = await moonbeamWalletClient.signTransaction({
     to: transactionRequest.target,
     data: transactionRequest.data,
-    value: transactionRequest.value,
-    gas: BigInt(transactionRequest.gasLimit) * BigInt(2),
+    value: BigInt(transactionRequest.value),
+    gas: BigInt(transactionRequest.gasLimit),
+    maxFeePerGas,
+    nonce: params.moonbeamEphemeralStartingNonce + 1,
   });
+
+  // Alternative way
+  // const keyring = new Keyring({ type: 'ethereum' });
+
+  // const ephemeralKeypair = keyring.addFromUri(`${params.moonbeamEphemeralSeed}/m/44'/60'/${0}'/${0}/${0}`);
+
+  // const swapEvmCall =  params.moonbeamNode.api.tx.evm.call(params.moonbeamEphemeralAddress, transactionRequest.target, transactionRequest.data,  transactionRequest.value,  transactionRequest.gasLimit, maxFeePerGas, undefined, undefined, undefined);
+  // const signedSwapEvmCall = await swapEvmCall.signAsync(ephemeralKeypair, {nonce: params.moonbeamEphemeralStartingNonce + 1});
+
+  // console.log('Swap transaction prepared substrate: ', encodeSubmittableExtrinsic(signedSwapEvmCall));
 
   return { squidrouterApproveTransaction, squidrouterSwapTransaction };
 }

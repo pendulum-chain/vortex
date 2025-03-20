@@ -1,10 +1,24 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import { BaseOutputTokenDetails } from '../../constants/tokenConfig';
+import { BaseOutputTokenDetails, getBaseOutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
+import { FlowType, isOnrampFlow } from '../../services/flowCommons';
+import { OnrampInputTokenType, OnrampOutputTokenType } from '../../services/onrampingFlow';
 
-export function calculateTotalReceive(toAmount: Big, outputToken: BaseOutputTokenDetails): string {
+export function calculateTotalReceive(
+  flowType: FlowType,
+  toAmount: Big,
+  outputTokenType: OutputTokenType | OnrampOutputTokenType,
+): string {
+  if (!isOnrampFlow(flowType)) {
+    return calculateOfframpTotalReceive(toAmount, getBaseOutputTokenDetails(outputTokenType as OutputTokenType));
+  } else {
+    return calculateOnrampTotalReceive(toAmount, outputTokenType as OnrampInputTokenType);
+  }
+}
+
+export function calculateOfframpTotalReceive(toAmount: Big, outputToken: BaseOutputTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
   const fixedFees = new Big(outputToken.offrampFeesFixedComponent ? outputToken.offrampFeesFixedComponent : 0);
   const fees = toAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
@@ -15,6 +29,11 @@ export function calculateTotalReceive(toAmount: Big, outputToken: BaseOutputToke
   } else {
     return '0';
   }
+}
+
+// TODO:  implement
+export function calculateOnrampTotalReceive(toAmount: Big, outputToken: OnrampInputTokenType): string {
+  return '0';
 }
 
 interface CollapseProps {

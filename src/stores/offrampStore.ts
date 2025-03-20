@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { OfframpState, OfframpActions } from '../types/offramp';
-import { clearOfframpingState } from '../services/offrampingFlow';
+import { clearOfframpingState } from '../services/flowCommons';
 
 interface OfframpStore extends OfframpState {
   actions: OfframpActions;

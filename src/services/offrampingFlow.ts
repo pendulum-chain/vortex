@@ -38,7 +38,13 @@ import {
 } from './phases/polkadot/ephemeral';
 import { ApiComponents } from '../contexts/polkadotNode';
 import { u8aToHex } from '@polkadot/util';
-import { FinalPhase, minutesInMs, OFFRAMPING_STATE_LOCAL_STORAGE_KEY, StateTransitionFunction } from './flowCommons';
+import {
+  FinalPhase,
+  minutesInMs,
+  OFFRAMPING_STATE_LOCAL_STORAGE_KEY,
+  StateTransitionFunction,
+  BaseFlowState,
+} from './flowCommons';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -90,8 +96,7 @@ export interface BrlaInitiateStateArguments {
   taxId: string;
 }
 
-export interface BaseOfframpingState {
-  flowType: OfframpHandlerType;
+export interface BaseOfframpingState extends BaseFlowState {
   pendulumEphemeralSeed: string;
   pendulumEphemeralAddress: string;
   inputTokenType: InputTokenType;
@@ -100,8 +105,6 @@ export interface BaseOfframpingState {
   inputAmount: { units: string; raw: string };
   pendulumAmountRaw: string;
   outputAmount: { units: string; raw: string };
-  phase: OfframpingPhase | FinalPhase;
-  failure?: FailureType;
   squidRouterReceiverId: `0x${string}`;
   squidRouterReceiverHash: `0x${string}`;
   squidRouterApproveHash?: `0x${string}`;
@@ -112,7 +115,6 @@ export interface BaseOfframpingState {
   nablaSwapNonce: number;
   createdAt: number;
   failureTimeoutAt: number;
-  network: Networks;
   networkId: number;
   offramperAddress: string;
 }
@@ -154,7 +156,7 @@ export enum OfframpHandlerType {
 
 export const OFFRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
   OfframpHandlerType,
-  Partial<Record<OfframpingPhase, StateTransitionFunction>>
+  Partial<Record<OfframpingPhase, StateTransitionFunction<OfframpingState>>>
 > = {
   [OfframpHandlerType.EVM_TO_STELLAR]: {
     prepareTransactions,
@@ -225,11 +227,9 @@ export function inferOframpFlowType(network: Networks, outToken: OutputTokenType
 }
 
 export function selectNextOfframpStateAdvancementHandler(
-  network: Networks,
+  flowType: OfframpHandlerType,
   phase: OfframpingPhase,
-  outToken: OutputTokenType,
-): StateTransitionFunction | undefined {
-  const flowType = inferOframpFlowType(network, outToken);
+): StateTransitionFunction<OfframpingState> | undefined {
   return OFFRAMP_STATE_ADVANCEMENT_HANDLERS[flowType][phase];
 }
 

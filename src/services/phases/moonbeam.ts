@@ -31,17 +31,16 @@ export async function createMoonbeamEphemeralSeed(moonbeamNode: {
   decimals: number;
 }) {
   const seedPhrase = mnemonicGenerate();
-
   if (!moonbeamNode) {
     throw new Error('Pendulum node not available');
   }
 
   const keyring = new Keyring({ type: 'ethereum' });
 
-  const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
+  // DO NOT CHANGE THE DERIVATION PATH to be compatible with common ethereum libraries like viem.
+  const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
   console.log('Moonbeam ephemeral account created:', ephemeralAccountKeypair.address);
-
   return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
@@ -56,7 +55,9 @@ export async function createMoonbeamToPendulumXCM(
   const receiverAccountHex = u8aToHex(decodeAddress(receiverAddress));
 
   const keyring = new Keyring({ type: 'ethereum' });
-  const ephemeralKeypair = keyring.addFromUri(moonbeamEphemeralSeed);
+
+  // DO NOT CHANGE THE DERIVATION PATH to be compatible with common ethereum libraries like viem.
+  const ephemeralKeypair = keyring.addFromUri(`${moonbeamEphemeralSeed}/m/44'/60'/${0}'/${0}/${0}`);
 
   const destination = { V3: { parents: 1, interior: { X1: { Parachain: 2094 } } } };
   const beneficiary = {

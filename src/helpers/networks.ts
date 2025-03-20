@@ -12,7 +12,6 @@ export enum Networks {
   BSC = 'BSC',
   Ethereum = 'Ethereum',
   Polygon = 'Polygon',
-  Moonbeam = 'Moonbeam',
 }
 
 type EVMNetworks = Exclude<Networks, Networks.AssetHub>;
@@ -57,11 +56,6 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.Avalanche]: {
     id: avalanche.id,
     displayName: 'Avalanche',
-    isEVM: true,
-  },
-  [Networks.Moonbeam]: {
-    id: 1284,
-    displayName: 'Moonbeam',
     isEVM: true,
   },
 };

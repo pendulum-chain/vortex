@@ -2,7 +2,7 @@ import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
 
-import { calculateTotalReceive } from '../../components/FeeCollapse';
+import { calculateOfframpTotalReceive, calculateTotalReceive } from '../../components/FeeCollapse';
 import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 
@@ -19,6 +19,7 @@ import {
   getOutputTokenDetails,
   INPUT_TOKEN_CONFIG,
   InputTokenType,
+  InputTokenTypes,
   OUTPUT_TOKEN_CONFIG,
   OutputTokenType,
   OutputTokenTypes,
@@ -27,7 +28,7 @@ import { config } from '../../config';
 
 import { useEventsContext, clearPersistentErrorEventStore } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { usePendulumNode } from '../../contexts/polkadotNode';
+import { useMoonbeamNode, usePendulumNode } from '../../contexts/polkadotNode';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
@@ -71,6 +72,9 @@ import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
 import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
+import { constructBrlaOnrampInitialState } from '../../services/onrampingFlow';
+import { boolean } from 'yup';
+import { OfframpHandlerType } from '../../services/offrampingFlow';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
 
@@ -78,6 +82,7 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
+  const testRef = useRef(false);
   const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
@@ -85,6 +90,11 @@ export const SwapPage = () => {
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
+  const moonbeamNode = useMoonbeamNode();
+  const { updateOfframpHookStateFromState } = useOfframpActions();
+
+  const { chainId } = useVortexAccount();
+
   // This cache is used to show an error message to the user if the chosen input amount
   // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
   const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
@@ -110,7 +120,29 @@ export const SwapPage = () => {
     if (pendulumNode.apiComponents?.api) {
       setApi(pendulumNode.apiComponents.api);
     }
-  }, [pendulumNode, trackEvent, setApiInitializeFailed]);
+
+    // TESTING ONLY
+    // Force onramp flow to start on page load
+    if (!testRef.current && address && pendulumNode.apiComponents?.api && moonbeamNode.apiComponents?.api && chainId) {
+      constructBrlaOnrampInitialState({
+        inputTokenType: OutputTokenTypes.BRL,
+        outputTokenType: 'usdc',
+        amountIn: '0.058',
+        amountOut: new Big('0.01'),
+        network: selectedNetwork,
+        toNetwork: selectedNetwork,
+        networkId: chainId!,
+        pendulumNode: pendulumNode.apiComponents!,
+        moonbeamNode: moonbeamNode.apiComponents!,
+        addressDestination: address,
+        taxId: '718.784.051-95',
+      }).then((initialState) => {
+        updateOfframpHookStateFromState(initialState);
+      });
+
+      testRef.current = true;
+    }
+  }, [pendulumNode, moonbeamNode, chainId, address, trackEvent, setApiInitializeFailed]);
 
   // TODO Replace with initializeFailed from offrampActions.
   const setInitializeFailed = useCallback((message?: string | null) => {
@@ -215,7 +247,7 @@ export const SwapPage = () => {
     if (tokenOutAmount.data) {
       const toAmount = tokenOutAmount.data.roundedDownQuotedAmountOut;
       // Calculate the final amount after the offramp fees
-      const totalReceive = calculateTotalReceive(toAmount, toToken);
+      const totalReceive = calculateOfframpTotalReceive(toAmount, toToken);
       form.setValue('toAmount', totalReceive);
       setExchangeRateCache((prev) => ({
         ...prev,
@@ -424,7 +456,7 @@ export const SwapPage = () => {
     const inputAmountUnits = fromAmountString;
 
     const outputAmountBeforeFees = validInputs.tokenOutAmountData.roundedDownQuotedAmountOut;
-    const outputAmountAfterFees = calculateTotalReceive(outputAmountBeforeFees, outputToken);
+    const outputAmountAfterFees = calculateOfframpTotalReceive(outputAmountBeforeFees, outputToken);
     const outputAmountUnits = {
       beforeFees: outputAmountBeforeFees.toFixed(2, 0),
       afterFees: outputAmountAfterFees,
