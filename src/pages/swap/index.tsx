@@ -1,4 +1,5 @@
 import Big from 'big.js';
+import * as Sentry from '@sentry/react';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
 import { useTranslation } from 'react-i18next';
@@ -119,6 +120,7 @@ export const SwapPage = () => {
   const setInitializeFailed = useCallback(
     (message?: string | null) => {
       setInitializeFailedMessage(message ?? t('pages.swap.error.initializeFailed.default'));
+      Sentry.captureMessage(`App initialization failed: ${message}`);
     },
     [t],
   );

@@ -1,9 +1,9 @@
-import { useNetwork } from '../contexts/network';
-import { useMemo, useCallback } from 'react';
-import { usePolkadotWalletState } from '../contexts/polkadotWallet';
-import { useAccount } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
+import { useMemo, useCallback, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import { Signer } from '@polkadot/types/types';
-import { useSignMessage } from 'wagmi';
+import { useNetwork } from '../contexts/network';
+import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { isNetworkEVM, ASSETHUB_CHAIN_ID } from '../helpers/networks';
 
 // A helper hook to provide an abstraction over the account used.
@@ -22,6 +22,17 @@ export const useVortexAccount = () => {
       return evmAccountAddress;
     }
   }, [evmAccountAddress, polkadotWalletAccount, selectedNetwork]);
+
+  useEffect(() => {
+    const user = Sentry.getCurrentScope().getUser();
+    // Set the wallet address in Sentry user context
+    if (address) {
+      Sentry.setUser({
+        ...user,
+        wallet: address,
+      });
+    }
+  }, [address]);
 
   const isDisconnected = useMemo(() => {
     if (isNetworkEVM(selectedNetwork)) {
