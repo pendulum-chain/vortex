@@ -8,7 +8,13 @@ import { testRoute } from '../../../../services/phases/squidrouter/route';
 import { useOfframpStore } from '../../../../stores/offrampStore';
 import { getSubaccount, getSubaccountUsedLimit } from '../../../../services/signingService';
 
-async function isOfframpAmountWithinAllowedLimits(amount: string, subaccountTaxId: string) {
+// BRLA denote their amounts as integers with two zeros at the end. This function
+// converts the amount to a decimal number.
+function convertBrlaAmountToDecimals(amount: number) {
+  return amount / 100;
+}
+
+async function isOfframpAmountWithinAllowedLimits(amountUnits: string, subaccountTaxId: string) {
   const { subaccountData } = await getSubaccount(subaccountTaxId);
   if (!subaccountData) {
     throw new Error('Subaccount not found');
@@ -19,20 +25,12 @@ async function isOfframpAmountWithinAllowedLimits(amount: string, subaccountTaxI
     throw new Error(`Unable to query used limits for account ${subaccountData.id}`);
   }
 
-  const userBurnLimitOverall = subaccountData.limits.limitBurn;
-  const userBurnLimitUsed = usedLimit.limitBurn;
-  const remainingBurnLimit = userBurnLimitOverall - userBurnLimitUsed;
+  // Check if the offramped amount is within the allowed limits
+  const subaccountOfframpLimitOverall = subaccountData.limits.limitBRLAOutOwnAccount;
+  const subaccountOfframpLimitUsed = usedLimit.limitBRLAOutOwnAccount;
+  const remainingOffampLimit = subaccountOfframpLimitOverall - subaccountOfframpLimitUsed;
 
-  console.log(
-    'userBurnLimitOverall: ',
-    userBurnLimitOverall,
-    'userBurnLimitUsed: ',
-    userBurnLimitUsed,
-    'remainingBurnLimit: ',
-    remainingBurnLimit,
-  );
-
-  return parseFloat(amount) <= remainingBurnLimit;
+  return parseFloat(amountUnits) <= convertBrlaAmountToDecimals(remainingOffampLimit);
 }
 
 export const performSwapInitialChecks = async () => {

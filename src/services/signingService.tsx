@@ -79,7 +79,7 @@ interface UsedLimitData {
   limitBurn: number;
   limitSwapBuy: number;
   limitSwapSell: number;
-  limitBRLAOutOwnAccount: number;
+  limitBRLAOutOwnAccount: number; // This is the limit to transfer BRLA out of their BRLA account into their bank account
   limitBRLAOutThirdParty: number;
 }
 
