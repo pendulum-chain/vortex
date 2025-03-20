@@ -20,6 +20,31 @@ interface SignerServiceSep10Response {
   masterClientPublic: string;
 }
 
+export interface KYCData {
+  level: number;
+  documentData: string;
+  documentType: string;
+  limits: {
+    limitMint: number;
+    limitBurn: number;
+    limitSwapBuy: number;
+    limitSwapSell: number;
+    limitBRLAOutOwnAccount: number;
+    limitBRLAOutThirdParty: number;
+  };
+}
+
+export interface SubaccountData {
+  id: string;
+  fullName: string;
+  phone: string;
+  kyc: KYCData;
+  address: string;
+  createdAt: string;
+  wallets: { evm: string; tron: string };
+  brCode: string;
+}
+
 type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
 type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
 
@@ -59,6 +84,15 @@ export interface RegisterSubaccountPayload {
   fullName: string;
   cpf: string;
   birthdate: number; // Denoted in milliseconds since epoch
+}
+
+interface UsedLimitsData {
+  limitMint: number;
+  limitBurn: number;
+  limitSwapBuy: number;
+  limitSwapSell: number;
+  limitBRLAOutOwnAccount: number;
+  limitBRLAOutThirdParty: number;
 }
 
 export interface SignerServiceSep10Request {
@@ -219,4 +253,51 @@ export const createSubaccount = async (kycData: RegisterSubaccountPayload): Prom
   }
 
   return await accountCreationResponse.json();
+};
+
+export const getSubaccount = async (
+  taxId: string,
+): Promise<{
+  subaccountData: SubaccountData;
+  userExists: boolean;
+  kycInvalid: boolean;
+}> => {
+  const subaccountResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}`);
+
+  let userExists = true;
+  let kycInvalid = false;
+  if (!subaccountResponse.ok) {
+    // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
+    // to be valid, or retry.
+    if (subaccountResponse.status === 404) {
+      console.log("User doesn't exist yet.");
+      userExists = false;
+    } else if ((await subaccountResponse.text()).includes('KYC invalid')) {
+      kycInvalid = true;
+    } else {
+      throw new Error('Error while fetching BRLA user');
+    }
+  }
+
+  const subaccountData: SubaccountData = await subaccountResponse.json();
+  return {
+    subaccountData,
+    userExists,
+    kycInvalid,
+  };
+};
+
+export const getSubaccountUsedLimits = async (subaccountId: string): Promise<UsedLimitsData> => {
+  const usedLimitsResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/usedLimits?subaccountId=${subaccountId}`);
+
+  if (usedLimitsResponse.status === 400) {
+    const { details } = await usedLimitsResponse.json();
+    throw new Error('Failed to create user. Reason: ' + details.error);
+  }
+
+  if (usedLimitsResponse.status !== 200) {
+    throw new Error(`Failed to fetch KYC status from server: ${usedLimitsResponse.statusText}`);
+  }
+
+  return await usedLimitsResponse.json();
 };

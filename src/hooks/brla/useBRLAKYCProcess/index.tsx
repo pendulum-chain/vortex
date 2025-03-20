@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useOfframpActions } from '../../../stores/offrampStore';
-import { useOfframpSubmission } from '../useOfframpSubmission';
+import { useOfframpSubmissionAfterKYC } from '../useOfframpSubmissionAfterKYC';
 import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
@@ -96,7 +96,7 @@ export function useKYCProcess() {
     ],
   );
 
-  const proceedWithOfframp = useOfframpSubmission(handleError);
+  const proceedWithOfframp = useOfframpSubmissionAfterKYC(handleError);
 
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {
