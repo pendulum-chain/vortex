@@ -8,7 +8,6 @@ import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
 import { FailureType } from '../../services/offrampingFlow';
 import { config } from '../../config';
-import { useVortexAccount } from '../../hooks/useVortexAccount';
 
 const Cross = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-red-500 rounded-full">
