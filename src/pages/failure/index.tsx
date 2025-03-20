@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { TransactionInfo } from '../../components/TransactionInfo';
 import { Box } from '../../components/Box';
@@ -5,7 +8,7 @@ import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
 import { FailureType } from '../../services/offrampingFlow';
 import { config } from '../../config';
-import { useTranslation } from 'react-i18next';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
 
 const Cross = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-red-500 rounded-full">
@@ -22,6 +25,19 @@ interface FailurePageProps {
 
 export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId, failure }: FailurePageProps) => {
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (failure.type === 'recoverable') {
+      Sentry.captureMessage(`Entered failure page with recoverable error: ${failure.message}`, {
+        level: 'warning',
+      });
+    } else {
+      Sentry.captureMessage(`Entered failure page with unrecoverable error: ${failure.message}`, {
+        level: 'error',
+      });
+    }
+  }, []);
+
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12">
