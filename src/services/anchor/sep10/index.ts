@@ -1,7 +1,7 @@
 import { Transaction, Keypair, Memo, Operation, MemoType } from 'stellar-sdk';
 
-import { getOutputTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
-import { OutputTokenType } from '../../../constants/tokenConfig';
+import { getTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
+import { FiatToken } from '../../../constants/tokenConfig';
 import { TomlValues } from '../../../types/sep';
 
 import { exists, getUrlParams, sep10SignaturesWithLoginRefresh } from './utils';
@@ -37,7 +37,7 @@ async function submitSignedTransaction(
 export async function sep10(
   tomlValues: TomlValues,
   stellarEphemeralSecret: string,
-  outputToken: OutputTokenType,
+  outputToken: FiatToken,
   address: string,
   checkAndWaitForSignature: () => Promise<void>,
   forceRefreshAndWaitForSignature: () => Promise<void>,
@@ -50,7 +50,7 @@ export async function sep10(
 
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
   const accountId = ephemeralKeys.publicKey();
-  const { usesMemo, supportsClientDomain } = getOutputTokenDetailsSpacewalk(outputToken);
+  const { usesMemo, supportsClientDomain } = getTokenDetailsSpacewalk(outputToken);
 
   const { urlParams, sep10Account } = await getUrlParams(accountId, usesMemo, supportsClientDomain, address);
   const transactionSigned = await fetchAndValidateChallenge(webAuthEndpoint, urlParams, signingKey);

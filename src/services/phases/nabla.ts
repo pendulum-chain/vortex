@@ -14,9 +14,12 @@ import {
 import Big from 'big.js';
 
 import {
-  getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  getAnyFiatTokenDetails,
   getPendulumCurrencyId,
+  getOnChainTokenDetails,
+  OnChainToken,
+  FiatToken,
   getPendulumDetails,
 } from '../../constants/tokenConfig';
 import { NABLA_ROUTER } from '../../constants/constants';
@@ -32,11 +35,11 @@ import {
   stringifyBigWithSignificantDecimals,
 } from '../../helpers/contracts';
 
-import { OfframpingState } from '../offrampingFlow';
+import { isOfframpState, OfframpingState } from '../offrampingFlow';
 import { decodeSubmittableExtrinsic } from './signedTransactions';
 import { getEphemeralNonce } from './polkadot/ephemeral';
-import { BrlaOnrampingState } from '../onrampingFlow';
-import { ExecutionContext } from '../flowCommons';
+import { OnrampingState } from '../onrampingFlow';
+import { ExecutionContext, FlowState, FlowType } from '../flowCommons';
 
 interface CreateAndSignApproveExtrinsicOptions {
   api: ApiPromise;
@@ -82,7 +85,7 @@ async function createAndSignApproveExtrinsic({
 }
 
 export async function prepareNablaApproveTransaction(
-  state: OfframpingState | BrlaOnrampingState,
+  state: OfframpingState | OnrampingState,
   context: ExecutionContext,
 ): Promise<Extrinsic> {
   const { inputTokenType, inputAmount, pendulumAmountRaw, pendulumEphemeralSeed, nablaApproveNonce, network } = state;
@@ -90,7 +93,7 @@ export async function prepareNablaApproveTransaction(
 
   const { ss58Format, api } = pendulumNode;
   // event attempting swap
-  const inputToken = getPendulumDetails(network, inputTokenType);
+  const inputToken = getPendulumDetails(inputTokenType, network);
 
   console.log('swap', 'Preparing the signed extrinsic for the approval of swap', inputAmount.units, inputTokenType);
 
@@ -145,14 +148,13 @@ export async function prepareNablaApproveTransaction(
 
 // Since this operation reads first from chain the current approval, there is no need to
 // save any state for potential recovery.
-export async function nablaApprove(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function nablaApprove(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const { transactions, inputAmount, inputTokenType, nablaApproveNonce, network } = state;
   const { pendulumNode } = context;
 
   const { api } = pendulumNode;
 
-  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-
+  const inputToken = getPendulumDetails(inputTokenType, network);
   if (!transactions) {
     const message = 'Missing transactions for nablaApprove';
     console.error(message);
@@ -248,7 +250,7 @@ export async function createAndSignSwapExtrinsic({
 }
 
 export async function prepareNablaSwapTransaction(
-  state: OfframpingState | BrlaOnrampingState,
+  state: OfframpingState | OnrampingState,
   context: ExecutionContext,
 ): Promise<Extrinsic> {
   const { api } = context.pendulumNode;
@@ -266,9 +268,8 @@ export async function prepareNablaSwapTransaction(
   } = state;
 
   // event attempting swap
-  const inputToken = getPendulumDetails(network, inputTokenType);
-  const outputToken = getPendulumDetails(network, outputTokenType);
-
+  const inputToken = getPendulumDetails(inputTokenType, network);
+  const outputToken = getPendulumDetails(outputTokenType, network);
   const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
 
   // get ephemeral keypair and account
@@ -308,7 +309,7 @@ export async function prepareNablaSwapTransaction(
   throw Error("Couldn't create swap extrinsic");
 }
 
-export async function nablaSwap(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function nablaSwap(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const {
     transactions,
     inputAmount,
@@ -335,8 +336,8 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
     return successorState;
   }
 
-  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputToken = getOutputTokenDetails(outputTokenType);
+  const inputToken = getPendulumDetails(inputTokenType, network);
+  const outputToken = getPendulumDetails(outputTokenType, network);
 
   if (transactions === undefined) {
     const message = 'Missing transactions for nablaSwap';
@@ -349,13 +350,13 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
   const ephemeralKeypair = keyring.addFromUri(pendulumEphemeralSeed);
   // balance before the swap. Important for recovery process.
   // if transaction was able to get in, but we failed on the listening
-  const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
+  const outputCurrencyId = outputToken.pendulumCurrencyId;
   const responseBalanceBefore = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
   const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
 
   try {
     console.log(
-      `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.fiat.symbol} `,
+      `Swapping ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken.pendulumAssetSymbol} `,
     );
 
     console.log('before RESPONSE prepareNablaSwapTransaction');
@@ -366,7 +367,10 @@ export async function nablaSwap(state: OfframpingState, context: ExecutionContex
       contractDeploymentAddress: NABLA_ROUTER,
       callerAddress: ephemeralKeypair.address,
       messageName: 'getAmountOut',
-      messageArguments: [pendulumAmountRaw, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
+      messageArguments: [
+        pendulumAmountRaw,
+        [inputToken.pendulumErc20WrapperAddress, outputToken.pendulumErc20WrapperAddress],
+      ],
       limits: defaultReadLimits,
     });
 

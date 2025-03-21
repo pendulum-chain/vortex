@@ -15,14 +15,12 @@ import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
   getEnumKeyByStringValue,
-  getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  getAnyFiatTokenDetails,
   INPUT_TOKEN_CONFIG,
-  InputTokenType,
-  InputTokenTypes,
+  OnChainToken,
   OUTPUT_TOKEN_CONFIG,
-  OutputTokenType,
-  OutputTokenTypes,
+  FiatToken,
 } from '../../constants/tokenConfig';
 import { config } from '../../config';
 
@@ -76,7 +74,7 @@ import { constructBrlaOnrampInitialState } from '../../services/onrampingFlow';
 import { boolean } from 'yup';
 import { OfframpHandlerType } from '../../services/offrampingFlow';
 
-type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
+type ExchangeRateCache = Partial<Record<OnChainToken, Partial<Record<FiatToken, number>>>>;
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -125,7 +123,7 @@ export const SwapPage = () => {
     // Force onramp flow to start on page load
     if (!testRef.current && address && pendulumNode.apiComponents?.api && moonbeamNode.apiComponents?.api && chainId) {
       constructBrlaOnrampInitialState({
-        inputTokenType: OutputTokenTypes.BRL,
+        inputTokenType: FiatToken.BRL,
         outputTokenType: 'usdc',
         amountIn: '0.58',
         amountOut: new Big('0.1'),
@@ -219,8 +217,8 @@ export const SwapPage = () => {
 
   useSwapUrlParams({ form, feeComparisonRef });
 
-  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = getOutputTokenDetails(to);
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
+  const toToken = getAnyFiatTokenDetails(to);
   const formToAmount = form.watch('toAmount');
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
@@ -352,16 +350,18 @@ export const SwapPage = () => {
   const definitions: TokenDefinition[] =
     tokenSelectModalType === 'from'
       ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
-          type: key as InputTokenType,
+          type: key as OnChainToken,
           assetSymbol: value.assetSymbol,
           assetIcon: value.networkAssetIcon,
         }))
-      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
-          assetSymbol: value.fiat.symbol,
-          assetIcon: value.fiat.assetIcon,
-          name: value.fiat.name,
-        }));
+      : [...Object.entries(MOONBEAM_FIAT_TOKEN_CONFIG), ...Object.entries(STELLAR_FIAT_TOKEN_CONFIG)].map(
+          ([key, value]) => ({
+            type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
+            assetSymbol: value.fiat.symbol,
+            assetIcon: value.fiat.assetIcon,
+            name: value.fiat.name,
+          }),
+        );
 
   const modals = (
     <>
@@ -442,8 +442,8 @@ export const SwapPage = () => {
 
     setOfframpInitiating(true);
 
-    const outputToken = getOutputTokenDetails(to);
-    const inputToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
+    const outputToken = getAnyFiatTokenDetails(to);
+    const inputToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
 
     const { expectedRedeemAmountRaw, inputAmountRaw } = calculateSwapAmountsWithMargin(
       validInputs.fromAmount,

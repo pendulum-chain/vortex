@@ -11,7 +11,7 @@ import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
 import { useFromAmount } from '../stores/formStore';
-import { BrlaOnrampingState } from '../services/onrampingFlow';
+import { OnrampingState } from '../services/onrampingFlow';
 
 declare global {
   interface Window {
@@ -329,17 +329,17 @@ export function EventsProvider({ children }: PropsWithChildren) {
 
 export function createTransactionEvent(
   type: TransactionEvent['event'],
-  state: OfframpingState | BrlaOnrampingState,
+  state: OfframpingState | OnrampingState,
   selectedNetwork: Networks,
 ) {
-  const inputTokenDetails = getPendulumDetails(selectedNetwork, state.inputTokenType);
+  const OnChainTokenDetails = getPendulumDetails(selectedNetwork, state.inputTokenType);
   const ouputTokenDetails = getPendulumDetails(selectedNetwork, state.outputTokenType);
   return {
     event: type,
-    from_asset: inputTokenDetails.pendulumAssetSymbol ?? 'unknown',
+    from_asset: OnChainTokenDetails.pendulumAssetSymbol ?? 'unknown',
     to_asset: ouputTokenDetails.pendulumAssetSymbol,
     from_amount: state.inputAmount.units,
-    to_amount: calculateTotalReceive(state.flowType, Big(state.outputAmount.units), state.outputTokenType),
+    to_amount: calculateTotalReceive(state.flowType, Big(state.outputAmount.units), state.FiatToken),
   };
 }
 

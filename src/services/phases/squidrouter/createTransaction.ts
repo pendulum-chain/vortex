@@ -1,21 +1,20 @@
 import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
-import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
+import { mnemonicToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
 
 import { AXL_USDC_MOONBEAM } from '../../../constants/constants';
 import { Networks } from '../../../helpers/networks';
-import { OnrampOutputTokenType } from '../../onrampingFlow';
 import { getRoute, RouteParams } from './route';
 import { createOnrampRouteParams } from './route';
 
 import erc20ABI from '../../../contracts/ERC20';
 
-import { ApiComponents } from '../../../contexts/polkadotNode';
+import { EvmToken, isEvmToken, OnChainToken } from '../../../constants/tokenConfig';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
   amount: string;
-  outputToken: OnrampOutputTokenType;
+  outputToken: OnChainToken;
   toNetwork: Networks;
   addressDestination: string;
   moonbeamEphemeralSeed: `0x${string}`;
@@ -25,6 +24,9 @@ export interface OnrampSquidrouterParams {
 export async function createOnrampSquidrouterTransaction(
   params: OnrampSquidrouterParams,
 ): Promise<{ squidrouterApproveTransaction: string; squidrouterSwapTransaction: string }> {
+  if (params.toNetwork === Networks.AssetHub) {
+    return { squidrouterApproveTransaction: '0x', squidrouterSwapTransaction: '0x' };
+  }
   const account = mnemonicToAccount(params.moonbeamEphemeralSeed);
 
   const moonbeamWalletClient = createWalletClient({
@@ -41,7 +43,7 @@ export async function createOnrampSquidrouterTransaction(
   const routeParams = createOnrampRouteParams(
     account.address,
     params.amount,
-    params.outputToken,
+    params.outputToken as EvmToken,
     params.toNetwork,
     params.addressDestination,
   );

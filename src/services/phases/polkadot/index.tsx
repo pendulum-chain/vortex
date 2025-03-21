@@ -3,14 +3,14 @@ import { Keyring } from '@polkadot/api';
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import Big from 'big.js';
 
-import { getOutputTokenDetailsSpacewalk, OutputTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
+import { getTokenDetailsSpacewalk, StellarTokenDetails } from '../../../constants/tokenConfig';
 import { ApiComponents } from '../../../contexts/polkadotNode';
 import { getStellarBalanceUnits } from '../stellar/utils';
 import { getEphemeralNonce } from './ephemeral';
 import { decodeSubmittableExtrinsic } from '../signedTransactions';
 import { getVaultsForCurrency, prettyPrintVaultId, VaultService } from './spacewalk';
-import { OfframpingState } from '../../offrampingFlow';
-import { ExecutionContext } from '../../flowCommons';
+import { isOfframpState, OfframpingState } from '../../offrampingFlow';
+import { ExecutionContext, FlowState } from '../../flowCommons';
 import { EventListener } from './eventListener';
 import { isSpacewalkOfframpTransactions } from '../../../types/offramp';
 
@@ -43,7 +43,7 @@ export async function prepareSpacewalkRedeemTransaction(
     throw new Error('Stellar ephemeral secret not available');
   }
 
-  const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
+  const outputToken = getTokenDetailsSpacewalk(outputTokenType);
   const { ss58Format } = pendulumNode;
 
   // get ephemeral keypair and account
@@ -81,14 +81,15 @@ export async function prepareSpacewalkRedeemTransaction(
   throw Error("Couldn't create redeem extrinsic");
 }
 
-export async function executeSpacewalkRedeem(
-  state: OfframpingState,
-  context: ExecutionContext,
-): Promise<OfframpingState> {
+export async function executeSpacewalkRedeem(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const { pendulumNode } = context;
 
   if (!pendulumNode) {
     throw new Error('Pendulum node not available');
+  }
+
+  if (!isOfframpState(state)) {
+    throw new Error('executeMoonbeamToPendulumXCM: State must be an offramp state');
   }
 
   const {
@@ -99,7 +100,7 @@ export async function executeSpacewalkRedeem(
     stellarEphemeralSecret,
     executeSpacewalkNonce,
   } = state;
-  const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
+  const outputToken = getTokenDetailsSpacewalk(outputTokenType);
 
   if (!transactions || !stellarEphemeralSecret || !executeSpacewalkNonce) {
     const message = 'Invalid state. Missing values.';
@@ -206,7 +207,7 @@ export async function executeSpacewalkRedeem(
 
 function checkBalancePeriodically(
   stellarTargetAccountId: string,
-  outputToken: OutputTokenDetailsSpacewalk,
+  outputToken: StellarTokenDetails,
   amountDesiredUnitsBig: Big,
   intervalMs: number,
   timeoutMs: number,

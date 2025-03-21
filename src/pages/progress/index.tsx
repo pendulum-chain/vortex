@@ -11,7 +11,7 @@ import { isNetworkEVM } from '../../helpers/networks';
 import { createOfframpingPhaseMessage } from './helpers';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
-import { BrlaOnrampingState } from '../../services/onrampingFlow';
+import { OnrampingState } from '../../services/onrampingFlow';
 
 const useProgressUpdate = (
   currentPhase: OfframpingPhase,
@@ -76,7 +76,7 @@ const CIRCLE_STROKE_WIDTH = 12;
 const numberOfPhases = Object.keys(OFFRAMPING_PHASE_SECONDS).length;
 
 interface ProgressPageProps {
-  offrampingState: OfframpingState | BrlaOnrampingState;
+  offrampingState: OfframpingState | OnrampingState;
 }
 
 interface ProgressContentProps {

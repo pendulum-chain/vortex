@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { getRouteTransactionRequest, testRoute } from '../route';
 
-import { INPUT_TOKEN_CONFIG } from '../../../../constants/tokenConfig';
-import { InputTokenDetails } from '../../../../constants/tokenConfig';
+import { EvmToken, EvmTokenDetails, ON_CHAIN_TOKEN_CONFIG } from '../../../../constants/tokenConfig';
+import { OnChainTokenDetails } from '../../../../constants/tokenConfig';
 import { createSquidRouterHash } from '../../../../helpers/crypto';
 import { createRandomString } from '../../../../helpers/crypto';
 import { Networks } from '../../../../helpers/networks';
@@ -18,7 +18,7 @@ beforeEach(() => {
 
 describe('Squidrouter', () => {
   describe('should be able to get route for relevant USDC tokens', () => {
-    function getRouteForToken(inputToken: InputTokenDetails) {
+    function getRouteForToken(inputToken: EvmTokenDetails) {
       // These addresses don't really matter
       const userAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877';
       const somePayload =
@@ -30,14 +30,14 @@ describe('Squidrouter', () => {
       return getRouteTransactionRequest(userAddress, amount, squidRouterHash, inputToken, Networks.Polygon);
     }
 
-    async function testRouteForToken(inputToken: InputTokenDetails) {
+    async function testRouteForToken(inputToken: EvmTokenDetails) {
       const userAddress = '0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877' as `0x${string}`;
       const amount = '1000000000';
       return testRoute(inputToken, amount, userAddress, Networks.Polygon);
     }
 
     it('should successfully query a route for USDC', async () => {
-      const inputToken = INPUT_TOKEN_CONFIG.Polygon.usdc;
+      const inputToken = ON_CHAIN_TOKEN_CONFIG.Polygon.usdc as EvmTokenDetails;
       const route = await getRouteForToken(inputToken!);
 
       expect(route).toBeDefined();
@@ -49,7 +49,7 @@ describe('Squidrouter', () => {
     });
 
     it('should successfully query a route for USDC.e', async () => {
-      const inputToken = INPUT_TOKEN_CONFIG.Polygon.usdce;
+      const inputToken = ON_CHAIN_TOKEN_CONFIG.Polygon.usdce as EvmTokenDetails;
       const route = await getRouteForToken(inputToken!);
 
       expect(route).toBeDefined();

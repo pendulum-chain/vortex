@@ -5,9 +5,9 @@ import { storeDataInBackend } from '../storage/remote';
 
 import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './nabla';
 import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
-import { getOutputTokenDetailsMoonbeam, getPendulumDetails } from '../../constants/tokenConfig';
-import { ExecutionContext } from '../flowCommons';
-import { BrlaOnrampingState, BrlaOnrampTransactions } from '../onrampingFlow';
+import { getAnyFiatTokenDetailsMoonbeam, getOnChainTokenDetails } from '../../constants/tokenConfig';
+import { ExecutionContext, FlowState } from '../flowCommons';
+import { OnrampingState, BrlaOnrampTransactions, isOnrmapState } from '../onrampingFlow';
 import { createMoonbeamToPendulumXCM } from './moonbeam';
 import { createPendulumToAssethubTransfer } from './polkadot/xcm/assethub';
 import { createOnrampSquidrouterTransaction, OnrampSquidrouterParams } from './squidrouter/createTransaction';
@@ -22,10 +22,11 @@ export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPro
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
-export async function prepareOnrampTransactions(
-  state: BrlaOnrampingState,
-  context: ExecutionContext,
-): Promise<BrlaOnrampingState> {
+export async function prepareOnrampTransactions(state: FlowState, context: ExecutionContext): Promise<FlowState> {
+  if (!isOnrmapState(state)) {
+    throw new Error('State does not have required BRLA properties');
+  }
+
   const { pendulumEphemeralSeed, outputTokenType, inputAmount, outputAmount, inputTokenType, flowType } = state;
 
   const { pendulumNode, moonbeamNode } = context;
@@ -75,7 +76,7 @@ export async function prepareOnrampTransactions(
 }
 
 async function prepareBrlaOnrampTransactions(
-  state: BrlaOnrampingState,
+  state: OnrampingState,
   context: ExecutionContext,
 ): Promise<BrlaOnrampTransactions> {
   const {
@@ -94,8 +95,8 @@ async function prepareBrlaOnrampTransactions(
 
   const { moonbeamNode, pendulumNode } = context;
 
-  const inputTokenAddressMoonbeam = getOutputTokenDetailsMoonbeam(inputTokenType).moonbeamErc20Address;
-  const outputTokenDetails = getPendulumDetails(toNetwork, outputTokenType)!;
+  const inputTokenAddressMoonbeam = getAnyFiatTokenDetailsMoonbeam(inputTokenType).moonbeamErc20Address;
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, outputTokenType)!;
 
   // Improvement: Nabla could be moved to a transaction commons, also with offramp.
   const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);

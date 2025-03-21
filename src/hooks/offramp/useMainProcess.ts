@@ -62,8 +62,8 @@ export const useMainProcess = () => {
     }
 
     const initialState = await constructBrlaInitialState({
-      inputTokenType: executionInput.inputTokenType,
-      outputTokenType: executionInput.outputTokenType,
+      OnChainToken: executionInput.inputTokenType,
+      FiatToken: executionInput.outputTokenType,
       amountIn: executionInput.inputAmountUnits,
       amountOut: Big(executionInput.outputAmountUnits.beforeFees),
       network,

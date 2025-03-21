@@ -1,10 +1,10 @@
-import { InputTokenDetails } from '../../constants/tokenConfig';
+import { OnChainTokenDetails } from '../../constants/tokenConfig';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import wallet from '../../assets/wallet-bifold-outline.svg';
 
 interface UserBalanceProps {
-  token: InputTokenDetails;
+  token: OnChainTokenDetails;
   onClick: (amount: string) => void;
 }
 

@@ -1,8 +1,8 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
-import { InputTokenType, OutputTokenType } from '../../../constants/tokenConfig';
+import { OnChainToken, FiatToken } from '../../../constants/tokenConfig';
 
-interface PoolListItemProps<T extends InputTokenType | OutputTokenType> {
+interface PoolListItemProps<T extends OnChainToken | FiatToken> {
   tokenType: T;
   tokenSymbol: string;
   isSelected?: boolean;
@@ -11,7 +11,7 @@ interface PoolListItemProps<T extends InputTokenType | OutputTokenType> {
   name?: string;
 }
 
-export function PoolListItem<T extends InputTokenType | OutputTokenType>({
+export function PoolListItem<T extends OnChainToken | FiatToken>({
   tokenType,
   tokenSymbol,
   isSelected,

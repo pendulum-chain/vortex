@@ -10,8 +10,8 @@ import squidReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { waitUntilTrue } from '../../helpers/function';
 import encodePayload from './squidrouter/payload';
-import { OfframpingState } from '../offrampingFlow';
-import { ExecutionContext } from '../flowCommons';
+import { isOfframpState, OfframpingState } from '../offrampingFlow';
+import { ExecutionContext, FlowState } from '../flowCommons';
 
 import { getRawInputBalance } from './polkadot/ephemeral';
 import { squidRouterConfigBase } from './squidrouter/config';
@@ -88,13 +88,14 @@ export async function createMoonbeamToPendulumXCM(
   return signedXcm;
 }
 
-export async function executeMoonbeamToPendulumXCM(
-  state: OfframpingState,
-  context: ExecutionContext,
-): Promise<OfframpingState> {
+export async function executeMoonbeamToPendulumXCM(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const { pendulumNode } = context;
 
   const { ss58Format } = pendulumNode;
+
+  if (!isOfframpState(state)) {
+    throw new Error('executeMoonbeamToPendulumXCM: State must be an offramp state');
+  }
 
   const keyring = new Keyring({ type: 'sr25519', ss58Format });
   const ephemeralKeypair = keyring.addFromUri(state.pendulumEphemeralSeed);

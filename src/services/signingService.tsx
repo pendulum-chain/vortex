@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
-import { OutputTokenType } from '../constants/tokenConfig';
+import { FiatToken } from '../constants/tokenConfig';
 
 interface AccountStatusResponse {
   status: boolean;
@@ -63,7 +63,7 @@ export interface RegisterSubaccountPayload {
 
 export interface SignerServiceSep10Request {
   challengeXDR: string;
-  outToken: OutputTokenType;
+  outToken: FiatToken;
   clientPublicKey: string;
   address: string;
   usesMemo?: boolean;

@@ -6,14 +6,14 @@ import { useNetwork } from '../../contexts/network';
 import { getPendulumDetails } from '../../constants/tokenConfig';
 import { OfframpingState } from '../../services/offrampingFlow';
 import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
-import { BrlaOnrampingState } from '../../services/onrampingFlow';
+import { OnrampingState } from '../../services/onrampingFlow';
 
 export const useOfframpEvents = () => {
   const { trackEvent, resetUniqueEvents } = useEventsContext();
   const { selectedNetwork } = useNetwork();
 
   const trackOfframpingEvent = useCallback(
-    (state: OfframpingState | BrlaOnrampingState | undefined) => {
+    (state: OfframpingState | OnrampingState | undefined) => {
       if (!state) return;
 
       if (state.phase === 'success') {

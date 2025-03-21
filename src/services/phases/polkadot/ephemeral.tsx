@@ -6,11 +6,11 @@ import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { ApiPromise, Keyring } from '@polkadot/api';
 
 import {
-  getInputTokenDetails,
-  getInputTokenDetailsOrDefault,
+  getOnChainTokenDetails,
+  getOnChainTokenDetailsOrDefault,
   getPendulumCurrencyId,
+  FiatToken,
   getPendulumDetails,
-  OutputTokenTypes,
 } from '../../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 
@@ -18,15 +18,15 @@ import { multiplyByPowerOfTen } from '../../../helpers/contracts';
 import { waitUntilTrue } from '../../../helpers/function';
 import { isNetworkEVM } from '../../../helpers/networks';
 
-import { OfframpingState } from '../../offrampingFlow';
-import { BaseFlowState, ExecutionContext } from '../../flowCommons';
+import { isOfframpFlow, isOfframpState, OfframpingState } from '../../offrampingFlow';
+import { BaseFlowState, ExecutionContext, FlowState } from '../../flowCommons';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { isHashRegistered } from '../moonbeam';
-import { BrlaOnrampingState } from '../../onrampingFlow';
+import { OnrampingState } from '../../onrampingFlow';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
 
-async function isEphemeralFunded(state: OfframpingState, context: ExecutionContext) {
+async function isEphemeralFunded(state: FlowState, context: ExecutionContext) {
   const { pendulumNode } = context;
   const { pendulumEphemeralSeed } = state;
   if (!pendulumNode || !pendulumNode.api.isConnected) {
@@ -46,7 +46,7 @@ async function isEphemeralFunded(state: OfframpingState, context: ExecutionConte
   return Big(balance.free.toString()).gte(fundingAmountRaw);
 }
 
-export async function getEphemeralAddress(state: OfframpingState, context: ExecutionContext) {
+export async function getEphemeralAddress(state: FlowState, context: ExecutionContext) {
   const { pendulumNode } = context;
   const { pendulumEphemeralSeed } = state;
 
@@ -84,10 +84,7 @@ export async function getEphemeralNonce(
   }
 }
 
-export async function pendulumFundEphemeral(
-  state: OfframpingState,
-  context: ExecutionContext,
-): Promise<OfframpingState> {
+export async function pendulumFundEphemeral(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   console.log('Pendulum funding ephemeral account');
   const { squidRouterSwapHash, outputTokenType } = state;
   const { wagmiConfig } = context;
@@ -104,7 +101,7 @@ export async function pendulumFundEphemeral(
 
   if (!isAlreadyFunded) {
     const ephemeralAddress = await getEphemeralAddress(state, context);
-    const maybeFundGlmr = outputTokenType === OutputTokenTypes.BRL ? true : false;
+    const maybeFundGlmr = outputTokenType === FiatToken.BRL ? true : false;
 
     const response = await axios.post(`${SIGNING_SERVICE_URL}/v1/pendulum/fundEphemeral`, {
       ephemeralAddress,
@@ -118,7 +115,7 @@ export async function pendulumFundEphemeral(
     await waitUntilTrue(() => isEphemeralFunded(state, context));
   }
 
-  if (isNetworkEVM(state.network)) {
+  if (isNetworkEVM(state.network) && isOfframpState(state)) {
     await waitUntilTrue(() => isHashRegistered(state.squidRouterReceiverHash));
   }
 
@@ -149,7 +146,7 @@ export async function createPendulumEphemeralSeed(pendulumNode: {
   return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
-export async function pendulumCleanup(state: any, context: ExecutionContext): Promise<any> {
+export async function pendulumCleanup(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const { pendulumNode } = context;
 
   try {
@@ -168,8 +165,8 @@ export async function pendulumCleanup(state: any, context: ExecutionContext): Pr
 
     // probably will never be exactly '0', but to be safe
     // TODO: if the value is too small, do we really want to transfer token dust and spend fees?
-    const inputCurrencyId = getPendulumDetails(network, inputTokenType).pendulumCurrencyId;
-    const outputCurrencyId = getPendulumDetails(network, outputTokenType).pendulumCurrencyId;
+    const inputCurrencyId = getPendulumDetails(inputTokenType, network).pendulumCurrencyId;
+    const outputCurrencyId = getPendulumDetails(outputTokenType, network).pendulumCurrencyId;
     await api.tx.utility
       .batchAll([
         api.tx.tokens.transferAll(fundingAccountAddress, inputCurrencyId, false),
@@ -180,7 +177,7 @@ export async function pendulumCleanup(state: any, context: ExecutionContext): Pr
   } catch (error) {
     console.error('Error cleaning pendulum ephemeral account', error);
   }
-  if (state.outputTokenType === OutputTokenTypes.BRL) {
+  if (state.outputTokenType === FiatToken.BRL) {
     return { ...state, phase: 'success' };
   }
   return { ...state, phase: 'stellarOfframp' };
@@ -195,7 +192,7 @@ export async function getRawInputBalance(state: OfframpingState, context: Execut
 
   const { api } = pendulumNode;
 
-  const inputToken = getInputTokenDetailsOrDefault(state.network, state.inputTokenType);
+  const inputToken = getOnChainTokenDetailsOrDefault(state.network, state.inputTokenType);
 
   console.log('getRawInputBalance address: ', await getEphemeralAddress(state, context));
   const balanceResponse = await api.query.tokens.accounts(
@@ -229,12 +226,12 @@ export async function getRawOutputBalance(state: OfframpingState, context: Execu
   return outputBalanceRaw;
 }
 
-export async function subsidizePreSwap(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function subsidizePreSwap(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const currentBalance = await getRawInputBalance(state, context);
   if (currentBalance.eq(Big(0))) {
     throw new Error('Invalid phase: input token did not arrive yet on pendulum');
   }
-  const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
+  const inputToken = getOnChainTokenDetails(state.network, state.inputTokenType);
   if (!inputToken) {
     throw new Error('Invalid input token');
   }
@@ -273,7 +270,7 @@ export async function subsidizePreSwap(state: OfframpingState, context: Executio
   };
 }
 
-export async function subsidizePostSwap(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function subsidizePostSwap(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const currentBalance = await getRawOutputBalance(state, context);
   if (currentBalance.eq(Big(0))) {
     throw new Error('Invalid phase: output token has not been swapped yet');
@@ -305,7 +302,7 @@ export async function subsidizePostSwap(state: OfframpingState, context: Executi
     });
   }
 
-  if (state.outputTokenType === OutputTokenTypes.BRL) {
+  if (state.outputTokenType === FiatToken.BRL) {
     return {
       ...state,
       phase: 'executePendulumToMoonbeamXCM',

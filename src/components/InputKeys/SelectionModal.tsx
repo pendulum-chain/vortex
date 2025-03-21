@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
+import { OnChainToken, FiatToken } from '../../constants/tokenConfig';
 import { Dialog } from '../Dialog';
 import { Skeleton } from '../Skeleton';
 import { PoolListItem } from './PoolListItem';
@@ -14,15 +14,15 @@ interface PoolSelectorModalProps extends PoolListProps {
 
 export interface TokenDefinition {
   assetSymbol: string;
-  type: InputTokenType | OutputTokenType;
+  type: OnChainToken | FiatToken;
   assetIcon: AssetIconType;
   name?: string;
 }
 
 interface PoolListProps {
   definitions: TokenDefinition[];
-  onSelect: (tokenType: InputTokenType | OutputTokenType) => void;
-  selected: InputTokenType | OutputTokenType;
+  onSelect: (tokenType: OnChainToken | FiatToken) => void;
+  selected: OnChainToken | FiatToken;
 }
 
 export function PoolSelectorModal({

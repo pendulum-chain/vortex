@@ -1,7 +1,7 @@
 import { Keyring } from '@polkadot/api';
 
-import { OfframpingState } from '../../../offrampingFlow';
-import { ExecutionContext } from '../../../flowCommons';
+import { isOfframpState, OfframpingState } from '../../../offrampingFlow';
+import { ExecutionContext, FlowState } from '../../../flowCommons';
 
 import { submitXTokens } from '.';
 import { SignerOptions } from '@polkadot/api-base/types';
@@ -48,12 +48,13 @@ export function createPendulumToMoonbeamTransfer(
     .signAsync(ephemeralKeypair, options);
 }
 
-export async function executePendulumToMoonbeamXCM(
-  state: OfframpingState,
-  context: ExecutionContext,
-): Promise<OfframpingState> {
+export async function executePendulumToMoonbeamXCM(state: FlowState, context: ExecutionContext): Promise<FlowState> {
   const { pendulumNode } = context;
   const { pendulumEphemeralAddress, transactions, outputAmount } = state;
+
+  if (!isOfframpState(state)) {
+    throw new Error('executeAssetHubToPendulumXCM: State must be an offramp state');
+  }
 
   if (transactions === undefined || !isBrlaOfframpTransactions(transactions)) {
     const message = 'Missing transactions for xcm to Moonbeam';

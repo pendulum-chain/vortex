@@ -13,11 +13,7 @@ import {
   TransactionBuilder,
 } from 'stellar-sdk';
 
-import {
-  getOutputTokenDetailsSpacewalk,
-  OutputTokenDetailsSpacewalk,
-  OutputTokenType,
-} from '../../../constants/tokenConfig';
+import { getTokenDetailsSpacewalk, FiatToken } from '../../../constants/tokenConfig';
 import {
   HORIZON_URL,
   SIGNING_SERVICE_URL,
@@ -28,6 +24,7 @@ import { fetchSigningServiceAccountId } from '../../signingService';
 import { OfframpingState } from '../../offrampingFlow';
 import { SepResult } from '../../../types/sep';
 import { isSpacewalkOfframpTransactions } from '../../../types/offramp';
+import { FlowState } from '../../flowCommons';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
@@ -77,7 +74,7 @@ type StellarFundingSignatureResponse = {
 
 export async function stellarCreateEphemeral(
   stellarEphemeralSecret: string,
-  outputTokenType: OutputTokenType,
+  outputTokenType: FiatToken,
 ): Promise<void> {
   const fundingAccountId = (await fetchSigningServiceAccountId()).stellar.public;
   const ephemeralAccountExists = await isEphemeralCreated(stellarEphemeralSecret);
@@ -110,7 +107,7 @@ export async function setUpAccountAndOperations(
   fundingAccountId: string,
   ephemeralKeypair: Keypair,
   sepResult: SepResult,
-  outputTokenType: OutputTokenType,
+  outputTokenType: FiatToken,
 ): Promise<StellarOperations> {
   const ephemeralAccount = await loadAccountWithRetry(ephemeralKeypair.publicKey());
   if (!ephemeralAccount) {
@@ -122,18 +119,14 @@ export async function setUpAccountAndOperations(
     sepResult,
     ephemeralKeypair,
     ephemeralAccount,
-    getOutputTokenDetailsSpacewalk(outputTokenType),
+    getTokenDetailsSpacewalk(outputTokenType),
   );
   return { offrampingTransaction, mergeAccountTransaction };
 }
 
-async function setupStellarAccount(
-  fundingAccountId: string,
-  ephemeralSecret: string,
-  outputTokenType: OutputTokenType,
-) {
+async function setupStellarAccount(fundingAccountId: string, ephemeralSecret: string, outputTokenType: FiatToken) {
   const ephemeralKeypair = Keypair.fromSecret(ephemeralSecret);
-  const outputToken = getOutputTokenDetailsSpacewalk(outputTokenType);
+  const outputToken = getTokenDetailsSpacewalk(outputTokenType);
   const ephemeralAccountId = ephemeralKeypair.publicKey();
 
   // To make the transaction deterministic, we need to set absoulte timebounds
@@ -320,9 +313,9 @@ async function createOfframpAndMergeTransaction(
 // Recovery behaviour: If the offramp transaction was already submitted, we will get a sequence error.
 // if we are on recovery mode we can ignore this error.
 // Alternative improvement: check the balance of the destination (offramp) account to see if the funds arrived.
-export async function stellarOfframp(state: OfframpingState): Promise<OfframpingState> {
+export async function stellarOfframp(state: FlowState): Promise<FlowState> {
   if (state.transactions === undefined || !isSpacewalkOfframpTransactions(state.transactions)) {
-    throw new Error('Transactions not prepared');
+    throw new Error('stellarOfframp: Transactions not prepared or invalid state.');
   }
 
   try {
@@ -346,7 +339,7 @@ export async function stellarOfframp(state: OfframpingState): Promise<Offramping
   return { ...state, phase: 'stellarCleanup' };
 }
 
-export async function stellarCleanup(state: OfframpingState): Promise<OfframpingState> {
+export async function stellarCleanup(state: FlowState): Promise<FlowState> {
   if (state.transactions === undefined || !isSpacewalkOfframpTransactions(state.transactions)) {
     throw new Error('Transactions not prepared');
   }

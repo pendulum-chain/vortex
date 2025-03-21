@@ -6,11 +6,10 @@ import { isNetworkEVM, Networks } from '../helpers/networks';
 import { SepResult } from '../types/sep';
 
 import {
-  getInputTokenDetailsOrDefault,
-  InputTokenType,
-  OUTPUT_TOKEN_CONFIG,
-  OutputTokenType,
-  OutputTokenTypes,
+  getOnChainTokenDetailsOrDefault,
+  OnChainToken,
+  FiatToken,
+  getAnyFiatTokenDetails,
 } from '../constants/tokenConfig';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 
@@ -44,7 +43,10 @@ import {
   OFFRAMPING_STATE_LOCAL_STORAGE_KEY,
   StateTransitionFunction,
   BaseFlowState,
+  FlowState,
+  FlowType,
 } from './flowCommons';
+import { OnrampingPhase } from './onrampingFlow';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -71,8 +73,8 @@ export type OfframpingPhase =
 export interface InitiateStateArguments {
   sep24Id: string;
   stellarEphemeralSecret: string;
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
+  inputTokenType: OnChainToken;
+  outputTokenType: FiatToken;
   amountIn: string;
   amountOut: Big;
   sepResult: SepResult;
@@ -83,8 +85,8 @@ export interface InitiateStateArguments {
 }
 
 export interface BrlaInitiateStateArguments {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
+  inputTokenType: OnChainToken;
+  outputTokenType: FiatToken;
   amountIn: string;
   amountOut: Big;
   network: Networks;
@@ -99,8 +101,8 @@ export interface BrlaInitiateStateArguments {
 export interface BaseOfframpingState extends BaseFlowState {
   pendulumEphemeralSeed: string;
   pendulumEphemeralAddress: string;
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
+  inputTokenType: OnChainToken;
+  outputTokenType: FiatToken;
   effectiveExchangeRate: string;
   inputAmount: { units: string; raw: string };
   pendulumAmountRaw: string;
@@ -147,6 +149,14 @@ export interface OfframpingState extends BaseOfframpingState {
   pendulumToMoonbeamXcmHash?: `0x${string}`;
 }
 
+export function isOfframpFlow(flowType: FlowType): flowType is OfframpHandlerType {
+  return Object.values(OfframpHandlerType).includes(flowType as OfframpHandlerType);
+}
+
+export function isOfframpState(state: FlowState): state is OfframpingState {
+  return isOfframpFlow(state.flowType);
+}
+
 export enum OfframpHandlerType {
   EVM_TO_STELLAR = 'evm-to-stellar',
   ASSETHUB_TO_STELLAR = 'assethub-to-stellar',
@@ -156,7 +166,7 @@ export enum OfframpHandlerType {
 
 export const OFFRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
   OfframpHandlerType,
-  Partial<Record<OfframpingPhase, StateTransitionFunction<OfframpingState>>>
+  Partial<Record<OnrampingPhase | OfframpingPhase, StateTransitionFunction<FlowState>>>
 > = {
   [OfframpHandlerType.EVM_TO_STELLAR]: {
     prepareTransactions,
@@ -212,25 +222,18 @@ export const OFFRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
   },
 };
 
-export function inferOframpFlowType(network: Networks, outToken: OutputTokenType): OfframpHandlerType {
+export function inferOframpFlowType(network: Networks, outToken: FiatToken): OfframpHandlerType {
   if (isNetworkEVM(network)) {
-    if (outToken === OutputTokenTypes.BRL) {
+    if (outToken === FiatToken.BRL) {
       return OfframpHandlerType.EVM_TO_BRLA;
     }
     return OfframpHandlerType.EVM_TO_STELLAR;
   } else {
-    if (outToken === OutputTokenTypes.BRL) {
+    if (outToken === FiatToken.BRL) {
       return OfframpHandlerType.ASSETHUB_TO_BRLA;
     }
     return OfframpHandlerType.ASSETHUB_TO_STELLAR;
   }
-}
-
-export function selectNextOfframpStateAdvancementHandler(
-  flowType: OfframpHandlerType,
-  phase: OfframpingPhase,
-): StateTransitionFunction<OfframpingState> | undefined {
-  return OFFRAMP_STATE_ADVANCEMENT_HANDLERS[flowType][phase];
 }
 
 async function constructBaseInitialState({
@@ -243,8 +246,8 @@ async function constructBaseInitialState({
   pendulumNode,
   offramperAddress,
 }: {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
+  inputTokenType: OnChainToken;
+  outputTokenType: FiatToken;
   amountIn: string;
   amountOut: Big;
   network: Networks;
@@ -256,8 +259,8 @@ async function constructBaseInitialState({
     pendulumNode,
   );
 
-  const { decimals: inputTokenDecimals, pendulumDecimals } = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputTokenDecimals = OUTPUT_TOKEN_CONFIG[outputTokenType].decimals;
+  const { decimals: inputTokenDecimals, pendulumDecimals } = getOnChainTokenDetailsOrDefault(network, inputTokenType);
+  const outputTokenDecimals = getAnyFiatTokenDetails(outputTokenType).decimals;
 
   const inputAmountBig = Big(amountIn);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountBig, inputTokenDecimals || 0).toFixed();

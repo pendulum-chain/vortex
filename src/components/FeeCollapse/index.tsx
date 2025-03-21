@@ -1,24 +1,24 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import { BaseOutputTokenDetails, getBaseOutputTokenDetails, OutputTokenType } from '../../constants/tokenConfig';
+import { BaseFiatTokenDetails, FiatToken, getBaseFiatTokenDetails, OnChainToken } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
-import { FlowType, isOnrampFlow } from '../../services/flowCommons';
-import { OnrampInputTokenType, OnrampOutputTokenType } from '../../services/onrampingFlow';
+import { FlowType } from '../../services/flowCommons';
+import { isOnrampFlow } from '../../services/onrampingFlow';
 
 export function calculateTotalReceive(
   flowType: FlowType,
   toAmount: Big,
-  outputTokenType: OutputTokenType | OnrampOutputTokenType,
+  outputTokenType: FiatToken | OnChainToken,
 ): string {
   if (!isOnrampFlow(flowType)) {
-    return calculateOfframpTotalReceive(toAmount, getBaseOutputTokenDetails(outputTokenType as OutputTokenType));
+    return calculateOfframpTotalReceive(toAmount, getBaseFiatTokenDetails(outputTokenType as FiatToken));
   } else {
-    return calculateOnrampTotalReceive(toAmount, outputTokenType as OnrampInputTokenType);
+    return calculateOnrampTotalReceive(toAmount, outputTokenType as OnChainToken);
   }
 }
 
-export function calculateOfframpTotalReceive(toAmount: Big, outputToken: BaseOutputTokenDetails): string {
+export function calculateOfframpTotalReceive(toAmount: Big, outputToken: BaseFiatTokenDetails): string {
   const feeBasisPoints = outputToken.offrampFeesBasisPoints;
   const fixedFees = new Big(outputToken.offrampFeesFixedComponent ? outputToken.offrampFeesFixedComponent : 0);
   const fees = toAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
@@ -32,14 +32,14 @@ export function calculateOfframpTotalReceive(toAmount: Big, outputToken: BaseOut
 }
 
 // TODO:  implement
-export function calculateOnrampTotalReceive(toAmount: Big, outputToken: OnrampInputTokenType): string {
+export function calculateOnrampTotalReceive(toAmount: Big, outputToken: OnChainToken): string {
   return '0';
 }
 
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: Big;
-  toToken: BaseOutputTokenDetails;
+  toToken: BaseFiatTokenDetails;
   exchangeRate?: JSX.Element;
 }
 

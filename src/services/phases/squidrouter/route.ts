@@ -3,17 +3,21 @@ import { encodeFunctionData, Hash } from 'viem';
 
 import squidReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
 import {
-  getInputTokenDetails,
-  getOutputTokenDetailsMoonbeam,
-  InputTokenDetails,
-  isEvmInputTokenDetails,
+  getOnChainTokenDetails,
+  getAnyFiatTokenDetailsMoonbeam,
+  OnChainTokenDetails,
+  isEvmOnChainTokenDetails,
   OutputTokenDetailsMoonbeam,
-  OutputTokenTypes,
+  FiatTokens,
+  EvmTokenDetails,
+  BaseFiatTokenDetails,
+  OnChainToken,
+  EvmToken,
 } from '../../../constants/tokenConfig';
 import erc20ABI from '../../../contracts/ERC20';
 import { getSquidRouterConfig, squidRouterConfigBase } from './config';
 import { getNetworkId, Networks } from '../../../helpers/networks';
-import { OnrampOutputTokenType } from '../../onrampingFlow';
+import { OnrampFiatToken } from '../../onrampingFlow';
 import { AXL_USDC_MOONBEAM } from '../../../constants/constants';
 
 export interface RouteParams {
@@ -43,12 +47,12 @@ function createRouteParams(
   userAddress: string,
   amount: string,
   squidRouterReceiverHash: `0x${string}`,
-  inputToken: InputTokenDetails,
+  inputToken: EvmTokenDetails,
   fromNetwork: Networks,
 ): RouteParams {
   const { fromChainId, toChainId, receivingContractAddress, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
 
-  if (!isEvmInputTokenDetails(inputToken)) {
+  if (!isEvmOnChainTokenDetails(inputToken)) {
     throw new Error(`Token ${inputToken.assetSymbol} is not supported on EVM chains`);
   }
   const fromToken = inputToken.erc20AddressSourceChain as `0x${string}`;
@@ -121,7 +125,7 @@ function createRouteParams(
 export function createOnrampRouteParams(
   fromAddress: string,
   amount: string,
-  outputToken: OnrampOutputTokenType,
+  outputTokenType: EvmToken,
   toNetwork: Networks,
   addressDestination: string,
 ): RouteParams {
@@ -129,13 +133,13 @@ export function createOnrampRouteParams(
   const toChainId = getNetworkId(toNetwork);
 
   // will throw if invalid. Must exist.
-  const outputTokenDetails = getInputTokenDetails(toNetwork, outputToken);
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, outputTokenType) as EvmTokenDetails;
   if (!outputTokenDetails) {
-    throw new Error(`Token ${outputToken} is not supported for Squidrouter onramp`);
+    throw new Error(`Token ${outputTokenType} is not supported for Squidrouter onramp`);
   }
 
-  if (!isEvmInputTokenDetails(outputTokenDetails)) {
-    throw new Error(`Token ${outputToken} is not supported on EVM chains`);
+  if (!isEvmOnChainTokenDetails(outputTokenDetails)) {
+    throw new Error(`Token ${outputTokenType} is not supported on EVM chains`);
   }
 
   return {
@@ -181,7 +185,7 @@ export async function getRouteTransactionRequest(
   userAddress: string,
   amount: string,
   squidRouterReceiverHash: `0x${string}`,
-  inputToken: InputTokenDetails,
+  inputToken: EvmTokenDetails,
   fromNetwork: Networks,
 ) {
   const routeParams = createRouteParams(userAddress, amount, squidRouterReceiverHash, inputToken, fromNetwork);
@@ -204,12 +208,12 @@ export async function getRouteTransactionRequest(
 }
 
 export async function testRoute(
-  testingToken: InputTokenDetails,
+  testingToken: EvmTokenDetails,
   attemptedAmountRaw: string,
   address: string,
   fromNetwork: Networks,
 ) {
-  if (!isEvmInputTokenDetails(testingToken)) {
+  if (!isEvmOnChainTokenDetails(testingToken)) {
     return;
   }
   const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);

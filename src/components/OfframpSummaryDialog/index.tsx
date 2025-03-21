@@ -3,12 +3,14 @@ import { useState, FC } from 'react';
 import Big from 'big.js';
 
 import {
-  getInputTokenDetailsOrDefault,
-  InputTokenDetails,
-  BaseOutputTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  OnChainTokenDetails,
+  BaseFiatTokenDetails,
   isStellarOutputTokenDetails,
-  getOutputTokenDetails,
-  OutputTokenTypes,
+  getAnyFiatTokenDetails,
+  FiatToken,
+  EvmToken,
+  TokenType,
 } from '../../constants/tokenConfig';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
@@ -43,8 +45,8 @@ interface FeeDetailsProps {
   feesCost: string;
   fiatSymbol: string;
   exchangeRate: string;
-  fromToken: InputTokenDetails;
-  toToken: BaseOutputTokenDetails;
+  fromToken: OnChainTokenDetails;
+  toToken: BaseFiatTokenDetails;
   partnerUrl: string;
 }
 
@@ -109,16 +111,16 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
 
   // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
   // component will not render if the executionInput is undefined.
-  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || 'usdc');
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || EvmToken.USDC);
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
-  const toToken = getOutputTokenDetails(executionInput?.outputTokenType || OutputTokenTypes.EURC);
+  const toToken = getAnyFiatTokenDetails(executionInput?.outputTokenType || FiatToken.EURC);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
   const { feesCost } = useOfframpFees(toAmount, toToken);
 
   if (!visible) return null;
-  if (!anchorUrl && toToken.type === 'spacewalk') return null;
+  if (!anchorUrl && toToken.type === TokenType.Stellar) return null;
   if (!executionInput?.brlaEvmAddress && toToken.type === 'moonbeam') return null;
   if (!executionInput) return null;
 

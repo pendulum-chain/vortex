@@ -1,6 +1,6 @@
 import {
-  getInputTokenDetails,
-  getOutputTokenDetails,
+  getOnChainTokenDetails,
+  getAnyFiatTokenDetails,
   isStellarOutputTokenDetails,
 } from '../../../../constants/tokenConfig';
 import { getVaultsForCurrency } from '../../../../services/phases/polkadot/spacewalk';
@@ -19,8 +19,8 @@ export const performSwapInitialChecks = async () => {
     expectedRedeemAmountRaw,
     inputAmountRaw,
   } = offrampState.offrampExecutionInput!;
-  const outputTokenDetails = getOutputTokenDetails(outputTokenType);
-  const inputTokenDetails = getInputTokenDetails(network, inputTokenType)!;
+  const outputTokenDetails = getAnyFiatTokenDetails(outputTokenType);
+  const inputTokenDetails = getOnChainTokenDetails(network, inputTokenType)!;
 
   if (isStellarOutputTokenDetails(outputTokenDetails)) {
     await Promise.all([

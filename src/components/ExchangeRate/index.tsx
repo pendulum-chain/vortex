@@ -1,8 +1,8 @@
 import { FC } from 'react';
-import { InputTokenDetails } from '../../constants/tokenConfig';
+import { OnChainTokenDetails } from '../../constants/tokenConfig';
 
 interface ExchangeRateProps {
-  fromToken: InputTokenDetails;
+  fromToken: OnChainTokenDetails;
   toTokenSymbol: string;
   exchangeRate?: string;
 }

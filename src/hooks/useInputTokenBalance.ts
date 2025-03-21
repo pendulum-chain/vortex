@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Big from 'big.js';
 
 import erc20ABI from '../contracts/ERC20';
-import { InputTokenDetails, isEvmInputTokenDetails } from '../constants/tokenConfig';
+import { OnChainTokenDetails, TokenType, isEvmOnChainTokenDetails } from '../constants/tokenConfig';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
@@ -14,7 +14,7 @@ import { getNetworkId } from '../helpers/networks';
 
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,
-  fromToken: InputTokenDetails | undefined,
+  fromToken: OnChainTokenDetails | undefined,
 ): string | undefined => {
   const { address } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
@@ -67,16 +67,18 @@ const useAssetHubBalance = (assetId?: number): string | undefined => {
   return balance;
 };
 
-export const useInputTokenBalance = ({ fromToken }: { fromToken?: InputTokenDetails }): string | undefined => {
-  const isEvmToken = fromToken && isEvmInputTokenDetails(fromToken);
+export const useInputTokenBalance = ({ fromToken }: { fromToken?: OnChainTokenDetails }): string | undefined => {
+  const isEvmToken = fromToken && fromToken.type === TokenType.Evm;
 
-  const tokenAddress = fromToken && isEvmInputTokenDetails(fromToken) ? fromToken.erc20AddressSourceChain : undefined;
+  const tokenAddress = fromToken && fromToken.type === TokenType.Evm ? fromToken.erc20AddressSourceChain : undefined;
   const evmBalance = useEvmBalance(tokenAddress, fromToken);
-  const assetHubBalance = useAssetHubBalance(!isEvmToken ? fromToken?.foreignAssetId : undefined);
+  const assetHubBalance = useAssetHubBalance(
+    fromToken && fromToken.type === TokenType.AssetHub ? fromToken?.foreignAssetId : undefined,
+  );
 
   if (!fromToken) {
     return undefined;
   }
 
-  return isEvmInputTokenDetails(fromToken) ? evmBalance : assetHubBalance;
+  return isEvmOnChainTokenDetails(fromToken) ? evmBalance : assetHubBalance;
 };

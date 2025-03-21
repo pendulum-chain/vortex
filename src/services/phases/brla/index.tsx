@@ -3,19 +3,24 @@ import { createPublicClient, http } from 'viem';
 import { polygon } from 'viem/chains';
 
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
-import { OfframpingState } from '../../offrampingFlow';
+import { isOfframpState, OfframpingState } from '../../offrampingFlow';
 import { fetchOfframpStatus } from '../../signingService';
 import erc20ABI from '../../../contracts/ERC20';
-import { getOutputTokenDetailsMoonbeam } from '../../../constants/tokenConfig';
+import { getAnyFiatTokenDetailsMoonbeam } from '../../../constants/tokenConfig';
+import { FlowState } from '../../flowCommons';
 
-export async function performBrlaPayoutOnMoonbeam(state: OfframpingState): Promise<OfframpingState> {
+export async function performBrlaPayoutOnMoonbeam(state: FlowState): Promise<FlowState> {
+  if (!isOfframpState(state)) {
+    throw new Error('executeAssetHubToPendulumXCM: State must be an offramp state');
+  }
+
   const { taxId, pixDestination, outputAmount, brlaEvmAddress, outputTokenType } = state;
 
   if (!taxId || !pixDestination || !outputAmount || !brlaEvmAddress) {
     return { ...state, failure: { type: 'unrecoverable', message: 'Missing required parameters on state' } };
   }
 
-  const tokenDetails = getOutputTokenDetailsMoonbeam(outputTokenType);
+  const tokenDetails = getAnyFiatTokenDetailsMoonbeam(outputTokenType);
 
   const pollingTimeMs = 1000;
   const maxWaitingTimeMs = 5 * 60 * 1000; // 5 minutes

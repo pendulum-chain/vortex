@@ -3,8 +3,8 @@ import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import Big from 'big.js';
 
-import { OfframpingState } from '../../../offrampingFlow';
-import { ExecutionContext } from '../../../flowCommons';
+import { isOfframpState, OfframpingState } from '../../../offrampingFlow';
+import { ExecutionContext, FlowState } from '../../../flowCommons';
 import { waitUntilTrue } from '../../../../helpers/function';
 import { getRawInputBalance } from '../ephemeral';
 import { signAndSubmitXcm, TransactionInclusionError, verifyXcmSentEvent } from '../xcm';
@@ -68,10 +68,10 @@ export function createPendulumToAssethubTransfer(
     .signAsync(ephemeralKeypair, options);
 }
 
-export async function executeAssetHubToPendulumXCM(
-  state: OfframpingState,
-  context: ExecutionContext,
-): Promise<OfframpingState> {
+export async function executeAssetHubToPendulumXCM(state: FlowState, context: ExecutionContext): Promise<FlowState> {
+  if (!isOfframpState(state)) {
+    throw new Error('executeAssetHubToPendulumXCM: State must be an offramp state');
+  }
   const { assetHubNode, walletAccount, setOfframpSigningPhase } = context;
   const { pendulumEphemeralAddress } = state;
 

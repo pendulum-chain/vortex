@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { isNetworkEVM, Networks } from '../helpers/networks';
 
-import { INPUT_TOKEN_CONFIG, InputTokenType, OUTPUT_TOKEN_CONFIG, OutputTokenType } from '../constants/tokenConfig';
+import { OnChainToken, getAnyFiatTokenDetails, FiatToken, ON_CHAIN_TOKEN_CONFIG } from '../constants/tokenConfig';
 import { AMM_MINIMUM_OUTPUT_HARD_MARGIN, AMM_MINIMUM_OUTPUT_SOFT_MARGIN } from '../constants/constants';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../helpers/contracts';
@@ -10,9 +10,10 @@ import { createMoonbeamEphemeralSeed, executeMoonbeamToPendulumXCM } from './pha
 
 import { createPendulumEphemeralSeed } from './phases/polkadot/ephemeral';
 import { ApiComponents } from '../contexts/polkadotNode';
-import { StateTransitionFunction, FinalPhase, minutesInMs, BaseFlowState } from './flowCommons';
+import { StateTransitionFunction, FinalPhase, minutesInMs, BaseFlowState, FlowState, FlowType } from './flowCommons';
 import { prepareOnrampTransactions } from './phases/onrampSignedTransactions';
 import { pendulumCleanup } from './phases/polkadot/ephemeral';
+import { OfframpingPhase } from './offrampingFlow';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -33,12 +34,9 @@ export type OnrampingPhase =
   | 'pendulumCleanup'
   | 'squidRouter';
 
-export type OnrampInputTokenType = OutputTokenType;
-export type OnrampOutputTokenType = InputTokenType;
-
 export interface BrlaOnrampInitiateStateArguments {
-  inputTokenType: OnrampInputTokenType;
-  outputTokenType: OnrampOutputTokenType;
+  inputTokenType: FiatToken;
+  outputTokenType: OnChainToken;
   amountIn: string;
   amountOut: Big;
   network: Networks;
@@ -50,13 +48,13 @@ export interface BrlaOnrampInitiateStateArguments {
   taxId: string;
 }
 
-export interface BrlaOnrampingState extends BaseFlowState {
+export interface OnrampingState extends BaseFlowState {
   moonbeamEphemeralSeed: string;
   moonbeamEphemeralAddress: string;
   pendulumEphemeralSeed: string;
   pendulumEphemeralAddress: string;
-  inputTokenType: OnrampInputTokenType;
-  outputTokenType: OnrampOutputTokenType;
+  inputTokenType: FiatToken;
+  outputTokenType: OnChainToken;
   effectiveExchangeRate: string;
   inputAmount: { units: string; raw: string };
   pendulumAmountRaw: string;
@@ -91,10 +89,18 @@ export enum OnrampHandlerType {
   BRLA_TO_ASSETHUB = 'brla-to-assethub',
 }
 
+export function isOnrampFlow(flowType: FlowType): flowType is OnrampHandlerType {
+  return Object.values(OnrampHandlerType).includes(flowType as OnrampHandlerType);
+}
+
+export function isOnrmapState(state: FlowState): state is OnrampingState {
+  return isOnrampFlow(state.flowType);
+}
+
 // TODO fill with actual phase functions.
 export const ONRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
   OnrampHandlerType,
-  Partial<Record<OnrampingPhase, StateTransitionFunction<BrlaOnrampingState>>>
+  Partial<Record<OnrampingPhase | OfframpingPhase, StateTransitionFunction<FlowState>>>
 > = {
   [OnrampHandlerType.BRLA_TO_EVM]: {
     prepareOnrampTransactions,
@@ -105,17 +111,6 @@ export const ONRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
     pendulumCleanup,
   },
 };
-
-export function selectNextOnrapStateAdvancementHandler(
-  network: Networks,
-  phase: OnrampingPhase,
-): StateTransitionFunction<BrlaOnrampingState> | undefined {
-  if (isNetworkEVM(network)) {
-    return ONRAMP_STATE_ADVANCEMENT_HANDLERS[OnrampHandlerType.BRLA_TO_EVM][phase];
-  } else {
-    return ONRAMP_STATE_ADVANCEMENT_HANDLERS[OnrampHandlerType.BRLA_TO_ASSETHUB][phase];
-  }
-}
 
 export async function constructBrlaOnrampInitialState({
   inputTokenType,
@@ -128,7 +123,7 @@ export async function constructBrlaOnrampInitialState({
   moonbeamNode,
   addressDestination,
   taxId,
-}: BrlaOnrampInitiateStateArguments): Promise<BrlaOnrampingState> {
+}: BrlaOnrampInitiateStateArguments): Promise<OnrampingState> {
   const { seed: pendulumEphemeralSeed, address: pendulumEphemeralAddress } = await createPendulumEphemeralSeed(
     pendulumNode,
   );
@@ -137,9 +132,9 @@ export async function constructBrlaOnrampInitialState({
     moonbeamNode,
   );
 
-  const { decimals: inputTokenDecimals } = OUTPUT_TOKEN_CONFIG[inputTokenType];
+  const { decimals: inputTokenDecimals } = getAnyFiatTokenDetails(inputTokenType);
 
-  const outputToken = Object.entries(INPUT_TOKEN_CONFIG[network]).find(([key, value]) => key === outputTokenType);
+  const outputToken = Object.entries(ON_CHAIN_TOKEN_CONFIG[network]).find(([key, value]) => key === outputTokenType);
   if (!outputToken) {
     throw new Error(`Output token ${outputTokenType} not found in token config`);
   }
@@ -191,7 +186,7 @@ export async function constructBrlaOnrampInitialState({
     inputAmount: { units: amountIn, raw: inputAmountRaw },
     inputTokenType,
     outputTokenType,
-    phase: 'pendulumCleanup',
+    phase: 'prepareOnrampTransactions',
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     createdAt: Date.now(),

@@ -9,10 +9,10 @@ import { SwapFormValues } from '../Nabla/schema';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { AssetNumericInput } from '../AssetNumericInput';
 import {
-  getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
-  InputTokenType,
-  OutputTokenType,
+  getOnChainTokenDetailsOrDefault,
+  getAnyFiatTokenDetails,
+  OnChainToken,
+  FiatToken,
 } from '../../constants/tokenConfig';
 import { useNetwork } from '../../contexts/network';
 import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
@@ -40,8 +40,8 @@ enum TokenSelectType {
 
 interface SwapProps {
   form: UseFormReturn<SwapFormValues, unknown, undefined>;
-  from: InputTokenType;
-  to: OutputTokenType;
+  from: OnChainToken;
+  to: FiatToken;
   tokenOutAmount: UseTokenOutAmountResult;
   fromAmount: Big.Big | undefined;
   feeComparisonRef: RefObject<HTMLDivElement | null>;
@@ -75,8 +75,8 @@ export const Swap = ({
   const { trackEvent } = useEventsContext();
   const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
 
-  const fromToken = getInputTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = getOutputTokenDetails(to);
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
+  const toToken = getAnyFiatTokenDetails(to);
 
   const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
 

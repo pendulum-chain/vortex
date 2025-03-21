@@ -1,4 +1,4 @@
-import { OfframpingPhase, OfframpingState, selectNextOfframpStateAdvancementHandler } from './offrampingFlow';
+import { OFFRAMP_STATE_ADVANCEMENT_HANDLERS, OfframpingPhase, OfframpingState } from './offrampingFlow';
 import { WalletAccount } from '@talismn/connect-wallets';
 import * as Sentry from '@sentry/react';
 import { Config } from 'wagmi';
@@ -13,15 +13,14 @@ import { ApiComponents } from '../contexts/polkadotNode';
 import { storageKeys } from '../constants/localStorage';
 import { isNetworkEVM, Networks } from '../helpers/networks';
 import {
-  BrlaOnrampingState,
+  OnrampingState,
+  ONRAMP_STATE_ADVANCEMENT_HANDLERS,
   FailureType as OnrampFailureType,
   OnrampHandlerType,
   OnrampingPhase,
-  OnrampOutputTokenType,
-  selectNextOnrapStateAdvancementHandler,
 } from './onrampingFlow';
-import { InputTokenTypes, OutputTokenType, OutputTokenTypes } from '../constants/tokenConfig';
 
+export type FlowState = OfframpingState | OnrampingState;
 export interface ExecutionContext {
   wagmiConfig: Config;
   setOfframpSigningPhase: (n: OfframpSigningPhase) => void;
@@ -42,34 +41,27 @@ export type BaseFlowState = {
   phase: OnrampingPhase | OfframpingPhase | FinalPhase;
 };
 
-export type StateTransitionFunction<T extends BaseFlowState> = (
-  state: T,
-  context: ExecutionContext,
-) => Promise<T | undefined>;
+export type StateTransitionFunction<FlowState> = (state: FlowState, context: ExecutionContext) => Promise<FlowState>;
 
 export const OFFRAMPING_STATE_LOCAL_STORAGE_KEY = 'offrampingState';
 export const minutesInMs = (minutes: number) => minutes * 60 * 1000;
 
 export type FinalPhase = 'success';
 
-export function isOnrampFlow(flowType: FlowType): flowType is OnrampHandlerType {
-  return Object.values(OnrampHandlerType).includes(flowType as OnrampHandlerType);
-}
-
-function selectNextStateAdvancementHandler(state: BaseFlowState, phase: OfframpingPhase | OnrampingPhase): unknown {
-  if (Object.values(OnrampHandlerType).includes(state.flowType as OnrampHandlerType)) {
-    return selectNextOnrapStateAdvancementHandler(state.network, phase as OnrampingPhase);
-  } else {
-    return selectNextOfframpStateAdvancementHandler(state.flowType as OfframpHandlerType, phase as OfframpingPhase);
-  }
-}
+export const STATE_ADVANCEMENT_HANDLERS: Record<
+  FlowType,
+  Partial<Record<OnrampingPhase | OfframpingPhase, StateTransitionFunction<FlowState>>>
+> = {
+  ...OFFRAMP_STATE_ADVANCEMENT_HANDLERS,
+  ...ONRAMP_STATE_ADVANCEMENT_HANDLERS,
+};
 
 export const clearOfframpingState = () => {
   storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
   storageService.remove(storageKeys.LAST_TRANSACTION_SUBMISSION_INDEX);
 };
 
-export const recoverFromFailure = (state: OfframpingState | BrlaOnrampingState | undefined) => {
+export const recoverFromFailure = (state: OfframpingState | OnrampingState | undefined) => {
   if (!state) {
     console.log('No offramping in process');
     return undefined;
@@ -95,9 +87,9 @@ export const readCurrentState = () => {
 };
 
 export const advanceOfframpingState = async (
-  state: BaseFlowState | undefined,
+  state: FlowState | undefined,
   context: ExecutionContext,
-): Promise<BaseFlowState | undefined> => {
+): Promise<FlowState | undefined> => {
   if (!state) {
     console.log('No offramping in process');
     return undefined;
@@ -113,30 +105,23 @@ export const advanceOfframpingState = async (
 
   console.log('Trying to advance offramping state from current phase', phase);
 
-  let newState: BaseFlowState | undefined;
+  let newState: FlowState | undefined;
   try {
     storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, { ...state, currentPhaseInProgress: true });
 
-    // TODO improve this typing
-    if (Object.values(OnrampHandlerType).includes(state.flowType as OnrampHandlerType)) {
-      const nextHandler = selectNextOnrapStateAdvancementHandler(state.network, phase as OnrampingPhase);
-      if (!nextHandler) {
-        throw new Error(`No handler for phase ${phase} on network ${state.network}`);
-      }
-      newState = await nextHandler(state as BrlaOnrampingState, context);
-    } else {
-      const nextHandler = selectNextOfframpStateAdvancementHandler(
-        state.flowType as OfframpHandlerType,
-        phase as OfframpingPhase,
-      );
-      if (!nextHandler) {
-        throw new Error(`No handler for phase ${phase} on network ${state.network}`);
-      }
-      newState = await nextHandler(state as OfframpingState, context);
+    const nextHandler = STATE_ADVANCEMENT_HANDLERS[state.flowType]?.[phase];
+    if (!nextHandler) {
+      throw new Error(`No handler for phase ${phase} on network ${state.network}`);
     }
+
+    // If the phase is shared, the function operates on FlowState; if not, it can narrow the type internally.
+    const newState = await nextHandler(state, context);
 
     if (newState) {
       Sentry.captureMessage(`Advancing to next offramping phase ${newState.phase}`);
+      storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
+    } else {
+      storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
     }
   } catch (error: unknown) {
     if ((error as Error)?.message === 'Wallet not connected') {
@@ -161,12 +146,6 @@ export const advanceOfframpingState = async (
         message: error?.toString(),
       },
     };
-  }
-
-  if (newState) {
-    storageService.set(OFFRAMPING_STATE_LOCAL_STORAGE_KEY, newState);
-  } else {
-    storageService.remove(OFFRAMPING_STATE_LOCAL_STORAGE_KEY);
   }
 
   console.log('Done advancing offramping state and advance to', newState?.phase ?? 'completed');

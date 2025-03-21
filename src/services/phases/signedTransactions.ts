@@ -3,8 +3,13 @@ import { Extrinsic } from '@pendulum-chain/api-solang';
 import { Keypair } from 'stellar-sdk';
 
 import { isNetworkEVM, Networks } from '../../helpers/networks';
-import { OfframpingState, BrlaOfframpTransactions, SpacewalkOfframpTransactions } from '../offrampingFlow';
-import { ExecutionContext } from '../flowCommons';
+import {
+  OfframpingState,
+  BrlaOfframpTransactions,
+  SpacewalkOfframpTransactions,
+  isOfframpState,
+} from '../offrampingFlow';
+import { ExecutionContext, FlowState } from '../flowCommons';
 import { fetchSigningServiceAccountId } from '../signingService';
 import { storeDataInBackend } from '../storage/remote';
 
@@ -12,7 +17,7 @@ import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './n
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { prepareSpacewalkRedeemTransaction } from './polkadot';
 import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
-import { getOutputTokenDetailsMoonbeam, OUTPUT_TOKEN_CONFIG, OutputTokenTypes } from '../../constants/tokenConfig';
+import { getAnyFiatTokenDetailsMoonbeam, FiatToken } from '../../constants/tokenConfig';
 
 const getNextPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
   // For AssetHub we skip the squidRouter and go straight to the pendulumFundEphemeral phase
@@ -30,7 +35,10 @@ export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPro
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are stored in the state and the phase is updated to 'squidRouter'.
 // The transactions are also dumped to a Google Spreadsheet.
-export async function prepareTransactions(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function prepareTransactions(state: FlowState, context: ExecutionContext): Promise<FlowState> {
+  if (!isOfframpState(state)) {
+    throw new Error('State does not have required BRLA properties');
+  }
   const {
     pendulumEphemeralSeed,
     outputTokenType,
@@ -66,7 +74,7 @@ export async function prepareTransactions(state: OfframpingState, context: Execu
   };
 
   try {
-    if (outputTokenType !== OutputTokenTypes.BRL) {
+    if (outputTokenType !== FiatToken.BRL) {
       ({ transactions, stellarEphemeralPublicKey } = await prepareSpacewalkOfframpTransactions(state, context));
       const data = {
         ...dataCommon,
@@ -167,7 +175,7 @@ async function prepareBrlaOfframpTransactions(
     brlaEvmAddress,
     outputAmount.raw,
     state.pendulumEphemeralSeed,
-    getOutputTokenDetailsMoonbeam(state.outputTokenType).pendulumCurrencyId,
+    getAnyFiatTokenDetailsMoonbeam(state.outputTokenType).pendulumCurrencyId,
     pendulumToMoonbeamNonce,
   );
 

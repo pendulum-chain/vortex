@@ -3,7 +3,12 @@ import { Config, getAccount, sendTransaction, writeContract } from '@wagmi/core'
 import { Hash, SendTransactionErrorType, WriteContractErrorType } from 'viem';
 
 import { storageKeys, TransactionSubmissionIndices } from '../../../constants/localStorage';
-import { EvmInputTokenDetails, getInputTokenDetails, isEvmInputTokenDetails } from '../../../constants/tokenConfig';
+import {
+  EvmTokenDetails,
+  getOnChainTokenDetails,
+  isEvmToken,
+  OnChainTokenDetails,
+} from '../../../constants/tokenConfig';
 
 import { waitForTransactionConfirmation } from '../../../helpers/safe-wallet/waitForTransactionConfirmation';
 import { showToast, ToastMessage } from '../../../helpers/notifications';
@@ -11,14 +16,14 @@ import { TrackableEvent } from '../../../contexts/events';
 import erc20ABI from '../../../contracts/ERC20';
 import { storageService } from '../../../services/storage/local';
 
-import { OfframpingState } from '../../offrampingFlow';
-import { ExecutionContext } from '../../flowCommons';
+import { isOfframpState, OfframpingState } from '../../offrampingFlow';
+import { ExecutionContext, FlowState } from '../../flowCommons';
 import { getRouteTransactionRequest, TransactionRequest } from './route';
 
 type TrackEvent = (event: TrackableEvent) => void;
 
 async function handleTokenApproval(
-  inputToken: EvmInputTokenDetails,
+  inputToken: EvmTokenDetails,
   transactionRequest: TransactionRequest,
   state: OfframpingState,
   wagmiConfig: Config,
@@ -103,12 +108,16 @@ function handleError(error: Error, operation: string, message: string) {
 }
 
 export async function squidRouter(
-  state: OfframpingState,
+  state: FlowState,
   { wagmiConfig, setOfframpSigningPhase, trackEvent }: ExecutionContext,
-): Promise<OfframpingState> {
+): Promise<FlowState> {
+  if (!isOfframpState(state)) {
+    throw new Error('State does not have required offramp properties');
+  }
+
   try {
-    const inputToken = getInputTokenDetails(state.network, state.inputTokenType);
-    if (!inputToken || !isEvmInputTokenDetails(inputToken)) {
+    const inputToken = getOnChainTokenDetails(state.network, state.inputTokenType);
+    if (!inputToken || !isEvmToken(inputToken)) {
       throw new Error('Invalid input token type for squidRouter. Expected EVM token.');
     }
 

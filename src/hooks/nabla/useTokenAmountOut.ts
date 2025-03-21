@@ -15,10 +15,10 @@ import { useDebouncedValue } from '../useDebouncedValue';
 import { ApiPromise } from '@polkadot/api';
 import { useEffect, useState } from 'react';
 import {
-  getBaseOutputTokenDetails,
-  getInputTokenDetailsOrDefault,
-  InputTokenType,
-  OutputTokenType,
+  getBaseFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  OnChainToken,
+  FiatToken,
 } from '../../constants/tokenConfig';
 import { Networks } from '../../helpers/networks';
 import { SwapFormValues } from '../../components/Nabla/schema';
@@ -28,8 +28,8 @@ type UseTokenOutAmountProps = {
   wantsSwap: boolean;
   api: ApiPromise | null;
   fromAmountString: string;
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
+  OnChainToken: OnChainToken;
+  FiatToken: FiatToken;
   maximumFromAmount: BigNumber | undefined;
   form: UseFormReturn<SwapFormValues>;
   network: Networks;
@@ -73,8 +73,8 @@ export function useTokenOutAmount({
     // no action required
   }
 
-  const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
-  const outputToken = getBaseOutputTokenDetails(outputTokenType);
+  const inputToken = getOnChainTokenDetailsOrDefault(network, inputTokenType);
+  const outputToken = getBaseFiatTokenDetails(outputTokenType);
 
   const fromTokenDecimals = inputToken?.pendulumDecimals;
 
@@ -93,14 +93,19 @@ export function useTokenOutAmount({
     (maximumFromAmount === undefined || debouncedAmountBigDecimal.lte(maximumFromAmount));
 
   const { isLoading, fetchStatus, data, error } = useContractRead<TokenOutData | undefined>(
-    [cacheKeys.tokenOutAmount, inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress, amountIn],
+    [
+      cacheKeys.tokenOutAmount,
+      inputToken.pendulumErc20WrapperAddress,
+      outputToken.pendulumErc20WrapperAddress,
+      amountIn,
+    ],
     api,
     undefined, // Does not matter since noWalletAddressRequired is true
     {
       abi: routerAbi,
       address: NABLA_ROUTER,
       method: 'getAmountOut',
-      args: [amountIn, [inputToken.pendulumErc20WrapperAddress, outputToken.erc20WrapperAddress]],
+      args: [amountIn, [inputToken.pendulumErc20WrapperAddress, outputToken.pendulumErc20WrapperAddress]],
       noWalletAddressRequired: true,
       queryOptions: {
         ...activeOptions['30s'],
@@ -111,6 +116,7 @@ export function useTokenOutAmount({
           return undefined;
         }
 
+        // TODO fix
         const preciseQuotedAmountOut = parseContractBalanceResponse(outputToken.decimals, data[0]);
         const swapFee = parseContractBalanceResponse(outputToken.decimals, data[1]);
 

@@ -1,11 +1,11 @@
 import { FC } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'motion/react';
 
-import { OutputTokenType, OutputTokenTypes } from '../../../constants/tokenConfig';
+import { FiatToken } from '../../../constants/tokenConfig';
 import { BrlaField, StandardBrlaFieldOptions } from '../BrlaField';
 
 interface BrlaSwapFieldsProps {
-  toToken: OutputTokenType;
+  toToken: FiatToken;
 }
 
 const containerAnimation: MotionProps = {
@@ -30,7 +30,7 @@ const STANDARD_FIELDS = [
 
 export const BrlaSwapFields: FC<BrlaSwapFieldsProps> = ({ toToken }) => (
   <AnimatePresence>
-    {toToken === OutputTokenTypes.BRL && (
+    {toToken === FiatToken.BRL && (
       <motion.div {...containerAnimation}>
         {STANDARD_FIELDS.map((field) => (
           <BrlaField

@@ -6,10 +6,10 @@ import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 import {
-  getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
-  getOutputTokenDetailsSpacewalk,
-  OutputTokenTypes,
+  getOnChainTokenDetailsOrDefault,
+  getAnyFiatTokenDetails,
+  getTokenDetailsSpacewalk,
+  FiatToken,
 } from '../../constants/tokenConfig';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
@@ -60,8 +60,8 @@ export const useSubmitOfframp = () => {
 
           trackEvent({
             event: 'transaction_confirmation',
-            from_asset: getInputTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType).assetSymbol,
-            to_asset: getOutputTokenDetails(executionInput.outputTokenType).fiat.symbol,
+            from_asset: getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.inputTokenType).assetSymbol,
+            to_asset: getAnyFiatTokenDetails(executionInput.FiatToken).fiat.symbol,
             from_amount: executionInput.inputAmountUnits,
             to_amount: executionInput.outputAmountUnits.afterFees,
           });
@@ -75,7 +75,7 @@ export const useSubmitOfframp = () => {
           }
 
           // @TODO: BRL-related logic should be in a separate function/hook
-          if (executionInput.outputTokenType === OutputTokenTypes.BRL) {
+          if (executionInput.FiatToken === FiatToken.BRL) {
             const { taxId, pixId } = executionInput;
             if (!taxId || !pixId) {
               console.log('no tax id or pix id defined');
@@ -110,7 +110,7 @@ export const useSubmitOfframp = () => {
             setOfframpSummaryVisible(true);
           } else {
             const stellarEphemeralSecret = createStellarEphemeralSecret();
-            const outputToken = getOutputTokenDetailsSpacewalk(executionInput.outputTokenType);
+            const outputToken = getTokenDetailsSpacewalk(executionInput.outputTokenType);
             const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 
             const { token: sep10Token, sep10Account } = await sep10(

@@ -1,10 +1,10 @@
 import * as Yup from 'yup';
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
+import { OnChainToken, FiatToken } from '../../constants/tokenConfig';
 
 export type SwapFormValues = {
-  from: InputTokenType;
+  from: OnChainToken;
   fromAmount: string;
-  to: OutputTokenType;
+  to: FiatToken;
   toAmount: string;
   slippage: number | undefined;
   deadline: number;

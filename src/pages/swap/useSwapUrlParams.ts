@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { SwapFormValues } from '../../components/Nabla/schema';
-import { OutputTokenType } from '../../constants/tokenConfig';
+import { FiatToken } from '../../constants/tokenConfig';
 
 interface UseSwapUrlParamsProps {
   form: UseFormReturn<SwapFormValues, unknown, undefined>;
   feeComparisonRef: React.RefObject<HTMLDivElement | null>;
 }
-const defaultFromAmounts: Record<OutputTokenType, number> = { eurc: 1000, ars: 200, brl: 300 };
+const defaultFromAmounts: Record<FiatToken, number> = { eurc: 1000, ars: 200, brl: 300 };
 
 export const useSwapUrlParams = ({ form, feeComparisonRef }: UseSwapUrlParamsProps) => {
   useEffect(() => {

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Keypair } from 'stellar-sdk';
 
 import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
-import { OutputTokenType } from './../../../../src/constants/tokenConfig';
+import { FiatToken } from './../../../../src/constants/tokenConfig';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
 import {
   buildCreationStellarTx,
@@ -28,7 +28,7 @@ interface ChangeOpRequest extends CreateTxRequest {
 
 interface Sep10Request {
   challengeXDR: string;
-  outToken: OutputTokenType;
+  outToken: FiatToken;
   clientPublicKey: string;
   derivedMemo: string;
 }

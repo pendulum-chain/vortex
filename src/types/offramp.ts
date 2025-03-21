@@ -1,14 +1,14 @@
 import { BrlaOfframpTransactions, OfframpingState, SpacewalkOfframpTransactions } from '../services/offrampingFlow';
-import { InputTokenType, OutputTokenType } from '../constants/tokenConfig';
+import { OnChainToken, FiatToken } from '../constants/tokenConfig';
 import { Networks } from '../helpers/networks';
 import { ApiPromise } from '@polkadot/api';
-import { BrlaOnrampingState } from '../services/onrampingFlow';
+import { OnrampingState } from '../services/onrampingFlow';
 
 export type OfframpSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
 
 export interface OfframpExecutionInput {
-  inputTokenType: InputTokenType;
-  outputTokenType: OutputTokenType;
+  onChainToken: OnChainToken;
+  FiatToken: FiatToken;
   inputAmountUnits: string;
   outputAmountUnits: {
     beforeFees: string;
@@ -31,7 +31,7 @@ export interface OfframpExecutionInput {
 export interface OfframpState {
   offrampStarted: boolean;
   offrampInitiating: boolean;
-  offrampState: OfframpingState | BrlaOnrampingState | undefined;
+  offrampState: OfframpingState | OnrampingState | undefined;
   offrampSigningPhase: OfframpSigningPhase | undefined;
   offrampExecutionInput: OfframpExecutionInput | undefined;
   offrampKycStarted: boolean;
@@ -48,7 +48,7 @@ export interface OfframpActions {
   setOfframpExecutionInput: (executionInput: OfframpExecutionInput | undefined) => void;
   setInitializeFailedMessage: (message: string | undefined) => void;
   setOfframpSummaryVisible: (visible: boolean) => void;
-  updateOfframpHookStateFromState: (state: OfframpingState | BrlaOnrampingState | undefined) => void;
+  updateOfframpHookStateFromState: (state: OfframpingState | OnrampingState | undefined) => void;
   clearInitializeFailedMessage: () => void;
   resetOfframpState: () => void;
 }

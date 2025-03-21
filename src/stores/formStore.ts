@@ -1,19 +1,19 @@
 import { create } from 'zustand';
 import Big from 'big.js';
-import { InputTokenDetails, BaseInputTokenDetails } from '../constants/tokenConfig';
+import { OnChainTokenDetails, BaseFiatTokenDetails } from '../constants/tokenConfig';
 
 interface FormState {
   fromAmount?: Big;
-  fromToken?: InputTokenDetails;
-  toToken?: BaseInputTokenDetails;
+  fromToken?: OnChainTokenDetails;
+  toToken?: BaseFiatTokenDetails;
   taxId?: string;
   pixId?: string;
 }
 
 interface FormStoreActions {
   setFromAmount: (amount?: Big) => void;
-  setFromToken: (token?: InputTokenDetails) => void;
-  setToToken: (token?: BaseInputTokenDetails) => void;
+  setFromToken: (token?: OnChainTokenDetails) => void;
+  setToToken: (token?: BaseFiatTokenDetails) => void;
   setTaxId: (taxId: string) => void;
   setPixId: (pixId: string) => void;
 }
@@ -29,8 +29,8 @@ export const useFormStore = create<FormStore>((set) => ({
 
   actions: {
     setFromAmount: (amount?: Big) => set({ fromAmount: amount }),
-    setFromToken: (token?: InputTokenDetails) => set({ fromToken: token }),
-    setToToken: (token?: BaseInputTokenDetails) => set({ toToken: token }),
+    setFromToken: (token?: OnChainTokenDetails) => set({ fromToken: token }),
+    setToToken: (token?: BaseFiatTokenDetails) => set({ toToken: token }),
     setTaxId: (taxId: string) => set({ taxId }),
     setPixId: (pixId: string) => set({ pixId }),
   },

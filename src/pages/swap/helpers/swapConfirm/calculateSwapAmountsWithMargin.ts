@@ -1,14 +1,14 @@
 import Big from 'big.js';
 
 import { ContractBalance, multiplyByPowerOfTen } from '../../../../helpers/contracts';
-import { InputTokenDetails, BaseOutputTokenDetails } from '../../../../constants/tokenConfig';
+import { OnChainTokenDetails, BaseFiatTokenDetails } from '../../../../constants/tokenConfig';
 import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../../../constants/constants';
 
 export const calculateSwapAmountsWithMargin = (
   fromAmount: Big,
   preciseQuotedAmountOut: ContractBalance,
-  inputToken: InputTokenDetails,
-  outputToken: BaseOutputTokenDetails,
+  inputToken: OnChainTokenDetails,
+  outputToken: BaseFiatTokenDetails,
 ) => {
   // Calculate output amount with margin
   const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal

@@ -1,118 +1,53 @@
 import { AssetIconType } from '../hooks/useGetAssetIcon';
 import { Networks } from '../helpers/networks';
 
-export interface BaseInputTokenDetails {
-  assetSymbol: string;
+export type PendulumCurrencyId = { Stellar: { AlphaNum4: { code: string; issuer: string } } } | { XCM: number };
+
+export interface BaseTokenDetails {
+  type: TokenType;
   decimals: number;
+  assetSymbol: string;
+}
+
+export interface PendulumDetails {
   pendulumErc20WrapperAddress: string;
-  pendulumCurrencyId: { XCM: number };
+  pendulumCurrencyId: PendulumCurrencyId;
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
-  networkAssetIcon: AssetIconType;
-  network: Networks;
 }
 
-export enum InputTokenTypes {
-  Evm = 'evm',
-  Substrate = 'substrate',
-}
-
-export type EvmInputTokenDetails = BaseInputTokenDetails & {
-  erc20AddressSourceChain: `0x${string}`;
-  type: InputTokenTypes.Evm;
-};
-
-type SubstrateInputTokenDetails = BaseInputTokenDetails & {
-  foreignAssetId: number;
-  type: InputTokenTypes.Substrate;
-};
-
-// Guard function to check if the input token is an EVM token
-export function isEvmInputTokenDetails(inputToken: InputTokenDetails): inputToken is EvmInputTokenDetails {
-  return inputToken.type === InputTokenTypes.Evm;
-}
-
-export type InputTokenDetails = EvmInputTokenDetails | SubstrateInputTokenDetails;
-
-export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
-
-export interface Fiat {
+export interface FiatDetails {
   assetIcon: AssetIconType;
   symbol: string;
   name: string;
 }
 
-export interface BaseOutputTokenDetails {
-  decimals: number;
-  fiat: Fiat;
-  minWithdrawalAmountRaw: string;
-  maxWithdrawalAmountRaw: string;
-  erc20WrapperAddress: string;
-  offrampFeesBasisPoints: number;
-  offrampFeesFixedComponent?: number;
+export enum TokenType {
+  Evm = 'evm',
+  AssetHub = 'assethub',
+  Stellar = 'stellar',
+  Moonbeam = 'moonbeam',
 }
 
-export type OutputTokenDetailsSpacewalk = BaseOutputTokenDetails & {
-  type: 'spacewalk';
-  stellarAsset: {
-    code: {
-      hex: string;
-      string: string; // Stellar representation (3 or 4 letter code)
-    };
-    issuer: {
-      hex: string;
-      stellarEncoding: string;
-    };
-  };
-  vaultAccountId: string;
-  supportsClientDomain: boolean;
-  anchorHomepageUrl: string;
-  tomlFileUrl: string;
-  usesMemo: boolean;
-};
-
-export type PendulumCurrencyId = PendulumStellarCurrencyId | PendulumXcmCurrencyId;
-
-export type PendulumStellarCurrencyId = {
-  Stellar: {
-    AlphaNum4: {
-      code: string;
-      issuer: string;
-    };
-  };
-};
-
-export type PendulumXcmCurrencyId = {
-  XCM: number;
-};
-
-export type OutputTokenDetailsMoonbeam = BaseOutputTokenDetails & {
-  type: 'moonbeam';
-  pendulumErc20WrapperAddress: string;
-  polygonErc20Address: string;
-  moonbeamErc20Address: string;
-  pendulumCurrencyId: { XCM: number };
-  pendulumAssetSymbol: string;
-  pendulumDecimals: number;
-  partnerUrl: string;
-};
-
-export function isStellarOutputTokenDetails(
-  outputTokenDetails: OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam,
-): outputTokenDetails is OutputTokenDetailsSpacewalk {
-  return outputTokenDetails.type === 'spacewalk';
+export enum EvmToken {
+  USDC = 'usdc',
+  USDT = 'usdt',
+  USDCE = 'usdce',
 }
 
-export function isMoonbeamOutputTokenDetails(
-  outputTokenDetails: OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam,
-): outputTokenDetails is OutputTokenDetailsMoonbeam {
-  return outputTokenDetails.type === 'moonbeam';
+export enum FiatToken {
+  EURC = 'eurc',
+  ARS = 'ars',
+  BRL = 'brl',
 }
 
-export function isStellarOutputToken(outputToken: OutputTokenType): boolean {
-  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputToken];
-  return isStellarOutputTokenDetails(maybeOutputTokenDetails);
+export enum AssetHubToken {
+  USDC = 'usdc',
 }
+
+export type OnChainToken = EvmToken | AssetHubToken;
+
+// Common token representations.
 
 export const PENDULUM_USDC_AXL = {
   pendulumErc20WrapperAddress: '6eMCHeByJ3m2yPsXFkezBfCQtMs3ymUPqtAyCA41mNWmbNJe',
@@ -136,7 +71,69 @@ const PENDULUM_BRLA_MOONBEAM = {
   pendulumDecimals: 18,
 };
 
-export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType, InputTokenDetails>>> = {
+export type EvmTokenDetails = PendulumDetails &
+  BaseTokenDetails & {
+    type: TokenType.Evm;
+    assetSymbol: string;
+    networkAssetIcon: AssetIconType;
+    network: Networks;
+    erc20AddressSourceChain: `0x${string}`;
+  };
+
+export type AssetHubTokenDetails = PendulumDetails &
+  BaseTokenDetails & {
+    type: TokenType.AssetHub;
+    assetSymbol: string;
+    networkAssetIcon: AssetIconType;
+    network: Networks;
+    foreignAssetId: number;
+  };
+
+export interface BaseFiatTokenDetails {
+  fiat: FiatDetails;
+  minWithdrawalAmountRaw: string;
+  maxWithdrawalAmountRaw: string;
+  pendulumErc20WrapperAddress: string;
+  offrampFeesBasisPoints: number;
+  offrampFeesFixedComponent?: number;
+}
+
+export type StellarTokenDetails = PendulumDetails &
+  BaseTokenDetails &
+  BaseFiatTokenDetails & {
+    type: TokenType.Stellar;
+    stellarAsset: {
+      code: {
+        hex: string;
+        string: string; // Stellar (3 or 4 letter) representation
+      };
+      issuer: {
+        hex: string;
+        stellarEncoding: string;
+      };
+    };
+    vaultAccountId: string;
+    supportsClientDomain: boolean;
+    anchorHomepageUrl: string;
+    tomlFileUrl: string;
+    usesMemo: boolean;
+  };
+
+export type MoonbeamTokenDetails = PendulumDetails &
+  BaseTokenDetails &
+  BaseFiatTokenDetails & {
+    type: TokenType.Moonbeam;
+    polygonErc20Address: string;
+    moonbeamErc20Address: string;
+    partnerUrl: string;
+  };
+
+export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
+
+export const ON_CHAIN_TOKEN_CONFIG: Record<
+  Networks,
+  Partial<Record<EvmToken, EvmTokenDetails | AssetHubTokenDetails>>
+> = {
   Polygon: {
     usdc: {
       assetSymbol: 'USDC',
@@ -144,7 +141,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'polygonUSDC',
       decimals: 6,
       network: Networks.Polygon,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
     usdce: {
@@ -153,7 +150,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'polygonUSDC',
       decimals: 6,
       network: Networks.Polygon,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
     usdt: {
@@ -162,7 +159,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'polygonUSDT',
       decimals: 6,
       network: Networks.Polygon,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
   },
@@ -173,7 +170,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'ethereumUSDC',
       decimals: 6,
       network: Networks.Ethereum,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
 
@@ -183,7 +180,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'ethereumUSDT',
       decimals: 6,
       network: Networks.Ethereum,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
   },
@@ -194,7 +191,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'bscUSDC',
       decimals: 18,
       network: Networks.BSC,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
 
@@ -204,7 +201,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'bscUSDT',
       decimals: 18,
       network: Networks.BSC,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
   },
@@ -215,7 +212,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'arbitrumUSDC',
       decimals: 6,
       network: Networks.Arbitrum,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
 
@@ -225,7 +222,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'arbitrumUSDT',
       decimals: 6,
       network: Networks.Arbitrum,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
   },
@@ -236,7 +233,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'baseUSDC',
       decimals: 6,
       network: Networks.Base,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
 
@@ -246,7 +243,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'baseUSDT',
       decimals: 6,
       network: Networks.Base,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
   },
@@ -257,7 +254,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'avalancheUSDC',
       decimals: 6,
       network: Networks.Avalanche,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
 
@@ -267,7 +264,7 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'avalancheUSDT',
       decimals: 6,
       network: Networks.Avalanche,
-      type: InputTokenTypes.Evm,
+      type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
   },
@@ -277,65 +274,26 @@ export const INPUT_TOKEN_CONFIG: Record<Networks, Partial<Record<InputTokenType,
       networkAssetIcon: 'assethubUSDC',
       decimals: 6,
       network: Networks.AssetHub,
-      type: InputTokenTypes.Substrate,
+      type: TokenType.AssetHub,
       ...PENDULUM_USDC_ASSETHUB,
     },
   },
 };
 
-export function getInputTokenDetailsOrDefault(network: Networks, inputTokenType: InputTokenType): InputTokenDetails {
-  const maybeInputTokenDetails = getInputTokenDetails(network, inputTokenType);
-  if (maybeInputTokenDetails) {
-    return maybeInputTokenDetails;
-  }
-
-  console.error(`Invalid input token type: ${inputTokenType}`);
-  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
-  const firstAvailableToken = Object.values(INPUT_TOKEN_CONFIG[networkType])[0];
-  if (!firstAvailableToken) {
-    throw new Error(`No tokens configured for network ${networkType}`);
-  }
-  return firstAvailableToken;
-}
-
-export function getInputTokenDetails(network: Networks, inputTokenType: InputTokenType): InputTokenDetails | undefined {
-  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
-
-  try {
-    return INPUT_TOKEN_CONFIG[networkType][inputTokenType];
-  } catch (error) {
-    console.error(`Error getting input token details: ${error}`);
-    throw error;
-  }
-}
-
-export enum OutputTokenTypes {
-  EURC = 'eurc',
-  ARS = 'ars',
-  BRL = 'brl',
-}
-
-export type OutputTokenType = (typeof OutputTokenTypes)[keyof typeof OutputTokenTypes];
-
-export function getEnumKeyByStringValue<T extends { [key: string]: string }>(
-  enumObj: T,
-  value: string,
-): T[keyof T] | undefined {
-  const key = Object.keys(enumObj).find((k) => enumObj[k as keyof T] === value) as keyof T | undefined;
-  return key ? enumObj[key] : undefined;
-}
-
-export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam> = {
+export const STELLAR_FIAT_TOKEN_CONFIG: Partial<Record<FiatToken, StellarTokenDetails>> = {
   eurc: {
-    type: 'spacewalk',
+    type: TokenType.Stellar,
     anchorHomepageUrl: 'https://mykobo.co',
     tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
     decimals: 12,
+    pendulumDecimals: 12,
     fiat: {
       assetIcon: 'eur',
       symbol: 'EUR',
       name: 'Euro',
     },
+    assetSymbol: 'EURC',
+    pendulumAssetSymbol: 'EURC',
     stellarAsset: {
       code: {
         hex: '0x45555243',
@@ -346,8 +304,16 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
         stellarEncoding: 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
       },
     },
+    pendulumCurrencyId: {
+      Stellar: {
+        AlphaNum4: {
+          code: '0x45555243',
+          issuer: 'EURC',
+        },
+      },
+    },
     vaultAccountId: '6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh',
-    erc20WrapperAddress: '6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5',
+    pendulumErc20WrapperAddress: '6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5',
     minWithdrawalAmountRaw: '10000000000000',
     maxWithdrawalAmountRaw: '10000000000000000',
     offrampFeesBasisPoints: 25,
@@ -355,15 +321,18 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
     supportsClientDomain: true,
   },
   ars: {
-    type: 'spacewalk',
+    type: TokenType.Stellar,
     anchorHomepageUrl: 'https://home.anclap.com',
     tomlFileUrl: 'https://api.anclap.com/.well-known/stellar.toml',
     decimals: 12,
+    pendulumDecimals: 12,
     fiat: {
       assetIcon: 'ars',
       symbol: 'ARS',
       name: 'Argentine Peso',
     },
+    assetSymbol: 'ARS',
+    pendulumAssetSymbol: 'ARS',
     stellarAsset: {
       code: {
         hex: '0x41525300',
@@ -374,8 +343,16 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
         stellarEncoding: 'GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS',
       },
     },
+    pendulumCurrencyId: {
+      Stellar: {
+        AlphaNum4: {
+          code: '0x41525300',
+          issuer: 'ARS',
+        },
+      },
+    },
     vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs',
-    erc20WrapperAddress: '6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj',
+    pendulumErc20WrapperAddress: '6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj',
     minWithdrawalAmountRaw: '11000000000000', // 11 ARS
     maxWithdrawalAmountRaw: '500000000000000000', // 500000 ARS
     offrampFeesBasisPoints: 200, // 2%
@@ -383,8 +360,12 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
     usesMemo: true,
     supportsClientDomain: true,
   },
+};
+
+export const MOONBEAM_FIAT_TOKEN_CONFIG: Partial<Record<FiatToken, MoonbeamTokenDetails>> = {
   brl: {
-    type: 'moonbeam',
+    type: TokenType.Moonbeam,
+    assetSymbol: 'BRL',
     partnerUrl: 'https://brla.digital',
     decimals: 18,
     fiat: {
@@ -392,7 +373,6 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
       symbol: 'BRL',
       name: 'Brazilian Real',
     },
-    erc20WrapperAddress: '6eRq1yvty6KorGcJ3nKpNYrCBn9FQnzsBhFn4JmAFqWUwpnh',
     polygonErc20Address: '0xe6a537a407488807f0bbeb0038b79004f19dddfb',
     moonbeamErc20Address: '0xfeb25f3fddad13f82c4d6dbc1481516f62236429',
     minWithdrawalAmountRaw: '3000000000000000000', // 3 BRL.
@@ -403,87 +383,142 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
   },
 };
 
-export function getOutputTokenDetailsSpacewalk(outputTokenType: OutputTokenType): OutputTokenDetailsSpacewalk {
-  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputTokenType];
+export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | StellarTokenDetails | MoonbeamTokenDetails;
 
-  if (isStellarOutputTokenDetails(maybeOutputTokenDetails)) {
+export function isEvmToken(token: TokenDetails): token is EvmTokenDetails {
+  return token.type === TokenType.Evm;
+}
+
+export function isAssetHubToken(token: TokenDetails): token is AssetHubTokenDetails {
+  return token.type === TokenType.AssetHub;
+}
+
+export function isStellarToken(token: TokenDetails): token is StellarTokenDetails {
+  return token.type === TokenType.Stellar;
+}
+
+export function isMoonbeamToken(token: TokenDetails): token is MoonbeamTokenDetails {
+  return token.type === TokenType.Moonbeam;
+}
+
+export function isFiatToken(token: OnChainToken | FiatToken): token is FiatToken {
+  return token === FiatToken.EURC || token === FiatToken.ARS || token === FiatToken.BRL;
+}
+
+export function getStellarTokenDetails(token: TokenDetails): StellarTokenDetails {
+  if (isStellarToken(token)) {
+    return token;
+  }
+  throw new Error(`Token is not a Stellar token`);
+}
+
+export function getMoonbeamTokenDetails(token: TokenDetails): MoonbeamTokenDetails {
+  if (isMoonbeamToken(token)) {
+    return token;
+  }
+  throw new Error(`Token is not a Moonbeam token`);
+}
+
+export function getEnumKeyByStringValue<T extends { [key: string]: string }>(
+  enumObj: T,
+  value: string,
+): T[keyof T] | undefined {
+  const key = Object.keys(enumObj).find((k) => enumObj[k as keyof T] === value) as keyof T | undefined;
+  return key ? enumObj[key] : undefined;
+}
+
+export function isStellarOutputTokenDetails(
+  tokenDetails: StellarTokenDetails | MoonbeamTokenDetails,
+): tokenDetails is StellarTokenDetails {
+  return tokenDetails.type === TokenType.Stellar;
+}
+
+export function isMoonbeamOutputTokenDetails(
+  outputTokenDetails: StellarTokenDetails | MoonbeamTokenDetails,
+): outputTokenDetails is MoonbeamTokenDetails {
+  return outputTokenDetails.type === TokenType.Moonbeam;
+}
+
+export function isStellarOutputToken(outputToken: FiatToken): boolean {
+  const maybeOutputTokenDetails = STELLAR_FIAT_TOKEN_CONFIG[outputToken];
+  return maybeOutputTokenDetails === undefined;
+}
+
+export function getOnChainTokenDetailsOrDefault(network: Networks, OnChainToken: OnChainToken): OnChainTokenDetails {
+  const maybeOnChainTokenDetails = getOnChainTokenDetails(network, OnChainToken);
+  if (maybeOnChainTokenDetails) {
+    return maybeOnChainTokenDetails;
+  }
+
+  console.error(`Invalid input token type: ${OnChainToken}`);
+  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
+  const firstAvailableToken = Object.values(ON_CHAIN_TOKEN_CONFIG[networkType])[0];
+  if (!firstAvailableToken) {
+    throw new Error(`No tokens configured for network ${networkType}`);
+  }
+  return firstAvailableToken;
+}
+
+export function getOnChainTokenDetails(network: Networks, OnChainToken: OnChainToken): OnChainTokenDetails | undefined {
+  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
+
+  try {
+    return ON_CHAIN_TOKEN_CONFIG[networkType][OnChainToken];
+  } catch (error) {
+    console.error(`Error getting input token details: ${error}`);
+    throw error;
+  }
+}
+
+export function getTokenDetailsSpacewalk(fiatToken: FiatToken): StellarTokenDetails {
+  const maybeOutputTokenDetails = STELLAR_FIAT_TOKEN_CONFIG[fiatToken];
+
+  if (maybeOutputTokenDetails) {
     return maybeOutputTokenDetails;
   }
-  throw new Error(`Invalid output token type: ${outputTokenType}. Token type is not Stellar.`);
+  throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Stellar.`);
 }
 
-export function getOutputTokenDetailsMoonbeam(outputTokenType: OutputTokenType): OutputTokenDetailsMoonbeam {
-  const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputTokenType];
+export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTokenDetails {
+  const maybeOutputTokenDetails = MOONBEAM_FIAT_TOKEN_CONFIG[fiatToken];
 
-  if (isMoonbeamOutputTokenDetails(maybeOutputTokenDetails)) {
+  if (maybeOutputTokenDetails) {
     return maybeOutputTokenDetails;
   }
-  throw new Error(`Invalid output token type: ${outputTokenType}. Token type is not Moonbeam.`);
+  throw new Error(`Invalid output token type: ${FiatToken}. Token type is not Moonbeam.`);
 }
 
-export function getBaseOutputTokenDetails(outputTokenType: OutputTokenType): BaseOutputTokenDetails {
-  return OUTPUT_TOKEN_CONFIG[outputTokenType];
-}
-
-export function getOutputTokenDetails(
-  outputTokenType: OutputTokenType,
-): OutputTokenDetailsSpacewalk | OutputTokenDetailsMoonbeam {
-  return OUTPUT_TOKEN_CONFIG[outputTokenType];
-}
-
-export function getPendulumCurrencyId(outputTokenType: OutputTokenType): PendulumCurrencyId {
-  const tokenDetails = getOutputTokenDetails(outputTokenType);
-  if (isStellarOutputTokenDetails(tokenDetails)) {
-    return {
-      Stellar: {
-        AlphaNum4: { code: tokenDetails.stellarAsset.code.hex, issuer: tokenDetails.stellarAsset.issuer.hex },
-      },
-    };
-  } else {
-    return tokenDetails.pendulumCurrencyId;
+export function getBaseFiatTokenDetails(fiatTokenType: FiatToken): BaseFiatTokenDetails {
+  const tokenDetails = STELLAR_FIAT_TOKEN_CONFIG[fiatTokenType] || MOONBEAM_FIAT_TOKEN_CONFIG[fiatTokenType];
+  if (!tokenDetails) {
+    throw new Error(`Fiat token ${fiatTokenType} not found in token config`);
   }
+
+  return tokenDetails;
 }
 
-export interface PendulumDetails {
-  pendulumErc20WrapperAddress: string;
-  pendulumCurrencyId: PendulumCurrencyId;
-  pendulumAssetSymbol: string;
-  pendulumDecimals: number;
+export function getAnyFiatTokenDetails(fiatToken: FiatToken): StellarTokenDetails | MoonbeamTokenDetails {
+  return (STELLAR_FIAT_TOKEN_CONFIG[fiatToken] || MOONBEAM_FIAT_TOKEN_CONFIG[fiatToken])!; // I suppose this is safe
 }
 
-export function getPendulumDetails(network: Networks, tokenType: OutputTokenType | InputTokenType): PendulumDetails {
-  if (tokenType === 'usdc' || tokenType === 'usdce' || tokenType === 'usdt') {
-    const inputDetails = getInputTokenDetailsOrDefault(network, tokenType as InputTokenType);
-    return {
-      pendulumErc20WrapperAddress: inputDetails.pendulumErc20WrapperAddress,
-      pendulumCurrencyId: inputDetails.pendulumCurrencyId,
-      pendulumAssetSymbol: inputDetails.pendulumAssetSymbol,
-      pendulumDecimals: inputDetails.pendulumDecimals,
-    };
-  } else {
-    const outputDetails = getOutputTokenDetails(tokenType as OutputTokenType);
-    if (isStellarOutputTokenDetails(outputDetails)) {
-      return {
-        pendulumErc20WrapperAddress: outputDetails.erc20WrapperAddress,
-        pendulumCurrencyId: {
-          Stellar: {
-            AlphaNum4: {
-              code: outputDetails.stellarAsset.code.hex,
-              issuer: outputDetails.stellarAsset.issuer.hex,
-            },
-          },
-        },
-        pendulumAssetSymbol: outputDetails.fiat.symbol,
-        pendulumDecimals: outputDetails.decimals,
-      };
-    } else if (isMoonbeamOutputTokenDetails(outputDetails)) {
-      return {
-        pendulumErc20WrapperAddress: outputDetails.pendulumErc20WrapperAddress,
-        pendulumCurrencyId: outputDetails.pendulumCurrencyId,
-        pendulumAssetSymbol: outputDetails.pendulumAssetSymbol,
-        pendulumDecimals: outputDetails.pendulumDecimals,
-      };
-    }
-    throw new Error(`Unsupported output token details type for token: ${tokenType}`);
+export function getPendulumCurrencyId(FiatToken: FiatToken): PendulumCurrencyId {
+  const tokenDetails = getAnyFiatTokenDetails(FiatToken);
+  return tokenDetails.pendulumCurrencyId;
+}
+
+export function getPendulumDetails(tokenType: OnChainToken | FiatToken, network: Networks): PendulumDetails {
+  const tokenDetails = isFiatToken(tokenType)
+    ? getAnyFiatTokenDetails(tokenType)
+    : getOnChainTokenDetailsOrDefault(network, tokenType as OnChainToken);
+
+  if (!tokenDetails) {
+    throw new Error('Invalid token provided for pendulum details.');
   }
+
+  return {
+    pendulumErc20WrapperAddress: tokenDetails.pendulumErc20WrapperAddress,
+    pendulumCurrencyId: tokenDetails.pendulumCurrencyId,
+    pendulumAssetSymbol: tokenDetails.pendulumAssetSymbol,
+    pendulumDecimals: tokenDetails.pendulumDecimals,
+  };
 }

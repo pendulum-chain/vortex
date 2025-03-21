@@ -1,12 +1,12 @@
 import { IAnchorSessionParams, ISep24Intermediate } from '../../../types/sep';
-import { getOutputTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
-import { OutputTokenType } from '../../../constants/tokenConfig';
+import { getTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
+import { FiatToken } from '../../../constants/tokenConfig';
 import { config } from '../../../config';
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
   ANCLAP_sep10Account: string,
-  outputToken: OutputTokenType,
+  outputToken: FiatToken,
 ): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
     return { url: 'https://www.example.com', id: '1234' };
@@ -14,7 +14,7 @@ export async function sep24First(
 
   const { token, tomlValues, offrampAmount } = sessionParams;
   const { sep24Url } = tomlValues;
-  const { usesMemo } = getOutputTokenDetailsSpacewalk(outputToken);
+  const { usesMemo } = getTokenDetailsSpacewalk(outputToken);
   const assetCode = sessionParams.tokenConfig.stellarAsset.code.string;
 
   const params = new URLSearchParams({
