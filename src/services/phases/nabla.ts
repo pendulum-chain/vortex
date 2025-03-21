@@ -277,7 +277,7 @@ export async function prepareNablaSwapTransaction(
 
   // balance before the swap. Important for recovery process.
   // if transaction was able to get in, but we failed on the listening
-  const outputCurrencyId = outputToken.currencyId;
+  const outputCurrencyId = outputToken.pendulumCurrencyId;
   const responseBalanceBefore = await api.query.tokens.accounts(ephemeralKeypair.address, outputCurrencyId);
   const rawBalanceBefore = Big(responseBalanceBefore?.free?.toString() ?? '0');
 

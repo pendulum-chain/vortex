@@ -5,7 +5,7 @@ import { storeDataInBackend } from '../storage/remote';
 
 import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './nabla';
 import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
-import { getOutputTokenDetailsMoonbeam } from '../../constants/tokenConfig';
+import { getOutputTokenDetailsMoonbeam, getPendulumDetails } from '../../constants/tokenConfig';
 import { ExecutionContext } from '../flowCommons';
 import { BrlaOnrampingState, BrlaOnrampTransactions } from '../onrampingFlow';
 import { createMoonbeamToPendulumXCM } from './moonbeam';
@@ -60,7 +60,7 @@ export async function prepareOnrampTransactions(
       squidrouterSwapTx: transactions.squidrouterSwapTransaction,
       pendulumToAssetHubXcmTx: transactions.pendulumToAssetHubXcmTransaction,
     };
-    await storeDataInBackend(data);
+    //await storeDataInBackend(data);
   } catch (err) {
     const error = err as Error;
     console.log(error);
@@ -95,6 +95,7 @@ async function prepareBrlaOnrampTransactions(
   const { moonbeamNode, pendulumNode } = context;
 
   const inputTokenAddressMoonbeam = getOutputTokenDetailsMoonbeam(inputTokenType).moonbeamErc20Address;
+  const outputTokenDetails = getPendulumDetails(toNetwork, outputTokenType)!;
 
   // Improvement: Nabla could be moved to a transaction commons, also with offramp.
   const nablaApproveTransaction = await prepareNablaApproveTransaction(state, context);
@@ -134,6 +135,7 @@ async function prepareBrlaOnrampTransactions(
     moonbeamEphemeralAddress,
     outputAmount.raw,
     state.pendulumEphemeralSeed,
+    outputTokenDetails.pendulumCurrencyId,
     pendulumToMoonbeamNonce,
   );
   console.log('Pendulum to Moonbeam XCM transaction prepared: ', pendulumToMoonbeamXcmTransaction);
@@ -142,10 +144,10 @@ async function prepareBrlaOnrampTransactions(
   const pendulumToAssetHubXcmTransaction = await createPendulumToAssethubTransfer(
     pendulumNode,
     addressDestination,
-    { XCM: 13 },
+    outputTokenDetails.pendulumCurrencyId,
     outputAmount.raw,
     pendulumEphemeralSeed,
-    pendulumToAssethubNonce,
+    pendulumToAssethubNonce + 1,
   );
   console.log('Pendulum to Assethub XCM transaction prepared: ', pendulumToAssetHubXcmTransaction);
   const transactions = {

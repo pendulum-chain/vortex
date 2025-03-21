@@ -114,7 +114,7 @@ export function isStellarOutputToken(outputToken: OutputTokenType): boolean {
   return isStellarOutputTokenDetails(maybeOutputTokenDetails);
 }
 
-const PENDULUM_USDC_AXL = {
+export const PENDULUM_USDC_AXL = {
   pendulumErc20WrapperAddress: '6eMCHeByJ3m2yPsXFkezBfCQtMs3ymUPqtAyCA41mNWmbNJe',
   pendulumCurrencyId: { XCM: 12 },
   pendulumAssetSymbol: 'USDC.axl',
@@ -446,7 +446,7 @@ export function getPendulumCurrencyId(outputTokenType: OutputTokenType): Pendulu
 
 export interface PendulumDetails {
   pendulumErc20WrapperAddress: string;
-  currencyId: PendulumCurrencyId;
+  pendulumCurrencyId: PendulumCurrencyId;
   pendulumAssetSymbol: string;
   pendulumDecimals: number;
 }
@@ -456,7 +456,7 @@ export function getPendulumDetails(network: Networks, tokenType: OutputTokenType
     const inputDetails = getInputTokenDetailsOrDefault(network, tokenType as InputTokenType);
     return {
       pendulumErc20WrapperAddress: inputDetails.pendulumErc20WrapperAddress,
-      currencyId: inputDetails.pendulumCurrencyId,
+      pendulumCurrencyId: inputDetails.pendulumCurrencyId,
       pendulumAssetSymbol: inputDetails.pendulumAssetSymbol,
       pendulumDecimals: inputDetails.pendulumDecimals,
     };
@@ -465,7 +465,7 @@ export function getPendulumDetails(network: Networks, tokenType: OutputTokenType
     if (isStellarOutputTokenDetails(outputDetails)) {
       return {
         pendulumErc20WrapperAddress: outputDetails.erc20WrapperAddress,
-        currencyId: {
+        pendulumCurrencyId: {
           Stellar: {
             AlphaNum4: {
               code: outputDetails.stellarAsset.code.hex,
@@ -479,7 +479,7 @@ export function getPendulumDetails(network: Networks, tokenType: OutputTokenType
     } else if (isMoonbeamOutputTokenDetails(outputDetails)) {
       return {
         pendulumErc20WrapperAddress: outputDetails.pendulumErc20WrapperAddress,
-        currencyId: outputDetails.pendulumCurrencyId,
+        pendulumCurrencyId: outputDetails.pendulumCurrencyId,
         pendulumAssetSymbol: outputDetails.pendulumAssetSymbol,
         pendulumDecimals: outputDetails.pendulumDecimals,
       };

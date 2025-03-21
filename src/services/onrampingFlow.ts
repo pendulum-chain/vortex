@@ -12,7 +12,7 @@ import { createPendulumEphemeralSeed } from './phases/polkadot/ephemeral';
 import { ApiComponents } from '../contexts/polkadotNode';
 import { StateTransitionFunction, FinalPhase, minutesInMs, BaseFlowState } from './flowCommons';
 import { prepareOnrampTransactions } from './phases/onrampSignedTransactions';
-import { nablaApprove } from './phases/nabla';
+import { pendulumCleanup } from './phases/polkadot/ephemeral';
 
 export interface FailureType {
   type: 'recoverable' | 'unrecoverable';
@@ -30,6 +30,7 @@ export type OnrampingPhase =
   | 'subsidizePostSwap'
   | 'executePendulumToAssetHubXCM'
   | 'executePendulumToMoonbeamXCM'
+  | 'pendulumCleanup'
   | 'squidRouter';
 
 export type OnrampInputTokenType = OutputTokenType;
@@ -97,9 +98,11 @@ export const ONRAMP_STATE_ADVANCEMENT_HANDLERS: Record<
 > = {
   [OnrampHandlerType.BRLA_TO_EVM]: {
     prepareOnrampTransactions,
+    pendulumCleanup,
   },
   [OnrampHandlerType.BRLA_TO_ASSETHUB]: {
     prepareOnrampTransactions,
+    pendulumCleanup,
   },
 };
 
@@ -188,7 +191,7 @@ export async function constructBrlaOnrampInitialState({
     inputAmount: { units: amountIn, raw: inputAmountRaw },
     inputTokenType,
     outputTokenType,
-    phase: 'prepareOnrampTransactions',
+    phase: 'pendulumCleanup',
     nablaApproveNonce: 0,
     nablaSwapNonce: 1,
     createdAt: Date.now(),

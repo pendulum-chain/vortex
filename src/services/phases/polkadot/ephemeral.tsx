@@ -9,6 +9,7 @@ import {
   getInputTokenDetails,
   getInputTokenDetailsOrDefault,
   getPendulumCurrencyId,
+  getPendulumDetails,
   OutputTokenTypes,
 } from '../../../constants/tokenConfig';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
@@ -18,9 +19,10 @@ import { waitUntilTrue } from '../../../helpers/function';
 import { isNetworkEVM } from '../../../helpers/networks';
 
 import { OfframpingState } from '../../offrampingFlow';
-import { ExecutionContext } from '../../flowCommons';
+import { BaseFlowState, ExecutionContext } from '../../flowCommons';
 import { fetchSigningServiceAccountId } from '../../signingService';
 import { isHashRegistered } from '../moonbeam';
+import { BrlaOnrampingState } from '../../onrampingFlow';
 
 const FUNDING_AMOUNT_UNITS = '0.1';
 
@@ -147,12 +149,11 @@ export async function createPendulumEphemeralSeed(pendulumNode: {
   return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
-export async function pendulumCleanup(state: OfframpingState, context: ExecutionContext): Promise<OfframpingState> {
+export async function pendulumCleanup(state: any, context: ExecutionContext): Promise<any> {
   const { pendulumNode } = context;
 
   try {
     const { pendulumEphemeralSeed, inputTokenType, outputTokenType, network } = state;
-    const inputToken = getInputTokenDetailsOrDefault(network, inputTokenType);
 
     if (!pendulumNode) {
       throw new Error('Pendulum node not available');
@@ -167,9 +168,8 @@ export async function pendulumCleanup(state: OfframpingState, context: Execution
 
     // probably will never be exactly '0', but to be safe
     // TODO: if the value is too small, do we really want to transfer token dust and spend fees?
-    const inputCurrencyId = inputToken.pendulumCurrencyId;
-    const outputCurrencyId = getPendulumCurrencyId(outputTokenType);
-
+    const inputCurrencyId = getPendulumDetails(network, inputTokenType).pendulumCurrencyId;
+    const outputCurrencyId = getPendulumDetails(network, outputTokenType).pendulumCurrencyId;
     await api.tx.utility
       .batchAll([
         api.tx.tokens.transferAll(fundingAccountAddress, inputCurrencyId, false),

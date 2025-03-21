@@ -9,6 +9,7 @@ import { decodeSubmittableExtrinsic } from '../../signedTransactions';
 import { isBrlaOfframpTransactions } from '../../../../types/offramp';
 import { ApiComponents } from '../../../../contexts/polkadotNode';
 import { MOONBEAM_XCM_FEE_GLMR } from '../../../../constants/constants';
+import { PendulumCurrencyId } from '../../../../constants/tokenConfig';
 
 // We send a fixed fee amount of 0.05 GLMR.
 export function createPendulumToMoonbeamTransfer(
@@ -16,9 +17,9 @@ export function createPendulumToMoonbeamTransfer(
   destinationAddress: string,
   rawAmount: string,
   pendulumEphemeralSeed: string,
+  currencyId: PendulumCurrencyId,
   nonce = -1,
 ) {
-  const currencyId = { XCM: 13 };
   const currencyFeeId = { XCM: 6 };
   const destination = {
     V2: {

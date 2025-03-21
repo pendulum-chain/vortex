@@ -48,7 +48,6 @@ export async function createOnrampSquidrouterTransaction(
   const routeResult = await getRoute(routeParams);
 
   const route = routeResult.data.route;
-  const requestId = routeResult.requestId;
 
   const transactionRequest = route.transactionRequest;
 
@@ -78,7 +77,7 @@ export async function createOnrampSquidrouterTransaction(
     nonce: params.moonbeamEphemeralStartingNonce + 1,
   });
 
-  // Alternative way
+  // Alternative way, untested.
   // const keyring = new Keyring({ type: 'ethereum' });
 
   // const ephemeralKeypair = keyring.addFromUri(`${params.moonbeamEphemeralSeed}/m/44'/60'/${0}'/${0}/${0}`);

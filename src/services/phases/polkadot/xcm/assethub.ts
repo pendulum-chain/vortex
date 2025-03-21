@@ -13,6 +13,7 @@ import { storageKeys, TransactionSubmissionIndices } from '../../../../constants
 import { ApiComponents } from '../../../../contexts/polkadotNode';
 import { SignerOptions, SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { ISubmittableResult } from '@polkadot/types/types';
+import { PendulumCurrencyId, PendulumStellarCurrencyId } from '../../../../constants/tokenConfig';
 
 function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: string, rawAmount: string) {
   const receiverId = u8aToHex(decodeAddress(receiverAddress));
@@ -44,7 +45,7 @@ function createAssethubAssetTransfer(assethubApi: ApiPromise, receiverAddress: s
 export function createPendulumToAssethubTransfer(
   pendulumNode: ApiComponents,
   destinationAddress: string,
-  currencyId: { XCM: number },
+  currencyId: PendulumCurrencyId,
   rawAmount: string,
   pendulumEphemeralSeed: string,
   nonce = -1,

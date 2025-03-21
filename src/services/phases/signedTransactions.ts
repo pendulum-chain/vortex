@@ -12,7 +12,7 @@ import { prepareNablaApproveTransaction, prepareNablaSwapTransaction } from './n
 import { setUpAccountAndOperations, stellarCreateEphemeral } from './stellar';
 import { prepareSpacewalkRedeemTransaction } from './polkadot';
 import { createPendulumToMoonbeamTransfer } from './polkadot/xcm/moonbeam';
-import { OutputTokenTypes } from '../../constants/tokenConfig';
+import { getOutputTokenDetailsMoonbeam, OUTPUT_TOKEN_CONFIG, OutputTokenTypes } from '../../constants/tokenConfig';
 
 const getNextPhase = (network: Networks): 'squidRouter' | 'pendulumFundEphemeral' => {
   // For AssetHub we skip the squidRouter and go straight to the pendulumFundEphemeral phase
@@ -167,6 +167,7 @@ async function prepareBrlaOfframpTransactions(
     brlaEvmAddress,
     outputAmount.raw,
     state.pendulumEphemeralSeed,
+    getOutputTokenDetailsMoonbeam(state.outputTokenType).pendulumCurrencyId,
     pendulumToMoonbeamNonce,
   );
 

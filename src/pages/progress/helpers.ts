@@ -1,12 +1,6 @@
 import { OfframpingPhase } from '../../services/offrampingFlow';
 
-import {
-  getInputTokenDetailsOrDefault,
-  getOutputTokenDetails,
-  getOutputTokenDetailsSpacewalk,
-  getPendulumDetails,
-  isStellarOutputTokenDetails,
-} from '../../constants/tokenConfig';
+import { getOutputTokenDetailsSpacewalk, getPendulumDetails, OutputTokenType } from '../../constants/tokenConfig';
 import { Networks, isNetworkEVM, getNetworkDisplayName } from '../../helpers/networks';
 import { OfframpingState } from '../../services/offrampingFlow';
 import { BrlaOnrampingState } from '../../services/onrampingFlow';
@@ -42,7 +36,7 @@ export function createOfframpingPhaseMessage(
     executeSpacewalkRedeem:
       flowType === 'evm-to-stellar' || flowType === 'assethub-to-stellar'
         ? `Bridging ${
-            getOutputTokenDetailsSpacewalk(offrampingState.outputTokenType).stellarAsset.code.string
+            getOutputTokenDetailsSpacewalk(offrampingState.outputTokenType as OutputTokenType).stellarAsset.code.string
           } to Stellar via Spacewalk`
         : '',
     pendulumCleanup: 'Transferring to local partner for bank transfer',

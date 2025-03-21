@@ -127,8 +127,8 @@ export const SwapPage = () => {
       constructBrlaOnrampInitialState({
         inputTokenType: OutputTokenTypes.BRL,
         outputTokenType: 'usdc',
-        amountIn: '0.058',
-        amountOut: new Big('0.01'),
+        amountIn: '0.58',
+        amountOut: new Big('0.1'),
         network: selectedNetwork,
         toNetwork: selectedNetwork,
         networkId: chainId!,
