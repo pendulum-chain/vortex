@@ -7,6 +7,7 @@ import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
 import { Transaction } from 'sequelize';
+import phaseProcessor from '../phases/phase-processor';
 
 export interface StartRampRequest {
   quoteId: string;
@@ -105,6 +106,12 @@ export class RampService extends BaseRampService {
       if (idempotencyKey) {
         await this.storeIdempotencyKey(idempotencyKey, httpStatus.CREATED, response, rampState.id);
       }
+
+      // Start processing the ramp asynchronously
+      // We don't await this to avoid blocking the response
+      phaseProcessor.processRamp(rampState.id).catch((error) => {
+        logger.error(`Error processing ramp ${rampState.id}:`, error);
+      });
 
       return response;
     });

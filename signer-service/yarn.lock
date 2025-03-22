@@ -2613,6 +2613,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/cron@npm:^2.4.3":
+  version: 2.4.3
+  resolution: "@types/cron@npm:2.4.3"
+  dependencies:
+    cron: "npm:*"
+  checksum: 10/760d1d4957d1755348b9cf8b4779205faeab9694d4c1d477283087d649474e1cccf64d448980fbbe8fd2324aa9f343d8e9f4aca77c1155dca8abd70986233032
+  languageName: node
+  linkType: hard
+
 "@types/debug@npm:^4.1.8":
   version: 4.1.12
   resolution: "@types/debug@npm:4.1.12"
@@ -2678,6 +2687,13 @@ __metadata:
   version: 4.17.16
   resolution: "@types/lodash@npm:4.17.16"
   checksum: 10/9a8bb7471a7521bd65d528e1bd14f79819a3eeb6f8a35a8a44649a7d773775c0813e93fd93bd32ccf350bb076c0bf02c6d47877c4625f526f6dd4d283c746aec
+  languageName: node
+  linkType: hard
+
+"@types/luxon@npm:~3.4.0":
+  version: 3.4.2
+  resolution: "@types/luxon@npm:3.4.2"
+  checksum: 10/fd89566e3026559f2bc4ddcc1e70a2c16161905ed50be9473ec0cfbbbe919165041408c4f6e06c4bcf095445535052e2c099087c76b1b38e368127e618fc968d
   languageName: node
   linkType: hard
 
@@ -4057,6 +4073,16 @@ __metadata:
     js-yaml: "npm:^3.13.1"
     parse-json: "npm:^4.0.0"
   checksum: 10/1d617668e1367b8d66617fb8a1bd8c13e9598534959ac0cc86195b1b0cbe7afbba2b9faa300c60b9d9d35409cf4f064b0f6e377f4ea036434e5250c69c76932f
+  languageName: node
+  linkType: hard
+
+"cron@npm:*, cron@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "cron@npm:4.1.0"
+  dependencies:
+    "@types/luxon": "npm:~3.4.0"
+    luxon: "npm:~3.5.0"
+  checksum: 10/2d687cca8d00d8fde9abecca68728f96881ad561cc1bc0d908d7443229021ad46ced750a9015931eabd3db8782f308c06ff6db1cc3a2e97ae1b069869570321c
   languageName: node
   linkType: hard
 
@@ -6694,6 +6720,13 @@ __metadata:
   dependencies:
     es5-ext: "npm:~0.10.2"
   checksum: 10/55b08ee3a7dbefb7d8ee2d14e0a97c69a887f78bddd9e28a687a1944b57e09513d4b401db515279e8829d52331df12a767f3ed27ca67c3322c723cc25c06403f
+  languageName: node
+  linkType: hard
+
+"luxon@npm:~3.5.0":
+  version: 3.5.0
+  resolution: "luxon@npm:3.5.0"
+  checksum: 10/48f86e6c1c96815139f8559456a3354a276ba79bcef0ae0d4f2172f7652f3ba2be2237b0e103b8ea0b79b47715354ac9fac04eb1db3485dcc72d5110491dd47f
   languageName: node
   linkType: hard
 
@@ -9980,6 +10013,7 @@ __metadata:
     "@types/compression": "npm:^1.7.5"
     "@types/cookie-parser": "npm:^1.4.8"
     "@types/cors": "npm:^2.8.17"
+    "@types/cron": "npm:^2.4.3"
     "@types/express": "npm:^5.0.0"
     "@types/method-override": "npm:^3.0.0"
     "@types/morgan": "npm:^1.9.9"
@@ -9991,6 +10025,7 @@ __metadata:
     compression: "npm:^1.6.2"
     cookie-parser: "npm:^1.4.7"
     cors: "npm:^2.8.3"
+    cron: "npm:^4.1.0"
     cross-env: "npm:^7.0.3"
     dotenv: "npm:^16.4.5"
     eslint: "npm:^7.29.0"

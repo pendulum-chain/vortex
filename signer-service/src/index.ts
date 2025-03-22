@@ -16,6 +16,8 @@ import { testDatabaseConnection } from './config/database';
 import { runMigrations } from './database/migrator';
 import './models'; // Initialize models
 import cleanupWorker from './api/workers/cleanup.worker';
+import rampRecoveryWorker from './api/workers/ramp-recovery.worker';
+import registerPhaseHandlers from './api/services/phases/register-handlers';
 
 const { port, env } = config;
 
@@ -54,9 +56,13 @@ const initializeApp = async () => {
     const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
     const apiManager = new ApiManager();
     await apiManager.populateApi();
-    
+
     // Start background workers
     cleanupWorker.start();
+    rampRecoveryWorker.start();
+
+    // Register phase handlers
+    registerPhaseHandlers();
 
     // Start the server
     app.listen(port, () => logger.info(`server started on port ${port} (${env})`));

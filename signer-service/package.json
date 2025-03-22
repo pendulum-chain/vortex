@@ -23,11 +23,13 @@
   },
   "dependencies": {
     "@polkadot/api": "^13.2.1",
+    "@types/cron": "^2.4.3",
     "big.js": "^6.2.1",
     "body-parser": "^1.17.0",
     "compression": "^1.6.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.3",
+    "cron": "^4.1.0",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
