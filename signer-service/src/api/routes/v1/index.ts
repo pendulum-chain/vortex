@@ -10,6 +10,7 @@ import subsidizeRoutes from './subsidize.route';
 import siweRoutes from './siwe.route';
 import quoteRoutes from './quote.route';
 import brlaRoutes from './brla.route';
+import rampRoutes from './ramp.route';
 
 import { sendStatusWithPk as sendStellarStatusWithPk } from '../../controllers/stellar.controller';
 import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../controllers/pendulum.controller';
@@ -94,6 +95,11 @@ router.use('/siwe', siweRoutes);
  * POST v1/brla
  */
 router.use('/brla', brlaRoutes);
+
+/**
+ * GET/POST v1/ramp
+ */
+router.use('/ramp', rampRoutes);
 
 router.get('/ip', (request: Request, response: Response) => {
   response.send(request.ip);

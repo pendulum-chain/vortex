@@ -1,40 +1,96 @@
-### ABOUT
+# Vortex Signer Service
 
-This simple server provides the signature of the corresponding transactions for the ephemeral account to be created,
-perform the offramping payment and be closed (merging it with the funding account).
+## About
 
-The signature for the creation transaction can be obtained by requesting at `URL/v1/stellar/create`, while the two
-transactions for payment and merge operation are returned at `URL/v1/stellar/payment`.
+This server provides backend services for the Vortex application, including:
 
-Run to start the service.
+1. Signature services for ephemeral accounts
+2. On-ramping and off-ramping flows
+3. Quote generation and management
+4. Transaction state management
+
+The service now includes a unified API for on-ramping and off-ramping flows, with state persistence in PostgreSQL.
+
+## Setup
+
+### Database Setup
+
+The service requires PostgreSQL. Set up a database and configure the connection in your `.env` file:
+
+```bash
+# Create a PostgreSQL database
+createdb vortex
+
+# Configure environment variables (see .env.example)
+cp .env.example .env
+# Edit .env with your database credentials
+```
 
 ### Running
 
 Make sure you have the required environment variables set, either in a `.env` file or in the environment.
 
-For production, run `yarn start`.
+```bash
+# Install dependencies
+yarn install
 
-For development, run `yarn run dev`.
+# Run migrations
+yarn build
+node dist/database/migrator.js
 
-### Available environment variables
+# For production
+yarn start
 
-The following environment variables are available to configure the service.
+# For development
+yarn dev
+```
+
+## API Endpoints
+
+### Ramping Endpoints
+
+#### Quote Management
+- `POST /v1/ramp/quotes` - Create a new quote
+- `GET /v1/ramp/quotes/:id` - Get quote information
+
+#### Ramp Flow Management
+- `POST /v1/ramp/start` - Start a new ramping process
+- `GET /v1/ramp/:id` - Get the status of a ramping process
+- `PATCH /v1/ramp/:id/phase` - Advance a ramping process to the next phase
+- `PATCH /v1/ramp/:id/state` - Update the state of a ramping process
+
+### Legacy Endpoints
+
+#### Stellar Operations
+- `POST /v1/stellar/create` - Get signature for account creation
+- `POST /v1/stellar/payment` - Get signatures for payment and merge operations
+
+## Environment Variables
 
 ### Mandatory
 
 - `FUNDING_SECRET`: Secret key to sign the funding transactions on Stellar.
 - `PENDULUM_FUNDING_SEED`: Seed phrase to sign the funding transactions on Pendulum.
 - `MOONBEAM_EXECUTOR_PRIVATE_KEY`: Private key to sign the transactions on Moonbeam.
-- `SLACK_WEB_HOOK_TOKEN` - Slack web hook token for error reporting.
+- `CLIENT_DOMAIN_SECRET`: Secret for client domain verification.
+
+### Database Configuration
+
+- `DB_HOST`: PostgreSQL host (default: localhost)
+- `DB_PORT`: PostgreSQL port (default: 5432)
+- `DB_USERNAME`: PostgreSQL username (default: postgres)
+- `DB_PASSWORD`: PostgreSQL password (default: postgres)
+- `DB_NAME`: PostgreSQL database name (default: vortex)
 
 ### Optional
 
-- `NODE_ENV` - The environment the application is running in, default is `production`
-- `PORT` - The port the HTTP server will listen on, default is `3000`
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL`: Optional variable to set the Google service account email.
-- `GOOGLE_PRIVATE_KEY`: Optional variable to set the Google private key.
-- `GOOGLE_SPREADSHEET_ID`: Optional variable to set the Google spreadsheet ID for data storage.
-- `GOOGLE_SPREADSHEET_EMAIL_ID`: Optional variable to set the Google spreadsheet ID for emails.
-- `RATE_LIMIT_MAX_REQUESTS` - The maximum number of requests per IP address, default is `100`
-- `RATE_LIMIT_WINDOW_MINUTES` - The time window in minutes for the rate limit, default is `15` minutes
-- `RATE_LIMIT_NUMBER_OF_PROXIES` - The number of proxies between server and user, default is `1`
+- `NODE_ENV`: The environment the application is running in (default: production)
+- `PORT`: The port the HTTP server will listen on (default: 3000)
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL`: Google service account email.
+- `GOOGLE_PRIVATE_KEY`: Google private key.
+- `GOOGLE_SPREADSHEET_ID`: Google spreadsheet ID for data storage.
+- `GOOGLE_EMAIL_SPREADSHEET_ID`: Google spreadsheet ID for emails.
+- `GOOGLE_RATING_SPREADSHEET_ID`: Google spreadsheet ID for ratings.
+- `RATE_LIMIT_MAX_REQUESTS`: Maximum number of requests per IP address (default: 100)
+- `RATE_LIMIT_WINDOW_MINUTES`: Time window in minutes for the rate limit (default: 1)
+- `RATE_LIMIT_NUMBER_OF_PROXIES`: Number of proxies between server and user (default: 1)
