@@ -3,10 +3,10 @@ import { Request, Response, RequestHandler } from 'express';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
 import * as transakService from '../services/transak.service';
 import * as moonpayService from '../services/moonpay.service';
-import { MoonpayQuote } from '../services/moonpay.service';
-import { AlchemyPayQuote } from '../services/alchemypay/alchemypay.service';
-import { TransakQuoteResult } from '../services/transak.service';
-import { QuoteQuery } from '../middlewares/validators';
+import { MoonpayPrice } from '../services/moonpay.service';
+import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
+import { TransakPriceResult } from '../services/transak.service';
+import { PriceQuery } from '../middlewares/validators';
 
 export const SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
 export type Provider = (typeof SUPPORTED_PROVIDERS)[number];
@@ -17,48 +17,48 @@ export type CryptoCurrency = (typeof SUPPORTED_CRYPTO_CURRENCIES)[number];
 export const SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
 export type FiatCurrency = (typeof SUPPORTED_FIAT_CURRENCIES)[number];
 
-type AnyQuote = AlchemyPayQuote | MoonpayQuote | TransakQuoteResult;
+type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
 
-type QuoteHandler = (
+type PriceHandler = (
   fromCrypto: CryptoCurrency,
   toFiat: FiatCurrency,
   amount: string,
   network?: string,
-) => Promise<AnyQuote>;
+) => Promise<AnyPrice>;
 
-const providerHandlers: Record<Provider, QuoteHandler> = {
+const providerHandlers: Record<Provider, PriceHandler> = {
   alchemypay: async (fromCrypto, toFiat, amount, network) => {
     try {
-      return await alchemyPayService.getQuoteFor(fromCrypto, toFiat, amount, network);
+      return await alchemyPayService.getPriceFor(fromCrypto, toFiat, amount, network);
     } catch (err) {
       // AlchemyPay's errors are not very descriptive, so we just return a generic error message
       const error = err as Error;
-      throw new Error(`Could not get quote from AlchemyPay: ${error.message}`);
+      throw new Error(`Could not get price from AlchemyPay: ${error.message}`);
     }
   },
   moonpay: async (fromCrypto, toFiat, amount) => {
     try {
-      return await moonpayService.getQuoteFor(fromCrypto, toFiat, amount);
+      return await moonpayService.getPriceFor(fromCrypto, toFiat, amount);
     } catch (err) {
       const error = err as Error;
       throw error.message === 'Token not supported'
         ? error
-        : new Error(`Could not get quote from Moonpay: ${error.message}`);
+        : new Error(`Could not get price from Moonpay: ${error.message}`);
     }
   },
   transak: async (fromCrypto, toFiat, amount, network) => {
     try {
-      return await transakService.getQuoteFor(fromCrypto, toFiat, amount, network);
+      return await transakService.getPriceFor(fromCrypto, toFiat, amount, network);
     } catch (err) {
       const error = err as Error;
       throw error.message === 'Token not supported'
         ? error
-        : new Error(`Could not get quote from Transak: ${error.message}`);
+        : new Error(`Could not get price from Transak: ${error.message}`);
     }
   },
 };
 
-const getQuoteFromProvider = async (
+const getPriceFromProvider = async (
   provider: Provider,
   fromCrypto: CryptoCurrency,
   toFiat: FiatCurrency,
@@ -68,7 +68,7 @@ const getQuoteFromProvider = async (
   return await providerHandlers[provider](fromCrypto, toFiat, amount, network);
 };
 
-export const getQuoteForProvider: RequestHandler<unknown, unknown, unknown, QuoteQuery> = async (req, res) => {
+export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, PriceQuery> = async (req, res) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || typeof provider !== 'string') {
@@ -101,14 +101,14 @@ export const getQuoteForProvider: RequestHandler<unknown, unknown, unknown, Quot
       return;
     }
 
-    const quote = await getQuoteFromProvider(
+    const price = await getPriceFromProvider(
       providerLower,
       fromCrypto.toLowerCase() as CryptoCurrency,
       toFiat.toLowerCase() as FiatCurrency,
       amount,
       networkParam,
     );
-    res.json(quote);
+    res.json(price);
     return;
   } catch (err) {
     const error = err as Error;

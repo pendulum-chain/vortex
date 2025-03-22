@@ -1,8 +1,8 @@
 import { config } from '../../config/vars';
 
-const { quoteProviders } = config;
+const { priceProviders } = config;
 
-interface TransakQuoteResponse {
+interface TransakPriceResponse {
   response: {
     conversionPrice: number;
     cryptoAmount: number;
@@ -14,7 +14,7 @@ interface TransakQuoteResponse {
   };
 }
 
-export interface TransakQuoteResult {
+export interface TransakPriceResult {
   cryptoPrice: number;
   cryptoAmount: number;
   fiatAmount: number;
@@ -32,8 +32,8 @@ async function priceQuery(
   network: Network,
   isBuyOrSell: Side,
   paymentMethod?: string,
-): Promise<TransakQuoteResult> {
-  const { baseUrl, partnerApiKey } = quoteProviders.transak;
+): Promise<TransakPriceResult> {
+  const { baseUrl, partnerApiKey } = priceProviders.transak;
   const requestPath = '/api/v1/pricing/public/quotes';
   const requestUrl = `${baseUrl}${requestPath}`;
 
@@ -58,18 +58,18 @@ async function priceQuery(
 
   const response = await fetch(url);
   if (!response.ok) {
-    const body = (await response.json()) as TransakQuoteResponse;
+    const body = (await response.json()) as TransakPriceResponse;
     if (body.error?.message === 'Invalid fiat currency') {
       throw new Error('Token not supported');
     }
     throw new Error(
-      `Could not get quote for ${cryptoCurrency} to ${fiatCurrency} from Transak: ${body.error?.message}`,
+      `Could not get price for ${cryptoCurrency} to ${fiatCurrency} from Transak: ${body.error?.message}`,
     );
   }
 
   const {
     response: { conversionPrice, cryptoAmount: resultCryptoAmount, fiatAmount, totalFee },
-  } = (await response.json()) as TransakQuoteResponse;
+  } = (await response.json()) as TransakPriceResponse;
 
   return {
     cryptoPrice: conversionPrice,
@@ -101,12 +101,12 @@ function getFiatCode(toFiat: string): string {
   return toFiat.toUpperCase();
 }
 
-export const getQuoteFor = (
+export const getPriceFor = (
   fromCrypto: SupportedCrypto,
   toFiat: string,
   amount: string | number,
   network?: string,
-): Promise<TransakQuoteResult> => {
+): Promise<TransakPriceResult> => {
   const DEFAULT_NETWORK = 'POLYGON';
   const networkCode = getTransakNetworkCode(network || DEFAULT_NETWORK);
   const side: Side = 'SELL'; // We always sell our crypto for fiat

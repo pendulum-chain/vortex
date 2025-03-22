@@ -10,7 +10,7 @@ import {
   Provider,
   FiatCurrency,
   CryptoCurrency,
-} from '../controllers/quote.controller';
+} from '../controllers/price.controller';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 
 import { ParsedQs } from 'qs';
@@ -23,7 +23,7 @@ interface CreationBody {
   baseFee: string;
 }
 
-export interface QuoteQuery {
+export interface PriceQuery {
   provider: Provider;
   fromCrypto: CryptoCurrency;
   toFiat: FiatCurrency;
@@ -89,7 +89,7 @@ export const validateCreationInput: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateQuoteInput: RequestHandler<{}, unknown, unknown, QuoteQuery> = (req, res, next) => {
+export const validatePriceInput: RequestHandler<{}, unknown, unknown, PriceQuery> = (req, res, next) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || !SUPPORTED_PROVIDERS.includes(provider.toLowerCase() as Provider)) {

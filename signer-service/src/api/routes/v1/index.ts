@@ -8,7 +8,7 @@ import emailRoutes from './email.route';
 import ratingRoutes from './rating.route';
 import subsidizeRoutes from './subsidize.route';
 import siweRoutes from './siwe.route';
-import quoteRoutes from './quote.route';
+import quoteRoutes from './price.route';
 import brlaRoutes from './brla.route';
 import rampRoutes from './ramp.route';
 

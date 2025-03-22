@@ -1,8 +1,8 @@
 import { config } from '../../config/vars';
 
-const { quoteProviders } = config;
+const { priceProviders } = config;
 
-export interface MoonpayQuote {
+export interface MoonpayPrice {
   cryptoPrice: number;
   cryptoAmount: number;
   fiatAmount: number;
@@ -25,8 +25,8 @@ async function priceQuery(
   baseCurrencyAmount: string,
   extraFeePercentage: number,
   payoutMethod: string,
-): Promise<MoonpayQuote> {
-  const { baseUrl, apiKey } = quoteProviders.moonpay;
+): Promise<MoonpayPrice> {
+  const { baseUrl, apiKey } = priceProviders.moonpay;
   if (!apiKey) throw new Error('Moonpay API key not configured');
 
   const requestPath = `/v3/currencies/${currencyCode}/sell_quote`;
@@ -86,7 +86,7 @@ function getFiatCode(toFiat: string): string {
   return toFiat.toLowerCase();
 }
 
-export const getQuoteFor = (fromCrypto: string, toFiat: string, amount: string): Promise<MoonpayQuote> => {
+export const getPriceFor = (fromCrypto: string, toFiat: string, amount: string): Promise<MoonpayPrice> => {
   // We can specify a custom fee percentage here added on top of the Moonpay fee but we don't
   const extraFeePercentage = 0;
   // If the fiat currency is EUR we can use SEPA bank transfer, otherwise we assume credit_debit_card

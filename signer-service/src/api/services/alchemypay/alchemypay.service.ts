@@ -2,9 +2,9 @@ import crypto from 'node:crypto';
 import { config } from '../../../config/vars';
 import { removeEmptyKeys, sortObject } from './helpers';
 
-const { quoteProviders } = config;
+const { priceProviders } = config;
 
-export interface AlchemyPayQuote {
+export interface AlchemyPayPrice {
   cryptoPrice: number;
   cryptoAmount: number;
   fiatAmount: number;
@@ -68,8 +68,8 @@ async function priceQuery(
   amount: string,
   network: string,
   side: string,
-): Promise<AlchemyPayQuote> {
-  const { secretKey, baseUrl, appId } = quoteProviders.alchemyPay;
+): Promise<AlchemyPayPrice> {
+  const { secretKey, baseUrl, appId } = priceProviders.alchemyPay;
   if (!secretKey || !appId) throw new Error('AlchemyPay configuration missing');
 
   const httpMethod = 'POST';
@@ -110,7 +110,7 @@ async function priceQuery(
   const body = (await response.json()) as AlchemyPayResponse;
   if (!body.success) {
     throw new Error(
-      `Could not get quote for ${crypto} to ${fiat} from AlchemyPay: ` + body.returnMsg || 'Unknown error',
+      `Could not get price for ${crypto} to ${fiat} from AlchemyPay: ` + body.returnMsg || 'Unknown error',
     );
   }
 
@@ -157,12 +157,12 @@ function getFiatCode(toFiat: string): string {
   return toFiat.toUpperCase();
 }
 
-export const getQuoteFor = (
+export const getPriceFor = (
   fromCrypto: string,
   toFiat: string,
   amount: string,
   network?: string,
-): Promise<AlchemyPayQuote> => {
+): Promise<AlchemyPayPrice> => {
   const DEFAULT_NETWORK = 'POLYGON';
   const networkCode = getAlchemyPayNetworkCode(network || DEFAULT_NETWORK);
   const side = 'SELL';

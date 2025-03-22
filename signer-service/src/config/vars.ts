@@ -5,7 +5,7 @@ dotenv.config({
   path: path.join(__dirname, '../../.env'),
 });
 
-interface QuoteProvider {
+interface PriceProvider {
   baseUrl: string;
   appId?: string;
   secretKey?: string;
@@ -37,10 +37,10 @@ interface Config {
   rateLimitWindowMinutes: string | number;
   rateLimitNumberOfProxies: string | number;
   logs: string;
-  quoteProviders: {
-    alchemyPay: QuoteProvider;
-    transak: QuoteProvider;
-    moonpay: QuoteProvider;
+  priceProviders: {
+    alchemyPay: PriceProvider;
+    transak: PriceProvider;
+    moonpay: PriceProvider;
   };
   spreadsheet: SpreadsheetConfig;
   database: {
@@ -63,7 +63,7 @@ export const config: Config = {
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 1,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   logs: process.env.NODE_ENV === 'production' ? 'combined' : 'dev',
-  quoteProviders: {
+  priceProviders: {
     alchemyPay: {
       baseUrl: process.env.ALCHEMYPAY_PROD_URL || 'https://openapi.alchemypay.org',
       appId: process.env.ALCHEMYPAY_APP_ID,
