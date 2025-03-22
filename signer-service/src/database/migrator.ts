@@ -13,8 +13,8 @@ const umzug = new Umzug({
       const migration = require(path!);
       return {
         name,
-        up: async () => migration.up(context.queryInterface),
-        down: async () => migration.down(context.queryInterface),
+        up: async () => migration.up(context, Sequelize),
+        down: async () => migration.down(context, Sequelize),
       };
     },
   },
@@ -77,6 +77,8 @@ export const getExecutedMigrations = async (): Promise<string[]> => {
 if (require.main === module) {
   (async () => {
     try {
+      await sequelize.authenticate();
+      logger.info('Connection to the database has been established successfully');
       await runMigrations();
       process.exit(0);
     } catch (error) {
