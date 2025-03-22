@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getQuoteForProvider } from '../../controllers/quote.controller';
+import { getQuoteForProvider } from '../../controllers/price.controller';
 import { validateQuoteInput, QuoteQuery } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
