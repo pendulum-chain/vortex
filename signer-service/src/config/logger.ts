@@ -3,7 +3,13 @@ import winston from 'winston';
 
 const logger = winston.createLogger({
   level: 'info',
-  format: winston.format.json(),
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message, ...meta }) => {
+      const metaString = meta && Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+      return `${timestamp} [${level}]: ${message} ${metaString}`;
+    }),
+  ),
   transports: [
     //
     // - Write to all logs with level `info` and below to `combined.log`
@@ -21,7 +27,13 @@ const logger = winston.createLogger({
 if (process.env.NODE_ENV !== 'production') {
   logger.add(
     new winston.transports.Console({
-      format: winston.format.simple(),
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.printf(({ level, message, ...meta }) => {
+          const metaString = meta && Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+          return `[${level}]: ${message} ${metaString}`;
+        }),
+      ),
     }),
   );
 }
