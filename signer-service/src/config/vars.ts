@@ -43,6 +43,15 @@ interface Config {
     moonpay: QuoteProvider;
   };
   spreadsheet: SpreadsheetConfig;
+  database: {
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    database: string;
+    dialect: 'postgres';
+    logging: boolean;
+  };
 }
 
 export const config: Config = {
@@ -77,5 +86,14 @@ export const config: Config = {
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID,
     emailSheetId: process.env.GOOGLE_EMAIL_SPREADSHEET_ID,
     ratingSheetId: process.env.GOOGLE_RATING_SPREADSHEET_ID,
+  },
+  database: {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    username: process.env.DB_USERNAME || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
+    database: process.env.DB_NAME || 'vortex',
+    dialect: 'postgres',
+    logging: process.env.NODE_ENV !== 'production',
   },
 };

@@ -1,123 +1,69 @@
-import { Request, Response, RequestHandler } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import httpStatus from 'http-status';
+import quoteService from '../services/ramp/quote.service';
+import { APIError } from '../errors/api-error';
+import logger from '../../config/logger';
 
-import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
-import * as transakService from '../services/transak.service';
-import * as moonpayService from '../services/moonpay.service';
-import { MoonpayQuote } from '../services/moonpay.service';
-import { AlchemyPayQuote } from '../services/alchemypay/alchemypay.service';
-import { TransakQuoteResult } from '../services/transak.service';
-import { QuoteQuery } from '../middlewares/validators';
-
-export const SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
-export type Provider = (typeof SUPPORTED_PROVIDERS)[number];
-
-export const SUPPORTED_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
-export type CryptoCurrency = (typeof SUPPORTED_CRYPTO_CURRENCIES)[number];
-
-export const SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
-export type FiatCurrency = (typeof SUPPORTED_FIAT_CURRENCIES)[number];
-
-type AnyQuote = AlchemyPayQuote | MoonpayQuote | TransakQuoteResult;
-
-type QuoteHandler = (
-  fromCrypto: CryptoCurrency,
-  toFiat: FiatCurrency,
-  amount: string,
-  network?: string,
-) => Promise<AnyQuote>;
-
-const providerHandlers: Record<Provider, QuoteHandler> = {
-  alchemypay: async (fromCrypto, toFiat, amount, network) => {
-    try {
-      return await alchemyPayService.getQuoteFor(fromCrypto, toFiat, amount, network);
-    } catch (err) {
-      // AlchemyPay's errors are not very descriptive, so we just return a generic error message
-      const error = err as Error;
-      throw new Error(`Could not get quote from AlchemyPay: ${error.message}`);
-    }
-  },
-  moonpay: async (fromCrypto, toFiat, amount) => {
-    try {
-      return await moonpayService.getQuoteFor(fromCrypto, toFiat, amount);
-    } catch (err) {
-      const error = err as Error;
-      throw error.message === 'Token not supported'
-        ? error
-        : new Error(`Could not get quote from Moonpay: ${error.message}`);
-    }
-  },
-  transak: async (fromCrypto, toFiat, amount, network) => {
-    try {
-      return await transakService.getQuoteFor(fromCrypto, toFiat, amount, network);
-    } catch (err) {
-      const error = err as Error;
-      throw error.message === 'Token not supported'
-        ? error
-        : new Error(`Could not get quote from Transak: ${error.message}`);
-    }
-  },
-};
-
-const getQuoteFromProvider = async (
-  provider: Provider,
-  fromCrypto: CryptoCurrency,
-  toFiat: FiatCurrency,
-  amount: string,
-  network?: string,
-) => {
-  return await providerHandlers[provider](fromCrypto, toFiat, amount, network);
-};
-
-export const getQuoteForProvider: RequestHandler<unknown, unknown, unknown, QuoteQuery> = async (req, res) => {
-  const { provider, fromCrypto, toFiat, amount, network } = req.query;
-
-  if (!provider || typeof provider !== 'string') {
-    res.status(400).json({ error: 'Invalid provider parameter' });
-    return;
-  }
-
-  const providerLower = provider.toLowerCase() as Provider;
-
-  if (!fromCrypto || typeof fromCrypto !== 'string') {
-    res.status(400).json({ error: 'Invalid fromCrypto parameter' });
-    return;
-  }
-
-  if (!toFiat || typeof toFiat !== 'string') {
-    res.status(400).json({ error: 'Invalid toFiat parameter' });
-    return;
-  }
-
-  if (!amount || typeof amount !== 'string') {
-    res.status(400).json({ error: 'Invalid amount parameter' });
-    return;
-  }
-
-  const networkParam = network && typeof network === 'string' ? network : undefined;
-
+/**
+ * Create a new quote
+ * @public
+ */
+export const createQuote = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (!providerHandlers[providerLower]) {
-      res.status(400).json({ error: 'Invalid provider' });
-      return;
+    const { rampType, chainId, inputAmount, inputCurrency, outputCurrency } = req.body;
+
+    // Validate required fields
+    if (!rampType || !chainId || !inputAmount || !inputCurrency || !outputCurrency) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Missing required fields',
+      });
     }
 
-    const quote = await getQuoteFromProvider(
-      providerLower,
-      fromCrypto.toLowerCase() as CryptoCurrency,
-      toFiat.toLowerCase() as FiatCurrency,
-      amount,
-      networkParam,
-    );
-    res.json(quote);
-    return;
-  } catch (err) {
-    const error = err as Error;
-    if (error.message === 'Token not supported') {
-      res.status(404).json({ error: 'Token not supported' });
-      return;
+    // Validate ramp type
+    if (rampType !== 'on' && rampType !== 'off') {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Invalid ramp type, must be "on" or "off"',
+      });
     }
-    console.error('Server error:', error);
-    res.status(500).json({ error: error.message });
-    return;
+
+    // Create quote
+    const quote = await quoteService.createQuote({
+      rampType,
+      chainId,
+      inputAmount,
+      inputCurrency,
+      outputCurrency,
+    });
+
+    res.status(httpStatus.CREATED).json(quote);
+  } catch (error) {
+    logger.error('Error creating quote:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get a quote by ID
+ * @public
+ */
+export const getQuote = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const quote = await quoteService.getQuote(id);
+
+    if (!quote) {
+      throw new APIError({
+        status: httpStatus.NOT_FOUND,
+        message: 'Quote not found',
+      });
+    }
+
+    res.status(httpStatus.OK).json(quote);
+  } catch (error) {
+    logger.error('Error getting quote:', error);
+    next(error);
   }
 };
