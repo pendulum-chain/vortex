@@ -10,6 +10,15 @@ interface RampStateAttributes {
   chainId: number;
   state: any; // JSONB
   quoteId: string; // UUID reference to QuoteTicket
+  phaseHistory: { phase: string; timestamp: Date; metadata?: any }[]; // JSONB array
+  errorLogs: { phase: string; timestamp: Date; error: string; details?: any }[]; // JSONB array
+  subsidyDetails: {
+    hardLimit?: string;
+    softLimit?: string;
+    consumed?: string;
+    remaining?: string;
+  }; // JSONB
+  nonceSequences: Record<string, number>; // JSONB
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +35,15 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   public chainId!: number;
   public state!: any;
   public quoteId!: string;
+  public phaseHistory!: { phase: string; timestamp: Date; metadata?: any }[];
+  public errorLogs!: { phase: string; timestamp: Date; error: string; details?: any }[];
+  public subsidyDetails!: {
+    hardLimit?: string;
+    softLimit?: string;
+    consumed?: string;
+    remaining?: string;
+  };
+  public nonceSequences!: Record<string, number>;
   public createdAt!: Date;
   public updatedAt!: Date;
 }
@@ -55,7 +73,7 @@ RampState.init(
           if (!Array.isArray(value) || value.length < 1 || value.length > 5) {
             throw new Error('presignedTxs must be an array with 1-5 elements');
           }
-          
+
           for (const tx of value) {
             if (!tx.tx_data || !tx.expires_at || !tx.phase) {
               throw new Error('Each transaction must have tx_data, expires_at, and phase properties');
@@ -79,6 +97,30 @@ RampState.init(
         model: 'quote_tickets',
         key: 'id',
       },
+    },
+    phaseHistory: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: [],
+      field: 'phase_history',
+    },
+    errorLogs: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: [],
+      field: 'error_logs',
+    },
+    subsidyDetails: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {},
+      field: 'subsidy_details',
+    },
+    nonceSequences: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {},
+      field: 'nonce_sequences',
     },
     createdAt: {
       type: DataTypes.DATE,
@@ -106,7 +148,7 @@ RampState.init(
         fields: ['quoteId'],
       },
     ],
-  }
+  },
 );
 
 export default RampState;

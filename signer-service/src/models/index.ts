@@ -2,6 +2,7 @@ import sequelize from '../config/database';
 import QuoteTicket from './quoteTicket.model';
 import RampState from './rampState.model';
 import IdempotencyKey from './idempotencyKey.model';
+import PhaseMetadata from './phaseMetadata.model';
 
 // Define associations
 RampState.belongsTo(QuoteTicket, { foreignKey: 'quoteId', as: 'quote' });
@@ -12,6 +13,7 @@ const models = {
   QuoteTicket,
   RampState,
   IdempotencyKey,
+  PhaseMetadata,
 };
 
 // Export models and sequelize instance

@@ -35,8 +35,10 @@ Make sure you have the required environment variables set, either in a `.env` fi
 yarn install
 
 # Run migrations
-yarn build
-node dist/database/migrator.js
+yarn migrate
+
+# Seed phase metadata
+yarn seed:phase-metadata
 
 # For production
 yarn start
@@ -50,20 +52,54 @@ yarn dev
 ### Ramping Endpoints
 
 #### Quote Management
+
 - `POST /v1/ramp/quotes` - Create a new quote
 - `GET /v1/ramp/quotes/:id` - Get quote information
 
 #### Ramp Flow Management
+
 - `POST /v1/ramp/start` - Start a new ramping process
 - `GET /v1/ramp/:id` - Get the status of a ramping process
 - `PATCH /v1/ramp/:id/phase` - Advance a ramping process to the next phase
 - `PATCH /v1/ramp/:id/state` - Update the state of a ramping process
+- `PATCH /v1/ramp/:id/subsidy` - Update subsidy details
+- `PATCH /v1/ramp/:id/nonce` - Update nonce sequences
+- `POST /v1/ramp/:id/error` - Log an error
+- `GET /v1/ramp/:id/history` - Get phase history
+- `GET /v1/ramp/:id/errors` - Get error logs
+- `GET /v1/ramp/phases/:phase/transitions` - Get valid transitions for a phase
 
 ### Legacy Endpoints
 
 #### Stellar Operations
+
 - `POST /v1/stellar/create` - Get signature for account creation
 - `POST /v1/stellar/payment` - Get signatures for payment and merge operations
+
+## State Machine Implementation
+
+The service now implements a state machine pattern for ramping flows:
+
+1. **Phase Transitions**: Each phase has defined valid transitions to other phases
+2. **Phase History**: All phase transitions are logged with timestamps
+3. **Error Logging**: Errors are logged with phase information
+4. **Subsidy Management**: Subsidy details are tracked throughout the flow
+5. **Nonce Sequence Management**: Transaction nonce sequences are managed
+
+### Phase Metadata
+
+Phase metadata is stored in the database and includes:
+
+- Required transactions for each phase
+- Success conditions
+- Retry policies
+- Valid transitions
+
+To update phase metadata, modify the seeder file and run:
+
+```bash
+yarn seed:phase-metadata
+```
 
 ## Environment Variables
 

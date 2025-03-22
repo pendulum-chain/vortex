@@ -19,6 +19,15 @@ export interface RampStateData {
   chainId: number;
   state: any;
   quoteId: string;
+  phaseHistory?: { phase: string; timestamp: Date; metadata?: any }[];
+  errorLogs?: { phase: string; timestamp: Date; error: string; details?: any }[];
+  subsidyDetails?: {
+    hardLimit?: string;
+    softLimit?: string;
+    consumed?: string;
+    remaining?: string;
+  };
+  nonceSequences?: Record<string, number>;
 }
 
 export class BaseRampService {
@@ -29,6 +38,15 @@ export class BaseRampService {
     return RampState.create({
       id: uuidv4(),
       ...data,
+      phaseHistory: data.phaseHistory || [
+        {
+          phase: data.currentPhase,
+          timestamp: new Date(),
+        },
+      ],
+      errorLogs: data.errorLogs || [],
+      subsidyDetails: data.subsidyDetails || {},
+      nonceSequences: data.nonceSequences || {},
     });
   }
 
@@ -52,6 +70,91 @@ export class BaseRampService {
   }
 
   /**
+   * Log a phase transition
+   */
+  protected async logPhaseTransition(id: string, newPhase: string, metadata?: any): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
+      throw new Error(`RampState with id ${id} not found`);
+    }
+
+    const phaseHistory = [
+      ...rampState.phaseHistory,
+      {
+        phase: newPhase,
+        timestamp: new Date(),
+        metadata,
+      },
+    ];
+
+    await rampState.update({
+      currentPhase: newPhase,
+      phaseHistory,
+    });
+  }
+
+  /**
+   * Log an error
+   */
+  protected async logError(id: string, phase: string, error: string, details?: any): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
+      throw new Error(`RampState with id ${id} not found`);
+    }
+
+    const errorLogs = [
+      ...rampState.errorLogs,
+      {
+        phase,
+        timestamp: new Date(),
+        error,
+        details,
+      },
+    ];
+
+    await rampState.update({ errorLogs });
+  }
+
+  /**
+   * Update subsidy details
+   */
+  protected async updateSubsidyDetails(
+    id: string,
+    subsidyDetails: Partial<RampState['subsidyDetails']>,
+  ): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
+      throw new Error(`RampState with id ${id} not found`);
+    }
+
+    await rampState.update({
+      subsidyDetails: {
+        ...rampState.subsidyDetails,
+        ...subsidyDetails,
+      },
+    });
+  }
+
+  /**
+   * Update nonce sequences
+   */
+  protected async updateNonceSequences(id: string, newSequences: Record<string, number>): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
+      throw new Error(`RampState with id ${id} not found`);
+    }
+
+    const updatedSequences = { ...rampState.nonceSequences };
+
+    // Merge the new sequences
+    Object.keys(newSequences).forEach((key) => {
+      updatedSequences[key] = newSequences[key];
+    });
+
+    await rampState.update({ nonceSequences: updatedSequences });
+  }
+
+  /**
    * Get a quote ticket by ID
    */
   protected async getQuoteTicket(id: string): Promise<QuoteTicket | null> {
@@ -68,7 +171,7 @@ export class BaseRampService {
         where: { id, status: 'pending' },
         returning: true,
         transaction,
-      }
+      },
     );
   }
 
@@ -94,7 +197,7 @@ export class BaseRampService {
     key: string,
     responseStatus: number,
     responseBody: any,
-    rampId?: string
+    rampId?: string,
   ): Promise<IdempotencyKey> {
     return IdempotencyKey.create({
       key,
@@ -141,7 +244,7 @@ export class BaseRampService {
             [Op.lt]: new Date(),
           },
         },
-      }
+      },
     );
     return count;
   }

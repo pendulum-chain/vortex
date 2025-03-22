@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BaseRampService, PresignedTx, RampStateData } from './base.service';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
+import PhaseMetadata from '../../../models/phaseMetadata.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
@@ -39,7 +40,7 @@ export class RampService extends BaseRampService {
     return this.withTransaction(async (transaction) => {
       // Get and validate the quote
       const quote = await QuoteTicket.findByPk(request.quoteId, { transaction });
-      
+
       if (!quote) {
         throw new APIError({
           status: httpStatus.NOT_FOUND,
@@ -57,7 +58,7 @@ export class RampService extends BaseRampService {
       if (new Date(quote.expiresAt) < new Date()) {
         // Update the quote status to expired
         await quote.update({ status: 'expired' }, { transaction });
-        
+
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
           message: 'Quote has expired',
@@ -102,12 +103,7 @@ export class RampService extends BaseRampService {
 
       // Store idempotency key if provided
       if (idempotencyKey) {
-        await this.storeIdempotencyKey(
-          idempotencyKey,
-          httpStatus.CREATED,
-          response,
-          rampState.id
-        );
+        await this.storeIdempotencyKey(idempotencyKey, httpStatus.CREATED, response, rampState.id);
       }
 
       return response;
@@ -138,7 +134,7 @@ export class RampService extends BaseRampService {
   /**
    * Advance a ramping process to the next phase
    */
-  public async advanceRamp(id: string, newPhase: string): Promise<RampResponse | null> {
+  public async advanceRamp(id: string, newPhase: string, metadata?: any): Promise<RampResponse | null> {
     return this.withTransaction(async (transaction) => {
       const rampState = await RampState.findByPk(id, { transaction });
 
@@ -146,19 +142,61 @@ export class RampService extends BaseRampService {
         return null;
       }
 
-      // Update the phase
-      await rampState.update({ currentPhase: newPhase }, { transaction });
+      // Validate phase transition
+      await this.validatePhaseTransition(rampState.currentPhase, newPhase);
+
+      // Log the phase transition
+      await this.logPhaseTransition(id, newPhase, metadata);
 
       return {
         id: rampState.id,
         type: rampState.type,
-        currentPhase: rampState.currentPhase,
+        currentPhase: newPhase,
         chainId: rampState.chainId,
         state: rampState.state,
         createdAt: rampState.createdAt,
         updatedAt: rampState.updatedAt,
       };
     });
+  }
+
+  /**
+   * Validate a phase transition
+   */
+  private async validatePhaseTransition(currentPhase: string, newPhase: string): Promise<void> {
+    // Get the phase metadata for the current phase
+    const phaseMetadata = await PhaseMetadata.findOne({
+      where: { phaseName: currentPhase },
+    });
+
+    // If no metadata exists, allow the transition (for backward compatibility)
+    if (!phaseMetadata) {
+      logger.warn(`No phase metadata found for phase ${currentPhase}`);
+      return;
+    }
+
+    // Check if the transition is valid
+    if (!phaseMetadata.validTransitions.includes(newPhase)) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: `Invalid phase transition from ${currentPhase} to ${newPhase}`,
+      });
+    }
+  }
+
+  /**
+   * Get the valid transitions for a phase
+   */
+  public async getValidTransitions(phase: string): Promise<string[]> {
+    const phaseMetadata = await PhaseMetadata.findOne({
+      where: { phaseName: phase },
+    });
+
+    if (!phaseMetadata) {
+      return [];
+    }
+
+    return phaseMetadata.validTransitions;
   }
 
   /**
@@ -185,6 +223,109 @@ export class RampService extends BaseRampService {
         updatedAt: rampState.updatedAt,
       };
     });
+  }
+
+  /**
+   * Update subsidy details for a ramping process
+   */
+  public async updateRampSubsidyDetails(
+    id: string,
+    subsidyDetails: Partial<RampState['subsidyDetails']>,
+  ): Promise<RampResponse | null> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      return null;
+    }
+
+    await this.updateSubsidyDetails(id, subsidyDetails);
+
+    return {
+      id: rampState.id,
+      type: rampState.type,
+      currentPhase: rampState.currentPhase,
+      chainId: rampState.chainId,
+      state: rampState.state,
+      createdAt: rampState.createdAt,
+      updatedAt: rampState.updatedAt,
+    };
+  }
+
+  /**
+   * Update nonce sequences for a ramping process
+   */
+  public async updateRampNonceSequences(
+    id: string,
+    nonceSequences: Record<string, number>,
+  ): Promise<RampResponse | null> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      return null;
+    }
+
+    await this.updateNonceSequences(id, nonceSequences);
+
+    return {
+      id: rampState.id,
+      type: rampState.type,
+      currentPhase: rampState.currentPhase,
+      chainId: rampState.chainId,
+      state: rampState.state,
+      createdAt: rampState.createdAt,
+      updatedAt: rampState.updatedAt,
+    };
+  }
+
+  /**
+   * Log an error for a ramping process
+   */
+  public async logRampError(id: string, error: string, details?: any): Promise<RampResponse | null> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      return null;
+    }
+
+    await this.logError(id, rampState.currentPhase, error, details);
+
+    return {
+      id: rampState.id,
+      type: rampState.type,
+      currentPhase: rampState.currentPhase,
+      chainId: rampState.chainId,
+      state: rampState.state,
+      createdAt: rampState.createdAt,
+      updatedAt: rampState.updatedAt,
+    };
+  }
+
+  /**
+   * Get the phase history for a ramping process
+   */
+  public async getPhaseHistory(id: string): Promise<{ phase: string; timestamp: Date; metadata?: any }[] | null> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      return null;
+    }
+
+    return rampState.phaseHistory;
+  }
+
+  /**
+   * Get the error logs for a ramping process
+   */
+  public async getErrorLogs(
+    id: string,
+  ): Promise<{ phase: string; timestamp: Date; error: string; details?: any }[] | null> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      return null;
+    }
+
+    return rampState.errorLogs;
   }
 
   /**
