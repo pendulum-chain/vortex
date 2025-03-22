@@ -1,6 +1,7 @@
 import phaseRegistry from './phase-registry';
 import initialPhaseHandler from './handlers/initial-phase-handler';
 import prepareTransactionsPhaseHandler from './handlers/prepare-transactions-phase-handler';
+import squidRouterPhaseHandler from './handlers/squid-router-phase-handler';
 import logger from '../../../config/logger';
 
 /**
@@ -12,10 +13,11 @@ export function registerPhaseHandlers(): void {
   // Register handlers
   phaseRegistry.registerHandler(initialPhaseHandler);
   phaseRegistry.registerHandler(prepareTransactionsPhaseHandler);
+  phaseRegistry.registerHandler(squidRouterPhaseHandler);
 
   // Add more handlers here as they are implemented
   // Example:
-  // phaseRegistry.registerHandler(squidRouterPhaseHandler);
+  // phaseRegistry.registerHandler(pendulumFundEphemeralPhaseHandler);
   // etc.
 
   logger.info('Phase handlers registered');
