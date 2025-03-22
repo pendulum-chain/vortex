@@ -64,10 +64,12 @@ RampState.init(
       type: DataTypes.STRING(32),
       allowNull: false,
       defaultValue: 'initial',
+      field: 'current_phase',
     },
     presignedTxs: {
       type: DataTypes.JSONB,
       allowNull: false,
+      field: 'presigned_txs',
       validate: {
         isValidTxArray(value: any[]) {
           if (!Array.isArray(value) || value.length < 1 || value.length > 5) {
@@ -85,6 +87,7 @@ RampState.init(
     chainId: {
       type: DataTypes.BIGINT,
       allowNull: false,
+      field: 'chain_id',
     },
     state: {
       type: DataTypes.JSONB,
@@ -93,6 +96,7 @@ RampState.init(
     quoteId: {
       type: DataTypes.UUID,
       allowNull: false,
+      field: 'quote_id',
       references: {
         model: 'quote_tickets',
         key: 'id',
@@ -126,11 +130,13 @@ RampState.init(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at',
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at',
     },
   },
   {

@@ -15,8 +15,10 @@ interface IdempotencyKeyAttributes {
 interface IdempotencyKeyCreationAttributes extends Optional<IdempotencyKeyAttributes, 'createdAt'> {}
 
 // Define the IdempotencyKey model
-class IdempotencyKey extends Model<IdempotencyKeyAttributes, IdempotencyKeyCreationAttributes>
-  implements IdempotencyKeyAttributes {
+class IdempotencyKey
+  extends Model<IdempotencyKeyAttributes, IdempotencyKeyCreationAttributes>
+  implements IdempotencyKeyAttributes
+{
   public key!: string;
   public rampId!: string | null;
   public responseStatus!: number;
@@ -35,6 +37,7 @@ IdempotencyKey.init(
     rampId: {
       type: DataTypes.UUID,
       allowNull: true,
+      field: 'ramp_id',
       references: {
         model: 'ramp_states',
         key: 'id',
@@ -43,20 +46,24 @@ IdempotencyKey.init(
     responseStatus: {
       type: DataTypes.SMALLINT,
       allowNull: false,
+      field: 'response_status',
     },
     responseBody: {
       type: DataTypes.JSONB,
       allowNull: false,
+      field: 'response_body',
     },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at',
     },
     expiredAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: () => new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+      field: 'expired_at',
     },
   },
   {
@@ -71,7 +78,7 @@ IdempotencyKey.init(
         fields: ['expiredAt'],
       },
     ],
-  }
+  },
 );
 
 export default IdempotencyKey;

@@ -45,30 +45,37 @@ QuoteTicket.init(
     rampType: {
       type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
+      field: 'ramp_type',
     },
     chainId: {
       type: DataTypes.BIGINT,
       allowNull: false,
+      field: 'chain_id',
     },
     inputAmount: {
       type: DataTypes.DECIMAL(38, 18),
       allowNull: false,
+      field: 'input_amount',
     },
     inputCurrency: {
       type: DataTypes.STRING(8),
       allowNull: false,
+      field: 'input_currency',
     },
     outputAmount: {
       type: DataTypes.DECIMAL(38, 18),
       allowNull: false,
+      field: 'output_amount',
     },
     outputCurrency: {
       type: DataTypes.STRING(8),
       allowNull: false,
+      field: 'output_currency',
     },
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: false,
+      field: 'expires_at',
       defaultValue: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
     },
     status: {
@@ -79,11 +86,13 @@ QuoteTicket.init(
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
+      field: 'created_at',
       defaultValue: DataTypes.NOW,
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
+      field: 'updated_at',
       defaultValue: DataTypes.NOW,
     },
   },
@@ -101,7 +110,7 @@ QuoteTicket.init(
         },
       },
     ],
-  }
+  },
 );
 
 export default QuoteTicket;
