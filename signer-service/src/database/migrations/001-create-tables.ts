@@ -81,6 +81,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       defaultValue: 'initial',
       field: 'current_phase',
     },
+    unsignedTxs: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      field: 'unsigned_txs',
+    },
     presignedTxs: {
       type: DataTypes.JSONB,
       allowNull: false,

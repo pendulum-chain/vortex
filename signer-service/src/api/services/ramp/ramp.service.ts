@@ -54,16 +54,11 @@ export class RampService extends BaseRampService {
       }
     }
 
-    if (!request.ephemerals || request.ephemerals.length === 0) {
-      throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Ephemerals are required',
-      });
-    }
-
     return this.withTransaction(async (transaction) => {
+      const { ephemerals, quoteId } = request;
+
       // Get and validate the quote
-      const quoteModel = await QuoteTicket.findByPk(request.quoteId, { transaction });
+      const quoteModel = await QuoteTicket.findByPk(quoteId, { transaction });
 
       if (!quoteModel) {
         throw new APIError({
@@ -165,11 +160,13 @@ export class RampService extends BaseRampService {
           message: 'Ramp not found',
         });
       }
-      // TODO add expiry to rampState as well?
-      const rampState = rampStateModel.dataValues;
 
       // Validate presigned transactions
-      validatePresignedTxs(rampState.presignedTxs);
+      validatePresignedTxs(request.presignedTxs);
+
+      const rampState = rampStateModel.dataValues;
+      await this.updateRampState(request.rampId, { presignedTxs: request.presignedTxs });
+      // TODO add or check expiry of rampState as well?
 
       // We don't return data for this request.
       const response = undefined;
