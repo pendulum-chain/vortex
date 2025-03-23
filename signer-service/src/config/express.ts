@@ -31,7 +31,7 @@ app.use(
     ].filter(Boolean) as string[],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'], // Explicitly list allowed headers
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'], // Explicitly list allowed headers
     maxAge: 86400, // Cache preflight requests for 24 hours
   }),
 );
@@ -39,17 +39,6 @@ app.use(
 // enable rate limiting
 // Set number of expected proxies
 app.set('trust proxy', rateLimitNumberOfProxies);
-
-app.use((req, res, next) => {
-  console.log({
-    'Raw Socket IP': req.socket.remoteAddress,
-    'Express req.ip': req.ip,
-    'X-Forwarded-For': req.headers['x-forwarded-for'],
-    'X-Real-IP': req.headers['x-real-ip'],
-    'Trust Proxy Setting': app.get('trust proxy'),
-  });
-  next();
-});
 
 // Define rate limiter
 const limiter = rateLimit({
