@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { BaseRampService, PresignedTx, RampStateData } from './base.service';
+import { BaseRampService, PresignedTx, RampStateData, UnsignedTx } from './base.service';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import PhaseMetadata from '../../../models/phaseMetadata.model';
@@ -9,13 +9,24 @@ import httpStatus from 'http-status';
 import { Transaction } from 'sequelize';
 import phaseProcessor from '../phases/phase-processor';
 
-export interface StartRampRequest {
+interface Ephemeral {
+  network: string; // TODO give proper type
+  address: string;
+}
+
+export interface RegisterRampRequest {
   quoteId: string;
+  ephemerals: Ephemeral[];
+  additionalData?: Record<string, any>;
+}
+
+export interface StartRampRequest {
+  rampId: string;
   presignedTxs: PresignedTx[];
   additionalData?: Record<string, any>;
 }
 
-export interface RampResponse {
+export interface RegisterRampResponse {
   id: string;
   type: 'on' | 'off';
   currentPhase: string;
@@ -23,13 +34,15 @@ export interface RampResponse {
   state: any;
   createdAt: Date;
   updatedAt: Date;
+  unsignedTxs: UnsignedTx[];
 }
 
 export class RampService extends BaseRampService {
   /**
-   * Start a new ramping process
+   * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
+   * on the client side.
    */
-  public async startRamp(request: StartRampRequest, idempotencyKey?: string): Promise<RampResponse> {
+  public async registerRamp(request: RegisterRampRequest, idempotencyKey?: string): Promise<RegisterRampResponse> {
     // Check if we have a cached response for this idempotency key
     if (idempotencyKey) {
       const cachedResponse = await this.getIdempotencyKey(idempotencyKey);
@@ -68,8 +81,10 @@ export class RampService extends BaseRampService {
         });
       }
 
-      // Validate presigned transactions
-      this.validatePresignedTxs(request.presignedTxs);
+      // Create to-be-signed transactions
+      // TODO: Implement this
+      // const unsignedTxs = await this.createUnsignedTxs(quote, request.presignedTxs, transaction);
+      const unsignedTxs: UnsignedTx[] = [];
 
       // Mark the quote as consumed
       await this.consumeQuote(quote.id, transaction);
@@ -78,7 +93,8 @@ export class RampService extends BaseRampService {
       const stateData: RampStateData = {
         type: quote.rampType,
         currentPhase: 'initial',
-        presignedTxs: request.presignedTxs,
+        unsignedTxs,
+        presignedTxs: [],
         chainId: quote.chainId,
         state: {
           inputAmount: quote.inputAmount,
@@ -95,10 +111,11 @@ export class RampService extends BaseRampService {
       const rampState = rampStateModel.dataValues;
 
       // Create response
-      const response: RampResponse = {
+      const response: RegisterRampResponse = {
         id: rampState.id,
         type: rampState.type,
         currentPhase: rampState.currentPhase,
+        unsignedTxs: rampState.unsignedTxs,
         chainId: rampState.chainId,
         state: rampState.state,
         createdAt: rampState.createdAt,
@@ -110,20 +127,57 @@ export class RampService extends BaseRampService {
         await this.storeIdempotencyKey(idempotencyKey, httpStatus.CREATED, response, rampState.id);
       }
 
+      return response;
+    });
+  }
+
+  /**
+   * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
+   */
+  public async startRamp(request: StartRampRequest, idempotencyKey?: string): Promise<void> {
+    // Check if we have a cached response for this idempotency key
+    if (idempotencyKey) {
+      const cachedResponse = await this.getIdempotencyKey(idempotencyKey);
+      if (cachedResponse) {
+        return cachedResponse.responseBody;
+      }
+    }
+
+    return this.withTransaction(async (transaction) => {
+      const rampStateModel = await RampState.findByPk(request.rampId, { transaction });
+
+      if (!rampStateModel) {
+        throw new APIError({
+          status: httpStatus.NOT_FOUND,
+          message: 'Ramp not found',
+        });
+      }
+      const rampState = rampStateModel.dataValues;
+      // TODO add expiry to rampState as well
+
+      // Validate presigned transactions
+      this.validatePresignedTxs(rampState.presignedTxs);
+
+      // We don't return data for this request.
+      const response = undefined;
+
+      // Store idempotency key if provided
+      if (idempotencyKey) {
+        await this.storeIdempotencyKey(idempotencyKey, httpStatus.OK, response, rampState.id);
+      }
+
       // Start processing the ramp asynchronously
       // We don't await this to avoid blocking the response
       phaseProcessor.processRamp(rampState.id).catch((error) => {
         logger.error(`Error processing ramp ${rampState.id}:`, error);
       });
-
-      return response;
     });
   }
 
   /**
    * Get the status of a ramping process
    */
-  public async getRampStatus(id: string): Promise<RampResponse | null> {
+  public async getRampStatus(id: string): Promise<RegisterRampResponse | null> {
     const rampStateModel = await this.getRampState(id);
 
     if (!rampStateModel) {
@@ -136,112 +190,12 @@ export class RampService extends BaseRampService {
       id: rampState.id,
       type: rampState.type,
       currentPhase: rampState.currentPhase,
+      unsignedTxs: rampState.unsignedTxs,
       chainId: rampState.chainId,
       state: rampState.state,
       createdAt: rampState.createdAt,
       updatedAt: rampState.updatedAt,
     };
-  }
-
-  /**
-   * Advance a ramping process to the next phase
-   */
-  public async advanceRamp(id: string, newPhase: string, metadata?: any): Promise<RampResponse | null> {
-    return this.withTransaction(async (transaction) => {
-      const rampStateModel = await RampState.findByPk(id, { transaction });
-
-      if (!rampStateModel) {
-        return null;
-      }
-
-      const rampState = rampStateModel.dataValues;
-
-      // Validate phase transition
-      await this.validatePhaseTransition(rampState.currentPhase, newPhase);
-
-      // Log the phase transition
-      await this.logPhaseTransition(id, newPhase, metadata);
-
-      return {
-        id: rampState.id,
-        type: rampState.type,
-        currentPhase: newPhase,
-        chainId: rampState.chainId,
-        state: rampState.state,
-        createdAt: rampState.createdAt,
-        updatedAt: rampState.updatedAt,
-      };
-    });
-  }
-
-  /**
-   * Validate a phase transition
-   */
-  private async validatePhaseTransition(currentPhase: string, newPhase: string): Promise<void> {
-    // Get the phase metadata for the current phase
-    const phaseMetadataModel = await PhaseMetadata.findOne({
-      where: { phaseName: currentPhase },
-    });
-
-    // If no metadata exists, allow the transition (for backward compatibility)
-    if (!phaseMetadataModel) {
-      logger.warn(`No phase metadata found for phase ${currentPhase}`);
-      return;
-    }
-
-    const phaseMetadata = phaseMetadataModel.dataValues;
-
-    // Check if the transition is valid
-    if (!phaseMetadata.validTransitions.includes(newPhase)) {
-      throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: `Invalid phase transition from ${currentPhase} to ${newPhase}`,
-      });
-    }
-  }
-
-  /**
-   * Get the valid transitions for a phase
-   */
-  public async getValidTransitions(phase: string): Promise<string[]> {
-    const phaseMetadataModel = await PhaseMetadata.findOne({
-      where: { phaseName: phase },
-    });
-
-    if (!phaseMetadataModel) {
-      return [];
-    }
-
-    const phaseMetadata = phaseMetadataModel.dataValues;
-    return phaseMetadata.validTransitions;
-  }
-
-  /**
-   * Update the state of a ramping process
-   */
-  public async updateRampStateData(id: string, state: any): Promise<RampResponse | null> {
-    return this.withTransaction(async (transaction) => {
-      const rampStateModel = await RampState.findByPk(id, { transaction });
-
-      if (!rampStateModel) {
-        return null;
-      }
-
-      // Update the state
-      await rampStateModel.update({ state: { ...rampStateModel.dataValues.state, ...state } }, { transaction });
-
-      const rampState = rampStateModel.dataValues;
-
-      return {
-        id: rampState.id,
-        type: rampState.type,
-        currentPhase: rampState.currentPhase,
-        chainId: rampState.chainId,
-        state: rampState.state,
-        createdAt: rampState.createdAt,
-        updatedAt: rampState.updatedAt,
-      };
-    });
   }
 
   /**
@@ -271,19 +225,10 @@ export class RampService extends BaseRampService {
     }
 
     for (const tx of presignedTxs) {
-      if (!tx.tx_data || !tx.expires_at || !tx.phase) {
+      if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer || !tx.signature) {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
-          message: 'Each transaction must have tx_data, expires_at, and phase properties',
-        });
-      }
-
-      // Validate expiration date
-      const expiresAt = new Date(tx.expires_at);
-      if (isNaN(expiresAt.getTime()) || expiresAt < new Date()) {
-        throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: `Transaction for phase ${tx.phase} has an invalid or expired expires_at date`,
+          message: 'Each transaction must have tx_data, phase, network, nonce, signer, and signature properties',
         });
       }
     }

@@ -6,6 +6,7 @@ interface RampStateAttributes {
   id: string; // UUID
   type: 'on' | 'off';
   currentPhase: string;
+  unsignedTxs: any[]; // JSONB array
   presignedTxs: any[]; // JSONB array
   chainId: number;
   state: any; // JSONB
@@ -31,6 +32,7 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   public id!: string;
   public type!: 'on' | 'off';
   public currentPhase!: string;
+  public unsignedTxs!: any[];
   public presignedTxs!: any[];
   public chainId!: number;
   public state!: any;
@@ -66,6 +68,24 @@ RampState.init(
       defaultValue: 'initial',
       field: 'current_phase',
     },
+    unsignedTxs: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      field: 'unsigned_txs',
+      validate: {
+        isValidTxArray(value: any[]) {
+          if (!Array.isArray(value) || value.length < 1 || value.length > 5) {
+            throw new Error('unsignedTxs must be an array with 1-5 elements');
+          }
+
+          for (const tx of value) {
+            if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer) {
+              throw new Error('Each transaction must have tx_data, phase, network, nonce, and signer properties');
+            }
+          }
+        },
+      },
+    },
     presignedTxs: {
       type: DataTypes.JSONB,
       allowNull: false,
@@ -77,8 +97,10 @@ RampState.init(
           }
 
           for (const tx of value) {
-            if (!tx.tx_data || !tx.expires_at || !tx.phase) {
-              throw new Error('Each transaction must have tx_data, expires_at, and phase properties');
+            if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer || !tx.signature) {
+              throw new Error(
+                'Each transaction must have tx_data, phase, network, nonce, signer, and signature properties',
+              );
             }
           }
         },

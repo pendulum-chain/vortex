@@ -55,6 +55,35 @@ router.post('/quotes', quoteController.createQuote);
 router.get('/quotes/:id', quoteController.getQuote);
 
 /**
+ * @api {post} v1/ramp/register Register ramping process
+ * @apiDescription Register a new ramping process
+ * @apiVersion 1.0.0
+ * @apiName RegisterRamp
+ * @apiGroup Ramp
+ * @apiPermission public
+ *
+ * @apiHeader {String} [Idempotency-Key] Idempotency key
+ *
+ * @apiParam  {String}  quoteId        Quote ID
+ * @apiParam  {Array}   ephemerals   Ephemerals used in the client
+ * @apiParam  {Object}  [additionalData] Additional data
+ *
+ * @apiSuccess (Created 201) {String}  id           Ramp ID
+ * @apiSuccess (Created 201) {String}  type         Ramp type
+ * @apiSuccess (Created 201) {String}  currentPhase Current phase
+ * @apiSuccess (Created 201) {Number}  chainId      Chain ID
+ * @apiSuccess (Created 201) {Object}  state        State
+ * @apiSuccess (Created 201) {Date}    createdAt    Creation date
+ * @apiSuccess (Created 201) {Date}    updatedAt    Update date
+ * @apiSuccess (Created 201) {Array}   unsignedTxs    Array of unsigned txs that need to be signed by the ephemerals on the client.
+ *
+ * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
+ * @apiError (Not Found 404) NotFound Quote does not exist
+ */
+
+router.post('/register', rampController.registerRamp);
+
+/**
  * @api {post} v1/ramp/start Start ramping process
  * @apiDescription Start a new ramping process
  * @apiVersion 1.0.0

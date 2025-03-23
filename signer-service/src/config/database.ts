@@ -18,23 +18,18 @@ declare module './vars' {
 }
 
 // Create Sequelize instance
-const sequelize = new Sequelize(
-  config.database.database,
-  config.database.username,
-  config.database.password,
-  {
-    host: config.database.host,
-    port: config.database.port,
-    dialect: config.database.dialect,
-    logging: config.database.logging ? (msg) => logger.debug(msg) : false,
-    pool: {
-      max: 10,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
-  }
-);
+const sequelize = new Sequelize(config.database.database, config.database.username, config.database.password, {
+  host: config.database.host,
+  port: config.database.port,
+  dialect: config.database.dialect,
+  logging: config.database.logging ? (msg) => logger.debug(msg) : false,
+  pool: {
+    max: 10,
+    min: 0,
+    acquire: 30000,
+    idle: 10000,
+  },
+});
 
 // Test database connection
 export const testDatabaseConnection = async (): Promise<void> => {

@@ -6,15 +6,22 @@ import IdempotencyKey from '../../../models/idempotencyKey.model';
 import { Transaction, Op } from 'sequelize';
 import sequelize from '../../../config/database';
 
-export interface PresignedTx {
+export interface UnsignedTx {
   tx_data: string;
-  expires_at: string;
   phase: string;
+  network: string;
+  nonce: number;
+  signer: string;
 }
+
+export type PresignedTx = UnsignedTx & {
+  signature: string;
+};
 
 export interface RampStateData {
   type: 'on' | 'off';
   currentPhase: string;
+  unsignedTxs: UnsignedTx[];
   presignedTxs: PresignedTx[];
   chainId: number;
   state: any;

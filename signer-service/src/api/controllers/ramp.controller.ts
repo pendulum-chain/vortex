@@ -5,16 +5,50 @@ import { APIError } from '../errors/api-error';
 import logger from '../../config/logger';
 
 /**
+ * Register a new ramping process
+ * @public
+ */
+export const registerRamp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { quoteId, ephemerals, additionalData } = req.body;
+    const idempotencyKey = req.headers['idempotency-key'] as string;
+
+    // Validate required fields
+    if (!quoteId || !ephemerals || ephemerals.length === 0) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Missing required fields',
+      });
+    }
+
+    // Start ramping process
+    const ramp = await rampService.registerRamp(
+      {
+        quoteId,
+        ephemerals,
+        additionalData,
+      },
+      idempotencyKey,
+    );
+
+    res.status(httpStatus.CREATED).json(ramp);
+  } catch (error) {
+    logger.error('Error starting ramp:', error);
+    next(error);
+  }
+};
+
+/**
  * Start a new ramping process
  * @public
  */
 export const startRamp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { quoteId, presignedTxs, additionalData } = req.body;
+    const { rampId, presignedTxs, additionalData } = req.body;
     const idempotencyKey = req.headers['idempotency-key'] as string;
 
     // Validate required fields
-    if (!quoteId || !presignedTxs) {
+    if (!rampId || !presignedTxs) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
         message: 'Missing required fields',
@@ -24,7 +58,7 @@ export const startRamp = async (req: Request, res: Response, next: NextFunction)
     // Start ramping process
     const ramp = await rampService.startRamp(
       {
-        quoteId,
+        rampId,
         presignedTxs,
         additionalData,
       },

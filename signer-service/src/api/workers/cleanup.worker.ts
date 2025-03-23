@@ -10,7 +10,8 @@ export class CleanupWorker {
   private readonly intervalMs: number;
   private interval: NodeJS.Timeout | null = null;
 
-  constructor(intervalMs = 60000) { // Default to 1 minute
+  constructor(intervalMs = 60000) {
+    // Default to 1 minute
     this.rampService = new BaseRampService();
     this.intervalMs = intervalMs;
   }
@@ -57,6 +58,7 @@ export class CleanupWorker {
     if (expiredQuotesCount > 0) {
       logger.info(`Cleaned up ${expiredQuotesCount} expired quotes`);
     }
+    // TOOD should we remove expired quotes from the database eventually? Maybe after 1 day or so?
 
     // Clean up expired idempotency keys
     const expiredKeysCount = await this.rampService.cleanupExpiredIdempotencyKeys();
