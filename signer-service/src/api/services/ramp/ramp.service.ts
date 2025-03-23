@@ -40,14 +40,16 @@ export class RampService extends BaseRampService {
 
     return this.withTransaction(async (transaction) => {
       // Get and validate the quote
-      const quote = await QuoteTicket.findByPk(request.quoteId, { transaction });
+      const quoteModel = await QuoteTicket.findByPk(request.quoteId, { transaction });
 
-      if (!quote) {
+      if (!quoteModel) {
         throw new APIError({
           status: httpStatus.NOT_FOUND,
           message: 'Quote not found',
         });
       }
+
+      const quote = quoteModel.dataValues;
 
       if (quote.status !== 'pending') {
         throw new APIError({
@@ -58,7 +60,7 @@ export class RampService extends BaseRampService {
 
       if (new Date(quote.expiresAt) < new Date()) {
         // Update the quote status to expired
-        await quote.update({ status: 'expired' }, { transaction });
+        await quoteModel.update({ status: 'expired' }, { transaction });
 
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
@@ -89,7 +91,8 @@ export class RampService extends BaseRampService {
       };
 
       // Create the ramp state
-      const rampState = await this.createRampState(stateData);
+      const rampStateModel = await this.createRampState(stateData);
+      const rampState = rampStateModel.dataValues;
 
       // Create response
       const response: RampResponse = {
@@ -121,11 +124,13 @@ export class RampService extends BaseRampService {
    * Get the status of a ramping process
    */
   public async getRampStatus(id: string): Promise<RampResponse | null> {
-    const rampState = await this.getRampState(id);
+    const rampStateModel = await this.getRampState(id);
 
-    if (!rampState) {
+    if (!rampStateModel) {
       return null;
     }
+
+    const rampState = rampStateModel.dataValues;
 
     return {
       id: rampState.id,
@@ -143,11 +148,13 @@ export class RampService extends BaseRampService {
    */
   public async advanceRamp(id: string, newPhase: string, metadata?: any): Promise<RampResponse | null> {
     return this.withTransaction(async (transaction) => {
-      const rampState = await RampState.findByPk(id, { transaction });
+      const rampStateModel = await RampState.findByPk(id, { transaction });
 
-      if (!rampState) {
+      if (!rampStateModel) {
         return null;
       }
+
+      const rampState = rampStateModel.dataValues;
 
       // Validate phase transition
       await this.validatePhaseTransition(rampState.currentPhase, newPhase);
@@ -172,15 +179,17 @@ export class RampService extends BaseRampService {
    */
   private async validatePhaseTransition(currentPhase: string, newPhase: string): Promise<void> {
     // Get the phase metadata for the current phase
-    const phaseMetadata = await PhaseMetadata.findOne({
+    const phaseMetadataModel = await PhaseMetadata.findOne({
       where: { phaseName: currentPhase },
     });
 
     // If no metadata exists, allow the transition (for backward compatibility)
-    if (!phaseMetadata) {
+    if (!phaseMetadataModel) {
       logger.warn(`No phase metadata found for phase ${currentPhase}`);
       return;
     }
+
+    const phaseMetadata = phaseMetadataModel.dataValues;
 
     // Check if the transition is valid
     if (!phaseMetadata.validTransitions.includes(newPhase)) {
@@ -195,14 +204,15 @@ export class RampService extends BaseRampService {
    * Get the valid transitions for a phase
    */
   public async getValidTransitions(phase: string): Promise<string[]> {
-    const phaseMetadata = await PhaseMetadata.findOne({
+    const phaseMetadataModel = await PhaseMetadata.findOne({
       where: { phaseName: phase },
     });
 
-    if (!phaseMetadata) {
+    if (!phaseMetadataModel) {
       return [];
     }
 
+    const phaseMetadata = phaseMetadataModel.dataValues;
     return phaseMetadata.validTransitions;
   }
 
@@ -211,14 +221,16 @@ export class RampService extends BaseRampService {
    */
   public async updateRampStateData(id: string, state: any): Promise<RampResponse | null> {
     return this.withTransaction(async (transaction) => {
-      const rampState = await RampState.findByPk(id, { transaction });
+      const rampStateModel = await RampState.findByPk(id, { transaction });
 
-      if (!rampState) {
+      if (!rampStateModel) {
         return null;
       }
 
       // Update the state
-      await rampState.update({ state: { ...rampState.state, ...state } }, { transaction });
+      await rampStateModel.update({ state: { ...rampStateModel.dataValues.state, ...state } }, { transaction });
+
+      const rampState = rampStateModel.dataValues;
 
       return {
         id: rampState.id,
@@ -230,94 +242,6 @@ export class RampService extends BaseRampService {
         updatedAt: rampState.updatedAt,
       };
     });
-  }
-
-  /**
-   * Update subsidy details for a ramping process
-   */
-  public async updateRampSubsidyDetails(
-    id: string,
-    subsidyDetails: Partial<RampState['subsidyDetails']>,
-  ): Promise<RampResponse | null> {
-    const rampState = await RampState.findByPk(id);
-
-    if (!rampState) {
-      return null;
-    }
-
-    await this.updateSubsidyDetails(id, subsidyDetails);
-
-    return {
-      id: rampState.id,
-      type: rampState.type,
-      currentPhase: rampState.currentPhase,
-      chainId: rampState.chainId,
-      state: rampState.state,
-      createdAt: rampState.createdAt,
-      updatedAt: rampState.updatedAt,
-    };
-  }
-
-  /**
-   * Update nonce sequences for a ramping process
-   */
-  public async updateRampNonceSequences(
-    id: string,
-    nonceSequences: Record<string, number>,
-  ): Promise<RampResponse | null> {
-    const rampState = await RampState.findByPk(id);
-
-    if (!rampState) {
-      return null;
-    }
-
-    await this.updateNonceSequences(id, nonceSequences);
-
-    return {
-      id: rampState.id,
-      type: rampState.type,
-      currentPhase: rampState.currentPhase,
-      chainId: rampState.chainId,
-      state: rampState.state,
-      createdAt: rampState.createdAt,
-      updatedAt: rampState.updatedAt,
-    };
-  }
-
-  /**
-   * Log an error for a ramping process
-   */
-  public async logRampError(id: string, error: string, details?: any): Promise<RampResponse | null> {
-    const rampState = await RampState.findByPk(id);
-
-    if (!rampState) {
-      return null;
-    }
-
-    await this.logError(id, rampState.currentPhase, error, details);
-
-    return {
-      id: rampState.id,
-      type: rampState.type,
-      currentPhase: rampState.currentPhase,
-      chainId: rampState.chainId,
-      state: rampState.state,
-      createdAt: rampState.createdAt,
-      updatedAt: rampState.updatedAt,
-    };
-  }
-
-  /**
-   * Get the phase history for a ramping process
-   */
-  public async getPhaseHistory(id: string): Promise<{ phase: string; timestamp: Date; metadata?: any }[] | null> {
-    const rampState = await RampState.findByPk(id);
-
-    if (!rampState) {
-      return null;
-    }
-
-    return rampState.phaseHistory;
   }
 
   /**
