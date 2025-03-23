@@ -8,6 +8,7 @@ import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
 import { Transaction } from 'sequelize';
 import phaseProcessor from '../phases/phase-processor';
+import { validatePresignedTxs } from '../transactions';
 
 interface Ephemeral {
   network: string; // TODO give proper type
@@ -94,7 +95,7 @@ export class RampService extends BaseRampService {
         type: quote.rampType,
         currentPhase: 'initial',
         unsignedTxs,
-        presignedTxs: [],
+        presignedTxs: [], // There are no presigned transactions at this point
         chainId: quote.chainId,
         state: {
           inputAmount: quote.inputAmount,
@@ -152,11 +153,11 @@ export class RampService extends BaseRampService {
           message: 'Ramp not found',
         });
       }
+      // TODO add expiry to rampState as well?
       const rampState = rampStateModel.dataValues;
-      // TODO add expiry to rampState as well
 
       // Validate presigned transactions
-      this.validatePresignedTxs(rampState.presignedTxs);
+      validatePresignedTxs(rampState.presignedTxs);
 
       // We don't return data for this request.
       const response = undefined;
@@ -211,27 +212,6 @@ export class RampService extends BaseRampService {
     }
 
     return rampState.errorLogs;
-  }
-
-  /**
-   * Validate presigned transactions
-   */
-  private validatePresignedTxs(presignedTxs: PresignedTx[]): void {
-    if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 5) {
-      throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'presignedTxs must be an array with 1-5 elements',
-      });
-    }
-
-    for (const tx of presignedTxs) {
-      if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer || !tx.signature) {
-        throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Each transaction must have tx_data, phase, network, nonce, signer, and signature properties',
-        });
-      }
-    }
   }
 }
 
