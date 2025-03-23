@@ -3,15 +3,13 @@ import Big from 'big.js';
 import { BaseFiatTokenDetails, FiatToken, getBaseFiatTokenDetails, OnChainToken } from '../../constants/tokenConfig';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
-import { FlowType } from '../../services/flowCommons';
-import { isOnrampFlow } from '../../services/onrampingFlow';
 
 export function calculateTotalReceive(
-  flowType: FlowType,
+  flowType: 'on' | 'off',
   toAmount: Big,
   outputTokenType: FiatToken | OnChainToken,
 ): string {
-  if (!isOnrampFlow(flowType)) {
+  if (flowType === 'off') {
     return calculateOfframpTotalReceive(toAmount, getBaseFiatTokenDetails(outputTokenType as FiatToken));
   } else {
     return calculateOnrampTotalReceive(toAmount, outputTokenType as OnChainToken);

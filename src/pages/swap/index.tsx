@@ -2,7 +2,7 @@ import Big from 'big.js';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ApiPromise } from '@polkadot/api';
 
-import { calculateOfframpTotalReceive, calculateTotalReceive } from '../../components/FeeCollapse';
+import { calculateOfframpTotalReceive } from '../../components/FeeCollapse';
 import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 
@@ -17,10 +17,11 @@ import {
   getEnumKeyByStringValue,
   getOnChainTokenDetailsOrDefault,
   getAnyFiatTokenDetails,
-  INPUT_TOKEN_CONFIG,
   OnChainToken,
-  OUTPUT_TOKEN_CONFIG,
   FiatToken,
+  ON_CHAIN_TOKEN_CONFIG,
+  MOONBEAM_FIAT_TOKEN_CONFIG,
+  STELLAR_FIAT_TOKEN_CONFIG,
 } from '../../constants/tokenConfig';
 import { config } from '../../config';
 
@@ -33,23 +34,12 @@ import { showToast, ToastMessage } from '../../helpers/notifications';
 import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
-import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { BaseLayout } from '../../layouts';
 import { ProgressPage } from '../progress';
 import { FailurePage } from '../failure';
-import { SuccessPage } from '../success';
-import {
-  useOfframpActions,
-  useOfframpSigningPhase,
-  useOfframpState,
-  useOfframpStarted,
-  useOfframpExecutionInput,
-  useOfframpKycStarted,
-  useOfframpSummaryVisible,
-} from '../../stores/offrampStore';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { GotQuestions } from '../../sections/GotQuestions';
 import {
@@ -65,22 +55,13 @@ import { FAQAccordion } from '../../sections/FAQAccordion';
 import { HowToSell } from '../../sections/HowToSell';
 import { PopularTokens } from '../../sections/PopularTokens';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
-import { calculateSwapAmountsWithMargin } from './helpers/swapConfirm/calculateSwapAmountsWithMargin';
-import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
-import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
-import { constructBrlaOnrampInitialState } from '../../services/onrampingFlow';
-import { boolean } from 'yup';
-import { OfframpHandlerType } from '../../services/offrampingFlow';
-
-type ExchangeRateCache = Partial<Record<OnChainToken, Partial<Record<FiatToken, number>>>>;
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
-  const testRef = useRef(false);
   const trackQuote = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
@@ -89,17 +70,6 @@ export const SwapPage = () => {
   const [_, setIsReady] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
   const moonbeamNode = useMoonbeamNode();
-  const { updateOfframpHookStateFromState } = useOfframpActions();
-
-  const { chainId } = useVortexAccount();
-
-  // This cache is used to show an error message to the user if the chosen input amount
-  // is expected to result in an output amount that is above the maximum withdrawal amount defined by the anchor
-  const [exchangeRateCache, setExchangeRateCache] = useState<ExchangeRateCache>({
-    usdc: { ars: 1200, eurc: 0.95, brl: 5.7 },
-    usdce: { ars: 1200, eurc: 0.95, brl: 5.7 },
-    usdt: { ars: 1200, eurc: 0.95, brl: 5.7 },
-  });
 
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
@@ -109,38 +79,6 @@ export const SwapPage = () => {
     isLoading: isSigningServiceLoading,
     isError: isSigningServiceError,
   } = useSigningService();
-
-  useEffect(() => {
-    if (!pendulumNode.apiComponents?.api && pendulumNode?.isFetched) {
-      setApiInitializeFailed(true);
-      trackEvent({ event: 'initialization_error', error_message: 'node_connection_issue' });
-    }
-    if (pendulumNode.apiComponents?.api) {
-      setApi(pendulumNode.apiComponents.api);
-    }
-
-    // TESTING ONLY
-    // Force onramp flow to start on page load
-    if (!testRef.current && address && pendulumNode.apiComponents?.api && moonbeamNode.apiComponents?.api && chainId) {
-      constructBrlaOnrampInitialState({
-        inputTokenType: FiatToken.BRL,
-        outputTokenType: 'usdc',
-        amountIn: '0.58',
-        amountOut: new Big('0.1'),
-        network: selectedNetwork,
-        toNetwork: selectedNetwork,
-        networkId: chainId!,
-        pendulumNode: pendulumNode.apiComponents!,
-        moonbeamNode: moonbeamNode.apiComponents!,
-        addressDestination: address,
-        taxId: '718.784.051-95',
-      }).then((initialState) => {
-        updateOfframpHookStateFromState(initialState);
-      });
-
-      testRef.current = true;
-    }
-  }, [pendulumNode, moonbeamNode, chainId, address, trackEvent, setApiInitializeFailed]);
 
   // TODO Replace with initializeFailed from offrampActions.
   const setInitializeFailed = useCallback((message?: string | null) => {
@@ -182,15 +120,6 @@ export const SwapPage = () => {
     handleBrlaOfframpStart,
   } = useMainProcess();
 
-  const offrampStarted = useOfframpStarted();
-  const offrampState = useOfframpState();
-  const offrampKycStarted = useOfframpKycStarted();
-  const offrampSigningPhase = useOfframpSigningPhase();
-  const { setOfframpInitiating, setOfframpExecutionInput, clearInitializeFailedMessage, setOfframpSummaryVisible } =
-    useOfframpActions();
-  const isOfframpSummaryVisible = useOfframpSummaryVisible();
-  const executionInput = useOfframpExecutionInput();
-
   const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
   // Store the id as it is cleared after the user opens the anchor window
   useEffect(() => {
@@ -225,44 +154,6 @@ export const SwapPage = () => {
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
 
-  const tokenOutAmount = useTokenOutAmount({
-    wantsSwap: true,
-    api,
-    inputTokenType: from,
-    outputTokenType: to,
-    maximumFromAmount: undefined,
-    fromAmountString,
-    form,
-    network: selectedNetwork,
-  });
-
-  const inputAmountIsStable =
-    tokenOutAmount.stableAmountInUnits !== undefined &&
-    tokenOutAmount.stableAmountInUnits != '' &&
-    Big(tokenOutAmount.stableAmountInUnits).gt(Big(0));
-
-  useEffect(() => {
-    if (tokenOutAmount.data) {
-      const toAmount = tokenOutAmount.data.roundedDownQuotedAmountOut;
-      // Calculate the final amount after the offramp fees
-      const totalReceive = calculateOfframpTotalReceive(toAmount, toToken);
-      form.setValue('toAmount', totalReceive);
-      setExchangeRateCache((prev) => ({
-        ...prev,
-        [from]: { ...prev[from], [to]: tokenOutAmount.data?.effectiveExchangeRate },
-      }));
-    } else if (!tokenOutAmount.isLoading || tokenOutAmount.error) {
-      form.setValue('toAmount', '0');
-    } else {
-      // Do nothing
-    }
-  }, [form, tokenOutAmount.data, tokenOutAmount.error, tokenOutAmount.isLoading, toToken, from, to]);
-
-  // Clear initialize failed message when the user changes output token, amount or tax id field
-  useEffect(() => {
-    clearInitializeFailedMessage();
-  }, [clearInitializeFailedMessage, to, taxId, fromAmount]);
-
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -290,11 +181,6 @@ export const SwapPage = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const isNetworkSelectorDisabled = offrampState?.phase !== undefined;
-    setNetworkSelectorDisabled(isNetworkSelectorDisabled);
-  }, [offrampState, setNetworkSelectorDisabled]);
-
   function getCurrentErrorMessage() {
     if (isDisconnected) return;
 
@@ -309,13 +195,11 @@ export const SwapPage = () => {
       }
     }
 
-    const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
-
     const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
     const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
 
-    const exchangeRate = tokenOutAmount.data?.effectiveExchangeRate || exchangeRateCache[from]?.[to];
-
+    // FIXME
+    const exchangeRate = 0;
     if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
       console.log(exchangeRate, fromAmount.mul(exchangeRate).toNumber());
       trackEvent({
@@ -328,6 +212,8 @@ export const SwapPage = () => {
       }.`;
     }
 
+    // FIXME
+    const amountOut = 0;
     if (amountOut !== undefined) {
       if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
         trackEvent({
@@ -341,15 +227,16 @@ export const SwapPage = () => {
       }
     }
 
-    if (tokenOutAmount.error?.includes('Insufficient liquidity')) {
-      return 'The amount is temporarily not available. Please, try with a smaller amount.';
-    }
-    return tokenOutAmount.error;
+    // FIXME
+    // if (tokenOutAmount.error?.includes('Insufficient liquidity')) {
+    //   return 'The amount is temporarily not available. Please, try with a smaller amount.';
+    // }
+    // return tokenOutAmount.error;
   }
 
   const definitions: TokenDefinition[] =
     tokenSelectModalType === 'from'
-      ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
+      ? Object.entries(ON_CHAIN_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
           type: key as OnChainToken,
           assetSymbol: value.assetSymbol,
           assetIcon: value.networkAssetIcon,
@@ -384,124 +271,74 @@ export const SwapPage = () => {
       setInitializeFailed('No address found');
       return;
     }
-    if (!pendulumNode.apiComponents) {
-      setInitializeFailed('No API components found');
-      return;
-    }
-    to === 'brl'
-      ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents)
-      : handleOnAnchorWindowOpen();
+    // to === 'brl'
+    //   ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents)
+    //   : handleOnAnchorWindowOpen();
   }, [
     address,
     pendulumNode.apiComponents,
     to,
     handleBrlaOfframpStart,
-    executionInput,
     selectedNetwork,
     handleOnAnchorWindowOpen,
     setInitializeFailed,
   ]);
 
-  if (offrampState?.phase === 'success') {
-    return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} toToken={to} />;
-  }
+  // FIXME
+  // if (offrampState?.phase === 'success') {
+  //   return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} toToken={to} />;
+  // }
 
-  if (offrampState?.failure !== undefined) {
+  // if (offrampState?.failure !== undefined) {
+  // FIXME show error page
+  if (false) {
     return (
       <FailurePage
         finishOfframping={finishOfframping}
         continueFailedFlow={continueFailedFlow}
         transactionId={cachedId}
-        failure={offrampState.failure}
       />
     );
   }
 
-  if (offrampState !== undefined || offrampStarted) {
-    const isAssetHubFlow =
-      !isNetworkEVM(selectedNetwork) &&
-      (offrampState?.phase === 'pendulumFundEphemeral' || offrampState?.phase === 'executeAssetHubToPendulumXCM');
-    const showMainScreenAnyway =
-      offrampState === undefined ||
-      ['prepareTransactions', 'squidRouter'].includes(offrampState.phase) ||
-      isAssetHubFlow;
-    if (!showMainScreenAnyway) {
-      return <ProgressPage offrampingState={offrampState} />;
-    }
+  // FIXME show progress page
+  // if (offrampState !== undefined || offrampStarted) {
+  if (false) {
+    const offrampState: any = {};
+    return <ProgressPage offrampingState={offrampState} />;
   }
 
   const onSwapConfirm = () => {
-    if (offrampStarted) {
-      return;
-    }
-
-    const validInputs = validateSwapInputs(inputAmountIsStable, address, fromAmount, tokenOutAmount.data);
-    if (!validInputs) {
-      return;
-    }
-
-    setOfframpInitiating(true);
-
     const outputToken = getAnyFiatTokenDetails(to);
     const inputToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
 
-    const { expectedRedeemAmountRaw, inputAmountRaw } = calculateSwapAmountsWithMargin(
-      validInputs.fromAmount,
-      validInputs.tokenOutAmountData.preciseQuotedAmountOut,
-      inputToken,
-      outputToken,
-    );
+    // const { expectedRedeemAmountRaw, inputAmountRaw } = calculateSwapAmountsWithMargin(
+    //   validInputs.fromAmount,
+    //   validInputs.tokenOutAmountData.preciseQuotedAmountOut,
+    //   inputToken,
+    //   outputToken,
+    // );
+    const { expectedRedeemAmountRaw, inputAmountRaw } = { expectedRedeemAmountRaw: 0, inputAmountRaw: 0 };
 
-    const effectiveExchangeRate = validInputs.tokenOutAmountData.effectiveExchangeRate;
-    const inputAmountUnits = fromAmountString;
-
-    const outputAmountBeforeFees = validInputs.tokenOutAmountData.roundedDownQuotedAmountOut;
+    // FIXME
+    const outputAmountBeforeFees = Big(0);
     const outputAmountAfterFees = calculateOfframpTotalReceive(outputAmountBeforeFees, outputToken);
     const outputAmountUnits = {
       beforeFees: outputAmountBeforeFees.toFixed(2, 0),
       afterFees: outputAmountAfterFees,
     };
 
-    if (!api) {
-      setInitializeFailed('No API found');
-      return;
-    }
-
     if (!address) {
       setInitializeFailed('No address found');
       return;
     }
-
-    const executionInput = {
-      inputTokenType: from,
-      outputTokenType: to,
-      effectiveExchangeRate,
-      inputAmountUnits,
-      outputAmountUnits,
-      setInitializeFailed,
-      taxId: taxId,
-      pixId: pixId,
-      api: api,
-      requiresSquidRouter: isNetworkEVM(selectedNetwork),
-      expectedRedeemAmountRaw,
-      inputAmountRaw,
-      address: address,
-      network: selectedNetwork,
-    };
-
-    setOfframpExecutionInput(executionInput);
-
-    performSwapInitialChecks()
-      .then(() => {
-        console.log('Initial checks completed. Starting process..');
-        handleOnSubmit(executionInput);
-      })
-      .catch((_error) => {
-        console.error('Error during swap confirmation:', _error);
-        setOfframpInitiating(false);
-        setInitializeFailed();
-      });
   };
+  const [isOfframpSummaryVisible, setOfframpSummaryVisible] = useState(false);
+  const executionInput: any = {};
+  const offrampSigningPhase = undefined;
+  const offrampKycStarted = false;
+  const toAmount = Big(10);
+  const exchangeRate = 0.9;
 
   const main = (
     <main ref={formRef}>
@@ -520,10 +357,10 @@ export const SwapPage = () => {
           form={form}
           from={from}
           to={to}
-          tokenOutAmount={tokenOutAmount}
           fromAmount={fromAmount}
+          toAmount={toAmount}
+          exchangeRate={exchangeRate}
           feeComparisonRef={feeComparisonRef}
-          inputAmountIsStable={inputAmountIsStable}
           trackQuote={trackQuote}
           isOfframpSummaryDialogVisible={isOfframpSummaryVisible}
           apiInitializeFailed={apiInitializeFailed}

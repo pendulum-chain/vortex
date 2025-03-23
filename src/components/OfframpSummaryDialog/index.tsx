@@ -21,8 +21,8 @@ import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
-import { OfframpExecutionInput } from '../../types/offramp';
-import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
+import { useRampActions, useRampState } from '../../stores/offrampStore';
+import { RampExecutionInput } from '../../types/phases';
 
 interface AssetDisplayProps {
   amount: string;
@@ -76,7 +76,7 @@ const FeeDetails = ({
       <p>Quote</p>
       <p>
         <strong>
-          <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
+          <ExchangeRate exchangeRate={Number(exchangeRate)} fromToken={fromToken} toTokenSymbol={fiatSymbol} />
         </strong>
       </p>
     </div>
@@ -91,7 +91,7 @@ const FeeDetails = ({
 
 interface OfframpSummaryDialogProps {
   anchorUrl?: string;
-  executionInput?: OfframpExecutionInput;
+  executionInput?: RampExecutionInput;
   visible: boolean;
   onSubmit: () => void;
   onClose: () => void;
@@ -106,14 +106,14 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
 }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { selectedNetwork } = useNetwork();
-  const { setOfframpExecutionInput, setOfframpInitiating, setOfframpStarted } = useOfframpActions();
-  const offrampState = useOfframpState();
+  const { setRampExecutionInput, setRampInitiating, setRampStarted } = useRampActions();
+  const offrampState = useRampState();
 
   // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
   // component will not render if the executionInput is undefined.
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput?.inputTokenType || EvmToken.USDC);
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput?.onChainToken || EvmToken.USDC);
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
-  const toToken = getAnyFiatTokenDetails(executionInput?.outputTokenType || FiatToken.EURC);
+  const toToken = getAnyFiatTokenDetails(executionInput?.fiatToken || FiatToken.EURC);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
   const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
@@ -187,9 +187,9 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       headerText="You're selling"
       onClose={() => {
         setIsSubmitted(false);
-        setOfframpExecutionInput(undefined);
-        setOfframpStarted(false);
-        setOfframpInitiating(false);
+        setRampExecutionInput(undefined);
+        setRampStarted(false);
+        setRampInitiating(false);
         onClose();
       }}
     />

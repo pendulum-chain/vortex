@@ -1,4 +1,4 @@
-import { OutputTokenDetailsSpacewalk } from '../constants/tokenConfig';
+import { StellarTokenDetails } from '../constants/tokenConfig';
 
 export interface TomlValues {
   signingKey?: string;
@@ -16,7 +16,7 @@ export interface ISep24Intermediate {
 export interface IAnchorSessionParams {
   token: string;
   tomlValues: TomlValues;
-  tokenConfig: OutputTokenDetailsSpacewalk;
+  tokenConfig: StellarTokenDetails;
   offrampAmount: string;
 }
 

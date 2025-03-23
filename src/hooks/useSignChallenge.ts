@@ -5,7 +5,7 @@ import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
 import { useVortexAccount } from './useVortexAccount';
-import { useOfframpActions } from '../stores/offrampStore';
+import { useRampActions } from '../stores/offrampStore';
 import { useEffect } from 'react';
 
 export interface SiweSignatureData {
@@ -27,7 +27,7 @@ function createSiweMessage(address: string, nonce: string) {
 
 export function useSiweSignature() {
   const { address, getMessageSignature } = useVortexAccount();
-  const { setOfframpSigningPhase } = useOfframpActions();
+  const { setRampSigningPhase } = useRampActions();
   // Used to wait for the modal interaction and/or return of the
   // signing promise.
   const [signPromise, setSignPromise] = useState<{
@@ -56,9 +56,9 @@ export function useSiweSignature() {
     if (signPromise) return;
     return new Promise((resolve, reject) => {
       setSignPromise({ resolve, reject });
-      setOfframpSigningPhase?.('login');
+      setRampSigningPhase?.('login');
     });
-  }, [setOfframpSigningPhase, setSignPromise, signPromise]);
+  }, [setRampSigningPhase, setSignPromise, signPromise]);
 
   const handleSign = useCallback(async () => {
     if (!address || !signPromise) return;
@@ -96,10 +96,10 @@ export function useSiweSignature() {
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));
       signPromise.resolve();
-      setOfframpSigningPhase?.('finished');
+      setRampSigningPhase?.('finished');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      setOfframpSigningPhase?.(undefined);
+      setRampSigningPhase?.(undefined);
 
       // First case Assethub, second case EVM
       if (
@@ -112,7 +112,7 @@ export function useSiweSignature() {
     } finally {
       setSignPromise(null);
     }
-  }, [address, storageKey, signPromise, setSignPromise, getMessageSignature, setOfframpSigningPhase]);
+  }, [address, storageKey, signPromise, setSignPromise, getMessageSignature, setRampSigningPhase]);
 
   useEffect(() => {
     if (signPromise) handleSign();

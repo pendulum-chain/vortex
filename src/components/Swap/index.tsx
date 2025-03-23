@@ -1,7 +1,6 @@
 import React, { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 
-import { useOfframpInitiating, useOfframpStarted, useOfframpState, useOfframpStore } from '../../stores/offrampStore';
 import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
 import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
@@ -15,7 +14,6 @@ import {
   FiatToken,
 } from '../../constants/tokenConfig';
 import { useNetwork } from '../../contexts/network';
-import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { TermsAndConditions } from '../TermsAndConditions';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
@@ -42,10 +40,10 @@ interface SwapProps {
   form: UseFormReturn<SwapFormValues, unknown, undefined>;
   from: OnChainToken;
   to: FiatToken;
-  tokenOutAmount: UseTokenOutAmountResult;
   fromAmount: Big.Big | undefined;
+  toAmount: Big.Big | undefined;
+  exchangeRate: number;
   feeComparisonRef: RefObject<HTMLDivElement | null>;
-  inputAmountIsStable: boolean;
   trackQuote: React.RefObject<boolean>;
   apiInitializeFailed: boolean;
   initializeFailedMessage: string | null;
@@ -59,10 +57,10 @@ export const Swap = ({
   form,
   from,
   to,
-  tokenOutAmount,
   fromAmount,
+  toAmount,
+  exchangeRate,
   feeComparisonRef,
-  inputAmountIsStable,
   trackQuote,
   apiInitializeFailed,
   initializeFailedMessage,
@@ -79,11 +77,6 @@ export const Swap = ({
   const toToken = getAnyFiatTokenDetails(to);
 
   const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
-
-  const offrampStarted = useOfframpStarted();
-  const offrampState = useOfframpState();
-  const offrampInitiating = useOfframpInitiating();
-  const { initializeFailedMessage: internalInitializeFailedMessage } = useOfframpStore();
 
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
@@ -132,12 +125,12 @@ export const Swap = ({
         tokenSymbol={toToken.fiat.symbol}
         onClick={() => openTokenSelectModal(TokenSelectType.TO)}
         registerInput={form.register('toAmount')}
-        disabled={tokenOutAmount.isLoading}
+        disabled={!toAmount}
         readOnly={true}
         id="toAmount"
       />
     ),
-    [toToken.fiat.assetIcon, toToken.fiat.symbol, form, tokenOutAmount.isLoading, openTokenSelectModal],
+    [toToken.fiat.assetIcon, toToken.fiat.symbol, form, toAmount, openTokenSelectModal],
   );
 
   const handleCompareFeesClick = useCallback(
@@ -162,22 +155,26 @@ export const Swap = ({
   }, [onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
 
   const getButtonState = (): SwapButtonState => {
-    if (offrampInitiating) {
-      return SwapButtonState.CONFIRMING;
-    }
-    if (offrampStarted && isOfframpSummaryDialogVisible) {
-      return SwapButtonState.PROCESSING;
-    }
+    // FIXME
+    // if (offrampInitiating) {
+    //   return SwapButtonState.CONFIRMING;
+    // }
+    // if (offrampStarted && isOfframpSummaryDialogVisible) {
+    //   return SwapButtonState.PROCESSING;
+    // }
     return SwapButtonState.CONFIRM;
   };
 
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !inputAmountIsStable || !!initializeFailedMessage;
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
 
-  const isSubmitButtonPending =
-    offrampInitiating ||
-    (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
-    offrampState !== undefined;
+  // FIXME
+  const isSubmitButtonPending = false;
+  // offrampInitiating ||
+  // (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
+  // offrampState !== undefined;
 
+  // FIXME
+  const internalInitializeFailedMessage = '';
   const displayInitializeFailedMessage = initializeFailedMessage || internalInitializeFailedMessage;
   return (
     <FormProvider {...form}>
@@ -195,14 +192,10 @@ export const Swap = ({
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <FeeCollapse
           fromAmount={fromAmount?.toString()}
-          toAmount={tokenOutAmount.data?.roundedDownQuotedAmountOut}
+          toAmount={toAmount}
           toToken={toToken}
           exchangeRate={
-            <ExchangeRate
-              exchangeRate={tokenOutAmount.data?.effectiveExchangeRate}
-              fromToken={fromToken}
-              toTokenSymbol={toToken.fiat.symbol}
-            />
+            <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={toToken.fiat.symbol} />
           }
         />
         <section className="flex items-center justify-center w-full mt-5">
@@ -232,7 +225,6 @@ export const Swap = ({
           <button
             className="btn-vortex-primary-inverse btn"
             style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-            disabled={!inputAmountIsStable}
             onClick={handleCompareFeesClick}
           >
             Compare fees

@@ -4,7 +4,7 @@ import { OnChainTokenDetails } from '../../constants/tokenConfig';
 interface ExchangeRateProps {
   fromToken: OnChainTokenDetails;
   toTokenSymbol: string;
-  exchangeRate?: string;
+  exchangeRate?: number;
 }
 
 export const ExchangeRate: FC<ExchangeRateProps> = ({ exchangeRate, fromToken, toTokenSymbol }) => {

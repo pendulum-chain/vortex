@@ -2,7 +2,7 @@ import { createContext, ReactNode, useContext, useState, useEffect, useCallback 
 import { useAccount, useSwitchChain } from 'wagmi';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
-import { useOfframpActions } from '../stores/offrampStore';
+import { useRampActions } from '../stores/offrampStore';
 import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
 import { useSep24Actions } from '../stores/sep24Store';
 
@@ -35,7 +35,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(selectedNetworkLocalStorage);
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
 
-  const { resetOfframpState } = useOfframpActions();
+  const { resetRampState } = useRampActions();
   const { cleanup: cleanupSep24Variables } = useSep24Actions();
   const { switchChainAsync } = useSwitchChain();
   const { chain: connectedEvmChain } = useAccount();
@@ -43,7 +43,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const setSelectedNetwork = useCallback(
     async (network: Networks, resetState = false) => {
       if (resetState) {
-        resetOfframpState();
+        resetRampState();
         cleanupSep24Variables();
       }
       setSelectedNetworkState(network);
@@ -58,7 +58,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         }
       }
     },
-    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetOfframpState, cleanupSep24Variables],
+    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetRampState, cleanupSep24Variables],
   );
 
   // Only run on first render

@@ -2,19 +2,17 @@ import { FC, useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { CheckIcon } from '@heroicons/react/20/solid';
 
-import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM } from '../../helpers/networks';
-import { createOfframpingPhaseMessage } from './helpers';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
-import { OnrampingState } from '../../services/onrampingFlow';
+import { RampingPhase, RampingState } from '../../types/phases';
 
 const useProgressUpdate = (
-  currentPhase: OfframpingPhase,
+  currentPhase: RampingPhase,
   currentPhaseIndex: number,
   displayedPercentage: number,
   setDisplayedPercentage: (value: (prev: number) => number) => void,
@@ -53,7 +51,7 @@ const useProgressUpdate = (
   }, [currentPhase, currentPhaseIndex, displayedPercentage, setDisplayedPercentage, setShowCheckmark]);
 };
 
-export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
+export const OFFRAMPING_PHASE_SECONDS: Record<RampingPhase, number> = {
   prepareTransactions: 1,
   squidRouter: 1,
   pendulumFundEphemeral: 80,
@@ -76,11 +74,11 @@ const CIRCLE_STROKE_WIDTH = 12;
 const numberOfPhases = Object.keys(OFFRAMPING_PHASE_SECONDS).length;
 
 interface ProgressPageProps {
-  offrampingState: OfframpingState | OnrampingState;
+  offrampingState: RampingState;
 }
 
 interface ProgressContentProps {
-  currentPhase: OfframpingPhase;
+  currentPhase: RampingPhase;
   currentPhaseIndex: number;
   message: string;
 }
@@ -188,9 +186,11 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
 
-  const currentPhase = offrampingState.phase as OfframpingPhase;
+  const currentPhase = offrampingState.phase as RampingPhase;
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-  const message = createOfframpingPhaseMessage(offrampingState, selectedNetwork);
+  // FIXME get message from backend
+  // const message = createOfframpingPhaseMessage(offrampingState, selectedNetwork);
+  const message = 'This is a placeholder message.';
 
   useEffect(() => {
     trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });

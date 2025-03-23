@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
-import { OfframpSigningPhase } from '../../types/offramp';
 import { isNetworkEVM } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
+import { RampSigningPhase } from '../../types/phases';
 
 type ProgressConfig = {
-  [key in OfframpSigningPhase]: number;
+  [key in RampSigningPhase]: number;
 };
 
 const PROGRESS_CONFIGS: Record<'EVM' | 'NON_EVM', ProgressConfig> = {
@@ -29,7 +29,7 @@ const PROGRESS_CONFIGS: Record<'EVM' | 'NON_EVM', ProgressConfig> = {
   },
 };
 
-const getSignatureDetails = (step: OfframpSigningPhase, isEVM: boolean) => {
+const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean) => {
   if (!isEVM) return { max: 1, current: 1 };
   if (step === 'login') return { max: 1, current: 1 };
   if (step === 'started') return { max: 2, current: 1 };
@@ -37,10 +37,10 @@ const getSignatureDetails = (step: OfframpSigningPhase, isEVM: boolean) => {
 };
 
 interface SigningBoxProps {
-  step?: OfframpSigningPhase;
+  step?: RampSigningPhase;
 }
 
-const isValidStep = (step: OfframpSigningPhase | undefined, isEVM: boolean): step is OfframpSigningPhase => {
+const isValidStep = (step: RampSigningPhase | undefined, isEVM: boolean): step is RampSigningPhase => {
   if (!step) return false;
   if (step === 'finished' || step === 'login') return true;
   if (!isEVM && (step === 'approved' || step === 'signed')) return false;

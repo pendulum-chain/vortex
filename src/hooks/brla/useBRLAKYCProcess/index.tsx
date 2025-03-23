@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useOfframpActions } from '../../../stores/offrampStore';
-import { useOfframpSubmission } from '../useOfframpSubmission';
+import { useRampActions } from '../../../stores/offrampStore';
 import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
@@ -56,12 +55,12 @@ export function useKYCProcess() {
 
   const queryClient = useQueryClient();
   const { data: kycResponse, error } = useKycStatusQuery(cpf);
-  const { setOfframpKycStarted, resetOfframpState } = useOfframpActions();
+  const { setRampKycStarted, resetRampState } = useRampActions();
 
   const handleBackClick = useCallback(() => {
-    setOfframpKycStarted(false);
-    resetOfframpState();
-  }, [setOfframpKycStarted, resetOfframpState]);
+    setRampKycStarted(false);
+    resetRampState();
+  }, [setRampKycStarted, resetRampState]);
 
   const handleError = useCallback(
     (errorMessage?: string) => {
@@ -77,7 +76,9 @@ export function useKYCProcess() {
     [handleBackClick, updateStatus, resetToDefault],
   );
 
-  const proceedWithOfframp = useOfframpSubmission(handleError);
+  // const proceedWithOfframp = useOfframpSubmission(handleError);
+  // FIXME
+  const proceedWithOfframp = () => undefined;
 
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {
@@ -127,14 +128,14 @@ export function useKYCProcess() {
           updateStatus(KycStatus.APPROVED, STATUS_MESSAGES.SUCCESS);
           await delay(SUCCESS_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
-          setOfframpKycStarted(false);
+          setRampKycStarted(false);
           proceedWithOfframp();
         },
         [KycStatus.REJECTED]: async () => {
           updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.REJECTED);
           await delay(ERROR_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
-          setOfframpKycStarted(false);
+          setRampKycStarted(false);
           resetToDefault();
           handleBackClick();
         },
@@ -150,7 +151,7 @@ export function useKYCProcess() {
     if (kycResponse.status) {
       handleStatus(kycResponse.status);
     }
-  }, [kycResponse, handleBackClick, proceedWithOfframp, updateStatus, resetToDefault, setOfframpKycStarted]);
+  }, [kycResponse, handleBackClick, proceedWithOfframp, updateStatus, resetToDefault, setRampKycStarted]);
 
   useEffect(() => {
     if (error) {

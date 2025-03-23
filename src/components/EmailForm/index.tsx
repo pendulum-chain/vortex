@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { storeUserEmailInBackend } from '../../services/storage/remote';
 import { TextInput } from '../TextInput';
 import { useEventsContext } from '../../contexts/events';
+import { storeUserEmailInBackend } from '../../services/backend';
 
 interface EmailFormProps {
   transactionId?: string;

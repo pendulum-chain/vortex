@@ -444,13 +444,13 @@ export function isStellarOutputToken(outputToken: FiatToken): boolean {
   return maybeOutputTokenDetails === undefined;
 }
 
-export function getOnChainTokenDetailsOrDefault(network: Networks, OnChainToken: OnChainToken): OnChainTokenDetails {
-  const maybeOnChainTokenDetails = getOnChainTokenDetails(network, OnChainToken);
+export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails {
+  const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
   if (maybeOnChainTokenDetails) {
     return maybeOnChainTokenDetails;
   }
 
-  console.error(`Invalid input token type: ${OnChainToken}`);
+  console.error(`Invalid input token type: ${onChainToken}`);
   const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
   const firstAvailableToken = Object.values(ON_CHAIN_TOKEN_CONFIG[networkType])[0];
   if (!firstAvailableToken) {
@@ -459,11 +459,11 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, OnChainToken:
   return firstAvailableToken;
 }
 
-export function getOnChainTokenDetails(network: Networks, OnChainToken: OnChainToken): OnChainTokenDetails | undefined {
+export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
   const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
 
   try {
-    return ON_CHAIN_TOKEN_CONFIG[networkType][OnChainToken];
+    return ON_CHAIN_TOKEN_CONFIG[networkType][onChainToken];
   } catch (error) {
     console.error(`Error getting input token details: ${error}`);
     throw error;

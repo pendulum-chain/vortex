@@ -3,7 +3,6 @@ import { TransactionInfo } from '../../components/TransactionInfo';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
-import { FailureType } from '../../services/offrampingFlow';
 import { config } from '../../config';
 
 const Cross = () => (
@@ -16,31 +15,15 @@ interface FailurePageProps {
   finishOfframping: () => void;
   continueFailedFlow: () => void;
   transactionId: string | undefined;
-  failure: FailureType;
 }
 
-export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId, failure }: FailurePageProps) => {
-  console.log('Failure page');
+export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId }: FailurePageProps) => {
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12">
         <Cross />
         <h1 className="mt-6 text-2xl font-bold text-center text-red-500">Oops! Something went wrong</h1>
         {transactionId && <TransactionInfo transactionId={transactionId} />}
-        {failure.type === 'recoverable' ? (
-          <>
-            <p className="mt-6 text-center">
-              Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary
-              problem such as bad internet connection.
-            </p>
-            <p>Either try to continue or start over.</p>
-          </>
-        ) : undefined}
-        {failure.type === 'recoverable' && (
-          <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={continueFailedFlow}>
-            Retry
-          </button>
-        )}
         <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
         {transactionId && (
           <p className="text-center text-gray-400">

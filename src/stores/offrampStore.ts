@@ -1,36 +1,28 @@
 import { create } from 'zustand';
-import { OfframpState, OfframpActions } from '../types/offramp';
-import { clearOfframpingState } from '../services/flowCommons';
+import { RampZustand, RampActions } from '../types/phases';
 
-interface OfframpStore extends OfframpState {
-  actions: OfframpActions;
+interface RampStore extends RampZustand {
+  actions: RampActions;
 }
 
-export const useOfframpStore = create<OfframpStore>()((set) => ({
-  offrampStarted: false,
-  offrampInitiating: false,
-  offrampKycStarted: false,
-  offrampState: undefined,
-  offrampSigningPhase: undefined,
-  offrampExecutionInput: undefined,
-  offrampSummaryVisible: false,
+export const useRampStore = create<RampStore>()((set) => ({
+  rampStarted: false,
+  rampInitiating: false,
+  rampKycStarted: false,
+  rampState: undefined,
+  rampSigningPhase: undefined,
+  rampExecutionInput: undefined,
+  rampSummaryVisible: false,
   initializeFailedMessage: undefined,
 
   actions: {
-    setOfframpStarted: (started) => set({ offrampStarted: started }),
-    setOfframpInitiating: (initiating) => set({ offrampInitiating: initiating }),
-    setOfframpState: (state) => set({ offrampState: state }),
-    setOfframpExecutionInput: (executionInput) => set({ offrampExecutionInput: executionInput }),
-    setOfframpSigningPhase: (phase) => set({ offrampSigningPhase: phase }),
-    setOfframpKycStarted: (kycStarted) => set({ offrampKycStarted: kycStarted }),
-    setOfframpSummaryVisible: (visible) => set({ offrampSummaryVisible: visible }),
-    updateOfframpHookStateFromState: (state) => {
-      if (!state || state.phase === 'success' || state.failure !== undefined) {
-        set({ offrampSigningPhase: undefined });
-      }
-      set({ offrampState: state });
-    },
-
+    setRampStarted: (started) => set({ rampStarted: started }),
+    setRampInitiating: (initiating) => set({ rampInitiating: initiating }),
+    setRampState: (state) => set({ rampState: state }),
+    setRampExecutionInput: (executionInput) => set({ rampExecutionInput: executionInput }),
+    setRampSigningPhase: (phase) => set({ rampSigningPhase: phase }),
+    setRampKycStarted: (kycStarted) => set({ rampKycStarted: kycStarted }),
+    setRampSummaryVisible: (visible) => set({ rampSummaryVisible: visible }),
     setInitializeFailedMessage: (message: string | undefined) => {
       const displayMessage =
         message ??
@@ -38,15 +30,15 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
       set({ initializeFailedMessage: displayMessage });
     },
 
-    resetOfframpState: () => {
-      clearOfframpingState();
+    resetRampState: () => {
+      // clearOfframpingState();
       set({
-        offrampStarted: false,
-        offrampInitiating: false,
-        offrampKycStarted: false,
-        offrampState: undefined,
-        offrampSigningPhase: undefined,
-        offrampExecutionInput: undefined,
+        rampStarted: false,
+        rampInitiating: false,
+        rampKycStarted: false,
+        rampState: undefined,
+        rampSigningPhase: undefined,
+        rampExecutionInput: undefined,
       });
     },
 
@@ -54,14 +46,14 @@ export const useOfframpStore = create<OfframpStore>()((set) => ({
   },
 }));
 
-export const useOfframpSigningPhase = () => useOfframpStore((state) => state.offrampSigningPhase);
-export const useOfframpState = () => useOfframpStore((state) => state.offrampState);
-export const useOfframpStarted = () => useOfframpStore((state) => state.offrampStarted);
-export const useOfframpInitiating = () => useOfframpStore((state) => state.offrampInitiating);
-export const useOfframpExecutionInput = () => useOfframpStore((state) => state.offrampExecutionInput);
-export const useOfframpKycStarted = () => useOfframpStore((state) => state.offrampKycStarted);
-export const useInitializeFailedMessage = () => useOfframpStore((state) => state.initializeFailedMessage);
-export const useOfframpSummaryVisible = () => useOfframpStore((state) => state.offrampSummaryVisible);
-export const clearInitializeFailedMessage = () => useOfframpStore.getState().actions.clearInitializeFailedMessage();
+export const useRampSigningPhase = () => useRampStore((state) => state.rampSigningPhase);
+export const useRampState = () => useRampStore((state) => state.rampState);
+export const useRampStarted = () => useRampStore((state) => state.rampStarted);
+export const useRampInitiating = () => useRampStore((state) => state.rampInitiating);
+export const useRampExecutionInput = () => useRampStore((state) => state.rampExecutionInput);
+export const useRampKycStarted = () => useRampStore((state) => state.rampKycStarted);
+export const useInitializeFailedMessage = () => useRampStore((state) => state.initializeFailedMessage);
+export const useRampSummaryVisible = () => useRampStore((state) => state.rampSummaryVisible);
+export const clearInitializeFailedMessage = () => useRampStore.getState().actions.clearInitializeFailedMessage();
 
-export const useOfframpActions = () => useOfframpStore((state) => state.actions);
+export const useRampActions = () => useRampStore((state) => state.actions);

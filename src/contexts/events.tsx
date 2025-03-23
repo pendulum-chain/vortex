@@ -2,7 +2,6 @@ import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
 import { getPendulumDetails } from '../constants/tokenConfig';
-import { OfframpingState } from '../services/offrampingFlow';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { QuoteService } from '../services/quotes';
 import { useVortexAccount } from '../hooks/useVortexAccount';
@@ -11,7 +10,7 @@ import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
 import { useFromAmount } from '../stores/formStore';
-import { OnrampingState } from '../services/onrampingFlow';
+import { RampingState } from '../types/phases';
 
 declare global {
   interface Window {
@@ -329,17 +328,17 @@ export function EventsProvider({ children }: PropsWithChildren) {
 
 export function createTransactionEvent(
   type: TransactionEvent['event'],
-  state: OfframpingState | OnrampingState,
+  state: RampingState,
   selectedNetwork: Networks,
 ) {
-  const OnChainTokenDetails = getPendulumDetails(selectedNetwork, state.inputTokenType);
-  const ouputTokenDetails = getPendulumDetails(selectedNetwork, state.outputTokenType);
+  const onChainTokenDetails = getPendulumDetails(state.onChainToken, selectedNetwork);
+  const fiatToken = getPendulumDetails(state.fiatToken, selectedNetwork);
   return {
     event: type,
-    from_asset: OnChainTokenDetails.pendulumAssetSymbol ?? 'unknown',
-    to_asset: ouputTokenDetails.pendulumAssetSymbol,
+    from_asset: onChainTokenDetails.pendulumAssetSymbol ?? 'unknown',
+    to_asset: fiatToken.pendulumAssetSymbol,
     from_amount: state.inputAmount.units,
-    to_amount: calculateTotalReceive(state.flowType, Big(state.outputAmount.units), state.FiatToken),
+    to_amount: calculateTotalReceive(state.type, Big(state.outputAmount.units), state.fiatToken),
   };
 }
 

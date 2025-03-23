@@ -1,24 +1,20 @@
 import { useEffect } from 'react';
 import Big from 'big.js';
 
-import { constructBrlaInitialState } from '../../services/offrampingFlow';
-import { recoverFromFailure, readCurrentState } from '../../services/flowCommons';
-
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
-import { useOfframpAdvancement } from './useOfframpAdvancement';
-import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
+import { useRampActions, useRampState } from '../../stores/offrampStore';
 import { useSep24UrlInterval, useSep24InitialResponse } from '../../stores/sep24Store';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
-import { OfframpExecutionInput } from '../../types/offramp';
 import { Networks } from '../../helpers/networks';
 import { ApiComponents } from '../../contexts/polkadotNode';
 import { useVortexAccount } from '../useVortexAccount';
+import { RampExecutionInput } from '../../types/phases';
 
 export const useMainProcess = () => {
-  const { updateOfframpHookStateFromState, resetOfframpState, setOfframpStarted } = useOfframpActions();
-  const offrampState = useOfframpState();
+  const { resetRampState, setRampStarted } = useRampActions();
+  const offrampState = useRampState();
   const { chainId } = useVortexAccount();
 
   // Sep 24 states
@@ -31,20 +27,8 @@ export const useMainProcess = () => {
   const events = useOfframpEvents();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
 
-  // Initialize state from storage
-  useEffect(() => {
-    const recoveryState = readCurrentState();
-    updateOfframpHookStateFromState(recoveryState);
-    events.trackOfframpingEvent(recoveryState);
-    // Previously, adding events to the array was causeing a re-rendering loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateOfframpHookStateFromState, events.trackOfframpingEvent]);
-
-  // Determines the current offramping phase
-  useOfframpAdvancement();
-
   const handleBrlaOfframpStart = async (
-    executionInput: OfframpExecutionInput | undefined,
+    executionInput: RampExecutionInput | undefined,
     network: Networks,
     address: string,
     pendulumNode: ApiComponents,
@@ -61,20 +45,20 @@ export const useMainProcess = () => {
       throw new Error('Missing chainId');
     }
 
-    const initialState = await constructBrlaInitialState({
-      OnChainToken: executionInput.inputTokenType,
-      FiatToken: executionInput.outputTokenType,
-      amountIn: executionInput.inputAmountUnits,
-      amountOut: Big(executionInput.outputAmountUnits.beforeFees),
-      network,
-      networkId: chainId,
-      pendulumNode,
-      offramperAddress: address!,
-      brlaEvmAddress: executionInput.brlaEvmAddress,
-      pixDestination: executionInput.pixId,
-      taxId: executionInput.taxId,
-    });
-    updateOfframpHookStateFromState(initialState);
+    // const initialState = await constructBrlaInitialState({
+    //   onChainToken: executionInput.inputTokenType,
+    //   fiatToken: executionInput.outputTokenType,
+    //   amountIn: executionInput.inputAmountUnits,
+    //   amountOut: Big(executionInput.outputAmountUnits.beforeFees),
+    //   network,
+    //   networkId: chainId,
+    //   pendulumNode,
+    //   offramperAddress: address!,
+    //   brlaEvmAddress: executionInput.brlaEvmAddress,
+    //   pixDestination: executionInput.pixId,
+    //   taxId: executionInput.taxId,
+    // });
+    // updateOfframpHookStateFromState(initialState);
     return;
   };
 
@@ -83,17 +67,18 @@ export const useMainProcess = () => {
     firstSep24ResponseState: firstSep24Response,
     finishOfframping: () => {
       events.resetUniqueEvents();
-      resetOfframpState();
+      resetRampState();
       cleanupSep24();
     },
     continueFailedFlow: () => {
-      updateOfframpHookStateFromState(recoverFromFailure(offrampState));
+      // FIXME call into backend to retry the offramp
+      // updateOfframpHookStateFromState(recoverFromFailure(offrampState));
     },
     handleOnAnchorWindowOpen: handleOnAnchorWindowOpen,
     handleBrlaOfframpStart: handleBrlaOfframpStart,
     maybeCancelSep24First: () => {
       if (firstSep24Interval !== undefined) {
-        setOfframpStarted(false);
+        setRampStarted(false);
         cleanupSep24();
       }
     },

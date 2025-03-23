@@ -3,12 +3,12 @@ import { useMutation } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { validator } from 'web3';
 
-import { storeUserRatingInBackend } from '../../services/storage/remote';
 import { CloseButton } from '../buttons/CloseButton';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useRatingVisibility } from './useRatingVisibility';
 import RatingForm from './RatingForm';
 import './index.css';
+import { storeUserRatingInBackend } from '../../services/backend';
 
 export function Rating() {
   const { isVisible, onClose } = useRatingVisibility();

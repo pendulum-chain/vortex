@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Big from 'big.js';
 
 import erc20ABI from '../contracts/ERC20';
-import { OnChainTokenDetails, TokenType, isEvmOnChainTokenDetails } from '../constants/tokenConfig';
+import { OnChainTokenDetails, TokenType } from '../constants/tokenConfig';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
@@ -80,5 +80,5 @@ export const useInputTokenBalance = ({ fromToken }: { fromToken?: OnChainTokenDe
     return undefined;
   }
 
-  return isEvmOnChainTokenDetails(fromToken) ? evmBalance : assetHubBalance;
+  return isEvmToken ? evmBalance : assetHubBalance;
 };
