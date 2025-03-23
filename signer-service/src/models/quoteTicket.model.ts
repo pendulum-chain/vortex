@@ -2,7 +2,7 @@ import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
 // Define the attributes of the QuoteTicket model
-interface QuoteTicketAttributes {
+export interface QuoteTicketAttributes {
   id: string; // UUID
   rampType: 'on' | 'off';
   chainId: number;

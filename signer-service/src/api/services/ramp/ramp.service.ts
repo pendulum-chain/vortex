@@ -9,15 +9,17 @@ import httpStatus from 'http-status';
 import { Transaction } from 'sequelize';
 import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
+import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
+import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
 
-interface Ephemeral {
+export interface AccountMeta {
   network: string; // TODO give proper type
   address: string;
 }
 
 export interface RegisterRampRequest {
   quoteId: string;
-  ephemerals: Ephemeral[];
+  ephemerals: AccountMeta[];
   additionalData?: Record<string, any>;
 }
 
@@ -52,6 +54,13 @@ export class RampService extends BaseRampService {
       }
     }
 
+    if (!request.ephemerals || request.ephemerals.length === 0) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Ephemerals are required',
+      });
+    }
+
     return this.withTransaction(async (transaction) => {
       // Get and validate the quote
       const quoteModel = await QuoteTicket.findByPk(request.quoteId, { transaction });
@@ -83,9 +92,12 @@ export class RampService extends BaseRampService {
       }
 
       // Create to-be-signed transactions
-      // TODO: Implement this
-      // const unsignedTxs = await this.createUnsignedTxs(quote, request.presignedTxs, transaction);
-      const unsignedTxs: UnsignedTx[] = [];
+      let unsignedTxs: UnsignedTx[] = [];
+      if (quote.rampType === 'off') {
+        unsignedTxs = await prepareOfframpTransactions(quote, ephemerals);
+      } else {
+        unsignedTxs = await prepareOnrampTransactions(quote, ephemerals);
+      }
 
       // Mark the quote as consumed
       await this.consumeQuote(quote.id, transaction);

@@ -11,6 +11,7 @@ import { evmTokenConfig } from '../evm/config';
 import { assetHubTokenConfig } from '../assethub/config';
 import { stellarTokenConfig } from '../stellar/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
+import { MoonbeamTokenDetails } from '../types/moonbeam';
 
 /**
  * Get token details for a specific network and token
@@ -78,7 +79,7 @@ export function getTokenDetailsSpacewalk(fiatToken: FiatToken): FiatTokenDetails
 /**
  * Get Moonbeam token details for a specific fiat token
  */
-export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): FiatTokenDetails {
+export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTokenDetails {
   const maybeOutputTokenDetails = moonbeamTokenConfig[fiatToken];
 
   if (maybeOutputTokenDetails) {
