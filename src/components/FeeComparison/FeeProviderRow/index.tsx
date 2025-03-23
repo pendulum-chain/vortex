@@ -4,12 +4,12 @@ import Big from 'big.js';
 
 import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
 import { Skeleton } from '../../Skeleton';
-import { QuoteProvider } from '../quoteProviders';
+import { PriceProvider } from '../priceProviders';
 import { formatPrice } from '../helpers';
 import { BaseComparisonProps } from '..';
 
 interface FeeProviderRowProps extends BaseComparisonProps {
-  provider: QuoteProvider;
+  provider: PriceProvider;
   isBestRate: boolean;
   bestPrice: Big;
   onPriceFetched: (providerName: string, price: Big) => void;
@@ -22,12 +22,12 @@ export function FeeProviderRow({
   targetAssetSymbol,
   vortexPrice,
   network,
-  trackQuote,
+  trackPrice,
   isBestRate,
   bestPrice,
   onPriceFetched,
 }: FeeProviderRowProps) {
-  const { scheduleQuote } = useEventsContext();
+  const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
   const prevVortexPrice = useRef<Big | null>(null);
@@ -75,18 +75,18 @@ export function FeeProviderRow({
     };
 
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
-    scheduleQuote(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, trackQuote);
+    schedulePrice(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, trackPrice);
     prevVortexPrice.current = vortexPrice;
   }, [
     amount,
     provider.name,
     isLoading,
-    scheduleQuote,
+    schedulePrice,
     sourceAssetSymbol,
     targetAssetSymbol,
     providerPrice,
     vortexPrice,
-    trackQuote,
+    trackPrice,
     error,
     onPriceFetched,
   ]);

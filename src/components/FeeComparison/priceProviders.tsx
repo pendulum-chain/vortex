@@ -1,18 +1,18 @@
-import { getQueryFnForService, QuoteQuery, QuoteService } from '../../services/quotes';
+import { getQueryFnForService, PriceQuery, PriceService } from '../../services/prices';
 import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
 import vortexIcon from '../../assets/logo/blue.svg';
 import { JSX } from 'react';
 
-export interface QuoteProvider {
-  name: QuoteService;
+export interface PriceProvider {
+  name: PriceService;
   icon?: JSX.Element;
-  query: QuoteQuery;
+  query: PriceQuery;
   href: string;
 }
 
-export const quoteProviders: QuoteProvider[] = [
+export const priceProviders: PriceProvider[] = [
   {
     name: 'alchemypay',
     icon: <img src={alchemyPayIcon} className="w-40 ml-1" alt="AlchemyPay" />,

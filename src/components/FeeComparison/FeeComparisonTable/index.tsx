@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import Big from 'big.js';
 
 import { getNetworkDisplayName, isNetworkEVM } from '../../../helpers/networks';
-import { quoteProviders } from '../quoteProviders';
+import { priceProviders } from '../priceProviders';
 import { FeeProviderRow } from '../FeeProviderRow';
 import { BaseComparisonProps } from '..';
 
@@ -22,7 +22,7 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
     { bestPrice: new Big(0), bestProvider: '' },
   );
 
-  const sortedProviders = quoteProviders.sort((a, b) => {
+  const sortedProviders = priceProviders.sort((a, b) => {
     const aPrice = providerPrices[a.name] ?? new Big(0);
     const bPrice = providerPrices[b.name] ?? new Big(0);
     return bPrice.minus(aPrice).toNumber();

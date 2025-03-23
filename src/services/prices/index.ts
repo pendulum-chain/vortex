@@ -4,13 +4,13 @@ import Big from 'big.js';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { isNetworkEVM, Networks } from '../../helpers/networks';
 
-const QUOTE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/quotes`;
+const PRICE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/prices`;
 
-export type QuoteService = 'moonpay' | 'transak' | 'alchemypay' | 'vortex';
+export type PriceService = 'moonpay' | 'transak' | 'alchemypay' | 'vortex';
 
 export type SupportedNetworks = typeof polygon.name;
 
-interface Quote {
+interface Price {
   // The price of crypto -> fiat, i.e. cryptoAmount * cryptoPrice = fiatAmount + totalFee
   cryptoPrice: number;
   // The amount of sent crypto
@@ -21,8 +21,8 @@ interface Quote {
   totalFee: number;
 }
 
-async function getQuoteFromService(
-  provider: QuoteService,
+async function getPriceFromService(
+  provider: PriceService,
   fromCrypto: string,
   toFiat: string,
   amount: Big,
@@ -35,7 +35,7 @@ async function getQuoteFromService(
     compatibleNetwork = Networks.Polygon;
   }
 
-  // Fetch the quote from the service with a GET request
+  // Fetch the price from the service with a GET request
   const params = new URLSearchParams({
     provider,
     fromCrypto,
@@ -43,19 +43,19 @@ async function getQuoteFromService(
     amount: amount.toFixed(2),
     network: compatibleNetwork,
   });
-  const response = await fetch(`${QUOTE_ENDPOINT}?${params.toString()}`);
+  const response = await fetch(`${PRICE_ENDPOINT}?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error(`Error while fetching quote from ${provider}`);
+    throw new Error(`Error while fetching price from ${provider}`);
   }
 
-  const quote: Quote = await response.json();
-  return new Big(quote.fiatAmount);
+  const price: Price = await response.json();
+  return new Big(price.fiatAmount);
 }
 
-export type QuoteQuery = (fromCrypto: string, toFiat: string, amount: Big, network: Networks) => Promise<Big>;
+export type PriceQuery = (fromCrypto: string, toFiat: string, amount: Big, network: Networks) => Promise<Big>;
 
-export function getQueryFnForService(quoteService: QuoteService): QuoteQuery {
+export function getQueryFnForService(priceService: PriceService): PriceQuery {
   return (fromCrypto, toFiat, amount, network) =>
-    getQuoteFromService(quoteService, fromCrypto, toFiat, amount, network);
+    getPriceFromService(priceService, fromCrypto, toFiat, amount, network);
 }

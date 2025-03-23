@@ -3,7 +3,7 @@ import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'r
 import Big from 'big.js';
 import { getPendulumDetails } from '../constants/tokenConfig';
 import { calculateTotalReceive } from '../components/FeeCollapse';
-import { QuoteService } from '../services/quotes';
+import { PriceService } from '../services/prices';
 import { useVortexAccount } from '../hooks/useVortexAccount';
 import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
@@ -154,10 +154,10 @@ const useEvents = () => {
   const { selectedNetwork } = useNetwork();
   const fromAmount = useFromAmount();
 
-  const scheduledQuotes = useRef<
+  const scheduledPrices = useRef<
     | {
         parameters: OfframpingParameters;
-        quotes: Partial<Record<QuoteService, string>>;
+        prices: Partial<Record<PriceService, string>>;
       }
     | undefined
   >(undefined);
@@ -209,34 +209,34 @@ const useEvents = () => {
 
   /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
   /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
-  const scheduleQuote = useCallback(
-    (service: QuoteService, quote: string, parameters: OfframpingParameters, enableEventTracking: boolean) => {
+  const schedulePrice = useCallback(
+    (service: PriceService, price: string, parameters: OfframpingParameters, enableEventTracking: boolean) => {
       if (!enableEventTracking) return;
 
-      const prev = scheduledQuotes.current;
+      const prev = scheduledPrices.current;
 
       // Do a deep comparison of the parameters to check if they are the same.
       // If they are not, reset the quotes.
-      const newQuotes =
+      const newPrices =
         prev && JSON.stringify(prev.parameters) !== JSON.stringify(parameters)
-          ? { [service]: quote }
-          : { ...prev?.quotes, [service]: quote };
+          ? { [service]: price }
+          : { ...prev?.prices, [service]: price };
 
       // If all quotes are ready, emit the event
-      if (Object.keys(newQuotes).length === 3) {
+      if (Object.keys(newPrices).length === 3) {
         trackEvent({
           ...parameters,
           event: 'compare_quote',
-          transak_quote: newQuotes.transak !== '-1' ? newQuotes.transak : undefined,
-          moonpay_quote: newQuotes.moonpay !== '-1' ? newQuotes.moonpay : undefined,
-          alchemypay_quote: newQuotes.alchemypay !== '-1' ? newQuotes.alchemypay : undefined,
+          transak_quote: newPrices.transak !== '-1' ? newPrices.transak : undefined,
+          moonpay_quote: newPrices.moonpay !== '-1' ? newPrices.moonpay : undefined,
+          alchemypay_quote: newPrices.alchemypay !== '-1' ? newPrices.alchemypay : undefined,
         });
-        // Reset the quotes
-        scheduledQuotes.current = undefined;
+        // Reset the prices
+        scheduledPrices.current = undefined;
       } else {
-        scheduledQuotes.current = {
+        scheduledPrices.current = {
           parameters,
-          quotes: newQuotes,
+          prices: newPrices,
         };
       }
     },
@@ -306,7 +306,7 @@ const useEvents = () => {
   return {
     trackEvent,
     resetUniqueEvents,
-    scheduleQuote,
+    schedulePrice,
   };
 };
 const Context = createContext<UseEventsContext | undefined>(undefined);

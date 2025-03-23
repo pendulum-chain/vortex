@@ -10,7 +10,7 @@ export interface BaseComparisonProps {
   targetAssetSymbol: string;
   vortexPrice: Big;
   network: Networks;
-  trackQuote: boolean;
+  trackPrice: boolean;
   children?: React.ReactNode;
   ref?: React.RefObject<HTMLDivElement | null>;
 }
@@ -22,7 +22,7 @@ export const FeeComparison: FC<BaseComparisonProps> = ({
   targetAssetSymbol,
   vortexPrice,
   network,
-  trackQuote,
+  trackPrice,
 }) => (
   <section
     ref={ref}
@@ -46,7 +46,7 @@ export const FeeComparison: FC<BaseComparisonProps> = ({
         targetAssetSymbol={targetAssetSymbol}
         vortexPrice={vortexPrice}
         network={network}
-        trackQuote={trackQuote}
+        trackPrice={trackPrice}
       />
     </div>
   </section>

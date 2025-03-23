@@ -44,7 +44,7 @@ interface SwapProps {
   toAmount: Big.Big | undefined;
   exchangeRate: number;
   feeComparisonRef: RefObject<HTMLDivElement | null>;
-  trackQuote: React.RefObject<boolean>;
+  trackPrice: React.RefObject<boolean>;
   apiInitializeFailed: boolean;
   initializeFailedMessage: string | null;
   isOfframpSummaryDialogVisible: boolean;
@@ -61,7 +61,7 @@ export const Swap = ({
   toAmount,
   exchangeRate,
   feeComparisonRef,
-  trackQuote,
+  trackPrice,
   apiInitializeFailed,
   initializeFailedMessage,
   isOfframpSummaryDialogVisible,
@@ -96,8 +96,8 @@ export const Swap = ({
 
   const handleInputChange = useCallback(() => {
     setFromAmountFieldTouched(true);
-    trackQuote.current = true;
-  }, [trackQuote]);
+    trackPrice.current = true;
+  }, [trackPrice]);
 
   const handleBalanceClick = useCallback((amount: string) => form.setValue('fromAmount', amount), [form]);
 
@@ -139,9 +139,9 @@ export const Swap = ({
       setTimeout(() => {
         feeComparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 200);
-      trackQuote.current = true;
+      trackPrice.current = true;
     },
-    [feeComparisonRef, trackQuote],
+    [feeComparisonRef, trackPrice],
   );
 
   const onConfirm = useCallback(() => {

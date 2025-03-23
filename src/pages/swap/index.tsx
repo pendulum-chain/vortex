@@ -62,14 +62,13 @@ export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<HTMLDivElement | null>(null);
   const pendulumNode = usePendulumNode();
-  const trackQuote = useRef(false);
+  const trackPrice = useRef(false);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [_, setIsReady] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
-  const moonbeamNode = useMoonbeamNode();
 
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
@@ -314,7 +313,7 @@ export const SwapPage = () => {
 
     // const { expectedRedeemAmountRaw, inputAmountRaw } = calculateSwapAmountsWithMargin(
     //   validInputs.fromAmount,
-    //   validInputs.tokenOutAmountData.preciseQuotedAmountOut,
+    //   validInputs.tokenOutAmountData.precisePricedAmountOut,
     //   inputToken,
     //   outputToken,
     // );
@@ -361,7 +360,7 @@ export const SwapPage = () => {
           toAmount={toAmount}
           exchangeRate={exchangeRate}
           feeComparisonRef={feeComparisonRef}
-          trackQuote={trackQuote}
+          trackPrice={trackPrice}
           isOfframpSummaryDialogVisible={isOfframpSummaryVisible}
           apiInitializeFailed={apiInitializeFailed}
           initializeFailedMessage={initializeFailedMessage}
@@ -389,7 +388,7 @@ export const SwapPage = () => {
         vortexPrice={vortexPrice}
         network={selectedNetwork}
         ref={feeComparisonRef}
-        trackQuote={trackQuote.current}
+        trackPrice={trackPrice.current}
       />
       <WhyVortex />
       <HowToSell />
