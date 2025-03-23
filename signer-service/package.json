@@ -18,7 +18,7 @@
     "start": "yarn build && yarn serve",
     "dev": "nodemon --ext ts --watch src --exec \"node -r @swc-node/register src/index.ts\"",
     "migrate": "node -r @swc-node/register src/database/migrator.ts",
-    "migrate:revert": "node -r @swc-node/register src/database/migrator.ts revert",
+    "migrate:revert": "node -r @swc-node/register src/database/migrator.ts revert-all",
     "seed:phase-metadata": "node -r @swc-node/register src/database/seeders/phase-metadata.ts"
   },
   "dependencies": {

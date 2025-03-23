@@ -79,7 +79,16 @@ if (require.main === module) {
     try {
       await sequelize.authenticate();
       logger.info('Connection to the database has been established successfully');
-      await runMigrations();
+
+      // Check if the script is execute to run or revert migrations
+      if (process.argv[2] === 'revert') {
+        await revertLastMigration();
+      } else if (process.argv[2] === 'revert-all') {
+        await revertAllMigrations();
+      } else {
+        await runMigrations();
+      }
+
       process.exit(0);
     } catch (error) {
       process.exit(1);
