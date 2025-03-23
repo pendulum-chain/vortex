@@ -72,13 +72,10 @@ export const useAnchorWindowHandler = () => {
     firstSep24Response,
     anchorSessionParams,
     executionInput,
-    pendulumNode,
     trackKYCStarted,
     selectedNetwork,
-    cleanupSep24State,
     chainId,
     address,
-    trackKYCCompleted,
     setRampStarted,
   ]);
 };

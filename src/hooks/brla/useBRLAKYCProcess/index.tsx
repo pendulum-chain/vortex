@@ -78,7 +78,7 @@ export function useKYCProcess() {
 
   // const proceedWithOfframp = useOfframpSubmission(handleError);
   // FIXME
-  const proceedWithOfframp = () => undefined;
+  const proceedWithOfframp = useCallback(() => undefined, []);
 
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {

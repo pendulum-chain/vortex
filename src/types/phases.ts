@@ -36,6 +36,7 @@ export interface RampingState {
 }
 
 export interface RampExecutionInput {
+  type: 'on' | 'off';
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   inputAmountUnits: string;

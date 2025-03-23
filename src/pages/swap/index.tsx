@@ -42,6 +42,9 @@ import {
   useRampInitiating,
   useRampStarted,
   useRampSummaryVisible,
+  useRampExecutionInput,
+  useRampKycStarted,
+  useRampSigningPhase,
 } from '../../stores/offrampStore';
 import { RampExecutionInput, RampingState, RampSigningPhase } from '../../types/phases';
 import { useSwapUrlParams } from './useSwapUrlParams';
@@ -173,7 +176,8 @@ export const SwapPage = () => {
       setQuote(quoteResponse);
 
       // Update toAmount based on quote
-      form.setValue('toAmount', quoteResponse.outputAmount);
+      const toAmount = Big(quoteResponse.outputAmount);
+      form.setValue('toAmount', toAmount.toFixed(2));
 
       // Track event
       trackEvent({
@@ -214,10 +218,16 @@ export const SwapPage = () => {
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getAnyFiatTokenDetails(to);
   const formToAmount = form.watch('toAmount');
+  const toAmount = quote ? Big(quote.outputAmount) : undefined;
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
   const userInputTokenBalance = useInputTokenBalance({ fromToken });
+
+  const executionInput = useRampExecutionInput();
+  const offrampKycStarted = useRampKycStarted();
+  const offrampSigningPhase = useRampSigningPhase();
+  const exchangeRate = quote ? Number(quote.outputAmount) / Number(quote.inputAmount) : 0;
 
   // We create one listener to listen for the anchor callback, on initialize.
   useEffect(() => {
@@ -332,13 +342,6 @@ export const SwapPage = () => {
     </>
   );
 
-  // Get values from quote or use defaults
-  const executionInput = (rampState as any)?.rampExecutionInput as RampExecutionInput | undefined;
-  const offrampSigningPhase = (rampState as any)?.rampSigningPhase as RampSigningPhase | undefined;
-  const offrampKycStarted = (rampState as any)?.rampKycStarted || false;
-  const toAmount = quote ? Big(quote.outputAmount) : undefined;
-  const exchangeRate = quote ? Number(quote.outputAmount) / Number(quote.inputAmount) : 0;
-
   const handleOfframpSubmit = useCallback(() => {
     if (!address) {
       setInitializeFailed('No address found');
@@ -381,8 +384,8 @@ export const SwapPage = () => {
   }
 
   // Show progress page if ramp process is in progress
-  if (rampState !== undefined || rampStarted) {
-    return <ProgressPage offrampingState={rampState as RampingState} />;
+  if (rampState !== undefined && rampStarted) {
+    return <ProgressPage offrampingState={rampState} />;
   }
 
   const onSwapConfirm = async () => {
@@ -418,6 +421,7 @@ export const SwapPage = () => {
 
       // Create execution input
       const executionInput: RampExecutionInput = {
+        type: 'off',
         onChainToken: from,
         fiatToken: to,
         inputAmountUnits: fromAmount.toString(),
@@ -438,6 +442,9 @@ export const SwapPage = () => {
 
       // Show summary dialog
       setRampSummaryVisible(true);
+
+      // TODO add back some of the checks? Maybe not necessary if backend returns error
+      handleOnSubmit(executionInput);
 
       // Track event
       trackEvent({
