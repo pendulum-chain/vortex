@@ -40,29 +40,28 @@ apiClient.interceptors.response.use(
 
 export interface PresignedTransaction {
   phase: string;
-  transaction: string;
+  tx_data: string;
   nonce?: number;
 }
 
 export interface RampQuoteRequest {
-  inputToken: OnChainToken;
-  outputToken: OnChainToken | FiatToken;
-  amount: string;
-  sourceNetwork: Networks;
-  destinationNetwork?: Networks;
+  rampType: 'on' | 'off';
+  chainId: number;
+  inputAmount: string;
+  inputCurrency: string;
+  outputCurrency: string;
 }
 
 export interface RampQuoteResponse {
   id: string;
-  inputToken: OnChainToken;
-  outputToken: OnChainToken | FiatToken;
+  rampType: 'on' | 'off';
+  chainId: number;
   inputAmount: string;
+  inputCurrency: string;
   outputAmount: string;
-  exchangeRate: string;
+  outputCurrency: string;
   fee: string;
-  expiresAt: string;
-  sourceNetwork: Networks;
-  destinationNetwork?: Networks;
+  expiresAt: Date;
 }
 
 export interface StartRampRequest {
