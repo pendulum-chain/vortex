@@ -1,5 +1,5 @@
+import { AXL_USDC_MOONBEAM } from '../../../../config/tokens';
 import { getNetworkId, Networks } from '../../../helpers/networks';
-import { AXL_USDC_MOONBEAM } from '../../../constants/constants';
 
 interface ConfigBase {
   toChainId: string;
@@ -13,7 +13,7 @@ interface Config extends ConfigBase {
 }
 
 export const squidRouterConfigBase: ConfigBase = {
-  toChainId: '1284',
+  toChainId: getNetworkId(Networks.Moonbeam).toString(),
   axlUSDC_MOONBEAM: AXL_USDC_MOONBEAM,
   integratorId: 'pendulum-7cffebc5-f84f-4669-96b4-4f8c82640811',
   receivingContractAddress: '0x2AB52086e8edaB28193172209407FF9df1103CDc',

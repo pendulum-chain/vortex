@@ -4,9 +4,14 @@ import httpStatus from 'http-status';
 import { APIError } from '../../errors/api-error';
 import { PresignedTx } from '../ramp/base.service';
 
-/**
- * Validate presigned transactions
- */
+export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
+  return extrinsic.toHex();
+}
+
+export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPromise) {
+  return api.tx(encodedExtrinsic);
+}
+
 export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
   if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 5) {
     throw new APIError({
@@ -23,12 +28,4 @@ export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
       });
     }
   }
-}
-
-export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
-  return extrinsic.toHex();
-}
-
-export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPromise) {
-  return api.tx(encodedExtrinsic);
 }
