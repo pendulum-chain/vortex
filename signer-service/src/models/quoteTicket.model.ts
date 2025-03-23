@@ -10,6 +10,7 @@ interface QuoteTicketAttributes {
   inputCurrency: string;
   outputAmount: string;
   outputCurrency: string;
+  fee: string;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
   createdAt: Date;
@@ -28,6 +29,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
   public inputCurrency!: string;
   public outputAmount!: string;
   public outputCurrency!: string;
+  public fee!: string;
   public expiresAt!: Date;
   public status!: 'pending' | 'consumed' | 'expired';
   public createdAt!: Date;
@@ -66,6 +68,10 @@ QuoteTicket.init(
       type: DataTypes.DECIMAL(38, 18),
       allowNull: false,
       field: 'output_amount',
+    },
+    fee: {
+      type: DataTypes.DECIMAL(38, 18),
+      allowNull: false,
     },
     outputCurrency: {
       type: DataTypes.STRING(8),

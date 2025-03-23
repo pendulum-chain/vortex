@@ -38,6 +38,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: false,
       field: 'output_currency',
     },
+    fee: {
+      type: DataTypes.DECIMAL(38, 18),
+      allowNull: false,
+    },
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: false,

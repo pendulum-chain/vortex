@@ -21,6 +21,7 @@ export interface QuoteResponse {
   inputCurrency: string;
   outputAmount: string;
   outputCurrency: string;
+  fee: string;
   expiresAt: Date;
 }
 
@@ -44,11 +45,13 @@ export class QuoteService extends BaseRampService {
       request.inputCurrency,
       request.outputCurrency,
       request.chainId,
-      request.rampType
+      request.rampType,
     );
 
+    const fee = '0.01'; // Placeholder fee
+
     // Create quote in database
-    const quote = await QuoteTicket.create({
+    const quoteTicket = await QuoteTicket.create({
       id: uuidv4(),
       rampType: request.rampType,
       chainId: request.chainId,
@@ -56,9 +59,12 @@ export class QuoteService extends BaseRampService {
       inputCurrency: request.inputCurrency,
       outputAmount,
       outputCurrency: request.outputCurrency,
+      fee,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
     });
+
+    const quote = quoteTicket.dataValues;
 
     return {
       id: quote.id,
@@ -68,6 +74,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: quote.inputCurrency,
       outputAmount: quote.outputAmount,
       outputCurrency: quote.outputCurrency,
+      fee: quote.fee,
       expiresAt: quote.expiresAt,
     };
   }
@@ -76,11 +83,13 @@ export class QuoteService extends BaseRampService {
    * Get a quote by ID
    */
   public async getQuote(id: string): Promise<QuoteResponse | null> {
-    const quote = await this.getQuoteTicket(id);
+    const quoteTicket = await this.getQuoteTicket(id);
 
-    if (!quote) {
+    if (!quoteTicket) {
       return null;
     }
+
+    const quote = quoteTicket.dataValues;
 
     return {
       id: quote.id,
@@ -90,6 +99,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: quote.inputCurrency,
       outputAmount: quote.outputAmount,
       outputCurrency: quote.outputCurrency,
+      fee: quote.fee,
       expiresAt: quote.expiresAt,
     };
   }
@@ -101,7 +111,7 @@ export class QuoteService extends BaseRampService {
     if (!this.SUPPORTED_CHAINS[rampType].includes(chainId)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: `Chain ID ${chainId} is not supported for ${rampType}ramping`
+        message: `Chain ID ${chainId} is not supported for ${rampType}ramping`,
       });
     }
   }
@@ -116,7 +126,7 @@ export class QuoteService extends BaseRampService {
     inputCurrency: string,
     outputCurrency: string,
     chainId: number,
-    rampType: 'on' | 'off'
+    rampType: 'on' | 'off',
   ): Promise<string> {
     try {
       // This is a simplified example - in a real implementation, you would:
@@ -138,7 +148,7 @@ export class QuoteService extends BaseRampService {
       logger.error('Error calculating output amount:', error);
       throw new APIError({
         status: httpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Failed to calculate output amount'
+        message: 'Failed to calculate output amount',
       });
     }
   }
