@@ -30,7 +30,6 @@
 
 1. **Frontend Integration**
 
-   - ❌ Update frontend to use new backend endpoints
    - ❌ Modify transaction signing process
    - ❌ Implement status polling
 
@@ -50,25 +49,6 @@
    - ❌ Update API documentation
    - ❌ Create developer guides
    - ❌ Document database schema
-
-## Current Status
-
-The backend migration is approximately 50% complete. We have successfully implemented the core functionality for the
-backend, including:
-
-- Database schema and models
-- API endpoints for quotes and ramping
-- Service layer for business logic
-- Background workers for cleanup tasks
-
-The next major step is to update the frontend to use the new backend endpoints. This will involve:
-
-1. Modifying the frontend to request quotes from the backend
-2. Updating the transaction signing process to include phase information
-3. Implementing status polling for ramping processes
-
-Once the frontend integration is complete, we will need to thoroughly test the system, deploy it to production, and
-update the documentation.
 
 ## Known Issues
 

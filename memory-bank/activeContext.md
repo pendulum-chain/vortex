@@ -42,8 +42,6 @@ the flow progression, while still keeping the security benefits of having transa
 
 1. **Frontend Integration**
 
-   - Update frontend to use the new backend endpoints
-   - Modify transaction signing process to include phase information
    - Implement status polling for ramping processes
 
 2. **Testing**
