@@ -155,27 +155,17 @@ export const Swap = ({
   }, [onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
 
   const getButtonState = (): SwapButtonState => {
-    // FIXME
-    // if (offrampInitiating) {
-    //   return SwapButtonState.CONFIRMING;
-    // }
-    // if (offrampStarted && isOfframpSummaryDialogVisible) {
-    //   return SwapButtonState.PROCESSING;
-    // }
+    if (isOfframpSummaryDialogVisible) {
+      return SwapButtonState.PROCESSING;
+    }
     return SwapButtonState.CONFIRM;
   };
 
   const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
 
-  // FIXME
-  const isSubmitButtonPending = false;
-  // offrampInitiating ||
-  // (offrampStarted && Boolean(cachedAnchorUrl) && isOfframpSummaryDialogVisible) ||
-  // offrampState !== undefined;
+  const isSubmitButtonPending = isOfframpSummaryDialogVisible;
 
-  // FIXME
-  const internalInitializeFailedMessage = '';
-  const displayInitializeFailedMessage = initializeFailedMessage || internalInitializeFailedMessage;
+  const displayInitializeFailedMessage = initializeFailedMessage;
   return (
     <FormProvider {...form}>
       <motion.form
@@ -202,7 +192,7 @@ export const Swap = ({
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
         <BrlaSwapFields toToken={to} />
-        {(initializeFailedMessage || apiInitializeFailed || internalInitializeFailedMessage) && (
+        {(initializeFailedMessage || apiInitializeFailed) && (
           <section className="flex justify-center w-full mt-5">
             <div className="flex items-center gap-4">
               <p className="text-red-600">{displayInitializeFailedMessage}</p>
