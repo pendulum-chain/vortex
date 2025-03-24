@@ -19,9 +19,32 @@ export interface OnrampSquidrouterParams {
   moonbeamEphemeralStartingNonce: number;
 }
 
-export async function createOnrampSquidrouterTransaction(
-  params: OnrampSquidrouterParams,
-): Promise<{ squidrouterApproveTransaction: string; squidrouterSwapTransaction: string }> {
+export interface OnrampTransactionData {
+  approveData: {
+    to: `0x${string}`;
+    data: `0x${string}`;
+    value: bigint;
+    gas: bigint;
+    nonce: number;
+    maxFeePerGas?: bigint;
+    maxPriorityFeePerGas?: bigint;
+  };
+  swapData: {
+    to: `0x${string}`;
+    data: `0x${string}`;
+    value: bigint;
+    gas: bigint;
+    nonce: number;
+    maxFeePerGas?: bigint;
+    maxPriorityFeePerGas?: bigint;
+  };
+}
+
+export async function createSignedOnrampSquidrouterTransactions(params: OnrampSquidrouterParams): Promise<{
+  squidrouterApproveTransaction: string;
+  squidrouterSwapTransaction: string;
+  transactionData?: OnrampTransactionData;
+}> {
   if (params.toNetwork === Networks.AssetHub) {
     throw new Error('AssetHub is not supported for Squidrouter onramp');
   }
@@ -60,23 +83,28 @@ export async function createOnrampSquidrouterTransaction(
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
-  const squidrouterApproveTransaction = await moonbeamWalletClient.signTransaction({
-    to: AXL_USDC_MOONBEAM,
+  // Create transaction data objects
+  const approveData = {
+    to: AXL_USDC_MOONBEAM as `0x${string}`,
     data: approveTransactionData,
     value: 0n,
     nonce: params.moonbeamEphemeralStartingNonce,
     gas: BigInt(150000),
     maxFeePerGas,
-  });
+  };
 
-  const squidrouterSwapTransaction = await moonbeamWalletClient.signTransaction({
-    to: transactionRequest.target,
+  const swapData = {
+    to: transactionRequest.target as `0x${string}`,
     data: transactionRequest.data,
     value: BigInt(transactionRequest.value),
     gas: BigInt(transactionRequest.gasLimit),
     maxFeePerGas,
     nonce: params.moonbeamEphemeralStartingNonce + 1,
-  });
+  };
+
+  // Sign the transactions
+  const squidrouterApproveTransaction = await moonbeamWalletClient.signTransaction(approveData);
+  const squidrouterSwapTransaction = await moonbeamWalletClient.signTransaction(swapData);
 
   // Alternative way, untested.
   // const keyring = new Keyring({ type: 'ethereum' });
@@ -88,5 +116,13 @@ export async function createOnrampSquidrouterTransaction(
 
   // console.log('Swap transaction prepared substrate: ', encodeSubmittableExtrinsic(signedSwapEvmCall));
 
-  return { squidrouterApproveTransaction, squidrouterSwapTransaction };
+  // Return both signed transactions and transaction data
+  return {
+    squidrouterApproveTransaction,
+    squidrouterSwapTransaction,
+    transactionData: {
+      approveData,
+      swapData,
+    },
+  };
 }

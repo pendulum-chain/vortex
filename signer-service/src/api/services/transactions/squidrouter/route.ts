@@ -7,7 +7,11 @@ import {
   EvmTokenDetails,
   getOnChainTokenDetails,
   isEvmToken,
+  OnChainTokenDetails,
 } from '../../../../config/tokens';
+import { encodeFunctionData } from 'viem';
+import erc20ABI from '../../../../contracts/ERC20';
+import { squidReceiverABI } from '../../../../contracts/SquidReceiver';
 
 export interface RouteParams {
   fromAddress: string;
@@ -30,6 +34,8 @@ export interface RouteParams {
   };
 }
 
+// This function creates the parameters for the Squidrouter API to get a route for onramping.
+// This route will always be from Moonbeam to another EVM chain.
 export function createOnrampRouteParams(
   fromAddress: string,
   amount: string,
@@ -87,6 +93,95 @@ export async function getRoute(params: RouteParams) {
     console.error('Error with parameters:', params);
     throw error;
   }
+}
+
+// This function creates the parameters for the Squidrouter API to get a route for offramping.
+// This route will always be from another EVM chain to Moonbeam.
+export function createOfframpRouteParams(
+  fromAddress: string,
+  amount: string,
+  inputToken: EvmToken,
+  fromNetwork: Networks,
+  toAddress: string,
+  receivingContractAddress: string,
+  squidRouterReceiverHash: string,
+): RouteParams {
+  const fromChainId = getNetworkId(fromNetwork);
+  const toChainId = getNetworkId(Networks.Moonbeam);
+
+  // will throw if invalid. Must exist.
+  const inputTokenDetails = getOnChainTokenDetails(fromNetwork, inputToken) as EvmTokenDetails;
+  if (!inputTokenDetails) {
+    throw new Error(`Token ${inputToken} is not supported for Squidrouter offramp`);
+  }
+
+  if (!isEvmToken(inputTokenDetails)) {
+    throw new Error(`Token ${inputToken} is not supported on EVM chains`);
+  }
+
+  const approvalErc20 = encodeFunctionData({
+    abi: erc20ABI,
+    functionName: 'approve',
+    args: [receivingContractAddress, '0'],
+  });
+
+  const initXCMEncodedData = encodeFunctionData({
+    abi: squidReceiverABI,
+    functionName: 'initXCM',
+    args: [squidRouterReceiverHash, '0'],
+  });
+
+  return {
+    fromAddress: fromAddress,
+    fromChain: fromChainId.toString(),
+    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    fromAmount: amount,
+    toChain: toChainId.toString(),
+    toToken: AXL_USDC_MOONBEAM,
+    toAddress: toAddress,
+    slippageConfig: {
+      autoMode: 1,
+    },
+    enableExpress: true,
+    postHook: {
+      chainType: 'evm',
+      calls: [
+        // approval call.
+        {
+          callType: 1,
+          target: AXL_USDC_MOONBEAM,
+          value: '0', // this will be replaced by the full native balance of the multicall after the swap
+          callData: approvalErc20,
+          payload: {
+            tokenAddress: AXL_USDC_MOONBEAM, // unused in callType 2, dummy value
+            inputPos: '1', // unused
+          },
+          estimatedGas: '500000',
+          chainType: 'evm',
+        },
+        // trigger the xcm call
+        {
+          callType: 1, // SquidCallType.FULL_TOKEN_BALANCE
+          target: receivingContractAddress,
+          value: '0',
+          callData: initXCMEncodedData,
+          payload: {
+            tokenAddress: AXL_USDC_MOONBEAM,
+            // this indexes the 256 bit word position of the
+            // "amount" parameter in the encoded arguments to the call executeXCMEncodedData
+            // i.e., a "1" means that the bits 256-511 are the position of "amount"
+            // in the encoded argument list
+            inputPos: '1',
+          },
+          estimatedGas: '700000',
+          chainType: 'evm',
+        },
+      ],
+      provider: 'Pendulum', //This should be the name of your product or application that is triggering the hook
+      description: 'Pendulum post hook',
+      logoURI: 'https://pbs.twimg.com/profile_images/1548647667135291394/W2WOtKUq_400x400.jpg', //Add your product or application's logo here
+    },
+  };
 }
 
 export async function testRoute(

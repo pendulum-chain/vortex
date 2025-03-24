@@ -3,7 +3,6 @@
  */
 
 import { FiatToken } from '../types/base';
-import { Networks } from '../constants/networks';
 import { EvmToken } from '../types/evm';
 import { AssetHubToken } from '../types/base';
 import { TokenDetails, OnChainTokenDetails, FiatTokenDetails } from './typeGuards';
@@ -12,6 +11,7 @@ import { assetHubTokenConfig } from '../assethub/config';
 import { stellarTokenConfig } from '../stellar/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
+import { Networks } from '../../../api/helpers/networks';
 
 /**
  * Get token details for a specific network and token
