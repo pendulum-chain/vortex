@@ -2,10 +2,10 @@
  * EVM token configuration
  */
 
-import { Networks } from '../constants/networks';
 import { EvmToken, EvmTokenDetails } from '../types/evm';
 import { TokenType } from '../types/base';
 import { PENDULUM_USDC_AXL } from '../constants/pendulum';
+import { Networks } from '../../../api/helpers/networks';
 
 export const evmTokenConfig: Record<Networks, Record<EvmToken, EvmTokenDetails>> = {
   [Networks.Polygon]: {

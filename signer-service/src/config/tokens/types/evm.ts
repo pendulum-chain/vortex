@@ -3,7 +3,7 @@
  */
 
 import { BaseTokenDetails, PendulumDetails, TokenType } from './base';
-import { Networks } from '../constants/networks';
+import { Networks } from '../../../api/helpers/networks';
 
 export enum EvmToken {
   USDC = 'usdc',

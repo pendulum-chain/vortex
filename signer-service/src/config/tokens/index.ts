@@ -10,7 +10,6 @@ export * from './types/stellar';
 export * from './types/moonbeam';
 
 // Constants
-export * from './constants/networks';
 export * from './constants/pendulum';
 export * from './constants/misc';
 

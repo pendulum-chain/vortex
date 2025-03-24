@@ -3,7 +3,7 @@
  */
 
 import { BaseTokenDetails, PendulumDetails, TokenType } from './base';
-import { Networks } from '../constants/networks';
+import { Networks } from '../../../api/helpers/networks';
 
 export interface AssetHubTokenDetails extends BaseTokenDetails, PendulumDetails {
   type: TokenType.AssetHub;

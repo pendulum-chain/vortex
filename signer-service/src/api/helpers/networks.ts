@@ -1,4 +1,4 @@
-import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from '@reown/appkit/networks';
+import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
 
 // For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
 // but we just use it to differentiate between the EVM and Polkadot accounts.
