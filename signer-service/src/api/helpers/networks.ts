@@ -3,6 +3,7 @@ import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum 
 // For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
 // but we just use it to differentiate between the EVM and Polkadot accounts.
 export const ASSETHUB_CHAIN_ID = -1;
+export const PENDULUM_CHAIN_ID = -2;
 
 export enum Networks {
   AssetHub = 'AssetHub',
@@ -13,6 +14,7 @@ export enum Networks {
   Ethereum = 'Ethereum',
   Polygon = 'Polygon',
   Moonbeam = 'Moonbeam',
+  Pendulum = 'Pendulum',
 }
 
 const DEFAULT_NETWORK = Networks.AssetHub;
@@ -65,6 +67,11 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     id: moonbeam.id,
     displayName: 'Moonbeam',
     isEVM: true,
+  },
+  [Networks.Pendulum]: {
+    id: PENDULUM_CHAIN_ID,
+    displayName: 'Pendulum',
+    isEVM: false,
   },
 };
 

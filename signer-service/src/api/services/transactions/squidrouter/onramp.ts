@@ -40,22 +40,12 @@ export interface OnrampTransactionData {
   };
 }
 
-export async function createSignedOnrampSquidrouterTransactions(params: OnrampSquidrouterParams): Promise<{
-  squidrouterApproveTransaction: string;
-  squidrouterSwapTransaction: string;
-  transactionData?: OnrampTransactionData;
-}> {
+export async function createOnrampSquidrouterTransactions(
+  params: OnrampSquidrouterParams,
+): Promise<OnrampTransactionData> {
   if (params.toNetwork === Networks.AssetHub) {
     throw new Error('AssetHub is not supported for Squidrouter onramp');
   }
-
-  const account = mnemonicToAccount(params.moonbeamEphemeralSeed);
-
-  const moonbeamWalletClient = createWalletClient({
-    account,
-    chain: moonbeam,
-    transport: http(),
-  });
 
   const publicClient = createPublicClient({
     chain: moonbeam,
@@ -102,10 +92,6 @@ export async function createSignedOnrampSquidrouterTransactions(params: OnrampSq
     nonce: params.moonbeamEphemeralStartingNonce + 1,
   };
 
-  // Sign the transactions
-  const squidrouterApproveTransaction = await moonbeamWalletClient.signTransaction(approveData);
-  const squidrouterSwapTransaction = await moonbeamWalletClient.signTransaction(swapData);
-
   // Alternative way, untested.
   // const keyring = new Keyring({ type: 'ethereum' });
 
@@ -118,11 +104,7 @@ export async function createSignedOnrampSquidrouterTransactions(params: OnrampSq
 
   // Return both signed transactions and transaction data
   return {
-    squidrouterApproveTransaction,
-    squidrouterSwapTransaction,
-    transactionData: {
-      approveData,
-      swapData,
-    },
+    approveData,
+    swapData,
   };
 }

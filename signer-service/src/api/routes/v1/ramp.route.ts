@@ -65,7 +65,7 @@ router.get('/quotes/:id', quoteController.getQuote);
  * @apiHeader {String} [Idempotency-Key] Idempotency key
  *
  * @apiParam  {String}  quoteId        Quote ID
- * @apiParam  {Array}   ephemerals   Ephemerals used in the client
+ * @apiParam  {Array}   signingAccounts   Ephemerals used in the client
  * @apiParam  {Object}  [additionalData] Additional data
  *
  * @apiSuccess (Created 201) {String}  id           Ramp ID
@@ -75,7 +75,7 @@ router.get('/quotes/:id', quoteController.getQuote);
  * @apiSuccess (Created 201) {Object}  state        State
  * @apiSuccess (Created 201) {Date}    createdAt    Creation date
  * @apiSuccess (Created 201) {Date}    updatedAt    Update date
- * @apiSuccess (Created 201) {Array}   unsignedTxs    Array of unsigned txs that need to be signed by the ephemerals on the client.
+ * @apiSuccess (Created 201) {Array}   unsignedTxs    Array of unsigned txs that need to be signed by the signingAccounts on the client.
  *
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  * @apiError (Not Found 404) NotFound Quote does not exist

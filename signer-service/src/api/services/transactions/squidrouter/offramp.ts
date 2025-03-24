@@ -32,7 +32,7 @@ export interface OfframpTransactionData {
   };
 }
 
-export async function createUnsignedOfframpSquidrouterTransactions(
+export async function createOfframpSquidrouterTransactions(
   params: OfframpSquidrouterParams,
 ): Promise<OfframpTransactionData> {
   if (params.fromNetwork === Networks.AssetHub) {

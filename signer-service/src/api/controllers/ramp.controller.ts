@@ -10,11 +10,11 @@ import logger from '../../config/logger';
  */
 export const registerRamp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { quoteId, ephemerals, additionalData } = req.body;
+    const { quoteId, signingAccounts, additionalData } = req.body;
     const idempotencyKey = req.headers['idempotency-key'] as string;
 
     // Validate required fields
-    if (!quoteId || !ephemerals || ephemerals.length === 0) {
+    if (!quoteId || !signingAccounts || signingAccounts.length === 0) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
         message: 'Missing required fields',
@@ -25,7 +25,7 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
     const ramp = await rampService.registerRamp(
       {
         quoteId,
-        ephemerals,
+        signingAccounts,
         additionalData,
       },
       idempotencyKey,

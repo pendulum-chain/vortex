@@ -1,14 +1,55 @@
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
+import { getNetworkId, Networks } from '../../helpers/networks';
 import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
+import { encodeEvmTransactionData } from './index';
+import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
 export async function prepareOnrampTransactions(
   quote: QuoteTicketAttributes,
-  ephemerals: AccountMeta[],
+  signingAccounts: AccountMeta[],
 ): Promise<UnsignedTx[]> {
   const unsignedTxs: UnsignedTx[] = [];
+
+  for (const account of signingAccounts) {
+    const accountNetworkId = getNetworkId(account.network);
+
+    if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+      const { approveData, swapData } = await createOnrampSquidrouterTransactions({
+        inputToken: quote.inputCurrency,
+        fromNetwork: account.network,
+        amount: quote.inputAmount,
+        addressDestination: account.address,
+        fromAddress: account.address,
+      });
+
+      unsignedTxs.push({
+        tx_data: encodeEvmTransactionData(approveData),
+        phase: 'moonbeam', // TODO assign correct phase
+        network: account.network,
+        nonce: 0,
+        signer: account.address,
+      });
+      unsignedTxs.push({
+        tx_data: encodeEvmTransactionData(swapData),
+        phase: 'moonbeam', // TODO assign correct phase
+        network: account.network,
+        nonce: 0,
+        signer: account.address,
+      });
+    } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+      // TODO implement creation of unsigned ephemeral txs for swaps
+
+      if (quote.chainId === getNetworkId(Networks.AssetHub)) {
+        // TODO implement creation of unsigned ephemeral tx for Pendulum -> AssetHub
+      } else {
+        // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam
+      }
+    }
+  }
+
   return unsignedTxs;
 }
 

@@ -12,6 +12,10 @@ export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPro
   return api.tx(encodedExtrinsic);
 }
 
+export function encodeEvmTransactionData(data: unknown) {
+  return JSON.stringify(data);
+}
+
 export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
   if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 5) {
     throw new APIError({

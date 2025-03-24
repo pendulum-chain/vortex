@@ -11,15 +11,16 @@ import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
+import { Networks } from '../../helpers/networks';
 
 export interface AccountMeta {
-  network: string; // TODO give proper type
+  network: Networks;
   address: string;
 }
 
 export interface RegisterRampRequest {
   quoteId: string;
-  ephemerals: AccountMeta[];
+  signingAccounts: AccountMeta[];
   additionalData?: Record<string, any>;
 }
 
@@ -55,7 +56,7 @@ export class RampService extends BaseRampService {
     }
 
     return this.withTransaction(async (transaction) => {
-      const { ephemerals, quoteId } = request;
+      const { signingAccounts, quoteId } = request;
 
       // Get and validate the quote
       const quoteModel = await QuoteTicket.findByPk(quoteId, { transaction });
@@ -89,9 +90,9 @@ export class RampService extends BaseRampService {
       // Create to-be-signed transactions
       let unsignedTxs: UnsignedTx[] = [];
       if (quote.rampType === 'off') {
-        unsignedTxs = await prepareOfframpTransactions(quote, ephemerals);
+        unsignedTxs = await prepareOfframpTransactions(quote, signingAccounts);
       } else {
-        unsignedTxs = await prepareOnrampTransactions(quote, ephemerals);
+        unsignedTxs = await prepareOnrampTransactions(quote, signingAccounts);
       }
 
       // Mark the quote as consumed
