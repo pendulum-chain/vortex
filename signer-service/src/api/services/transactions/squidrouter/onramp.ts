@@ -23,8 +23,9 @@ export async function createOnrampSquidrouterTransaction(
   params: OnrampSquidrouterParams,
 ): Promise<{ squidrouterApproveTransaction: string; squidrouterSwapTransaction: string }> {
   if (params.toNetwork === Networks.AssetHub) {
-    return { squidrouterApproveTransaction: '0x', squidrouterSwapTransaction: '0x' };
+    throw new Error('AssetHub is not supported for Squidrouter onramp');
   }
+
   const account = mnemonicToAccount(params.moonbeamEphemeralSeed);
 
   const moonbeamWalletClient = createWalletClient({
