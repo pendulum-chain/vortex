@@ -93,7 +93,7 @@ router.post('/register', rampController.registerRamp);
  *
  * @apiHeader {String} [Idempotency-Key] Idempotency key
  *
- * @apiParam  {String}  quoteId        Quote ID
+ * @apiParam  {String}  rampId        Ramp ID
  * @apiParam  {Array}   presignedTxs   Presigned transactions
  * @apiParam  {Object}  [additionalData] Additional data
  *
