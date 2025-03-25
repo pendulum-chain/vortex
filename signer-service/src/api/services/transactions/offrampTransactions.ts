@@ -21,8 +21,10 @@ export async function prepareOfframpTransactions(
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-    // If the account is the same network as the quote, we can assume it's the initial transaction and thus squidrouter
-    if (accountNetworkId === fromNetworkId) {
+    // If the account is the same network as the quote, we can assume it's the initial transaction and thus squidrouter,
+    // if the network is not Assethub.
+    // TODO.G we did not creat before this transactions, since they are executed on the UI for an offramp.
+    if (accountNetworkId === fromNetworkId && fromNetworkId !== -1) {
       const { approveData, swapData } = await createOfframpSquidrouterTransactions({
         inputToken: quote.inputCurrency,
         fromNetwork: account.network,
