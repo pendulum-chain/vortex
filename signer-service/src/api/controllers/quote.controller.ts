@@ -10,10 +10,10 @@ import logger from '../../config/logger';
  */
 export const createQuote = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { rampType, chainId, inputAmount, inputCurrency, outputCurrency } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
     // Validate required fields
-    if (!rampType || !chainId || !inputAmount || !inputCurrency || !outputCurrency) {
+    if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
         message: 'Missing required fields',
@@ -31,7 +31,8 @@ export const createQuote = async (req: Request, res: Response, next: NextFunctio
     // Create quote
     const quote = await quoteService.createQuote({
       rampType,
-      chainId,
+      from,
+      to,
       inputAmount,
       inputCurrency,
       outputCurrency,

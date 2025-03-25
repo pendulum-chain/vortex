@@ -8,18 +8,12 @@ interface RampStateAttributes {
   currentPhase: string;
   unsignedTxs: any[]; // JSONB array
   presignedTxs: any[]; // JSONB array
-  chainId: number;
+  from: string;
+  to: string;
   state: any; // JSONB
   quoteId: string; // UUID reference to QuoteTicket
   phaseHistory: { phase: string; timestamp: Date; metadata?: any }[]; // JSONB array
   errorLogs: { phase: string; timestamp: Date; error: string; details?: any }[]; // JSONB array
-  subsidyDetails: {
-    hardLimit?: string;
-    softLimit?: string;
-    consumed?: string;
-    remaining?: string;
-  }; // JSONB
-  nonceSequences: Record<string, number>; // JSONB
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,18 +28,12 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   public currentPhase!: string;
   public unsignedTxs!: any[];
   public presignedTxs!: any[];
-  public chainId!: number;
+  public from!: string;
+  public to!: string;
   public state!: any;
   public quoteId!: string;
   public phaseHistory!: { phase: string; timestamp: Date; metadata?: any }[];
   public errorLogs!: { phase: string; timestamp: Date; error: string; details?: any }[];
-  public subsidyDetails!: {
-    hardLimit?: string;
-    softLimit?: string;
-    consumed?: string;
-    remaining?: string;
-  };
-  public nonceSequences!: Record<string, number>;
   public createdAt!: Date;
   public updatedAt!: Date;
 }
@@ -106,10 +94,13 @@ RampState.init(
         },
       },
     },
-    chainId: {
-      type: DataTypes.BIGINT,
+    from: {
+      type: DataTypes.STRING(20),
       allowNull: false,
-      field: 'chain_id',
+    },
+    to: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
     state: {
       type: DataTypes.JSONB,
@@ -135,18 +126,6 @@ RampState.init(
       allowNull: false,
       defaultValue: [],
       field: 'error_logs',
-    },
-    subsidyDetails: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: {},
-      field: 'subsidy_details',
-    },
-    nonceSequences: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: {},
-      field: 'nonce_sequences',
     },
     createdAt: {
       type: DataTypes.DATE,

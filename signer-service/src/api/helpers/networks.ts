@@ -1,9 +1,7 @@
 import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
 
-// For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
-// but we just use it to differentiate between the EVM and Polkadot accounts.
-export const ASSETHUB_CHAIN_ID = -1;
-export const PENDULUM_CHAIN_ID = -2;
+export type PaymentMethod = 'pix' | 'sepa';
+export type DestinationType = keyof typeof Networks | PaymentMethod;
 
 export enum Networks {
   AssetHub = 'AssetHub',
@@ -16,6 +14,23 @@ export enum Networks {
   Moonbeam = 'Moonbeam',
   Pendulum = 'Pendulum',
 }
+
+/**
+ * Checks if a destination is a network and returns the network if it is.
+ * Returns undefined if the destination is a payment method or not a valid network.
+ * @param destination The destination to check
+ */
+export function getNetworkFromDestination(destination: DestinationType): Networks | undefined {
+  if (Object.values(Networks).includes(destination as Networks)) {
+    return destination as Networks;
+  }
+  return undefined;
+}
+
+// For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
+// but we just use it to differentiate between the EVM and Polkadot accounts.
+export const ASSETHUB_CHAIN_ID = -1;
+export const PENDULUM_CHAIN_ID = -2;
 
 const DEFAULT_NETWORK = Networks.AssetHub;
 

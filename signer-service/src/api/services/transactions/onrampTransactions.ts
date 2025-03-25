@@ -1,5 +1,5 @@
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { getNetworkId, Networks } from '../../helpers/networks';
+import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
 import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
 import { encodeEvmTransactionData } from './index';
@@ -12,6 +12,12 @@ export async function prepareOnrampTransactions(
   signingAccounts: AccountMeta[],
 ): Promise<UnsignedTx[]> {
   const unsignedTxs: UnsignedTx[] = [];
+
+  const toNetwork = getNetworkFromDestination(quote.to);
+  if (!toNetwork) {
+    throw new Error(`Invalid network for destination ${quote.to}`);
+  }
+  const toNetworkId = getNetworkId(toNetwork);
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
@@ -42,7 +48,7 @@ export async function prepareOnrampTransactions(
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
       // TODO implement creation of unsigned ephemeral txs for swaps
 
-      if (quote.chainId === getNetworkId(Networks.AssetHub)) {
+      if (toNetworkId === getNetworkId(Networks.AssetHub)) {
         // TODO implement creation of unsigned ephemeral tx for Pendulum -> AssetHub
       } else {
         // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam

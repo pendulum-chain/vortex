@@ -4,10 +4,12 @@ import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
+import { DestinationType, Networks, PaymentMethod } from '../../helpers/networks';
 
 export interface QuoteRequest {
   rampType: 'on' | 'off';
-  chainId: number;
+  from: DestinationType;
+  to: DestinationType;
   inputAmount: string;
   inputCurrency: string;
   outputCurrency: string;
@@ -16,7 +18,8 @@ export interface QuoteRequest {
 export interface QuoteResponse {
   id: string;
   rampType: 'on' | 'off';
-  chainId: number;
+  from: DestinationType;
+  to: DestinationType;
   inputAmount: string;
   inputCurrency: string;
   outputAmount: string;
@@ -27,9 +30,18 @@ export interface QuoteResponse {
 
 export class QuoteService extends BaseRampService {
   // List of supported chains for each ramp type
-  private readonly SUPPORTED_CHAINS = {
-    off: [1, 137, 592], // ETH, Polygon, Astar
-    on: [1, 56, 43114], // ETH, BSC, AVAX
+  private readonly SUPPORTED_CHAINS: {
+    off: { from: DestinationType[]; to: DestinationType[] };
+    on: { from: DestinationType[]; to: DestinationType[] };
+  } = {
+    off: {
+      from: ['AssetHub', 'Avalanche', 'Arbitrum', 'BSC', 'Base', 'Ethereum', 'Polygon'],
+      to: ['pix', 'sepa'],
+    },
+    on: {
+      from: ['pix'],
+      to: ['AssetHub', 'Avalanche', 'Arbitrum', 'BSC', 'Base', 'Ethereum', 'Polygon'],
+    },
   };
 
   /**
@@ -37,15 +49,16 @@ export class QuoteService extends BaseRampService {
    */
   public async createQuote(request: QuoteRequest): Promise<QuoteResponse> {
     // Validate chain support
-    this.validateChainSupport(request.rampType, request.chainId);
+    this.validateChainSupport(request.rampType, request.from, request.to);
 
     // Calculate output amount (this would typically involve calling an external service or using a formula)
     const outputAmount = await this.calculateOutputAmount(
       request.inputAmount,
       request.inputCurrency,
       request.outputCurrency,
-      request.chainId,
       request.rampType,
+      request.from,
+      request.to,
     );
 
     const fee = '0.01'; // Placeholder fee
@@ -54,7 +67,8 @@ export class QuoteService extends BaseRampService {
     const quoteTicket = await QuoteTicket.create({
       id: uuidv4(),
       rampType: request.rampType,
-      chainId: request.chainId,
+      from: request.from,
+      to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
       outputAmount,
@@ -69,7 +83,8 @@ export class QuoteService extends BaseRampService {
     return {
       id: quote.id,
       rampType: quote.rampType,
-      chainId: quote.chainId,
+      from: quote.from,
+      to: quote.to,
       inputAmount: quote.inputAmount,
       inputCurrency: quote.inputCurrency,
       outputAmount: quote.outputAmount,
@@ -94,7 +109,8 @@ export class QuoteService extends BaseRampService {
     return {
       id: quote.id,
       rampType: quote.rampType,
-      chainId: quote.chainId,
+      from: quote.from,
+      to: quote.to,
       inputAmount: quote.inputAmount,
       inputCurrency: quote.inputCurrency,
       outputAmount: quote.outputAmount,
@@ -107,11 +123,11 @@ export class QuoteService extends BaseRampService {
   /**
    * Validate that the chain is supported for the given ramp type
    */
-  private validateChainSupport(rampType: 'on' | 'off', chainId: number): void {
-    if (!this.SUPPORTED_CHAINS[rampType].includes(chainId)) {
+  private validateChainSupport(rampType: 'on' | 'off', from: DestinationType, to: DestinationType): void {
+    if (!this.SUPPORTED_CHAINS[rampType].from.includes(from) || !this.SUPPORTED_CHAINS[rampType].to.includes(to)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: `Chain ID ${chainId} is not supported for ${rampType}ramping`,
+        message: `${rampType}ramping from ${from} to ${to} is not supported.`,
       });
     }
   }
@@ -125,8 +141,9 @@ export class QuoteService extends BaseRampService {
     inputAmount: string,
     inputCurrency: string,
     outputCurrency: string,
-    chainId: number,
     rampType: 'on' | 'off',
+    from: DestinationType,
+    to: DestinationType,
   ): Promise<string> {
     try {
       // This is a simplified example - in a real implementation, you would:

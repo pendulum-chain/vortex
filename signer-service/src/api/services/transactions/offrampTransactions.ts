@@ -2,7 +2,7 @@ import QuoteTicket, { QuoteTicketAttributes } from '../../../models/quoteTicket.
 import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
-import { getNetworkId, Networks } from '../../helpers/networks';
+import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
 import { encodeEvmTransactionData } from './index';
 
 export async function prepareOfframpTransactions(
@@ -11,12 +11,18 @@ export async function prepareOfframpTransactions(
 ): Promise<UnsignedTx[]> {
   const unsignedTxs: UnsignedTx[] = [];
 
+  const fromNetwork = getNetworkFromDestination(quote.from);
+  if (!fromNetwork) {
+    throw new Error(`Invalid network for destination ${quote.from}`);
+  }
+  const fromNetworkId = getNetworkId(fromNetwork);
+
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
     // If the account is the same network as the quote, we can assume it's the initial transaction and thus squidrouter
-    if (accountNetworkId === quote.chainId) {
+    if (accountNetworkId === fromNetworkId) {
       const { approveData, swapData } = await createOfframpSquidrouterTransactions({
         inputToken: quote.inputCurrency,
         fromNetwork: account.network,

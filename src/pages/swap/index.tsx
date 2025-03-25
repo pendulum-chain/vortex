@@ -162,11 +162,14 @@ export const SwapPage = () => {
 
     try {
       // Convert network to chain ID
-      const chainId = selectedNetwork.toLowerCase() === 'polygon' ? 137 : 1; // Example, adjust based on your network mapping
+      // FIXME use proper values
+      const from = 'Polygon';
+      const to = 'sepa';
 
       const quoteRequest: RampQuoteRequest = {
         rampType: 'off',
-        chainId,
+        from,
+        to,
         inputAmount: fromAmount.toString(),
         inputCurrency: from.toLowerCase(),
         outputCurrency: to.toLowerCase(),

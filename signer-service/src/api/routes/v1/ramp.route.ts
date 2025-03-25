@@ -13,14 +13,16 @@ const router = Router();
  * @apiPermission public
  *
  * @apiParam  {String}  rampType       Ramp type (on/off)
- * @apiParam  {Number}  chainId        Chain ID
+ * @apiParam  {String}  from           DestinationType
+ * @apiParam  {String}  to           DestinationType
  * @apiParam  {String}  inputAmount    Input amount
  * @apiParam  {String}  inputCurrency  Input currency
  * @apiParam  {String}  outputCurrency Output currency
  *
  * @apiSuccess (Created 201) {String}  id             Quote ID
  * @apiSuccess (Created 201) {String}  rampType       Ramp type
- * @apiSuccess (Created 201) {Number}  chainId        Chain ID
+ * @apiSuccess (Created 201) {String}  from           DestinationType
+ * @apiSuccess (Created 201) {String}  to             DestinationType
  * @apiSuccess (Created 201) {String}  inputAmount    Input amount
  * @apiSuccess (Created 201) {String}  inputCurrency  Input currency
  * @apiSuccess (Created 201) {String}  outputAmount   Output amount
@@ -43,7 +45,8 @@ router.post('/quotes', quoteController.createQuote);
  *
  * @apiSuccess {String}  id             Quote ID
  * @apiSuccess {String}  rampType       Ramp type
- * @apiSuccess {Number}  chainId        Chain ID
+ * @apiSuccess {String}  from           DestinationType
+ * @apiSuccess {String}  to             DestinationType
  * @apiSuccess {String}  inputAmount    Input amount
  * @apiSuccess {String}  inputCurrency  Input currency
  * @apiSuccess {String}  outputAmount   Output amount
@@ -71,7 +74,8 @@ router.get('/quotes/:id', quoteController.getQuote);
  * @apiSuccess (Created 201) {String}  id           Ramp ID
  * @apiSuccess (Created 201) {String}  type         Ramp type
  * @apiSuccess (Created 201) {String}  currentPhase Current phase
- * @apiSuccess (Created 201) {Number}  chainId      Chain ID
+ * @apiSuccess (Created 201) {String}  from         DestinationType
+ * @apiSuccess (Created 201) {String}  to           DestinationType
  * @apiSuccess (Created 201) {Object}  state        State
  * @apiSuccess (Created 201) {Date}    createdAt    Creation date
  * @apiSuccess (Created 201) {Date}    updatedAt    Update date
@@ -100,7 +104,8 @@ router.post('/register', rampController.registerRamp);
  * @apiSuccess (Created 201) {String}  id           Ramp ID
  * @apiSuccess (Created 201) {String}  type         Ramp type
  * @apiSuccess (Created 201) {String}  currentPhase Current phase
- * @apiSuccess (Created 201) {Number}  chainId      Chain ID
+ * @apiSuccess (Created 201) {String}  from         DestinationType
+ * @apiSuccess (Created 201) {String}  to           DestinationType
  * @apiSuccess (Created 201) {Object}  state        State
  * @apiSuccess (Created 201) {Date}    createdAt    Creation date
  * @apiSuccess (Created 201) {Date}    updatedAt    Update date
@@ -123,7 +128,8 @@ router.post('/start', rampController.startRamp);
  * @apiSuccess {String}  id           Ramp ID
  * @apiSuccess {String}  type         Ramp type
  * @apiSuccess {String}  currentPhase Current phase
- * @apiSuccess {Number}  chainId      Chain ID
+ * @apiSuccess {String}  from         DestinationType
+ * @apiSuccess {String}  to           DestinationType
  * @apiSuccess {Object}  state        State
  * @apiSuccess {Date}    createdAt    Creation date
  * @apiSuccess {Date}    updatedAt    Update date

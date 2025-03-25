@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { storageService } from './storage/local';
 import { OnChainToken, FiatToken } from '../constants/tokenConfig';
-import { Networks } from '../helpers/networks';
+import { DestinationType, Networks } from '../helpers/networks';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 
 // Create axios instance with default config
@@ -46,7 +46,8 @@ export interface PresignedTransaction {
 
 export interface RampQuoteRequest {
   rampType: 'on' | 'off';
-  chainId: number;
+  from: DestinationType;
+  to: DestinationType;
   inputAmount: string;
   inputCurrency: string;
   outputCurrency: string;
@@ -55,7 +56,8 @@ export interface RampQuoteRequest {
 export interface RampQuoteResponse {
   id: string;
   rampType: 'on' | 'off';
-  chainId: number;
+  from: DestinationType;
+  to: DestinationType;
   inputAmount: string;
   inputCurrency: string;
   outputAmount: string;

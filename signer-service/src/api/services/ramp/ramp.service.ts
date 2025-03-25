@@ -11,7 +11,7 @@ import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
-import { Networks } from '../../helpers/networks';
+import { DestinationType, Networks } from '../../helpers/networks';
 
 export interface AccountMeta {
   network: Networks;
@@ -34,7 +34,8 @@ export interface RegisterRampResponse {
   id: string;
   type: 'on' | 'off';
   currentPhase: string;
-  chainId: number;
+  from: DestinationType;
+  to: DestinationType;
   state: any;
   createdAt: Date;
   updatedAt: Date;
@@ -108,7 +109,8 @@ export class RampService extends BaseRampService {
         currentPhase: 'initial',
         unsignedTxs,
         presignedTxs: [], // There are no presigned transactions at this point
-        chainId: quote.chainId,
+        from: quote.from,
+        to: quote.to,
         state: {
           inputAmount: quote.inputAmount,
           inputCurrency: quote.inputCurrency,
@@ -129,7 +131,8 @@ export class RampService extends BaseRampService {
         type: rampState.type,
         currentPhase: rampState.currentPhase,
         unsignedTxs: rampState.unsignedTxs,
-        chainId: rampState.chainId,
+        from: rampState.from,
+        to: rampState.to,
         state: rampState.state,
         createdAt: rampState.createdAt,
         updatedAt: rampState.updatedAt,
@@ -210,7 +213,8 @@ export class RampService extends BaseRampService {
       type: rampState.type,
       currentPhase: rampState.currentPhase,
       unsignedTxs: rampState.unsignedTxs,
-      chainId: rampState.chainId,
+      from: rampState.from,
+      to: rampState.to,
       state: rampState.state,
       createdAt: rampState.createdAt,
       updatedAt: rampState.updatedAt,

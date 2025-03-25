@@ -13,10 +13,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: false,
       field: 'ramp_type',
     },
-    chainId: {
-      type: DataTypes.BIGINT,
+    from: {
+      type: DataTypes.STRING(20),
       allowNull: false,
-      field: 'chain_id',
+    },
+    to: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
     inputAmount: {
       type: DataTypes.DECIMAL(38, 18),
@@ -91,10 +94,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: false,
       field: 'presigned_txs',
     },
-    chainId: {
-      type: DataTypes.BIGINT,
+    from: {
+      type: DataTypes.STRING(20),
       allowNull: false,
-      field: 'chain_id',
+    },
+    to: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
     state: {
       type: DataTypes.JSONB,
@@ -163,7 +169,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Create indexes
-  await queryInterface.addIndex('quote_tickets', ['chain_id', 'expires_at'], {
+  await queryInterface.addIndex('quote_tickets', ['from', 'to', 'expires_at'], {
     name: 'idx_quote_chain_expiry',
     where: {
       status: 'pending',

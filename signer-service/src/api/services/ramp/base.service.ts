@@ -5,6 +5,7 @@ import QuoteTicket from '../../../models/quoteTicket.model';
 import IdempotencyKey from '../../../models/idempotencyKey.model';
 import { Transaction, Op } from 'sequelize';
 import sequelize from '../../../config/database';
+import { DestinationType } from '../../helpers/networks';
 
 export interface UnsignedTx {
   tx_data: string;
@@ -23,7 +24,8 @@ export interface RampStateData {
   currentPhase: string;
   unsignedTxs: UnsignedTx[];
   presignedTxs: PresignedTx[];
-  chainId: number;
+  from: DestinationType;
+  to: DestinationType;
   state: any;
   quoteId: string;
   phaseHistory?: { phase: string; timestamp: Date; metadata?: any }[];
@@ -52,8 +54,6 @@ export class BaseRampService {
         },
       ],
       errorLogs: data.errorLogs || [],
-      subsidyDetails: data.subsidyDetails || {},
-      nonceSequences: data.nonceSequences || {},
     });
   }
 

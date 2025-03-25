@@ -1,11 +1,13 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
+import { DestinationType } from '../api/helpers/networks';
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
   rampType: 'on' | 'off';
-  chainId: number;
+  from: DestinationType;
+  to: DestinationType;
   inputAmount: string;
   inputCurrency: string;
   outputAmount: string;
@@ -24,7 +26,8 @@ interface QuoteTicketCreationAttributes extends Optional<QuoteTicketAttributes, 
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   public id!: string;
   public rampType!: 'on' | 'off';
-  public chainId!: number;
+  public from!: DestinationType;
+  public to!: DestinationType;
   public inputAmount!: string;
   public inputCurrency!: string;
   public outputAmount!: string;
@@ -49,10 +52,13 @@ QuoteTicket.init(
       allowNull: false,
       field: 'ramp_type',
     },
-    chainId: {
-      type: DataTypes.BIGINT,
+    from: {
+      type: DataTypes.STRING(20),
       allowNull: false,
-      field: 'chain_id',
+    },
+    to: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
     inputAmount: {
       type: DataTypes.DECIMAL(38, 18),
@@ -110,7 +116,7 @@ QuoteTicket.init(
     indexes: [
       {
         name: 'idx_quote_chain_expiry',
-        fields: ['chainId', 'expiresAt'],
+        fields: ['from', 'to', 'expiresAt'],
         where: {
           status: 'pending',
         },
