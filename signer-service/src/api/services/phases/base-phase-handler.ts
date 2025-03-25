@@ -2,6 +2,7 @@ import RampState from '../../../models/rampState.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
+import { getNextPhase } from './next-phase-selector';
 
 /**
  * Base interface for phase handlers
@@ -96,7 +97,8 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param metadata Additional metadata for the transition
    * @returns The updated ramp state
    */
-  protected async transitionToNextPhase(state: RampState, nextPhase: string, metadata?: any): Promise<RampState> {
+  protected async transitionToNextPhase(state: RampState, metadata?: any): Promise<RampState> {
+    const nextPhase = getNextPhase(state.type, state.currentPhase);
     const phaseHistory = [
       ...state.phaseHistory,
       {
