@@ -59,6 +59,7 @@
     "react-toastify": "^10.0.6",
     "stellar-base": "^11.0.1",
     "stellar-sdk": "^13.1.0",
+    "tailwind-merge": "^3.0.2",
     "tailwindcss": "^4.0.3",
     "viem": "^2.23.2",
     "wagmi": "^2.14.11",
