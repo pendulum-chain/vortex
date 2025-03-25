@@ -46,10 +46,14 @@ export class RampService extends BaseRampService {
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
    */
-  public async registerRamp(request: RegisterRampRequest, idempotencyKey?: string): Promise<RegisterRampResponse> {
+  public async registerRamp(
+    request: RegisterRampRequest,
+    idempotencyKey?: string,
+    route: string = '/v1/ramp/register',
+  ): Promise<RegisterRampResponse> {
     // Check if we have a cached response for this idempotency key
     if (idempotencyKey) {
-      const cachedResponse = await this.getIdempotencyKey(idempotencyKey);
+      const cachedResponse = await this.getIdempotencyKey(idempotencyKey, route);
       if (cachedResponse) {
         return cachedResponse.responseBody;
       }
@@ -133,7 +137,7 @@ export class RampService extends BaseRampService {
 
       // Store idempotency key if provided
       if (idempotencyKey) {
-        await this.storeIdempotencyKey(idempotencyKey, httpStatus.CREATED, response, rampState.id);
+        await this.storeIdempotencyKey(idempotencyKey, route, httpStatus.CREATED, response, rampState.id);
       }
 
       return response;
@@ -143,10 +147,14 @@ export class RampService extends BaseRampService {
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
-  public async startRamp(request: StartRampRequest, idempotencyKey?: string): Promise<void> {
+  public async startRamp(
+    request: StartRampRequest,
+    idempotencyKey?: string,
+    route: string = '/v1/ramp/start',
+  ): Promise<void> {
     // Check if we have a cached response for this idempotency key
     if (idempotencyKey) {
-      const cachedResponse = await this.getIdempotencyKey(idempotencyKey);
+      const cachedResponse = await this.getIdempotencyKey(idempotencyKey, route);
       if (cachedResponse) {
         return cachedResponse.responseBody;
       }
@@ -174,7 +182,7 @@ export class RampService extends BaseRampService {
 
       // Store idempotency key if provided
       if (idempotencyKey) {
-        await this.storeIdempotencyKey(idempotencyKey, httpStatus.OK, response, rampState.id);
+        await this.storeIdempotencyKey(idempotencyKey, route, httpStatus.OK, response, rampState.id);
       }
 
       // Start processing the ramp asynchronously

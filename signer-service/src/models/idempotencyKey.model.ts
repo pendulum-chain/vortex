@@ -4,6 +4,7 @@ import sequelize from '../config/database';
 // Define the attributes of the IdempotencyKey model
 interface IdempotencyKeyAttributes {
   key: string;
+  route: string;
   rampId: string | null; // UUID reference to RampState
   responseStatus: number;
   responseBody: any; // JSONB
@@ -20,6 +21,7 @@ class IdempotencyKey
   implements IdempotencyKeyAttributes
 {
   public key!: string;
+  public route!: string;
   public rampId!: string | null;
   public responseStatus!: number;
   public responseBody!: any;
@@ -33,6 +35,11 @@ IdempotencyKey.init(
     key: {
       type: DataTypes.STRING(36),
       primaryKey: true,
+    },
+    route: {
+      type: DataTypes.STRING(255),
+      primaryKey: true,
+      allowNull: false,
     },
     rampId: {
       type: DataTypes.UUID,
@@ -76,6 +83,11 @@ IdempotencyKey.init(
       {
         name: 'idx_idempotency_expiry',
         fields: ['expiredAt'],
+      },
+      {
+        name: 'idx_idempotency_key_route',
+        fields: ['key', 'route'],
+        unique: true,
       },
     ],
   },

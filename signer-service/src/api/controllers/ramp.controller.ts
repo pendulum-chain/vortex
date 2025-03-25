@@ -12,6 +12,7 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
   try {
     const { quoteId, signingAccounts, additionalData } = req.body;
     const idempotencyKey = req.headers['idempotency-key'] as string;
+    const route = req.path; // Get the current route path
 
     // Validate required fields
     if (!quoteId || !signingAccounts || signingAccounts.length === 0) {
@@ -29,6 +30,7 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
         additionalData,
       },
       idempotencyKey,
+      route,
     );
 
     res.status(httpStatus.CREATED).json(ramp);
@@ -46,6 +48,7 @@ export const startRamp = async (req: Request, res: Response, next: NextFunction)
   try {
     const { rampId, presignedTxs, additionalData } = req.body;
     const idempotencyKey = req.headers['idempotency-key'] as string;
+    const route = req.path; // Get the current route path
 
     // Validate required fields
     if (!rampId || !presignedTxs) {
@@ -63,6 +66,7 @@ export const startRamp = async (req: Request, res: Response, next: NextFunction)
         additionalData,
       },
       idempotencyKey,
+      route,
     );
 
     res.status(httpStatus.CREATED).json(ramp);

@@ -143,12 +143,14 @@ export class BaseRampService {
    */
   protected async storeIdempotencyKey(
     key: string,
+    route: string,
     responseStatus: number,
     responseBody: any,
     rampId?: string,
   ): Promise<IdempotencyKey> {
     return IdempotencyKey.create({
       key,
+      route,
       rampId,
       responseStatus,
       responseBody,
@@ -159,8 +161,13 @@ export class BaseRampService {
   /**
    * Get an idempotency key
    */
-  protected async getIdempotencyKey(key: string): Promise<IdempotencyKey | null> {
-    return IdempotencyKey.findByPk(key);
+  protected async getIdempotencyKey(key: string, route: string): Promise<IdempotencyKey | null> {
+    return IdempotencyKey.findOne({
+      where: {
+        key,
+        route,
+      },
+    });
   }
 
   /**
