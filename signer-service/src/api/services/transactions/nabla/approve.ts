@@ -18,19 +18,17 @@ export interface PrepareNablaApproveParams {
   inputAmount: { units: string; raw: string };
   pendulumAmountRaw: string;
   pendulumEphemeralAddress: string;
-  nablaApproveNonce: number;
   fromNetwork: Networks;
   pendulumNode: API;
 }
 
-interface CreateAndSignApproveExtrinsicOptions {
+interface CreateApproveExtrinsicOptions {
   api: ApiPromise;
   token: string;
   spender: string;
   amount: string;
   contractAbi: Abi;
   callerAddress: string;
-  nonce?: number;
 }
 
 async function createApproveExtrinsic({
@@ -40,7 +38,7 @@ async function createApproveExtrinsic({
   amount,
   contractAbi,
   callerAddress,
-}: CreateAndSignApproveExtrinsicOptions) {
+}: CreateApproveExtrinsicOptions) {
   console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
 
   const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
@@ -70,7 +68,6 @@ export async function prepareNablaApproveTransaction({
   inputAmount,
   pendulumAmountRaw,
   pendulumEphemeralAddress,
-  nablaApproveNonce,
   fromNetwork,
   pendulumNode,
 }: PrepareNablaApproveParams): Promise<Extrinsic> {
@@ -114,7 +111,6 @@ export async function prepareNablaApproveTransaction({
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
         callerAddress: pendulumEphemeralAddress,
-        nonce: nablaApproveNonce,
       });
     } catch (e) {
       console.log(`Could not approve token: ${e}`);

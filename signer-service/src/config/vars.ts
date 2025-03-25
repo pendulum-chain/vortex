@@ -52,6 +52,9 @@ interface Config {
     dialect: 'postgres';
     logging: boolean;
   };
+  swap: {
+    deadlineMinutes: number;
+  };
 }
 
 export const config: Config = {
@@ -95,5 +98,8 @@ export const config: Config = {
     database: process.env.DB_NAME || 'vortex',
     dialect: 'postgres',
     logging: process.env.NODE_ENV !== 'production',
+  },
+  swap: {
+    deadlineMinutes: 60 * 24 * 7, // 1 week
   },
 };
