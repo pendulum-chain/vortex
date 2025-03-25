@@ -63,9 +63,6 @@ export class PhaseProcessor {
         // Process the next phase
         await this.processPhase(updatedState);
       } else {
-        // TODO.G The handler must either return the next phase, or fail. Entering this branch
-        // means that we won't move forward anymore, and wait for the worker to recover. Why not handle this
-        // here?
         logger.info(`Phase ${currentPhase} completed for ramp ${state.id}`);
       }
     } catch (error: any) {
