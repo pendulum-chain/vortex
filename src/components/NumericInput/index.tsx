@@ -1,6 +1,7 @@
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { handleOnChangeNumericInput, handleOnPasteNumericInput } from './helpers';
 import { ChangeEvent, ClipboardEvent } from 'react';
+import { cn } from '../../helpers/cn';
 
 interface NumericInputProps {
   register: UseFormRegisterReturn;
@@ -33,7 +34,6 @@ export const NumericInput = ({
     handleOnPasteNumericInput(e, maxDecimals);
     register.onChange(e);
   }
-  const removeText = disabled ? ' opacity-0' : '';
 
   return (
     <div className="relative flex-grow">
@@ -42,9 +42,11 @@ export const NumericInput = ({
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
-        className={`input border-0 focus:shadow-none bg-transparent focus:outline-none px-4 w-full h-full ${
-          additionalStyle || ''
-        } ${removeText}`}
+        className={cn(
+          'input border-0 focus:shadow-none bg-transparent focus:outline-none px-4 w-full h-full',
+          additionalStyle,
+          disabled && 'opacity-0',
+        )}
         minLength={1}
         onChange={handleOnChange}
         onPaste={handleOnPaste}
