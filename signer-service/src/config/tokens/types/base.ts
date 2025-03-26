@@ -52,4 +52,6 @@ export interface BaseFiatTokenDetails {
   pendulumErc20WrapperAddress: string;
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
+  onrampFeesBasisPoints?: number;
+  onrampFeesFixedComponent?: number;
 }

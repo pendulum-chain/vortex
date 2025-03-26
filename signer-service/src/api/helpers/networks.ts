@@ -1,6 +1,6 @@
 import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
 
-export type PaymentMethod = 'pix' | 'sepa';
+export type PaymentMethod = 'pix' | 'sepa' | 'cbu';
 export type DestinationType = keyof typeof Networks | PaymentMethod;
 
 export enum Networks {

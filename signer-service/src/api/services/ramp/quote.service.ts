@@ -42,7 +42,7 @@ export class QuoteService extends BaseRampService {
   } = {
     off: {
       from: ['AssetHub', 'Avalanche', 'Arbitrum', 'BSC', 'Base', 'Ethereum', 'Polygon'],
-      to: ['pix', 'sepa'],
+      to: ['pix', 'sepa', 'cbu'],
     },
     on: {
       from: ['pix'],
@@ -67,8 +67,6 @@ export class QuoteService extends BaseRampService {
       request.to,
     );
 
-    const fee = '0.01'; // TODO fetch from above
-
     // Create quote in database
     const quoteTicket = await QuoteTicket.create({
       id: uuidv4(),
@@ -77,9 +75,9 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount,
+      outputAmount: outputAmount.receiveAmount,
       outputCurrency: request.outputCurrency,
-      fee,
+      fee: outputAmount.fees,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
     });
@@ -145,7 +143,7 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-  ): Promise<string> {
+  ): Promise<{ receiveAmount: string; fees: string }> {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
@@ -185,8 +183,16 @@ export class QuoteService extends BaseRampService {
         outputTokenDetails: outputTokenPendulumDetails,
       });
 
-      const outputAmountAfterFees = calculateTotalReceive(amountOut.roundedDownQuotedAmountOut, outputCurrency);
-      return outputAmountAfterFees;
+      const outputAmountAfterFees = calculateTotalReceive(
+        amountOut.roundedDownQuotedAmountOut,
+        inputCurrency,
+        outputCurrency,
+      );
+      const effectiveFees = amountOut.preciseQuotedAmountOut.preciseBigDecimal
+        .minus(outputAmountAfterFees)
+        .toFixed(2, 0);
+
+      return { receiveAmount: outputAmountAfterFees, fees: effectiveFees };
     } catch (error) {
       logger.error('Error calculating output amount:', error);
       throw new APIError({

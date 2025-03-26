@@ -23,6 +23,8 @@ export const moonbeamTokenConfig: Partial<Record<FiatToken, MoonbeamTokenDetails
     maxWithdrawalAmountRaw: '10000000000000000000000', // 10,000 BRL. Maximum value for a KYC level 1 user.
     offrampFeesBasisPoints: 0,
     offrampFeesFixedComponent: 0.75, // 0.75 BRL
+    onrampFeesBasisPoints: 0,
+    onrampFeesFixedComponent: 0.75, // 0.75 BRL
     ...PENDULUM_BRLA_MOONBEAM,
   },
 };
