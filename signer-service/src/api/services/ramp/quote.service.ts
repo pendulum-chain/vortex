@@ -5,14 +5,15 @@ import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
 import { DestinationType, Networks, PaymentMethod } from '../../helpers/networks';
+import { RampCurrency } from '../../../config/tokens';
 
 export interface QuoteRequest {
   rampType: 'on' | 'off';
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
-  inputCurrency: string;
-  outputCurrency: string;
+  inputCurrency: RampCurrency;
+  outputCurrency: RampCurrency;
 }
 
 export interface QuoteResponse {
@@ -21,9 +22,9 @@ export interface QuoteResponse {
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
-  inputCurrency: string;
+  inputCurrency: RampCurrency;
   outputAmount: string;
-  outputCurrency: string;
+  outputCurrency: RampCurrency;
   fee: string;
   expiresAt: Date;
 }
@@ -139,8 +140,8 @@ export class QuoteService extends BaseRampService {
    */
   private async calculateOutputAmount(
     inputAmount: string,
-    inputCurrency: string,
-    outputCurrency: string,
+    inputCurrency: RampCurrency,
+    outputCurrency: RampCurrency,
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,

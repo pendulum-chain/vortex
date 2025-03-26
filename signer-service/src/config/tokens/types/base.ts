@@ -1,6 +1,4 @@
-/**
- * Base types for token configuration
- */
+import { EvmToken } from './evm';
 
 export enum TokenType {
   Evm = 'evm',
@@ -8,6 +6,29 @@ export enum TokenType {
   Stellar = 'stellar',
   Moonbeam = 'moonbeam',
 }
+
+export enum FiatToken {
+  EURC = 'eurc',
+  ARS = 'ars',
+  BRL = 'brl',
+}
+
+export enum FiatCurreny {
+  EUR = 'eur',
+  ARS = 'ars',
+  BRL = 'brl',
+}
+
+export enum AssetHubToken {
+  USDC = 'usdc',
+}
+
+// Combines fiat currencies with tokens in one type
+export type RampCurrency =
+  | keyof typeof FiatCurreny
+  | keyof typeof FiatToken
+  | keyof typeof AssetHubToken
+  | keyof typeof EvmToken;
 
 export type PendulumCurrencyId = { Stellar: { AlphaNum4: { code: string; issuer: string } } } | { XCM: number };
 
@@ -38,15 +59,3 @@ export interface BaseFiatTokenDetails {
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
 }
-
-export enum FiatToken {
-  EURC = 'eurc',
-  ARS = 'ars',
-  BRL = 'brl',
-}
-
-export enum AssetHubToken {
-  USDC = 'usdc',
-}
-
-export type OnChainToken = string;

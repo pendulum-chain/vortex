@@ -1,6 +1,7 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
 import { DestinationType } from '../api/helpers/networks';
+import { RampCurrency } from '../config/tokens';
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
@@ -9,9 +10,9 @@ export interface QuoteTicketAttributes {
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
-  inputCurrency: string;
+  inputCurrency: RampCurrency;
   outputAmount: string;
-  outputCurrency: string;
+  outputCurrency: RampCurrency;
   fee: string;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
@@ -29,9 +30,9 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
   public from!: DestinationType;
   public to!: DestinationType;
   public inputAmount!: string;
-  public inputCurrency!: string;
+  public inputCurrency!: RampCurrency;
   public outputAmount!: string;
-  public outputCurrency!: string;
+  public outputCurrency!: RampCurrency;
   public fee!: string;
   public expiresAt!: Date;
   public status!: 'pending' | 'consumed' | 'expired';

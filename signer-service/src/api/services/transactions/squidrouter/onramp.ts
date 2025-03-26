@@ -1,5 +1,4 @@
 import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
-import { mnemonicToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
 
 import { Networks } from '../../../helpers/networks';
@@ -7,12 +6,12 @@ import { getRoute } from './route';
 import { createOnrampRouteParams } from './route';
 
 import erc20ABI from '../../../../contracts/ERC20';
-import { AXL_USDC_MOONBEAM, EvmToken, OnChainToken } from '../../../../config/tokens';
+import { AXL_USDC_MOONBEAM, EvmToken } from '../../../../config/tokens';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
   amount: string;
-  outputToken: OnChainToken;
+  outputToken: EvmToken;
   toNetwork: Networks;
   addressDestination: string;
   moonbeamEphemeralSeed: `0x${string}`;
