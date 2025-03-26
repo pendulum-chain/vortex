@@ -6,6 +6,8 @@ import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers
 import { encodeEvmTransactionData } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
 import { getOnChainTokenDetails, isEvmTokenDetails, isOnChainToken } from '../../../config/tokens';
+import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import Big from 'big.js';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -19,11 +21,17 @@ export async function prepareOfframpTransactions(
   }
   const fromNetworkId = getNetworkId(fromNetwork);
 
+  // validate input token. At this point should be validated by the quote endpoint,
+  // but we need it for the type check
+  if (!isOnChainToken(quote.inputCurrency)) {
+    throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
+  }
+  const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency)!;
+  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toString(); // Raw amount on initial chain.
+
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
-
-    const rawAmount = quote.inputAmount; // TODO convert to raw amount
 
     if (!isOnChainToken(quote.inputCurrency)) {
       throw new Error(`Input currency cannot be fiat token ${quote.inputCurrency} for offramp.`);
@@ -40,7 +48,7 @@ export async function prepareOfframpTransactions(
         const { approveData, swapData } = await createOfframpSquidrouterTransactions({
           inputTokenDetails,
           fromNetwork: account.network,
-          rawAmount,
+          rawAmount: inputAmountRaw,
           // Source and destination are both the user itself
           addressDestination: account.address,
           fromAddress: account.address,

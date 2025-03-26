@@ -5,6 +5,7 @@ import { prepareNablaApproveTransaction } from './approve';
 import { AccountMeta } from '../../ramp/ramp.service';
 import { getNetworkFromDestination, Networks } from '../../../helpers/networks';
 import { encodeSubmittableExtrinsic } from '../index';
+import Big from 'big.js';
 
 export async function createNablaTransactionsForQuote(quote: QuoteTicketAttributes, ephemeral: AccountMeta) {
   if (ephemeral.network !== Networks.Pendulum) {
@@ -26,7 +27,7 @@ export async function createNablaTransactionsForQuote(quote: QuoteTicketAttribut
 
   const amountRaw = quote.inputAmount;
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = quote.outputAmount;
+  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toString(); // TODO we're not allowing subsidy anymore?
 
   const approveTransaction = await prepareNablaApproveTransaction({
     fromNetwork,
