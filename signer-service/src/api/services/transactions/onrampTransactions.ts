@@ -4,6 +4,7 @@ import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
 import { encodeEvmTransactionData } from './index';
 import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
+import { getOnChainTokenDetails, isEvmToken, isFiatTokenEnum } from '../../../config/tokens';
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
@@ -22,13 +23,31 @@ export async function prepareOnrampTransactions(
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
+    const rawAmount = quote.inputAmount; // TODO convert to raw amount
+
+    if (isFiatTokenEnum(quote.outputCurrency)) {
+      throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+    }
+    const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
+    if (!outputTokenDetails) {
+      throw new Error(`Token ${quote.outputCurrency} is not supported for offramp`);
+    }
+
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+      if (!isEvmToken(outputTokenDetails)) {
+        console.log('Output token is not an EVM token, skipping onramp transaction creation for Moonbeam ephemeral');
+        continue;
+      }
+
+      const moonbeamEphemeralStartingNonce = 0; // TODO fetch from chain
+
       const { approveData, swapData } = await createOnrampSquidrouterTransactions({
-        inputToken: quote.inputCurrency,
-        fromNetwork: account.network,
-        amount: quote.inputAmount,
+        outputTokenDetails,
+        toNetwork,
+        rawAmount,
         addressDestination: account.address,
         fromAddress: account.address,
+        moonbeamEphemeralStartingNonce,
       });
 
       unsignedTxs.push({

@@ -1,20 +1,18 @@
-import { createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
+import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 
 import { Networks } from '../../../helpers/networks';
-import { getRoute } from './route';
-import { createOnrampRouteParams } from './route';
+import { createOnrampRouteParams, getRoute } from './route';
 
 import erc20ABI from '../../../../contracts/ERC20';
-import { AXL_USDC_MOONBEAM, EvmToken } from '../../../../config/tokens';
+import { AXL_USDC_MOONBEAM, EvmTokenDetails } from '../../../../config/tokens';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
-  amount: string;
-  outputToken: EvmToken;
+  rawAmount: string;
+  outputTokenDetails: EvmTokenDetails;
   toNetwork: Networks;
   addressDestination: string;
-  moonbeamEphemeralSeed: `0x${string}`;
   moonbeamEphemeralStartingNonce: number;
 }
 
@@ -52,9 +50,9 @@ export async function createOnrampSquidrouterTransactions(
   });
 
   const routeParams = createOnrampRouteParams(
-    account.address,
-    params.amount,
-    params.outputToken as EvmToken,
+    params.fromAddress,
+    params.rawAmount,
+    params.outputTokenDetails,
     params.toNetwork,
     params.addressDestination,
   );
@@ -67,7 +65,7 @@ export async function createOnrampSquidrouterTransactions(
   const approveTransactionData = encodeFunctionData({
     abi: erc20ABI,
     functionName: 'approve',
-    args: [transactionRequest?.target, params.amount],
+    args: [transactionRequest?.target, params.rawAmount],
   });
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();

@@ -1,20 +1,21 @@
 import Big from 'big.js';
-import { Extrinsic, readMessage, ReadMessageResult, createExecuteMessageExtrinsic } from '@pendulum-chain/api-solang';
+import { createExecuteMessageExtrinsic, Extrinsic, readMessage, ReadMessageResult } from '@pendulum-chain/api-solang';
 import { API } from '../../pendulum/apiManager';
 import { Abi } from '@polkadot/api-contract';
 import { ApiPromise } from '@polkadot/api';
-import Keyring from '@polkadot/keyring';
-import { KeyringPair } from '@polkadot/keyring/types';
 
 import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
-import { AssetHubToken, EvmToken, FiatToken, getPendulumDetails } from '../../../../config/tokens';
+import { getPendulumDetails, NABLA_ROUTER, RampCurrency } from '../../../../config/tokens';
 import { Networks } from '../../../helpers/networks';
-import { NABLA_ROUTER } from '../../../../config/tokens';
-import { defaultReadLimits, defaultWriteLimits, createWriteOptions } from '../../../helpers/contracts';
-import { parseContractBalanceResponse } from '../../../helpers/contracts';
+import {
+  createWriteOptions,
+  defaultReadLimits,
+  defaultWriteLimits,
+  parseContractBalanceResponse,
+} from '../../../helpers/contracts';
 
 export interface PrepareNablaApproveParams {
-  inputTokenType: EvmToken | AssetHubToken | FiatToken;
+  inputCurrency: RampCurrency;
   amountRaw: string;
   pendulumEphemeralAddress: string;
   fromNetwork: Networks;
@@ -63,7 +64,7 @@ async function createApproveExtrinsic({
 }
 
 export async function prepareNablaApproveTransaction({
-  inputTokenType,
+  inputCurrency,
   amountRaw,
   pendulumEphemeralAddress,
   fromNetwork,
@@ -71,7 +72,7 @@ export async function prepareNablaApproveTransaction({
 }: PrepareNablaApproveParams): Promise<Extrinsic> {
   const { ss58Format, api } = pendulumNode;
   // event attempting swap
-  const inputToken = getPendulumDetails(inputTokenType, fromNetwork);
+  const inputToken = getPendulumDetails(inputCurrency, fromNetwork);
 
   const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
 

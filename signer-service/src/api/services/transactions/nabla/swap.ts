@@ -1,7 +1,7 @@
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
-import { Extrinsic, readMessage, ReadMessageResult, createExecuteMessageExtrinsic } from '@pendulum-chain/api-solang';
-import { AssetHubToken, EvmToken, FiatToken, getPendulumDetails, NABLA_ROUTER } from '../../../../config/tokens';
+import { createExecuteMessageExtrinsic, Extrinsic } from '@pendulum-chain/api-solang';
+import { getPendulumDetails, NABLA_ROUTER, RampCurrency } from '../../../../config/tokens';
 import { createWriteOptions, defaultWriteLimits } from '../../../helpers/contracts';
 import { API } from '../../pendulum/apiManager';
 import { Networks } from '../../../helpers/networks';
@@ -9,8 +9,8 @@ import { config } from '../../../../config';
 import { routerAbi } from '../../../../contracts/Router';
 
 export interface PrepareNablaSwapParams {
-  inputTokenType: EvmToken | AssetHubToken | FiatToken;
-  outputTokenType: EvmToken | AssetHubToken | FiatToken;
+  inputCurrency: RampCurrency;
+  outputCurrency: RampCurrency;
   amountRaw: string;
   nablaHardMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
@@ -68,8 +68,8 @@ export async function createSwapExtrinsic({
 }
 
 export async function prepareNablaSwapTransaction({
-  inputTokenType,
-  outputTokenType,
+  inputCurrency,
+  outputCurrency,
   amountRaw,
   nablaHardMinimumOutputRaw,
   pendulumEphemeralAddress,
@@ -80,8 +80,8 @@ export async function prepareNablaSwapTransaction({
   const { api } = pendulumNode;
 
   // event attempting swap
-  const inputToken = getPendulumDetails(inputTokenType, fromNetwork);
-  const outputToken = getPendulumDetails(outputTokenType, toNetwork);
+  const inputToken = getPendulumDetails(inputCurrency, fromNetwork);
+  const outputToken = getPendulumDetails(outputCurrency, toNetwork);
   const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
 
   // Try create swap extrinsic

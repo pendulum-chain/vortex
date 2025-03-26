@@ -1,14 +1,7 @@
 import axios from 'axios';
 import { getSquidRouterConfig, squidRouterConfigBase } from './config';
 import { getNetworkId, Networks } from '../../../helpers/networks';
-import {
-  AXL_USDC_MOONBEAM,
-  EvmToken,
-  EvmTokenDetails,
-  getOnChainTokenDetails,
-  isEvmToken,
-  OnChainTokenDetails,
-} from '../../../../config/tokens';
+import { AXL_USDC_MOONBEAM, EvmTokenDetails } from '../../../../config/tokens';
 import { encodeFunctionData } from 'viem';
 import erc20ABI from '../../../../contracts/ERC20';
 import { squidReceiverABI } from '../../../../contracts/SquidReceiver';
@@ -39,22 +32,12 @@ export interface RouteParams {
 export function createOnrampRouteParams(
   fromAddress: string,
   amount: string,
-  outputTokenType: EvmToken,
+  outputTokenDetails: EvmTokenDetails,
   toNetwork: Networks,
   addressDestination: string,
 ): RouteParams {
   const fromChainId = getNetworkId(Networks.Moonbeam);
   const toChainId = getNetworkId(toNetwork);
-
-  // will throw if invalid. Must exist.
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, outputTokenType) as EvmTokenDetails;
-  if (!outputTokenDetails) {
-    throw new Error(`Token ${outputTokenType} is not supported for Squidrouter onramp`);
-  }
-
-  if (!isEvmToken(outputTokenDetails)) {
-    throw new Error(`Token ${outputTokenType} is not supported on EVM chains`);
-  }
 
   return {
     fromAddress: fromAddress,
@@ -100,7 +83,7 @@ export async function getRoute(params: RouteParams) {
 export function createOfframpRouteParams(
   fromAddress: string,
   amount: string,
-  inputToken: EvmToken,
+  inputTokenDetails: EvmTokenDetails,
   fromNetwork: Networks,
   toAddress: string,
   receivingContractAddress: string,
@@ -108,16 +91,6 @@ export function createOfframpRouteParams(
 ): RouteParams {
   const fromChainId = getNetworkId(fromNetwork);
   const toChainId = getNetworkId(Networks.Moonbeam);
-
-  // will throw if invalid. Must exist.
-  const inputTokenDetails = getOnChainTokenDetails(fromNetwork, inputToken) as EvmTokenDetails;
-  if (!inputTokenDetails) {
-    throw new Error(`Token ${inputToken} is not supported for Squidrouter offramp`);
-  }
-
-  if (!isEvmToken(inputTokenDetails)) {
-    throw new Error(`Token ${inputToken} is not supported on EVM chains`);
-  }
 
   const approvalErc20 = encodeFunctionData({
     abi: erc20ABI,

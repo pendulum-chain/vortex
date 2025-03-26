@@ -5,6 +5,7 @@ import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
 import { encodeEvmTransactionData } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
+import { getOnChainTokenDetails, isEvmToken, isFiatTokenEnum } from '../../../config/tokens';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -22,32 +23,45 @@ export async function prepareOfframpTransactions(
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-    // If the account is the same network as the quote, we can assume it's the initial transaction and thus squidrouter,
-    // if the network is not Assethub.
-    // TODO.G we did not creat before this transactions, since they are executed on the UI for an offramp.
-    if (accountNetworkId === fromNetworkId && fromNetworkId !== -1) {
-      const { approveData, swapData } = await createOfframpSquidrouterTransactions({
-        inputToken: quote.inputCurrency,
-        fromNetwork: account.network,
-        amount: quote.inputAmount,
-        // Source and destination are both the user itself
-        addressDestination: account.address,
-        fromAddress: account.address,
-      });
-      unsignedTxs.push({
-        tx_data: encodeEvmTransactionData(approveData),
-        phase: 'squidRouter', // TODO assign correct phase
-        network: account.network,
-        nonce: 0,
-        signer: account.address,
-      });
-      unsignedTxs.push({
-        tx_data: encodeEvmTransactionData(swapData),
-        phase: 'squidRouter', // TODO assign correct phase
-        network: account.network,
-        nonce: 0,
-        signer: account.address,
-      });
+    const rawAmount = quote.inputAmount; // TODO convert to raw amount
+
+    if (isFiatTokenEnum(quote.inputCurrency)) {
+      throw new Error(`Input currency cannot be fiat token ${quote.inputCurrency} for offramp.`);
+    }
+    const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency);
+    if (!inputTokenDetails) {
+      throw new Error(`Token ${quote.inputCurrency} is not supported for offramp`);
+    }
+
+    // If the network defined for the account is the same as the network of the input token, we know it's the transaction
+    // on the source network that needs to be signed by the user wallet and not an ephemeral.
+    if (accountNetworkId === fromNetworkId) {
+      if (isEvmToken(inputTokenDetails)) {
+        const { approveData, swapData } = await createOfframpSquidrouterTransactions({
+          inputTokenDetails,
+          fromNetwork: account.network,
+          rawAmount,
+          // Source and destination are both the user itself
+          addressDestination: account.address,
+          fromAddress: account.address,
+        });
+        unsignedTxs.push({
+          tx_data: encodeEvmTransactionData(approveData),
+          phase: 'squidRouter', // TODO assign correct phase
+          network: account.network,
+          nonce: 0,
+          signer: account.address,
+        });
+        unsignedTxs.push({
+          tx_data: encodeEvmTransactionData(swapData),
+          phase: 'squidRouter', // TODO assign correct phase
+          network: account.network,
+          nonce: 0,
+          signer: account.address,
+        });
+      } else {
+        // TODO Prepare transaction for initial AssetHub transfer
+      }
     }
     // If network is Moonbeam, we need to create a second transaction to send the funds to the user
     else if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
