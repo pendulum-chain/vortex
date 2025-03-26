@@ -1,7 +1,7 @@
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
 import { createExecuteMessageExtrinsic, Extrinsic } from '@pendulum-chain/api-solang';
-import { getPendulumDetails, NABLA_ROUTER, RampCurrency } from '../../../../config/tokens';
+import { getPendulumDetails, NABLA_ROUTER, PendulumDetails, RampCurrency } from '../../../../config/tokens';
 import { createWriteOptions, defaultWriteLimits } from '../../../helpers/contracts';
 import { API } from '../../pendulum/apiManager';
 import { Networks } from '../../../helpers/networks';
@@ -9,13 +9,11 @@ import { config } from '../../../../config';
 import { routerAbi } from '../../../../contracts/Router';
 
 export interface PrepareNablaSwapParams {
-  inputCurrency: RampCurrency;
-  outputCurrency: RampCurrency;
+  inputTokenDetails: PendulumDetails;
+  outputTokenDetails: PendulumDetails;
   amountRaw: string;
   nablaHardMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
-  fromNetwork: Networks;
-  toNetwork: Networks;
   pendulumNode: API;
 }
 
@@ -68,20 +66,15 @@ export async function createSwapExtrinsic({
 }
 
 export async function prepareNablaSwapTransaction({
-  inputCurrency,
-  outputCurrency,
+  inputTokenDetails,
+  outputTokenDetails,
   amountRaw,
   nablaHardMinimumOutputRaw,
   pendulumEphemeralAddress,
-  fromNetwork,
-  toNetwork,
   pendulumNode,
 }: PrepareNablaSwapParams): Promise<Extrinsic> {
   const { api } = pendulumNode;
 
-  // event attempting swap
-  const inputToken = getPendulumDetails(inputCurrency, fromNetwork);
-  const outputToken = getPendulumDetails(outputCurrency, toNetwork);
   const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
 
   // Try create swap extrinsic
@@ -90,8 +83,8 @@ export async function prepareNablaSwapTransaction({
       api: api,
       amount: amountRaw,
       amountMin: nablaHardMinimumOutputRaw,
-      tokenIn: inputToken.pendulumErc20WrapperAddress,
-      tokenOut: outputToken.pendulumErc20WrapperAddress,
+      tokenIn: inputTokenDetails.pendulumErc20WrapperAddress,
+      tokenOut: outputTokenDetails.pendulumErc20WrapperAddress,
       contractAbi: routerAbiObject,
       callerAddress: pendulumEphemeralAddress,
     });

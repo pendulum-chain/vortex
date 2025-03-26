@@ -27,7 +27,7 @@ export async function prepareOfframpTransactions(
     throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
   }
   const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency)!;
-  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toString(); // Raw amount on initial chain.
+  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0); // Raw amount on initial chain.
 
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {

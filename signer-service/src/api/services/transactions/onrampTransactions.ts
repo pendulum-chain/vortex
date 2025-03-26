@@ -12,6 +12,7 @@ import {
   isFiatToken,
   isMoonbeamTokenDetails,
   isOnChainToken,
+  isOnChainTokenDetails,
 } from '../../../config/tokens';
 import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
@@ -56,35 +57,25 @@ export async function prepareOnrampTransactions(
   if (!isMoonbeamTokenDetails(inputTokenDetails)) {
     throw new Error(`Input token must be Moonbeam token for onramp, got ${quote.inputCurrency}`);
   }
+  if (!isOnChainToken(quote.outputCurrency)) {
+    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+  }
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency)!;
 
-  const outputTokenDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+  if (!isOnChainTokenDetails(outputTokenDetails)) {
+    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
+  }
 
-  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toString();
+  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
   const outputAmountRaw = multiplyByPowerOfTen(
     new Big(quote.outputAmount).add(new Big(quote.fee)),
     outputTokenDetails.pendulumDecimals,
-  ).toString(); //Nabla output. TODO I would prefer to store the w/o fee amount on the quote entry
+  ).toFixed(0, 0); //Nabla output. TODO I would prefer to store the w/o fee amount on the quote entry
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-    const rawAmount = quote.inputAmount; // TODO convert to raw amount
-
-    if (!isOnChainToken(quote.outputCurrency)) {
-      throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
-    }
-    const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
-    if (!outputTokenDetails) {
-      throw new Error(`Token ${quote.outputCurrency} is not supported for offramp`);
-    }
-
-    // TODO implement creation of unsigned ephemeral txs for swaps
-
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      if (!isEvmTokenDetails(outputTokenDetails)) {
-        console.log('Output token is not an EVM token, skipping onramp transaction creation for Moonbeam ephemeral');
-        continue;
-      }
       const moonbeamEphemeralStartingNonce = 0;
       const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
         pendulumEphemeralEntry.address,
@@ -100,24 +91,27 @@ export async function prepareOnrampTransactions(
       });
 
       if (toNetworkId !== getNetworkId(Networks.AssetHub)) {
+        if (!isEvmTokenDetails(outputTokenDetails)) {
+          throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${quote.outputCurrency}`);
+        }
         const { approveData, swapData } = await createOnrampSquidrouterTransactions({
           outputTokenDetails,
           toNetwork,
-          rawAmount,
+          rawAmount: outputAmountRaw,
           addressDestination: account.address,
           fromAddress: account.address,
           moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 1,
         });
 
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(approveData),
+          tx_data: encodeEvmTransactionData(approveData.data),
           phase: 'moonbeamSquidrouter',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 1,
           signer: account.address,
         });
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(swapData),
+          tx_data: encodeEvmTransactionData(swapData.data),
           phase: 'moonbeamSquidrouter',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 2,

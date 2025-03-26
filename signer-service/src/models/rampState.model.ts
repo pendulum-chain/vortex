@@ -77,7 +77,7 @@ RampState.init(
     },
     presignedTxs: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       field: 'presigned_txs',
       validate: {
         isValidTxArray(value: any[]) {

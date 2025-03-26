@@ -93,6 +93,7 @@ export class RampService extends BaseRampService {
           });
         }
         unsignedTxs = await prepareOnrampTransactions(quote, signingAccounts, additionalData['destinationAddress']);
+        console.log('unsignedTxs', unsignedTxs);
       }
 
       // Mark the quote as consumed
