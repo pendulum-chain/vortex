@@ -1,6 +1,7 @@
 import { FC } from 'react';
 import { create } from 'zustand';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../../helpers/cn';
 
 interface AccordionProps {
   children: React.ReactNode | React.ReactNode[];
@@ -53,7 +54,7 @@ const Accordion: FC<AccordionProps> = ({ children, className = '', defaultValue 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className={`w-full max-w-3xl mx-auto ${className}`}
+      className={cn('w-full max-w-3xl mx-auto', className)}
     >
       {children}
     </motion.div>
@@ -68,7 +69,7 @@ const AccordionItem: FC<AccordionItemProps> = ({ children, className = '', value
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className={`border-b border-gray-200 last:border-b-0 ${className}`}
+      className={cn('border-b border-gray-200 last:border-b-0', className)}
     >
       <motion.div
         data-state={isOpen ? 'open' : 'closed'}
@@ -91,14 +92,17 @@ const AccordionTrigger: FC<AccordionTriggerProps> = ({ children, className = '',
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
         onClick={() => toggleValue(value)}
-        className={`w-full text-left px-6 py-4 text-base md:text-lg font-medium text-gray-900 hover:text-blue-700 focus:outline-none transition-all duration-200 ${className}`}
+        className={cn(
+          'w-full text-left px-6 py-4 text-base md:text-lg font-medium text-gray-900 hover:text-blue-700 focus:outline-none transition-all duration-200',
+          className,
+        )}
       >
         <div className="flex items-center justify-between">
           <motion.span layout>{children}</motion.span>
           <motion.svg
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className={`h-5 w-5 text-blue-700`}
+            className="h-5 w-5 text-blue-700"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -129,7 +133,7 @@ const AccordionContent: FC<AccordionContentProps> = ({ children, className = '',
             animate={{ y: 0 }}
             exit={{ y: -10 }}
             transition={{ duration: 0.3 }}
-            className={`px-6 pb-6 text-gray-600 leading-relaxed ${className}`}
+            className={cn('px-6 pb-6 text-gray-600 leading-relaxed', className)}
           >
             {children}
           </motion.div>

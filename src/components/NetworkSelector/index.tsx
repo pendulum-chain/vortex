@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Networks, getNetworkDisplayName, getNetworkId } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { NetworkIcon } from '../NetworkIcon';
+import { cn } from '../../helpers/cn';
 
 interface NetworkButtonProps {
   selectedNetwork: Networks;
@@ -15,20 +16,21 @@ interface NetworkButtonProps {
 
 const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkButtonProps) => (
   <motion.button
-    className={`flex items-center gap-2 px-2 sm:px-4 py-3 rounded-full bg-base-100 ${
-      disabled ? 'opacity-50 cursor-not-allowed' : ''
-    }`}
+    className={cn(
+      'flex items-center gap-2 px-2 sm:px-4 py-3 rounded-full bg-base-100',
+      disabled && 'opacity-50 cursor-not-allowed',
+    )}
     onClick={onClick}
     whileHover={{ scale: disabled ? 1 : 1.02 }}
     whileTap={{ scale: disabled ? 1 : 0.98 }}
     disabled={disabled}
   >
-    <NetworkIcon network={selectedNetwork} className={`w-5 h-5 ${disabled ? 'opacity-50' : ''}`} />
-    <span className={`hidden sm:block ${disabled ? 'opacity-50' : ''}`}>{getNetworkDisplayName(selectedNetwork)}</span>
+    <NetworkIcon network={selectedNetwork} className={cn('w-5 h-5', disabled && 'opacity-50')} />
+    <span className={cn('hidden sm:block', disabled && 'opacity-50')}>{getNetworkDisplayName(selectedNetwork)}</span>
     <motion.div
       animate={{ rotate: isOpen ? 180 : 0 }}
       transition={{ duration: 0.2 }}
-      className={disabled ? 'opacity-50' : ''}
+      className={cn(disabled && 'opacity-50')}
     >
       <ChevronDownIcon className="block w-4 h-4 ml-1" />
     </motion.div>
@@ -105,7 +107,7 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
 
   return (
     <div {...wrapperProps}>
-      <div className={`relative mr-2 ${disabled ? 'pointer-events-none' : ''}`} ref={dropdownRef}>
+      <div className={cn('relative mr-2', disabled && 'pointer-events-none')} ref={dropdownRef}>
         <NetworkButton
           selectedNetwork={selectedNetwork}
           isOpen={isOpen}

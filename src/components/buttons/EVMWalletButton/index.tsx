@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
+import { cn } from '../../../helpers/cn';
 
 import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
 import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet-pink.svg';
@@ -26,7 +27,11 @@ const WalletButton = ({
   showWalletIcons?: boolean;
   address?: string;
 }) => (
-  <button onClick={onClick} type="button" className={`${customStyles || 'btn-vortex-secondary'} btn rounded-3xl group`}>
+  <button
+    onClick={onClick}
+    type="button"
+    className={cn(customStyles || 'btn-vortex-secondary', 'btn rounded-3xl group')}
+  >
     {showWalletIcons ? (
       <>
         <img src={accountBalanceWalletIcon} className="block group-hover:hidden" alt="wallet account button" />

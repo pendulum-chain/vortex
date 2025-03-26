@@ -73,7 +73,7 @@ export async function executeMoonbeamToPendulumXCM(
       }
     }
 
-    await waitForTransactionReceipt(moonbeamConfig, { hash: moonbeamXcmTransactionHash, chainId: moonbeam.id });
+    await waitForTransactionReceipt(moonbeamConfig, { hash: moonbeamXcmTransactionHash, chainId: moonbeam.id }); // @TODO: support for Safe{Wallet} ?
     await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
   }
 

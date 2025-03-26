@@ -3,6 +3,7 @@ import { useFormContext, useFormState } from 'react-hook-form';
 import { motion } from 'motion/react';
 
 import { Field, FieldProps } from '../../Field';
+import { cn } from '../../../helpers/cn';
 
 export enum StandardBrlaFieldOptions {
   TAX_ID = 'taxId',
@@ -63,7 +64,7 @@ export const BrlaField: FC<BrlaFieldProps> = ({ id, label, index, validationPatt
       <Field
         id={id}
         register={register(id, { required: true, pattern: validationPattern })}
-        className={`w-full p-2 ${errors[id] ? 'border border-red-500' : ''}`}
+        className={cn('w-full p-2', errors[id] && 'border border-red-500')}
         {...rest}
       />
       {errorMessage && <span className="text-red-500 text-sm mt-1">{errorMessage}</span>}

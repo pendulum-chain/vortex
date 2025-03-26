@@ -1,5 +1,6 @@
 import { FC, useCallback, useEffect, useRef, useState, FormEvent, JSX } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '../../helpers/cn';
 
 import { CloseButton } from '../buttons/CloseButton';
 
@@ -113,7 +114,7 @@ export const Dialog: FC<DialogProps> = ({
     <dialog className="modal border border-[--modal-border]" id={id} ref={ref} aria-labelledby={`${headerText}-header`}>
       <div className="modal-box bg-base-200">
         <div
-          className={`text-2xl claim-title items-center flex mb-5 ${headerText ? 'justify-between' : 'justify-end'}`}
+          className={cn('text-2xl claim-title items-center flex mb-5', headerText ? 'justify-between' : 'justify-end')}
         >
           <span>{headerText}</span> {hideCloseButton ? <></> : <CloseButton onClick={onClose} />}
         </div>
