@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { OnChainToken, FiatToken } from '../../constants/tokenConfig';
+import { OnChainToken, FiatToken } from 'shared';
 import { Dialog } from '../Dialog';
 import { Skeleton } from '../Skeleton';
 import { PoolListItem } from './PoolListItem';

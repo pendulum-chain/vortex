@@ -5,7 +5,7 @@
 import { AssetHubToken, TokenType } from '../types/base';
 import { AssetHubTokenDetails } from '../types/assethub';
 import { PENDULUM_USDC_ASSETHUB } from '../constants/pendulum';
-import { Networks } from '../../../api/helpers/networks';
+import { Networks } from '../../helpers';
 
 export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = {
   [AssetHubToken.USDC]: {

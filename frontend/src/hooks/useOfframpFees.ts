@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { calculateOfframpTotalReceive } from '../components/FeeCollapse';
 import { roundDownToTwoDecimals } from '../helpers/parseNumbers';
-import { BaseFiatTokenDetails } from '../constants/tokenConfig';
+import { BaseFiatTokenDetails } from 'shared';
 
 export const useOfframpFees = (toAmount: Big, toToken: BaseFiatTokenDetails) => {
   const toAmountFixed = roundDownToTwoDecimals(toAmount);

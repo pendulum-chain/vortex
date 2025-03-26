@@ -1,6 +1,5 @@
 import { IAnchorSessionParams, ISep24Intermediate } from '../../../types/sep';
-import { getTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
-import { FiatToken } from '../../../constants/tokenConfig';
+import { getTokenDetailsSpacewalk, FiatToken } from 'shared';
 import { config } from '../../../config';
 
 export async function sep24First(

@@ -2,7 +2,7 @@
  * Helper functions for token configuration
  */
 
-import { RampCurrency, FiatToken } from '../types/base';
+import {RampCurrency, FiatToken, OnChainToken} from '../types/base';
 import { EvmToken } from '../types/evm';
 import { AssetHubToken } from '../types/base';
 import { TokenDetails, OnChainTokenDetails, FiatTokenDetails } from './typeGuards';
@@ -11,8 +11,7 @@ import { assetHubTokenConfig } from '../assethub/config';
 import { stellarTokenConfig } from '../stellar/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
-import { Networks, PaymentMethod } from '../../../api/helpers/networks';
-import { OnChainToken } from '../../../../../src/constants/tokenConfig';
+import { Networks, PaymentMethod } from '../../helpers';
 
 /**
  * Get token details for a specific network and token

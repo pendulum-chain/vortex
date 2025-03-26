@@ -43,4 +43,9 @@ export default defineConfig({
       plugins: [],
     },
   },
+  resolve: {
+    alias: {
+      shared: path.resolve(__dirname, '../shared/src'),
+    },
+  },
 });

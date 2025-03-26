@@ -1,5 +1,5 @@
 import * as Yup from 'yup';
-import { OnChainToken, FiatToken } from '../../constants/tokenConfig';
+import { OnChainToken, FiatToken } from 'shared';
 
 export type SwapFormValues = {
   from: OnChainToken;

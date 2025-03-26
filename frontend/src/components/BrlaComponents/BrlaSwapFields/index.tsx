@@ -1,7 +1,7 @@
 import { FC } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'motion/react';
 
-import { FiatToken } from '../../../constants/tokenConfig';
+import { FiatToken } from 'shared';
 import { BrlaField, StandardBrlaFieldOptions } from '../BrlaField';
 
 interface BrlaSwapFieldsProps {

@@ -1,7 +1,6 @@
 import { Transaction, Keypair, Memo, Operation, MemoType } from 'stellar-sdk';
 
-import { getTokenDetailsSpacewalk } from '../../../constants/tokenConfig';
-import { FiatToken } from '../../../constants/tokenConfig';
+import { getTokenDetailsSpacewalk, FiatToken } from 'shared';
 import { TomlValues } from '../../../types/sep';
 
 import { exists, getUrlParams, sep10SignaturesWithLoginRefresh } from './utils';

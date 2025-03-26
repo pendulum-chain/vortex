@@ -5,12 +5,7 @@ import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
-import {
-  getOnChainTokenDetailsOrDefault,
-  getAnyFiatTokenDetails,
-  getTokenDetailsSpacewalk,
-  FiatToken,
-} from '../../constants/tokenConfig';
+import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails, getTokenDetailsSpacewalk, FiatToken } from 'shared';
 import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';

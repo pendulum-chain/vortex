@@ -7,12 +7,7 @@ import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
 import { SwapFormValues } from '../Nabla/schema';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { AssetNumericInput } from '../AssetNumericInput';
-import {
-  getOnChainTokenDetailsOrDefault,
-  getAnyFiatTokenDetails,
-  OnChainToken,
-  FiatToken,
-} from '../../constants/tokenConfig';
+import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails, OnChainToken, FiatToken } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { TermsAndConditions } from '../TermsAndConditions';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';

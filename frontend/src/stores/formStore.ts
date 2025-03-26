@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Big from 'big.js';
-import { OnChainTokenDetails, BaseFiatTokenDetails } from '../constants/tokenConfig';
+import { OnChainTokenDetails, BaseFiatTokenDetails } from 'shared';
 
 interface FormState {
   fromAmount?: Big;

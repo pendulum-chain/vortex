@@ -1,4 +1,4 @@
-import { FiatToken, OnChainToken } from '../constants/tokenConfig';
+import { FiatToken, OnChainToken } from 'shared';
 import { Networks } from '../helpers/networks';
 
 export type RampingPhase =

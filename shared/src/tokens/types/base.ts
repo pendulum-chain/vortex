@@ -1,7 +1,5 @@
 import { EvmToken } from './evm';
 
-import { MoonbeamTokenConfig, StellarTokenConfig } from '../../../constants/tokenConfig';
-
 export enum TokenType {
   Evm = 'evm',
   AssetHub = 'assethub',
@@ -19,10 +17,11 @@ export enum AssetHubToken {
   USDC = 'usdc',
 }
 
-export type NablaToken = EvmToken | AssetHubToken | StellarTokenConfig | MoonbeamTokenConfig;
+export type OnChainToken = EvmToken | AssetHubToken;
+export type NablaToken = OnChainToken
 
 // Combines fiat currencies with tokens in one type
-export type RampCurrency = keyof typeof FiatToken | keyof typeof AssetHubToken | keyof typeof EvmToken;
+export type RampCurrency = keyof typeof FiatToken | OnChainToken;
 
 export type PendulumCurrencyId = { Stellar: { AlphaNum4: { code: string; issuer: string } } } | { XCM: number };
 

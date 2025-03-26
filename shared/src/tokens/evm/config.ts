@@ -2,10 +2,10 @@
  * EVM token configuration
  */
 
-import { EvmToken, EvmTokenDetails } from '../types/evm';
-import { TokenType } from '../types/base';
-import { PENDULUM_USDC_AXL } from '../constants/pendulum';
-import { Networks } from '../../../api/helpers/networks';
+import {EvmToken, EvmTokenDetails} from '../types/evm';
+import {TokenType} from '../types/base';
+import {PENDULUM_USDC_AXL} from '../constants/pendulum';
+import {Networks} from '../../helpers';
 
 export const evmTokenConfig: Record<Networks, Record<EvmToken, EvmTokenDetails>> = {
   [Networks.Polygon]: {
@@ -207,6 +207,64 @@ export const evmTokenConfig: Record<Networks, Record<EvmToken, EvmTokenDetails>>
       networkAssetIcon: 'assethubUSDC',
       decimals: 6,
       network: Networks.AssetHub,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  [Networks.Moonbeam]: {
+    [EvmToken.USDC]: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+      networkAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: Networks.Moonbeam,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+    [EvmToken.USDCE]: {
+      assetSymbol: 'USDC.e',
+      erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
+      networkAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: Networks.Moonbeam,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+    [EvmToken.USDT]: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
+      networkAssetIcon: 'polygonUSDT',
+      decimals: 6,
+      network: Networks.Moonbeam,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  [Networks.Pendulum]: {
+    [EvmToken.USDC]: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // USDC on Polygon
+      networkAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: Networks.Pendulum,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+    [EvmToken.USDCE]: {
+      assetSymbol: 'USDC.e',
+      erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // USDC.e on Polygon
+      networkAssetIcon: 'polygonUSDC',
+      decimals: 6,
+      network: Networks.Pendulum,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+    [EvmToken.USDT]: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', // USDT on Polygon
+      networkAssetIcon: 'polygonUSDT',
+      decimals: 6,
+      network: Networks.Pendulum,
       type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },

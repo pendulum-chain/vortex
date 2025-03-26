@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
-import { getPendulumDetails } from '../constants/tokenConfig';
+import { getPendulumDetails } from 'shared';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { PriceService } from '../services/prices';
 import { useVortexAccount } from '../hooks/useVortexAccount';

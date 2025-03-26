@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { storageService } from './storage/local';
-import { OnChainToken, FiatToken } from '../constants/tokenConfig';
+import { OnChainToken, FiatToken } from 'shared';
 import { DestinationType, Networks } from '../helpers/networks';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 

@@ -1,6 +1,6 @@
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { Networks } from '../../../helpers/networks';
-import { getOnChainTokenDetailsOrDefault, getBaseFiatTokenDetails } from '../../../constants/tokenConfig';
+import { getOnChainTokenDetailsOrDefault, getBaseFiatTokenDetails } from 'shared';
 import { RampExecutionInput, RampingState } from '../../../types/phases';
 
 export const useTrackSEP24Events = () => {

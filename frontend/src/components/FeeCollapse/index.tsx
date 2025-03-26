@@ -1,6 +1,6 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import { BaseFiatTokenDetails, FiatToken, getBaseFiatTokenDetails, OnChainToken } from '../../constants/tokenConfig';
+import { BaseFiatTokenDetails, FiatToken, getBaseFiatTokenDetails, OnChainToken } from 'shared';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 

@@ -23,7 +23,7 @@ import {
   ON_CHAIN_TOKEN_CONFIG,
   OnChainToken,
   STELLAR_FIAT_TOKEN_CONFIG,
-} from '../../constants/tokenConfig';
+} from 'shared';
 import { config } from '../../config';
 
 import { useEventsContext } from '../../contexts/events';

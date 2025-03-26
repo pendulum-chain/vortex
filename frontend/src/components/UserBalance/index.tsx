@@ -1,4 +1,4 @@
-import { OnChainTokenDetails } from '../../constants/tokenConfig';
+import { OnChainTokenDetails } from 'shared';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import wallet from '../../assets/wallet-bifold-outline.svg';

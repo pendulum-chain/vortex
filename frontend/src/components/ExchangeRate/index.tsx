@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { OnChainTokenDetails } from '../../constants/tokenConfig';
+import { OnChainTokenDetails } from 'shared';
 
 interface ExchangeRateProps {
   fromToken: OnChainTokenDetails;

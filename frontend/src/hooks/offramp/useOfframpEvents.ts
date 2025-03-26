@@ -3,8 +3,6 @@ import { createTransactionEvent } from '../../contexts/events';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 
-import { getPendulumDetails } from '../../constants/tokenConfig';
-import { OFFRAMPING_PHASE_SECONDS } from '../../pages/progress';
 import { RampingState } from '../../types/phases';
 
 export const useOfframpEvents = () => {

@@ -1,6 +1,6 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
-import { OnChainToken, FiatToken } from '../../../constants/tokenConfig';
+import { OnChainToken, FiatToken } from 'shared';
 
 interface PoolListItemProps<T extends OnChainToken | FiatToken> {
   tokenType: T;

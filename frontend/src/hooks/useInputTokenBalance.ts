@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Big from 'big.js';
 
 import erc20ABI from '../contracts/ERC20';
-import { OnChainTokenDetails, TokenType } from '../constants/tokenConfig';
+import { OnChainTokenDetails, TokenType } from 'shared';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';

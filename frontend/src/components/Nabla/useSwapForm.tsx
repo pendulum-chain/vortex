@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
-import { getBaseFiatTokenDetails, getOnChainTokenDetails, OnChainToken, FiatToken } from '../../constants/tokenConfig';
+import { getBaseFiatTokenDetails, getOnChainTokenDetails, OnChainToken, FiatToken } from 'shared';
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';

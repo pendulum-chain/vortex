@@ -1,10 +1,10 @@
-import { Keyring } from '@polkadot/api';
-import Big from 'big.js';
-import { Request, Response } from 'express';
+import { Keyring } from "@polkadot/api";
+import Big from "big.js";
+import { Request, Response } from "express";
 
-import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
-import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '../../constants/tokenConfig';
-import { ApiManager } from '../services/pendulum/apiManager';
+import { PENDULUM_FUNDING_SEED } from "../../constants/constants";
+import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from "shared";
+import { ApiManager } from "../services/pendulum/apiManager";
 
 interface SubsidizePreSwapRequest {
   address: string;
@@ -20,20 +20,22 @@ interface SubsidizePostSwapRequest {
 
 const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {
-    throw new Error('PENDULUM_FUNDING_SEED is not configured');
+    throw new Error("PENDULUM_FUNDING_SEED is not configured");
   }
 
-  const keyring = new Keyring({ type: 'sr25519' });
+  const keyring = new Keyring({ type: "sr25519" });
   return keyring.addFromUri(PENDULUM_FUNDING_SEED);
 };
 
 const validateSubsidyAmount = (amount: string, maxAmount: string) => {
   if (Big(amount).gt(Big(maxAmount))) {
-    throw new Error('Amount exceeds maximum subsidy amount');
+    throw new Error("Amount exceeds maximum subsidy amount");
   }
 };
 
-const getPendulumCurrencyConfig = (token: string): StellarTokenConfig | XCMTokenConfig => {
+const getPendulumCurrencyConfig = (
+  token: string
+): StellarTokenConfig | XCMTokenConfig => {
   const normalizedToken = token.toLowerCase() as keyof typeof TOKEN_CONFIG;
   const config = TOKEN_CONFIG[normalizedToken];
 
@@ -44,10 +46,13 @@ const getPendulumCurrencyConfig = (token: string): StellarTokenConfig | XCMToken
   return config;
 };
 
-export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequest>, res: Response): Promise<void> => {
+export const subsidizePreSwap = async (
+  req: Request<{}, {}, SubsidizePreSwapRequest>,
+  res: Response
+): Promise<void> => {
   try {
     const { address, amountRaw, tokenToSubsidize } = req.body;
-    console.log('Subsidize pre swap', address, amountRaw, tokenToSubsidize);
+    console.log("Subsidize pre swap", address, amountRaw, tokenToSubsidize);
 
     const config = getPendulumCurrencyConfig(tokenToSubsidize);
 
@@ -56,22 +61,26 @@ export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequ
     const fundingAccountKeypair = getFundingAccount();
 
     const apiManager = ApiManager.getInstance();
-    const networkName = 'pendulum';
+    const networkName = "pendulum";
     await apiManager.executeApiCall(
       (api) => {
-        return api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw);
+        return api.tx.tokens.transfer(
+          address,
+          config.pendulumCurrencyId,
+          amountRaw
+        );
       },
       fundingAccountKeypair,
-      networkName,
+      networkName
     );
 
-    res.json({ message: 'Subsidy transferred successfully' });
+    res.json({ message: "Subsidy transferred successfully" });
     return;
   } catch (error) {
-    console.error('Error in subsidizePreSwap::', error);
+    console.error("Error in subsidizePreSwap::", error);
     res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      error: "Server error",
+      details: error instanceof Error ? error.message : "Unknown error",
     });
     return;
   }
@@ -79,11 +88,11 @@ export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequ
 
 export const subsidizePostSwap = async (
   req: Request<{}, {}, SubsidizePostSwapRequest>,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   try {
     const { address, amountRaw, token } = req.body;
-    console.log('Subsidize post swap', address, amountRaw, token);
+    console.log("Subsidize post swap", address, amountRaw, token);
 
     const config = getPendulumCurrencyConfig(token);
 
@@ -92,19 +101,19 @@ export const subsidizePostSwap = async (
     const fundingAccountKeypair = getFundingAccount();
 
     const apiManager = ApiManager.getInstance();
-    const networkName = 'pendulum';
+    const networkName = "pendulum";
     const apiInstance = await apiManager.getApi(networkName);
     await apiInstance.api.tx.tokens
       .transfer(address, config.pendulumCurrencyId, amountRaw)
       .signAndSend(fundingAccountKeypair);
 
-    res.json({ message: 'Subsidy transferred successfully' });
+    res.json({ message: "Subsidy transferred successfully" });
     return;
   } catch (error) {
-    console.error('Error in subsidizePostSwap::', error);
+    console.error("Error in subsidizePostSwap::", error);
     res.status(500).json({
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      error: "Server error",
+      details: error instanceof Error ? error.message : "Unknown error",
     });
     return;
   }

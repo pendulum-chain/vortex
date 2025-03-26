@@ -11,7 +11,7 @@ import {
   FiatToken,
   EvmToken,
   TokenType,
-} from '../../constants/tokenConfig';
+} from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 import { useNetwork } from '../../contexts/network';
