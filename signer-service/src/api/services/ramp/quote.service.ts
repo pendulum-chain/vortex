@@ -143,7 +143,7 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-  ): Promise<{ receiveAmount: string; fees: string }> {
+  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string }> {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
@@ -192,7 +192,11 @@ export class QuoteService extends BaseRampService {
         .minus(outputAmountAfterFees)
         .toFixed(2, 0);
 
-      return { receiveAmount: outputAmountAfterFees, fees: effectiveFees };
+      return {
+        receiveAmount: outputAmountAfterFees,
+        fees: effectiveFees,
+        outputAmountBeforeFees: amountOut.roundedDownQuotedAmountOut.toString(),
+      };
     } catch (error) {
       logger.error('Error calculating output amount:', error);
       throw new APIError({

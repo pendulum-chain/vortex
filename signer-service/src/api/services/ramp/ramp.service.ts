@@ -49,7 +49,7 @@ export class RampService extends BaseRampService {
     route: string = '/v1/ramp/register',
   ): Promise<RegisterRampResponse> {
     return this.withTransaction(async (transaction) => {
-      const { signingAccounts, quoteId } = request;
+      const { signingAccounts, quoteId, additionalData } = request;
 
       // Get and validate the quote
       const quoteModel = await QuoteTicket.findByPk(quoteId, { transaction });
@@ -85,7 +85,14 @@ export class RampService extends BaseRampService {
       if (quote.rampType === 'off') {
         unsignedTxs = await prepareOfframpTransactions(quote, signingAccounts);
       } else {
-        unsignedTxs = await prepareOnrampTransactions(quote, signingAccounts);
+        //validate we have the destination address
+        if (!additionalData || additionalData['destinationAddress'] === undefined) {
+          throw new APIError({
+            status: httpStatus.BAD_REQUEST,
+            message: 'Destination address is required for onramp',
+          });
+        }
+        unsignedTxs = await prepareOnrampTransactions(quote, signingAccounts, additionalData['destinationAddress']);
       }
 
       // Mark the quote as consumed

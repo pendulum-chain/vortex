@@ -7,20 +7,24 @@ import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
 import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetails,
+  getPendulumDetails,
   isEvmTokenDetails,
   isFiatToken,
   isMoonbeamTokenDetails,
   isOnChainToken,
 } from '../../../config/tokens';
-import { createMoonbeamToPendulumXCM } from './moonbeam/moonbeamToPendulum';
+import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
+import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import Big from 'big.js';
+import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
 export async function prepareOnrampTransactions(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[],
+  destinationAddress: string,
 ): Promise<UnsignedTx[]> {
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -52,7 +56,13 @@ export async function prepareOnrampTransactions(
     throw new Error(`Input token must be Moonbeam token for onramp, got ${quote.inputCurrency}`);
   }
 
+  const outputTokenDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toString();
+  const outputAmountRaw = multiplyByPowerOfTen(
+    new Big(quote.outputAmount + quote.fee),
+    outputTokenDetails.pendulumDecimals,
+  ).toString(); //TODO I would prefer to store the w/o fee amount on the quote entry
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
@@ -74,33 +84,7 @@ export async function prepareOnrampTransactions(
         console.log('Output token is not an EVM token, skipping onramp transaction creation for Moonbeam ephemeral');
         continue;
       }
-
-      const moonbeamEphemeralStartingNonce = 0; // TODO fetch from chain
-
-      const { approveData, swapData } = await createOnrampSquidrouterTransactions({
-        outputTokenDetails,
-        toNetwork,
-        rawAmount,
-        addressDestination: account.address,
-        fromAddress: account.address,
-        moonbeamEphemeralStartingNonce,
-      });
-
-      unsignedTxs.push({
-        tx_data: encodeEvmTransactionData(approveData),
-        phase: 'moonbeam', // TODO assign correct phase
-        network: account.network,
-        nonce: 0,
-        signer: account.address,
-      });
-      unsignedTxs.push({
-        tx_data: encodeEvmTransactionData(swapData),
-        phase: 'moonbeam', // TODO assign correct phase
-        network: account.network,
-        nonce: 0,
-        signer: account.address,
-      });
-
+      const moonbeamEphemeralStartingNonce = 0;
       const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
         pendulumEphemeralEntry.address,
         inputAmountRaw,
@@ -110,14 +94,62 @@ export async function prepareOnrampTransactions(
         tx_data: encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
         phase: 'moonbeamToPendulumXCM',
         network: account.network,
-        nonce: 0,
+        nonce: moonbeamEphemeralStartingNonce,
         signer: account.address,
       });
+
+      if (toNetworkId !== getNetworkId(Networks.AssetHub)) {
+        const { approveData, swapData } = await createOnrampSquidrouterTransactions({
+          outputTokenDetails,
+          toNetwork,
+          rawAmount,
+          addressDestination: account.address,
+          fromAddress: account.address,
+          moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 1,
+        });
+
+        unsignedTxs.push({
+          tx_data: encodeEvmTransactionData(approveData),
+          phase: 'moonbeam', // TODO assign correct phase
+          network: account.network,
+          nonce: moonbeamEphemeralStartingNonce + 1,
+          signer: account.address,
+        });
+        unsignedTxs.push({
+          tx_data: encodeEvmTransactionData(swapData),
+          phase: 'moonbeam', // TODO assign correct phase
+          network: account.network,
+          nonce: moonbeamEphemeralStartingNonce + 2,
+          signer: account.address,
+        });
+      }
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      if (toNetworkId === getNetworkId(Networks.AssetHub)) {
-        // TODO implement creation of unsigned ephemeral tx for Pendulum -> AssetHub
-      } else if (toNetworkId === getNetworkId(Networks.Moonbeam)) {
-        // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam
+      if (toNetworkId !== getNetworkId(Networks.AssetHub)) {
+        const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
+          moonbeamEphemeralEntry.address,
+          outputAmountRaw,
+          outputTokenDetails.pendulumCurrencyId,
+        );
+        unsignedTxs.push({
+          tx_data: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
+          phase: 'pendulumToMoonbeamXcm',
+          network: account.network,
+          nonce: 2,
+          signer: account.address,
+        });
+      } else {
+        const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
+          destinationAddress,
+          outputTokenDetails.pendulumCurrencyId,
+          outputAmountRaw,
+        );
+        unsignedTxs.push({
+          tx_data: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction),
+          phase: 'pendulumToAssethubXcm',
+          network: account.network,
+          nonce: 2,
+          signer: account.address,
+        });
       }
     }
   }
