@@ -19,7 +19,7 @@ export const RatingForm: React.FC<RatingFormProps> = ({ onSubmit, isFormSubmitte
   return (
     <>
       <h2 className="w-full text-center text-md sm:text-lg">
-        {isFormSubmitted ? t('rating.thankYou') : t('rating.howWouldYouRateYourExperience')}
+        {isFormSubmitted ? t('components.rating.thankYou') : t('components.rating.howWouldYouRateYourExperience')}
       </h2>
       <form className={cn('rating rating-lg mt-2.5 pb-5 flex flex-row-reverse', isFormSubmitted && 'rating-checked')}>
         <AnimatePresence>
