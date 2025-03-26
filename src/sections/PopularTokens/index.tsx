@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '../../helpers/cn';
 
 import { Networks, getNetworkDisplayName } from '../../helpers/networks';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
@@ -29,9 +30,11 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
 
   return (
     <motion.li
-      className={`flex items-center justify-center px-4 py-2 shadow-lg rounded-full ${bgColor} ${
-        onClick ? 'cursor-pointer active:bg-gray-400 active:scale-95' : ''
-      }`}
+      className={cn(
+        'flex items-center justify-center px-4 py-2 shadow-lg rounded-full',
+        bgColor,
+        onClick && 'cursor-pointer active:bg-gray-400 active:scale-95',
+      )}
       whileHover={{
         scale: 1.05,
         rotate: [0, -1, 1, -1, 0],
