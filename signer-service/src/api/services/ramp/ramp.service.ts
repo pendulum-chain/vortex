@@ -1,12 +1,9 @@
-import { v4 as uuidv4 } from 'uuid';
 import { BaseRampService, PresignedTx, RampStateData, UnsignedTx } from './base.service';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
-import PhaseMetadata from '../../../models/phaseMetadata.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
-import { Transaction } from 'sequelize';
 import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';

@@ -15,7 +15,7 @@ export type FiatTokenDetails = StellarTokenDetails | MoonbeamTokenDetails;
 /**
  * Type guard for EVM tokens
  */
-export function isEvmTokendDetails(token: TokenDetails): token is EvmTokenDetails {
+export function isEvmTokenDetails(token: TokenDetails): token is EvmTokenDetails {
   return token.type === TokenType.Evm;
 }
 
@@ -44,7 +44,7 @@ export function isMoonbeamTokenDetails(token: TokenDetails): token is MoonbeamTo
  * Type guard for on-chain tokens
  */
 export function isOnChainTokenDetails(token: TokenDetails): token is OnChainTokenDetails {
-  return isEvmTokendDetails(token) || isAssetHubTokenDetails(token);
+  return isEvmTokenDetails(token) || isAssetHubTokenDetails(token);
 }
 
 /**
@@ -82,4 +82,8 @@ export function isAssetHubToken(token: string): token is AssetHubToken {
 
 export function isEvmToken(token: string): token is EvmToken {
   return Object.values(EvmToken).includes(token.toLowerCase() as EvmToken);
+}
+
+export function isOnChainToken(token: string): token is EvmToken | AssetHubToken {
+  return isEvmToken(token) || isAssetHubToken(token);
 }

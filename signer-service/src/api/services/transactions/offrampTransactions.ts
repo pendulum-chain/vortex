@@ -1,11 +1,11 @@
-import QuoteTicket, { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
+import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
 import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
 import { encodeEvmTransactionData } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
-import { getOnChainTokenDetails, isEvmToken, isFiatTokenEnum } from '../../../config/tokens';
+import { getOnChainTokenDetails, isEvmTokenDetails, isOnChainToken } from '../../../config/tokens';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -25,7 +25,7 @@ export async function prepareOfframpTransactions(
 
     const rawAmount = quote.inputAmount; // TODO convert to raw amount
 
-    if (isFiatTokenEnum(quote.inputCurrency)) {
+    if (!isOnChainToken(quote.inputCurrency)) {
       throw new Error(`Input currency cannot be fiat token ${quote.inputCurrency} for offramp.`);
     }
     const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency);
@@ -36,7 +36,7 @@ export async function prepareOfframpTransactions(
     // If the network defined for the account is the same as the network of the input token, we know it's the transaction
     // on the source network that needs to be signed by the user wallet and not an ephemeral.
     if (accountNetworkId === fromNetworkId) {
-      if (isEvmToken(inputTokenDetails)) {
+      if (isEvmTokenDetails(inputTokenDetails)) {
         const { approveData, swapData } = await createOfframpSquidrouterTransactions({
           inputTokenDetails,
           fromNetwork: account.network,

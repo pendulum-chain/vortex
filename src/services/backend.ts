@@ -49,8 +49,8 @@ export interface RampQuoteRequest {
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
-  inputCurrency: string;
-  outputCurrency: string;
+  inputCurrency: OnChainToken | FiatToken;
+  outputCurrency: OnChainToken | FiatToken;
 }
 
 export interface RampQuoteResponse {
@@ -59,9 +59,9 @@ export interface RampQuoteResponse {
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
-  inputCurrency: string;
+  inputCurrency: OnChainToken | FiatToken;
   outputAmount: string;
-  outputCurrency: string;
+  outputCurrency: OnChainToken | FiatToken;
   fee: string;
   expiresAt: Date;
 }

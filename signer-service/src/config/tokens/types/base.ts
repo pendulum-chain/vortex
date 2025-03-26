@@ -19,6 +19,8 @@ export enum AssetHubToken {
   USDC = 'usdc',
 }
 
+export type NablaToken = EvmToken | AssetHubToken | StellarTokenConfig | MoonbeamTokenConfig;
+
 // Combines fiat currencies with tokens in one type
 export type RampCurrency = keyof typeof FiatToken | keyof typeof AssetHubToken | keyof typeof EvmToken;
 
@@ -51,7 +53,3 @@ export interface BaseFiatTokenDetails {
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
 }
-
-export type OnChainToken = string;
-
-export type NablaToken = EvmToken | AssetHubToken | StellarTokenConfig | MoonbeamTokenConfig;

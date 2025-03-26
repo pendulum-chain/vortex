@@ -153,9 +153,30 @@ export class QuoteService extends BaseRampService {
     try {
       const fromNetwork = getNetworkFromDestination(from);
       const toNetwork = getNetworkFromDestination(to);
+      if (rampType === 'on' && !toNetwork) {
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: 'Invalid toNetwork for onramp.',
+        });
+      }
+      if (rampType === 'off' && !fromNetwork) {
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: 'Invalid fromNetwork for offramp.',
+        });
+      }
 
-      const inputTokenPendulumDetails = getPendulumDetails(inputCurrency as any, fromNetwork);
-      const outputTokenPendulumDetails = getPendulumDetails(outputCurrency as any, toNetwork);
+      const inputTokenPendulumDetails =
+        rampType === 'on' ? getPendulumDetails(inputCurrency) : getPendulumDetails(inputCurrency, fromNetwork);
+      const outputTokenPendulumDetails =
+        rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
+
+      if (Big(inputAmount).lte(0)) {
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: 'Invalid input amount',
+        });
+      }
 
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
@@ -165,7 +186,6 @@ export class QuoteService extends BaseRampService {
       });
 
       const outputAmountAfterFees = calculateTotalReceive(amountOut.roundedDownQuotedAmountOut, outputCurrency);
-      console.log('outputAmountAfterFees', outputAmountAfterFees);
       return outputAmountAfterFees;
     } catch (error) {
       logger.error('Error calculating output amount:', error);

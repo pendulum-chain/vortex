@@ -1,9 +1,8 @@
 import Big from 'big.js';
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ApiPromise } from '@polkadot/api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { calculateOfframpTotalReceive } from '../../components/FeeCollapse';
-import { requestRampQuote, startRampProcess, PresignedTransaction, RampQuoteRequest } from '../../services/backend';
+import { RampQuoteRequest, requestRampQuote } from '../../services/backend';
 import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 
@@ -15,38 +14,39 @@ import { TrustedBy } from '../../sections/TrustedBy';
 import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
+  AssetHubToken,
+  FiatToken,
+  getAnyFiatTokenDetails,
   getEnumKeyByStringValue,
   getOnChainTokenDetailsOrDefault,
-  getAnyFiatTokenDetails,
-  OnChainToken,
-  FiatToken,
-  ON_CHAIN_TOKEN_CONFIG,
   MOONBEAM_FIAT_TOKEN_CONFIG,
+  ON_CHAIN_TOKEN_CONFIG,
+  OnChainToken,
   STELLAR_FIAT_TOKEN_CONFIG,
 } from '../../constants/tokenConfig';
 import { config } from '../../config';
 
-import { useEventsContext, clearPersistentErrorEventStore } from '../../contexts/events';
+import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { useMoonbeamNode, usePendulumNode } from '../../contexts/polkadotNode';
+import { usePendulumNode } from '../../contexts/polkadotNode';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM } from '../../helpers/networks';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import {
   useRampActions,
-  useRampState,
-  useRampInitiating,
-  useRampStarted,
-  useRampSummaryVisible,
   useRampExecutionInput,
+  useRampInitiating,
   useRampKycStarted,
   useRampSigningPhase,
+  useRampStarted,
+  useRampState,
+  useRampSummaryVisible,
 } from '../../stores/offrampStore';
-import { RampExecutionInput, RampingState, RampSigningPhase } from '../../types/phases';
+import { RampExecutionInput } from '../../types/phases';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { BaseLayout } from '../../layouts';
@@ -171,8 +171,8 @@ export const SwapPage = () => {
         from,
         to,
         inputAmount: fromAmount.toString(),
-        inputCurrency: from.toLowerCase(),
-        outputCurrency: to.toLowerCase(),
+        inputCurrency: AssetHubToken.USDC,
+        outputCurrency: FiatToken.EURC,
       };
 
       const quoteResponse = await requestRampQuote(quoteRequest);

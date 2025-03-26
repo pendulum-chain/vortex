@@ -1,5 +1,6 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
+import { DestinationType } from '../api/helpers/networks';
 
 // Define the attributes of the RampState model
 interface RampStateAttributes {
@@ -8,8 +9,8 @@ interface RampStateAttributes {
   currentPhase: string;
   unsignedTxs: any[]; // JSONB array
   presignedTxs: any[]; // JSONB array
-  from: string;
-  to: string;
+  from: DestinationType;
+  to: DestinationType;
   state: any; // JSONB
   quoteId: string; // UUID reference to QuoteTicket
   phaseHistory: { phase: string; timestamp: Date; metadata?: any }[]; // JSONB array
@@ -28,8 +29,8 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   public currentPhase!: string;
   public unsignedTxs!: any[];
   public presignedTxs!: any[];
-  public from!: string;
-  public to!: string;
+  public from!: DestinationType;
+  public to!: DestinationType;
   public state!: any;
   public quoteId!: string;
   public phaseHistory!: { phase: string; timestamp: Date; metadata?: any }[];

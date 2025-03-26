@@ -124,10 +124,12 @@ export function getPendulumCurrencyId(fiatToken: FiatToken) {
 /**
  * Get Pendulum details for a token
  */
-export function getPendulumDetails(tokenType: EvmToken | AssetHubToken | FiatToken, network: Networks | undefined) {
+export function getPendulumDetails(tokenType: RampCurrency, network?: Networks) {
   const tokenDetails = isFiatTokenEnum(tokenType)
     ? getAnyFiatTokenDetails(tokenType)
-    : getOnChainTokenDetailsOrDefault(network as Networks, tokenType as EvmToken | AssetHubToken);
+    : network
+    ? getOnChainTokenDetailsOrDefault(network, tokenType as EvmToken | AssetHubToken)
+    : undefined;
 
   if (!tokenDetails) {
     throw new Error('Invalid token provided for pendulum details.');
