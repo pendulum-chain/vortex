@@ -1,4 +1,5 @@
 import { UseFormRegisterReturn } from 'react-hook-form';
+import { cn } from '../../helpers/cn';
 
 const patterns: Record<string, string> = {
   email: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
@@ -34,10 +35,10 @@ export const TextInput = ({
 }: TextInputProps) => (
   <div className="flex-grow text-black font-outfit">
     <input
-      className={
-        'input input-lg w-full font-outfit py-2 pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200 ' +
-        additionalStyle
-      }
+      className={cn(
+        'input input-lg w-full font-outfit py-2 pl-2 focus:outline-none focus:text-accent-content text-accent-content disabled:text-gray-200',
+        additionalStyle,
+      )}
       type={type || 'text'}
       autoComplete="off"
       autoCorrect="off"
