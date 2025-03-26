@@ -2,7 +2,7 @@
  * Helper functions for token configuration
  */
 
-import { FiatToken } from '../types/base';
+import { FiatToken, RampCurrency } from '../types/base';
 import { EvmToken } from '../types/evm';
 import { AssetHubToken } from '../types/base';
 import { TokenDetails, OnChainTokenDetails, FiatTokenDetails } from './typeGuards';
@@ -16,10 +16,7 @@ import { Networks } from '../../../api/helpers/networks';
 /**
  * Get token details for a specific network and token
  */
-export function getOnChainTokenDetails(
-  network: Networks,
-  onChainToken: EvmToken | AssetHubToken,
-): OnChainTokenDetails | undefined {
+export function getOnChainTokenDetails(network: Networks, onChainToken: RampCurrency): OnChainTokenDetails | undefined {
   const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
 
   try {
@@ -37,10 +34,7 @@ export function getOnChainTokenDetails(
 /**
  * Get token details for a specific network and token, with fallback to default
  */
-export function getOnChainTokenDetailsOrDefault(
-  network: Networks,
-  onChainToken: EvmToken | AssetHubToken,
-): OnChainTokenDetails {
+export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken: RampCurrency): OnChainTokenDetails {
   const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
   if (maybeOnChainTokenDetails) {
     return maybeOnChainTokenDetails;
@@ -124,10 +118,10 @@ export function getPendulumCurrencyId(fiatToken: FiatToken) {
 /**
  * Get Pendulum details for a token
  */
-export function getPendulumDetails(tokenType: EvmToken | AssetHubToken | FiatToken, network: Networks) {
+export function getPendulumDetails(tokenType: RampCurrency, network: Networks) {
   const tokenDetails = isFiatTokenEnum(tokenType)
     ? getAnyFiatTokenDetails(tokenType)
-    : getOnChainTokenDetailsOrDefault(network, tokenType as EvmToken | AssetHubToken);
+    : getOnChainTokenDetailsOrDefault(network, tokenType);
 
   if (!tokenDetails) {
     throw new Error('Invalid token provided for pendulum details.');

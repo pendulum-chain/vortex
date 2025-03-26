@@ -13,22 +13,12 @@ export enum FiatToken {
   BRL = 'brl',
 }
 
-export enum FiatCurreny {
-  EUR = 'eur',
-  ARS = 'ars',
-  BRL = 'brl',
-}
-
 export enum AssetHubToken {
   USDC = 'usdc',
 }
 
 // Combines fiat currencies with tokens in one type
-export type RampCurrency =
-  | keyof typeof FiatCurreny
-  | keyof typeof FiatToken
-  | keyof typeof AssetHubToken
-  | keyof typeof EvmToken;
+export type RampCurrency = keyof typeof FiatToken | keyof typeof AssetHubToken | keyof typeof EvmToken;
 
 export type PendulumCurrencyId = { Stellar: { AlphaNum4: { code: string; issuer: string } } } | { XCM: number };
 
