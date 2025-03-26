@@ -20,7 +20,7 @@ import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { TermsAndConditions } from '../TermsAndConditions';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
-import { UserBalance } from '../UserBalance';
+import { UserBalanceWithIcon } from '../UserBalanceWithIcon';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { ExchangeRate } from '../ExchangeRate';
 import { BenefitsList } from '../BenefitsList';
@@ -115,7 +115,7 @@ export const Swap = ({
           onChange={handleInputChange}
           id="fromAmount"
         />
-        <UserBalance token={fromToken} onClick={handleBalanceClick} />
+        <UserBalanceWithIcon token={fromToken} onClick={handleBalanceClick} />
       </>
     ),
     [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick],

@@ -1,14 +1,15 @@
+import { FC, ReactNode } from 'react';
 import { InputTokenDetails } from '../../constants/tokenConfig';
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
-import wallet from '../../assets/wallet-bifold-outline.svg';
 
 interface UserBalanceProps {
   token: InputTokenDetails;
   onClick: (amount: string) => void;
+  children?: ReactNode;
 }
 
-export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
+export const UserBalance: FC<UserBalanceProps> = ({ token, onClick, children }) => {
   const { isDisconnected } = useVortexAccount();
   const inputTokenBalance = useInputTokenBalance({ fromToken: token });
 
@@ -20,7 +21,7 @@ export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
 
   return (
     <div className="flex items-center justify-end mt-1 mr-0.5">
-      <img src={wallet} alt="Available" className="w-5 h-5 mr-0.5" />
+      {children}
       <p>
         {inputTokenBalance} {token.assetSymbol}
       </p>
