@@ -8,6 +8,7 @@ import { Skeleton } from '../../../components/Skeleton';
 import { QuoteProvider } from '../quoteProviders';
 import { formatPrice } from '../helpers';
 import { BaseComparisonProps } from '..';
+import { cn } from '../../../helpers/cn';
 
 interface FeeProviderRowProps extends BaseComparisonProps {
   provider: QuoteProvider;
@@ -95,7 +96,7 @@ export function FeeProviderRow({
   const { t } = useTranslation();
 
   return (
-    <div className={`${isBestRate ? 'bg-green-500/10 rounded-md py-1' : ''}`}>
+    <div className={cn(isBestRate && 'bg-green-500/10 rounded-md py-1')}>
       {isBestRate && (
         <div className="pb-1 ml-4 text-sm italic text-green-700">{t('sections.feeComparison.table.bestRate')}</div>
       )}
@@ -120,7 +121,7 @@ export function FeeProviderRow({
                 )}
               </div>
               {priceDiff && priceDiff.lt(0) && (
-                <div className={`flex justify-end w-full text-red-600`}>
+                <div className="flex justify-end w-full text-red-600">
                   <span className="text-right font-bold">{`${formatPrice(priceDiff)} ${targetAssetSymbol}`}</span>
                 </div>
               )}
