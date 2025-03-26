@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+lib/
+types/
+coverage/
+gql/
+signer-service
+
+*.d.ts
+*.config.*
+.eslintrc.*
