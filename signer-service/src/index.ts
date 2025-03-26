@@ -4,14 +4,12 @@ import { config } from './config/vars';
 import logger from './config/logger';
 import app from './config/express';
 import {
-  FUNDING_SECRET,
-  PENDULUM_FUNDING_SEED,
-  MOONBEAM_EXECUTOR_PRIVATE_KEY,
   CLIENT_DOMAIN_SECRET,
+  FUNDING_SECRET,
+  MOONBEAM_EXECUTOR_PRIVATE_KEY,
+  PENDULUM_FUNDING_SEED,
 } from './constants/constants';
-import { EventPoller } from './api/services/brla/webhooks';
-import { DEFAULT_POLLING_INTERVAL } from './constants/constants';
-import { ApiManager } from './api/services/pendulum/createPolkadotApi';
+import { ApiManager } from './api/services/pendulum/apiManager';
 import { testDatabaseConnection } from './config/database';
 import { runMigrations } from './database/migrator';
 import './models'; // Initialize models
@@ -52,10 +50,8 @@ const initializeApp = async () => {
     // Run database migrations
     await runMigrations();
 
-    // Initialize event poller and API manager
-    const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
-    const apiManager = new ApiManager();
-    await apiManager.populateApi();
+    const apiManager = ApiManager.getInstance();
+    await apiManager.populateAllApis();
 
     // Start background workers
     cleanupWorker.start();
@@ -75,12 +71,4 @@ const initializeApp = async () => {
 // Start the application
 initializeApp();
 
-// Export event poller and API manager for testing
-export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
-export const apiManager = new ApiManager();
-
-/**
- * Exports express
- * @public
- */
 export default app;

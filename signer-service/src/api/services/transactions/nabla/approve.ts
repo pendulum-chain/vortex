@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { Extrinsic, readMessage, ReadMessageResult, createExecuteMessageExtrinsic } from '@pendulum-chain/api-solang';
-import { API } from '../../pendulum/createPolkadotApi';
+import { API } from '../../pendulum/apiManager';
 import { Abi } from '@polkadot/api-contract';
 import { ApiPromise } from '@polkadot/api';
 import Keyring from '@polkadot/keyring';

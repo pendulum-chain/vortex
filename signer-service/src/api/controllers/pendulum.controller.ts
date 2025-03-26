@@ -11,7 +11,7 @@ import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '../../constant
 import { fundEphemeralAccount, getFundingData } from '../services/pendulum/pendulum.service';
 import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../services/pendulum/helpers';
 import { SlackNotifier } from '../services/slack.service';
-import { apiManager } from '../..';
+import { ApiManager, SubstrateApiNetwork } from '../services/pendulum/apiManager';
 
 interface FundEphemeralRequest {
   ephemeralAddress: string;
@@ -33,6 +33,7 @@ export const fundEphemeralAccountController = async (
   res: Response<ApiResponse<void>>,
 ) => {
   const { ephemeralAddress, requiresGlmr } = req.body;
+  const networkName = 'pendulum';
 
   if (!ephemeralAddress) {
     res.status(400).send({ error: 'Invalid request parameters' });
@@ -40,7 +41,7 @@ export const fundEphemeralAccountController = async (
   }
 
   try {
-    const result = await fundEphemeralAccount(ephemeralAddress, Boolean(requiresGlmr));
+    const result = await fundEphemeralAccount(networkName, ephemeralAddress, Boolean(requiresGlmr));
     if (result) {
       res.json({ status: 'success', data: undefined });
       return;
@@ -62,7 +63,9 @@ interface StatusResponse {
 
 export const sendStatusWithPk = async (): Promise<StatusResponse> => {
   const slackNotifier = new SlackNotifier();
-  const apiData = await apiManager.getApi();
+  const apiManager = ApiManager.getInstance();
+  const networkName = 'pendulum';
+  const apiData = await apiManager.getApi(networkName);
   const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
   const { data: balance } = (await apiData.api.query.system.account(fundingAccountKeypair.address)) as AccountInfo;
 

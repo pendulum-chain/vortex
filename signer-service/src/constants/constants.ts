@@ -1,6 +1,4 @@
 const HORIZON_URL = 'https://horizon.stellar.org';
-const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
-const NETWORK = 'Pendulum';
 const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN. Minimum balance of funding account
 const PENDULUM_GLMR_FUNDING_AMOUNT_UNITS = '10'; // 10 GLMR. Minimum balance of funding account
 const STELLAR_FUNDING_AMOUNT_UNITS = '10'; // 10 XLM.  Minimum balance of funding account
@@ -32,8 +30,6 @@ const BRLA_LOGIN_USERNAME = process.env.BRLA_LOGIN_USERNAME;
 export {
   GLMR_FUNDING_AMOUNT_RAW,
   HORIZON_URL,
-  PENDULUM_WSS,
-  NETWORK,
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_FUNDING_SEED,

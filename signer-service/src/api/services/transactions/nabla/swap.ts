@@ -3,7 +3,7 @@ import { Abi } from '@polkadot/api-contract';
 import { Extrinsic, readMessage, ReadMessageResult, createExecuteMessageExtrinsic } from '@pendulum-chain/api-solang';
 import { AssetHubToken, EvmToken, FiatToken, getPendulumDetails, NABLA_ROUTER } from '../../../../config/tokens';
 import { createWriteOptions, defaultWriteLimits } from '../../../helpers/contracts';
-import { API } from '../../pendulum/createPolkadotApi';
+import { API } from '../../pendulum/apiManager';
 import { Networks } from '../../../helpers/networks';
 import { config } from '../../../../config';
 import { routerAbi } from '../../../../contracts/Router';

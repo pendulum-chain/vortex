@@ -1,17 +1,10 @@
-import { Keypair } from 'stellar-sdk';
-import { ApiPromise, WsProvider, Keyring } from '@polkadot/api';
+import { Keyring } from '@polkadot/api';
 import Big from 'big.js';
 import { Request, Response } from 'express';
 
-import { PENDULUM_WSS, PENDULUM_FUNDING_SEED } from '../../constants/constants';
-import {
-  TOKEN_CONFIG,
-  StellarTokenConfig,
-  XCMTokenConfig,
-  getPaddedAssetCode,
-  isXCMTokenConfig,
-} from '../../constants/tokenConfig';
-import { apiManager } from '../..';
+import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
+import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '../../constants/tokenConfig';
+import { ApiManager } from '../services/pendulum/apiManager';
 
 interface SubsidizePreSwapRequest {
   address: string;
@@ -62,9 +55,15 @@ export const subsidizePreSwap = async (req: Request<{}, {}, SubsidizePreSwapRequ
 
     const fundingAccountKeypair = getFundingAccount();
 
-    await apiManager.executeApiCall((api) => {
-      return api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw);
-    }, fundingAccountKeypair);
+    const apiManager = ApiManager.getInstance();
+    const networkName = 'pendulum';
+    await apiManager.executeApiCall(
+      (api) => {
+        return api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw);
+      },
+      fundingAccountKeypair,
+      networkName,
+    );
 
     res.json({ message: 'Subsidy transferred successfully' });
     return;
@@ -92,7 +91,12 @@ export const subsidizePostSwap = async (
 
     const fundingAccountKeypair = getFundingAccount();
 
-    await api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw).signAndSend(fundingAccountKeypair);
+    const apiManager = ApiManager.getInstance();
+    const networkName = 'pendulum';
+    const apiInstance = await apiManager.getApi(networkName);
+    await apiInstance.api.tx.tokens
+      .transfer(address, config.pendulumCurrencyId, amountRaw)
+      .signAndSend(fundingAccountKeypair);
 
     res.json({ message: 'Subsidy transferred successfully' });
     return;
