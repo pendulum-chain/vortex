@@ -5,6 +5,7 @@ import { prepareNablaApproveTransaction } from './approve';
 import { AccountMeta } from '../../ramp/ramp.service';
 import { getNetworkFromDestination, Networks } from '../../../helpers/networks';
 import { encodeSubmittableExtrinsic } from '../index';
+import { getOnChainTokenDetails } from '../../../../config/tokens';
 
 export async function createNablaTransactionsForQuote(quote: QuoteTicketAttributes, ephemeral: AccountMeta) {
   if (ephemeral.network !== Networks.Pendulum) {
@@ -24,9 +25,12 @@ export async function createNablaTransactionsForQuote(quote: QuoteTicketAttribut
     throw new Error(`Cannot create Nabla transactions for invalid toNetwork ${quote.to}`);
   }
 
-  const amountRaw = quote.inputAmount;
-  const inputTokenType = quote.inputCurrency;
+  const inputToken = undefined; // quote.inputCurrency;
+  const inputTokenType = getOnChainTokenDetails(fromNetwork, inputToken);
+  const outputToken = undefined; // quote.outputCurrency;
   const outputTokenType = quote.outputCurrency;
+
+  const amountRaw = quote.inputAmount;
   const pendulumEphemeralAddress = ephemeral.address;
   const nablaHardMinimumOutputRaw = quote.outputAmount;
 

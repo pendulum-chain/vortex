@@ -1,7 +1,6 @@
 import sequelize from '../config/database';
 import QuoteTicket from './quoteTicket.model';
 import RampState from './rampState.model';
-import IdempotencyKey from './idempotencyKey.model';
 import PhaseMetadata from './phaseMetadata.model';
 
 // Define associations
@@ -12,7 +11,6 @@ QuoteTicket.hasOne(RampState, { foreignKey: 'quoteId', as: 'rampState' });
 const models = {
   QuoteTicket,
   RampState,
-  IdempotencyKey,
   PhaseMetadata,
 };
 

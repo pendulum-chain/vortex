@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from 'uuid';
 import logger from '../../../config/logger';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
-import IdempotencyKey from '../../../models/idempotencyKey.model';
 import { Transaction, Op } from 'sequelize';
 import sequelize from '../../../config/database';
 import { DestinationType } from '../../helpers/networks';
@@ -139,38 +138,6 @@ export class BaseRampService {
   }
 
   /**
-   * Store an idempotency key with a response
-   */
-  protected async storeIdempotencyKey(
-    key: string,
-    route: string,
-    responseStatus: number,
-    responseBody: any,
-    rampId?: string,
-  ): Promise<IdempotencyKey> {
-    return IdempotencyKey.create({
-      key,
-      route,
-      rampId,
-      responseStatus,
-      responseBody,
-      expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
-    });
-  }
-
-  /**
-   * Get an idempotency key
-   */
-  protected async getIdempotencyKey(key: string, route: string): Promise<IdempotencyKey | null> {
-    return IdempotencyKey.findOne({
-      where: {
-        key,
-        route,
-      },
-    });
-  }
-
-  /**
    * Execute a function within a transaction
    */
   protected async withTransaction<T>(callback: (transaction: Transaction) => Promise<T>): Promise<T> {
@@ -201,20 +168,6 @@ export class BaseRampService {
         },
       },
     );
-    return count;
-  }
-
-  /**
-   * Clean up expired idempotency keys
-   */
-  public async cleanupExpiredIdempotencyKeys(): Promise<number> {
-    const count = await IdempotencyKey.destroy({
-      where: {
-        expiredAt: {
-          [Op.lt]: new Date(),
-        },
-      },
-    });
     return count;
   }
 }

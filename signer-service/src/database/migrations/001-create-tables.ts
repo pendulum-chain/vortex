@@ -129,45 +129,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
   });
 
-  // Create idempotency_keys table
-  await queryInterface.createTable('idempotency_keys', {
-    key: {
-      type: DataTypes.STRING(36),
-      primaryKey: true,
-    },
-    rampId: {
-      type: DataTypes.UUID,
-      allowNull: true,
-      field: 'ramp_id',
-      references: {
-        model: 'ramp_states',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-    },
-    responseStatus: {
-      type: DataTypes.SMALLINT,
-      allowNull: false,
-      field: 'response_status',
-    },
-    responseBody: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      field: 'response_body',
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'created_at',
-    },
-    expiredAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'expired_at',
-    },
-  });
-
   // Create indexes
   await queryInterface.addIndex('quote_tickets', ['from', 'to', 'expires_at'], {
     name: 'idx_quote_chain_expiry',
@@ -183,15 +144,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex('ramp_states', ['quote_id'], {
     name: 'idx_ramp_quote',
   });
-
-  await queryInterface.addIndex('idempotency_keys', ['expired_at'], {
-    name: 'idx_idempotency_expiry',
-  });
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Drop tables in reverse order
-  await queryInterface.dropTable('idempotency_keys');
   await queryInterface.dropTable('ramp_states');
   await queryInterface.dropTable('quote_tickets');
 }

@@ -100,22 +100,6 @@ export interface RampErrorLog {
   details?: Record<string, unknown>;
 }
 
-// Constants for local storage keys
-const IDEMPOTENCY_KEY_STORAGE = 'RAMP_IDEMPOTENCY_KEY';
-
-// Helper function to generate idempotency keys
-const generateIdempotencyKey = (): string => {
-  const key = uuidv4();
-  storageService.set(IDEMPOTENCY_KEY_STORAGE, key);
-  return key;
-};
-
-// Helper function to get stored idempotency key or generate a new one
-const getIdempotencyKey = (): string => {
-  const storedKey = storageService.get(IDEMPOTENCY_KEY_STORAGE);
-  return storedKey || generateIdempotencyKey();
-};
-
 /**
  * Request a quote for ramping
  * @param request Quote request parameters
@@ -136,22 +120,10 @@ export const requestRampQuote = async (request: RampQuoteRequest): Promise<RampQ
 /**
  * Start a new ramping process
  * @param request Start ramp request with quote ID and presigned transactions
- * @param useNewIdempotencyKey Whether to generate a new idempotency key or reuse the last one
  * @returns Ramp process information
  */
-export const startRampProcess = async (
-  request: StartRampRequest,
-  useNewIdempotencyKey = true,
-): Promise<RampProcess> => {
+export const startRampProcess = async (request: StartRampRequest): Promise<RampProcess> => {
   try {
-    const idempotencyKey = useNewIdempotencyKey ? generateIdempotencyKey() : getIdempotencyKey();
-
-    const config: AxiosRequestConfig = {
-      headers: {
-        'Idempotency-Key': idempotencyKey,
-      },
-    };
-
     const response = await apiClient.post<RampProcess>('/ramp/start', request, config);
     return response.data;
   } catch (error) {

@@ -65,8 +65,6 @@ router.get('/quotes/:id', quoteController.getQuote);
  * @apiGroup Ramp
  * @apiPermission public
  *
- * @apiHeader {String} [Idempotency-Key] Idempotency key
- *
  * @apiParam  {String}  quoteId        Quote ID
  * @apiParam  {Array}   signingAccounts   Ephemerals used in the client
  * @apiParam  {Object}  [additionalData] Additional data
@@ -94,8 +92,6 @@ router.post('/register', rampController.registerRamp);
  * @apiName StartRamp
  * @apiGroup Ramp
  * @apiPermission public
- *
- * @apiHeader {String} [Idempotency-Key] Idempotency key
  *
  * @apiParam  {String}  rampId        Ramp ID
  * @apiParam  {Array}   presignedTxs   Presigned transactions

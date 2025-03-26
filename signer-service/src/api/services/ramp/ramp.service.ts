@@ -49,17 +49,8 @@ export class RampService extends BaseRampService {
    */
   public async registerRamp(
     request: RegisterRampRequest,
-    idempotencyKey?: string,
     route: string = '/v1/ramp/register',
   ): Promise<RegisterRampResponse> {
-    // Check if we have a cached response for this idempotency key
-    if (idempotencyKey) {
-      const cachedResponse = await this.getIdempotencyKey(idempotencyKey, route);
-      if (cachedResponse) {
-        return cachedResponse.responseBody;
-      }
-    }
-
     return this.withTransaction(async (transaction) => {
       const { signingAccounts, quoteId } = request;
 
@@ -138,11 +129,6 @@ export class RampService extends BaseRampService {
         updatedAt: rampState.updatedAt,
       };
 
-      // Store idempotency key if provided
-      if (idempotencyKey) {
-        await this.storeIdempotencyKey(idempotencyKey, route, httpStatus.CREATED, response, rampState.id);
-      }
-
       return response;
     });
   }
@@ -150,19 +136,7 @@ export class RampService extends BaseRampService {
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
-  public async startRamp(
-    request: StartRampRequest,
-    idempotencyKey?: string,
-    route: string = '/v1/ramp/start',
-  ): Promise<void> {
-    // Check if we have a cached response for this idempotency key
-    if (idempotencyKey) {
-      const cachedResponse = await this.getIdempotencyKey(idempotencyKey, route);
-      if (cachedResponse) {
-        return cachedResponse.responseBody;
-      }
-    }
-
+  public async startRamp(request: StartRampRequest, route: string = '/v1/ramp/start'): Promise<void> {
     return this.withTransaction(async (transaction) => {
       const rampStateModel = await RampState.findByPk(request.rampId, { transaction });
 
@@ -182,11 +156,6 @@ export class RampService extends BaseRampService {
 
       // We don't return data for this request.
       const response = undefined;
-
-      // Store idempotency key if provided
-      if (idempotencyKey) {
-        await this.storeIdempotencyKey(idempotencyKey, route, httpStatus.OK, response, rampState.id);
-      }
 
       // Start processing the ramp asynchronously
       // We don't await this to avoid blocking the response

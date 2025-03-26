@@ -11,7 +11,6 @@ import logger from '../../config/logger';
 export const registerRamp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { quoteId, signingAccounts, additionalData } = req.body;
-    const idempotencyKey = req.headers['idempotency-key'] as string;
     const route = req.path; // Get the current route path
 
     // Validate required fields
@@ -29,7 +28,6 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
         signingAccounts,
         additionalData,
       },
-      idempotencyKey,
       route,
     );
 
@@ -47,7 +45,6 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
 export const startRamp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { rampId, presignedTxs, additionalData } = req.body;
-    const idempotencyKey = req.headers['idempotency-key'] as string;
     const route = req.path; // Get the current route path
 
     // Validate required fields
@@ -65,7 +62,6 @@ export const startRamp = async (req: Request, res: Response, next: NextFunction)
         presignedTxs,
         additionalData,
       },
-      idempotencyKey,
       route,
     );
 

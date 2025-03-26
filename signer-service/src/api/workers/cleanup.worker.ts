@@ -3,7 +3,7 @@ import quoteService from '../services/ramp/quote.service';
 import { BaseRampService } from '../services/ramp/base.service';
 
 /**
- * Worker to clean up expired quotes and idempotency keys
+ * Worker to clean up expired quotes
  */
 export class CleanupWorker {
   private readonly rampService: BaseRampService;
@@ -59,12 +59,6 @@ export class CleanupWorker {
       logger.info(`Cleaned up ${expiredQuotesCount} expired quotes`);
     }
     // TOOD should we remove expired quotes from the database eventually? Maybe after 1 day or so?
-
-    // Clean up expired idempotency keys
-    const expiredKeysCount = await this.rampService.cleanupExpiredIdempotencyKeys();
-    if (expiredKeysCount > 0) {
-      logger.info(`Cleaned up ${expiredKeysCount} expired idempotency keys`);
-    }
   }
 }
 
