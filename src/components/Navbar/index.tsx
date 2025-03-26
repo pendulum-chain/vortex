@@ -1,6 +1,7 @@
 import { useState, FC } from 'react';
 import { Bars4Icon, XMarkIcon } from '@heroicons/react/20/solid';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../../helpers/cn';
 
 import whiteLogo from '../../assets/logo/white.png';
 import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
@@ -15,9 +16,10 @@ interface MobileMenuProps {
 
 const MobileMenu: FC<MobileMenuProps> = ({ onClick, open }) => (
   <button
-    className={`w-[3rem] ml-2 group btn ${
-      open ? 'bg-blue-950 border-0 shadow-none' : 'btn-vortex-secondary'
-    } btn-circle lg:hidden z-[51]`}
+    className={cn(
+      'w-[3rem] ml-2 group btn btn-circle lg:hidden z-[51]',
+      open ? 'bg-blue-950 border-0 shadow-none' : 'btn-vortex-secondary',
+    )}
     type="button"
     onClick={onClick}
   >
