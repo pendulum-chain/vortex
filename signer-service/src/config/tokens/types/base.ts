@@ -1,5 +1,7 @@
 import { EvmToken } from './evm';
 
+import { MoonbeamTokenConfig, StellarTokenConfig } from '../../../constants/tokenConfig';
+
 export enum TokenType {
   Evm = 'evm',
   AssetHub = 'assethub',
@@ -49,3 +51,7 @@ export interface BaseFiatTokenDetails {
   offrampFeesBasisPoints: number;
   offrampFeesFixedComponent?: number;
 }
+
+export type OnChainToken = string;
+
+export type NablaToken = EvmToken | AssetHubToken | StellarTokenConfig | MoonbeamTokenConfig;

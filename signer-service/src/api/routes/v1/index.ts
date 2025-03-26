@@ -8,7 +8,8 @@ import emailRoutes from './email.route';
 import ratingRoutes from './rating.route';
 import subsidizeRoutes from './subsidize.route';
 import siweRoutes from './siwe.route';
-import quoteRoutes from './price.route';
+import priceRoutes from './price.route';
+import quoteRoutes from './quote.route';
 import brlaRoutes from './brla.route';
 import rampRoutes from './ramp.route';
 
@@ -46,7 +47,12 @@ router.get('/status', sendStatusWithPk);
 // router.use("/docs", express.static("docs"));
 
 /**
- * GET v1/quotes
+ * GET v1/prices
+ */
+router.use('/prices', priceRoutes);
+
+/**
+ * POST v1/quotes
  */
 router.use('/quotes', quoteRoutes);
 

@@ -1,10 +1,15 @@
+import Big from 'big.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseRampService } from './base.service';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import httpStatus from 'http-status';
-import { DestinationType, Networks, PaymentMethod } from '../../helpers/networks';
+import { DestinationType, getNetworkFromDestination, Networks, PaymentMethod } from '../../helpers/networks';
+import { FiatToken, getAnyFiatTokenDetails, getPendulumDetails, isFiatToken } from '../../../config/tokens';
+import { getTokenOutAmount } from '../nablaReads/outAmount';
+import { ApiManager } from '../../../api/services/pendulum/apiManager';
+import { calculateTotalReceive } from '../../helpers/quote';
 import { RampCurrency } from '../../../config/tokens';
 
 export interface QuoteRequest {
@@ -62,7 +67,7 @@ export class QuoteService extends BaseRampService {
       request.to,
     );
 
-    const fee = '0.01'; // Placeholder fee
+    const fee = '0.01'; // TODO fetch from above
 
     // Create quote in database
     const quoteTicket = await QuoteTicket.create({
@@ -133,11 +138,6 @@ export class QuoteService extends BaseRampService {
     }
   }
 
-  /**
-   * Calculate the output amount for a given input
-   * This is a placeholder implementation - in a real system, this would call an external service
-   * or use a more sophisticated calculation based on market rates, fees, etc.
-   */
   private async calculateOutputAmount(
     inputAmount: string,
     inputCurrency: RampCurrency,
@@ -146,22 +146,27 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
   ): Promise<string> {
+    const apiManager = ApiManager.getInstance();
+    const networkName = 'pendulum';
+    const apiInstance = await apiManager.getApi(networkName);
+
     try {
-      // This is a simplified example - in a real implementation, you would:
-      // 1. Call an external price oracle or exchange rate API
-      // 2. Apply any fees or slippage
-      // 3. Consider the specific chain and currencies involved
+      const fromNetwork = getNetworkFromDestination(from);
+      const toNetwork = getNetworkFromDestination(to);
 
-      // For this example, we'll use a fixed exchange rate with a fee
-      const exchangeRate = 0.96; // Example: 1 inputCurrency = 0.96 outputCurrency
-      const fee = 0.01; // 1% fee
+      const inputTokenPendulumDetails = getPendulumDetails(inputCurrency as any, fromNetwork);
+      const outputTokenPendulumDetails = getPendulumDetails(outputCurrency as any, toNetwork);
 
-      const inputAmountNumber = parseFloat(inputAmount);
-      const outputAmountBeforeFee = inputAmountNumber * exchangeRate;
-      const outputAmountAfterFee = outputAmountBeforeFee * (1 - fee);
+      const amountOut = await getTokenOutAmount({
+        api: apiInstance.api,
+        fromAmountString: inputAmount,
+        inputTokenDetails: inputTokenPendulumDetails,
+        outputTokenDetails: outputTokenPendulumDetails,
+      });
 
-      // Format to 6 decimal places
-      return outputAmountAfterFee.toFixed(6);
+      const outputAmountAfterFees = calculateTotalReceive(amountOut.roundedDownQuotedAmountOut, outputCurrency);
+      console.log('outputAmountAfterFees', outputAmountAfterFees);
+      return outputAmountAfterFees;
     } catch (error) {
       logger.error('Error calculating output amount:', error);
       throw new APIError({

@@ -24,6 +24,7 @@
     "@pendulum-chain/api-solang": "^0.7.2",
     "@polkadot/api": "^13.2.1",
     "@polkadot/api-contract": "^13.2.1",
+    "@types/big.js": "^6.2.2",
     "@types/cron": "^2.4.3",
     "ajv": "^8.17.1",
     "big.js": "^6.2.1",
