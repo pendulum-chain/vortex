@@ -2,9 +2,19 @@ import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
 import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
 import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
-import { encodeEvmTransactionData } from './index';
+import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
 import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
-import { getOnChainTokenDetails, isEvmTokenDetails, isOnChainToken } from '../../../config/tokens';
+import {
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetails,
+  isEvmTokenDetails,
+  isFiatToken,
+  isMoonbeamTokenDetails,
+  isOnChainToken,
+} from '../../../config/tokens';
+import { createMoonbeamToPendulumXCM } from './moonbeam/moonbeamToPendulum';
+import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import Big from 'big.js';
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
@@ -20,6 +30,30 @@ export async function prepareOnrampTransactions(
   }
   const toNetworkId = getNetworkId(toNetwork);
 
+  // ensure we have Pendulum, Moonbeam ephemerals
+  const pendulumEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Pendulum);
+  if (!pendulumEphemeralEntry) {
+    throw new Error('Pendulum ephemeral not found');
+  }
+
+  const moonbeamEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
+  if (!moonbeamEphemeralEntry) {
+    throw new Error('Moonbeam ephemeral not found');
+  }
+
+  // validate input token. At this point should be validated by the quote endpoint,
+  // but we need it for the type check
+  if (!isFiatToken(quote.inputCurrency)) {
+    throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
+  }
+  const inputTokenDetails = getAnyFiatTokenDetails(quote.inputCurrency);
+
+  if (!isMoonbeamTokenDetails(inputTokenDetails)) {
+    throw new Error(`Input token must be Moonbeam token for onramp, got ${quote.inputCurrency}`);
+  }
+
+  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toString();
+
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
@@ -32,6 +66,8 @@ export async function prepareOnrampTransactions(
     if (!outputTokenDetails) {
       throw new Error(`Token ${quote.outputCurrency} is not supported for offramp`);
     }
+
+    // TODO implement creation of unsigned ephemeral txs for swaps
 
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       if (!isEvmTokenDetails(outputTokenDetails)) {
@@ -64,12 +100,23 @@ export async function prepareOnrampTransactions(
         nonce: 0,
         signer: account.address,
       });
-    } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      // TODO implement creation of unsigned ephemeral txs for swaps
 
+      const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
+        pendulumEphemeralEntry.address,
+        inputAmountRaw,
+        inputTokenDetails.moonbeamErc20Address,
+      );
+      unsignedTxs.push({
+        tx_data: encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
+        phase: 'moonbeamToPendulumXCM',
+        network: account.network,
+        nonce: 0,
+        signer: account.address,
+      });
+    } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
       if (toNetworkId === getNetworkId(Networks.AssetHub)) {
         // TODO implement creation of unsigned ephemeral tx for Pendulum -> AssetHub
-      } else {
+      } else if (toNetworkId === getNetworkId(Networks.Moonbeam)) {
         // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam
       }
     }

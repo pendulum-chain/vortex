@@ -3,7 +3,7 @@ import { SubmittableExtrinsic } from '@polkadot/api/types';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { KeyringPair } from '@polkadot/keyring/types';
 
-export type SubstrateApiNetwork = 'assethub' | 'pendulum';
+export type SubstrateApiNetwork = 'assethub' | 'pendulum' | 'moonbeam';
 
 export interface NetworkConfig {
   name: SubstrateApiNetwork;
@@ -18,6 +18,10 @@ const NETWORKS: NetworkConfig[] = [
   {
     name: 'pendulum',
     wsUrl: 'wss://rpc-pendulum.prd.pendulumchain.tech',
+  },
+  {
+    name: 'moonbeam',
+    wsUrl: 'wss://moonbeam.unitedbloc.com',
   },
 ];
 
