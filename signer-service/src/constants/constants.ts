@@ -13,7 +13,6 @@ const DEFAULT_POLLING_INTERVAL = 3000;
 const GLMR_FUNDING_AMOUNT_RAW = '50000000000000000';
 
 const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
-const WEBHOOKS_CACHE_PASSWORD = 'password'; // EXAMPLE PASSWORD
 
 import * as dotenv from 'dotenv';
 

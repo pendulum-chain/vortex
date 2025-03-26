@@ -1,4 +1,4 @@
-import { WEBHOOKS_CACHE_URL, WEBHOOKS_CACHE_PASSWORD } from '../../../constants/constants';
+import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
 import { BrlaApiService } from './brlaApiService';
 
 type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT' | 'KYC';
@@ -47,13 +47,9 @@ export class EventPoller {
   }
 
   private async fetchEvents(): Promise<Event[]> {
-    if (!WEBHOOKS_CACHE_PASSWORD) {
-      throw new Error('WEBHOOKS_CACHE_PASSWORD is not defined!');
-    }
-
     const headers = new Headers([
       ['Content-Type', 'application/json'],
-      ['Auth-password', WEBHOOKS_CACHE_PASSWORD],
+      ['Auth-password', 'password'],
     ]);
     const response = await fetch(this.apiUrl, { headers });
     const events: Event[] = await response.json();

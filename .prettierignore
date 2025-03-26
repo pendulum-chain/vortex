@@ -12,7 +12,7 @@ docs/
 
 package-lock.json
 package.json
-yarn.lock
+bun.lock
 favicon.png
 .prettierignore
 

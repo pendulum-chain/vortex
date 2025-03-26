@@ -5,6 +5,7 @@ import logger from './config/logger';
 import app from './config/express';
 import {
   CLIENT_DOMAIN_SECRET,
+  DEFAULT_POLLING_INTERVAL,
   FUNDING_SECRET,
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   PENDULUM_FUNDING_SEED,
@@ -16,6 +17,7 @@ import './models'; // Initialize models
 import cleanupWorker from './api/workers/cleanup.worker';
 import rampRecoveryWorker from './api/workers/ramp-recovery.worker';
 import registerPhaseHandlers from './api/services/phases/register-handlers';
+import { EventPoller } from './api/services/brla/webhooks';
 
 const { port, env } = config;
 
@@ -67,6 +69,8 @@ const initializeApp = async () => {
     process.exit(1);
   }
 };
+
+export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
 
 // Start the application
 initializeApp();
