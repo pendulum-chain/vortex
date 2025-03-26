@@ -12,14 +12,12 @@ import { stellarTokenConfig } from '../stellar/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
 import { Networks, PaymentMethod } from '../../../api/helpers/networks';
+import { OnChainToken } from '../../../../../src/constants/tokenConfig';
 
 /**
  * Get token details for a specific network and token
  */
-export function getOnChainTokenDetails(
-  network: Networks,
-  onChainToken: EvmToken | AssetHubToken,
-): OnChainTokenDetails | undefined {
+export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
   const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
 
   try {
@@ -37,10 +35,7 @@ export function getOnChainTokenDetails(
 /**
  * Get token details for a specific network and token, with fallback to default
  */
-export function getOnChainTokenDetailsOrDefault(
-  network: Networks,
-  onChainToken: EvmToken | AssetHubToken,
-): OnChainTokenDetails {
+export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails {
   const maybeOnChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
   if (maybeOnChainTokenDetails) {
     return maybeOnChainTokenDetails;
@@ -128,7 +123,7 @@ export function getPendulumDetails(tokenType: RampCurrency, network?: Networks) 
   const tokenDetails = isFiatTokenEnum(tokenType)
     ? getAnyFiatTokenDetails(tokenType)
     : network
-    ? getOnChainTokenDetailsOrDefault(network, tokenType as EvmToken | AssetHubToken)
+    ? getOnChainTokenDetailsOrDefault(network, tokenType as OnChainToken)
     : undefined;
 
   if (!tokenDetails) {

@@ -7,6 +7,7 @@ import { EvmToken, EvmTokenDetails } from '../types/evm';
 import { AssetHubTokenDetails } from '../types/assethub';
 import { StellarTokenDetails } from '../types/stellar';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
+import { OnChainToken } from '../../../../../src/constants/tokenConfig';
 
 export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | StellarTokenDetails | MoonbeamTokenDetails;
 export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
@@ -84,6 +85,6 @@ export function isEvmToken(token: string): token is EvmToken {
   return Object.values(EvmToken).includes(token.toLowerCase() as EvmToken);
 }
 
-export function isOnChainToken(token: string): token is EvmToken | AssetHubToken {
+export function isOnChainToken(token: string): token is OnChainToken {
   return isEvmToken(token) || isAssetHubToken(token);
 }
