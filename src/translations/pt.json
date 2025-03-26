@@ -327,15 +327,7 @@
       "poweredBy": "Desenvolvido por",
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados."
     },
-    "toasts": {
-      "amountMismatch": "Valores de saque incompatíveis detectados. Por favor, reinicie o processo de saque.",
-      "kycCompleted": "Sucesso! Prepare-se para sacar.",
-      "kycVerificationFailed": "Não foi possível verificar o status do KYC. Por favor, tente novamente.",
-      "signingFailed": "Falha na assinatura. Por favor, tente novamente.",
-      "walletAlreadyOpen": "Carteira já aberta aguardando conexão. Por favor, tente novamente.",
-      "nodeConnectionError": "Erro ao conectar ao nó. Atualize a página para reconectar.",
-      "genericError": "Ocorreu um erro. Por favor, tente novamente."
-    },
+
     "warningBanner": {
       "title": "Mantenha esta janela aberta",
       "description": "Fechar esta janela interromperá o processo."
@@ -349,5 +341,14 @@
     "useSubmitOfframp": {
       "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."
     }
+  },
+  "toasts": {
+    "amountMismatch": "Valores de saque incompatíveis detectados. Por favor, reinicie o processo de saque.",
+    "kycCompleted": "Sucesso! Prepare-se para sacar.",
+    "kycVerificationFailed": "Não foi possível verificar o status do KYC. Por favor, tente novamente.",
+    "signingFailed": "Falha na assinatura. Por favor, tente novamente.",
+    "walletAlreadyOpen": "Carteira já aberta aguardando conexão. Por favor, tente novamente.",
+    "nodeConnectionError": "Erro ao conectar ao nó. Atualize a página para reconectar.",
+    "genericError": "Ocorreu um erro. Por favor, tente novamente."
   }
 }
