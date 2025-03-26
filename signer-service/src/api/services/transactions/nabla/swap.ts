@@ -11,9 +11,7 @@ import { routerAbi } from '../../../../contracts/Router';
 export interface PrepareNablaSwapParams {
   inputTokenType: EvmToken | AssetHubToken | FiatToken;
   outputTokenType: EvmToken | AssetHubToken | FiatToken;
-  inputAmount: { units: string; raw: string };
-  pendulumAmountRaw: string;
-  outputAmount: { units: string; raw: string };
+  amountRaw: string;
   nablaHardMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
   fromNetwork: Networks;
@@ -72,9 +70,7 @@ export async function createSwapExtrinsic({
 export async function prepareNablaSwapTransaction({
   inputTokenType,
   outputTokenType,
-  inputAmount,
-  outputAmount,
-  pendulumAmountRaw,
+  amountRaw,
   nablaHardMinimumOutputRaw,
   pendulumEphemeralAddress,
   fromNetwork,
@@ -90,13 +86,9 @@ export async function prepareNablaSwapTransaction({
 
   // Try create swap extrinsic
   try {
-    console.log(
-      `Preparing transaction to swap ${inputAmount.units} ${inputToken.pendulumAssetSymbol} to ${outputAmount.units} ${outputToken} `,
-    );
-
     return createSwapExtrinsic({
       api: api,
-      amount: pendulumAmountRaw,
+      amount: amountRaw,
       amountMin: nablaHardMinimumOutputRaw,
       tokenIn: inputToken.pendulumErc20WrapperAddress,
       tokenOut: outputToken.pendulumErc20WrapperAddress,

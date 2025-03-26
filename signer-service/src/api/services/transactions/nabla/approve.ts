@@ -15,8 +15,7 @@ import { parseContractBalanceResponse } from '../../../helpers/contracts';
 
 export interface PrepareNablaApproveParams {
   inputTokenType: EvmToken | AssetHubToken | FiatToken;
-  inputAmount: { units: string; raw: string };
-  pendulumAmountRaw: string;
+  amountRaw: string;
   pendulumEphemeralAddress: string;
   fromNetwork: Networks;
   pendulumNode: API;
@@ -65,8 +64,7 @@ async function createApproveExtrinsic({
 
 export async function prepareNablaApproveTransaction({
   inputTokenType,
-  inputAmount,
-  pendulumAmountRaw,
+  amountRaw,
   pendulumEphemeralAddress,
   fromNetwork,
   pendulumNode,
@@ -74,8 +72,6 @@ export async function prepareNablaApproveTransaction({
   const { ss58Format, api } = pendulumNode;
   // event attempting swap
   const inputToken = getPendulumDetails(inputTokenType, fromNetwork);
-
-  console.log('swap', 'Preparing the signed extrinsic for the approval of swap', inputAmount.units, inputTokenType);
 
   const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
 
@@ -101,12 +97,12 @@ export async function prepareNablaApproveTransaction({
   const currentAllowance = parseContractBalanceResponse(inputToken.pendulumDecimals, response.value);
 
   //maybe do allowance
-  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(pendulumAmountRaw))) {
+  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(amountRaw))) {
     try {
-      console.log(`Preparing transaction to approve tokens: ${inputAmount.units} ${inputToken.pendulumAssetSymbol}`);
+      console.log(`Preparing transaction to approve tokens: ${amountRaw} ${inputToken.pendulumAssetSymbol}`);
       return createApproveExtrinsic({
         api: api,
-        amount: pendulumAmountRaw,
+        amount: amountRaw,
         token: inputToken.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,

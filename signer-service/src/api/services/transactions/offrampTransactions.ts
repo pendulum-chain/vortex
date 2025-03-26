@@ -4,6 +4,7 @@ import { AccountMeta } from '../ramp/ramp.service';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
 import { encodeEvmTransactionData } from './index';
+import { createNablaTransactionsForQuote } from './nabla';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -54,7 +55,24 @@ export async function prepareOfframpTransactions(
     }
     // If network is Pendulum, create all the swap transactions
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      // TODO implement creation of unsigned ephemeral txs for swaps
+      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(quote, account);
+
+      unsignedTxs.push({
+        tx_data: approveTransaction,
+        phase: 'approve', // TODO assign correct phase
+        network: account.network,
+        nonce: 0,
+        signer: account.address,
+      });
+
+      unsignedTxs.push({
+        tx_data: swapTransaction,
+        phase: 'swap', // TODO assign correct phase
+        network: account.network,
+        nonce: 0,
+        signer: account.address,
+      });
+
       if (quote.outputCurrency === 'BRL') {
         // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam
       } else {
