@@ -5,7 +5,7 @@
 import { FiatToken, TokenType } from '../types/base';
 import { StellarTokenDetails } from '../types/stellar';
 
-export const stellarTokenConfig: Record<FiatToken, StellarTokenDetails> = {
+export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>> = {
   [FiatToken.EURC]: {
     type: TokenType.Stellar,
     anchorHomepageUrl: 'https://mykobo.co',
@@ -84,44 +84,5 @@ export const stellarTokenConfig: Record<FiatToken, StellarTokenDetails> = {
     offrampFeesFixedComponent: 10, // 10 ARS
     usesMemo: true,
     supportsClientDomain: true,
-  },
-  [FiatToken.BRL]: {
-    type: TokenType.Stellar,
-    anchorHomepageUrl: 'https://placeholder.com', // Placeholder, update with actual URL
-    tomlFileUrl: 'https://placeholder.com/.well-known/stellar.toml', // Placeholder, update with actual URL
-    decimals: 12,
-    pendulumDecimals: 12,
-    fiat: {
-      assetIcon: 'brl',
-      symbol: 'BRL',
-      name: 'Brazilian Real',
-    },
-    assetSymbol: 'BRL',
-    pendulumAssetSymbol: 'BRL',
-    stellarAsset: {
-      code: {
-        hex: '0x42524c00',
-        string: 'BRL',
-      },
-      issuer: {
-        hex: '0x0000000000000000000000000000000000000000000000000000000000000000', // Placeholder, update with actual value
-        stellarEncoding: 'PLACEHOLDER', // Placeholder, update with actual value
-      },
-    },
-    pendulumCurrencyId: {
-      Stellar: {
-        AlphaNum4: {
-          code: '0x42524c00',
-          issuer: 'BRL',
-        },
-      },
-    },
-    vaultAccountId: '6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs', // Placeholder, update with actual value
-    pendulumErc20WrapperAddress: '6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj', // Placeholder, update with actual value
-    minWithdrawalAmountRaw: '10000000000000', // Placeholder, update with actual value
-    maxWithdrawalAmountRaw: '10000000000000000', // Placeholder, update with actual value
-    offrampFeesBasisPoints: 25, // Placeholder, update with actual value
-    usesMemo: true, // Placeholder, update with actual value
-    supportsClientDomain: true, // Placeholder, update with actual value
   },
 };

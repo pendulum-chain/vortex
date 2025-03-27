@@ -1,3 +1,5 @@
+// TODO we may now de-duplicate this and use StellarTokenDetails from token configs.
+
 export interface StellarTokenConfig {
   assetCode: string;
   assetIssuer: string;

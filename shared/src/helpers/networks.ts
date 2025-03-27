@@ -1,6 +1,6 @@
 import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
 
-export type PaymentMethod = 'pix' | 'sepa';
+export type PaymentMethod = 'pix' | 'sepa' | 'cbu';
 export type DestinationType = keyof typeof Networks | PaymentMethod;
 
 export enum Networks {
@@ -13,6 +13,7 @@ export enum Networks {
   Polygon = 'Polygon',
   Moonbeam = 'Moonbeam',
   Pendulum = 'Pendulum',
+  Stellar = 'Stellar',
 }
 
 /**
@@ -27,10 +28,11 @@ export function getNetworkFromDestination(destination: DestinationType): Network
   return undefined;
 }
 
-// For the AssetHub network, we use a chain ID of -1. This is not a valid chain ID
-// but we just use it to differentiate between the EVM and Polkadot accounts.
+// For the AssetHub/Pendulum/Stellar network, we use a chain ID of -x. This is not a valid chain ID
+// but we just use it to differentiate between the EVM and Polkadot/Stellar accounts.
 export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
+export const STELLAR_CHAIN_ID = -99;
 
 const DEFAULT_NETWORK = Networks.AssetHub;
 
@@ -86,6 +88,11 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.Pendulum]: {
     id: PENDULUM_CHAIN_ID,
     displayName: 'Pendulum',
+    isEVM: false,
+  },
+  [Networks.Stellar]: {
+    id: STELLAR_CHAIN_ID,
+    displayName: 'Stellar',
     isEVM: false,
   },
 };

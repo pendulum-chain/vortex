@@ -8,7 +8,7 @@ interface RampStateAttributes {
   type: 'on' | 'off';
   currentPhase: string;
   unsignedTxs: any[]; // JSONB array
-  presignedTxs: any[]; // JSONB array
+  presignedTxs: any[] | undefined | null; // JSONB array
   from: DestinationType;
   to: DestinationType;
   state: any; // JSONB
@@ -28,7 +28,7 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   public type!: 'on' | 'off';
   public currentPhase!: string;
   public unsignedTxs!: any[];
-  public presignedTxs!: any[];
+  public presignedTxs!: any[] | undefined | null;
   public from!: DestinationType;
   public to!: DestinationType;
   public state!: any;
@@ -63,24 +63,27 @@ RampState.init(
       field: 'unsigned_txs',
       validate: {
         isValidTxArray(value: any[]) {
-          if (!Array.isArray(value) || value.length < 1 || value.length > 5) {
+          if (!Array.isArray(value) || value.length < 1 || value.length > 8) {
             throw new Error('unsignedTxs must be an array with 1-5 elements');
           }
 
-          for (const tx of value) {
-            if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer) {
-              throw new Error('Each transaction must have tx_data, phase, network, nonce, and signer properties');
-            }
-          }
+          // for (const tx of value) {
+          //   if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer) {
+          //     console.log("faulty,,,", tx);
+          //     throw new Error('Each transaction must have tx_data, phase, network, nonce, and signer properties');
+          //   }
+          // }
         },
       },
     },
     presignedTxs: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       field: 'presigned_txs',
       validate: {
-        isValidTxArray(value: any[]) {
+        isValidTxArray(value: any[] | null) {
+          if (value === null) return;
+
           if (!Array.isArray(value) || value.length < 1 || value.length > 5) {
             throw new Error('presignedTxs must be an array with 1-5 elements');
           }

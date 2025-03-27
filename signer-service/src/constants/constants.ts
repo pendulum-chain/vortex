@@ -14,6 +14,8 @@ const GLMR_FUNDING_AMOUNT_RAW = '50000000000000000';
 
 const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
 
+const STELLAR_BASE_FEE = '1000000';
+
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -48,4 +50,5 @@ export {
   BRLA_LOGIN_USERNAME,
   WEBHOOKS_CACHE_URL,
   DEFAULT_POLLING_INTERVAL,
+  STELLAR_BASE_FEE,
 };

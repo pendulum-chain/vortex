@@ -3,7 +3,6 @@
  */
 
 export const HORIZON_URL = 'https://horizon.stellar.org';
-export const STELLAR_BASE_FEE = '1000000';
 export const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the new stellar ephemeral account created
 export const PENDULUM_WSS = 'wss://rpc-pendulum.prd.pendulumchain.tech';
 export const ASSETHUB_WSS = 'wss://polkadot-asset-hub-rpc.polkadot.io';

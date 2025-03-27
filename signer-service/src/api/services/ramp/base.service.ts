@@ -22,7 +22,7 @@ export interface RampStateData {
   type: 'on' | 'off';
   currentPhase: string;
   unsignedTxs: UnsignedTx[];
-  presignedTxs: PresignedTx[];
+  presignedTxs: PresignedTx[] | null;
   from: DestinationType;
   to: DestinationType;
   state: any;

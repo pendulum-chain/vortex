@@ -3,39 +3,47 @@ import { moonbeam } from "viem/chains";
 import { EvmTokenDetails, Networks } from "shared";
 import { createOfframpRouteParams, getRoute } from "./route";
 import erc20ABI from "../../../../contracts/ERC20";
+import {
+  createRandomString,
+  createSquidRouterHash,
+} from "../../../helpers/squidrouter";
+import { decodeAddress } from "@polkadot/util-crypto";
+import { u8aToHex } from "@polkadot/util";
+import encodePayload from "./payload";
+import { getSquidRouterConfig } from "./config";
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;
   rawAmount: string;
   inputTokenDetails: EvmTokenDetails;
   fromNetwork: Networks;
-  addressDestination: string;
+  pendulumAddressDestination: string;
 }
 
 export interface OfframpTransactionData {
   approveData: {
     to: `0x${string}`;
     data: `0x${string}`;
-    value: bigint;
-    gas: bigint;
-    maxFeePerGas?: bigint;
-    maxPriorityFeePerGas?: bigint;
+    value: string;
+    gas: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
   };
   swapData: {
     to: `0x${string}`;
     data: `0x${string}`;
-    value: bigint;
-    gas: bigint;
-    maxFeePerGas?: bigint;
-    maxPriorityFeePerGas?: bigint;
+    value: string;
+    gas: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
   };
 }
 
 export async function createOfframpSquidrouterTransactions(
-  params: OfframpSquidrouterParams
+  params: OfframpSquidrouterParams,
 ): Promise<OfframpTransactionData> {
   if (params.fromNetwork === Networks.AssetHub) {
-    throw new Error("AssetHub is not supported for Squidrouter offramp");
+    throw new Error('AssetHub is not supported for Squidrouter offramp');
   }
 
   const publicClient = createPublicClient({
@@ -43,16 +51,19 @@ export async function createOfframpSquidrouterTransactions(
     transport: http(),
   });
 
-  const receivingContractAddress = "0x2AB52086e8edaB28193172209407FF9df1103CDc"; // TODO move this to some config
-  const squidRouterReceiverHash = "0x1234"; // TODO generate this unique hash
+  const squidRouterReceiverId = createRandomString(32);
+  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(params.pendulumAddressDestination));
+  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
+  const { receivingContractAddress } = getSquidRouterConfig(params.fromNetwork);
+
   const routeParams = createOfframpRouteParams(
     params.fromAddress,
     params.rawAmount,
     params.inputTokenDetails,
     params.fromNetwork,
-    params.addressDestination,
     receivingContractAddress,
-    squidRouterReceiverHash
+    squidRouterReceiverHash,
   );
 
   const routeResult = await getRoute(routeParams);
@@ -62,29 +73,28 @@ export async function createOfframpSquidrouterTransactions(
   const approveTransactionData = encodeFunctionData({
     abi: erc20ABI,
     // address: params.inputToken.erc20AddressSourceChain, // TODO somehow this parameter cannot be specified?
-    functionName: "approve",
+    functionName: 'approve',
     args: [transactionRequest?.target, params.rawAmount],
   });
 
-  const { maxFeePerGas, maxPriorityFeePerGas } =
-    await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
   return {
     approveData: {
       to: params.inputTokenDetails.erc20AddressSourceChain as `0x${string}`, // TODO check if this is correct
-      data: approveTransactionData,
-      value: 0n,
-      gas: BigInt(150000),
-      maxFeePerGas,
-      maxPriorityFeePerGas,
+      data: approveTransactionData as `0x${string}`,
+      value: '0',
+      gas: '150000',
+      maxFeePerGas: String(maxFeePerGas),
+      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
     swapData: {
       to: transactionRequest.target as `0x${string}`,
-      data: transactionRequest.data,
-      value: BigInt(transactionRequest.value),
-      gas: BigInt(transactionRequest.gasLimit),
-      maxFeePerGas,
-      maxPriorityFeePerGas,
+      data: transactionRequest.data as `0x${string}`,
+      value: transactionRequest.value,
+      gas: transactionRequest.gasLimit, //TODO do we still need * 2 here?
+      maxFeePerGas: String(maxFeePerGas),
+      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
   };
 }

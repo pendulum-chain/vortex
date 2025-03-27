@@ -4,12 +4,7 @@ import {
   createExecuteMessageExtrinsic,
   Extrinsic,
 } from "@pendulum-chain/api-solang";
-import {
-  getPendulumDetails,
-  NABLA_ROUTER,
-  Networks,
-  RampCurrency,
-} from "shared";
+import { NABLA_ROUTER, PendulumDetails } from "shared";
 import {
   createWriteOptions,
   defaultWriteLimits,
@@ -19,13 +14,11 @@ import { config } from "../../../../config";
 import { routerAbi } from "../../../../contracts/Router";
 
 export interface PrepareNablaSwapParams {
-  inputCurrency: RampCurrency;
-  outputCurrency: RampCurrency;
+  inputTokenDetails: PendulumDetails;
+  outputTokenDetails: PendulumDetails;
   amountRaw: string;
   nablaHardMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
-  fromNetwork: Networks;
-  toNetwork: Networks;
   pendulumNode: API;
 }
 
@@ -39,8 +32,7 @@ interface CreateSwapExtrinsicOptions {
   callerAddress: string;
 }
 
-const calcDeadline = (min: number) =>
-  `${Math.floor(Date.now() / 1000) + min * 60}`;
+const calcDeadline = (min: number) => `${Math.floor(Date.now() / 1000) + min * 60}`;
 
 export async function createSwapExtrinsic({
   api,
@@ -56,7 +48,7 @@ export async function createSwapExtrinsic({
     api,
     callerAddress: callerAddress,
     contractDeploymentAddress: NABLA_ROUTER,
-    messageName: "swapExactTokensForTokens",
+    messageName: 'swapExactTokensForTokens',
     // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
     messageArguments: [
       amount,
@@ -70,7 +62,7 @@ export async function createSwapExtrinsic({
     skipDryRunning: true, // We have to skip this because it will not work before the approval transaction executed
   });
 
-  if (execution.type === "onlyRpc") {
+  if (execution.type === 'onlyRpc') {
     throw Error("Couldn't create swap extrinsic. Can't execute only-RPC");
   }
 
@@ -79,20 +71,15 @@ export async function createSwapExtrinsic({
 }
 
 export async function prepareNablaSwapTransaction({
-  inputCurrency,
-  outputCurrency,
+  inputTokenDetails,
+  outputTokenDetails,
   amountRaw,
   nablaHardMinimumOutputRaw,
   pendulumEphemeralAddress,
-  fromNetwork,
-  toNetwork,
   pendulumNode,
 }: PrepareNablaSwapParams): Promise<Extrinsic> {
   const { api } = pendulumNode;
 
-  // event attempting swap
-  const inputToken = getPendulumDetails(inputCurrency, fromNetwork);
-  const outputToken = getPendulumDetails(outputCurrency, toNetwork);
   const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
 
   // Try create swap extrinsic
@@ -101,8 +88,8 @@ export async function prepareNablaSwapTransaction({
       api: api,
       amount: amountRaw,
       amountMin: nablaHardMinimumOutputRaw,
-      tokenIn: inputToken.pendulumErc20WrapperAddress,
-      tokenOut: outputToken.pendulumErc20WrapperAddress,
+      tokenIn: inputTokenDetails.pendulumErc20WrapperAddress,
+      tokenOut: outputTokenDetails.pendulumErc20WrapperAddress,
       contractAbi: routerAbiObject,
       callerAddress: pendulumEphemeralAddress,
     });

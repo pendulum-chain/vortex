@@ -7,8 +7,6 @@ const router: Router = Router({ mergeParams: true });
 
 router.route('/create').post(validateCreationInput, stellarController.createStellarTransactionHandler);
 
-router.route('/payment').post(validateChangeOpInput, stellarController.changeOpTransactionHandler);
-
 // Only authorized route. Does not reject the request, but rather passes the memo (if any) derived from a valid cookie in the request.
 router
   .route('/sep10')
