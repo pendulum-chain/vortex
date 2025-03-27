@@ -17,6 +17,7 @@ import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import Big from 'big.js';
 import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
 import { buildPaymentAndMergeTx, PaymentData } from './stellar/offrampTransaction';
+import { Keypair } from 'stellar-sdk';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -123,9 +124,15 @@ export async function prepareOfframpTransactions(
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
           throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
         }
+
+        if (!stellarPaymentData?.offrampingAccount) {
+          throw new Error('Stellar payment data must be provided for offramp');
+        }
+
+        const stellarTargetAccountRaw = Keypair.fromPublicKey(stellarPaymentData.offrampingAccount).rawPublicKey();
         const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
           outputAmountRaw,
-          stellarTargetAccountRaw: Buffer.from(''), // TODO: get the target stellar ephemeral account
+          stellarTargetAccountRaw,
           outputTokenDetails,
           executeSpacewalkNonce: 0,
         });

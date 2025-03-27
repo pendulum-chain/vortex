@@ -70,7 +70,7 @@ export async function prepareOnrampTransactions(
   const outputAmountRaw = multiplyByPowerOfTen(
     new Big(quote.outputAmount).add(new Big(quote.fee)),
     outputTokenDetails.pendulumDecimals,
-  ).toFixed(0, 0); //Nabla output. TODO I would prefer to store the w/o fee amount on the quote entry
+  ).toFixed(0, 0);
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);

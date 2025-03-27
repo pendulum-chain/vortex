@@ -41,7 +41,7 @@ export async function createNablaTransactionsForQuote(quote: QuoteTicketAttribut
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toFixed(0, 0); // TODO we're not allowing subsidy anymore?
+  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toFixed(0, 0);
 
   const approveTransaction = await prepareNablaApproveTransaction({
     inputTokenDetails: inputTokenPendulumDetails,
