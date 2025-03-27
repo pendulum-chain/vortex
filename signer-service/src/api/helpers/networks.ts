@@ -13,6 +13,7 @@ export enum Networks {
   Polygon = 'Polygon',
   Moonbeam = 'Moonbeam',
   Pendulum = 'Pendulum',
+  Stellar = 'Stellar',
 }
 
 /**
@@ -86,6 +87,11 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.Pendulum]: {
     id: PENDULUM_CHAIN_ID,
     displayName: 'Pendulum',
+    isEVM: false,
+  },
+  [Networks.Stellar]: {
+    id: -2,
+    displayName: 'Stellar',
     isEVM: false,
   },
 };

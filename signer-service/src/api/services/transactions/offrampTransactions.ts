@@ -3,15 +3,25 @@ import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
-import { encodeEvmTransactionData } from './index';
+import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
-import { getOnChainTokenDetails, isEvmTokenDetails, isOnChainToken } from '../../../config/tokens';
+import {
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetails,
+  isEvmTokenDetails,
+  isFiatToken,
+  isOnChainToken,
+  isStellarOutputTokenDetails,
+} from '../../../config/tokens';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import Big from 'big.js';
+import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
+import { buildPaymentAndMergeTx, PaymentData } from './stellar/offrampTransaction';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[],
+  stellarPaymentData?: PaymentData,
 ): Promise<UnsignedTx[]> {
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -28,6 +38,18 @@ export async function prepareOfframpTransactions(
   }
   const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency)!;
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0); // Raw amount on initial chain.
+
+  if (!isFiatToken(quote.outputCurrency)) {
+    throw new Error(`Output currency must be fiat token for offramp, got ${quote.outputCurrency}`);
+  }
+  const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
+  const outputAmountBeforeFees = new Big(quote.outputAmount).add(new Big(quote.fee));
+  const outputAmountRaw = multiplyByPowerOfTen(outputAmountBeforeFees, outputTokenDetails.decimals).toFixed(0, 0);
+
+  const stellarEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Stellar);
+  if (!stellarEphemeralEntry) {
+    throw new Error('Stellar ephemeral not found');
+  }
 
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {
@@ -81,7 +103,7 @@ export async function prepareOfframpTransactions(
 
       unsignedTxs.push({
         tx_data: approveTransaction,
-        phase: 'approve', // TODO assign correct phase
+        phase: 'approve',
         network: account.network,
         nonce: 0,
         signer: account.address,
@@ -89,17 +111,62 @@ export async function prepareOfframpTransactions(
 
       unsignedTxs.push({
         tx_data: swapTransaction,
-        phase: 'swap', // TODO assign correct phase
+        phase: 'swap',
         network: account.network,
-        nonce: 0,
+        nonce: 1,
         signer: account.address,
       });
 
       if (quote.outputCurrency === 'BRL') {
         // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam
       } else {
-        // TODO implement creation of unsigned ephemeral tx for Spacewalk, and Stellar transfers + cleanup
+        if (!isStellarOutputTokenDetails(outputTokenDetails)) {
+          throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
+        }
+        const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
+          outputAmountRaw,
+          stellarTargetAccountRaw: Buffer.from(''), // TODO: get the target stellar ephemeral account
+          outputTokenDetails,
+          executeSpacewalkNonce: 0,
+        });
+
+        unsignedTxs.push({
+          tx_data: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
+          phase: 'spacewalkRedeem',
+          network: account.network,
+          nonce: 2,
+          signer: account.address,
+        });
       }
+    } else if (accountNetworkId === getNetworkId(Networks.Stellar)) {
+      if (!isStellarOutputTokenDetails(outputTokenDetails)) {
+        throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
+      }
+      if (!stellarPaymentData) {
+        throw new Error('Stellar payment data must be provided for offramp');
+      }
+
+      const { paymentTransaction, mergeAccountTransaction, startingSequenceNumber } = await buildPaymentAndMergeTx(
+        account.address,
+        stellarPaymentData,
+        outputTokenDetails,
+      );
+
+      unsignedTxs.push({
+        tx_data: paymentTransaction,
+        phase: 'stellarPayment',
+        network: account.network,
+        nonce: Number(startingSequenceNumber),
+        signer: account.address,
+      });
+
+      unsignedTxs.push({
+        tx_data: mergeAccountTransaction,
+        phase: 'stellarCleanup',
+        network: account.network,
+        nonce: Number(startingSequenceNumber) + 1,
+        signer: account.address,
+      });
     }
   }
 

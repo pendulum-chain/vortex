@@ -1,25 +1,13 @@
 import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } from 'stellar-sdk';
-import { HORIZON_URL, FUNDING_SECRET, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../constants/constants';
+import { HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../constants/constants';
 import { StellarTokenConfig, TOKEN_CONFIG, getTokenConfigByAssetCode } from '../../constants/tokenConfig';
-
-export interface PaymentData {
-  amount: string;
-  memo: string;
-  memoType: 'text' | 'hash';
-  offrampingAccount: string;
-}
 
 interface CreationTxResult {
   signature: string[];
   sequence: string;
 }
 
-interface PaymentTxResult {
-  signature: string[];
-}
-
 // Constants
-const FUNDING_PUBLIC_KEY = Keypair.fromSecret(FUNDING_SECRET || '').publicKey();
 export const horizonServer = new Horizon.Server(HORIZON_URL);
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
@@ -75,65 +63,4 @@ async function buildCreationStellarTx(
   };
 }
 
-async function buildPaymentAndMergeTx(
-  fundingSecret: string,
-  ephemeralAccountId: string,
-  ephemeralSequence: string,
-  paymentData: PaymentData,
-  maxTime: number,
-  assetCode: string,
-  baseFee: string,
-): Promise<PaymentTxResult> {
-  const ephemeralAccount = new Account(ephemeralAccountId, ephemeralSequence);
-  const fundingAccountKeypair = Keypair.fromSecret(fundingSecret);
-  const { amount, memo, memoType, offrampingAccount } = paymentData;
-
-  const tokenConfig = getTokenConfigByAssetCode(TOKEN_CONFIG, assetCode) as StellarTokenConfig;
-  if (!tokenConfig) {
-    throw new Error('Invalid asset id or configuration not found');
-  }
-
-  const transactionMemo = memoType === 'text' ? Memo.text(memo) : Memo.hash(Buffer.from(memo, 'base64'));
-
-  const paymentTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: baseFee,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(
-      Operation.payment({
-        amount,
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
-        destination: offrampingAccount,
-      }),
-    )
-    .addMemo(transactionMemo)
-    .setTimebounds(0, maxTime)
-    .build();
-
-  const mergeAccountTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: baseFee,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(
-      Operation.changeTrust({
-        asset: new Asset(tokenConfig.assetCode, tokenConfig.assetIssuer),
-        limit: '0',
-      }),
-    )
-    .addOperation(
-      Operation.accountMerge({
-        destination: FUNDING_PUBLIC_KEY,
-      }),
-    )
-    .setTimebounds(0, maxTime)
-    .build();
-
-  return {
-    signature: [
-      paymentTransaction.getKeypairSignature(fundingAccountKeypair),
-      mergeAccountTransaction.getKeypairSignature(fundingAccountKeypair),
-    ],
-  };
-}
-
-export { buildCreationStellarTx, buildPaymentAndMergeTx };
+export { buildCreationStellarTx };
