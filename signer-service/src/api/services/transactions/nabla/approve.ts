@@ -1,18 +1,26 @@
-import Big from 'big.js';
-import { createExecuteMessageExtrinsic, Extrinsic, readMessage, ReadMessageResult } from '@pendulum-chain/api-solang';
-import { API } from '../../pendulum/apiManager';
-import { Abi } from '@polkadot/api-contract';
-import { ApiPromise } from '@polkadot/api';
-
-import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
-import { getPendulumDetails, NABLA_ROUTER, RampCurrency } from '../../../../config/tokens';
-import { Networks } from '../../../helpers/networks';
+import Big from "big.js";
+import {
+  createExecuteMessageExtrinsic,
+  Extrinsic,
+  readMessage,
+  ReadMessageResult,
+} from "@pendulum-chain/api-solang";
+import { API } from "../../pendulum/apiManager";
+import { Abi } from "@polkadot/api-contract";
+import { ApiPromise } from "@polkadot/api";
+import { erc20WrapperAbi } from "../../../../contracts/ERC20Wrapper";
+import {
+  getPendulumDetails,
+  NABLA_ROUTER,
+  Networks,
+  RampCurrency,
+} from "shared";
 import {
   createWriteOptions,
   defaultReadLimits,
   defaultWriteLimits,
   parseContractBalanceResponse,
-} from '../../../helpers/contracts';
+} from "../../../helpers/contracts";
 
 export interface PrepareNablaApproveParams {
   inputCurrency: RampCurrency;
@@ -39,22 +47,26 @@ async function createApproveExtrinsic({
   contractAbi,
   callerAddress,
 }: CreateApproveExtrinsicOptions) {
-  console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
+  console.log(
+    "write",
+    `call approve ${token} for ${spender} with amount ${amount} `
+  );
 
-  const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
-    abi: contractAbi,
-    api,
-    callerAddress,
-    contractDeploymentAddress: token,
-    messageName: 'approve',
-    messageArguments: [spender, amount],
-    limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
-    gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
-  });
+  const { execution, result: readMessageResult } =
+    await createExecuteMessageExtrinsic({
+      abi: contractAbi,
+      api,
+      callerAddress,
+      contractDeploymentAddress: token,
+      messageName: "approve",
+      messageArguments: [spender, amount],
+      limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
+      gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+    });
 
-  console.log('result', readMessageResult);
+  console.log("result", readMessageResult);
 
-  if (execution.type === 'onlyRpc') {
+  if (execution.type === "onlyRpc") {
     throw Error("Couldn't create approve extrinsic. Can't execute only-RPC");
   }
 
@@ -74,7 +86,10 @@ export async function prepareNablaApproveTransaction({
   // event attempting swap
   const inputToken = getPendulumDetails(inputCurrency, fromNetwork);
 
-  const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
+  const erc20ContractAbi = new Abi(
+    erc20WrapperAbi,
+    api.registry.getChainProperties()
+  );
 
   // call the current allowance of the ephemeral
   const response: ReadMessageResult = await readMessage({
@@ -82,25 +97,33 @@ export async function prepareNablaApproveTransaction({
     api: api,
     contractDeploymentAddress: inputToken.pendulumErc20WrapperAddress,
     callerAddress: pendulumEphemeralAddress,
-    messageName: 'allowance',
+    messageName: "allowance",
     messageArguments: [pendulumEphemeralAddress, NABLA_ROUTER],
     limits: defaultReadLimits,
   });
 
-  console.log('prepareNablaApproveTransaction', response);
+  console.log("prepareNablaApproveTransaction", response);
 
-  if (response.type !== 'success') {
-    const message = 'Could not load token allowance';
+  if (response.type !== "success") {
+    const message = "Could not load token allowance";
     console.log(message);
     throw new Error(message);
   }
 
-  const currentAllowance = parseContractBalanceResponse(inputToken.pendulumDecimals, response.value);
+  const currentAllowance = parseContractBalanceResponse(
+    inputToken.pendulumDecimals,
+    response.value
+  );
 
   //maybe do allowance
-  if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(amountRaw))) {
+  if (
+    currentAllowance === undefined ||
+    currentAllowance.rawBalance.lt(Big(amountRaw))
+  ) {
     try {
-      console.log(`Preparing transaction to approve tokens: ${amountRaw} ${inputToken.pendulumAssetSymbol}`);
+      console.log(
+        `Preparing transaction to approve tokens: ${amountRaw} ${inputToken.pendulumAssetSymbol}`
+      );
       return createApproveExtrinsic({
         api: api,
         amount: amountRaw,
@@ -111,7 +134,7 @@ export async function prepareNablaApproveTransaction({
       });
     } catch (e) {
       console.log(`Could not approve token: ${e}`);
-      return Promise.reject('Could not approve token');
+      return Promise.reject("Could not approve token");
     }
   }
 

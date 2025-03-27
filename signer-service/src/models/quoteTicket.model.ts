@@ -1,12 +1,11 @@
-import { Model, DataTypes, Optional } from 'sequelize';
-import sequelize from '../config/database';
-import { DestinationType } from '../api/helpers/networks';
-import { RampCurrency } from '../config/tokens';
+import { DataTypes, Model, Optional } from "sequelize";
+import sequelize from "../config/database";
+import { DestinationType, RampCurrency } from "shared";
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
   id: string; // UUID
-  rampType: 'on' | 'off';
+  rampType: "on" | "off";
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
@@ -15,18 +14,22 @@ export interface QuoteTicketAttributes {
   outputCurrency: RampCurrency;
   fee: string;
   expiresAt: Date;
-  status: 'pending' | 'consumed' | 'expired';
+  status: "pending" | "consumed" | "expired";
   createdAt: Date;
   updatedAt: Date;
 }
 
 // Define the attributes that can be set during creation
-interface QuoteTicketCreationAttributes extends Optional<QuoteTicketAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface QuoteTicketCreationAttributes
+  extends Optional<QuoteTicketAttributes, "id" | "createdAt" | "updatedAt"> {}
 
 // Define the QuoteTicket model
-class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
+class QuoteTicket
+  extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes>
+  implements QuoteTicketAttributes
+{
   public id!: string;
-  public rampType!: 'on' | 'off';
+  public rampType!: "on" | "off";
   public from!: DestinationType;
   public to!: DestinationType;
   public inputAmount!: string;
@@ -35,7 +38,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
   public outputCurrency!: RampCurrency;
   public fee!: string;
   public expiresAt!: Date;
-  public status!: 'pending' | 'consumed' | 'expired';
+  public status!: "pending" | "consumed" | "expired";
   public createdAt!: Date;
   public updatedAt!: Date;
 }
@@ -49,9 +52,9 @@ QuoteTicket.init(
       primaryKey: true,
     },
     rampType: {
-      type: DataTypes.ENUM('on', 'off'),
+      type: DataTypes.ENUM("on", "off"),
       allowNull: false,
-      field: 'ramp_type',
+      field: "ramp_type",
     },
     from: {
       type: DataTypes.STRING(20),
@@ -64,17 +67,17 @@ QuoteTicket.init(
     inputAmount: {
       type: DataTypes.DECIMAL(38, 18),
       allowNull: false,
-      field: 'input_amount',
+      field: "input_amount",
     },
     inputCurrency: {
       type: DataTypes.STRING(8),
       allowNull: false,
-      field: 'input_currency',
+      field: "input_currency",
     },
     outputAmount: {
       type: DataTypes.DECIMAL(38, 18),
       allowNull: false,
-      field: 'output_amount',
+      field: "output_amount",
     },
     fee: {
       type: DataTypes.DECIMAL(38, 18),
@@ -83,47 +86,47 @@ QuoteTicket.init(
     outputCurrency: {
       type: DataTypes.STRING(8),
       allowNull: false,
-      field: 'output_currency',
+      field: "output_currency",
     },
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      field: 'expires_at',
+      field: "expires_at",
       defaultValue: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
     },
     status: {
-      type: DataTypes.ENUM('pending', 'consumed', 'expired'),
+      type: DataTypes.ENUM("pending", "consumed", "expired"),
       allowNull: false,
-      defaultValue: 'pending',
+      defaultValue: "pending",
     },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      field: 'created_at',
+      field: "created_at",
       defaultValue: DataTypes.NOW,
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      field: 'updated_at',
+      field: "updated_at",
       defaultValue: DataTypes.NOW,
     },
   },
   {
     sequelize,
-    modelName: 'QuoteTicket',
-    tableName: 'quote_tickets',
+    modelName: "QuoteTicket",
+    tableName: "quote_tickets",
     timestamps: true,
     indexes: [
       {
-        name: 'idx_quote_chain_expiry',
-        fields: ['from', 'to', 'expiresAt'],
+        name: "idx_quote_chain_expiry",
+        fields: ["from", "to", "expiresAt"],
         where: {
-          status: 'pending',
+          status: "pending",
         },
       },
     ],
-  },
+  }
 );
 
 export default QuoteTicket;

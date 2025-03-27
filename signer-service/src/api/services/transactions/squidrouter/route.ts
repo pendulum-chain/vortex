@@ -1,10 +1,14 @@
-import axios from 'axios';
-import { getSquidRouterConfig, squidRouterConfigBase } from './config';
-import { getNetworkId, Networks } from '../../../helpers/networks';
-import { AXL_USDC_MOONBEAM, EvmTokenDetails } from '../../../../config/tokens';
-import { encodeFunctionData } from 'viem';
-import erc20ABI from '../../../../contracts/ERC20';
-import { squidReceiverABI } from '../../../../contracts/SquidReceiver';
+import axios from "axios";
+import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
+import {
+  AXL_USDC_MOONBEAM,
+  EvmTokenDetails,
+  getNetworkId,
+  Networks,
+} from "shared";
+import { encodeFunctionData } from "viem";
+import erc20ABI from "../../../../contracts/ERC20";
+import { squidReceiverABI } from "../../../../contracts/SquidReceiver";
 
 export interface RouteParams {
   fromAddress: string;
@@ -34,7 +38,7 @@ export function createOnrampRouteParams(
   amount: string,
   outputTokenDetails: EvmTokenDetails,
   toNetwork: Networks,
-  addressDestination: string,
+  addressDestination: string
 ): RouteParams {
   const fromChainId = getNetworkId(Networks.Moonbeam);
   const toChainId = getNetworkId(toNetwork);
@@ -57,23 +61,26 @@ export function createOnrampRouteParams(
 export async function getRoute(params: RouteParams) {
   // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
   const { integratorId } = squidRouterConfigBase;
-  const url = 'https://apiplus.squidrouter.com/v2/route';
+  const url = "https://apiplus.squidrouter.com/v2/route";
 
   try {
     const result = await axios.post(url, params, {
       headers: {
-        'x-integrator-id': integratorId,
-        'Content-Type': 'application/json',
+        "x-integrator-id": integratorId,
+        "Content-Type": "application/json",
       },
     });
 
-    const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
+    const requestId = result.headers["x-request-id"]; // Retrieve request ID from response headers
     return { data: result.data, requestId: requestId };
   } catch (error) {
     if (error) {
-      console.error('Squidrouter API error:', (error as { response: { data: unknown } }).response.data);
+      console.error(
+        "Squidrouter API error:",
+        (error as { response: { data: unknown } }).response.data
+      );
     }
-    console.error('Error with parameters:', params);
+    console.error("Error with parameters:", params);
     throw error;
   }
 }
@@ -87,21 +94,21 @@ export function createOfframpRouteParams(
   fromNetwork: Networks,
   toAddress: string,
   receivingContractAddress: string,
-  squidRouterReceiverHash: string,
+  squidRouterReceiverHash: string
 ): RouteParams {
   const fromChainId = getNetworkId(fromNetwork);
   const toChainId = getNetworkId(Networks.Moonbeam);
 
   const approvalErc20 = encodeFunctionData({
     abi: erc20ABI,
-    functionName: 'approve',
-    args: [receivingContractAddress, '0'],
+    functionName: "approve",
+    args: [receivingContractAddress, "0"],
   });
 
   const initXCMEncodedData = encodeFunctionData({
     abi: squidReceiverABI,
-    functionName: 'initXCM',
-    args: [squidRouterReceiverHash, '0'],
+    functionName: "initXCM",
+    args: [squidRouterReceiverHash, "0"],
   });
 
   return {
@@ -117,26 +124,26 @@ export function createOfframpRouteParams(
     },
     enableExpress: true,
     postHook: {
-      chainType: 'evm',
+      chainType: "evm",
       calls: [
         // approval call.
         {
           callType: 1,
           target: AXL_USDC_MOONBEAM,
-          value: '0', // this will be replaced by the full native balance of the multicall after the swap
+          value: "0", // this will be replaced by the full native balance of the multicall after the swap
           callData: approvalErc20,
           payload: {
             tokenAddress: AXL_USDC_MOONBEAM, // unused in callType 2, dummy value
-            inputPos: '1', // unused
+            inputPos: "1", // unused
           },
-          estimatedGas: '500000',
-          chainType: 'evm',
+          estimatedGas: "500000",
+          chainType: "evm",
         },
         // trigger the xcm call
         {
           callType: 1, // SquidCallType.FULL_TOKEN_BALANCE
           target: receivingContractAddress,
-          value: '0',
+          value: "0",
           callData: initXCMEncodedData,
           payload: {
             tokenAddress: AXL_USDC_MOONBEAM,
@@ -144,15 +151,16 @@ export function createOfframpRouteParams(
             // "amount" parameter in the encoded arguments to the call executeXCMEncodedData
             // i.e., a "1" means that the bits 256-511 are the position of "amount"
             // in the encoded argument list
-            inputPos: '1',
+            inputPos: "1",
           },
-          estimatedGas: '700000',
-          chainType: 'evm',
+          estimatedGas: "700000",
+          chainType: "evm",
         },
       ],
-      provider: 'Pendulum', //This should be the name of your product or application that is triggering the hook
-      description: 'Pendulum post hook',
-      logoURI: 'https://pbs.twimg.com/profile_images/1548647667135291394/W2WOtKUq_400x400.jpg', //Add your product or application's logo here
+      provider: "Pendulum", //This should be the name of your product or application that is triggering the hook
+      description: "Pendulum post hook",
+      logoURI:
+        "https://pbs.twimg.com/profile_images/1548647667135291394/W2WOtKUq_400x400.jpg", //Add your product or application's logo here
     },
   };
 }
@@ -161,9 +169,10 @@ export async function testRoute(
   testingToken: EvmTokenDetails,
   attemptedAmountRaw: string,
   address: string,
-  fromNetwork: Networks,
+  fromNetwork: Networks
 ) {
-  const { fromChainId, toChainId, axlUSDC_MOONBEAM } = getSquidRouterConfig(fromNetwork);
+  const { fromChainId, toChainId, axlUSDC_MOONBEAM } =
+    getSquidRouterConfig(fromNetwork);
 
   const sharedRouteParams: RouteParams = {
     fromAddress: address,

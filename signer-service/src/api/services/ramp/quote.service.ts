@@ -1,19 +1,22 @@
-import Big from 'big.js';
-import { v4 as uuidv4 } from 'uuid';
-import { BaseRampService } from './base.service';
-import QuoteTicket from '../../../models/quoteTicket.model';
-import logger from '../../../config/logger';
-import { APIError } from '../../errors/api-error';
-import httpStatus from 'http-status';
-import { DestinationType, getNetworkFromDestination, Networks, PaymentMethod } from '../../helpers/networks';
-import { FiatToken, getAnyFiatTokenDetails, getPendulumDetails, isFiatToken } from '../../../config/tokens';
-import { getTokenOutAmount } from '../nablaReads/outAmount';
-import { ApiManager } from '../../../api/services/pendulum/apiManager';
-import { calculateTotalReceive } from '../../helpers/quote';
-import { RampCurrency } from '../../../config/tokens';
+import Big from "big.js";
+import { v4 as uuidv4 } from "uuid";
+import { BaseRampService } from "./base.service";
+import QuoteTicket from "../../../models/quoteTicket.model";
+import logger from "../../../config/logger";
+import { APIError } from "../../errors/api-error";
+import httpStatus from "http-status";
+import {
+  DestinationType,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  RampCurrency,
+} from "shared";
+import { getTokenOutAmount } from "../nablaReads/outAmount";
+import { ApiManager } from "../pendulum/apiManager";
+import { calculateTotalReceive } from "../../helpers/quote";
 
 export interface QuoteRequest {
-  rampType: 'on' | 'off';
+  rampType: "on" | "off";
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
@@ -23,7 +26,7 @@ export interface QuoteRequest {
 
 export interface QuoteResponse {
   id: string;
-  rampType: 'on' | 'off';
+  rampType: "on" | "off";
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;
@@ -41,12 +44,28 @@ export class QuoteService extends BaseRampService {
     on: { from: DestinationType[]; to: DestinationType[] };
   } = {
     off: {
-      from: ['AssetHub', 'Avalanche', 'Arbitrum', 'BSC', 'Base', 'Ethereum', 'Polygon'],
-      to: ['pix', 'sepa'],
+      from: [
+        "AssetHub",
+        "Avalanche",
+        "Arbitrum",
+        "BSC",
+        "Base",
+        "Ethereum",
+        "Polygon",
+      ],
+      to: ["pix", "sepa"],
     },
     on: {
-      from: ['pix'],
-      to: ['AssetHub', 'Avalanche', 'Arbitrum', 'BSC', 'Base', 'Ethereum', 'Polygon'],
+      from: ["pix"],
+      to: [
+        "AssetHub",
+        "Avalanche",
+        "Arbitrum",
+        "BSC",
+        "Base",
+        "Ethereum",
+        "Polygon",
+      ],
     },
   };
 
@@ -64,10 +83,10 @@ export class QuoteService extends BaseRampService {
       request.outputCurrency,
       request.rampType,
       request.from,
-      request.to,
+      request.to
     );
 
-    const fee = '0.01'; // TODO fetch from above
+    const fee = "0.01"; // TODO fetch from above
 
     // Create quote in database
     const quoteTicket = await QuoteTicket.create({
@@ -81,7 +100,7 @@ export class QuoteService extends BaseRampService {
       outputCurrency: request.outputCurrency,
       fee,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
-      status: 'pending',
+      status: "pending",
     });
 
     const quote = quoteTicket.dataValues;
@@ -129,8 +148,15 @@ export class QuoteService extends BaseRampService {
   /**
    * Validate that the chain is supported for the given ramp type
    */
-  private validateChainSupport(rampType: 'on' | 'off', from: DestinationType, to: DestinationType): void {
-    if (!this.SUPPORTED_CHAINS[rampType].from.includes(from) || !this.SUPPORTED_CHAINS[rampType].to.includes(to)) {
+  private validateChainSupport(
+    rampType: "on" | "off",
+    from: DestinationType,
+    to: DestinationType
+  ): void {
+    if (
+      !this.SUPPORTED_CHAINS[rampType].from.includes(from) ||
+      !this.SUPPORTED_CHAINS[rampType].to.includes(to)
+    ) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
         message: `${rampType}ramping from ${from} to ${to} is not supported.`,
@@ -142,39 +168,43 @@ export class QuoteService extends BaseRampService {
     inputAmount: string,
     inputCurrency: RampCurrency,
     outputCurrency: RampCurrency,
-    rampType: 'on' | 'off',
+    rampType: "on" | "off",
     from: DestinationType,
-    to: DestinationType,
+    to: DestinationType
   ): Promise<string> {
     const apiManager = ApiManager.getInstance();
-    const networkName = 'pendulum';
+    const networkName = "pendulum";
     const apiInstance = await apiManager.getApi(networkName);
 
     try {
       const fromNetwork = getNetworkFromDestination(from);
       const toNetwork = getNetworkFromDestination(to);
-      if (rampType === 'on' && !toNetwork) {
+      if (rampType === "on" && !toNetwork) {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
-          message: 'Invalid toNetwork for onramp.',
+          message: "Invalid toNetwork for onramp.",
         });
       }
-      if (rampType === 'off' && !fromNetwork) {
+      if (rampType === "off" && !fromNetwork) {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
-          message: 'Invalid fromNetwork for offramp.',
+          message: "Invalid fromNetwork for offramp.",
         });
       }
 
       const inputTokenPendulumDetails =
-        rampType === 'on' ? getPendulumDetails(inputCurrency) : getPendulumDetails(inputCurrency, fromNetwork);
+        rampType === "on"
+          ? getPendulumDetails(inputCurrency)
+          : getPendulumDetails(inputCurrency, fromNetwork);
       const outputTokenPendulumDetails =
-        rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
+        rampType === "on"
+          ? getPendulumDetails(outputCurrency, toNetwork)
+          : getPendulumDetails(outputCurrency);
 
       if (Big(inputAmount).lte(0)) {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
-          message: 'Invalid input amount',
+          message: "Invalid input amount",
         });
       }
 
@@ -185,13 +215,16 @@ export class QuoteService extends BaseRampService {
         outputTokenDetails: outputTokenPendulumDetails,
       });
 
-      const outputAmountAfterFees = calculateTotalReceive(amountOut.roundedDownQuotedAmountOut, outputCurrency);
+      const outputAmountAfterFees = calculateTotalReceive(
+        amountOut.roundedDownQuotedAmountOut,
+        outputCurrency
+      );
       return outputAmountAfterFees;
     } catch (error) {
-      logger.error('Error calculating output amount:', error);
+      logger.error("Error calculating output amount:", error);
       throw new APIError({
         status: httpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Failed to calculate output amount',
+        message: "Failed to calculate output amount",
       });
     }
   }

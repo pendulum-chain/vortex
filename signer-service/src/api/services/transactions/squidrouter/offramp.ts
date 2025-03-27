@@ -1,9 +1,8 @@
-import { createPublicClient, encodeFunctionData, http } from 'viem';
-import { moonbeam } from 'viem/chains';
-import { Networks } from '../../../helpers/networks';
-import { createOfframpRouteParams, getRoute } from './route';
-import erc20ABI from '../../../../contracts/ERC20';
-import { EvmTokenDetails } from '../../../../config/tokens';
+import { createPublicClient, encodeFunctionData, http } from "viem";
+import { moonbeam } from "viem/chains";
+import { EvmTokenDetails, Networks } from "shared";
+import { createOfframpRouteParams, getRoute } from "./route";
+import erc20ABI from "../../../../contracts/ERC20";
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;
@@ -33,10 +32,10 @@ export interface OfframpTransactionData {
 }
 
 export async function createOfframpSquidrouterTransactions(
-  params: OfframpSquidrouterParams,
+  params: OfframpSquidrouterParams
 ): Promise<OfframpTransactionData> {
   if (params.fromNetwork === Networks.AssetHub) {
-    throw new Error('AssetHub is not supported for Squidrouter offramp');
+    throw new Error("AssetHub is not supported for Squidrouter offramp");
   }
 
   const publicClient = createPublicClient({
@@ -44,8 +43,8 @@ export async function createOfframpSquidrouterTransactions(
     transport: http(),
   });
 
-  const receivingContractAddress = '0x2AB52086e8edaB28193172209407FF9df1103CDc'; // TODO move this to some config
-  const squidRouterReceiverHash = '0x1234'; // TODO generate this unique hash
+  const receivingContractAddress = "0x2AB52086e8edaB28193172209407FF9df1103CDc"; // TODO move this to some config
+  const squidRouterReceiverHash = "0x1234"; // TODO generate this unique hash
   const routeParams = createOfframpRouteParams(
     params.fromAddress,
     params.rawAmount,
@@ -53,7 +52,7 @@ export async function createOfframpSquidrouterTransactions(
     params.fromNetwork,
     params.addressDestination,
     receivingContractAddress,
-    squidRouterReceiverHash,
+    squidRouterReceiverHash
   );
 
   const routeResult = await getRoute(routeParams);
@@ -63,11 +62,12 @@ export async function createOfframpSquidrouterTransactions(
   const approveTransactionData = encodeFunctionData({
     abi: erc20ABI,
     // address: params.inputToken.erc20AddressSourceChain, // TODO somehow this parameter cannot be specified?
-    functionName: 'approve',
+    functionName: "approve",
     args: [transactionRequest?.target, params.rawAmount],
   });
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas, maxPriorityFeePerGas } =
+    await publicClient.estimateFeesPerGas();
 
   return {
     approveData: {

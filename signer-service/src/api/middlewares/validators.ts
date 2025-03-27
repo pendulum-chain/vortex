@@ -1,5 +1,4 @@
 import { RequestHandler } from "express";
-import { isStellarTokenConfig, TOKEN_CONFIG, TokenConfig } from "shared";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
@@ -104,13 +103,11 @@ export const validatePriceInput: RequestHandler<
     !provider ||
     !SUPPORTED_PROVIDERS.includes(provider.toLowerCase() as Provider)
   ) {
-    res
-      .status(400)
-      .json({
-        error: `Invalid provider. Supported providers are: ${SUPPORTED_PROVIDERS.join(
-          ", "
-        )}`,
-      });
+    res.status(400).json({
+      error: `Invalid provider. Supported providers are: ${SUPPORTED_PROVIDERS.join(
+        ", "
+      )}`,
+    });
     return;
   }
 
@@ -120,13 +117,11 @@ export const validatePriceInput: RequestHandler<
       fromCrypto.toLowerCase() as CryptoCurrency
     )
   ) {
-    res
-      .status(400)
-      .json({
-        error: `Invalid fromCrypto. Supported currencies are: ${SUPPORTED_CRYPTO_CURRENCIES.join(
-          ", "
-        )}`,
-      });
+    res.status(400).json({
+      error: `Invalid fromCrypto. Supported currencies are: ${SUPPORTED_CRYPTO_CURRENCIES.join(
+        ", "
+      )}`,
+    });
     return;
   }
 
@@ -134,13 +129,11 @@ export const validatePriceInput: RequestHandler<
     !toFiat ||
     !SUPPORTED_FIAT_CURRENCIES.includes(toFiat.toLowerCase() as FiatCurrency)
   ) {
-    res
-      .status(400)
-      .json({
-        error: `Invalid toFiat. Supported currencies are: ${SUPPORTED_FIAT_CURRENCIES.join(
-          ", "
-        )}`,
-      });
+    res.status(400).json({
+      error: `Invalid toFiat. Supported currencies are: ${SUPPORTED_FIAT_CURRENCIES.join(
+        ", "
+      )}`,
+    });
     return;
   }
 
@@ -198,13 +191,11 @@ const validateRequestBodyValuesForTransactionStore =
     }
 
     if (!FLOW_HEADERS[flowType as keyof typeof FLOW_HEADERS]) {
-      res
-        .status(400)
-        .json({
-          error: `Invalid flowType. Supported flowTypes are: ${Object.keys(
-            FLOW_HEADERS
-          ).join(", ")}`,
-        });
+      res.status(400).json({
+        error: `Invalid flowType. Supported flowTypes are: ${Object.keys(
+          FLOW_HEADERS
+        ).join(", ")}`,
+      });
       return;
     }
 
@@ -404,12 +395,10 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
   }
 
   if (!cpf) {
-    res
-      .status(400)
-      .json({
-        error:
-          "Missing cpf parameter. If taxIdType is CNPJ, should be a partner's CPF",
-      });
+    res.status(400).json({
+      error:
+        "Missing cpf parameter. If taxIdType is CNPJ, should be a partner's CPF",
+    });
     return;
   }
 
@@ -466,12 +455,10 @@ export const validateTriggerPayIn: RequestHandler = (req, res, next) => {
   }
 
   if (!receiverAddress || !receiverAddress.startsWith("0x")) {
-    res
-      .status(400)
-      .json({
-        error:
-          "Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address",
-      });
+    res.status(400).json({
+      error:
+        "Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address",
+    });
     return;
   }
 
@@ -492,12 +479,10 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
   }
 
   if (!receiverAddress || !(receiverAddress as string).startsWith("0x")) {
-    res
-      .status(400)
-      .json({
-        error:
-          "Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address",
-      });
+    res.status(400).json({
+      error:
+        "Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address",
+    });
     return;
   }
 

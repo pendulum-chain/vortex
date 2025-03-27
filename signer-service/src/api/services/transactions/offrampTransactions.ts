@@ -1,15 +1,21 @@
-import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { UnsignedTx } from '../ramp/base.service';
-import { AccountMeta } from '../ramp/ramp.service';
-import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
-import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
-import { encodeEvmTransactionData } from './index';
-import { createNablaTransactionsForQuote } from './nabla';
-import { getOnChainTokenDetails, isEvmTokenDetails, isOnChainToken } from '../../../config/tokens';
+import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
+import { UnsignedTx } from "../ramp/base.service";
+import { AccountMeta } from "../ramp/ramp.service";
+import { createOfframpSquidrouterTransactions } from "./squidrouter/offramp";
+import {
+  getNetworkFromDestination,
+  getNetworkId,
+  getOnChainTokenDetails,
+  isEvmTokenDetails,
+  isOnChainToken,
+  Networks,
+} from "shared";
+import { encodeEvmTransactionData } from "./index";
+import { createNablaTransactionsForQuote } from "./nabla";
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
-  signingAccounts: AccountMeta[],
+  signingAccounts: AccountMeta[]
 ): Promise<UnsignedTx[]> {
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -26,35 +32,43 @@ export async function prepareOfframpTransactions(
     const rawAmount = quote.inputAmount; // TODO convert to raw amount
 
     if (!isOnChainToken(quote.inputCurrency)) {
-      throw new Error(`Input currency cannot be fiat token ${quote.inputCurrency} for offramp.`);
+      throw new Error(
+        `Input currency cannot be fiat token ${quote.inputCurrency} for offramp.`
+      );
     }
-    const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency);
+    const inputTokenDetails = getOnChainTokenDetails(
+      fromNetwork,
+      quote.inputCurrency
+    );
     if (!inputTokenDetails) {
-      throw new Error(`Token ${quote.inputCurrency} is not supported for offramp`);
+      throw new Error(
+        `Token ${quote.inputCurrency} is not supported for offramp`
+      );
     }
 
     // If the network defined for the account is the same as the network of the input token, we know it's the transaction
     // on the source network that needs to be signed by the user wallet and not an ephemeral.
     if (accountNetworkId === fromNetworkId) {
       if (isEvmTokenDetails(inputTokenDetails)) {
-        const { approveData, swapData } = await createOfframpSquidrouterTransactions({
-          inputTokenDetails,
-          fromNetwork: account.network,
-          rawAmount,
-          // Source and destination are both the user itself
-          addressDestination: account.address,
-          fromAddress: account.address,
-        });
+        const { approveData, swapData } =
+          await createOfframpSquidrouterTransactions({
+            inputTokenDetails,
+            fromNetwork: account.network,
+            rawAmount,
+            // Source and destination are both the user itself
+            addressDestination: account.address,
+            fromAddress: account.address,
+          });
         unsignedTxs.push({
           tx_data: encodeEvmTransactionData(approveData),
-          phase: 'squidRouter', // TODO assign correct phase
+          phase: "squidRouter", // TODO assign correct phase
           network: account.network,
           nonce: 0,
           signer: account.address,
         });
         unsignedTxs.push({
           tx_data: encodeEvmTransactionData(swapData),
-          phase: 'squidRouter', // TODO assign correct phase
+          phase: "squidRouter", // TODO assign correct phase
           network: account.network,
           nonce: 0,
           signer: account.address,
@@ -69,11 +83,12 @@ export async function prepareOfframpTransactions(
     }
     // If network is Pendulum, create all the swap transactions
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(quote, account);
+      const { approveTransaction, swapTransaction } =
+        await createNablaTransactionsForQuote(quote, account);
 
       unsignedTxs.push({
         tx_data: approveTransaction,
-        phase: 'approve', // TODO assign correct phase
+        phase: "approve", // TODO assign correct phase
         network: account.network,
         nonce: 0,
         signer: account.address,
@@ -81,13 +96,13 @@ export async function prepareOfframpTransactions(
 
       unsignedTxs.push({
         tx_data: swapTransaction,
-        phase: 'swap', // TODO assign correct phase
+        phase: "swap", // TODO assign correct phase
         network: account.network,
         nonce: 0,
         signer: account.address,
       });
 
-      if (quote.outputCurrency === 'BRL') {
+      if (quote.outputCurrency === "BRL") {
         // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam
       } else {
         // TODO implement creation of unsigned ephemeral tx for Spacewalk, and Stellar transfers + cleanup

@@ -1,12 +1,22 @@
-import { ApiPromise } from '@polkadot/api';
-import { Abi } from '@polkadot/api-contract';
-import { createExecuteMessageExtrinsic, Extrinsic } from '@pendulum-chain/api-solang';
-import { getPendulumDetails, NABLA_ROUTER, RampCurrency } from '../../../../config/tokens';
-import { createWriteOptions, defaultWriteLimits } from '../../../helpers/contracts';
-import { API } from '../../pendulum/apiManager';
-import { Networks } from '../../../helpers/networks';
-import { config } from '../../../../config';
-import { routerAbi } from '../../../../contracts/Router';
+import { ApiPromise } from "@polkadot/api";
+import { Abi } from "@polkadot/api-contract";
+import {
+  createExecuteMessageExtrinsic,
+  Extrinsic,
+} from "@pendulum-chain/api-solang";
+import {
+  getPendulumDetails,
+  NABLA_ROUTER,
+  Networks,
+  RampCurrency,
+} from "shared";
+import {
+  createWriteOptions,
+  defaultWriteLimits,
+} from "../../../helpers/contracts";
+import { API } from "../../pendulum/apiManager";
+import { config } from "../../../../config";
+import { routerAbi } from "../../../../contracts/Router";
 
 export interface PrepareNablaSwapParams {
   inputCurrency: RampCurrency;
@@ -29,7 +39,8 @@ interface CreateSwapExtrinsicOptions {
   callerAddress: string;
 }
 
-const calcDeadline = (min: number) => `${Math.floor(Date.now() / 1000) + min * 60}`;
+const calcDeadline = (min: number) =>
+  `${Math.floor(Date.now() / 1000) + min * 60}`;
 
 export async function createSwapExtrinsic({
   api,
@@ -45,7 +56,7 @@ export async function createSwapExtrinsic({
     api,
     callerAddress: callerAddress,
     contractDeploymentAddress: NABLA_ROUTER,
-    messageName: 'swapExactTokensForTokens',
+    messageName: "swapExactTokensForTokens",
     // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
     messageArguments: [
       amount,
@@ -59,7 +70,7 @@ export async function createSwapExtrinsic({
     skipDryRunning: true, // We have to skip this because it will not work before the approval transaction executed
   });
 
-  if (execution.type === 'onlyRpc') {
+  if (execution.type === "onlyRpc") {
     throw Error("Couldn't create swap extrinsic. Can't execute only-RPC");
   }
 

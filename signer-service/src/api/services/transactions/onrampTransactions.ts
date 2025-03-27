@@ -1,16 +1,22 @@
-import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { getNetworkFromDestination, getNetworkId, Networks } from '../../helpers/networks';
-import { UnsignedTx } from '../ramp/base.service';
-import { AccountMeta } from '../ramp/ramp.service';
-import { encodeEvmTransactionData } from './index';
-import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
-import { getOnChainTokenDetails, isEvmTokenDetails, isOnChainToken } from '../../../config/tokens';
+import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
+import {
+  getNetworkFromDestination,
+  getNetworkId,
+  getOnChainTokenDetails,
+  isEvmTokenDetails,
+  isOnChainToken,
+  Networks,
+} from "shared";
+import { UnsignedTx } from "../ramp/base.service";
+import { AccountMeta } from "../ramp/ramp.service";
+import { encodeEvmTransactionData } from "./index";
+import { createOnrampSquidrouterTransactions } from "./squidrouter/onramp";
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
 export async function prepareOnrampTransactions(
   quote: QuoteTicketAttributes,
-  signingAccounts: AccountMeta[],
+  signingAccounts: AccountMeta[]
 ): Promise<UnsignedTx[]> {
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -26,40 +32,50 @@ export async function prepareOnrampTransactions(
     const rawAmount = quote.inputAmount; // TODO convert to raw amount
 
     if (!isOnChainToken(quote.outputCurrency)) {
-      throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+      throw new Error(
+        `Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`
+      );
     }
-    const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
+    const outputTokenDetails = getOnChainTokenDetails(
+      toNetwork,
+      quote.outputCurrency
+    );
     if (!outputTokenDetails) {
-      throw new Error(`Token ${quote.outputCurrency} is not supported for offramp`);
+      throw new Error(
+        `Token ${quote.outputCurrency} is not supported for offramp`
+      );
     }
 
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       if (!isEvmTokenDetails(outputTokenDetails)) {
-        console.log('Output token is not an EVM token, skipping onramp transaction creation for Moonbeam ephemeral');
+        console.log(
+          "Output token is not an EVM token, skipping onramp transaction creation for Moonbeam ephemeral"
+        );
         continue;
       }
 
       const moonbeamEphemeralStartingNonce = 0; // TODO fetch from chain
 
-      const { approveData, swapData } = await createOnrampSquidrouterTransactions({
-        outputTokenDetails,
-        toNetwork,
-        rawAmount,
-        addressDestination: account.address,
-        fromAddress: account.address,
-        moonbeamEphemeralStartingNonce,
-      });
+      const { approveData, swapData } =
+        await createOnrampSquidrouterTransactions({
+          outputTokenDetails,
+          toNetwork,
+          rawAmount,
+          addressDestination: account.address,
+          fromAddress: account.address,
+          moonbeamEphemeralStartingNonce,
+        });
 
       unsignedTxs.push({
         tx_data: encodeEvmTransactionData(approveData),
-        phase: 'moonbeam', // TODO assign correct phase
+        phase: "moonbeam", // TODO assign correct phase
         network: account.network,
         nonce: 0,
         signer: account.address,
       });
       unsignedTxs.push({
         tx_data: encodeEvmTransactionData(swapData),
-        phase: 'moonbeam', // TODO assign correct phase
+        phase: "moonbeam", // TODO assign correct phase
         network: account.network,
         nonce: 0,
         signer: account.address,
