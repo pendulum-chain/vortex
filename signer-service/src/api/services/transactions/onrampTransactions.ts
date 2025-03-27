@@ -137,20 +137,7 @@ export async function prepareOnrampTransactions(
         signer: account.address,
       });
 
-      if (toNetworkId !== getNetworkId(Networks.AssetHub)) {
-        const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
-          moonbeamEphemeralEntry.address,
-          outputAmountRaw,
-          outputTokenDetails.pendulumCurrencyId,
-        );
-        unsignedTxs.push({
-          tx_data: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
-          phase: 'pendulumToMoonbeamXcm',
-          network: account.network,
-          nonce: 2,
-          signer: account.address,
-        });
-      } else {
+      if (toNetworkId === getNetworkId(Networks.AssetHub)) {
         const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
           destinationAddress,
           outputTokenDetails.pendulumCurrencyId,
@@ -159,6 +146,19 @@ export async function prepareOnrampTransactions(
         unsignedTxs.push({
           tx_data: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction),
           phase: 'pendulumToAssethubXcm',
+          network: account.network,
+          nonce: 2,
+          signer: account.address,
+        });
+      } else {
+        const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
+          moonbeamEphemeralEntry.address,
+          outputAmountRaw,
+          outputTokenDetails.pendulumCurrencyId,
+        );
+        unsignedTxs.push({
+          tx_data: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
+          phase: 'pendulumToMoonbeamXcm',
           network: account.network,
           nonce: 2,
           signer: account.address,
