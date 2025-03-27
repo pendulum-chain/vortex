@@ -22,3 +22,6 @@ export * from './moonbeam/config';
 // Utils
 export * from './utils/typeGuards';
 export * from './utils/helpers';
+
+// TokenConfig
+export * from "./tokenConfig";
