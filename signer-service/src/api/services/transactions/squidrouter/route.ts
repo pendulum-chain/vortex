@@ -4,7 +4,7 @@ import { getNetworkId, Networks } from '../../../helpers/networks';
 import { AXL_USDC_MOONBEAM, EvmTokenDetails } from '../../../../config/tokens';
 import { encodeFunctionData } from 'viem';
 import erc20ABI from '../../../../contracts/ERC20';
-import { squidReceiverABI } from '../../../../contracts/SquidReceiver';
+import squidReceiverABI from '../../../../../../mooncontracts/splitReceiverABI.json';
 
 export interface RouteParams {
   fromAddress: string;
@@ -85,7 +85,6 @@ export function createOfframpRouteParams(
   amount: string,
   inputTokenDetails: EvmTokenDetails,
   fromNetwork: Networks,
-  toAddress: string,
   receivingContractAddress: string,
   squidRouterReceiverHash: string,
 ): RouteParams {
@@ -111,7 +110,7 @@ export function createOfframpRouteParams(
     fromAmount: amount,
     toChain: toChainId.toString(),
     toToken: AXL_USDC_MOONBEAM,
-    toAddress: toAddress,
+    toAddress: fromAddress,
     slippageConfig: {
       autoMode: 1,
     },

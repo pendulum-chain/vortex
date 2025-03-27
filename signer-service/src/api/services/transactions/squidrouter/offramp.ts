@@ -4,20 +4,25 @@ import { Networks } from '../../../helpers/networks';
 import { createOfframpRouteParams, getRoute } from './route';
 import erc20ABI from '../../../../contracts/ERC20';
 import { EvmTokenDetails } from '../../../../config/tokens';
+import { createRandomString, createSquidRouterHash } from '../../../helpers/squidrouter';
+import { decodeAddress } from '@polkadot/util-crypto';
+import { u8aToHex } from '@polkadot/util';
+import encodePayload from './payload';
+import { getSquidRouterConfig } from './config';
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;
   rawAmount: string;
   inputTokenDetails: EvmTokenDetails;
   fromNetwork: Networks;
-  addressDestination: string;
+  pendulumAddressDestination: string;
 }
 
 export interface OfframpTransactionData {
   approveData: {
     to: `0x${string}`;
     data: `0x${string}`;
-    value: bigint;
+    value: string;
     gas: string;
     maxFeePerGas?: string;
     maxPriorityFeePerGas?: string;
@@ -44,14 +49,17 @@ export async function createOfframpSquidrouterTransactions(
     transport: http(),
   });
 
-  const receivingContractAddress = '0x2AB52086e8edaB28193172209407FF9df1103CDc'; // TODO move this to some config
-  const squidRouterReceiverHash = '0x1234'; // TODO generate this unique hash
+  const squidRouterReceiverId = createRandomString(32);
+  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(params.pendulumAddressDestination));
+  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
+  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
+  const { receivingContractAddress } = getSquidRouterConfig(params.fromNetwork);
+
   const routeParams = createOfframpRouteParams(
     params.fromAddress,
     params.rawAmount,
     params.inputTokenDetails,
     params.fromNetwork,
-    params.addressDestination,
     receivingContractAddress,
     squidRouterReceiverHash,
   );
@@ -72,17 +80,17 @@ export async function createOfframpSquidrouterTransactions(
   return {
     approveData: {
       to: params.inputTokenDetails.erc20AddressSourceChain as `0x${string}`, // TODO check if this is correct
-      data: approveTransactionData,
-      value: 0n,
+      data: approveTransactionData as `0x${string}`,
+      value: '0',
       gas: '150000',
       maxFeePerGas: String(maxFeePerGas),
       maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
     swapData: {
       to: transactionRequest.target as `0x${string}`,
-      data: transactionRequest.data,
+      data: transactionRequest.data as `0x${string}`,
       value: transactionRequest.value,
-      gas: transactionRequest.gasLimit,
+      gas: transactionRequest.gasLimit, //TODO do we still need * 2 here?
       maxFeePerGas: String(maxFeePerGas),
       maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
