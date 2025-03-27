@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "paths": {
+      "shared": ["../shared/dist/cjs"]
+    },
     "module": "esnext",
     "target": "esnext",
     "moduleResolution": "node",
@@ -8,11 +11,6 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "paths": {
-      "shared": [
-        "../shared/src"
-      ]
-    }
   },
   "include": [
     "src"
