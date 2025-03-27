@@ -1,7 +1,5 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
-import { v4 as uuidv4 } from 'uuid';
-import { storageService } from './storage/local';
-import { OnChainToken, FiatToken } from 'shared';
+import axios, { AxiosError, AxiosInstance } from 'axios';
+import { FiatToken, OnChainToken } from 'shared';
 import { DestinationType, Networks } from '../helpers/networks';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 
@@ -124,7 +122,7 @@ export const requestRampQuote = async (request: RampQuoteRequest): Promise<RampQ
  */
 export const startRampProcess = async (request: StartRampRequest): Promise<RampProcess> => {
   try {
-    const response = await apiClient.post<RampProcess>('/ramp/start', request, config);
+    const response = await apiClient.post<RampProcess>('/ramp/start', request);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {

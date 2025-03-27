@@ -1,6 +1,6 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import { BaseFiatTokenDetails, FiatToken, getBaseFiatTokenDetails, OnChainToken } from 'shared';
+import { BaseFiatTokenDetails, FiatToken, getAnyFiatTokenDetails, OnChainToken } from 'shared';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 
@@ -10,7 +10,7 @@ export function calculateTotalReceive(
   outputTokenType: FiatToken | OnChainToken,
 ): string {
   if (flowType === 'off') {
-    return calculateOfframpTotalReceive(toAmount, getBaseFiatTokenDetails(outputTokenType as FiatToken));
+    return calculateOfframpTotalReceive(toAmount, getAnyFiatTokenDetails(outputTokenType as FiatToken));
   } else {
     return calculateOnrampTotalReceive(toAmount, outputTokenType as OnChainToken);
   }

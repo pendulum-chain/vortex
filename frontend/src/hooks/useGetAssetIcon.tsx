@@ -46,6 +46,12 @@ const ICONS = {
 
 export type AssetIconType = keyof typeof ICONS;
 
-export function useGetAssetIcon(assetIcon: AssetIconType) {
-  return ICONS[assetIcon];
+export function useGetAssetIcon(assetIcon: string) {
+  if (assetIcon in ICONS) {
+    return ICONS[assetIcon as AssetIconType];
+  } else {
+    console.error(`Asset icon not found for ${assetIcon}`);
+    // Return USDC as default icon
+    return ICONS['usdc'];
+  }
 }

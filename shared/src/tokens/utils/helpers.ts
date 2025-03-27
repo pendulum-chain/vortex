@@ -12,6 +12,7 @@ import { stellarTokenConfig } from '../stellar/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
 import { Networks, PaymentMethod } from '../../helpers';
+import {StellarTokenDetails} from "../types/stellar";
 
 /**
  * Get token details for a specific network and token
@@ -61,7 +62,7 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
 /**
  * Get Stellar token details for a specific fiat token
  */
-export function getTokenDetailsSpacewalk(fiatToken: FiatToken): FiatTokenDetails {
+export function getTokenDetailsSpacewalk(fiatToken: FiatToken): StellarTokenDetails {
   const maybeOutputTokenDetails = stellarTokenConfig[fiatToken];
 
   if (maybeOutputTokenDetails) {

@@ -21,7 +21,7 @@ export type OnChainToken = EvmToken | AssetHubToken;
 export type NablaToken = OnChainToken
 
 // Combines fiat currencies with tokens in one type
-export type RampCurrency = keyof typeof FiatToken | OnChainToken;
+export type RampCurrency = FiatToken | OnChainToken;
 
 export type PendulumCurrencyId = { Stellar: { AlphaNum4: { code: string; issuer: string } } } | { XCM: number };
 

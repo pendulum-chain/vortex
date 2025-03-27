@@ -15,7 +15,7 @@ interface PoolSelectorModalProps extends PoolListProps {
 export interface TokenDefinition {
   assetSymbol: string;
   type: OnChainToken | FiatToken;
-  assetIcon: AssetIconType;
+  assetIcon: string;
   name?: string;
 }
 

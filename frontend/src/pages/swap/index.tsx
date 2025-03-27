@@ -15,14 +15,15 @@ import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
   AssetHubToken,
+  assetHubTokenConfig,
+  evmTokenConfig,
   FiatToken,
   getAnyFiatTokenDetails,
   getEnumKeyByStringValue,
   getOnChainTokenDetailsOrDefault,
-  MOONBEAM_FIAT_TOKEN_CONFIG,
-  ON_CHAIN_TOKEN_CONFIG,
+  moonbeamTokenConfig,
   OnChainToken,
-  STELLAR_FIAT_TOKEN_CONFIG,
+  stellarTokenConfig,
 } from 'shared';
 import { config } from '../../config';
 
@@ -315,19 +316,19 @@ export const SwapPage = () => {
 
   const definitions: TokenDefinition[] =
     tokenSelectModalType === 'from'
-      ? Object.entries(ON_CHAIN_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
-          type: key as OnChainToken,
-          assetSymbol: value.assetSymbol,
-          assetIcon: value.networkAssetIcon,
-        }))
-      : [...Object.entries(MOONBEAM_FIAT_TOKEN_CONFIG), ...Object.entries(STELLAR_FIAT_TOKEN_CONFIG)].map(
+      ? [...Object.entries(evmTokenConfig[selectedNetwork]), ...Object.entries(assetHubTokenConfig)].map(
           ([key, value]) => ({
-            type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
-            assetSymbol: value.fiat.symbol,
-            assetIcon: value.fiat.assetIcon,
-            name: value.fiat.name,
+            type: key as OnChainToken,
+            assetSymbol: value.assetSymbol,
+            assetIcon: value.networkAssetIcon,
           }),
-        );
+        )
+      : [...Object.entries(moonbeamTokenConfig), ...Object.entries(stellarTokenConfig)].map(([key, value]) => ({
+          type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
+          assetSymbol: value.fiat.symbol,
+          assetIcon: value.fiat.assetIcon,
+          name: value.fiat.name,
+        }));
 
   const modals = (
     <>

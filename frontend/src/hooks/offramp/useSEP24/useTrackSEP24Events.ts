@@ -1,6 +1,6 @@
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { Networks } from '../../../helpers/networks';
-import { getOnChainTokenDetailsOrDefault, getBaseFiatTokenDetails } from 'shared';
+import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 import { RampExecutionInput, RampingState } from '../../../types/phases';
 
 export const useTrackSEP24Events = () => {
@@ -10,7 +10,7 @@ export const useTrackSEP24Events = () => {
     trackEvent({
       event: 'kyc_started',
       from_asset: getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken).assetSymbol,
-      to_asset: getBaseFiatTokenDetails(executionInput.fiatToken).fiat.symbol,
+      to_asset: getAnyFiatTokenDetails(executionInput.fiatToken).fiat.symbol,
       from_amount: executionInput.inputAmountUnits,
       to_amount: executionInput.outputAmountUnits.afterFees,
     });

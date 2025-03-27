@@ -1,5 +1,5 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
+import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { OnChainToken, FiatToken } from 'shared';
 
 interface PoolListItemProps<T extends OnChainToken | FiatToken> {
@@ -7,7 +7,7 @@ interface PoolListItemProps<T extends OnChainToken | FiatToken> {
   tokenSymbol: string;
   isSelected?: boolean;
   onSelect: (tokenType: T) => void;
-  assetIcon: AssetIconType;
+  assetIcon: string;
   name?: string;
 }
 

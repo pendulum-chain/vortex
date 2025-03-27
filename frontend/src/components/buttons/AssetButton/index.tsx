@@ -1,8 +1,8 @@
-import { AssetIconType, useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
+import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
 interface AssetButtonProps {
-  assetIcon: AssetIconType;
+  assetIcon: string;
   tokenSymbol: string;
   onClick: () => void;
   disabled?: boolean;

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Resolver, useForm, useWatch } from 'react-hook-form';
 
 import { storageKeys } from '../../constants/localStorage';
-import { getBaseFiatTokenDetails, getOnChainTokenDetails, OnChainToken, FiatToken } from 'shared';
+import { getAnyFiatTokenDetails, getOnChainTokenDetails, OnChainToken, FiatToken } from 'shared';
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
@@ -62,7 +62,7 @@ export const useSwapForm = () => {
 
     const initialFromToken = getOnChainTokenDetails(network, initialValues.from as OnChainToken);
     const initialFromTokenIsValid = initialFromToken !== undefined;
-    const initialToTokenIsValid = getBaseFiatTokenDetails(initialValues.to as FiatToken);
+    const initialToTokenIsValid = getAnyFiatTokenDetails(initialValues.to as FiatToken);
 
     const from = (initialFromTokenIsValid ? initialValues.from : defaultValues.from) as OnChainToken;
     const to = (initialToTokenIsValid ? initialValues.to : defaultValues.to) as FiatToken;
@@ -83,7 +83,7 @@ export const useSwapForm = () => {
     () => (from ? getOnChainTokenDetails(selectedNetwork, from) : undefined),
     [from, selectedNetwork],
   );
-  const toToken = useMemo(() => (to ? getBaseFiatTokenDetails(to) : undefined), [to]);
+  const toToken = useMemo(() => (to ? getAnyFiatTokenDetails(to) : undefined), [to]);
 
   const onFromChange = useCallback(
     (tokenKey: string) => {

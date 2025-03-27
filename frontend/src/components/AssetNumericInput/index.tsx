@@ -6,7 +6,7 @@ import { NumericInput } from '../NumericInput';
 import { AssetIconType } from '../../hooks/useGetAssetIcon';
 
 interface AssetNumericInputProps {
-  assetIcon: AssetIconType;
+  assetIcon: string;
   tokenSymbol: string;
   onClick: () => void;
   onChange?: (e: ChangeEvent) => void;

@@ -1,11 +1,11 @@
 import { motion } from 'motion/react';
 import { Networks, getNetworkDisplayName } from '../../helpers/networks';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
-import { AssetIconType, useGetAssetIcon } from '../../hooks/useGetAssetIcon';
+import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useEffect, useState } from 'react';
 import { useNetwork } from '../../contexts/network';
 
-const tokens: Array<{ name: string; assetIcon: AssetIconType }> = [
+const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDC', assetIcon: 'usdc' },
   { name: 'USDC.e', assetIcon: 'usdc' },
   { name: 'USDT', assetIcon: 'usdt' },
@@ -66,13 +66,7 @@ const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating
   );
 };
 
-const TokenBadge = ({
-  token,
-  isAnimating,
-}: {
-  token: { name: string; assetIcon: AssetIconType };
-  isAnimating: boolean;
-}) => {
+const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: string }; isAnimating: boolean }) => {
   const icon = useGetAssetIcon(token.assetIcon);
   return <Badge icon={icon} label={token.name} isAnimating={isAnimating} rotationDuration={0.3} />;
 };
