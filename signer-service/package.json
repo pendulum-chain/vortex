@@ -26,6 +26,7 @@
     "@polkadot/api-contract": "^13.2.1",
     "@types/big.js": "^6.2.2",
     "@types/cron": "^2.4.3",
+    "@wagmi/core": "^2.16.7",
     "ajv": "^8.17.1",
     "big.js": "^6.2.1",
     "body-parser": "^1.17.0",
@@ -55,6 +56,7 @@
     "stellar-sdk": "^13.1.0",
     "umzug": "^3.8.2",
     "viem": "^2.21.3",
+    "web3": "^4.16.0",
     "winston": "^3.1.0"
   },
   "devDependencies": {
