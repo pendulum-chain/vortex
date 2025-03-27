@@ -36,7 +36,7 @@
       "arrivalText": {
         "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
         "ARS": "Your funds will arrive in your bank account in a few minutes.",
-        "BRL": "Your funds will arrive in your bank account in a few minutes.",
+        "BRL": "Your funds were sent via PIX and are now in your bank account.",
         "default": "Your funds will arrive in your bank account soon."
       }
     },
@@ -328,15 +328,7 @@
       "poweredBy": "Powered by",
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
     },
-    "toasts": {
-      "amountMismatch": "Mismatching offramp amounts detected. Please restart the offramp process.",
-      "kycCompleted": "Success! Get ready to off-ramp.",
-      "kycVerificationFailed": "Could not verify KYC status. Please try again.",
-      "signingFailed": "Signing failed. Please try again.",
-      "walletAlreadyOpen": "Wallet already open pending connection. Please try again.",
-      "nodeConnectionError": "Error while connecting to the node. Refresh the page to re-connect.",
-      "genericError": "An error occurred. Please try again."
-    },
+
     "warningBanner": {
       "title": "Keep this tab open",
       "description": "Closing this tab will halt the process"
@@ -350,5 +342,14 @@
     "useSubmitOfframp": {
       "kycInvalid": "Your KYC level is invalid. Please contact support."
     }
+  },
+  "toasts": {
+    "amountMismatch": "Mismatching offramp amounts detected. Please restart the offramp process.",
+    "kycCompleted": "Success! Get ready to off-ramp.",
+    "kycVerificationFailed": "Could not verify KYC status. Please try again.",
+    "signingFailed": "Signing failed. Please try again.",
+    "walletAlreadyOpen": "Wallet already open pending connection. Please try again.",
+    "nodeConnectionError": "Error while connecting to the node. Refresh the page to re-connect.",
+    "genericError": "An error occurred. Please try again."
   }
 }

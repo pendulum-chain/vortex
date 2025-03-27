@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { Dispatch, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
+import { cn } from '../../helpers/cn';
+
 interface TermsAndConditionsProps {
   toggleTermsChecked: () => void;
   setTermsError: Dispatch<SetStateAction<boolean>>;
@@ -49,13 +51,13 @@ const TermsText = ({ error }: { error: boolean }) => {
 
   return (
     <motion.span
-      className={`pl-2 ${error ? 'text-red-600' : ''}`}
+      className={cn('pl-2', error && 'text-red-600')}
       animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
     >
       {t('components.termsAndConditions.text')}{' '}
       <a
         href="https://www.vortexfinance.co/terms-conditions"
-        className={`link link-accent transition-all duration-300 ${error ? 'text-red-600 font-bold' : ''}`}
+        className={cn('link link-accent transition-all duration-300', error && 'text-red-600 font-bold')}
         target="_blank"
         rel="noreferrer"
         style={{ textDecoration: 'underline' }}
