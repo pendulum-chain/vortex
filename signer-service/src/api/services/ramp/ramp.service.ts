@@ -39,6 +39,23 @@ export interface RegisterRampResponse {
   unsignedTxs: UnsignedTx[];
 }
 
+export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
+  let normalizedAccounts: AccountMeta[] = [];
+  const allowedNetworks = new Set(Object.values(Networks).map((network) => network.toLowerCase()));
+
+  accounts.forEach((account) => {
+    if (!allowedNetworks.has(account.network.toLowerCase())) {
+      throw new Error(`Invalid network: "${account.network}" provided.`);
+    }
+    normalizedAccounts.push({
+      network: Object.values(Networks).find((network) => network.toLowerCase() === account.network.toLowerCase())!, // We know it exists given the check above
+      address: account.address,
+    });
+  });
+
+  return normalizedAccounts;
+}
+
 export class RampService extends BaseRampService {
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
@@ -80,10 +97,13 @@ export class RampService extends BaseRampService {
         });
       }
 
+      // Normalize to lower case the networks entry of signingAccounts, and compare with allowed ones.
+      const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
+
       // Create to-be-signed transactions
       let unsignedTxs: UnsignedTx[] = [];
       if (quote.rampType === 'off') {
-        unsignedTxs = await prepareOfframpTransactions(quote, signingAccounts);
+        unsignedTxs = await prepareOfframpTransactions(quote, normalizedSigningAccounts);
       } else {
         //validate we have the destination address
         if (!additionalData || additionalData['destinationAddress'] === undefined) {
@@ -92,7 +112,11 @@ export class RampService extends BaseRampService {
             message: 'Destination address is required for onramp',
           });
         }
-        unsignedTxs = await prepareOnrampTransactions(quote, signingAccounts, additionalData['destinationAddress']);
+        unsignedTxs = await prepareOnrampTransactions(
+          quote,
+          normalizedSigningAccounts,
+          additionalData['destinationAddress'],
+        );
         console.log('unsignedTxs', unsignedTxs);
       }
 
@@ -104,7 +128,7 @@ export class RampService extends BaseRampService {
         type: quote.rampType,
         currentPhase: 'initial',
         unsignedTxs,
-        presignedTxs: [], // There are no presigned transactions at this point
+        presignedTxs: null, // There are no presigned transactions at this point
         from: quote.from,
         to: quote.to,
         state: {

@@ -18,17 +18,17 @@ export interface OfframpTransactionData {
     to: `0x${string}`;
     data: `0x${string}`;
     value: bigint;
-    gas: bigint;
-    maxFeePerGas?: bigint;
-    maxPriorityFeePerGas?: bigint;
+    gas: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
   };
   swapData: {
     to: `0x${string}`;
     data: `0x${string}`;
-    value: bigint;
-    gas: bigint;
-    maxFeePerGas?: bigint;
-    maxPriorityFeePerGas?: bigint;
+    value: string;
+    gas: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
   };
 }
 
@@ -74,17 +74,17 @@ export async function createOfframpSquidrouterTransactions(
       to: params.inputTokenDetails.erc20AddressSourceChain as `0x${string}`, // TODO check if this is correct
       data: approveTransactionData,
       value: 0n,
-      gas: BigInt(150000),
-      maxFeePerGas,
-      maxPriorityFeePerGas,
+      gas: '150000',
+      maxFeePerGas: String(maxFeePerGas),
+      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
     swapData: {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: BigInt(transactionRequest.value),
-      gas: BigInt(transactionRequest.gasLimit),
-      maxFeePerGas,
-      maxPriorityFeePerGas,
+      value: transactionRequest.value,
+      gas: transactionRequest.gasLimit,
+      maxFeePerGas: String(maxFeePerGas),
+      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
   };
 }

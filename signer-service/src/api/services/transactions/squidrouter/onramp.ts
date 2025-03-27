@@ -20,20 +20,20 @@ export interface OnrampTransactionData {
   approveData: {
     to: `0x${string}`;
     data: `0x${string}`;
-    value: bigint;
-    gas: bigint;
+    value: string;
+    gas: string;
     nonce: number;
-    maxFeePerGas?: bigint;
-    maxPriorityFeePerGas?: bigint;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
   };
   swapData: {
     to: `0x${string}`;
     data: `0x${string}`;
-    value: bigint;
-    gas: bigint;
+    value: string;
+    gas: string;
     nonce: number;
-    maxFeePerGas?: bigint;
-    maxPriorityFeePerGas?: bigint;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
   };
 }
 
@@ -74,18 +74,18 @@ export async function createOnrampSquidrouterTransactions(
   const approveData = {
     to: AXL_USDC_MOONBEAM as `0x${string}`,
     data: approveTransactionData,
-    value: 0n,
+    value: '0',
     nonce: params.moonbeamEphemeralStartingNonce,
-    gas: BigInt(150000),
-    maxFeePerGas,
+    gas: '150000',
+    maxFeePerGas: String(maxFeePerGas),
   };
 
   const swapData = {
     to: transactionRequest.target as `0x${string}`,
     data: transactionRequest.data,
-    value: BigInt(transactionRequest.value),
-    gas: BigInt(transactionRequest.gasLimit),
-    maxFeePerGas,
+    value: transactionRequest.value,
+    gas: transactionRequest.gasLimit,
+    maxFeePerGas: String(maxFeePerGas),
     nonce: params.moonbeamEphemeralStartingNonce + 1,
   };
 

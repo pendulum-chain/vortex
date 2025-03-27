@@ -104,15 +104,15 @@ export async function prepareOnrampTransactions(
         });
 
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(approveData.data),
-          phase: 'moonbeamSquidrouter',
+          tx_data: JSON.stringify(approveData),
+          phase: 'moonbeamSquidrouterApprove',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 1,
           signer: account.address,
         });
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(swapData.data),
-          phase: 'moonbeamSquidrouter',
+          tx_data: JSON.stringify(swapData),
+          phase: 'moonbeamSquidrouterSwap',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 2,
           signer: account.address,
