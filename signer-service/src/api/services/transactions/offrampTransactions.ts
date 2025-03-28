@@ -3,6 +3,7 @@ import { UnsignedTx } from "../ramp/base.service";
 import { AccountMeta } from "../ramp/ramp.service";
 import { createOfframpSquidrouterTransactions } from "./squidrouter/offramp";
 import {
+  FiatToken,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
@@ -23,6 +24,7 @@ import {
   PaymentData,
 } from "./stellar/offrampTransaction";
 import { Keypair } from "stellar-sdk";
+import { createPendulumToMoonbeamTransfer } from "./xcm/pendulumToMoonbeam";
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -36,7 +38,6 @@ export async function prepareOfframpTransactions(
   if (!fromNetwork) {
     throw new Error(`Invalid network for destination ${quote.from}`);
   }
-  const fromNetworkId = getNetworkId(fromNetwork);
 
   // validate input token. At this point should be validated by the quote endpoint,
   // but we need it for the type check
@@ -63,6 +64,11 @@ export async function prepareOfframpTransactions(
   const outputAmountBeforeFees = new Big(quote.outputAmount).add(
     new Big(quote.fee)
   );
+  const outputAmountBeforeFeesRaw = multiplyByPowerOfTen(
+    outputAmountBeforeFees,
+    outputTokenDetails.decimals
+  ).toFixed(0, 0); 
+
   const outputAmountRaw = multiplyByPowerOfTen(
     outputAmountBeforeFees,
     outputTokenDetails.decimals
@@ -80,6 +86,13 @@ export async function prepareOfframpTransactions(
   );
   if (!pendulumEphemeralEntry) {
     throw new Error("Pendulum ephemeral not found");
+  }
+
+  const moonbeamEphemeralEntry = signingAccounts.find(
+    (ephemeral) => ephemeral.network === Networks.Moonbeam
+  );
+  if (!moonbeamEphemeralEntry) {
+    throw new Error("Moonbeam ephemeral not found");
   }
 
   // If coming from evm chain, we need to pass the proper squidrouter transactions
@@ -163,8 +176,22 @@ export async function prepareOfframpTransactions(
         signer: account.address,
       });
 
-      if (quote.outputCurrency === "BRL") {
-        // TODO implement creation of unsigned ephemeral tx for Pendulum -> Moonbeam
+      if (quote.outputCurrency === FiatToken.BRL) {
+
+        const pendulumToMoonbeamTransaction  = await createPendulumToMoonbeamTransfer(
+          moonbeamEphemeralEntry.address,
+          outputAmountBeforeFeesRaw,
+          outputTokenDetails.pendulumCurrencyId
+        );
+
+        unsignedTxs.push({
+          tx_data: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
+          phase: "pendulumToMoonbeam",
+          network: account.network,
+          nonce: 2,
+          signer: account.address,
+        });
+
       } else {
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
           throw new Error(
@@ -195,7 +222,7 @@ export async function prepareOfframpTransactions(
           signer: account.address,
         });
       }
-    } else if (accountNetworkId === getNetworkId(Networks.Stellar)) {
+    } else if (accountNetworkId === getNetworkId(Networks.Stellar) && quote.outputCurrency !== FiatToken.BRL) {
       if (!isStellarOutputTokenDetails(outputTokenDetails)) {
         throw new Error(
           `Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`

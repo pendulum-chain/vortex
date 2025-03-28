@@ -91,7 +91,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     presignedTxs: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       field: "presigned_txs",
     },
     from: {
