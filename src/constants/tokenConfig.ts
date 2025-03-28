@@ -50,6 +50,10 @@ export type InputTokenDetailsWithBalance = EvmInputTokenDetailsWithBalance | Sub
 
 export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 
+export function isInputTokenType(tokenType: string): tokenType is InputTokenType {
+  return tokenType === 'usdc' || tokenType === 'usdce' || tokenType === 'usdt';
+}
+
 export interface Fiat {
   assetIcon: AssetIconType;
   symbol: string;
