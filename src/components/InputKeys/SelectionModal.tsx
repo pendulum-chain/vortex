@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -6,13 +6,14 @@ import {
   OutputTokenType,
   InputTokenDetails,
   BaseOutputTokenDetails,
+  isInputTokenType,
 } from '../../constants/tokenConfig';
+import { useInputTokenBalances } from '../../hooks/useInputTokenBalances';
 import { AssetIconType } from '../../hooks/useGetAssetIcon';
 import { PoolListItem } from './PoolListItem';
 import { SearchInput } from '../SearchInput';
 import { Skeleton } from '../Skeleton';
 import { Dialog } from '../Dialog';
-
 interface PoolSelectorModalProps extends PoolListProps {
   isLoading?: boolean;
   onClose: () => void;
@@ -62,11 +63,39 @@ export function PoolSelectorModal({
 function PoolList({ onSelect, definitions, selected }: PoolListProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('');
+  const tokens = useMemo(
+    () => definitions.filter(({ type }) => isInputTokenType(type)).map(({ details }) => details),
+    [definitions],
+  ) as InputTokenDetails[];
 
-  const filteredDefinitions = definitions.filter(({ assetSymbol, name }) => {
+  const definitionsWithBalance = useInputTokenBalances(tokens);
+
+  const balanceMap = useMemo(() => {
+    if (!definitionsWithBalance.length) return {};
+
+    return definitionsWithBalance.reduce((acc, token) => {
+      acc[token.assetSymbol] = token.balance;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [definitionsWithBalance]);
+
+  const sortedDefinitions = useMemo(() => {
+    if (!definitionsWithBalance.length) return definitions;
+
+    return [...definitions].sort((a, b) => {
+      const balanceA = balanceMap[a.assetSymbol] || '0';
+      const balanceB = balanceMap[b.assetSymbol] || '0';
+      return Number(balanceB) - Number(balanceA);
+    });
+  }, [definitions, balanceMap, definitionsWithBalance.length]);
+
+  const filteredDefinitions = useMemo(() => {
     const searchTerm = filter.toLowerCase();
-    return assetSymbol.toLowerCase().includes(searchTerm) || (name && name.toLowerCase().includes(searchTerm));
-  });
+    return sortedDefinitions.filter(
+      ({ assetSymbol, name }) =>
+        assetSymbol.toLowerCase().includes(searchTerm) || (name && name.toLowerCase().includes(searchTerm)),
+    );
+  }, [sortedDefinitions, filter]);
 
   return (
     <div className="relative">
