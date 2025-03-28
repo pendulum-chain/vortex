@@ -9,6 +9,9 @@ import {
   InputTokenDetails,
   SubstrateInputTokenDetails,
   isSubstrateInputTokenDetails,
+  EvmInputTokenDetailsWithBalance,
+  SubstrateInputTokenDetailsWithBalance,
+  InputTokenDetailsWithBalance,
 } from '../constants/tokenConfig';
 import { useVortexAccount } from './useVortexAccount';
 import { getNetworkId } from '../helpers/networks';
@@ -19,7 +22,7 @@ import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
 import { nativeToDecimal } from '../helpers/parseNumbers';
 
-const useEvmBalances = (tokens: EvmInputTokenDetails[]) => {
+export const useEvmBalances = (tokens: EvmInputTokenDetails[]): EvmInputTokenDetailsWithBalance[] => {
   const { address } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const chainId = getNetworkId(selectedNetwork);
@@ -61,7 +64,7 @@ const useEvmBalances = (tokens: EvmInputTokenDetails[]) => {
   return tokensWithBalances;
 };
 
-const useAssetHubBalances = (tokens: SubstrateInputTokenDetails[]) => {
+export const useAssetHubBalances = (tokens: SubstrateInputTokenDetails[]): SubstrateInputTokenDetailsWithBalance[] => {
   const [balances, setBalances] = useState<Array<InputTokenDetails & { balance: string }>>([]);
   const { walletAccount } = usePolkadotWalletState();
   const { apiComponents: assetHubNode } = useAssetHubNode();
@@ -100,7 +103,7 @@ const useAssetHubBalances = (tokens: SubstrateInputTokenDetails[]) => {
   return balances;
 };
 
-export const useInputTokenBalances = (tokens: InputTokenDetails[]) => {
+export const useInputTokenBalances = (tokens: InputTokenDetails[]): InputTokenDetailsWithBalance[] => {
   const evmTokens = tokens.filter(isEvmInputTokenDetails) as EvmInputTokenDetails[];
   const substrateTokens = tokens.filter(isSubstrateInputTokenDetails) as SubstrateInputTokenDetails[];
   const evmBalances = useEvmBalances(evmTokens);
