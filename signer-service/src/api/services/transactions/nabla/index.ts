@@ -4,9 +4,8 @@ import { prepareNablaSwapTransaction } from "./swap";
 import { prepareNablaApproveTransaction } from "./approve";
 import { AccountMeta } from "../../ramp/ramp.service";
 import {
-  getNetworkFromDestination,
-  getPendulumDetails,
   Networks,
+  PendulumDetails,
 } from "shared";
 import { encodeSubmittableExtrinsic } from "../index";
 import Big from "big.js";
@@ -14,7 +13,9 @@ import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 export async function createNablaTransactionsForQuote(
   quote: QuoteTicketAttributes,
-  ephemeral: AccountMeta
+  ephemeral: AccountMeta,
+  inputTokenPendulumDetails: PendulumDetails,
+  outputTokenPendulumDetails: PendulumDetails,
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
     throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
@@ -23,28 +24,6 @@ export async function createNablaTransactionsForQuote(
   const apiManager = ApiManager.getInstance();
   const networkName = "pendulum";
   const pendulumNode = await apiManager.getApi(networkName);
-
-  const fromNetwork = getNetworkFromDestination(quote.from);
-  if (quote.rampType === "off" && !fromNetwork) {
-    throw new Error(
-      `Cannot create Nabla transactions for invalid fromNetwork ${quote.from}`
-    );
-  }
-  const toNetwork = getNetworkFromDestination(quote.to);
-  if (quote.rampType === "on" && !toNetwork) {
-    throw new Error(
-      `Cannot create Nabla transactions for invalid toNetwork ${quote.to}`
-    );
-  }
-
-  const inputTokenPendulumDetails =
-    quote.rampType === "on"
-      ? getPendulumDetails(quote.inputCurrency)
-      : getPendulumDetails(quote.inputCurrency, fromNetwork);
-  const outputTokenPendulumDetails =
-    quote.rampType === "on"
-      ? getPendulumDetails(quote.outputCurrency, toNetwork)
-      : getPendulumDetails(quote.outputCurrency);
 
   const amountRaw = multiplyByPowerOfTen(
     new Big(quote.inputAmount),

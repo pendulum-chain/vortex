@@ -48,3 +48,5 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     }
   }
 }
+
+export default new PendulumToMoonbeamXCMPhaseHandler();

@@ -133,11 +133,11 @@ export class RampService extends BaseRampService {
             message: "Destination address is required for onramp",
           });
         }
-        unsignedTxs = await prepareOnrampTransactions(
+        ({ unsignedTxs, stateMeta} = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
           additionalData["destinationAddress"]
-        );
+        ));
       }
 
       // Mark the quote as consumed

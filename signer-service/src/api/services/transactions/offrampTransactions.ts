@@ -3,6 +3,7 @@ import { UnsignedTx } from "../ramp/base.service";
 import { AccountMeta } from "../ramp/ramp.service";
 import { createOfframpSquidrouterTransactions } from "./squidrouter/offramp";
 import {
+  AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   FiatToken,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
@@ -13,6 +14,7 @@ import {
   isOnChainToken,
   isStellarOutputTokenDetails,
   Networks,
+  getPendulumDetails,
 } from "shared";
 import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from "./index";
 import { createNablaTransactionsForQuote } from "./nabla";
@@ -47,6 +49,8 @@ export async function prepareOfframpTransactions(
       `Input currency must be fiat token for onramp, got ${quote.inputCurrency}`
     );
   }
+
+  // TODO we could compress this into a helper. 
   const inputTokenDetails = getOnChainTokenDetails(
     fromNetwork,
     quote.inputCurrency
@@ -70,10 +74,6 @@ export async function prepareOfframpTransactions(
     outputTokenDetails.decimals
   ).toFixed(0, 0); 
 
-  const outputAmountRaw = multiplyByPowerOfTen(
-    outputAmountBeforeFees,
-    outputTokenDetails.decimals
-  ).toFixed(0, 0);
 
   const stellarEphemeralEntry = signingAccounts.find(
     (ephemeral) => ephemeral.network === Networks.Stellar
@@ -95,6 +95,9 @@ export async function prepareOfframpTransactions(
   if (!moonbeamEphemeralEntry) {
     throw new Error("Moonbeam ephemeral not found");
   }
+
+  const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
+  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency);
 
   // If coming from evm chain, we need to pass the proper squidrouter transactions
   // to the user.
@@ -158,12 +161,16 @@ export async function prepareOfframpTransactions(
     }
     // If network is Pendulum, create all the swap transactions
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+
+      const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+      const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, inputTokenPendulumDetails.pendulumDecimals).toFixed();
+
       const { approveTransaction, swapTransaction } =
-        await createNablaTransactionsForQuote(quote, account);
+        await createNablaTransactionsForQuote(quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails);
 
       unsignedTxs.push({
         tx_data: approveTransaction,
-        phase: "approve",
+        phase: "nablaApprove",
         network: account.network,
         nonce: 0,
         signer: account.address,
@@ -171,11 +178,20 @@ export async function prepareOfframpTransactions(
 
       unsignedTxs.push({
         tx_data: swapTransaction,
-        phase: "swap",
+        phase: "nablaSwap",
         network: account.network,
         nonce: 1,
         signer: account.address,
       });
+
+      stateMeta = {
+        ...stateMeta,
+        pendulumEphemeralAddress: account.address,
+        nablaSoftMinimumOutputRaw,
+        pendulumAmountRaw: outputAmountBeforeFeesRaw,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+      };
 
       if (quote.outputCurrency === FiatToken.BRL) {
 
@@ -215,7 +231,7 @@ export async function prepareOfframpTransactions(
         ).rawPublicKey();
         const spacewalkRedeemTransaction =
           await prepareSpacewalkRedeemTransaction({
-            outputAmountRaw,
+            outputAmountRaw: outputAmountBeforeFeesRaw,
             stellarTargetAccountRaw,
             outputTokenDetails,
             executeSpacewalkNonce: 0,

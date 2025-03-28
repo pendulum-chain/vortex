@@ -1,9 +1,11 @@
 import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
 import {
+  AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
+  getPendulumDetails,
   isEvmTokenDetails,
   isFiatToken,
   isMoonbeamTokenDetails,
@@ -28,7 +30,8 @@ export async function prepareOnrampTransactions(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[],
   destinationAddress: string,
-): Promise<UnsignedTx[]> {
+): Promise<{unsignedTxs: UnsignedTx[], stateMeta: unknown}> {
+  let stateMeta = {};
   const unsignedTxs: UnsignedTx[] = [];
 
   const toNetwork = getNetworkFromDestination(quote.to);
@@ -68,10 +71,19 @@ export async function prepareOnrampTransactions(
   }
 
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
-  const outputAmountRaw = multiplyByPowerOfTen(
-    new Big(quote.outputAmount).add(new Big(quote.fee)),
-    outputTokenDetails.pendulumDecimals,
-  ).toFixed(0, 0);
+
+  const outputAmountBeforeFees = new Big(quote.outputAmount).add(
+      new Big(quote.fee)
+  );
+
+  const outputAmountBeforeFeesRaw = multiplyByPowerOfTen(
+    outputAmountBeforeFees,
+    outputTokenDetails.decimals
+  ).toFixed(0, 0); 
+
+  const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
+  const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+ 
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
@@ -98,7 +110,7 @@ export async function prepareOnrampTransactions(
         const { approveData, swapData } = await createOnrampSquidrouterTransactions({
           outputTokenDetails,
           toNetwork,
-          rawAmount: outputAmountRaw,
+          rawAmount: outputAmountBeforeFeesRaw,
           addressDestination: account.address,
           fromAddress: account.address,
           moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 1,
@@ -120,7 +132,10 @@ export async function prepareOnrampTransactions(
         });
       }
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(quote, account);
+      const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+      const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, inputTokenPendulumDetails.pendulumDecimals).toFixed();
+
+      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails);
 
       unsignedTxs.push({
         tx_data: approveTransaction,
@@ -138,11 +153,21 @@ export async function prepareOnrampTransactions(
         signer: account.address,
       });
 
+      stateMeta = {
+        ...stateMeta,
+        pendulumEphemeralAddress: account.address,
+        nablaSoftMinimumOutputRaw,
+        pendulumAmountRaw: outputAmountBeforeFeesRaw,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+      };
+
+
       if (toNetworkId === getNetworkId(Networks.AssetHub)) {
         const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
           destinationAddress,
           outputTokenDetails.pendulumCurrencyId,
-          outputAmountRaw,
+          outputAmountBeforeFeesRaw,
         );
         unsignedTxs.push({
           tx_data: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction),
@@ -154,7 +179,7 @@ export async function prepareOnrampTransactions(
       } else {
         const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
           moonbeamEphemeralEntry.address,
-          outputAmountRaw,
+          outputAmountBeforeFeesRaw,
           outputTokenDetails.pendulumCurrencyId,
         );
         unsignedTxs.push({
@@ -168,5 +193,5 @@ export async function prepareOnrampTransactions(
     }
   }
 
-  return unsignedTxs;
+  return {unsignedTxs, stateMeta};
 }

@@ -1,8 +1,10 @@
 import phaseRegistry from './phase-registry';
 import initialPhaseHandler from './handlers/initial-phase-handler';
-import prepareTransactionsPhaseHandler from './handlers/prepare-transactions-phase-handler';
 import squidRouterPhaseHandler from './handlers/squid-router-phase-handler';
 import logger from '../../../config/logger';
+import pendulumToMoonbeamXCMPhaseHandler  from './handlers/pendulum-moonbeam-phase-handler';
+import nablaSwapHandler from './handlers/nabla-swap-handler';
+import nablaApproveHandler from './handlers/nabla-approve-handler';
 
 /**
  * Register all phase handlers
@@ -12,8 +14,10 @@ export function registerPhaseHandlers(): void {
 
   // Register handlers
   phaseRegistry.registerHandler(initialPhaseHandler);
-  phaseRegistry.registerHandler(prepareTransactionsPhaseHandler);
   phaseRegistry.registerHandler(squidRouterPhaseHandler);
+  phaseRegistry.registerHandler(pendulumToMoonbeamXCMPhaseHandler);
+  phaseRegistry.registerHandler(nablaApproveHandler);
+  phaseRegistry.registerHandler(nablaSwapHandler);
 
   // Add more handlers here as they are implemented
   // Example:
