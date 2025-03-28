@@ -1,5 +1,5 @@
-import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
-import { SubaccountData, RegisterSubaccountPayload, OfframpPayload } from './types';
+import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME } from '../../../constants/constants';
+import { OfframpPayload, RegisterSubaccountPayload, SubaccountData, UsedLimitData } from './types';
 import { Event } from './webhooks';
 
 interface EndpointMapping {
@@ -11,6 +11,20 @@ interface EndpointMapping {
     GET: {
       body: undefined;
       response: { subaccounts: SubaccountData[] };
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  '/used-limit': {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: UsedLimitData;
     };
     PATCH: {
       body: undefined;
@@ -126,6 +140,8 @@ export class BrlaApiService {
       return options;
     };
 
+    console.log('sending request to ', fullUrl);
+
     let response = await fetch(fullUrl, buildOptions());
 
     if (response.status === 401) {
@@ -152,6 +168,11 @@ export class BrlaApiService {
     const query = `taxId=${encodeURIComponent(taxId)}`;
     const response = await this.sendRequest('/subaccounts', 'GET', query);
     return response.subaccounts[0];
+  }
+
+  public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest('/used-limit', 'GET', query);
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
