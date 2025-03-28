@@ -20,13 +20,13 @@ import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { TermsAndConditions } from '../TermsAndConditions';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
-import { UserBalance } from '../UserBalance';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { ExchangeRate } from '../ExchangeRate';
 import { BenefitsList } from '../BenefitsList';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useEventsContext } from '../../contexts/events';
+import { UserBalance } from '../UserBalance';
 
 enum TokenSelectType {
   FROM = 'from',

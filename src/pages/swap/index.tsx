@@ -35,7 +35,6 @@ import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../..
 import { useToastMessage } from '../../hooks/useToastMessage';
 import { isNetworkEVM } from '../../helpers/networks';
 
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import { useSwapUrlParams } from './useSwapUrlParams';
@@ -73,6 +72,7 @@ import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
 import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
 
@@ -329,19 +329,24 @@ export const SwapPage = () => {
     return tokenOutAmount.error;
   }
 
-  const definitions: TokenDefinition[] =
-    tokenSelectModalType === 'from'
-      ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
-          type: key as InputTokenType,
-          assetSymbol: value.assetSymbol,
-          assetIcon: value.networkAssetIcon,
-        }))
-      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
-          assetSymbol: value.fiat.symbol,
-          assetIcon: value.fiat.assetIcon,
-          name: value.fiat.name,
-        }));
+  const definitions: TokenDefinition[] = useMemo(
+    () =>
+      tokenSelectModalType === 'from'
+        ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
+            type: key as InputTokenType,
+            assetSymbol: value.assetSymbol,
+            assetIcon: value.networkAssetIcon,
+            details: getInputTokenDetailsOrDefault(selectedNetwork, key as InputTokenType),
+          }))
+        : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
+            type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
+            assetSymbol: value.fiat.symbol,
+            assetIcon: value.fiat.assetIcon,
+            name: value.fiat.name,
+            details: getOutputTokenDetails(getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType),
+          })),
+    [tokenSelectModalType, selectedNetwork],
+  );
 
   const modals = (
     <>
