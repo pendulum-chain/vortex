@@ -7,6 +7,7 @@ import axios from 'axios';
 
 /**
  * Handler for the squidRouter phase
+ * Only used for the onramp flow. For the offramp, the UI can send the transactions to better confirm outputs.
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
   /**
@@ -69,15 +70,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  /**
-   * Get a presigned transaction for a specific phase
-   * @param state The current ramp state
-   * @param phase The phase to get the transaction for
-   * @returns The presigned transaction
-   */
-  private getPresignedTransaction(state: RampState, phase: string): any {
-    return state.presignedTxs.find((tx) => tx.phase === phase);
-  }
+  
 
   /**
    * Execute a transaction

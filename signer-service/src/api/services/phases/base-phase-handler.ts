@@ -113,4 +113,14 @@ export abstract class BasePhaseHandler implements PhaseHandler {
 
     return state.reload();
   }
+
+  /**
+   * Get a presigned transaction for a specific phase
+   * @param state The current ramp state
+   * @param phase The phase to get the transaction for
+   * @returns The presigned transaction
+   */
+  protected getPresignedTransaction(state: RampState, phase: string): any {
+    return state.presignedTxs?.find((tx) => tx.phase === phase);
+  }
 }

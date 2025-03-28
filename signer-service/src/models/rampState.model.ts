@@ -1,6 +1,6 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import sequelize from '../config/database';
-import { DestinationType } from '../api/helpers/networks';
+import { DestinationType } from 'shared';
 
 // Define the attributes of the RampState model
 interface RampStateAttributes {
