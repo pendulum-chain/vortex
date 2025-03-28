@@ -3,97 +3,68 @@
 ## Technologies Used
 
 ### Backend Framework
+- **Node.js** (v16+) - JavaScript runtime
+- **Express** - Web framework for API endpoints
+- **TypeScript** - Type-safe development
 
-- **Node.js**: JavaScript runtime for the backend
-- **Express**: Web framework for API endpoints
-- **TypeScript**: Type-safe JavaScript superset
-
-### Database
-
-- **PostgreSQL**: Relational database for state persistence
-- **Sequelize**: ORM for database interactions
-- **Umzug**: Database migration tool
+### Database & State Management
+- **PostgreSQL** - Primary database for state persistence
+- **Sequelize ORM** - Database interactions and modeling
+- **Umzug** - Database migration management
+- **In-memory caching** - For quote and idempotency key tracking
 
 ### Blockchain Integration
+- **viem** - EVM chain interaction (Ethereum, Polygon, BSC, etc.)
+- **@polkadot/api** - Substrate chains (Pendulum, AssetHub)
+- **stellar-sdk** - Stellar network integration
+- **@noble/curves** - Cryptographic primitives
+- **web3.js** - Legacy Ethereum interactions
 
-- **ethers.js/viem**: Ethereum blockchain interaction
-- **@polkadot/api**: Polkadot/Substrate blockchain interaction
-- **stellar-sdk**: Stellar blockchain interaction
+### Shared Utilities
+- **Network configuration** - Unified network definitions (EVM/Substrate/Stellar)
+- **Token management** - Cross-chain token configurations
+- **Decimal handling** - Precision management for financial operations
+- **BigNumber** - Arbitrary-precision decimal arithmetic
 
-### Utilities
+### Security
+- **Joi** - Request validation
+- **Encrypted storage** - Sensitive data protection
+- **Rate limiting** - API endpoint protection
 
-- **uuid**: Unique identifier generation
-- **winston**: Logging framework
-- **joi**: Schema validation
-- **axios**: HTTP client for external API calls
+## Key Architectural Components
+
+### Core Services
+- **Quote Service** - Manages FX rates and validity windows
+- **Ramp Service** - Coordinates cross-chain transaction flows
+- **Idempotency Service** - Ensures operation safety
+
+### Cross-Chain Infrastructure
+- **XCM Handlers** - Cross-consensus messaging
+- **Bridge Contracts** - Asset transfer coordination
+- **Subsidy Management** - Transaction cost optimization
+
+### Monitoring & Reliability
+- **Winston** - Structured logging
+- **Slack Integration** - Real-time alerts
+- **Transaction Recovery** - Failed operation handling
 
 ## Development Setup
-
-### Prerequisites
-
-- Node.js (v16+)
-- Yarn package manager
-- PostgreSQL database
-
-### Environment Configuration
-
-- `.env` file with database credentials and API keys
-- Environment variables for blockchain node connections
-- Secret keys for transaction signing (not stored in the repository)
-
-### Build and Run
 
 ```bash
 # Install dependencies
 yarn install
 
-# Run database migrations
-yarn build
-node dist/database/migrator.js
+# Run migrations
+yarn migrate
 
-# Start development server
+# Start development
 yarn dev
 
-# Start production server
-yarn start
+# Production build
+yarn build && yarn start
 ```
 
-## Technical Constraints
-
-### Security Constraints
-
-- No private keys stored on the backend
-- All transactions must be pre-signed by the frontend
-- Sensitive data must be encrypted in the database
-
-### Performance Constraints
-
-- Quote expiration time limited to 10 minutes
-- Idempotency keys expire after 24 hours
-- Maximum 5 presigned transactions per ramping process
-
-### Compatibility Constraints
-
-- Support for EVM chains (Ethereum, Polygon, etc.)
-- Support for Substrate chains (Pendulum, Amplitude, etc.)
-- Support for Stellar network
-
-## Dependencies
-
-### External Services
-
-- Blockchain nodes (Ethereum, Polkadot, Stellar)
-- Price oracles for exchange rates
-- Payment providers for fiat on/off-ramping
-
-### Internal Dependencies
-
-- Frontend application for user interface
-- Google Spreadsheet for additional data storage
-- Slack for error reporting
-
-### API Dependencies
-
-- AlchemyPay API for fiat conversions
-- Transak API for fiat conversions
-- MoonPay API for fiat conversions
+## Key Constraints
+- **No key storage** - All transactions pre-signed by frontend
+- **10-minute quotes** - Price validity windows
+- **Multi-chain sync** - Coordinated nonce management
