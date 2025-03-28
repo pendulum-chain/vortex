@@ -1,13 +1,23 @@
+import { useState, useEffect } from 'react';
 import { useReadContracts } from 'wagmi';
 import { Abi } from 'viem';
 import Big from 'big.js';
 
-import { EvmInputTokenDetails, isEvmInputTokenDetails, InputTokenDetails } from '../constants/tokenConfig';
+import {
+  EvmInputTokenDetails,
+  isEvmInputTokenDetails,
+  InputTokenDetails,
+  SubstrateInputTokenDetails,
+  isSubstrateInputTokenDetails,
+} from '../constants/tokenConfig';
 import { useVortexAccount } from './useVortexAccount';
 import { getNetworkId } from '../helpers/networks';
 import { useNetwork } from '../contexts/network';
 import erc20ABI from '../contracts/ERC20';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
+import { usePolkadotWalletState } from '../contexts/polkadotWallet';
+import { useAssetHubNode } from '../contexts/polkadotNode';
+import { nativeToDecimal } from '../helpers/parseNumbers';
 
 const useEvmBalances = (tokens: EvmInputTokenDetails[]) => {
   const { address } = useVortexAccount();
@@ -51,10 +61,50 @@ const useEvmBalances = (tokens: EvmInputTokenDetails[]) => {
   return tokensWithBalances;
 };
 
+const useAssetHubBalances = (tokens: SubstrateInputTokenDetails[]) => {
+  const [balances, setBalances] = useState<Array<InputTokenDetails & { balance: string }>>([]);
+  const { walletAccount } = usePolkadotWalletState();
+  const { apiComponents: assetHubNode } = useAssetHubNode();
+
+  useEffect(() => {
+    if (!walletAccount || !assetHubNode) return;
+
+    const getBalances = async () => {
+      const { api } = assetHubNode;
+
+      const assetIds = tokens.map((token) => token.foreignAssetId).filter(Boolean);
+      const assetInfos = await api.query.assets.asset.multi(assetIds);
+
+      const accountQueries = assetIds.map((assetId) => [assetId, walletAccount.address]);
+      const accountInfos = await api.query.assets.account.multi(accountQueries);
+
+      const tokensWithBalances = tokens.map((token, index) => {
+        const assetInfo = assetInfos[index];
+        const accountInfo = accountInfos[index];
+
+        const { minBalance: rawMinBalance } = assetInfo.toJSON() as { minBalance: number };
+
+        const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
+        const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
+        const formattedBalance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
+
+        return { ...token, balance: formattedBalance };
+      });
+
+      setBalances(tokensWithBalances);
+    };
+
+    getBalances();
+  }, [assetHubNode, tokens, walletAccount]);
+
+  return balances;
+};
+
 export const useInputTokenBalances = (tokens: InputTokenDetails[]) => {
   const evmTokens = tokens.filter(isEvmInputTokenDetails) as EvmInputTokenDetails[];
-
+  const substrateTokens = tokens.filter(isSubstrateInputTokenDetails) as SubstrateInputTokenDetails[];
   const evmBalances = useEvmBalances(evmTokens);
+  const substrateBalances = useAssetHubBalances(substrateTokens);
 
-  return evmBalances;
+  return evmBalances.length ? evmBalances : substrateBalances;
 };
