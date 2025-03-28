@@ -8,7 +8,7 @@ interface UseSwapUrlParamsProps {
   feeComparisonRef: React.RefObject<HTMLDivElement | null>;
 }
 
-const defaultFromAmounts: Record<OutputTokenType, number> = { eurc: 1000, ars: 200, brl: 300 };
+const defaultFromAmounts: Record<OutputTokenType, number> = { eurc: 20, ars: 200, brl: 300 };
 
 export const useSwapUrlParams = ({ form, feeComparisonRef }: UseSwapUrlParamsProps) => {
   useEffect(() => {
