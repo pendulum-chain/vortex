@@ -65,7 +65,7 @@ export const useEvmBalances = (tokens: EvmInputTokenDetails[]): EvmInputTokenDet
 };
 
 export const useAssetHubBalances = (tokens: SubstrateInputTokenDetails[]): SubstrateInputTokenDetailsWithBalance[] => {
-  const [balances, setBalances] = useState<Array<InputTokenDetails & { balance: string }>>([]);
+  const [balances, setBalances] = useState<Array<SubstrateInputTokenDetailsWithBalance>>([]);
   const { walletAccount } = usePolkadotWalletState();
   const { apiComponents: assetHubNode } = useAssetHubNode();
 
