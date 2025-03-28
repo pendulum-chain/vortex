@@ -114,13 +114,14 @@ export class RampService extends BaseRampService {
 
       // Create to-be-signed transactions
       let unsignedTxs: UnsignedTx[] = [];
+      let stateMeta: any = {};
       if (quote.rampType === "off") {
-        unsignedTxs = await prepareOfframpTransactions(
+          ({ unsignedTxs, stateMeta} = await prepareOfframpTransactions(
           quote,
           normalizedSigningAccounts,
           additionalData?.["paymentData"],
           additionalData?.["userAddress"]
-        );
+        ));
       } else {
         //validate we have the destination address
         if (
@@ -156,6 +157,7 @@ export class RampService extends BaseRampService {
           outputAmount: quote.outputAmount,
           outputCurrency: quote.outputCurrency,
           ...request.additionalData,
+          ...stateMeta,
         },
         quoteId: quote.id,
       };

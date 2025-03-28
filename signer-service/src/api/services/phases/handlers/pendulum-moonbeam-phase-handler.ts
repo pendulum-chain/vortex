@@ -20,7 +20,12 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
 
     const {
       pendulumEphemeralAddress
-    } = state.state || {};
+    } = state.state;
+
+    if (!pendulumEphemeralAddress) {
+      throw new Error('Pendulum ephemeral address is not defined in the state. This is a bug.');
+    }
+
     try {
         const pendulumToMoonbeamTransaction = this.getPresignedTransaction(state, 'pendulumToMoonbeam');
 

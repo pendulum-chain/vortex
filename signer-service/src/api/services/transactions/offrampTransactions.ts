@@ -31,8 +31,9 @@ export async function prepareOfframpTransactions(
   signingAccounts: AccountMeta[],
   stellarPaymentData?: PaymentData,
   userAddress?: string
-): Promise<UnsignedTx[]> {
+): Promise<{unsignedTxs: UnsignedTx[], stateMeta: unknown}> {
   const unsignedTxs: UnsignedTx[] = [];
+  let stateMeta = {};
 
   const fromNetwork = getNetworkFromDestination(quote.from);
   if (!fromNetwork) {
@@ -192,6 +193,12 @@ export async function prepareOfframpTransactions(
           signer: account.address,
         });
 
+        stateMeta = {
+          ...stateMeta,
+          pendulumEphemeralAddress: account.address,
+        };
+
+
       } else {
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
           throw new Error(
@@ -260,5 +267,5 @@ export async function prepareOfframpTransactions(
     }
   }
 
-  return unsignedTxs;
+  return {unsignedTxs, stateMeta}; // Return the unsigned transactions and state meta
 }
