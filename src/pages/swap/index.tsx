@@ -35,7 +35,6 @@ import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../..
 import { useToastMessage } from '../../hooks/useToastMessage';
 import { isNetworkEVM } from '../../helpers/networks';
 
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useTokenOutAmount } from '../../hooks/nabla/useTokenAmountOut';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import { useSwapUrlParams } from './useSwapUrlParams';
@@ -198,8 +197,6 @@ export const SwapPage = () => {
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
-  const userInputTokenBalance = useInputTokenBalance({ fromToken });
-
   const tokenOutAmount = useTokenOutAmount({
     wantsSwap: true,
     api,
@@ -335,12 +332,14 @@ export const SwapPage = () => {
           type: key as InputTokenType,
           assetSymbol: value.assetSymbol,
           assetIcon: value.networkAssetIcon,
+          details: getInputTokenDetailsOrDefault(selectedNetwork, key as InputTokenType),
         }))
       : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
           type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
           assetSymbol: value.fiat.symbol,
           assetIcon: value.fiat.assetIcon,
           name: value.fiat.name,
+          details: getOutputTokenDetails(getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType),
         }));
 
   const modals = (

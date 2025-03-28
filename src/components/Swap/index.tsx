@@ -20,13 +20,13 @@ import { UseTokenOutAmountResult } from '../../hooks/nabla/useTokenAmountOut';
 import { TermsAndConditions } from '../TermsAndConditions';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
-import { UserBalanceWithIcon } from '../UserBalanceWithIcon';
 import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { ExchangeRate } from '../ExchangeRate';
 import { BenefitsList } from '../BenefitsList';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useEventsContext } from '../../contexts/events';
+import { UserBalance } from '../UserBalance';
 
 enum TokenSelectType {
   FROM = 'from',
@@ -115,7 +115,7 @@ export const Swap = ({
           onChange={handleInputChange}
           id="fromAmount"
         />
-        <UserBalanceWithIcon token={fromToken} onClick={handleBalanceClick} />
+        <UserBalance token={fromToken} onClick={handleBalanceClick} />
       </>
     ),
     [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick],
