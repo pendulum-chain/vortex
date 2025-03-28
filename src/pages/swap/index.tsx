@@ -72,6 +72,7 @@ import { validateSwapInputs } from './helpers/swapConfirm/validateSwapInputs';
 import { performSwapInitialChecks } from './helpers/swapConfirm/performSwapInitialChecks';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
+import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 
 type ExchangeRateCache = Partial<Record<InputTokenType, Partial<Record<OutputTokenType, number>>>>;
 
@@ -197,6 +198,8 @@ export const SwapPage = () => {
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
+  const userInputTokenBalance = useInputTokenBalance({ fromToken });
+
   const tokenOutAmount = useTokenOutAmount({
     wantsSwap: true,
     api,
@@ -270,20 +273,20 @@ export const SwapPage = () => {
   function getCurrentErrorMessage() {
     if (isDisconnected) return;
 
-    // if (typeof userInputTokenBalance === 'string') {
-    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-    //     trackEvent({
-    //       event: 'form_error',
-    //       error_message: 'insufficient_balance',
-    //       input_amount: fromAmount ? fromAmount.toString() : '0',
-    //     });
+    if (typeof userInputTokenBalance === 'string') {
+      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+        trackEvent({
+          event: 'form_error',
+          error_message: 'insufficient_balance',
+          input_amount: fromAmount ? fromAmount.toString() : '0',
+        });
 
-    //     return t('pages.swap.error.insufficientFunds', {
-    //       userInputTokenBalance,
-    //       assetSymbol: fromToken?.assetSymbol,
-    //     });
-    //   }
-    // }
+        return t('pages.swap.error.insufficientFunds', {
+          userInputTokenBalance,
+          assetSymbol: fromToken?.assetSymbol,
+        });
+      }
+    }
 
     const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
 
