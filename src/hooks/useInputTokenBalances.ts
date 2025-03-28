@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useReadContracts } from 'wagmi';
 import { Abi } from 'viem';
 import Big from 'big.js';
@@ -27,8 +27,6 @@ export const useEvmBalances = (tokens: EvmInputTokenDetails[]): EvmInputTokenDet
   const { selectedNetwork } = useNetwork();
   const chainId = getNetworkId(selectedNetwork);
 
-  console.log('tokens', tokens);
-
   const { data: balances } = useReadContracts({
     contracts:
       tokens.map((token) => ({
@@ -39,8 +37,6 @@ export const useEvmBalances = (tokens: EvmInputTokenDetails[]): EvmInputTokenDet
         chainId,
       })) ?? [],
   });
-
-  console.log('balances: ', balances);
 
   if (!tokens.length || !balances) {
     return [];
@@ -104,8 +100,11 @@ export const useAssetHubBalances = (tokens: SubstrateInputTokenDetails[]): Subst
 };
 
 export const useInputTokenBalances = (tokens: InputTokenDetails[]): InputTokenDetailsWithBalance[] => {
-  const evmTokens = tokens.filter(isEvmInputTokenDetails) as EvmInputTokenDetails[];
-  const substrateTokens = tokens.filter(isSubstrateInputTokenDetails) as SubstrateInputTokenDetails[];
+  const evmTokens = useMemo(() => tokens.filter(isEvmInputTokenDetails) as EvmInputTokenDetails[], [tokens]);
+  const substrateTokens = useMemo(
+    () => tokens.filter(isSubstrateInputTokenDetails) as SubstrateInputTokenDetails[],
+    [tokens],
+  );
   const evmBalances = useEvmBalances(evmTokens);
   const substrateBalances = useAssetHubBalances(substrateTokens);
 

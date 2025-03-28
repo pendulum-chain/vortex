@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
-import { Dialog } from '../Dialog';
-import { Skeleton } from '../Skeleton';
-import { PoolListItem } from './PoolListItem';
+import {
+  InputTokenType,
+  OutputTokenType,
+  InputTokenDetails,
+  BaseOutputTokenDetails,
+} from '../../constants/tokenConfig';
 import { AssetIconType } from '../../hooks/useGetAssetIcon';
+import { PoolListItem } from './PoolListItem';
 import { SearchInput } from '../SearchInput';
+import { Skeleton } from '../Skeleton';
+import { Dialog } from '../Dialog';
+
 interface PoolSelectorModalProps extends PoolListProps {
   isLoading?: boolean;
   onClose: () => void;
@@ -18,6 +24,7 @@ export interface TokenDefinition {
   type: InputTokenType | OutputTokenType;
   assetIcon: AssetIconType;
   name?: string;
+  details: InputTokenDetails | BaseOutputTokenDetails;
 }
 
 interface PoolListProps {
@@ -65,16 +72,8 @@ function PoolList({ onSelect, definitions, selected }: PoolListProps) {
     <div className="relative">
       <SearchInput set={setFilter} placeholder={t('components.dialogs.selectionModal.searchPlaceholder')} />
       <div className="flex flex-col gap-2 mt-5">
-        {filteredDefinitions.map(({ assetIcon, assetSymbol, type, name }) => (
-          <PoolListItem
-            key={type}
-            isSelected={selected === type}
-            onSelect={onSelect}
-            tokenType={type}
-            tokenSymbol={assetSymbol}
-            assetIcon={assetIcon}
-            name={name}
-          />
+        {filteredDefinitions.map((token) => (
+          <PoolListItem key={token.type} isSelected={selected === token.type} onSelect={onSelect} token={token} />
         ))}
       </div>
     </div>

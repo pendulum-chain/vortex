@@ -26,6 +26,7 @@ const SimpleBalance = ({ token, className }: { token: InputTokenDetails; classNa
 const FullBalance = ({ token, onClick }: { token: InputTokenDetails; onClick: (amount: string) => void }) => {
   const balanceRaw = useInputTokenBalance({ fromToken: token });
   const balance = getInputTokenBalance(balanceRaw);
+
   const hasBalance = balance !== undefined && Number(balance) !== 0;
 
   if (!hasBalance) return null;

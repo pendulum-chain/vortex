@@ -270,20 +270,20 @@ export const SwapPage = () => {
   function getCurrentErrorMessage() {
     if (isDisconnected) return;
 
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
-        trackEvent({
-          event: 'form_error',
-          error_message: 'insufficient_balance',
-          input_amount: fromAmount ? fromAmount.toString() : '0',
-        });
+    // if (typeof userInputTokenBalance === 'string') {
+    //   if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+    //     trackEvent({
+    //       event: 'form_error',
+    //       error_message: 'insufficient_balance',
+    //       input_amount: fromAmount ? fromAmount.toString() : '0',
+    //     });
 
-        return t('pages.swap.error.insufficientFunds', {
-          userInputTokenBalance,
-          assetSymbol: fromToken?.assetSymbol,
-        });
-      }
-    }
+    //     return t('pages.swap.error.insufficientFunds', {
+    //       userInputTokenBalance,
+    //       assetSymbol: fromToken?.assetSymbol,
+    //     });
+    //   }
+    // }
 
     const amountOut = tokenOutAmount.data?.roundedDownQuotedAmountOut;
 
