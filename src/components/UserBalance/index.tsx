@@ -1,39 +1,58 @@
-import { FC, ReactNode } from 'react';
 import { InputTokenDetails } from '../../constants/tokenConfig';
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { getInputTokenBalance, useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
+import wallet from '../../assets/wallet-bifold-outline.svg';
 
 interface UserBalanceProps {
   token: InputTokenDetails;
-  onClick: (amount: string) => void;
-  children?: ReactNode;
+  onClick?: (amount: string) => void;
+  showSymbol?: boolean;
+  showMaxButton?: boolean;
+  showWalletIcon?: boolean;
+  className?: string;
 }
 
-export const UserBalance: FC<UserBalanceProps> = ({ token, onClick, children }) => {
-  const { isDisconnected } = useVortexAccount();
-  const inputTokenBalance = useInputTokenBalance({ fromToken: token });
-
-  if (isDisconnected || inputTokenBalance === undefined) {
-    return <div className="h-6 mt-1" />;
-  }
-
-  const showMaxButton = Number(inputTokenBalance) !== 0;
+const SimpleBalance = ({ token, className }: { token: InputTokenDetails; className?: string }) => {
+  const balanceRaw = useInputTokenBalance({ fromToken: token });
+  const balance = getInputTokenBalance(balanceRaw);
 
   return (
+    <p className={className}>
+      {balance} {token.assetSymbol}
+    </p>
+  );
+};
+
+const FullBalance = ({ token, onClick }: { token: InputTokenDetails; onClick: (amount: string) => void }) => {
+  const balanceRaw = useInputTokenBalance({ fromToken: token });
+  const balance = getInputTokenBalance(balanceRaw);
+  const hasBalance = balance !== undefined && Number(balance) !== 0;
+
+  if (!hasBalance) return null;
+  return (
     <div className="flex items-center justify-end mt-1 mr-0.5">
-      {children}
+      <img src={wallet} alt="Available" className="w-5 h-5 mr-0.5" />
       <p>
-        {inputTokenBalance} {token.assetSymbol}
+        {balance} {token.assetSymbol}
       </p>
-      {showMaxButton && (
-        <button
-          className="px-1 ml-1 bg-blue-100 rounded-md text-primary hover:underline"
-          type="button"
-          onClick={() => onClick(inputTokenBalance)}
-        >
-          Max
-        </button>
-      )}
+      <button
+        className="px-1 ml-1 bg-blue-100 rounded-md text-primary hover:underline"
+        type="button"
+        onClick={() => onClick(balance)}
+      >
+        Max
+      </button>
     </div>
+  );
+};
+
+export const UserBalance = ({ token, onClick, className }: UserBalanceProps) => {
+  const { isDisconnected } = useVortexAccount();
+
+  if (isDisconnected) return null;
+  return onClick ? (
+    <FullBalance token={token} onClick={onClick} />
+  ) : (
+    <SimpleBalance token={token} className={className} />
   );
 };
