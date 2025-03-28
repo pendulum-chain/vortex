@@ -22,9 +22,17 @@ export type EvmInputTokenDetails = BaseInputTokenDetails & {
   type: InputTokenTypes.Evm;
 };
 
-type SubstrateInputTokenDetails = BaseInputTokenDetails & {
+export type SubstrateInputTokenDetails = BaseInputTokenDetails & {
   foreignAssetId: number;
   type: InputTokenTypes.Substrate;
+};
+
+export type EvmInputTokenDetailsWithBalance = EvmInputTokenDetails & {
+  balance: string;
+};
+
+export type SubstrateInputTokenDetailsWithBalance = SubstrateInputTokenDetails & {
+  balance: string;
 };
 
 // Guard function to check if the input token is an EVM token
@@ -32,7 +40,13 @@ export function isEvmInputTokenDetails(inputToken: InputTokenDetails): inputToke
   return inputToken.type === InputTokenTypes.Evm;
 }
 
+export function isSubstrateInputTokenDetails(inputToken: InputTokenDetails): inputToken is SubstrateInputTokenDetails {
+  return inputToken.type === InputTokenTypes.Substrate;
+}
+
 export type InputTokenDetails = EvmInputTokenDetails | SubstrateInputTokenDetails;
+
+export type InputTokenDetailsWithBalance = EvmInputTokenDetailsWithBalance | SubstrateInputTokenDetailsWithBalance;
 
 export type InputTokenType = 'usdc' | 'usdce' | 'usdt';
 
@@ -400,6 +414,12 @@ export const OUTPUT_TOKEN_CONFIG: Record<OutputTokenTypes, OutputTokenDetailsSpa
     ...PENDULUM_BRLA_MOONBEAM,
   },
 };
+
+export function isOutputTokenType(
+  outputTokenType: InputTokenType | OutputTokenType,
+): outputTokenType is OutputTokenType {
+  return Object.values(OutputTokenTypes).includes(outputTokenType as OutputTokenType);
+}
 
 export function getOutputTokenDetailsSpacewalk(outputTokenType: OutputTokenType): OutputTokenDetailsSpacewalk {
   const maybeOutputTokenDetails = OUTPUT_TOKEN_CONFIG[outputTokenType];
