@@ -326,21 +326,24 @@ export const SwapPage = () => {
     return tokenOutAmount.error;
   }
 
-  const definitions: TokenDefinition[] =
-    tokenSelectModalType === 'from'
-      ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
-          type: key as InputTokenType,
-          assetSymbol: value.assetSymbol,
-          assetIcon: value.networkAssetIcon,
-          details: getInputTokenDetailsOrDefault(selectedNetwork, key as InputTokenType),
-        }))
-      : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
-          type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
-          assetSymbol: value.fiat.symbol,
-          assetIcon: value.fiat.assetIcon,
-          name: value.fiat.name,
-          details: getOutputTokenDetails(getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType),
-        }));
+  const definitions: TokenDefinition[] = useMemo(
+    () =>
+      tokenSelectModalType === 'from'
+        ? Object.entries(INPUT_TOKEN_CONFIG[selectedNetwork]).map(([key, value]) => ({
+            type: key as InputTokenType,
+            assetSymbol: value.assetSymbol,
+            assetIcon: value.networkAssetIcon,
+            details: getInputTokenDetailsOrDefault(selectedNetwork, key as InputTokenType),
+          }))
+        : Object.entries(OUTPUT_TOKEN_CONFIG).map(([key, value]) => ({
+            type: getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType,
+            assetSymbol: value.fiat.symbol,
+            assetIcon: value.fiat.assetIcon,
+            name: value.fiat.name,
+            details: getOutputTokenDetails(getEnumKeyByStringValue(OutputTokenTypes, key) as OutputTokenType),
+          })),
+    [tokenSelectModalType, selectedNetwork],
+  );
 
   const modals = (
     <>
