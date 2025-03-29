@@ -1,6 +1,6 @@
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { ISubmittableResult } from '@polkadot/types/types';
-import { PendulumCurrencyId } from '../../../../config/tokens';
+import { PendulumCurrencyId } from 'shared';
 import { ApiManager } from '../../pendulum/apiManager';
 
 export async function createPendulumToAssethubTransfer(

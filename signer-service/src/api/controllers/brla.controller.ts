@@ -2,11 +2,9 @@ import { Request, Response } from 'express';
 import { validateMaskedNumber } from 'shared';
 import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import { BrlaApiService } from '../services/brla/brlaApiService';
-import { RegisterSubaccountPayload } from '../services/brla/types';
 import { eventPoller } from '../..';
-import { BrlaTeleportService, EvmAddress } from '../services/brla/brlaTeleportService';
+import { BrlaTeleportService } from '../services/brla/brlaTeleportService';
 import { generateReferenceLabel } from '../services/brla/helpers';
-import { PayInCodeQuery } from '../middlewares/validators';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -61,8 +59,8 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
  * @throws 500 - For any server-side errors during processing
  */
 export const getBrlaUser = async (
-  req: Request<{}, {}, {}, BrlaEndpoints.GetUserRequest>,
-  res: Response<BrlaEndpoints.GetUserResponse>,
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetUserRequest>,
+  res: Response<BrlaEndpoints.GetUserResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -92,8 +90,8 @@ export const getBrlaUser = async (
 };
 
 export const triggerBrlaOfframp = async (
-  req: Request<{}, {}, BrlaEndpoints.TriggerOfframpRequest>,
-  res: Response<BrlaEndpoints.TriggerOfframpResponse>,
+  req: Request<unknown, unknown, BrlaEndpoints.TriggerOfframpRequest>,
+  res: Response<BrlaEndpoints.TriggerOfframpResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId, pixKey, amount, receiverTaxId } = req.body;
@@ -119,7 +117,7 @@ export const triggerBrlaOfframp = async (
       return;
     }
 
-    const {limitBurn} = subaccount.kyc.limits;
+    const { limitBurn } = subaccount.kyc.limits;
     if (Number(amount) > limitBurn) {
       res.status(400).json({ error: 'Amount exceeds limit' });
       return;
@@ -139,8 +137,8 @@ export const triggerBrlaOfframp = async (
 };
 
 export const getOfframpStatus = async (
-  req: Request<{}, {}, {}, BrlaEndpoints.GetOfframpStatusRequest>,
-  res: Response<BrlaEndpoints.GetOfframpStatusResponse>,
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetOfframpStatusRequest>,
+  res: Response<BrlaEndpoints.GetOfframpStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -183,8 +181,8 @@ export const getOfframpStatus = async (
 };
 
 export const createSubaccount = async (
-  req: Request<{}, {}, BrlaEndpoints.CreateSubaccountRequest>,
-  res: Response<BrlaEndpoints.CreateSubaccountResponse>,
+  req: Request<unknown, unknown, BrlaEndpoints.CreateSubaccountRequest>,
+  res: Response<BrlaEndpoints.CreateSubaccountResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { cpf: taxId } = req.body;
@@ -208,8 +206,8 @@ export const createSubaccount = async (
 };
 
 export const fetchSubaccountKycStatus = async (
-  req: Request<{}, {}, {}, BrlaEndpoints.GetKycStatusRequest>,
-  res: Response<BrlaEndpoints.GetKycStatusResponse>,
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetKycStatusRequest>,
+  res: Response<BrlaEndpoints.GetKycStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -257,8 +255,8 @@ export const fetchSubaccountKycStatus = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const getPayInCode = async (
-  req: Request<{}, {}, {}, BrlaEndpoints.GetPayInCodeRequest>,
-  res: Response<BrlaEndpoints.GetPayInCodeResponse>,
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetPayInCodeRequest>,
+  res: Response<BrlaEndpoints.GetPayInCodeResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId, amount, receiverAddress } = req.query;
@@ -275,7 +273,7 @@ export const getPayInCode = async (
       return;
     }
 
-    const {limitMint} = subaccount.kyc.limits;
+    const { limitMint } = subaccount.kyc.limits;
 
     if (Number(amount) > limitMint) {
       res.status(400).json({ error: 'Amount exceeds limit' });
@@ -307,8 +305,8 @@ export const getPayInCode = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const validatePixKey = async (
-  req: Request<{}, {}, {}, BrlaEndpoints.ValidatePixKeyRequest>,
-  res: Response<BrlaEndpoints.ValidatePixKeyResponse>,
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.ValidatePixKeyRequest>,
+  res: Response<BrlaEndpoints.ValidatePixKeyResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { pixKey } = req.query;
@@ -340,7 +338,7 @@ export const validatePixKey = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const triggerPayIn = async (
-  req: Request<{}, {}, BrlaEndpoints.TriggerPayInRequest>,
+  req: Request<unknown, unknown, BrlaEndpoints.TriggerPayInRequest>,
   res: Response<BrlaEndpoints.TriggerPayInResponse>,
 ): Promise<void> => {
   try {

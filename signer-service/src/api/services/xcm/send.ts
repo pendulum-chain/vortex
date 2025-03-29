@@ -1,6 +1,5 @@
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from 'shared';
-import { WalletAccount } from '@talismn/connect-wallets';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { ApiPromise } from '@polkadot/api';
 import { SignedBlock } from '@polkadot/types/interfaces';

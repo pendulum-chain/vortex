@@ -12,22 +12,7 @@ import {
 import { fundEphemeralAccount, getFundingData } from '../services/pendulum/pendulum.service';
 import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../services/pendulum/helpers';
 import { SlackNotifier } from '../services/slack.service';
-import { ApiManager, SubstrateApiNetwork } from '../services/pendulum/apiManager';
-
-interface FundEphemeralRequest {
-  ephemeralAddress: string;
-  requiresGlmr?: boolean;
-}
-
-type ApiResponse<T> =
-  | {
-      status: 'success';
-      data: T;
-    }
-  | {
-      error: string;
-      details?: string;
-    };
+import { ApiManager } from '../services/pendulum/apiManager';
 
 export const fundEphemeralAccountController = async (
   req: Request<{}, {}, PendulumEndpoints.FundEphemeralRequest>,
@@ -46,14 +31,12 @@ export const fundEphemeralAccountController = async (
     if (result) {
       res.json({ status: 'success', data: undefined });
       return;
-    } 
-      res.status(500).send({ error: 'Funding error' });
-      return;
-    
+    }
+    res.status(500).send({ error: 'Funding error' });
+    return;
   } catch (error) {
     console.error('Error funding ephemeral account:', error);
     res.status(500).send({ error: 'Internal Server Error' });
-    
   }
 };
 

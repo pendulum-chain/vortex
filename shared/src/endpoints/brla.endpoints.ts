@@ -102,4 +102,9 @@ export namespace BrlaEndpoints {
   export interface TriggerPayInResponse {
     // Empty response with 200 status
   }
+
+  export interface BrlaErrorResponse {
+    error: string;
+    details?: string;
+  }
 }
