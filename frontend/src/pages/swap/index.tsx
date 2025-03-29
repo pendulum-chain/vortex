@@ -22,6 +22,7 @@ import {
   getEnumKeyByStringValue,
   getOnChainTokenDetailsOrDefault,
   moonbeamTokenConfig,
+  Networks,
   OnChainToken,
   stellarTokenConfig,
 } from 'shared';
@@ -47,7 +48,7 @@ import {
   useRampState,
   useRampSummaryVisible,
 } from '../../stores/offrampStore';
-import { RampExecutionInput } from '../../types/phases';
+import { RampExecutionInput, RampingState } from '../../types/phases';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { BaseLayout } from '../../layouts';
@@ -71,6 +72,31 @@ import { PopularTokens } from '../../sections/PopularTokens';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
+
+const getTokenDefinitionsForNetwork = (type: 'from' | 'to', selectedNetwork: Networks): TokenDefinition[] => {
+  if (type === 'from') {
+    if (selectedNetwork === Networks.AssetHub) {
+      return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
+        type: key as OnChainToken,
+        assetSymbol: value.assetSymbol,
+        assetIcon: value.networkAssetIcon,
+      }));
+    }
+
+    return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
+      type: key as OnChainToken,
+      assetSymbol: value.assetSymbol,
+      assetIcon: value.networkAssetIcon,
+    }));
+  } else {
+    return [...Object.entries(moonbeamTokenConfig), ...Object.entries(stellarTokenConfig)].map(([key, value]) => ({
+      type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
+      assetSymbol: value.fiat.symbol,
+      assetIcon: value.fiat.assetIcon,
+      name: value.fiat.name,
+    }));
+  }
+};
 
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -201,7 +227,7 @@ export const SwapPage = () => {
     } finally {
       setQuoteLoading(false);
     }
-  }, [address, fromAmount, from, to, selectedNetwork, trackEvent, form]);
+  }, [address, fromAmount, trackEvent, form]);
 
   // Fetch quote when amount changes
   useEffect(() => {
@@ -314,21 +340,7 @@ export const SwapPage = () => {
     return null;
   }
 
-  const definitions: TokenDefinition[] =
-    tokenSelectModalType === 'from'
-      ? [...Object.entries(evmTokenConfig[selectedNetwork]), ...Object.entries(assetHubTokenConfig)].map(
-          ([key, value]) => ({
-            type: key as OnChainToken,
-            assetSymbol: value.assetSymbol,
-            assetIcon: value.networkAssetIcon,
-          }),
-        )
-      : [...Object.entries(moonbeamTokenConfig), ...Object.entries(stellarTokenConfig)].map(([key, value]) => ({
-          type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
-          assetSymbol: value.fiat.symbol,
-          assetIcon: value.fiat.assetIcon,
-          name: value.fiat.name,
-        }));
+  const definitions = getTokenDefinitionsForNetwork(tokenSelectModalType, selectedNetwork);
 
   const modals = (
     <>
