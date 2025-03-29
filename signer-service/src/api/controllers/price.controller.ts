@@ -60,12 +60,7 @@ const getPriceFromProvider = async (
   return await providerHandlers[provider](fromCrypto, toFiat, amount, network);
 };
 
-export const getPriceForProvider: RequestHandler<
-  unknown, 
-  any, 
-  unknown, 
-  PriceQuery
-> = async (req, res) => {
+export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQuery> = async (req, res) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || typeof provider !== 'string') {

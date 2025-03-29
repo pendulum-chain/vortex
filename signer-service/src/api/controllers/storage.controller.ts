@@ -72,7 +72,7 @@ export const FLOW_HEADERS: Record<StorageEndpoints.FlowType, FlowHeaders> = {
 };
 export const storeData = async (
   req: Request<{}, {}, StorageEndpoints.StoreDataRequest>,
-  res: Response<StorageEndpoints.StoreDataResponse | StorageEndpoints.StoreDataErrorResponse>
+  res: Response<StorageEndpoints.StoreDataResponse | StorageEndpoints.StoreDataErrorResponse>,
 ): Promise<void> => {
   if (!spreadsheet.storageSheetId) {
     throw new Error('Storage sheet ID is not defined');

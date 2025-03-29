@@ -1,9 +1,9 @@
-import { Request, Response, NextFunction } from "express";
-import httpStatus from "http-status";
-import { RampEndpoints } from "shared/src/endpoints/ramp.endpoints";
-import rampService from "../services/ramp/ramp.service";
-import { APIError } from "../errors/api-error";
-import logger from "../../config/logger";
+import { Request, Response, NextFunction } from 'express';
+import httpStatus from 'http-status';
+import { RampEndpoints } from 'shared/src/endpoints/ramp.endpoints';
+import rampService from '../services/ramp/ramp.service';
+import { APIError } from '../errors/api-error';
+import logger from '../../config/logger';
 
 /**
  * Register a new ramping process
@@ -12,7 +12,7 @@ import logger from "../../config/logger";
 export const registerRamp = async (
   req: Request<{}, {}, RampEndpoints.RegisterRampRequest>,
   res: Response<RampEndpoints.RegisterRampResponse>,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { quoteId, signingAccounts, additionalData } = req.body;
@@ -22,7 +22,7 @@ export const registerRamp = async (
     if (!quoteId || !signingAccounts || signingAccounts.length === 0) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: "Missing required fields",
+        message: 'Missing required fields',
       });
     }
 
@@ -33,12 +33,12 @@ export const registerRamp = async (
         signingAccounts,
         additionalData,
       },
-      route
+      route,
     );
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error("Error starting ramp:", error);
+    logger.error('Error starting ramp:', error);
     next(error);
   }
 };
@@ -50,7 +50,7 @@ export const registerRamp = async (
 export const startRamp = async (
   req: Request<{}, {}, RampEndpoints.StartRampRequest>,
   res: Response<RampEndpoints.StartRampResponse>,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { rampId, presignedTxs, additionalData } = req.body;
@@ -60,7 +60,7 @@ export const startRamp = async (
     if (!rampId || !presignedTxs) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: "Missing required fields",
+        message: 'Missing required fields',
       });
     }
 
@@ -71,12 +71,12 @@ export const startRamp = async (
         presignedTxs,
         additionalData,
       },
-      route
+      route,
     );
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error("Error starting ramp:", error);
+    logger.error('Error starting ramp:', error);
     next(error);
   }
 };
@@ -88,7 +88,7 @@ export const startRamp = async (
 export const getRampStatus = async (
   req: Request<RampEndpoints.GetRampStatusRequest>,
   res: Response<RampEndpoints.GetRampStatusResponse>,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -98,13 +98,13 @@ export const getRampStatus = async (
     if (!ramp) {
       throw new APIError({
         status: httpStatus.NOT_FOUND,
-        message: "Ramp not found",
+        message: 'Ramp not found',
       });
     }
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error getting ramp status:", error);
+    logger.error('Error getting ramp status:', error);
     next(error);
   }
 };
@@ -116,7 +116,7 @@ export const getRampStatus = async (
 export const getErrorLogs = async (
   req: Request<RampEndpoints.GetRampErrorLogsRequest>,
   res: Response<RampEndpoints.GetRampErrorLogsResponse>,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -126,13 +126,13 @@ export const getErrorLogs = async (
     if (!errorLogs) {
       throw new APIError({
         status: httpStatus.NOT_FOUND,
-        message: "Ramp not found",
+        message: 'Ramp not found',
       });
     }
 
     res.status(httpStatus.OK).json(errorLogs);
   } catch (error) {
-    logger.error("Error getting error logs:", error);
+    logger.error('Error getting error logs:', error);
     next(error);
   }
 };

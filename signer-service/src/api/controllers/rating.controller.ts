@@ -19,7 +19,7 @@ export const RATING_SHEET_HEADER_VALUES = [
 
 export const storeRating = async (
   req: Request<{}, {}, RatingEndpoints.StoreRatingRequest>,
-  res: Response<RatingEndpoints.StoreRatingResponse | RatingEndpoints.StoreRatingErrorResponse>
+  res: Response<RatingEndpoints.StoreRatingResponse | RatingEndpoints.StoreRatingErrorResponse>,
 ): Promise<void> => {
   if (!spreadsheet.ratingSheetId) {
     throw new Error('Rating sheet ID is not configured');

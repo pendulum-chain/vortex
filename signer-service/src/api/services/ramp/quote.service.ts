@@ -1,22 +1,17 @@
-import Big from "big.js";
-import { v4 as uuidv4 } from "uuid";
-import { BaseRampService } from "./base.service";
-import QuoteTicket from "../../../models/quoteTicket.model";
-import logger from "../../../config/logger";
-import { APIError } from "../../errors/api-error";
-import httpStatus from "http-status";
-import {
-  DestinationType,
-  getNetworkFromDestination,
-  getPendulumDetails,
-  RampCurrency,
-} from "shared";
-import { getTokenOutAmount } from "../nablaReads/outAmount";
-import { ApiManager } from "../pendulum/apiManager";
-import { calculateTotalReceive } from "../../helpers/quote";
+import Big from 'big.js';
+import { v4 as uuidv4 } from 'uuid';
+import { BaseRampService } from './base.service';
+import QuoteTicket from '../../../models/quoteTicket.model';
+import logger from '../../../config/logger';
+import { APIError } from '../../errors/api-error';
+import httpStatus from 'http-status';
+import { DestinationType, getNetworkFromDestination, getPendulumDetails, RampCurrency } from 'shared';
+import { getTokenOutAmount } from '../nablaReads/outAmount';
+import { ApiManager } from '../pendulum/apiManager';
+import { calculateTotalReceive } from '../../helpers/quote';
 
 export interface QuoteRequest {
-  rampType: "on" | "off";
+  rampType: 'on' | 'off';
   from: DestinationType;
   to: DestinationType;
   inputAmount: string;

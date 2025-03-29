@@ -1,5 +1,5 @@
-import { Transaction, Operation } from "stellar-sdk";
-import { TOKEN_CONFIG } from "shared";
+import { Transaction, Operation } from 'stellar-sdk';
+import { TOKEN_CONFIG } from 'shared';
 
 interface TokenConfig {
   tomlFileUrl: string;
@@ -8,27 +8,19 @@ interface TokenConfig {
   memoEnabled: boolean;
 }
 
-export const getOutToken = (
-  outToken: keyof typeof TOKEN_CONFIG
-): TokenConfig => {
+export const getOutToken = (outToken: keyof typeof TOKEN_CONFIG): TokenConfig => {
   return TOKEN_CONFIG[outToken] as TokenConfig;
 };
 
-export const validateTransaction = (
-  transaction: Transaction,
-  anchorSigningKey: string,
-  memo: string | null
-) => {
+export const validateTransaction = (transaction: Transaction, anchorSigningKey: string, memo: string | null) => {
   if (transaction.source !== anchorSigningKey) {
     throw new Error(`Invalid source account: ${transaction.source}`);
   }
-  if (transaction.sequence !== "0") {
+  if (transaction.sequence !== '0') {
     throw new Error(`Invalid sequence number: ${transaction.sequence}`);
   }
   if (transaction.memo.value !== memo) {
-    throw new Error(
-      "Memo does not match with specified user signature or address. Could not validate."
-    );
+    throw new Error('Memo does not match with specified user signature or address. Could not validate.');
   }
 };
 
@@ -38,35 +30,29 @@ export const validateFirstOperation = (
   homeDomain: string,
   memo: string | null,
   memoEnabled: boolean,
-  masterPublicKey: string
+  masterPublicKey: string,
 ) => {
-  if (operation.type !== "manageData") {
-    throw new Error("The first operation should be manageData");
+  if (operation.type !== 'manageData') {
+    throw new Error('The first operation should be manageData');
   }
 
   if (operation.source !== clientPublicKey) {
-    throw new Error(
-      "First manageData operation must have the client account as the source"
-    );
+    throw new Error('First manageData operation must have the client account as the source');
   }
 
   if (memo !== null && memoEnabled) {
     if (operation.source !== masterPublicKey) {
       throw new Error(
-        "First manageData operation must have the master signing key as the source when memo is being used."
+        'First manageData operation must have the master signing key as the source when memo is being used.',
       );
     }
   }
 
   if (operation.name !== `${homeDomain} auth`) {
-    throw new Error(
-      `First manageData operation should have key '${homeDomain} auth'`
-    );
+    throw new Error(`First manageData operation should have key '${homeDomain} auth'`);
   }
   if (!operation.value || operation.value.length !== 64) {
-    throw new Error(
-      "First manageData operation should have a 64-byte random nonce as value"
-    );
+    throw new Error('First manageData operation should have a 64-byte random nonce as value');
   }
 };
 
@@ -74,7 +60,7 @@ export const validateRemainingOperations = (
   operations: Operation[],
   anchorSigningKey: string,
   clientDomainPublicKey: string,
-  clientDomainEnabled: boolean
+  clientDomainEnabled: boolean,
 ) => {
   let hasWebAuthDomain = false;
   let hasClientDomain = false;
@@ -82,37 +68,29 @@ export const validateRemainingOperations = (
   for (let i = 1; i < operations.length; i++) {
     const op = operations[i];
 
-    if (op.type !== "manageData") {
-      throw new Error("All operations should be manage_data operations");
+    if (op.type !== 'manageData') {
+      throw new Error('All operations should be manage_data operations');
     }
 
-    if (op.name === "web_auth_domain") {
+    if (op.name === 'web_auth_domain') {
       hasWebAuthDomain = true;
       if (op.source !== anchorSigningKey) {
-        throw new Error(
-          "web_auth_domain manage_data operation must have the server account as the source"
-        );
+        throw new Error('web_auth_domain manage_data operation must have the server account as the source');
       }
     }
 
-    if (op.name === "client_domain") {
+    if (op.name === 'client_domain') {
       hasClientDomain = true;
       if (op.source !== clientDomainPublicKey) {
-        throw new Error(
-          "client_domain manage_data operation must have the client domain account as the source"
-        );
+        throw new Error('client_domain manage_data operation must have the client domain account as the source');
       }
     }
   }
 
   if (!hasWebAuthDomain) {
-    throw new Error(
-      "Transaction must contain a web_auth_domain manageData operation"
-    );
+    throw new Error('Transaction must contain a web_auth_domain manageData operation');
   }
   if (!hasClientDomain && clientDomainEnabled) {
-    throw new Error(
-      "Transaction must contain a client_domain manageData operation"
-    );
+    throw new Error('Transaction must contain a client_domain manageData operation');
   }
 };

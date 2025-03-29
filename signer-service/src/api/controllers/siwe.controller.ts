@@ -5,7 +5,7 @@ import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
 
 export const sendSiweMessage = async (
   req: Request<{}, {}, SiweEndpoints.CreateSiweRequest>,
-  res: Response<SiweEndpoints.CreateSiweResponse | SiweEndpoints.SiweErrorResponse>
+  res: Response<SiweEndpoints.CreateSiweResponse | SiweEndpoints.SiweErrorResponse>,
 ): Promise<void> => {
   const { walletAddress } = req.body;
 
@@ -27,7 +27,7 @@ export const sendSiweMessage = async (
 
 export const validateSiweSignature = async (
   req: Request<{}, {}, SiweEndpoints.ValidateSiweRequest>,
-  res: Response<SiweEndpoints.ValidateSiweResponse | SiweEndpoints.SiweErrorResponse>
+  res: Response<SiweEndpoints.ValidateSiweResponse | SiweEndpoints.SiweErrorResponse>,
 ): Promise<void> => {
   const { nonce, signature, siweMessage } = req.body;
 

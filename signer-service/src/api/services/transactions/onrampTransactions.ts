@@ -1,4 +1,4 @@
-import { QuoteTicketAttributes } from "../../../models/quoteTicket.model";
+import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
 import {
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   getAnyFiatTokenDetails,
@@ -12,17 +12,17 @@ import {
   isOnChainToken,
   isOnChainTokenDetails,
   Networks,
-} from "shared";
-import { UnsignedTx } from "../ramp/base.service";
-import { AccountMeta } from "../ramp/ramp.service";
-import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from "./index";
-import { createOnrampSquidrouterTransactions } from "./squidrouter/onramp";
-import { createMoonbeamToPendulumXCM } from "./xcm/moonbeamToPendulum";
-import { createPendulumToMoonbeamTransfer } from "./xcm/pendulumToMoonbeam";
-import { multiplyByPowerOfTen } from "../pendulum/helpers";
-import Big from "big.js";
-import { createPendulumToAssethubTransfer } from "./xcm/pendulumToAssethub";
-import { createNablaTransactionsForQuote } from "./nabla";
+} from 'shared';
+import { UnsignedTx } from '../ramp/base.service';
+import { AccountMeta } from '../ramp/ramp.service';
+import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
+import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
+import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
+import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
+import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import Big from 'big.js';
+import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
+import { createNablaTransactionsForQuote } from './nabla';
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
@@ -30,7 +30,7 @@ export async function prepareOnrampTransactions(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[],
   destinationAddress: string,
-): Promise<{unsignedTxs: UnsignedTx[], stateMeta: unknown}> {
+): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
   let stateMeta = {};
   const unsignedTxs: UnsignedTx[] = [];
 
@@ -72,18 +72,15 @@ export async function prepareOnrampTransactions(
 
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
 
-  const outputAmountBeforeFees = new Big(quote.outputAmount).add(
-      new Big(quote.fee)
-  );
+  const outputAmountBeforeFees = new Big(quote.outputAmount).add(new Big(quote.fee));
 
-  const outputAmountBeforeFeesRaw = multiplyByPowerOfTen(
-    outputAmountBeforeFees,
-    outputTokenDetails.decimals
-  ).toFixed(0, 0); 
+  const outputAmountBeforeFeesRaw = multiplyByPowerOfTen(outputAmountBeforeFees, outputTokenDetails.decimals).toFixed(
+    0,
+    0,
+  );
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
- 
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
@@ -133,9 +130,17 @@ export async function prepareOnrampTransactions(
       }
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
       const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-      const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(nablaSoftMinimumOutput, inputTokenPendulumDetails.pendulumDecimals).toFixed();
+      const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
+        nablaSoftMinimumOutput,
+        inputTokenPendulumDetails.pendulumDecimals,
+      ).toFixed();
 
-      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails);
+      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(
+        quote,
+        account,
+        inputTokenPendulumDetails,
+        outputTokenPendulumDetails,
+      );
 
       unsignedTxs.push({
         tx_data: approveTransaction,
@@ -161,7 +166,6 @@ export async function prepareOnrampTransactions(
         inputTokenPendulumDetails,
         outputTokenPendulumDetails,
       };
-
 
       if (toNetworkId === getNetworkId(Networks.AssetHub)) {
         const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
@@ -193,5 +197,5 @@ export async function prepareOnrampTransactions(
     }
   }
 
-  return {unsignedTxs, stateMeta};
+  return { unsignedTxs, stateMeta };
 }

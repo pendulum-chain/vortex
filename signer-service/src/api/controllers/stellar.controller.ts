@@ -59,7 +59,7 @@ export const signSep10ChallengeHandler = async (
 export const getSep10MasterPKHandler = async (
   _: Request,
   res: Response<StellarEndpoints.GetSep10MasterPKResponse | StellarEndpoints.StellarErrorResponse>,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!SEP10_MASTER_SECRET) {

@@ -1,14 +1,9 @@
-import axios from "axios";
-import { getSquidRouterConfig, squidRouterConfigBase } from "./config";
-import {
-  AXL_USDC_MOONBEAM,
-  EvmTokenDetails,
-  getNetworkId,
-  Networks,
-} from "shared";
-import { encodeFunctionData } from "viem";
-import erc20ABI from "../../../../contracts/ERC20";
-import squidReceiverABI from "../../../../../../mooncontracts/splitReceiverABI.json";
+import axios from 'axios';
+import { getSquidRouterConfig, squidRouterConfigBase } from './config';
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from 'shared';
+import { encodeFunctionData } from 'viem';
+import erc20ABI from '../../../../contracts/ERC20';
+import squidReceiverABI from '../../../../../../mooncontracts/splitReceiverABI.json';
 
 export interface RouteParams {
   fromAddress: string;

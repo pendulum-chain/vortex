@@ -1,16 +1,13 @@
-import { createPublicClient, encodeFunctionData, http } from "viem";
-import { moonbeam } from "viem/chains";
-import { EvmTokenDetails, Networks } from "shared";
-import { createOfframpRouteParams, getRoute } from "./route";
-import erc20ABI from "../../../../contracts/ERC20";
-import {
-  createRandomString,
-  createSquidRouterHash,
-} from "../../../helpers/squidrouter";
-import { decodeAddress } from "@polkadot/util-crypto";
-import { u8aToHex } from "@polkadot/util";
-import encodePayload from "./payload";
-import { getSquidRouterConfig } from "./config";
+import { createPublicClient, encodeFunctionData, http } from 'viem';
+import { moonbeam } from 'viem/chains';
+import { EvmTokenDetails, Networks } from 'shared';
+import { createOfframpRouteParams, getRoute } from './route';
+import erc20ABI from '../../../../contracts/ERC20';
+import { createRandomString, createSquidRouterHash } from '../../../helpers/squidrouter';
+import { decodeAddress } from '@polkadot/util-crypto';
+import { u8aToHex } from '@polkadot/util';
+import encodePayload from './payload';
+import { getSquidRouterConfig } from './config';
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;

@@ -12,7 +12,7 @@ import logger from '../../config/logger';
 export const createQuote = async (
   req: Request<{}, {}, QuoteEndpoints.CreateQuoteRequest>,
   res: Response<QuoteEndpoints.QuoteResponse>,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
@@ -57,7 +57,7 @@ export const createQuote = async (
 export const getQuote = async (
   req: Request<QuoteEndpoints.GetQuoteRequest>,
   res: Response<QuoteEndpoints.QuoteResponse>,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params;

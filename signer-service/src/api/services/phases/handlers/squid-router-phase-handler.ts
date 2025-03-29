@@ -70,8 +70,6 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  
-
   /**
    * Execute a transaction
    * @param txData The transaction data

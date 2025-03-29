@@ -1,15 +1,12 @@
-import { QuoteTicketAttributes } from "../../../../models/quoteTicket.model";
-import { ApiManager } from "../../pendulum/apiManager";
-import { prepareNablaSwapTransaction } from "./swap";
-import { prepareNablaApproveTransaction } from "./approve";
-import { AccountMeta } from "../../ramp/ramp.service";
-import {
-  Networks,
-  PendulumDetails,
-} from "shared";
-import { encodeSubmittableExtrinsic } from "../index";
-import Big from "big.js";
-import { multiplyByPowerOfTen } from "../../pendulum/helpers";
+import { QuoteTicketAttributes } from '../../../../models/quoteTicket.model';
+import { ApiManager } from '../../pendulum/apiManager';
+import { prepareNablaSwapTransaction } from './swap';
+import { prepareNablaApproveTransaction } from './approve';
+import { AccountMeta } from '../../ramp/ramp.service';
+import { Networks, PendulumDetails } from 'shared';
+import { encodeSubmittableExtrinsic } from '../index';
+import Big from 'big.js';
+import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 
 export async function createNablaTransactionsForQuote(
   quote: QuoteTicketAttributes,
@@ -22,17 +19,15 @@ export async function createNablaTransactionsForQuote(
   }
 
   const apiManager = ApiManager.getInstance();
-  const networkName = "pendulum";
+  const networkName = 'pendulum';
   const pendulumNode = await apiManager.getApi(networkName);
 
   const amountRaw = multiplyByPowerOfTen(
     new Big(quote.inputAmount),
-    inputTokenPendulumDetails.pendulumDecimals
+    inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount)
-    .add(new Big(quote.fee))
-    .toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toFixed(0, 0);
 
   const approveTransaction = await prepareNablaApproveTransaction({
     inputTokenDetails: inputTokenPendulumDetails,
