@@ -5,12 +5,12 @@ import Big from 'big.js';
 import erc20ABI from '../contracts/ERC20';
 import { OnChainTokenDetails, TokenType } from 'shared';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
-import { nativeToDecimal, USDC_DECIMALS } from '../helpers/parseNumbers';
+import { nativeToDecimal, USDC_DECIMALS } from 'shared';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
 import { useVortexAccount } from './useVortexAccount';
 import { useNetwork } from '../contexts/network';
-import { getNetworkId } from '../helpers/networks';
+import { getNetworkId } from 'shared';
 
 const useEvmBalance = (
   tokenAddress: `0x${string}` | undefined,

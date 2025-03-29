@@ -1,6 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { FiatToken, OnChainToken } from 'shared';
-import { DestinationType, Networks } from '../helpers/networks';
+import { DestinationType, FiatToken, Networks, OnChainToken } from 'shared';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 
 // Create axios instance with default config

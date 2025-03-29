@@ -6,7 +6,7 @@ import ARBITRUM from '../assets/chains/arbitrum.svg';
 import BASE from '../assets/chains/base.svg';
 import AVALANCHE from '../assets/chains/avalanche.svg';
 
-import { Networks } from '../helpers/networks';
+import { Networks } from 'shared';
 
 export const NETWORK_ICONS: Record<Networks, string> = {
   [Networks.AssetHub]: ASSET_HUB,

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Networks, getNetworkDisplayName } from '../../helpers/networks';
+import { Networks, getNetworkDisplayName } from 'shared';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useEffect, useState } from 'react';

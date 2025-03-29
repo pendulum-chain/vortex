@@ -33,7 +33,7 @@ import { usePendulumNode } from '../../contexts/polkadotNode';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM } from '../../helpers/networks';
+import { isNetworkEVM } from 'shared';
 
 import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';

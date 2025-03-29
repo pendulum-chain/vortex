@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
 import accountBalanceWalletIcon from '../../assets/account-balance-wallet-blue.svg';
-import { isNetworkEVM } from '../../helpers/networks';
+import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 import { RampSigningPhase } from '../../types/phases';

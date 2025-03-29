@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { type FC } from 'react';
 
-import { Networks } from '../../helpers/networks';
+import { Networks } from 'shared';
 import { FeeComparisonTable } from './FeeComparisonTable';
 
 export interface BaseComparisonProps {

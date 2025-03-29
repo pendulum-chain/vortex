@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import Big from 'big.js';
 
-import { getNetworkDisplayName, isNetworkEVM } from '../../../helpers/networks';
+import { getNetworkDisplayName, isNetworkEVM } from 'shared';
 import { priceProviders } from '../priceProviders';
 import { FeeProviderRow } from '../FeeProviderRow';
 import { BaseComparisonProps } from '..';

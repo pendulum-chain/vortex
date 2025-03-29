@@ -8,7 +8,7 @@ import { getAnyFiatTokenDetails, getOnChainTokenDetails, OnChainToken, FiatToken
 import { debounce } from '../../helpers/function';
 import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
-import { getCaseSensitiveNetwork } from '../../helpers/networks';
+import { getCaseSensitiveNetwork } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { useFormStoreActions } from '../../stores/formStore';
 

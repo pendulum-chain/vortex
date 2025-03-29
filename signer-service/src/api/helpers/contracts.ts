@@ -1,19 +1,11 @@
 import { INumber } from "@polkadot/types-codec/types";
 import BigNumber from "big.js";
 import { Limits } from "@pendulum-chain/api-solang";
-import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import type { ApiPromise } from "@polkadot/api";
 import { ContractOptions } from "@polkadot/api-contract/types";
 import { roundDownToSignificantDecimals } from "shared";
 
 const BIG_0 = new BigNumber("0");
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type QueryOptions<TFnData = any, TError = any, TData = TFnData> = Omit<
-  UseQueryOptions<TFnData, TError, TData, QueryKey>,
-  "queryKey" | "queryFn"
->;
-export const emptyCacheKey = [""];
 
 export const defaultReadLimits: Limits = {
   gas: {

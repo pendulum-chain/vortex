@@ -2,7 +2,7 @@ import { polygon } from 'wagmi/chains';
 import Big from 'big.js';
 
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
-import { isNetworkEVM, Networks } from '../../helpers/networks';
+import { isNetworkEVM, Networks } from 'shared';
 
 const PRICE_ENDPOINT = `${SIGNING_SERVICE_URL}/v1/prices`;
 

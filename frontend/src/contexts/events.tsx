@@ -5,7 +5,7 @@ import { getPendulumDetails } from 'shared';
 import { calculateTotalReceive } from '../components/FeeCollapse';
 import { PriceService } from '../services/prices';
 import { useVortexAccount } from '../hooks/useVortexAccount';
-import { getNetworkId, isNetworkEVM, Networks } from '../helpers/networks';
+import { getNetworkId, isNetworkEVM, Networks } from 'shared';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';

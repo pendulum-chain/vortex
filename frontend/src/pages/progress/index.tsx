@@ -6,7 +6,7 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { isNetworkEVM } from '../../helpers/networks';
+import { isNetworkEVM } from 'shared';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
 import { RampingPhase, RampingState } from '../../types/phases';

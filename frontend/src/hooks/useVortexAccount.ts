@@ -1,10 +1,9 @@
 import { useNetwork } from '../contexts/network';
-import { useMemo, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
-import { useAccount } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
 import { Signer } from '@polkadot/types/types';
-import { useSignMessage } from 'wagmi';
-import { isNetworkEVM, ASSETHUB_CHAIN_ID } from '../helpers/networks';
+import { ASSETHUB_CHAIN_ID, isNetworkEVM } from 'shared';
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.

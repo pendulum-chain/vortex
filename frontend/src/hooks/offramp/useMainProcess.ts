@@ -7,7 +7,7 @@ import { useRampActions, useRampState } from '../../stores/offrampStore';
 import { useSep24UrlInterval, useSep24InitialResponse } from '../../stores/sep24Store';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
-import { Networks } from '../../helpers/networks';
+import { Networks } from 'shared';
 import { ApiComponents } from '../../contexts/polkadotNode';
 import { useVortexAccount } from '../useVortexAccount';
 import { RampExecutionInput } from '../../types/phases';

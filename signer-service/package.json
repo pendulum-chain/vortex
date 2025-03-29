@@ -55,6 +55,7 @@
     "morgan": "^1.8.1",
     "pg": "^8.14.1",
     "pg-hstore": "^2.3.4",
+    "shared": "link:shared",
     "sequelize": "^6.37.6",
     "sequelize-cli": "^6.6.2",
     "siwe": "^2.3.2",

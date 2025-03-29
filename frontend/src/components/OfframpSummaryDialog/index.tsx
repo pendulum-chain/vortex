@@ -15,7 +15,7 @@ import {
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 import { useNetwork } from '../../contexts/network';
-import { Networks } from '../../helpers/networks';
+import { Networks } from 'shared';
 
 import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
