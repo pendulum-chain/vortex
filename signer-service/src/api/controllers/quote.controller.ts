@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import httpStatus from 'http-status';
+import { QuoteEndpoints } from 'shared/src/endpoints/quote.endpoints';
 import quoteService from '../services/ramp/quote.service';
 import { APIError } from '../errors/api-error';
 import logger from '../../config/logger';
@@ -8,7 +9,11 @@ import logger from '../../config/logger';
  * Create a new quote
  * @public
  */
-export const createQuote = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const createQuote = async (
+  req: Request<{}, {}, QuoteEndpoints.CreateQuoteRequest>,
+  res: Response<QuoteEndpoints.QuoteResponse>,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
@@ -49,7 +54,11 @@ export const createQuote = async (req: Request, res: Response, next: NextFunctio
  * Get a quote by ID
  * @public
  */
-export const getQuote = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getQuote = async (
+  req: Request<QuoteEndpoints.GetQuoteRequest>,
+  res: Response<QuoteEndpoints.QuoteResponse>,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { id } = req.params;
 

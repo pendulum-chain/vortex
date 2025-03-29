@@ -1,11 +1,9 @@
 import { Request, Response } from "express";
 import { BrlaApiService } from "../services/brla/brlaApiService";
-import {
-  RegisterSubaccountPayload,
-  TriggerOfframpRequest,
-} from "../services/brla/types";
+import { RegisterSubaccountPayload } from "../services/brla/types";
 import { eventPoller } from "../..";
 import { validateMaskedNumber } from "shared";
+import { BrlaEndpoints } from "shared/src/endpoints/brla.endpoints";
 import {
   BrlaTeleportService,
   EvmAddress,
@@ -74,8 +72,8 @@ function handleApiError(
  * @throws 500 - For any server-side errors during processing
  */
 export const getBrlaUser = async (
-  req: Request<{}, {}, {}, { taxId: string }>,
-  res: Response
+  req: Request<{}, {}, {}, BrlaEndpoints.GetUserRequest>,
+  res: Response<BrlaEndpoints.GetUserResponse>
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -105,8 +103,8 @@ export const getBrlaUser = async (
 };
 
 export const triggerBrlaOfframp = async (
-  req: Request<{}, {}, TriggerOfframpRequest>,
-  res: Response
+  req: Request<{}, {}, BrlaEndpoints.TriggerOfframpRequest>,
+  res: Response<BrlaEndpoints.TriggerOfframpResponse>
 ): Promise<void> => {
   try {
     const { taxId, pixKey, amount, receiverTaxId } = req.body;
@@ -155,8 +153,8 @@ export const triggerBrlaOfframp = async (
 };
 
 export const getOfframpStatus = async (
-  req: Request<{}, {}, {}, { taxId: string }>,
-  res: Response
+  req: Request<{}, {}, {}, BrlaEndpoints.GetOfframpStatusRequest>,
+  res: Response<BrlaEndpoints.GetOfframpStatusResponse>
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -193,20 +191,18 @@ export const getOfframpStatus = async (
       return;
     }
 
-    res
-      .status(200)
-      .json({
-        type: lastEventCached.subscription,
-        status: lastEventCached.data.status,
-      });
+    res.status(200).json({
+      type: lastEventCached.subscription,
+      status: lastEventCached.data.status,
+    });
   } catch (error) {
     handleApiError(error, res, "getOfframpStatus");
   }
 };
 
 export const createSubaccount = async (
-  req: Request<{}, {}, RegisterSubaccountPayload & { birthdate: number }>, // We get the birthdate as a number
-  res: Response
+  req: Request<{}, {}, BrlaEndpoints.CreateSubaccountRequest>,
+  res: Response<BrlaEndpoints.CreateSubaccountResponse>
 ): Promise<void> => {
   try {
     const { cpf: taxId } = req.body;
@@ -230,8 +226,8 @@ export const createSubaccount = async (
 };
 
 export const fetchSubaccountKycStatus = async (
-  req: Request<{}, {}, {}, { taxId: string }>,
-  res: Response
+  req: Request<{}, {}, {}, BrlaEndpoints.GetKycStatusRequest>,
+  res: Response<BrlaEndpoints.GetKycStatusResponse>
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -258,12 +254,10 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    res
-      .status(200)
-      .json({
-        type: lastEventCached.subscription,
-        status: lastEventCached.data.kycStatus,
-      });
+    res.status(200).json({
+      type: lastEventCached.subscription,
+      status: lastEventCached.data.kycStatus,
+    });
   } catch (error) {
     handleApiError(error, res, "fetchSubaccountKycStatus");
   }
@@ -283,8 +277,8 @@ export const fetchSubaccountKycStatus = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const getPayInCode = async (
-  req: Request<{}, {}, {}, PayInCodeQuery>,
-  res: Response
+  req: Request<{}, {}, {}, BrlaEndpoints.GetPayInCodeRequest>,
+  res: Response<BrlaEndpoints.GetPayInCodeResponse>
 ): Promise<void> => {
   try {
     const { taxId, amount, receiverAddress } = req.query;
@@ -333,8 +327,8 @@ export const getPayInCode = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const validatePixKey = async (
-  req: Request<{}, {}, {}, { pixKey: string }>,
-  res: Response
+  req: Request<{}, {}, {}, BrlaEndpoints.ValidatePixKeyRequest>,
+  res: Response<BrlaEndpoints.ValidatePixKeyResponse>
 ): Promise<void> => {
   try {
     const { pixKey } = req.query;
@@ -366,12 +360,8 @@ export const validatePixKey = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const triggerPayIn = async (
-  req: Request<
-    {},
-    {},
-    { taxId: string; amount: number; receiverAddress: EvmAddress }
-  >,
-  res: Response
+  req: Request<{}, {}, BrlaEndpoints.TriggerPayInRequest>,
+  res: Response<BrlaEndpoints.TriggerPayInResponse>
 ): Promise<void> => {
   try {
     const { taxId, amount, receiverAddress } = req.body;

@@ -3,29 +3,16 @@ import { Keypair } from 'stellar-sdk';
 
 import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { FiatToken } from 'shared';
+import { StellarEndpoints } from 'shared/src/endpoints/stellar.endpoints';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
 import { buildCreationStellarTx, horizonServer } from '../services/stellar.service';
 import { SlackNotifier } from '../services/slack.service';
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 
-interface CreateTxRequest {
-  accountId: string;
-  maxTime: number;
-  assetCode: string;
-  baseFee: string;
-}
-
-interface Sep10Request {
-  challengeXDR: string;
-  outToken: FiatToken;
-  clientPublicKey: string;
-  derivedMemo: string;
-}
-
 export const createStellarTransactionHandler = async (
-  req: Request<{}, {}, CreateTxRequest>,
-  res: Response,
+  req: Request<{}, {}, StellarEndpoints.CreateStellarTransactionRequest>,
+  res: Response<StellarEndpoints.CreateStellarTransactionResponse | StellarEndpoints.StellarErrorResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -49,8 +36,8 @@ export const createStellarTransactionHandler = async (
 };
 
 export const signSep10ChallengeHandler = async (
-  req: Request<{}, {}, Sep10Request>,
-  res: Response,
+  req: Request<{}, {}, StellarEndpoints.SignSep10ChallengeRequest>,
+  res: Response<StellarEndpoints.SignSep10ChallengeResponse | StellarEndpoints.StellarErrorResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -69,7 +56,11 @@ export const signSep10ChallengeHandler = async (
   }
 };
 
-export const getSep10MasterPKHandler = async (_: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getSep10MasterPKHandler = async (
+  _: Request,
+  res: Response<StellarEndpoints.GetSep10MasterPKResponse | StellarEndpoints.StellarErrorResponse>,
+  next: NextFunction
+): Promise<void> => {
   try {
     if (!SEP10_MASTER_SECRET) {
       throw new Error('SEP10_MASTER_SECRET is not configured');

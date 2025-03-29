@@ -1,14 +1,19 @@
-import { Request, Response, NextFunction } from 'express';
-import httpStatus from 'http-status';
-import rampService from '../services/ramp/ramp.service';
-import { APIError } from '../errors/api-error';
-import logger from '../../config/logger';
+import { Request, Response, NextFunction } from "express";
+import httpStatus from "http-status";
+import { RampEndpoints } from "shared/src/endpoints/ramp.endpoints";
+import rampService from "../services/ramp/ramp.service";
+import { APIError } from "../errors/api-error";
+import logger from "../../config/logger";
 
 /**
  * Register a new ramping process
  * @public
  */
-export const registerRamp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const registerRamp = async (
+  req: Request<{}, {}, RampEndpoints.RegisterRampRequest>,
+  res: Response<RampEndpoints.RegisterRampResponse>,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { quoteId, signingAccounts, additionalData } = req.body;
     const route = req.path; // Get the current route path
@@ -17,7 +22,7 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
     if (!quoteId || !signingAccounts || signingAccounts.length === 0) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Missing required fields',
+        message: "Missing required fields",
       });
     }
 
@@ -28,12 +33,12 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
         signingAccounts,
         additionalData,
       },
-      route,
+      route
     );
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error('Error starting ramp:', error);
+    logger.error("Error starting ramp:", error);
     next(error);
   }
 };
@@ -42,7 +47,11 @@ export const registerRamp = async (req: Request, res: Response, next: NextFuncti
  * Start a new ramping process
  * @public
  */
-export const startRamp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const startRamp = async (
+  req: Request<{}, {}, RampEndpoints.StartRampRequest>,
+  res: Response<RampEndpoints.StartRampResponse>,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { rampId, presignedTxs, additionalData } = req.body;
     const route = req.path; // Get the current route path
@@ -51,7 +60,7 @@ export const startRamp = async (req: Request, res: Response, next: NextFunction)
     if (!rampId || !presignedTxs) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Missing required fields',
+        message: "Missing required fields",
       });
     }
 
@@ -62,12 +71,12 @@ export const startRamp = async (req: Request, res: Response, next: NextFunction)
         presignedTxs,
         additionalData,
       },
-      route,
+      route
     );
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error('Error starting ramp:', error);
+    logger.error("Error starting ramp:", error);
     next(error);
   }
 };
@@ -76,7 +85,11 @@ export const startRamp = async (req: Request, res: Response, next: NextFunction)
  * Get the status of a ramping process
  * @public
  */
-export const getRampStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getRampStatus = async (
+  req: Request<RampEndpoints.GetRampStatusRequest>,
+  res: Response<RampEndpoints.GetRampStatusResponse>,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -85,13 +98,13 @@ export const getRampStatus = async (req: Request, res: Response, next: NextFunct
     if (!ramp) {
       throw new APIError({
         status: httpStatus.NOT_FOUND,
-        message: 'Ramp not found',
+        message: "Ramp not found",
       });
     }
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error('Error getting ramp status:', error);
+    logger.error("Error getting ramp status:", error);
     next(error);
   }
 };
@@ -100,7 +113,11 @@ export const getRampStatus = async (req: Request, res: Response, next: NextFunct
  * Get the error logs for a ramping process
  * @public
  */
-export const getErrorLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getErrorLogs = async (
+  req: Request<RampEndpoints.GetRampErrorLogsRequest>,
+  res: Response<RampEndpoints.GetRampErrorLogsResponse>,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -109,13 +126,13 @@ export const getErrorLogs = async (req: Request, res: Response, next: NextFuncti
     if (!errorLogs) {
       throw new APIError({
         status: httpStatus.NOT_FOUND,
-        message: 'Ramp not found',
+        message: "Ramp not found",
       });
     }
 
     res.status(httpStatus.OK).json(errorLogs);
   } catch (error) {
-    logger.error('Error getting error logs:', error);
+    logger.error("Error getting error logs:", error);
     next(error);
   }
 };

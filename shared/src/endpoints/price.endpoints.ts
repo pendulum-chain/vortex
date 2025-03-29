@@ -1,8 +1,22 @@
 export namespace PriceEndpoints {
   // GET /prices?provider=:provider&fromCrypto=:fromCrypto&toFiat=:toFiat&amount=:amount&network=:network
-  export type Provider = 'alchemypay' | 'moonpay' | 'transak';
-  export type CryptoCurrency = 'usdc' | 'usdce' | 'usdc.e' | 'usdt';
-  export type FiatCurrency = 'eur' | 'ars' | 'brl';
+  export const VALID_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
+  export const VALID_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
+  export const VALID_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
+
+  export type Provider = typeof VALID_PROVIDERS[number];
+  export type CryptoCurrency = typeof VALID_CRYPTO_CURRENCIES[number];
+  export type FiatCurrency = typeof VALID_FIAT_CURRENCIES[number];
+
+  // Validation functions
+  export const isValidProvider = (value: unknown): value is Provider =>
+    typeof value === 'string' && VALID_PROVIDERS.includes(value as Provider);
+
+  export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency =>
+    typeof value === 'string' && VALID_CRYPTO_CURRENCIES.includes(value as CryptoCurrency);
+
+  export const isValidFiatCurrency = (value: unknown): value is FiatCurrency =>
+    typeof value === 'string' && VALID_FIAT_CURRENCIES.includes(value as FiatCurrency);
 
   export interface PriceRequest {
     provider: Provider;
@@ -22,6 +36,7 @@ export namespace PriceEndpoints {
     fee?: string;
     networkFee?: string;
     totalFee?: string;
+
     [key: string]: any; // Additional provider-specific fields
   }
 

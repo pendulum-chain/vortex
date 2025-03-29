@@ -4,19 +4,8 @@ import { Request, Response } from "express";
 
 import { PENDULUM_FUNDING_SEED } from "../../constants/constants";
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from "shared";
+import { SubsidizeEndpoints } from "shared/src/endpoints/subsidize.endpoints";
 import { ApiManager } from "../services/pendulum/apiManager";
-
-interface SubsidizePreSwapRequest {
-  address: string;
-  amountRaw: string;
-  tokenToSubsidize: string;
-}
-
-interface SubsidizePostSwapRequest {
-  address: string;
-  amountRaw: string;
-  token: string;
-}
 
 const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {
@@ -47,8 +36,8 @@ const getPendulumCurrencyConfig = (
 };
 
 export const subsidizePreSwap = async (
-  req: Request<{}, {}, SubsidizePreSwapRequest>,
-  res: Response
+  req: Request<{}, {}, SubsidizeEndpoints.SubsidizePreSwapRequest>,
+  res: Response<SubsidizeEndpoints.SubsidizePreSwapResponse | SubsidizeEndpoints.SubsidizeErrorResponse>
 ): Promise<void> => {
   try {
     const { address, amountRaw, tokenToSubsidize } = req.body;
@@ -87,8 +76,8 @@ export const subsidizePreSwap = async (
 };
 
 export const subsidizePostSwap = async (
-  req: Request<{}, {}, SubsidizePostSwapRequest>,
-  res: Response
+  req: Request<{}, {}, SubsidizeEndpoints.SubsidizePostSwapRequest>,
+  res: Response<SubsidizeEndpoints.SubsidizePostSwapResponse | SubsidizeEndpoints.SubsidizeErrorResponse>
 ): Promise<void> => {
   try {
     const { address, amountRaw, token } = req.body;

@@ -3,20 +3,14 @@ import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
 import {
-  SUPPORTED_PROVIDERS,
-  SUPPORTED_CRYPTO_CURRENCIES,
-  SUPPORTED_FIAT_CURRENCIES,
-  Provider,
-  FiatCurrency,
-  CryptoCurrency,
-} from "../controllers/price.controller";
-import {
   RegisterSubaccountPayload,
   TriggerOfframpRequest,
 } from "../services/brla/types";
 
 import { ParsedQs } from "qs";
 import { EvmAddress } from "../services/brla/brlaTeleportService";
+import { PriceEndpoints } from "shared/src/endpoints/price.endpoints";
+import { TokenConfig } from "shared";
 
 interface CreationBody {
   accountId: string;
@@ -26,9 +20,9 @@ interface CreationBody {
 }
 
 export interface PriceQuery {
-  provider: Provider;
-  fromCrypto: CryptoCurrency;
-  toFiat: FiatCurrency;
+  provider: PriceEndpoints.Provider;
+  fromCrypto: PriceEndpoints.CryptoCurrency;
+  toFiat: PriceEndpoints.FiatCurrency;
   amount: string;
   network?: string;
 }
@@ -99,38 +93,27 @@ export const validatePriceInput: RequestHandler<
 > = (req, res, next) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
-  if (
-    !provider ||
-    !SUPPORTED_PROVIDERS.includes(provider.toLowerCase() as Provider)
-  ) {
+  if (!provider || !PriceEndpoints.isValidProvider(provider)) {
     res.status(400).json({
-      error: `Invalid provider. Supported providers are: ${SUPPORTED_PROVIDERS.join(
+      error: `Invalid provider. Supported providers are: ${PriceEndpoints.VALID_PROVIDERS.join(
         ", "
       )}`,
     });
     return;
   }
 
-  if (
-    !fromCrypto ||
-    !SUPPORTED_CRYPTO_CURRENCIES.includes(
-      fromCrypto.toLowerCase() as CryptoCurrency
-    )
-  ) {
+  if (!fromCrypto || !PriceEndpoints.isValidCryptoCurrency(fromCrypto)) {
     res.status(400).json({
-      error: `Invalid fromCrypto. Supported currencies are: ${SUPPORTED_CRYPTO_CURRENCIES.join(
+      error: `Invalid fromCrypto. Supported currencies are: ${PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(
         ", "
       )}`,
     });
     return;
   }
 
-  if (
-    !toFiat ||
-    !SUPPORTED_FIAT_CURRENCIES.includes(toFiat.toLowerCase() as FiatCurrency)
-  ) {
+  if (!toFiat || !PriceEndpoints.isValidFiatCurrency(toFiat)) {
     res.status(400).json({
-      error: `Invalid toFiat. Supported currencies are: ${SUPPORTED_FIAT_CURRENCIES.join(
+      error: `Invalid toFiat. Supported currencies are: ${PriceEndpoints.VALID_FIAT_CURRENCIES.join(
         ", "
       )}`,
     });

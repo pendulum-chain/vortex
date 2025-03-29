@@ -6,27 +6,19 @@ import * as moonpayService from '../services/moonpay.service';
 import { MoonpayPrice } from '../services/moonpay.service';
 import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
 import { TransakPriceResult } from '../services/transak.service';
+import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import { PriceQuery } from '../middlewares/validators';
-
-export const SUPPORTED_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
-export type Provider = (typeof SUPPORTED_PROVIDERS)[number];
-
-export const SUPPORTED_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
-export type CryptoCurrency = (typeof SUPPORTED_CRYPTO_CURRENCIES)[number];
-
-export const SUPPORTED_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
-export type FiatCurrency = (typeof SUPPORTED_FIAT_CURRENCIES)[number];
 
 type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
 
 type PriceHandler = (
-  fromCrypto: CryptoCurrency,
-  toFiat: FiatCurrency,
+  fromCrypto: PriceEndpoints.CryptoCurrency,
+  toFiat: PriceEndpoints.FiatCurrency,
   amount: string,
   network?: string,
 ) => Promise<AnyPrice>;
 
-const providerHandlers: Record<Provider, PriceHandler> = {
+const providerHandlers: Record<PriceEndpoints.Provider, PriceHandler> = {
   alchemypay: async (fromCrypto, toFiat, amount, network) => {
     try {
       return await alchemyPayService.getPriceFor(fromCrypto, toFiat, amount, network);
@@ -59,16 +51,21 @@ const providerHandlers: Record<Provider, PriceHandler> = {
 };
 
 const getPriceFromProvider = async (
-  provider: Provider,
-  fromCrypto: CryptoCurrency,
-  toFiat: FiatCurrency,
+  provider: PriceEndpoints.Provider,
+  fromCrypto: PriceEndpoints.CryptoCurrency,
+  toFiat: PriceEndpoints.FiatCurrency,
   amount: string,
   network?: string,
 ) => {
   return await providerHandlers[provider](fromCrypto, toFiat, amount, network);
 };
 
-export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, PriceQuery> = async (req, res) => {
+export const getPriceForProvider: RequestHandler<
+  unknown, 
+  any, 
+  unknown, 
+  PriceQuery
+> = async (req, res) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || typeof provider !== 'string') {
@@ -76,7 +73,7 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
     return;
   }
 
-  const providerLower = provider.toLowerCase() as Provider;
+  const providerLower = provider.toLowerCase() as PriceEndpoints.Provider;
 
   if (!fromCrypto || typeof fromCrypto !== 'string') {
     res.status(400).json({ error: 'Invalid fromCrypto parameter' });
@@ -103,8 +100,8 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
 
     const price = await getPriceFromProvider(
       providerLower,
-      fromCrypto.toLowerCase() as CryptoCurrency,
-      toFiat.toLowerCase() as FiatCurrency,
+      fromCrypto.toLowerCase() as PriceEndpoints.CryptoCurrency,
+      toFiat.toLowerCase() as PriceEndpoints.FiatCurrency,
       amount,
       networkParam,
     );

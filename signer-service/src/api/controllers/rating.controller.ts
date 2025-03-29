@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { config } from '../../config/vars';
+import { RatingEndpoints } from 'shared/src/endpoints/rating.endpoints';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 
 const { spreadsheet } = config;
@@ -16,7 +17,10 @@ export const RATING_SHEET_HEADER_VALUES = [
   RatingSheetHeaders.WalletAddress,
 ];
 
-export const storeRating = async (req: Request, res: Response): Promise<void> => {
+export const storeRating = async (
+  req: Request<{}, {}, RatingEndpoints.StoreRatingRequest>,
+  res: Response<RatingEndpoints.StoreRatingResponse | RatingEndpoints.StoreRatingErrorResponse>
+): Promise<void> => {
   if (!spreadsheet.ratingSheetId) {
     throw new Error('Rating sheet ID is not configured');
   }

@@ -8,6 +8,7 @@ import {
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
 } from "../../constants/constants";
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from "shared";
+import { PendulumEndpoints } from "shared/src/endpoints/pendulum.endpoints";
 import {
   fundEphemeralAccount,
   getFundingData,
@@ -39,8 +40,8 @@ type ApiResponse<T> =
     };
 
 export const fundEphemeralAccountController = async (
-  req: Request<{}, {}, FundEphemeralRequest>,
-  res: Response<ApiResponse<void>>
+  req: Request<{}, {}, PendulumEndpoints.FundEphemeralRequest>,
+  res: Response<PendulumEndpoints.FundEphemeralResponse | PendulumEndpoints.FundEphemeralErrorResponse>
 ) => {
   const { ephemeralAddress, requiresGlmr } = req.body;
   const networkName = "pendulum";

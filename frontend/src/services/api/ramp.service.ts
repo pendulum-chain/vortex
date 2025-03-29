@@ -38,13 +38,13 @@ export class RampService {
     rampId: string,
     presignedTxs: RampEndpoints.PresignedTransaction[],
     additionalData?: RampEndpoints.StartRampRequest['additionalData'],
-  ): Promise<RampEndpoints.RampProcess> {
+  ): Promise<RampEndpoints.StartRampResponse> {
     const request: RampEndpoints.StartRampRequest = {
       rampId,
       presignedTxs,
       additionalData,
     };
-    return apiRequest<RampEndpoints.RampProcess>('post', `${this.BASE_PATH}/start`, request);
+    return apiRequest<RampEndpoints.StartRampResponse>('post', `${this.BASE_PATH}/start`, request);
   }
 
   /**
@@ -52,8 +52,8 @@ export class RampService {
    * @param id The ramp ID
    * @returns The ramp process status
    */
-  static async getRampStatus(id: string): Promise<RampEndpoints.RampProcess> {
-    return apiRequest<RampEndpoints.RampProcess>('get', `${this.BASE_PATH}/${id}`);
+  static async getRampStatus(id: string): Promise<RampEndpoints.GetRampStatusResponse> {
+    return apiRequest<RampEndpoints.GetRampStatusResponse>('get', `${this.BASE_PATH}/${id}`);
   }
 
   /**

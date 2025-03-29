@@ -45,6 +45,9 @@ export namespace RampEndpoints {
     };
   }
 
+  // The response is the same as RampProcess
+  export type StartRampResponse = RampProcess;
+
   export interface RampProcess {
     id: string;
     status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -66,6 +69,7 @@ export namespace RampEndpoints {
   }
 
   // The response is the same as RampProcess
+  export type GetRampStatusResponse = RampProcess;
 
   // GET /ramp/:id/errors
   export interface GetRampErrorLogsRequest {

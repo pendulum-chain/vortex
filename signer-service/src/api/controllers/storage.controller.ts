@@ -1,20 +1,8 @@
 import { Request, Response } from 'express';
 import { config } from '../../config/vars';
+import { StorageEndpoints } from 'shared/src/endpoints/storage.endpoints';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 
-enum OfframpHandlerType {
-  EVM_TO_STELLAR = 'evm-to-stellar',
-  ASSETHUB_TO_STELLAR = 'assethub-to-stellar',
-  EVM_TO_BRLA = 'evm-to-brla',
-  ASSETHUB_TO_BRLA = 'assethub-to-brla',
-}
-
-enum OnrampHandlerType {
-  BRLA_TO_EVM = 'brla-to-evm',
-  BRLA_TO_ASSETHUB = 'brla-to-assethub',
-}
-
-export type FlowType = OfframpHandlerType | OnrampHandlerType;
 export type FlowHeaders = string[];
 
 const { spreadsheet } = config;
@@ -74,7 +62,7 @@ export const DUMP_SHEET_HEADER_VALUES_BRLA_TO_ASSETHUB = [
   'pendulumToAssetHubXcmTx',
 ];
 
-export const FLOW_HEADERS: Record<FlowType, FlowHeaders> = {
+export const FLOW_HEADERS: Record<StorageEndpoints.FlowType, FlowHeaders> = {
   'evm-to-stellar': DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR,
   'assethub-to-stellar': DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR,
   'evm-to-brla': DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA,
@@ -82,12 +70,10 @@ export const FLOW_HEADERS: Record<FlowType, FlowHeaders> = {
   'brla-to-evm': DUMP_SHEET_HEADER_VALUES_BRLA_TO_EVM,
   'brla-to-assethub': DUMP_SHEET_HEADER_VALUES_BRLA_TO_ASSETHUB,
 };
-interface StorageRequestBody {
-  flowType: FlowType;
-  [key: string]: any;
-}
-
-export const storeData = async (req: Request<{}, {}, StorageRequestBody>, res: Response): Promise<void> => {
+export const storeData = async (
+  req: Request<{}, {}, StorageEndpoints.StoreDataRequest>,
+  res: Response<StorageEndpoints.StoreDataResponse | StorageEndpoints.StoreDataErrorResponse>
+): Promise<void> => {
   if (!spreadsheet.storageSheetId) {
     throw new Error('Storage sheet ID is not defined');
   }

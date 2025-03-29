@@ -9,6 +9,7 @@ import {
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
 } from '../../constants/constants';
+import { MoonbeamEndpoints } from 'shared/src/endpoints/moonbeam.endpoints';
 import { SlackNotifier } from '../services/slack.service';
 
 import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
@@ -16,15 +17,6 @@ import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
 interface StatusResponse {
   status: boolean;
   public: Address | undefined;
-}
-
-interface ExecuteXcmRequest {
-  id: string;
-  payload: string;
-}
-
-interface ExecuteXcmResponse {
-  hash: `0x${string}`;
 }
 
 const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
@@ -43,8 +35,8 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
 };
 
 export const executeXcmController = async (
-  req: Request<{}, {}, ExecuteXcmRequest>,
-  res: Response<ExecuteXcmResponse | { error: string }>,
+  req: Request<{}, {}, MoonbeamEndpoints.ExecuteXcmRequest>,
+  res: Response<MoonbeamEndpoints.ExecuteXcmResponse | { error: string }>,
 ): Promise<void> => {
   const { id, payload } = req.body;
 
