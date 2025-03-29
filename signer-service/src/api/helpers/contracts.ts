@@ -4,7 +4,7 @@ import { Limits } from "@pendulum-chain/api-solang";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import type { ApiPromise } from "@polkadot/api";
 import { ContractOptions } from "@polkadot/api-contract/types";
-import { roundDownToSignificantDecimals } from "shared/src/helpers";
+import { roundDownToSignificantDecimals } from "shared";
 
 const BIG_0 = new BigNumber("0");
 

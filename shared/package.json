@@ -18,6 +18,7 @@
     "@polkadot/util": "^13.2.1",
     "@polkadot/util-crypto": "^13.2.1",
     "big.js": "^6.2.2",
+    "stellar-sdk": "^13.1.0",
     "viem": "^2.23.2"
   },
   "peerDependencies": {

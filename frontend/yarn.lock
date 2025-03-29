@@ -2464,7 +2464,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/extension-inject@npm:0.53.1":
+"@polkadot/extension-inject@npm:0.53.1, @polkadot/extension-inject@npm:^0.53.1":
   version: 0.53.1
   resolution: "@polkadot/extension-inject@npm:0.53.1"
   dependencies:
@@ -11937,6 +11937,7 @@ __metadata:
     "@polkadot/api-contract": "npm:^13.2.1"
     "@polkadot/api-derive": "npm:^13.2.1"
     "@polkadot/extension-dapp": "npm:^0.53.1"
+    "@polkadot/extension-inject": "npm:^0.53.1"
     "@polkadot/keyring": "npm:^13.1.1"
     "@polkadot/rpc-augment": "npm:^13.2.1"
     "@polkadot/rpc-core": "npm:^13.2.1"
@@ -11966,6 +11967,7 @@ __metadata:
     "@typescript-eslint/eslint-plugin": "npm:^5.53.0"
     "@typescript-eslint/parser": "npm:^5.53.0"
     "@vitejs/plugin-react": "npm:^4.3.4"
+    "@wagmi/core": "npm:2.16.4"
     "@walletconnect/modal": "npm:^2.6.2"
     "@walletconnect/universal-provider": "npm:^2.12.2"
     babel-preset-vite: "npm:^1.1.3"
