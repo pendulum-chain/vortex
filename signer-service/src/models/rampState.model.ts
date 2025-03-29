@@ -1,6 +1,6 @@
 import { Model, DataTypes, Optional } from 'sequelize';
-import sequelize from '../config/database';
 import { DestinationType } from 'shared';
+import sequelize from '../config/database';
 
 // Define the attributes of the RampState model
 interface RampStateAttributes {
@@ -20,22 +20,34 @@ interface RampStateAttributes {
 }
 
 // Define the attributes that can be set during creation
-interface RampStateCreationAttributes extends Optional<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+type RampStateCreationAttributes = Optional<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt'>
 
 // Define the RampState model
 class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> implements RampStateAttributes {
   public id!: string;
+
   public type!: 'on' | 'off';
+
   public currentPhase!: string;
+
   public unsignedTxs!: any[];
+
   public presignedTxs!: any[] | undefined | null;
+
   public from!: DestinationType;
+
   public to!: DestinationType;
+
   public state!: any;
+
   public quoteId!: string;
+
   public phaseHistory!: { phase: string; timestamp: Date; metadata?: any }[];
+
   public errorLogs!: { phase: string; timestamp: Date; error: string; details?: any }[];
+
   public createdAt!: Date;
+
   public updatedAt!: Date;
 }
 

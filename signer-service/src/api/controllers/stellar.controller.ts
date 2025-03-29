@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { Keypair } from 'stellar-sdk';
 
-import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { FiatToken } from 'shared';
 import { StellarEndpoints } from 'shared/src/endpoints/stellar.endpoints';
+import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
 import { buildCreationStellarTx, horizonServer } from '../services/stellar.service';
 import { SlackNotifier } from '../services/slack.service';
@@ -31,7 +31,7 @@ export const createStellarTransactionHandler = async (
   } catch (error) {
     console.error('Error in createStellarTransaction:', error);
     res.status(500).json({ error: 'Failed to create transaction', details: (error as Error).message });
-    return;
+    
   }
 };
 
@@ -52,7 +52,7 @@ export const signSep10ChallengeHandler = async (
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
     res.status(500).json({ error: 'Failed to sign challenge', details: (error as Error).message });
-    return;
+    
   }
 };
 
@@ -71,7 +71,7 @@ export const getSep10MasterPKHandler = async (
   } catch (error) {
     console.error('Error in getSep10MasterPK:', error);
     res.status(500).json({ error: 'Failed to get master public key', details: (error as Error).message });
-    return;
+    
   }
 };
 

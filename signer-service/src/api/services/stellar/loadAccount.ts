@@ -10,12 +10,10 @@ export async function loadAccountWithRetry(
 ): Promise<Horizon.AccountResponse | null> {
   let lastError: Error | null = null;
 
-  const loadAccountWithTimeout = (accountId: string, timeout: number): Promise<Horizon.AccountResponse> => {
-    return Promise.race([
+  const loadAccountWithTimeout = (accountId: string, timeout: number): Promise<Horizon.AccountResponse> => Promise.race([
       horizonServer.loadAccount(accountId),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout)),
     ]);
-  };
 
   for (let i = 0; i < retries; i++) {
     try {
@@ -30,5 +28,5 @@ export async function loadAccountWithRetry(
     }
   }
 
-  throw new Error(`Failed to load account ${ephemeralAccountId} after ${retries} attempts: ` + lastError?.toString());
+  throw new Error(`Failed to load account ${ephemeralAccountId} after ${retries} attempts: ${  lastError?.toString()}`);
 }

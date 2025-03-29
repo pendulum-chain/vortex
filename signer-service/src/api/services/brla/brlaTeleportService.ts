@@ -26,11 +26,15 @@ type Teleport = {
 
 export class BrlaTeleportService {
   private static teleportService: BrlaTeleportService;
+
   private brlaApiService: BrlaApiService;
+
   private checkInterval: NodeJS.Timeout | null = null;
-  private intervalMs: number = 10000;
+
+  private intervalMs = 10000;
 
   private teleports: Map<string, Teleport> = new Map();
+
   private completedTeleports: Map<string, Teleport> = new Map();
 
   constructor(intervalMs?: number) {
@@ -62,7 +66,7 @@ export class BrlaTeleportService {
   }
 
   private async startTeleport(subaccountId: string): Promise<void> {
-    let teleport = this.teleports.get(subaccountId);
+    const teleport = this.teleports.get(subaccountId);
 
     // Ignore operation
     if (teleport === undefined) {

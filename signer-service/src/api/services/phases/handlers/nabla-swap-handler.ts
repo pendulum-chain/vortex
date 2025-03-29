@@ -1,14 +1,14 @@
+import { ExecuteMessageResult, readMessage, submitExtrinsic } from '@pendulum-chain/api-solang';
+import Big from 'big.js';
+import { PendulumDetails, NABLA_ROUTER } from 'shared';
+import { Abi } from '@polkadot/api-contract';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
 import { decodeSubmittableExtrinsic } from '../../transactions';
 
 import { ApiManager } from '../../pendulum/apiManager';
-import { ExecuteMessageResult, readMessage, submitExtrinsic } from '@pendulum-chain/api-solang';
-import Big from 'big.js';
 import { routerAbi } from '../../../../contracts/Router';
-import { PendulumDetails, NABLA_ROUTER } from 'shared';
-import { Abi } from '@polkadot/api-contract';
 import { defaultReadLimits } from '../../../helpers/contracts';
 
 export class NablaSwapPhaseHandler extends BasePhaseHandler {
@@ -80,7 +80,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       }
     } catch (e) {
       let errorMessage = '';
-      const result = (e as ExecuteMessageResult).result;
+      const {result} = e as ExecuteMessageResult;
       if (result?.type === 'reverted') {
         errorMessage = result.description;
       } else if (result?.type === 'error') {

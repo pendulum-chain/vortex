@@ -1,11 +1,11 @@
 import Big from 'big.js';
 import { createExecuteMessageExtrinsic, Extrinsic, readMessage, ReadMessageResult } from '@pendulum-chain/api-solang';
-import { API } from '../../pendulum/apiManager';
 import { Abi } from '@polkadot/api-contract';
 import { ApiPromise } from '@polkadot/api';
 
-import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
 import { NABLA_ROUTER, PendulumDetails } from 'shared';
+import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
+import { API } from '../../pendulum/apiManager';
 import {
   createWriteOptions,
   defaultReadLimits,
@@ -72,7 +72,7 @@ export async function prepareNablaApproveTransaction({
   // call the current allowance of the ephemeral
   const response: ReadMessageResult = await readMessage({
     abi: erc20ContractAbi,
-    api: api,
+    api,
     contractDeploymentAddress: inputTokenDetails.pendulumErc20WrapperAddress,
     callerAddress: pendulumEphemeralAddress,
     messageName: 'allowance',
@@ -88,12 +88,12 @@ export async function prepareNablaApproveTransaction({
 
   const currentAllowance = parseContractBalanceResponse(inputTokenDetails.pendulumDecimals, response.value);
 
-  //maybe do allowance
+  // maybe do allowance
   if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(amountRaw))) {
     try {
       console.log(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol}`);
       return createApproveExtrinsic({
-        api: api,
+        api,
         amount: amountRaw,
         token: inputTokenDetails.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,

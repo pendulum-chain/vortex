@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { config } from '../../config/vars';
 import { StorageEndpoints } from 'shared/src/endpoints/storage.endpoints';
+import { config } from '../../config/vars';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 
 export type FlowHeaders = string[];

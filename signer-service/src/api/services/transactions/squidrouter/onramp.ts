@@ -56,9 +56,9 @@ export async function createOnrampSquidrouterTransactions(
   );
   const routeResult = await getRoute(routeParams);
 
-  const route = routeResult.data.route;
+  const {route} = routeResult.data;
 
-  const transactionRequest = route.transactionRequest;
+  const {transactionRequest} = route;
 
   const approveTransactionData = encodeFunctionData({
     abi: erc20ABI,

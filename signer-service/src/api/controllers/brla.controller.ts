@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
+import { validateMaskedNumber } from 'shared';
+import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload } from '../services/brla/types';
 import { eventPoller } from '../..';
-import { validateMaskedNumber } from 'shared';
-import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import { BrlaTeleportService, EvmAddress } from '../services/brla/brlaTeleportService';
 import { generateReferenceLabel } from '../services/brla/helpers';
 import { PayInCodeQuery } from '../middlewares/validators';
@@ -119,7 +119,7 @@ export const triggerBrlaOfframp = async (
       return;
     }
 
-    const limitBurn = subaccount.kyc.limits.limitBurn;
+    const {limitBurn} = subaccount.kyc.limits;
     if (Number(amount) > limitBurn) {
       res.status(400).json({ error: 'Amount exceeds limit' });
       return;
@@ -275,7 +275,7 @@ export const getPayInCode = async (
       return;
     }
 
-    const limitMint = subaccount.kyc.limits.limitMint;
+    const {limitMint} = subaccount.kyc.limits;
 
     if (Number(amount) > limitMint) {
       res.status(400).json({ error: 'Amount exceeds limit' });

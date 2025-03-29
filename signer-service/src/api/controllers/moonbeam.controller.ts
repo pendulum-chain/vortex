@@ -4,12 +4,12 @@ import { privateKeyToAccount } from 'viem/accounts';
 import Big from 'big.js';
 import { Request, Response } from 'express';
 
+import { MoonbeamEndpoints } from 'shared/src/endpoints/moonbeam.endpoints';
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
 } from '../../constants/constants';
-import { MoonbeamEndpoints } from 'shared/src/endpoints/moonbeam.endpoints';
 import { SlackNotifier } from '../services/slack.service';
 
 import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
@@ -69,7 +69,7 @@ export const executeXcmController = async (
   } catch (error) {
     console.error('Error executing XCM:', error);
     res.status(500).json({ error: 'Internal Server Error' });
-    return;
+    
   }
 };
 

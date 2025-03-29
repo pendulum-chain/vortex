@@ -1,9 +1,9 @@
+import httpStatus from 'http-status';
+import axios from 'axios';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
 import { APIError } from '../../../errors/api-error';
-import httpStatus from 'http-status';
-import axios from 'axios';
 
 /**
  * Handler for the squidRouter phase

@@ -1,10 +1,9 @@
-import { http, createConfig } from '@wagmi/core';
+import { http, createConfig , readContract, waitForTransactionReceipt } from '@wagmi/core';
 import { moonbeam } from '@wagmi/core/chains';
 
-import { readContract, waitForTransactionReceipt } from '@wagmi/core';
+import { encodePacked, sha256 } from 'viem';
 import { squidReceiverABI } from '../../contracts/SquidReceiver';
 import { squidRouterConfigBase } from '../services/transactions/squidrouter/config';
-import { encodePacked, sha256 } from 'viem';
 
 export const moonbeamConfig = createConfig({
   chains: [moonbeam],

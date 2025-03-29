@@ -71,12 +71,10 @@ export const appendData = async (sheet: GoogleSpreadsheetWorksheet, data: Record
   await sheet.addRow(data);
 };
 
-const doHeadersMatch = (existingHeaders: string[], newHeaders: string[]): boolean => {
-  return (
+const doHeadersMatch = (existingHeaders: string[], newHeaders: string[]): boolean => (
     existingHeaders.length === newHeaders.length &&
     existingHeaders.every((header, index) => header === newHeaders[index])
   );
-};
 
 export const spreadsheetService: SpreadsheetService = {
   initGoogleSpreadsheet,

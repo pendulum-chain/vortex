@@ -63,8 +63,7 @@ export async function verifyXcmSentEvent(
 export const submitXcm = async (
   address: string,
   extrinsic: SubmittableExtrinsic<'promise'>,
-): Promise<{ event: XcmSentEvent; hash: string }> => {
-  return new Promise((resolve, reject) => {
+): Promise<{ event: XcmSentEvent; hash: string }> => new Promise((resolve, reject) => {
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
@@ -78,15 +77,11 @@ export const submitXcm = async (
           }
 
           // Try to find 'polkadotXcm.Sent' events
-          const xcmSentEvents = events.filter((record) => {
-            return record.event.section === 'polkadotXcm' && record.event.method === 'Sent';
-          });
+          const xcmSentEvents = events.filter((record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent');
 
           const event = xcmSentEvents
             .map((event) => parseEventXcmSent(event))
-            .filter((event) => {
-              return event.originAddress == address;
-            });
+            .filter((event) => event.originAddress == address);
 
           if (event.length == 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
@@ -98,13 +93,11 @@ export const submitXcm = async (
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
-};
 
 export const submitXTokens = async (
   address: string,
   extrinsic: SubmittableExtrinsic<'promise'>,
-): Promise<{ event: XTokensEvent; hash: string }> => {
-  return new Promise((resolve, reject) => {
+): Promise<{ event: XTokensEvent; hash: string }> => new Promise((resolve, reject) => {
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
@@ -118,15 +111,11 @@ export const submitXTokens = async (
           }
 
           // Try to find 'xTokens.TransferredMultiAssets' events
-          const xTokenEvents = events.filter((record) => {
-            return record.event.section === 'xTokens' && record.event.method === 'TransferredMultiAssets';
-          });
+          const xTokenEvents = events.filter((record) => record.event.section === 'xTokens' && record.event.method === 'TransferredMultiAssets');
 
           const event = xTokenEvents
             .map((event) => parseEventXTokens(event))
-            .filter((event) => {
-              return event.sender == address;
-            });
+            .filter((event) => event.sender == address);
 
           if (event.length == 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
@@ -138,4 +127,3 @@ export const submitXTokens = async (
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
-};

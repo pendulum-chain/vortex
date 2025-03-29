@@ -1,14 +1,14 @@
+import httpStatus from 'http-status';
+import { DestinationType, Networks } from 'shared';
 import { BaseRampService, PresignedTx, RampStateData, UnsignedTx } from './base.service';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
-import httpStatus from 'http-status';
 import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
-import { DestinationType, Networks } from 'shared';
 
 export interface AccountMeta {
   network: Networks;
@@ -40,7 +40,7 @@ export interface RegisterRampResponse {
 }
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
-  let normalizedAccounts: AccountMeta[] = [];
+  const normalizedAccounts: AccountMeta[] = [];
   const allowedNetworks = new Set(Object.values(Networks).map((network) => network.toLowerCase()));
 
   accounts.forEach((account) => {
@@ -63,7 +63,7 @@ export class RampService extends BaseRampService {
    */
   public async registerRamp(
     request: RegisterRampRequest,
-    route: string = '/v1/ramp/register',
+    route = '/v1/ramp/register',
   ): Promise<RegisterRampResponse> {
     return this.withTransaction(async (transaction) => {
       const { signingAccounts, quoteId, additionalData } = request;
@@ -107,12 +107,12 @@ export class RampService extends BaseRampService {
         ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions(
           quote,
           normalizedSigningAccounts,
-          additionalData?.['paymentData'],
-          additionalData?.['userAddress'],
+          additionalData?.paymentData,
+          additionalData?.userAddress,
         ));
       } else {
-        //validate we have the destination address
-        if (!additionalData || additionalData['destinationAddress'] === undefined) {
+        // validate we have the destination address
+        if (!additionalData || additionalData.destinationAddress === undefined) {
           throw new APIError({
             status: httpStatus.BAD_REQUEST,
             message: 'Destination address is required for onramp',
@@ -121,7 +121,7 @@ export class RampService extends BaseRampService {
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
-          additionalData['destinationAddress'],
+          additionalData.destinationAddress,
         ));
       }
 
@@ -171,7 +171,7 @@ export class RampService extends BaseRampService {
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
-  public async startRamp(request: StartRampRequest, route: string = '/v1/ramp/start'): Promise<void> {
+  public async startRamp(request: StartRampRequest, route = '/v1/ramp/start'): Promise<void> {
     return this.withTransaction(async (transaction) => {
       const rampStateModel = await RampState.findByPk(request.rampId, {
         transaction,

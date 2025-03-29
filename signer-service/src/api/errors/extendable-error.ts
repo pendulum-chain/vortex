@@ -12,8 +12,11 @@ interface ExtendableErrorParams {
  */
 class ExtendableError extends Error {
   readonly errors?: unknown[];
+
   readonly status?: number;
+
   readonly isPublic: boolean;
+
   readonly isOperational: boolean;
 
   constructor({ message, errors, status, isPublic = false, stack }: ExtendableErrorParams) {

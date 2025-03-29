@@ -7,7 +7,9 @@ import { BaseRampService } from '../services/ramp/base.service';
  */
 export class CleanupWorker {
   private readonly rampService: BaseRampService;
+
   private readonly intervalMs: number;
+
   private interval: NodeJS.Timeout | null = null;
 
   constructor(intervalMs = 60000) {

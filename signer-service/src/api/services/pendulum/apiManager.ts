@@ -35,9 +35,13 @@ export class ApiManager {
   private static instance: ApiManager;
 
   private apiInstances: Map<string, API> = new Map();
+
   private previousSpecVersions: Map<string, number> = new Map();
+
   private currentTransactionNonce: Map<string, Map<string, number>> = new Map();
+
   private nonceQueues: Map<string, Promise<any>> = new Map();
+
   private networks: NetworkConfig[] = [];
 
   private constructor() {
@@ -175,7 +179,7 @@ export class ApiManager {
     senderKeypair: KeyringPair,
     networkName: SubstrateApiNetwork,
   ): Promise<any> {
-    let apiInstance = await this.getApi(networkName);
+    const apiInstance = await this.getApi(networkName);
     const call = createCall(apiInstance.api);
 
     try {

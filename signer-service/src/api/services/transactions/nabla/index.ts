@@ -1,11 +1,11 @@
+import { Networks, PendulumDetails } from 'shared';
+import Big from 'big.js';
 import { QuoteTicketAttributes } from '../../../../models/quoteTicket.model';
 import { ApiManager } from '../../pendulum/apiManager';
 import { prepareNablaSwapTransaction } from './swap';
 import { prepareNablaApproveTransaction } from './approve';
 import { AccountMeta } from '../../ramp/ramp.service';
-import { Networks, PendulumDetails } from 'shared';
 import { encodeSubmittableExtrinsic } from '../index';
-import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 
 export async function createNablaTransactionsForQuote(

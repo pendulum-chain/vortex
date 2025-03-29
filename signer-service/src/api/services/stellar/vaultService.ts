@@ -20,6 +20,7 @@ export async function createVaultService(
 
 export class VaultService {
   vaultId: SpacewalkPrimitivesVaultId;
+
   apiComponents: API;
 
   constructor(vaultId: SpacewalkPrimitivesVaultId, apiComponents: API) {

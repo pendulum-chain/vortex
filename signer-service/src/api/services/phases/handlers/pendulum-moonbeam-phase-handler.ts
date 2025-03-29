@@ -1,7 +1,7 @@
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
-import { submitXTokens } from '../../../services/xcm/send';
+import { submitXTokens } from "../../xcm/send";
 import { decodeSubmittableExtrinsic } from '../../transactions';
 
 import { ApiManager } from '../../pendulum/apiManager';

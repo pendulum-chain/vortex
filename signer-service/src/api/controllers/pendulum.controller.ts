@@ -2,13 +2,13 @@ import Big from 'big.js';
 import { AccountInfo } from '@polkadot/types/interfaces';
 import { Request, Response } from 'express';
 
+import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
+import { PendulumEndpoints } from 'shared/src/endpoints/pendulum.endpoints';
 import {
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
 } from '../../constants/constants';
-import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
-import { PendulumEndpoints } from 'shared/src/endpoints/pendulum.endpoints';
 import { fundEphemeralAccount, getFundingData } from '../services/pendulum/pendulum.service';
 import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../services/pendulum/helpers';
 import { SlackNotifier } from '../services/slack.service';
@@ -46,14 +46,14 @@ export const fundEphemeralAccountController = async (
     if (result) {
       res.json({ status: 'success', data: undefined });
       return;
-    } else {
+    } 
       res.status(500).send({ error: 'Funding error' });
       return;
-    }
+    
   } catch (error) {
     console.error('Error funding ephemeral account:', error);
     res.status(500).send({ error: 'Internal Server Error' });
-    return;
+    
   }
 };
 

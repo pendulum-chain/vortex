@@ -8,9 +8,7 @@ interface TokenConfig {
   memoEnabled: boolean;
 }
 
-export const getOutToken = (outToken: keyof typeof TOKEN_CONFIG): TokenConfig => {
-  return TOKEN_CONFIG[outToken] as TokenConfig;
-};
+export const getOutToken = (outToken: keyof typeof TOKEN_CONFIG): TokenConfig => TOKEN_CONFIG[outToken] as TokenConfig;
 
 export const validateTransaction = (transaction: Transaction, anchorSigningKey: string, memo: string | null) => {
   if (transaction.source !== anchorSigningKey) {

@@ -16,8 +16,11 @@ import { Event } from './webhooks';
 
 export class BrlaApiService {
   private static instance: BrlaApiService;
+
   private token: string | null = null;
+
   private brlaBusinessUsername: string;
+
   private brlaBusinessPassword: string;
 
   private readonly loginUrl: string = `${BRLA_BASE_URL}/login`;

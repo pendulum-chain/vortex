@@ -6,6 +6,7 @@ import logger from '../../../config/logger';
  */
 export class PhaseRegistry {
   private static instance: PhaseRegistry;
+
   private handlers: Map<string, PhaseHandler> = new Map();
 
   /**

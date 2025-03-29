@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { config } from '../../config';
 import { EmailEndpoints } from 'shared/src/endpoints/email.endpoints';
+import { config } from '../../config';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 
 const { spreadsheet } = config;

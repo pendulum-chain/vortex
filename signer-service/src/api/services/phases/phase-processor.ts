@@ -1,9 +1,9 @@
+import httpStatus from 'http-status';
 import RampState from '../../../models/rampState.model';
 import PhaseMetadata from '../../../models/phaseMetadata.model';
 import phaseRegistry from './phase-registry';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
-import httpStatus from 'http-status';
 
 /**
  * Process phases for a ramping process
@@ -43,7 +43,7 @@ export class PhaseProcessor {
    */
   private async processPhase(state: RampState): Promise<void> {
     try {
-      const currentPhase = state.currentPhase;
+      const {currentPhase} = state;
       logger.info(`Processing phase ${currentPhase} for ramp ${state.id}`);
 
       // Get the phase handler

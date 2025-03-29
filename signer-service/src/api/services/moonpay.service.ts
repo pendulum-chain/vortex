@@ -75,7 +75,7 @@ function getCryptoCode(fromCrypto: string): string {
     fromCrypto.toLowerCase() === 'usdce'
   ) {
     return 'usdc_polygon';
-  } else if (fromCrypto.toLowerCase() === 'usdt') {
+  } if (fromCrypto.toLowerCase() === 'usdt') {
     return 'usdt';
   }
 

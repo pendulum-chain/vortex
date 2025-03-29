@@ -9,10 +9,15 @@ interface SignInMessageFields {
 
 class SignInMessage {
   readonly scheme: string;
+
   readonly domain: string;
+
   readonly address: string;
+
   readonly nonce: string;
+
   readonly expirationTime: string;
+
   readonly issuedAt: string;
 
   // fixed statement string

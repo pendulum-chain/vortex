@@ -2,9 +2,9 @@ import { Keyring } from '@polkadot/api';
 import Big from 'big.js';
 import { Request, Response } from 'express';
 
-import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
 import { SubsidizeEndpoints } from 'shared/src/endpoints/subsidize.endpoints';
+import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { ApiManager } from '../services/pendulum/apiManager';
 
 const getFundingAccount = () => {
@@ -50,9 +50,7 @@ export const subsidizePreSwap = async (
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     await apiManager.executeApiCall(
-      (api) => {
-        return api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw);
-      },
+      (api) => api.tx.tokens.transfer(address, config.pendulumCurrencyId, amountRaw),
       fundingAccountKeypair,
       networkName,
     );
@@ -65,7 +63,7 @@ export const subsidizePreSwap = async (
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
-    return;
+    
   }
 };
 
@@ -98,6 +96,6 @@ export const subsidizePostSwap = async (
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
-    return;
+    
   }
 };

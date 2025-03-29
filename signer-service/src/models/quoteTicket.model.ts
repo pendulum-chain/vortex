@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
 import { DestinationType, RampCurrency } from 'shared';
+import sequelize from '../config/database';
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
@@ -20,22 +20,34 @@ export interface QuoteTicketAttributes {
 }
 
 // Define the attributes that can be set during creation
-interface QuoteTicketCreationAttributes extends Optional<QuoteTicketAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, 'id' | 'createdAt' | 'updatedAt'>
 
 // Define the QuoteTicket model
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
   public id!: string;
+
   public rampType!: 'on' | 'off';
+
   public from!: DestinationType;
+
   public to!: DestinationType;
+
   public inputAmount!: string;
+
   public inputCurrency!: RampCurrency;
+
   public outputAmount!: string;
+
   public outputCurrency!: RampCurrency;
+
   public fee!: string;
+
   public expiresAt!: Date;
+
   public status!: 'pending' | 'consumed' | 'expired';
+
   public createdAt!: Date;
+
   public updatedAt!: Date;
 }
 

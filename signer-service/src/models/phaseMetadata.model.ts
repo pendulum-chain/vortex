@@ -17,7 +17,7 @@ interface PhaseMetadataAttributes {
 }
 
 // Define the attributes that can be set during creation
-interface PhaseMetadataCreationAttributes extends Optional<PhaseMetadataAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+type PhaseMetadataCreationAttributes = Optional<PhaseMetadataAttributes, 'id' | 'createdAt' | 'updatedAt'>
 
 // Define the PhaseMetadata model
 class PhaseMetadata
@@ -25,15 +25,22 @@ class PhaseMetadata
   implements PhaseMetadataAttributes
 {
   public id!: string;
+
   public phaseName!: string;
+
   public requiredTransactions!: string[];
+
   public successConditions!: any;
+
   public retryPolicy!: {
     maxAttempts: number;
     backoffMs: number;
   };
+
   public validTransitions!: string[];
+
   public createdAt!: Date;
+
   public updatedAt!: Date;
 }
 

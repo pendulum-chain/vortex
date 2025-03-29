@@ -1,7 +1,7 @@
+import httpStatus from 'http-status';
 import RampState from '../../../models/rampState.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
-import httpStatus from 'http-status';
 
 /**
  * Base interface for phase handlers

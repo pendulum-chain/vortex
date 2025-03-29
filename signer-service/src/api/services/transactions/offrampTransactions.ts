@@ -1,7 +1,3 @@
-import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { UnsignedTx } from '../ramp/base.service';
-import { AccountMeta } from '../ramp/ramp.service';
-import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import {
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   FiatToken,
@@ -16,13 +12,17 @@ import {
   Networks,
   getPendulumDetails,
 } from 'shared';
+import Big from 'big.js';
+import { Keypair } from 'stellar-sdk';
+import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
+import { UnsignedTx } from '../ramp/base.service';
+import { AccountMeta } from '../ramp/ramp.service';
+import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import Big from 'big.js';
 import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
 import { buildPaymentAndMergeTx, PaymentData } from './stellar/offrampTransaction';
-import { Keypair } from 'stellar-sdk';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 
 export async function prepareOfframpTransactions(
@@ -86,7 +86,7 @@ export async function prepareOfframpTransactions(
 
     const { approveData, swapData } = await createOfframpSquidrouterTransactions({
       inputTokenDetails,
-      fromNetwork: fromNetwork,
+      fromNetwork,
       rawAmount: inputAmountRaw,
       pendulumAddressDestination: pendulumEphemeralEntry.address,
       fromAddress: userAddress,

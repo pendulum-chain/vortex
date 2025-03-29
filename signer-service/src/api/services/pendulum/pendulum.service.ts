@@ -1,14 +1,15 @@
 import { Keyring } from '@polkadot/api';
 import Big from 'big.js';
-import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
 import { KeyringPair } from '@polkadot/keyring/types';
 import dotenv from 'dotenv';
-import { multiplyByPowerOfTen } from './helpers';
 import { TOKEN_CONFIG } from 'shared';
+import { multiplyByPowerOfTen } from './helpers';
+import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
 import { ApiManager, SubstrateApiNetwork } from './apiManager';
+
 dotenv.config();
 
-const PENDULUM_FUNDING_SEED = process.env.PENDULUM_FUNDING_SEED;
+const {PENDULUM_FUNDING_SEED} = process.env;
 
 export function getFundingData(
   ss58Format: number,
@@ -37,7 +38,7 @@ export const fundEphemeralAccount = async (
 
     if (requiresGlmr) {
       const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
-      const pendulumCurrencyId = TOKEN_CONFIG.glmr.pendulumCurrencyId;
+      const {pendulumCurrencyId} = TOKEN_CONFIG.glmr;
 
       const penFundingTx = apiData.api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw);
       const glmrFundingTx = apiData.api.tx.tokens.transfer(

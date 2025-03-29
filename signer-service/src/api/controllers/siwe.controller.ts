@@ -21,7 +21,7 @@ export const sendSiweMessage = async (
   } catch (error) {
     console.error('Nonce generation error:', error);
     res.status(500).json({ error: 'Error while generating nonce' });
-    return;
+    
   }
 };
 
@@ -60,6 +60,6 @@ export const validateSiweSignature = async (
 
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ error: `Could not validate signature: ${message}` });
-    return;
+    
   }
 };

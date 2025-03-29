@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { config } from '../../config/vars';
 import { RatingEndpoints } from 'shared/src/endpoints/rating.endpoints';
+import { config } from '../../config/vars';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 
 const { spreadsheet } = config;

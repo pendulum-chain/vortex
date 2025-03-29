@@ -66,4 +66,4 @@ createAppKit({
   metadata,
 });
 
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
+export const {wagmiConfig} = wagmiAdapter;

@@ -40,7 +40,7 @@ export async function createSwapExtrinsic({
   const { execution } = await createExecuteMessageExtrinsic({
     abi: contractAbi,
     api,
-    callerAddress: callerAddress,
+    callerAddress,
     contractDeploymentAddress: NABLA_ROUTER,
     messageName: 'swapExactTokensForTokens',
     // Params found at https://github.com/0xamberhq/contracts/blob/e3ab9132dbe2d54a467bdae3fff20c13400f4d84/contracts/src/core/Router.sol#L98
@@ -79,7 +79,7 @@ export async function prepareNablaSwapTransaction({
   // Try create swap extrinsic
   try {
     return createSwapExtrinsic({
-      api: api,
+      api,
       amount: amountRaw,
       amountMin: nablaHardMinimumOutputRaw,
       tokenIn: inputTokenDetails.pendulumErc20WrapperAddress,

@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { getSquidRouterConfig, squidRouterConfigBase } from './config';
 import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from 'shared';
 import { encodeFunctionData } from 'viem';
+import { getSquidRouterConfig, squidRouterConfigBase } from './config';
 import erc20ABI from '../../../../contracts/ERC20';
 import squidReceiverABI from '../../../../../../mooncontracts/splitReceiverABI.json';
 
@@ -39,7 +39,7 @@ export function createOnrampRouteParams(
   const toChainId = getNetworkId(toNetwork);
 
   return {
-    fromAddress: fromAddress,
+    fromAddress,
     fromChain: fromChainId.toString(),
     fromToken: AXL_USDC_MOONBEAM,
     fromAmount: amount,
@@ -67,7 +67,7 @@ export async function getRoute(params: RouteParams) {
     });
 
     const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
-    return { data: result.data, requestId: requestId };
+    return { data: result.data, requestId };
   } catch (error) {
     if (error) {
       console.error('Squidrouter API error:', (error as { response: { data: unknown } }).response.data);
@@ -103,7 +103,7 @@ export function createOfframpRouteParams(
   });
 
   return {
-    fromAddress: fromAddress,
+    fromAddress,
     fromChain: fromChainId.toString(),
     fromToken: inputTokenDetails.erc20AddressSourceChain,
     fromAmount: amount,
@@ -148,9 +148,9 @@ export function createOfframpRouteParams(
           chainType: 'evm',
         },
       ],
-      provider: 'Pendulum', //This should be the name of your product or application that is triggering the hook
+      provider: 'Pendulum', // This should be the name of your product or application that is triggering the hook
       description: 'Pendulum post hook',
-      logoURI: 'https://pbs.twimg.com/profile_images/1548647667135291394/W2WOtKUq_400x400.jpg', //Add your product or application's logo here
+      logoURI: 'https://pbs.twimg.com/profile_images/1548647667135291394/W2WOtKUq_400x400.jpg', // Add your product or application's logo here
     },
   };
 }

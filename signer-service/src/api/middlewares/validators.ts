@@ -1,13 +1,13 @@
 import { RequestHandler } from 'express';
+import { ParsedQs } from 'qs';
+import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
+import { TokenConfig } from 'shared';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 
-import { ParsedQs } from 'qs';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
-import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
-import { TokenConfig } from 'shared';
 
 interface CreationBody {
   accountId: string;

@@ -8,6 +8,7 @@ export interface SlackMessage {
 
 export class SlackNotifier {
   private readonly webhookUrl: string;
+
   private readonly messageHistory: Map<string, number>;
 
   constructor() {

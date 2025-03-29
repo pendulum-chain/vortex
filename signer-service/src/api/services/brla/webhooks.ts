@@ -18,12 +18,16 @@ interface EventData {
 }
 export class EventPoller {
   private cache: Map<string, Event[]> = new Map();
+
   private pollingInterval: number;
+
   private apiUrl: string;
-  private started: boolean = false;
+
+  private started = false;
+
   private brlaApiService: BrlaApiService;
 
-  constructor(pollingInterval: number = 1000) {
+  constructor(pollingInterval = 1000) {
     if (!WEBHOOKS_CACHE_URL) {
       throw new Error('WEBHOOKS_CACHE_URL is not defined!');
     }

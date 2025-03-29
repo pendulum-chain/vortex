@@ -1,6 +1,6 @@
 import { Horizon, Keypair, TransactionBuilder, Operation, Networks, Asset, Memo, Account } from 'stellar-sdk';
-import { HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../constants/constants';
 import { StellarTokenConfig, TOKEN_CONFIG, getTokenConfigByAssetCode } from 'shared';
+import { HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../constants/constants';
 
 interface CreationTxResult {
   signature: string[];

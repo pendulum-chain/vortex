@@ -34,11 +34,11 @@ function getPath(requestUrl: string): string {
 
   if (params.length === 0) {
     return path;
-  } else {
+  } 
     const sortedParams = [...params].sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
     const queryString = sortedParams.map(([key, value]) => `${key}=${value}`).join('&');
     return `${path}?${queryString}`;
-  }
+  
 }
 
 function getJsonBody(body: string): string {
@@ -110,7 +110,7 @@ async function priceQuery(
   const body = (await response.json()) as AlchemyPayResponse;
   if (!body.success) {
     throw new Error(
-      `Could not get price for ${crypto} to ${fiat} from AlchemyPay: ` + body.returnMsg || 'Unknown error',
+      `Could not get price for ${crypto} to ${fiat} from AlchemyPay: ${  body.returnMsg}` || 'Unknown error',
     );
   }
 

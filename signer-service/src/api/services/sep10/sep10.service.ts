@@ -1,6 +1,6 @@
 import { Keypair, TransactionBuilder, Networks, Transaction } from 'stellar-sdk';
-import { SEP10_MASTER_SECRET, CLIENT_DOMAIN_SECRET } from '../../../constants/constants';
 import { TOKEN_CONFIG } from 'shared';
+import { SEP10_MASTER_SECRET, CLIENT_DOMAIN_SECRET } from '../../../constants/constants';
 import { fetchTomlValues } from '../../helpers/anchors';
 import { getOutToken, validateTransaction, validateFirstOperation, validateRemainingOperations } from './helpers';
 

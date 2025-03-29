@@ -1,12 +1,12 @@
 import { Request, Response, RequestHandler } from 'express';
 
+import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
 import * as transakService from '../services/transak.service';
 import * as moonpayService from '../services/moonpay.service';
 import { MoonpayPrice } from '../services/moonpay.service';
 import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
 import { TransakPriceResult } from '../services/transak.service';
-import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import { PriceQuery } from '../middlewares/validators';
 
 type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
@@ -56,9 +56,7 @@ const getPriceFromProvider = async (
   toFiat: PriceEndpoints.FiatCurrency,
   amount: string,
   network?: string,
-) => {
-  return await providerHandlers[provider](fromCrypto, toFiat, amount, network);
-};
+) => await providerHandlers[provider](fromCrypto, toFiat, amount, network);
 
 export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQuery> = async (req, res) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
@@ -110,6 +108,6 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
     }
     console.error('Server error:', error);
     res.status(500).json({ error: error.message });
-    return;
+    
   }
 };

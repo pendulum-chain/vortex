@@ -1,11 +1,11 @@
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { EvmTokenDetails, Networks } from 'shared';
+import { decodeAddress } from '@polkadot/util-crypto';
+import { u8aToHex } from '@polkadot/util';
 import { createOfframpRouteParams, getRoute } from './route';
 import erc20ABI from '../../../../contracts/ERC20';
 import { createRandomString, createSquidRouterHash } from '../../../helpers/squidrouter';
-import { decodeAddress } from '@polkadot/util-crypto';
-import { u8aToHex } from '@polkadot/util';
 import encodePayload from './payload';
 import { getSquidRouterConfig } from './config';
 
@@ -64,8 +64,8 @@ export async function createOfframpSquidrouterTransactions(
   );
 
   const routeResult = await getRoute(routeParams);
-  const route = routeResult.data.route;
-  const transactionRequest = route.transactionRequest;
+  const {route} = routeResult.data;
+  const {transactionRequest} = route;
 
   const approveTransactionData = encodeFunctionData({
     abi: erc20ABI,
@@ -89,7 +89,7 @@ export async function createOfframpSquidrouterTransactions(
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data as `0x${string}`,
       value: transactionRequest.value,
-      gas: transactionRequest.gasLimit, //TODO do we still need * 2 here?
+      gas: transactionRequest.gasLimit, // TODO do we still need * 2 here?
       maxFeePerGas: String(maxFeePerGas),
       maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },

@@ -1,10 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
+import { Transaction, Op } from 'sequelize';
+import { DestinationType } from 'shared';
 import logger from '../../../config/logger';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
-import { Transaction, Op } from 'sequelize';
 import sequelize from '../../../config/database';
-import { DestinationType } from 'shared';
 
 export interface UnsignedTx {
   tx_data: string;
