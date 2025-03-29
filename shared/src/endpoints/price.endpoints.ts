@@ -10,13 +10,13 @@ export namespace PriceEndpoints {
 
   // Validation functions
   export const isValidProvider = (value: unknown): value is Provider =>
-    typeof value === 'string' && VALID_PROVIDERS.includes(value as Provider);
+    typeof value === 'string' && VALID_PROVIDERS.includes(value.toLowerCase() as Provider);
 
   export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency =>
-    typeof value === 'string' && VALID_CRYPTO_CURRENCIES.includes(value as CryptoCurrency);
+    typeof value === 'string' && VALID_CRYPTO_CURRENCIES.includes(value.toLowerCase() as CryptoCurrency);
 
   export const isValidFiatCurrency = (value: unknown): value is FiatCurrency =>
-    typeof value === 'string' && VALID_FIAT_CURRENCIES.includes(value as FiatCurrency);
+    typeof value === 'string' && VALID_FIAT_CURRENCIES.includes(value.toLowerCase() as FiatCurrency);
 
   export interface PriceRequest {
     provider: Provider;

@@ -1,15 +1,41 @@
-import { getQueryFnForService, PriceQuery, PriceService } from '../../services/prices';
 import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
 import vortexIcon from '../../assets/logo/blue.svg';
 import { JSX } from 'react';
+import Big from 'big.js';
+import { PriceEndpoints } from 'shared';
+import { PriceService } from '../../services/api';
 
 export interface PriceProvider {
-  name: PriceService;
+  name: PriceEndpoints.Provider | 'vortex';
   icon?: JSX.Element;
-  query: PriceQuery;
+  query: PriceQueryFn;
   href: string;
+}
+
+export type PriceQueryFn = (fromCrypto: string, toFiat: string, amount: Big, network: string) => Promise<Big>;
+
+export function getQueryFnForService(priceService: PriceEndpoints.Provider): PriceQueryFn {
+  return (fromCrypto, toFiat, amount, network) => {
+    // Use lower case on all currency strings
+    fromCrypto = fromCrypto.toLowerCase();
+    toFiat = toFiat.toLowerCase();
+    priceService = priceService.toLowerCase();
+    if (!PriceEndpoints.isValidCryptoCurrency(fromCrypto)) {
+      throw new Error(`Invalid crypto currency: ${fromCrypto}`);
+    }
+    if (!PriceEndpoints.isValidFiatCurrency(toFiat)) {
+      throw new Error(`Invalid fiat currency: ${toFiat}`);
+    }
+    if (!PriceEndpoints.isValidProvider(priceService)) {
+      throw new Error(`Invalid provider: ${priceService}`);
+    }
+
+    return PriceService.getPrice(priceService, fromCrypto, toFiat, amount.toFixed(2), network).then((response) =>
+      response.fiatAmount ? Big(response.fiatAmount) : Big(0),
+    );
+  };
 }
 
 export const priceProviders: PriceProvider[] = [
@@ -34,7 +60,7 @@ export const priceProviders: PriceProvider[] = [
   {
     name: 'vortex',
     icon: <img src={vortexIcon} className="h-10 w-36" alt="Vortex" />,
-    query: getQueryFnForService('vortex'),
+    query: () => Promise.resolve(new Big(0)),
     href: '',
   },
 ];

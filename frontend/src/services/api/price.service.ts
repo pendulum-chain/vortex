@@ -103,9 +103,9 @@ export class PriceService {
     network?: string,
   ): Promise<Record<PriceEndpoints.Provider, PriceEndpoints.PriceResponse>> {
     const providers: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
-    
+
     const results = await Promise.allSettled(
-      providers.map((provider) => this.getPrice(provider, fromCrypto, toFiat, amount, network))
+      providers.map((provider) => this.getPrice(provider, fromCrypto, toFiat, amount, network)),
     );
 
     return results.reduce((acc, result, index) => {

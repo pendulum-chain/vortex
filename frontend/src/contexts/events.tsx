@@ -1,9 +1,8 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import Big from 'big.js';
-import { getPendulumDetails } from 'shared';
+import { getPendulumDetails, PriceEndpoints } from 'shared';
 import { calculateTotalReceive } from '../components/FeeCollapse';
-import { PriceService } from '../services/prices';
 import { useVortexAccount } from '../hooks/useVortexAccount';
 import { getNetworkId, isNetworkEVM, Networks } from 'shared';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
@@ -157,7 +156,7 @@ const useEvents = () => {
   const scheduledPrices = useRef<
     | {
         parameters: OfframpingParameters;
-        prices: Partial<Record<PriceService, string>>;
+        prices: Partial<Record<PriceEndpoints.Provider, string>>;
       }
     | undefined
   >(undefined);
@@ -210,7 +209,12 @@ const useEvents = () => {
   /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
   /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
   const schedulePrice = useCallback(
-    (service: PriceService, price: string, parameters: OfframpingParameters, enableEventTracking: boolean) => {
+    (
+      service: PriceEndpoints.Provider | 'vortex',
+      price: string,
+      parameters: OfframpingParameters,
+      enableEventTracking: boolean,
+    ) => {
       if (!enableEventTracking) return;
 
       const prev = scheduledPrices.current;
