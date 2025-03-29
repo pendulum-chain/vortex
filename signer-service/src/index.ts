@@ -74,5 +74,3 @@ export const eventPoller = new EventPoller(DEFAULT_POLLING_INTERVAL);
 
 // Start the application
 initializeApp();
-
-export default app;
