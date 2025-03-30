@@ -3,19 +3,19 @@ import { createTransactionEvent } from '../../contexts/events';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 
-import { RampingState } from '../../types/phases';
+import { RampState } from '../../types/phases';
 
 export const useOfframpEvents = () => {
   const { trackEvent, resetUniqueEvents } = useEventsContext();
   const { selectedNetwork } = useNetwork();
 
   const trackOfframpingEvent = useCallback(
-    (state: RampingState | undefined) => {
+    (state: RampState | undefined) => {
       if (!state) return;
 
-      if (state.phase === 'success') {
+      if (state.ramp?.currentPhase === 'complete') {
         trackEvent(createTransactionEvent('transaction_success', state, selectedNetwork));
-      } else if (state.failure) {
+      } else if (state.ramp?.currentPhase === 'failed') {
         // FIXME
         // const inputTokenDetails = getPendulumDetails(state.inputTokenType, selectedNetwork);
         // trackEvent({

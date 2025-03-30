@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, Networks, OnChainToken } from '../index';
+import {DestinationType, Networks} from '../index';
 
 export type RampPhase =
   | 'initial'
@@ -9,14 +9,17 @@ export type RampPhase =
   | 'nablaSwap'
   | 'moonbeamToPendulum'
   | 'pendulumToMoonbeam'
+  | 'assethubToPendulum'
   | 'pendulumToAssethub'
   | 'spacewalkRedeem'
   | 'stellarPayment'
   | 'stellarCleanup'
+  | 'pendulumCleanup'
   | 'subsidizePreSwap'
   | 'subsidizePostSwap'
   | 'createPayInRequest'
   | 'brlaPayoutOnMoonbeam'
+  | 'failed'
   | 'complete';
 
 export interface AccountMeta {

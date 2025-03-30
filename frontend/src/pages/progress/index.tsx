@@ -6,13 +6,13 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { isNetworkEVM } from 'shared';
+import { isNetworkEVM, RampPhase } from 'shared';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
-import { RampingPhase, RampingState } from '../../types/phases';
+import { RampState } from '../../types/phases';
 
 const useProgressUpdate = (
-  currentPhase: RampingPhase,
+  currentPhase: RampPhase,
   currentPhaseIndex: number,
   displayedPercentage: number,
   setDisplayedPercentage: (value: (prev: number) => number) => void,
@@ -51,22 +51,28 @@ const useProgressUpdate = (
   }, [currentPhase, currentPhaseIndex, displayedPercentage, setDisplayedPercentage, setShowCheckmark]);
 };
 
-export const OFFRAMPING_PHASE_SECONDS: Record<RampingPhase, number> = {
-  prepareTransactions: 1,
-  squidRouter: 1,
-  pendulumFundEphemeral: 80,
-  executeMoonbeamToPendulumXCM: 40,
-  executeAssetHubToPendulumXCM: 24,
+export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
+  complete: 0,
+  createPayInRequest: 0,
+  failed: 0,
+  initial: 0,
+
+  pendulumToAssethub: 0,
+  squidrouterApprove: 10,
+  squidrouterSwap: 10,
+  fundEphemeral: 30,
+  moonbeamToPendulum: 40,
+  assethubToPendulum: 24,
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,
   subsidizePostSwap: 24,
-  executeSpacewalkRedeem: 130,
+  spacewalkRedeem: 130,
   pendulumCleanup: 6,
-  stellarOfframp: 6,
+  stellarPayment: 6,
   stellarCleanup: 6,
-  executePendulumToMoonbeamXCM: 40,
-  performBrlaPayoutOnMoonbeam: 120,
+  pendulumToMoonbeam: 40,
+  brlaPayoutOnMoonbeam: 120,
 };
 
 const CIRCLE_RADIUS = 80;
@@ -74,11 +80,11 @@ const CIRCLE_STROKE_WIDTH = 12;
 const numberOfPhases = Object.keys(OFFRAMPING_PHASE_SECONDS).length;
 
 interface ProgressPageProps {
-  offrampingState: RampingState;
+  offrampingState: RampState;
 }
 
 interface ProgressContentProps {
-  currentPhase: RampingPhase;
+  currentPhase: RampPhase;
   currentPhaseIndex: number;
   message: string;
 }
@@ -186,15 +192,15 @@ export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
 
-  const currentPhase = offrampingState.phase as RampingPhase;
+  const currentPhase = offrampingState.ramp?.currentPhase as RampPhase;
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
   // FIXME get message from backend
   // const message = createOfframpingPhaseMessage(offrampingState, selectedNetwork);
   const message = 'This is a placeholder message.';
 
   useEffect(() => {
-    trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });
-  }, [currentPhaseIndex, trackEvent, offrampingState.phase]);
+    trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: currentPhase });
+  }, [currentPhaseIndex, trackEvent, offrampingState.ramp]);
 
   return (
     <BaseLayout

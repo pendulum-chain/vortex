@@ -8,7 +8,7 @@ import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useRatingVisibility } from './useRatingVisibility';
 import RatingForm from './RatingForm';
 import './index.css';
-import { storeUserRatingInBackend } from '../../services/backend';
+import { RatingService } from '../../services/api';
 
 export function Rating() {
   const { isVisible, onClose } = useRatingVisibility();
@@ -23,7 +23,9 @@ export function Rating() {
     isError,
     isSuccess,
   } = useMutation({
-    mutationFn: storeUserRatingInBackend,
+    mutationFn: async (data: { rating: number; walletAddress: string }) => {
+      return RatingService.storeRating(data.rating, data.walletAddress);
+    },
   });
 
   useEffect(() => {

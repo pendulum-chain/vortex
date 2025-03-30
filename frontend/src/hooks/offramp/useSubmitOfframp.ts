@@ -57,8 +57,8 @@ export const useSubmitOfframp = () => {
             event: 'transaction_confirmation',
             from_asset: getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken).assetSymbol,
             to_asset: getAnyFiatTokenDetails(executionInput.fiatToken).fiat.symbol,
-            from_amount: executionInput.inputAmountUnits,
-            to_amount: executionInput.outputAmountUnits.afterFees,
+            from_amount: executionInput.quote.inputAmount,
+            to_amount: executionInput.quote.outputAmount,
           });
 
           if (!address) {
@@ -117,11 +117,13 @@ export const useSubmitOfframp = () => {
               forceRefreshAndWaitForSignature,
             );
 
+            const offrampAmount = Big(executionInput.quote.outputAmount).minus(executionInput.quote.fee);
+
             const anchorSessionParams = {
               token: sep10Token,
               tomlValues,
               tokenConfig: outputToken,
-              offrampAmount: Big(executionInput.outputAmountUnits.beforeFees).toFixed(2, 0),
+              offrampAmount: offrampAmount.toFixed(2, 0),
             };
 
             setRampExecutionInput({ ...executionInput, stellarEphemeralSecret });

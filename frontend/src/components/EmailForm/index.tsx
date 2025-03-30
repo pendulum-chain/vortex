@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { TextInput } from '../TextInput';
 import { useEventsContext } from '../../contexts/events';
-import { storeUserEmailInBackend } from '../../services/backend';
+import { EmailService } from '../../services/api';
 
 interface EmailFormProps {
   transactionId?: string;
@@ -20,7 +20,9 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
     isSuccess,
     isError,
   } = useMutation({
-    mutationFn: storeUserEmailInBackend,
+    mutationFn: async (data: { email: string; transactionId: string }) => {
+      return EmailService.storeEmail(data.email, data.transactionId);
+    }
   });
 
   const onSubmit = handleSubmit((data) => {

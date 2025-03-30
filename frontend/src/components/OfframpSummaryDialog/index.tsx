@@ -116,7 +116,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
   const toToken = getAnyFiatTokenDetails(executionInput?.fiatToken || FiatToken.EURC);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
-  const toAmount = Big(executionInput?.outputAmountUnits.afterFees || 0);
+  const toAmount = Big(executionInput?.quote.outputAmount || 0);
   const { feesCost } = useOfframpFees(toAmount, toToken);
 
   if (!visible) return null;
@@ -129,12 +129,12 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       <AssetDisplay
         iconAlt={fromToken.networkAssetIcon}
         symbol={fromToken.assetSymbol}
-        amount={executionInput.inputAmountUnits}
+        amount={executionInput.quote.inputAmount}
         iconSrc={fromIcon}
       />
       <ArrowDownIcon className="w-4 h-4 my-2" />
       <AssetDisplay
-        amount={executionInput.outputAmountUnits.afterFees}
+        amount={executionInput.quote.outputAmount}
         symbol={toToken.fiat.symbol}
         iconSrc={toIcon}
         iconAlt={toToken.fiat.symbol}
@@ -144,7 +144,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         fromToken={fromToken}
         toToken={toToken}
         partnerUrl={isStellarOutputTokenDetails(toToken) ? toToken.anchorHomepageUrl : toToken.partnerUrl}
-        exchangeRate={executionInput.effectiveExchangeRate}
+        exchangeRate={Big(executionInput.quote.outputAmount).minus(executionInput.quote.fee).div(executionInput.quote.inputAmount).toFixed(2)}
         network={selectedNetwork}
         feesCost={feesCost}
       />

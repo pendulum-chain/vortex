@@ -11,7 +11,9 @@ const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDT', assetIcon: 'usdt' },
 ];
 
-const networks = Object.values(Networks);
+const networks = Object.values(Networks).filter(
+  (network) => network !== Networks.Pendulum && network !== Networks.Stellar && network !== Networks.Moonbeam,
+);
 
 type BadgeProps = {
   icon: string;

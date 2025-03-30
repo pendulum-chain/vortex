@@ -13,6 +13,10 @@ interface NetworkButtonProps {
   disabled?: boolean;
 }
 
+const supportedNetworks = Object.values(Networks).filter(
+  (network) => network !== Networks.Pendulum && network !== Networks.Stellar && network !== Networks.Moonbeam,
+);
+
 const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkButtonProps) => (
   <motion.button
     className={`flex items-center gap-2 px-2 sm:px-4 py-3 rounded-full bg-base-100 ${
@@ -52,7 +56,7 @@ const NetworkDropdown = ({ isOpen, onNetworkSelect, disabled }: NetworkDropdownP
         className="absolute z-50 w-48 p-2 mt-2 shadow-lg bg-base-100 rounded-box whitespace-nowrap"
         layout
       >
-        {Object.values(Networks).map((network) => {
+        {supportedNetworks.map((network) => {
           const networkId = getNetworkId(network);
           return (
             <button

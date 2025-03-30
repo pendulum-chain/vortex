@@ -21,7 +21,7 @@ export function getQueryFnForService(priceService: PriceEndpoints.Provider): Pri
     // Use lower case on all currency strings
     fromCrypto = fromCrypto.toLowerCase();
     toFiat = toFiat.toLowerCase();
-    priceService = priceService.toLowerCase();
+    priceService = priceService.toLowerCase() as PriceEndpoints.Provider;
     if (!PriceEndpoints.isValidCryptoCurrency(fromCrypto)) {
       throw new Error(`Invalid crypto currency: ${fromCrypto}`);
     }

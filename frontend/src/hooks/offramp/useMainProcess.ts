@@ -1,20 +1,14 @@
-import { useEffect } from 'react';
-import Big from 'big.js';
-
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
-import { useRampActions, useRampState } from '../../stores/offrampStore';
-import { useSep24UrlInterval, useSep24InitialResponse } from '../../stores/sep24Store';
-import { useSep24Actions } from '../../stores/sep24Store';
+import { useRampActions } from '../../stores/offrampStore';
+import { useSep24Actions, useSep24InitialResponse, useSep24UrlInterval } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
-import { Networks } from 'shared';
-import { ApiComponents } from '../../contexts/polkadotNode';
 import { useVortexAccount } from '../useVortexAccount';
 import { RampExecutionInput } from '../../types/phases';
+import { RampService } from '../../services/api';
 
 export const useMainProcess = () => {
-  const { resetRampState, setRampStarted } = useRampActions();
-  const offrampState = useRampState();
+  const { resetRampState, setRampStarted, setRampState } = useRampActions();
   const { chainId } = useVortexAccount();
 
   // Sep 24 states
@@ -27,12 +21,7 @@ export const useMainProcess = () => {
   const events = useOfframpEvents();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
 
-  const handleBrlaOfframpStart = async (
-    executionInput: RampExecutionInput | undefined,
-    network: Networks,
-    address: string,
-    pendulumNode: ApiComponents,
-  ) => {
+  const handleBrlaOfframpStart = async (executionInput: RampExecutionInput | undefined) => {
     if (!executionInput) {
       throw new Error('Missing execution input');
     }
@@ -45,21 +34,22 @@ export const useMainProcess = () => {
       throw new Error('Missing chainId');
     }
 
-    // const initialState = await constructBrlaInitialState({
-    //   onChainToken: executionInput.inputTokenType,
-    //   fiatToken: executionInput.outputTokenType,
-    //   amountIn: executionInput.inputAmountUnits,
-    //   amountOut: Big(executionInput.outputAmountUnits.beforeFees),
-    //   network,
-    //   networkId: chainId,
-    //   pendulumNode,
-    //   offramperAddress: address!,
-    //   brlaEvmAddress: executionInput.brlaEvmAddress,
-    //   pixDestination: executionInput.pixId,
-    //   taxId: executionInput.taxId,
-    // });
-    // updateOfframpHookStateFromState(initialState);
-    return;
+    const quoteId = executionInput.quote.id;
+    // FIXME this should be a list of the ephemeral accounts + user account
+    const signingAccounts = [];
+    const walletAddress = executionInput.address;
+    const additionalData = {
+      walletAddress,
+      pixDestination: executionInput.pixId,
+      taxId: executionInput.taxId,
+      brlaEvmAddress: executionInput.brlaEvmAddress,
+    };
+    const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
+
+    setRampState({
+      quote: executionInput.quote,
+      ramp: rampProcess
+    })
   };
 
   return {

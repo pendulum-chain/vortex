@@ -9,7 +9,7 @@ import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
 import { useFromAmount } from '../stores/formStore';
-import { RampingState } from '../types/phases';
+import { RampState } from '../types/phases';
 
 declare global {
   interface Window {
@@ -330,19 +330,13 @@ export function EventsProvider({ children }: PropsWithChildren) {
   return <Context.Provider value={useEventsResult}>{children}</Context.Provider>;
 }
 
-export function createTransactionEvent(
-  type: TransactionEvent['event'],
-  state: RampingState,
-  selectedNetwork: Networks,
-) {
-  const onChainTokenDetails = getPendulumDetails(state.onChainToken, selectedNetwork);
-  const fiatToken = getPendulumDetails(state.fiatToken, selectedNetwork);
+export function createTransactionEvent(type: TransactionEvent['event'], state: RampState, selectedNetwork: Networks) {
   return {
     event: type,
-    from_asset: onChainTokenDetails.pendulumAssetSymbol ?? 'unknown',
-    to_asset: fiatToken.pendulumAssetSymbol,
-    from_amount: state.inputAmount.units,
-    to_amount: calculateTotalReceive(state.type, Big(state.outputAmount.units), state.fiatToken),
+    from_asset: state.quote.inputCurrency,
+    to_asset: state.quote.outputCurrency,
+    from_amount: state.quote.inputAmount,
+    to_amount: state.quote.outputAmount,
   };
 }
 

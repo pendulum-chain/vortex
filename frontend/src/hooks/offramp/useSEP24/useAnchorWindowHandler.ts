@@ -45,8 +45,9 @@ export const useAnchorWindowHandler = () => {
 
     try {
       const secondSep24Response = await sep24Second(firstSep24Response, anchorSessionParams);
+      const amountBeforeFees = Big(executionInput.quote.outputAmount).minus(executionInput.quote.fee).toFixed(2);
 
-      if (!Big(secondSep24Response.amount).eq(executionInput.outputAmountUnits.beforeFees)) {
+      if (!Big(secondSep24Response.amount).eq(amountBeforeFees)) {
         handleAmountMismatch(setRampStarted);
         return;
       }

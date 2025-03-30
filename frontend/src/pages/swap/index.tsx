@@ -1,8 +1,6 @@
 import Big from 'big.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { calculateOfframpTotalReceive } from '../../components/FeeCollapse';
-import { RampQuoteRequest, requestRampQuote } from '../../services/backend';
 import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 
@@ -24,6 +22,8 @@ import {
   moonbeamTokenConfig,
   Networks,
   OnChainToken,
+  QuoteEndpoints,
+  RampEndpoints,
   stellarTokenConfig,
 } from 'shared';
 import { config } from '../../config';
@@ -48,7 +48,7 @@ import {
   useRampState,
   useRampSummaryVisible,
 } from '../../stores/offrampStore';
-import { RampExecutionInput, RampingState } from '../../types/phases';
+import { RampExecutionInput, RampState } from '../../types/phases';
 import { useSwapUrlParams } from './useSwapUrlParams';
 
 import { BaseLayout } from '../../layouts';
@@ -72,6 +72,7 @@ import { PopularTokens } from '../../sections/PopularTokens';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
+import { QuoteService } from '../../services/api';
 
 const getTokenDefinitionsForNetwork = (type: 'from' | 'to', selectedNetwork: Networks): TokenDefinition[] => {
   if (type === 'from') {
@@ -101,12 +102,13 @@ const getTokenDefinitionsForNetwork = (type: 'from' | 'to', selectedNetwork: Net
 export const SwapPage = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<HTMLDivElement | null>(null);
-  const pendulumNode = usePendulumNode();
   const trackPrice = useRef(false);
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
+
+  console.log('initializeFailedMessage', initializeFailedMessage);
 
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
@@ -135,6 +137,7 @@ export const SwapPage = () => {
       } else {
         trackEvent({ event: 'initialization_error', error_message: 'signer_service_issue' });
       }
+      console.log('signingServiceError', signingServiceError);
       setInitializeFailed();
     }
   }, [isSigningServiceLoading, isSigningServiceError, signingServiceError, setInitializeFailed, trackEvent]);
@@ -165,7 +168,7 @@ export const SwapPage = () => {
   // Quote state
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [quote, setQuote] = useState<any>(null);
+  const [quote, setQuote] = useState<QuoteEndpoints.QuoteResponse | undefined>(undefined);
 
   // Main process hook
   const {
@@ -190,19 +193,21 @@ export const SwapPage = () => {
     try {
       // Convert network to chain ID
       // FIXME use proper values
+      const rampType = 'off';
       const from = 'Polygon';
       const to = 'sepa';
+      const inputAmount = fromAmount.toString();
+      const inputCurrency = AssetHubToken.USDC;
+      const outputCurrency = FiatToken.EURC;
 
-      const quoteRequest: RampQuoteRequest = {
-        rampType: 'off',
+      const quoteResponse = await QuoteService.createQuote(
+        rampType,
         from,
         to,
-        inputAmount: fromAmount.toString(),
-        inputCurrency: AssetHubToken.USDC,
-        outputCurrency: FiatToken.EURC,
-      };
-
-      const quoteResponse = await requestRampQuote(quoteRequest);
+        inputAmount,
+        inputCurrency,
+        outputCurrency,
+      );
       setQuote(quoteResponse);
 
       // Update toAmount based on quote
@@ -369,27 +374,18 @@ export const SwapPage = () => {
       return;
     }
 
-    to === 'brl'
-      ? handleBrlaOfframpStart(executionInput, selectedNetwork, address, pendulumNode.apiComponents!)
-      : handleOnAnchorWindowOpen();
-  }, [
-    address,
-    pendulumNode.apiComponents,
-    to,
-    handleBrlaOfframpStart,
-    selectedNetwork,
-    handleOnAnchorWindowOpen,
-    setInitializeFailed,
-    executionInput,
-  ]);
+    to === 'brl' ? handleBrlaOfframpStart(executionInput) : handleOnAnchorWindowOpen();
+  }, [address, to, handleBrlaOfframpStart, handleOnAnchorWindowOpen, setInitializeFailed, executionInput]);
 
   // Show success page if ramp process is complete
-  if (rampState?.phase === 'success') {
+  if (rampState?.ramp?.currentPhase === 'complete') {
     return <SuccessPage finishOfframping={finishOfframping} transactionId={cachedId} toToken={to} />;
   }
 
   // Show error page if ramp process failed
-  if (rampState?.failure !== undefined) {
+  // TODO instead of using phase === 'failure', we should check the time how long the user has been waiting
+  // and show the error logs if the user has been waiting for more than 30(?) minutes
+  if (rampState?.ramp?.currentPhase === 'failed') {
     return (
       <FailurePage
         finishOfframping={finishOfframping}
@@ -423,33 +419,15 @@ export const SwapPage = () => {
     setRampInitiating(true);
 
     try {
-      const outputToken = getAnyFiatTokenDetails(to);
-      const inputToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
-
-      // Calculate output amounts
-      const outputAmountBeforeFees = Big(quote.outputAmount);
-      const outputAmountAfterFees = calculateOfframpTotalReceive(outputAmountBeforeFees, outputToken);
-
-      const outputAmountUnits = {
-        beforeFees: outputAmountBeforeFees.toFixed(2, 0),
-        afterFees: outputAmountAfterFees,
-      };
-
       // Create execution input
       const executionInput: RampExecutionInput = {
-        type: 'off',
+        quote,
         onChainToken: from,
         fiatToken: to,
-        inputAmountUnits: fromAmount.toString(),
-        outputAmountUnits,
-        effectiveExchangeRate: (Number(quote.outputAmount) / fromAmount.toNumber()).toString(),
         address,
         network: selectedNetwork,
-        requiresSquidRouter: isNetworkEVM(selectedNetwork),
-        expectedRedeemAmountRaw: quote.outputAmount,
-        inputAmountRaw: quote.inputAmount,
-        taxId: form.getValues('taxId'),
-        pixId: form.getValues('pixId'),
+        taxId,
+        pixId,
         setInitializeFailed,
       };
 
@@ -468,7 +446,7 @@ export const SwapPage = () => {
         from_asset: from,
         to_asset: to,
         from_amount: fromAmount.toString(),
-        to_amount: outputAmountAfterFees,
+        to_amount: quote.outputAmount,
       });
     } catch (error) {
       console.error('Error preparing swap:', error);

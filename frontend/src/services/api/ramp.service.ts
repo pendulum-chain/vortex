@@ -1,4 +1,4 @@
-import { RampEndpoints } from 'shared';
+import { AccountMeta, PresignedTx, RampEndpoints } from 'shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -16,7 +16,7 @@ export class RampService {
    */
   static async registerRamp(
     quoteId: string,
-    signingAccounts: string[],
+    signingAccounts: AccountMeta[],
     additionalData?: RampEndpoints.RegisterRampRequest['additionalData'],
   ): Promise<RampEndpoints.RegisterRampResponse> {
     const request: RampEndpoints.RegisterRampRequest = {
@@ -36,7 +36,7 @@ export class RampService {
    */
   static async startRamp(
     rampId: string,
-    presignedTxs: RampEndpoints.PresignedTransaction[],
+    presignedTxs: PresignedTx[],
     additionalData?: RampEndpoints.StartRampRequest['additionalData'],
   ): Promise<RampEndpoints.StartRampResponse> {
     const request: RampEndpoints.StartRampRequest = {
@@ -93,7 +93,7 @@ export class RampService {
         onUpdate(status);
       }
 
-      if (status.status === 'completed' || status.status === 'failed') {
+      if (status.currentPhase === 'complete' || status.currentPhase === 'failed') {
         return status;
       }
 
@@ -115,8 +115,8 @@ export class RampService {
    */
   static async createRampFlow(
     quoteId: string,
-    signingAccounts: string[],
-    presignedTxsProvider: (rampId: string) => Promise<RampEndpoints.PresignedTransaction[]>,
+    signingAccounts: AccountMeta[],
+    presignedTxsProvider: (rampId: string) => Promise<PresignedTx[]>,
     additionalData?: RampEndpoints.RegisterRampRequest['additionalData'],
     onStatusUpdate?: (status: RampEndpoints.RampProcess) => void,
   ): Promise<RampEndpoints.RampProcess> {

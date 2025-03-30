@@ -72,7 +72,8 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
         tokenConfig.pendulumCurrencyId,
       );
 
-      const tokenBalance = Big(tokenBalanceResponse.data?.free?.toString() ?? '0');
+      const data = tokenBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
+      const tokenBalance = Big(data.free.replaceAll(',', '') ?? '0');
       const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
       const remainingMaxSubsidiesAvailable = tokenBalance.div(maximumSubsidyAmountRaw);
 
