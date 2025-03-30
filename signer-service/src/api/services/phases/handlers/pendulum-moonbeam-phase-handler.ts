@@ -1,14 +1,15 @@
+import { RampPhase } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
-import { submitXTokens } from "../../xcm/send";
+import { submitXTokens } from '../../xcm/send';
 import { decodeSubmittableExtrinsic } from '../../transactions';
 
 import { ApiManager } from '../../pendulum/apiManager';
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
-  public getPhaseName(): string {
-    return 'executePendulumToMoonbeamXCM';
+  public getPhaseName(): RampPhase {
+    return 'pendulumToMoonbeam';
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -34,7 +35,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       };
       await state.update({ state: state.state });
 
-      return this.transitionToNextPhase(state, 'performBrlaPayoutOnMoonbeam');
+      return this.transitionToNextPhase(state, 'brlaPayoutOnMoonbeam');
     } catch (e) {
       console.error('Error in PendulumToMoonbeamPhase:', e);
       throw e;

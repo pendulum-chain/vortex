@@ -1,6 +1,6 @@
 import httpStatus from 'http-status';
-import { DestinationType, Networks } from 'shared';
-import { BaseRampService, PresignedTx, RampStateData, UnsignedTx } from './base.service';
+import { AccountMeta, Networks, RampEndpoints, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
+import { BaseRampService } from './base.service';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
@@ -9,35 +9,6 @@ import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
-
-export interface AccountMeta {
-  network: Networks;
-  address: string;
-}
-
-export interface RegisterRampRequest {
-  quoteId: string;
-  signingAccounts: AccountMeta[];
-  additionalData?: Record<string, any>;
-}
-
-export interface StartRampRequest {
-  rampId: string;
-  presignedTxs: PresignedTx[];
-  additionalData?: Record<string, any>;
-}
-
-export interface RegisterRampResponse {
-  id: string;
-  type: 'on' | 'off';
-  currentPhase: string;
-  from: DestinationType;
-  to: DestinationType;
-  state: any;
-  createdAt: Date;
-  updatedAt: Date;
-  unsignedTxs: UnsignedTx[];
-}
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
@@ -62,9 +33,9 @@ export class RampService extends BaseRampService {
    * on the client side.
    */
   public async registerRamp(
-    request: RegisterRampRequest,
+    request: RampEndpoints.RegisterRampRequest,
     route = '/v1/ramp/register',
-  ): Promise<RegisterRampResponse> {
+  ): Promise<RampEndpoints.RegisterRampResponse> {
     return this.withTransaction(async (transaction) => {
       const { signingAccounts, quoteId, additionalData } = request;
 
@@ -129,9 +100,9 @@ export class RampService extends BaseRampService {
       await this.consumeQuote(quote.id, transaction);
 
       // Create initial state data
-      const stateData: RampStateData = {
+      const stateData = {
         type: quote.rampType,
-        currentPhase: 'initial',
+        currentPhase: 'initial' as RampPhase,
         unsignedTxs,
         presignedTxs: null, // There are no presigned transactions at this point
         from: quote.from,
@@ -152,16 +123,16 @@ export class RampService extends BaseRampService {
       const rampState = rampStateModel.dataValues;
 
       // Create response
-      const response: RegisterRampResponse = {
+      const response: RampEndpoints.RegisterRampResponse = {
         id: rampState.id,
+        quoteId: rampState.quoteId,
         type: rampState.type,
         currentPhase: rampState.currentPhase,
         unsignedTxs: rampState.unsignedTxs,
         from: rampState.from,
         to: rampState.to,
-        state: rampState.state,
-        createdAt: rampState.createdAt,
-        updatedAt: rampState.updatedAt,
+        createdAt: rampState.createdAt.toISOString(),
+        updatedAt: rampState.updatedAt.toISOString(),
       };
 
       return response;
@@ -171,7 +142,10 @@ export class RampService extends BaseRampService {
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
-  public async startRamp(request: StartRampRequest, route = '/v1/ramp/start'): Promise<void> {
+  public async startRamp(
+    request: RampEndpoints.StartRampRequest,
+    route = '/v1/ramp/start',
+  ): Promise<RampEndpoints.StartRampResponse> {
     return this.withTransaction(async (transaction) => {
       const rampStateModel = await RampState.findByPk(request.rampId, {
         transaction,
@@ -193,21 +167,33 @@ export class RampService extends BaseRampService {
       });
       // TODO add or check expiry of rampState as well?
 
-      // We don't return data for this request.
-      const response = undefined;
-
       // Start processing the ramp asynchronously
       // We don't await this to avoid blocking the response
       phaseProcessor.processRamp(rampState.id).catch((error) => {
         logger.error(`Error processing ramp ${rampState.id}:`, error);
       });
+
+      // Create response
+      const response: RampEndpoints.StartRampResponse = {
+        id: rampState.id,
+        quoteId: rampState.quoteId,
+        type: rampState.type,
+        currentPhase: rampState.currentPhase,
+        from: rampState.from,
+        to: rampState.to,
+        unsignedTxs: rampState.unsignedTxs,
+        createdAt: rampState.createdAt.toISOString(),
+        updatedAt: rampState.updatedAt.toISOString()
+      };
+
+      return response;
     });
   }
 
   /**
    * Get the status of a ramping process
    */
-  public async getRampStatus(id: string): Promise<RegisterRampResponse | null> {
+  public async getRampStatus(id: string): Promise<RampEndpoints.GetRampStatusResponse | null> {
     const rampStateModel = await this.getRampState(id);
 
     if (!rampStateModel) {
@@ -218,23 +204,21 @@ export class RampService extends BaseRampService {
 
     return {
       id: rampState.id,
+      quoteId: rampState.quoteId,
       type: rampState.type,
       currentPhase: rampState.currentPhase,
       unsignedTxs: rampState.unsignedTxs,
       from: rampState.from,
       to: rampState.to,
-      state: rampState.state,
-      createdAt: rampState.createdAt,
-      updatedAt: rampState.updatedAt,
+      createdAt: rampState.createdAt.toISOString(),
+      updatedAt: rampState.updatedAt.toISOString()
     };
   }
 
   /**
    * Get the error logs for a ramping process
    */
-  public async getErrorLogs(
-    id: string,
-  ): Promise<{ phase: string; timestamp: Date; error: string; details?: any }[] | null> {
+  public async getErrorLogs(id: string): Promise<RampErrorLog[] | null> {
     const rampState = await RampState.findByPk(id);
 
     if (!rampState) {

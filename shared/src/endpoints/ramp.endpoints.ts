@@ -1,16 +1,53 @@
 import { DestinationType, FiatToken, Networks, OnChainToken } from '../index';
 
-export namespace RampEndpoints {
-  export interface PresignedTransaction {
-    phase: string;
-    tx_data: string;
-    nonce?: number;
-  }
+export type RampPhase =
+  | 'initial'
+  | 'squidrouterApprove'
+  | 'squidrouterSwap'
+  | 'fundEphemeral'
+  | 'nablaApprove'
+  | 'nablaSwap'
+  | 'moonbeamToPendulum'
+  | 'pendulumToMoonbeam'
+  | 'pendulumToAssethub'
+  | 'spacewalkRedeem'
+  | 'stellarPayment'
+  | 'stellarCleanup'
+  | 'subsidizePreSwap'
+  | 'subsidizePostSwap'
+  | 'createPayInRequest'
+  | 'brlaPayoutOnMoonbeam'
+  | 'complete';
 
+export interface AccountMeta {
+  address: string;
+  network: Networks;
+}
+
+export interface UnsignedTx {
+  tx_data: string;
+  phase: RampPhase;
+  network: Networks;
+  nonce: number;
+  signer: string;
+}
+
+export type PresignedTx = UnsignedTx & {
+  signature: string;
+};
+
+export interface RampErrorLog {
+  timestamp: string;
+  phase: RampPhase;
+  error: string;
+  details?: Record<string, unknown>;
+}
+
+export namespace RampEndpoints {
   // POST /ramp/register
   export interface RegisterRampRequest {
     quoteId: string;
-    signingAccounts: string[];
+    signingAccounts: AccountMeta[];
     additionalData?: {
       walletAddress?: string;
       pixDestination?: string;
@@ -20,22 +57,12 @@ export namespace RampEndpoints {
     };
   }
 
-  export interface RegisterRampResponse {
-    id: string;
-    type: string;
-    currentPhase: string;
-    from: DestinationType;
-    to: DestinationType;
-    state: Record<string, unknown>;
-    createdAt: string;
-    updatedAt: string;
-    unsignedTxs: any[]; // Array of unsigned txs that need to be signed
-  }
+  export type RegisterRampResponse = RampProcess;
 
   // POST /ramp/start
   export interface StartRampRequest {
     rampId: string;
-    presignedTxs: PresignedTransaction[];
+    presignedTxs: PresignedTx[];
     additionalData?: {
       walletAddress?: string;
       pixDestination?: string;
@@ -50,17 +77,14 @@ export namespace RampEndpoints {
 
   export interface RampProcess {
     id: string;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
-    currentPhase: string;
-    progress: number;
-    inputToken: OnChainToken;
-    outputToken: OnChainToken | FiatToken;
-    inputAmount: string;
-    outputAmount: string;
-    sourceNetwork: Networks;
-    destinationNetwork?: Networks;
+    quoteId: string;
+    type: 'on' | 'off';
+    currentPhase: RampPhase;
+    from: DestinationType;
+    to: DestinationType;
     createdAt: string;
     updatedAt: string;
+    unsignedTxs: UnsignedTx[]; // Array of unsigned txs that need to be signed
   }
 
   // GET /ramp/:id
@@ -74,13 +98,6 @@ export namespace RampEndpoints {
   // GET /ramp/:id/errors
   export interface GetRampErrorLogsRequest {
     id: string;
-  }
-
-  export interface RampErrorLog {
-    timestamp: string;
-    phase: string;
-    message: string;
-    details?: Record<string, unknown>;
   }
 
   export type GetRampErrorLogsResponse = RampErrorLog[];

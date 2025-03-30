@@ -1,10 +1,9 @@
-import { Networks, PendulumDetails } from 'shared';
+import { AccountMeta, Networks, PendulumDetails } from 'shared';
 import Big from 'big.js';
 import { QuoteTicketAttributes } from '../../../../models/quoteTicket.model';
 import { ApiManager } from '../../pendulum/apiManager';
 import { prepareNablaSwapTransaction } from './swap';
 import { prepareNablaApproveTransaction } from './approve';
-import { AccountMeta } from '../../ramp/ramp.service';
 import { encodeSubmittableExtrinsic } from '../index';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 

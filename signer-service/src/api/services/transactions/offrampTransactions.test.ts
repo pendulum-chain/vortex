@@ -1,7 +1,5 @@
-// @ts-nocheck - Ignore type errors for testing
+// eslint-disable-next-line import/no-unresolved
 import { describe, it, expect, mock } from 'bun:test';
-import type { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import type { AccountMeta } from '../ramp/ramp.service';
 import { prepareOfframpTransactions } from './offrampTransactions';
 
 // Mock all external dependencies
@@ -18,15 +16,15 @@ mock.module('shared', () => ({
   getAnyFiatTokenDetails: () => ({
     moonbeamErc20Address: '0xmoonbeamMock',
     decimals: 18,
-    pendulumCurrencyId: 123
+    pendulumCurrencyId: 123,
   }),
   getOnChainTokenDetails: () => ({
     pendulumCurrencyId: 123,
-    decimals: 12
+    decimals: 12,
   }),
   getPendulumDetails: () => ({
     pendulumDecimals: 12,
-    pendulumCurrencyId: 123
+    pendulumCurrencyId: 123,
   }),
   isEvmTokenDetails: () => true,
   isStellarOutputTokenDetails: () => true,
@@ -35,57 +33,57 @@ mock.module('shared', () => ({
   Networks: {
     Moonbeam: 'Moonbeam',
     Pendulum: 'Pendulum',
-    Stellar: 'Stellar'
+    Stellar: 'Stellar',
   },
-  EvmToken: { USDT: 'USDT' }
+  EvmToken: { USDT: 'USDT' },
 }));
 
 // Mock transaction creation modules
 mock.module('./squidrouter/offramp', () => ({
   createOfframpSquidrouterTransactions: mock(async () => ({
     approveData: { mockApprove: true },
-    swapData: { mockSwap: true }
-  }))
+    swapData: { mockSwap: true },
+  })),
 }));
 
 mock.module('./nabla', () => ({
   createNablaTransactionsForQuote: mock(async () => ({
     approveTransaction: '0xapprove',
-    swapTransaction: '0xswap'
-  }))
+    swapTransaction: '0xswap',
+  })),
 }));
 
 mock.module('./xcm/pendulumToMoonbeam', () => ({
   createPendulumToMoonbeamTransfer: mock(async () => ({
-    mockXCM: true
-  }))
+    mockXCM: true,
+  })),
 }));
 
 mock.module('./spacewalk/redeem', () => ({
   prepareSpacewalkRedeemTransaction: mock(async () => ({
-    mockSpacewalk: true
-  }))
+    mockSpacewalk: true,
+  })),
 }));
 
 mock.module('./stellar/offrampTransaction', () => ({
   buildPaymentAndMergeTx: mock(async () => ({
     paymentTransaction: 'stellarPaymentTx',
     mergeAccountTransaction: 'stellarMergeTx',
-    startingSequenceNumber: '1'
-  }))
+    startingSequenceNumber: '1',
+  })),
 }));
 
 mock.module('./index', () => ({
   encodeEvmTransactionData: (data: any) => `encoded:${JSON.stringify(data)}`,
-  encodeSubmittableExtrinsic: (data: any) => `encoded:${JSON.stringify(data)}`
+  encodeSubmittableExtrinsic: (data: any) => `encoded:${JSON.stringify(data)}`,
 }));
 
 mock.module('stellar-sdk', () => ({
   Keypair: {
     fromPublicKey: (pubKey: string) => ({
-      rawPublicKey: () => new Uint8Array([1, 2, 3, 4])
-    })
-  }
+      rawPublicKey: () => new Uint8Array([1, 2, 3, 4]),
+    }),
+  },
 }));
 
 describe('prepareOfframpTransactions', () => {
@@ -102,7 +100,7 @@ describe('prepareOfframpTransactions', () => {
     expiresAt: new Date(Date.now() + 3600000),
     status: 'pending',
     from: 'Moonbeam',
-    to: 'Stellar'
+    to: 'Stellar',
   };
 
   const mockAccounts = [
@@ -117,7 +115,7 @@ describe('prepareOfframpTransactions', () => {
     {
       address: 'stellarAddr',
       network: 'Stellar',
-    }
+    },
   ];
 
   const mockStellarPaymentData = {
@@ -125,7 +123,7 @@ describe('prepareOfframpTransactions', () => {
     destinationAccount: 'stellarDestination',
     memo: 'test-memo',
     amount: '100',
-    memoType: 'text' as 'text' | 'hash'
+    memoType: 'text' as 'text' | 'hash',
   };
 
   it('should create transactions for EVM input token', async () => {
@@ -133,12 +131,12 @@ describe('prepareOfframpTransactions', () => {
       mockQuote,
       mockAccounts,
       mockStellarPaymentData,
-      'userAddress'
+      'userAddress',
     );
 
     expect(unsignedTxs.length).toBeGreaterThan(0);
-    expect(unsignedTxs.some(tx => tx.phase === 'squidrouterApprove')).toBe(true);
-    expect(unsignedTxs.some(tx => tx.phase === 'squidrouterSwap')).toBe(true);
+    expect(unsignedTxs.some((tx) => tx.phase === 'squidrouterApprove')).toBe(true);
+    expect(unsignedTxs.some((tx) => tx.phase === 'squidrouterSwap')).toBe(true);
   });
 
   it('should create Nabla transactions for Pendulum account', async () => {
@@ -146,85 +144,85 @@ describe('prepareOfframpTransactions', () => {
       mockQuote,
       mockAccounts,
       mockStellarPaymentData,
-      'userAddress'
+      'userAddress',
     );
 
-    expect(unsignedTxs.some(tx => tx.phase === 'nablaApprove')).toBe(true);
-    expect(unsignedTxs.some(tx => tx.phase === 'nablaSwap')).toBe(true);
+    expect(unsignedTxs.some((tx) => tx.phase === 'nablaApprove')).toBe(true);
+    expect(unsignedTxs.some((tx) => tx.phase === 'nablaSwap')).toBe(true);
   });
 
   it('should create pendulumToMoonbeam transaction for BRL output', async () => {
     const brlQuote = {
       ...mockQuote,
-      outputCurrency: 'BRL'
+      outputCurrency: 'BRL',
     };
 
     const { unsignedTxs } = await prepareOfframpTransactions(
       brlQuote,
       mockAccounts,
       mockStellarPaymentData,
-      'userAddress'
+      'userAddress',
     );
 
-    expect(unsignedTxs.some(tx => tx.phase === 'pendulumToMoonbeam')).toBe(true);
+    expect(unsignedTxs.some((tx) => tx.phase === 'pendulumToMoonbeam')).toBe(true);
   });
 
   it('should create Stellar transactions for non-BRL output', async () => {
     // Mock isStellarOutputTokenDetails to return true
     const nonBrlQuote = {
       ...mockQuote,
-      outputCurrency: 'USDC' // Not BRL
+      outputCurrency: 'USDC', // Not BRL
     };
 
     const { unsignedTxs } = await prepareOfframpTransactions(
       nonBrlQuote,
       mockAccounts,
       mockStellarPaymentData,
-      'userAddress'
+      'userAddress',
     );
 
-    expect(unsignedTxs.some(tx => tx.phase === 'stellarPayment')).toBe(true);
-    expect(unsignedTxs.some(tx => tx.phase === 'stellarCleanup')).toBe(true);
+    expect(unsignedTxs.some((tx) => tx.phase === 'stellarPayment')).toBe(true);
+    expect(unsignedTxs.some((tx) => tx.phase === 'stellarCleanup')).toBe(true);
   });
 
   it('should throw error for missing Stellar ephemeral', async () => {
-    const badAccounts = mockAccounts.filter(a => a.network !== 'Stellar');
-    
+    const badAccounts = mockAccounts.filter((a) => a.network !== 'Stellar');
+
     await expect(
-      prepareOfframpTransactions(mockQuote, badAccounts, mockStellarPaymentData, 'userAddress')
+      prepareOfframpTransactions(mockQuote, badAccounts, mockStellarPaymentData, 'userAddress'),
     ).rejects.toThrow('Stellar ephemeral not found');
   });
 
   it('should throw error for missing Pendulum ephemeral', async () => {
-    const badAccounts = mockAccounts.filter(a => a.network !== 'Pendulum');
-    
+    const badAccounts = mockAccounts.filter((a) => a.network !== 'Pendulum');
+
     await expect(
-      prepareOfframpTransactions(mockQuote, badAccounts, mockStellarPaymentData, 'userAddress')
+      prepareOfframpTransactions(mockQuote, badAccounts, mockStellarPaymentData, 'userAddress'),
     ).rejects.toThrow('Pendulum ephemeral not found');
   });
 
   it('should throw error for missing Moonbeam ephemeral', async () => {
-    const badAccounts = mockAccounts.filter(a => a.network !== 'Moonbeam');
-    
+    const badAccounts = mockAccounts.filter((a) => a.network !== 'Moonbeam');
+
     await expect(
-      prepareOfframpTransactions(mockQuote, badAccounts, mockStellarPaymentData, 'userAddress')
+      prepareOfframpTransactions(mockQuote, badAccounts, mockStellarPaymentData, 'userAddress'),
     ).rejects.toThrow('Moonbeam ephemeral not found');
   });
 
   it('should throw error for missing userAddress with EVM input token', async () => {
-    await expect(
-      prepareOfframpTransactions(mockQuote, mockAccounts, mockStellarPaymentData)
-    ).rejects.toThrow('User address must be provided for offramping from EVM network');
+    await expect(prepareOfframpTransactions(mockQuote, mockAccounts, mockStellarPaymentData)).rejects.toThrow(
+      'User address must be provided for offramping from EVM network',
+    );
   });
 
   it('should throw error for missing Stellar payment data with non-BRL output', async () => {
     const nonBrlQuote = {
       ...mockQuote,
-      outputCurrency: 'USDC' // Not BRL
+      outputCurrency: 'USDC', // Not BRL
     };
 
-    await expect(
-      prepareOfframpTransactions(nonBrlQuote, mockAccounts, undefined, 'userAddress')
-    ).rejects.toThrow('Stellar payment data must be provided for offramp');
+    await expect(prepareOfframpTransactions(nonBrlQuote, mockAccounts, undefined, 'userAddress')).rejects.toThrow(
+      'Stellar payment data must be provided for offramp',
+    );
   });
 });

@@ -68,7 +68,7 @@ class RampRecoveryWorker {
             ...state.errorLogs,
             {
               phase: state.currentPhase,
-              timestamp: new Date(),
+              timestamp: new Date().toISOString(),
               error: error.message || 'Unknown error',
               details: error.stack || {},
             },

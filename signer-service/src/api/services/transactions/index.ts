@@ -1,8 +1,8 @@
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import { ApiPromise } from '@polkadot/api';
 import httpStatus from 'http-status';
+import { PresignedTx } from 'shared';
 import { APIError } from '../../errors/api-error';
-import { PresignedTx } from '../ramp/base.service';
 
 export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
   return extrinsic.toHex();

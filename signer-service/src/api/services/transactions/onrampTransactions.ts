@@ -11,10 +11,10 @@ import {
   isOnChainToken,
   isOnChainTokenDetails,
   Networks,
+  UnsignedTx,
 } from 'shared';
 import Big from 'big.js';
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
 import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
 import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
@@ -94,7 +94,7 @@ export async function prepareOnrampTransactions(
       );
       unsignedTxs.push({
         tx_data: encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
-        phase: 'moonbeamToPendulumXCM',
+        phase: 'moonbeamToPendulum',
         network: account.network,
         nonce: moonbeamEphemeralStartingNonce,
         signer: account.address,
@@ -115,14 +115,14 @@ export async function prepareOnrampTransactions(
 
         unsignedTxs.push({
           tx_data: encodeEvmTransactionData(approveData),
-          phase: 'moonbeamSquidrouterApprove',
+          phase: 'squidrouterApprove',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 1,
           signer: account.address,
         });
         unsignedTxs.push({
           tx_data: encodeEvmTransactionData(swapData),
-          phase: 'moonbeamSquidrouterSwap',
+          phase: 'squidrouterSwap',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 2,
           signer: account.address,
@@ -175,7 +175,7 @@ export async function prepareOnrampTransactions(
         );
         unsignedTxs.push({
           tx_data: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction),
-          phase: 'pendulumToAssethubXcm',
+          phase: 'pendulumToAssethub',
           network: account.network,
           nonce: 2,
           signer: account.address,
@@ -188,7 +188,7 @@ export async function prepareOnrampTransactions(
         );
         unsignedTxs.push({
           tx_data: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
-          phase: 'pendulumToMoonbeamXcm',
+          phase: 'pendulumToMoonbeam',
           network: account.network,
           nonce: 2,
           signer: account.address,

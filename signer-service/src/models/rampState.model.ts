@@ -1,26 +1,32 @@
-import { Model, DataTypes, Optional } from 'sequelize';
-import { DestinationType } from 'shared';
+import { DataTypes, Model, Optional } from 'sequelize';
+import {DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx} from 'shared';
 import sequelize from '../config/database';
 
+export interface PhaseHistoryEntry {
+  phase: RampPhase;
+  timestamp: Date;
+  metadata?: any;
+}
+
 // Define the attributes of the RampState model
-interface RampStateAttributes {
+export interface RampStateAttributes {
   id: string; // UUID
   type: 'on' | 'off';
-  currentPhase: string;
-  unsignedTxs: any[]; // JSONB array
-  presignedTxs: any[] | undefined | null; // JSONB array
+  currentPhase: RampPhase;
+  unsignedTxs: UnsignedTx[]; // JSONB array
+  presignedTxs: PresignedTx[] | null; // JSONB array
   from: DestinationType;
   to: DestinationType;
   state: any; // JSONB
   quoteId: string; // UUID reference to QuoteTicket
-  phaseHistory: { phase: string; timestamp: Date; metadata?: any }[]; // JSONB array
-  errorLogs: { phase: string; timestamp: Date; error: string; details?: any }[]; // JSONB array
+  phaseHistory: PhaseHistoryEntry[]; // JSONB array
+  errorLogs: RampErrorLog[]; // JSONB array
   createdAt: Date;
   updatedAt: Date;
 }
 
 // Define the attributes that can be set during creation
-type RampStateCreationAttributes = Optional<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt'>
+type RampStateCreationAttributes = Optional<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
 // Define the RampState model
 class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> implements RampStateAttributes {
@@ -28,11 +34,11 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
 
   public type!: 'on' | 'off';
 
-  public currentPhase!: string;
+  public currentPhase!: RampPhase;
 
-  public unsignedTxs!: any[];
+  public unsignedTxs!: UnsignedTx[];
 
-  public presignedTxs!: any[] | undefined | null;
+  public presignedTxs!: PresignedTx[] | null;
 
   public from!: DestinationType;
 
@@ -42,9 +48,9 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
 
   public quoteId!: string;
 
-  public phaseHistory!: { phase: string; timestamp: Date; metadata?: any }[];
+  public phaseHistory!: PhaseHistoryEntry[];
 
-  public errorLogs!: { phase: string; timestamp: Date; error: string; details?: any }[];
+  public errorLogs!: RampErrorLog[];
 
   public createdAt!: Date;
 
@@ -74,17 +80,10 @@ RampState.init(
       allowNull: false,
       field: 'unsigned_txs',
       validate: {
-        isValidTxArray(value: any[]) {
+        isValidTxArray(value: UnsignedTx[]) {
           if (!Array.isArray(value) || value.length < 1 || value.length > 8) {
-            throw new Error('unsignedTxs must be an array with 1-5 elements');
+            throw new Error('unsignedTxs must be an array with 1-8 elements');
           }
-
-          // for (const tx of value) {
-          //   if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer) {
-          //     console.log("faulty,,,", tx);
-          //     throw new Error('Each transaction must have tx_data, phase, network, nonce, and signer properties');
-          //   }
-          // }
         },
       },
     },
@@ -93,11 +92,11 @@ RampState.init(
       allowNull: true,
       field: 'presigned_txs',
       validate: {
-        isValidTxArray(value: any[] | null) {
+        isValidTxArray(value: PresignedTx[] | null) {
           if (value === null) return;
 
-          if (!Array.isArray(value) || value.length < 1 || value.length > 5) {
-            throw new Error('presignedTxs must be an array with 1-5 elements');
+          if (!Array.isArray(value) || value.length < 1 || value.length > 8) {
+            throw new Error('presignedTxs must be an array with 1-8 elements');
           }
 
           for (const tx of value) {

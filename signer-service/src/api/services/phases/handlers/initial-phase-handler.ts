@@ -1,3 +1,4 @@
+import { RampPhase } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
@@ -9,7 +10,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
   /**
    * Get the phase name
    */
-  public getPhaseName(): string {
+  public getPhaseName(): RampPhase {
     return 'initial';
   }
 
@@ -23,7 +24,8 @@ export class InitialPhaseHandler extends BasePhaseHandler {
 
     // The initial phase is just a placeholder
     // Transition to the prepareTransactions phase
-    return this.transitionToNextPhase(state, 'prepareTransactions');
+    // FIXME use the correct next phase
+    return this.transitionToNextPhase(state, 'fundEphemeral');
   }
 }
 

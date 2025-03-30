@@ -1,4 +1,5 @@
 import { ExecuteMessageResult, submitExtrinsic } from '@pendulum-chain/api-solang';
+import {RampPhase} from "shared";
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
@@ -7,7 +8,7 @@ import { decodeSubmittableExtrinsic } from '../../transactions';
 import { ApiManager } from '../../pendulum/apiManager';
 
 export class NablaApprovePhaseHandler extends BasePhaseHandler {
-  public getPhaseName(): string {
+  public getPhaseName(): RampPhase{
     return 'nablaApprove';
   }
 

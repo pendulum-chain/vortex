@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import RampState from '../../../models/rampState.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
+import {RampPhase} from "shared";
 
 /**
  * Base interface for phase handlers
@@ -68,7 +69,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       ...state.errorLogs,
       {
         phase: this.getPhaseName(),
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         error: error.message || 'Unknown error',
         details: error.stack || {},
       },
@@ -87,7 +88,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
   /**
    * Get the phase name
    */
-  public abstract getPhaseName(): string;
+  public abstract getPhaseName(): RampPhase;
 
   /**
    * Transition to the next phase
@@ -96,7 +97,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param metadata Additional metadata for the transition
    * @returns The updated ramp state
    */
-  protected async transitionToNextPhase(state: RampState, nextPhase: string, metadata?: any): Promise<RampState> {
+  protected async transitionToNextPhase(state: RampState, nextPhase: RampPhase, metadata?: any): Promise<RampState> {
     const phaseHistory = [
       ...state.phaseHistory,
       {
@@ -120,7 +121,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param phase The phase to get the transaction for
    * @returns The presigned transaction
    */
-  protected getPresignedTransaction(state: RampState, phase: string): any {
+  protected getPresignedTransaction(state: RampState, phase: RampPhase): any {
     return state.presignedTxs?.find((tx) => tx.phase === phase);
   }
 }

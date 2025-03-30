@@ -1,63 +1,28 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Transaction, Op } from 'sequelize';
-import { DestinationType } from 'shared';
 import logger from '../../../config/logger';
-import RampState from '../../../models/rampState.model';
+import RampState, { RampStateAttributes } from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import sequelize from '../../../config/database';
-
-export interface UnsignedTx {
-  tx_data: string;
-  phase: string;
-  network: string;
-  nonce: number;
-  signer: string;
-}
-
-export type PresignedTx = UnsignedTx & {
-  signature: string;
-};
-
-export interface RampStateData {
-  type: 'on' | 'off';
-  currentPhase: string;
-  unsignedTxs: UnsignedTx[];
-  presignedTxs: PresignedTx[] | null;
-  from: DestinationType;
-  to: DestinationType;
-  state: any;
-  quoteId: string;
-  phaseHistory?: { phase: string; timestamp: Date; metadata?: any }[];
-  errorLogs?: {
-    phase: string;
-    timestamp: Date;
-    error: string;
-    details?: any;
-  }[];
-  subsidyDetails?: {
-    hardLimit?: string;
-    softLimit?: string;
-    consumed?: string;
-    remaining?: string;
-  };
-  nonceSequences?: Record<string, number>;
-}
+import { RampPhase } from 'shared';
 
 export class BaseRampService {
   /**
    * Create a new ramp state
    */
-  protected async createRampState(data: RampStateData): Promise<RampState> {
+  protected async createRampState(
+    data: Omit<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt' | 'errorLogs' | 'phaseHistory'>,
+  ): Promise<RampState> {
     return RampState.create({
       id: uuidv4(),
       ...data,
-      phaseHistory: data.phaseHistory || [
+      phaseHistory: [
         {
           phase: data.currentPhase,
           timestamp: new Date(),
         },
       ],
-      errorLogs: data.errorLogs || [],
+      errorLogs: [],
     });
   }
 
@@ -73,7 +38,7 @@ export class BaseRampService {
   /**
    * Update a ramp state
    */
-  protected async updateRampState(id: string, data: Partial<RampStateData>): Promise<[number, RampState[]]> {
+  protected async updateRampState(id: string, data: Partial<RampStateAttributes>): Promise<[number, RampState[]]> {
     return RampState.update(data, {
       where: { id },
       returning: true,
@@ -83,7 +48,7 @@ export class BaseRampService {
   /**
    * Log a phase transition
    */
-  protected async logPhaseTransition(id: string, newPhase: string, metadata?: any): Promise<void> {
+  protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: any): Promise<void> {
     const rampStateModel = await RampState.findByPk(id);
     if (!rampStateModel) {
       throw new Error(`RampState with id ${id} not found`);

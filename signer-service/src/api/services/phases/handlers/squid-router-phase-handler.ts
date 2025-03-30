@@ -3,7 +3,7 @@ import {BasePhaseHandler} from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
 import {APIError} from '../../../errors/api-error';
-import {getNetworkFromDestination, getNetworkId} from "shared";
+import {getNetworkFromDestination, getNetworkId, RampPhase} from "shared";
 
 /**
  * Handler for the squidRouter phase
@@ -13,8 +13,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   /**
    * Get the phase name
    */
-  public getPhaseName(): string {
-    return 'squidRouter';
+  public getPhaseName(): RampPhase{
+    return 'squidrouterSwap';
   }
 
   /**
@@ -78,7 +78,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
       // Transition to the next phase
       // FIXME we are in onramp here, so we should transition to a different phase
-      return this.transitionToNextPhase(updatedState, 'pendulumFundEphemeral');
+      return this.transitionToNextPhase(updatedState, 'fundEphemeral');
     } catch (error: any) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;

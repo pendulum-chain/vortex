@@ -5,17 +5,17 @@ import {
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
+  getPendulumDetails,
   isEvmTokenDetails,
   isFiatToken,
   isOnChainToken,
   isStellarOutputTokenDetails,
   Networks,
-  getPendulumDetails,
+  UnsignedTx,
 } from 'shared';
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { UnsignedTx } from '../ramp/base.service';
 import { AccountMeta } from '../ramp/ramp.service';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';

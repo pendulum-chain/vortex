@@ -1,7 +1,5 @@
-// @ts-nocheck - Ignore type errors for testing
-import { describe, it, expect, mock, beforeEach } from 'bun:test';
-import type { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import type { AccountMeta } from '../ramp/ramp.service';
+// eslint-disable-next-line import/no-unresolved
+import { describe, expect, it, mock } from 'bun:test';
 import { prepareOnrampTransactions } from './onrampTransactions';
 
 // Mock all external dependencies
@@ -61,7 +59,6 @@ mock.module('./index', () => ({
 
 // Mock the app initialization
 mock.module('../../../index', () => ({}));
-
 
 describe('prepareOnrampTransactions', () => {
   const mockQuote = {
