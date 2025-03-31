@@ -8,7 +8,9 @@ import nablaApproveHandler from './handlers/nabla-approve-handler';
 import stellarPaymentHandler from './handlers/stellar-payment-handler';
 import stellarCleanupHandler from './handlers/stellar-cleanup-handler';
 import spacewalkRedeemHandler from './handlers/spacewalk-redeem-handler';
-import PendulumCleanupPhaseHandler from './handlers/pendulum-cleanup-handler';
+import pendulumCleanupPhaseHandler from './handlers/pendulum-cleanup-handler';
+import subsidizePostSwapPhaseHandler from './handlers/subsidize-post-swap-handler';
+import subsidizePreSwapPhaseHandler  from './handlers/subsidize-pre-swap-handler';
 
 /**
  * Register all phase handlers
@@ -25,7 +27,9 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(stellarPaymentHandler);
   phaseRegistry.registerHandler(stellarCleanupHandler);
   phaseRegistry.registerHandler(spacewalkRedeemHandler);
-  phaseRegistry.registerHandler(PendulumCleanupPhaseHandler);
+  phaseRegistry.registerHandler(pendulumCleanupPhaseHandler);
+  phaseRegistry.registerHandler(subsidizePostSwapPhaseHandler); 
+  phaseRegistry.registerHandler(subsidizePreSwapPhaseHandler);
 
   // Add more handlers here as they are implemented
   // Example:

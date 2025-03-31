@@ -7,6 +7,7 @@ export interface StateMetadata  {
     inputTokenPendulumDetails: PendulumDetails;
     outputTokenPendulumDetails: PendulumDetails;
     outputTokenType: RampCurrency;
+    inputAmountBeforeSwapRaw: string;
     outputAmountBeforeFees: { units: string; raw: string };
     // Only used in offramp - eurc route
     stellarTarget: {stellarTargetAccountId: string, stellarTokenDetails: StellarTokenDetails};

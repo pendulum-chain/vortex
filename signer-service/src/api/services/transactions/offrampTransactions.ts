@@ -138,6 +138,12 @@ export async function prepareOfframpTransactions(
     }
     // If network is Pendulum, create all the swap transactions
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+
+      const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
+          new Big(quote.inputAmount),
+          inputTokenPendulumDetails.pendulumDecimals,
+        ).toFixed(0, 0);
+
       const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
       const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
         nablaSoftMinimumOutput,
@@ -170,10 +176,10 @@ export async function prepareOfframpTransactions(
       stateMeta = {
         ...stateMeta,
         nablaSoftMinimumOutputRaw,
+        inputAmountBeforeSwapRaw
       };
 
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
-        account.address,
         inputTokenPendulumDetails.pendulumCurrencyId,
         outputTokenPendulumDetails.pendulumCurrencyId,
       )

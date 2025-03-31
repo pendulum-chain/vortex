@@ -7,7 +7,7 @@ import { SubsidizeEndpoints } from 'shared/src/endpoints/subsidize.endpoints';
 import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { ApiManager } from '../services/pendulum/apiManager';
 
-const getFundingAccount = () => {
+export const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {
     throw new Error('PENDULUM_FUNDING_SEED is not configured');
   }

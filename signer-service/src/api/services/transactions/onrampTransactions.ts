@@ -140,6 +140,12 @@ export async function prepareOnrampTransactions(
         });
       }
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+
+      const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
+          new Big(quote.inputAmount),
+          inputTokenPendulumDetails.pendulumDecimals,
+        ).toFixed(0, 0);
+
       const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
       const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
         nablaSoftMinimumOutput,
@@ -172,10 +178,10 @@ export async function prepareOnrampTransactions(
       stateMeta = {
         ...stateMeta,
         nablaSoftMinimumOutputRaw,
+        inputAmountBeforeSwapRaw
       };
 
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
-          account.address,
           inputTokenPendulumDetails.pendulumCurrencyId,
           outputTokenPendulumDetails.pendulumCurrencyId,
       )
