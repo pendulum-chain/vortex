@@ -44,13 +44,13 @@ const validateRequiredEnvVars = () => {
 const initializeApp = async () => {
   try {
     // Validate environment variables before starting the server
-    validateRequiredEnvVars();
+    // validateRequiredEnvVars();
 
     // Test database connection
-    await testDatabaseConnection();
+    // await testDatabaseConnection();
 
     // Run database migrations
-    await runMigrations();
+    // await runMigrations();
 
     const apiManager = ApiManager.getInstance();
     await apiManager.populateAllApis();

@@ -27,7 +27,7 @@ app.use(
     origin: [
       'https://app.vortexfinance.co',
       'https://polygon-prototype-staging--pendulum-pay.netlify.app',
-      process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : null,
+      'http://localhost:5173',
     ].filter(Boolean) as string[],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,

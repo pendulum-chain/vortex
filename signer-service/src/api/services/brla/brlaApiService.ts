@@ -27,7 +27,7 @@ export class BrlaApiService {
 
   private constructor() {
     if (!BRLA_LOGIN_USERNAME || !BRLA_LOGIN_PASSWORD) {
-      throw new Error('BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined');
+      // throw new Error('BRLA_LOGIN_USERNAME or BRLA_LOGIN_PASSWORD not defined');
     }
     this.brlaBusinessUsername = BRLA_LOGIN_USERNAME;
     this.brlaBusinessPassword = BRLA_LOGIN_PASSWORD;
