@@ -25,7 +25,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const {
       nablaSoftMinimumOutputRaw,
       pendulumEphemeralAddress,
-      pendulumAmountRaw,
+      outputAmountBeforeFees,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails,
     } = state.state as StateMetadata;
@@ -33,7 +33,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     if (
       !nablaSoftMinimumOutputRaw ||
       !pendulumEphemeralAddress ||
-      !pendulumAmountRaw ||
+      !outputAmountBeforeFees ||
       !inputTokenPendulumDetails ||
       !outputTokenPendulumDetails
     ) {
@@ -52,7 +52,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         callerAddress: pendulumEphemeralAddress,
         messageName: 'getAmountOut',
         messageArguments: [
-          pendulumAmountRaw,
+          outputAmountBeforeFees.raw,
           [
             (inputTokenPendulumDetails as PendulumDetails).pendulumErc20WrapperAddress,
             (outputTokenPendulumDetails as PendulumDetails).pendulumErc20WrapperAddress,

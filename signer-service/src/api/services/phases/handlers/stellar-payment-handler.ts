@@ -3,8 +3,6 @@ import { Horizon, Networks, Transaction } from 'stellar-sdk';
 
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
-import { StateMetadata } from '../meta-state-types';
-
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const horizonServer = new Horizon.Server(HORIZON_URL);

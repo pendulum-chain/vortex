@@ -1,10 +1,12 @@
-import { PendulumDetails } from "shared";
+import { PendulumDetails, StellarTokenDetails } from "shared";
 
 
 export interface StateMetadata  {
     nablaSoftMinimumOutputRaw: string;
     pendulumEphemeralAddress: string;
-    pendulumAmountRaw: string;
     inputTokenPendulumDetails: PendulumDetails;
     outputTokenPendulumDetails: PendulumDetails;
+    outputAmountBeforeFees: { units: string; raw: string };
+    stellarTarget: {stellarTargetAccountId: string, stellarTokenDetails: StellarTokenDetails};
+    executeSpacewalkNonce: number;
 }

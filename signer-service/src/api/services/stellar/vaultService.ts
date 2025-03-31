@@ -1,9 +1,11 @@
-import { ApiPromise } from '@polkadot/api';
-import { SpacewalkPrimitivesCurrencyId, SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
+
+import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 
 import { API } from '../pendulum/apiManager';
 import { getVaultsForCurrency } from './getVaults';
+import { ISubmittableResult } from '@polkadot/types/types';
+import { getAddressForFormat, parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from 'shared';
 
 export async function createVaultService(
   apiComponents: API,
@@ -33,79 +35,79 @@ export class VaultService {
     return this.apiComponents.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!);
   }
 
-  //     async submitRedeem(
-  //       senderAddress: string,
-  //       extrinsic: SubmittableExtrinsic<'promise'>,
-  //     ): Promise<SpacewalkRedeemRequestEvent> {
-  //       return new Promise((resolve, reject) => {
-  //         extrinsic
-  //           .send((submissionResult: ISubmittableResult) => {
-  //             const { status, events, dispatchError } = submissionResult;
+  async submitRedeem(
+    senderAddress: string,
+    extrinsic: SubmittableExtrinsic<'promise'>,
+  ): Promise<SpacewalkRedeemRequestEvent> {
+    return new Promise((resolve, reject) => {
+      extrinsic
+        .send((submissionResult: ISubmittableResult) => {
+          const { status, events, dispatchError } = submissionResult;
 
-  //             if (status.isFinalized) {
-  //               console.log(`Requested redeem for vault ${prettyPrintVaultId(this.vaultId)} with status ${status.type}`);
+          if (status.isFinalized) {
+            console.log(`Requested redeem for vault ${this.vaultId} with status ${status.type}`);
 
-  //               // Try to find a 'system.ExtrinsicFailed' event
-  //               const systemExtrinsicFailedEvent = events.find((record) => {
-  //                 return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
-  //               });
+            // Try to find a 'system.ExtrinsicFailed' event
+            const systemExtrinsicFailedEvent = events.find((record) => {
+              return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
+            });
 
-  //               if (dispatchError) {
-  //                 reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
-  //               }
-  //               //find all redeem request events and filter the one that matches the requester
-  //               const redeemEvents = events.filter((event) => {
-  //                 return (
-  //                   event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
-  //                 );
-  //               });
+            if (dispatchError) {
+              reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
+            }
+            //find all redeem request events and filter the one that matches the requester
+            const redeemEvents = events.filter((event) => {
+              return (
+                event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
+              );
+            });
 
-  //               const event = redeemEvents
-  //                 .map((event) => parseEventRedeemRequest(event))
-  //                 .filter((event) => {
-  //                   return event.redeemer === getAddressForFormat(senderAddress, this.apiComponents!.ss58Format);
-  //                 });
+            const event = redeemEvents
+              .map((event) => parseEventRedeemRequest(event))
+              .filter((event) => {
+                return event.redeemer === getAddressForFormat(senderAddress, this.apiComponents!.ss58Format);
+              });
 
-  //               if (event.length == 0) {
-  //                 reject(new Error(`No redeem event found for account ${senderAddress}`));
-  //               }
-  //               //we should only find one event corresponding to the issue request
-  //               if (event.length != 1) {
-  //                 reject(new Error('Inconsistent amount of redeem request events for account'));
-  //               }
-  //               resolve(event[0]);
-  //             }
-  //           })
-  //           .catch((error) => {
-  //             reject(new Error(`Failed to request redeem: ${error}`));
-  //           });
-  //       });
-  //     }
+            if (event.length == 0) {
+              reject(new Error(`No redeem event found for account ${senderAddress}`));
+            }
+            //we should only find one event corresponding to the issue request
+            if (event.length != 1) {
+              reject(new Error('Inconsistent amount of redeem request events for account'));
+            }
+            resolve(event[0]);
+          }
+        })
+        .catch((error) => {
+          reject(new Error(`Failed to request redeem: ${error}`));
+        });
+    });
+  }
 
-  //     // We first check if dispatchError is of type "module",
-  //   // If not we either return ExtrinsicFailedError or Unknown dispatch error
-  //   handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
-  //     if (dispatchError?.isModule) {
-  //       const decoded = this.apiComponents!.api.registry.findMetaError(dispatchError.asModule);
-  //       const { name, section, method } = decoded;
+  // We first check if dispatchError is of type "module",
+// If not we either return ExtrinsicFailedError or Unknown dispatch error
+handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
+  if (dispatchError?.isModule) {
+    const decoded = this.apiComponents!.api.registry.findMetaError(dispatchError.asModule);
+    const { name, section, method } = decoded;
 
-  //       return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
-  //     } else if (systemExtrinsicFailedEvent) {
-  //       const eventName =
-  //         systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
-  //           ? systemExtrinsicFailedEvent?.event.data[0].toString()
-  //           : 'Unknown';
+    return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
+  } else if (systemExtrinsicFailedEvent) {
+    const eventName =
+      systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
+        ? systemExtrinsicFailedEvent?.event.data[0].toString()
+        : 'Unknown';
 
-  //       const {
-  //         phase,
-  //         event: { method, section },
-  //       } = systemExtrinsicFailedEvent;
-  //       console.log(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
+    const {
+      phase,
+      event: { method, section },
+    } = systemExtrinsicFailedEvent;
+    console.log(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
 
-  //       return new Error(`Failed to dispatch ${extrinsicCalled}`);
-  //     } else {
-  //       console.log('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
-  //       return new Error(`Unknown error during ${extrinsicCalled}`);
-  //     }
-  //   }
+    return new Error(`Failed to dispatch ${extrinsicCalled}`);
+  } else {
+    console.log('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
+    return new Error(`Unknown error during ${extrinsicCalled}`);
+  }
+}
 }

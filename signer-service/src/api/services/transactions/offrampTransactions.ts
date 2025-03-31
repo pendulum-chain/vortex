@@ -24,6 +24,7 @@ import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
 import { buildPaymentAndMergeTx, PaymentData } from './stellar/offrampTransaction';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
+import { StateMetadata } from '../phases/meta-state-types';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -32,7 +33,7 @@ export async function prepareOfframpTransactions(
   userAddress?: string,
 ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
   const unsignedTxs: UnsignedTx[] = [];
-  let stateMeta = {};
+  let stateMeta: Partial<StateMetadata> = {};
 
   const fromNetwork = getNetworkFromDestination(quote.from);
   if (!fromNetwork) {
@@ -76,6 +77,14 @@ export async function prepareOfframpTransactions(
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency);
+
+  // add common data to state metadata, for later use on the executors
+  stateMeta = {
+    inputTokenPendulumDetails,
+    outputTokenPendulumDetails,
+    outputAmountBeforeFees: { units: outputAmountBeforeFees.toFixed(), raw: outputAmountBeforeFeesRaw },
+    pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+  };
 
   // If coming from evm chain, we need to pass the proper squidrouter transactions
   // to the user.
@@ -158,11 +167,7 @@ export async function prepareOfframpTransactions(
 
       stateMeta = {
         ...stateMeta,
-        pendulumEphemeralAddress: account.address,
         nablaSoftMinimumOutputRaw,
-        pendulumAmountRaw: outputAmountBeforeFeesRaw,
-        inputTokenPendulumDetails,
-        outputTokenPendulumDetails,
       };
 
       if (quote.outputCurrency === FiatToken.BRL) {
@@ -185,6 +190,7 @@ export async function prepareOfframpTransactions(
           pendulumEphemeralAddress: account.address,
         };
       } else {
+
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
           throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
         }
@@ -192,22 +198,29 @@ export async function prepareOfframpTransactions(
         if (!stellarPaymentData?.offrampingAccount) {
           throw new Error('Stellar payment data must be provided for offramp');
         }
+        const executeSpacewalkNonce = 2;
 
         const stellarTargetAccountRaw = Keypair.fromPublicKey(stellarPaymentData.offrampingAccount).rawPublicKey();
         const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
           outputAmountRaw: outputAmountBeforeFeesRaw,
           stellarTargetAccountRaw,
           outputTokenDetails,
-          executeSpacewalkNonce: 0,
+          executeSpacewalkNonce: 2,
         });
 
         unsignedTxs.push({
           tx_data: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
           phase: 'spacewalkRedeem',
           network: account.network,
-          nonce: 2,
+          nonce: executeSpacewalkNonce,
           signer: account.address,
         });
+
+        stateMeta = {
+          ...stateMeta,
+          stellarTarget: { stellarTargetAccountId: stellarPaymentData.offrampingAccount, stellarTokenDetails: outputTokenDetails },
+          executeSpacewalkNonce,
+        }
       }
     } else if (accountNetworkId === getNetworkId(Networks.Stellar) && quote.outputCurrency !== FiatToken.BRL) {
       if (!isStellarOutputTokenDetails(outputTokenDetails)) {
