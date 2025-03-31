@@ -86,16 +86,17 @@ export class RampService extends BaseRampService {
         ));
       } else {
         // validate we have the destination address
-        if (!additionalData || additionalData.destinationAddress === undefined) {
+        if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
           throw new APIError({
             status: httpStatus.BAD_REQUEST,
-            message: 'Parameter "destinationAddress" is required for onramp',
+            message: 'Parameters destinationAddress and taxId are required for onramp',
           });
         }
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
           additionalData?.destinationAddress,
+          additionalData?.taxId,
         ));
       }
 

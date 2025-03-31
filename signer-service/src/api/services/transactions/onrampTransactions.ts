@@ -32,6 +32,7 @@ export async function prepareOnrampTransactions(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[],
   destinationAddress: string,
+  taxId: string,
 ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
@@ -91,6 +92,9 @@ export async function prepareOnrampTransactions(
     outputTokenPendulumDetails,
     outputAmountBeforeFees: { units: outputAmountBeforeFees.toFixed(), raw: outputAmountBeforeFeesRaw },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+    destinationAddress,
+    taxId,
+    inputAmountUnits: quote.inputAmount,
   };
 
   for (const account of signingAccounts) {

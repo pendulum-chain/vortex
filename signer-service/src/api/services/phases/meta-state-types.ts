@@ -16,7 +16,9 @@ export interface StateMetadata  {
     stellarTarget: {stellarTargetAccountId: string, stellarTokenDetails: StellarTokenDetails};
     executeSpacewalkNonce: number;
     // Only used in brla
+    inputAmountUnits: string;
     taxId: string,
     pixDestination: string;
     brlaEvmAddress: string;
+    destinationAddress: string;
 }

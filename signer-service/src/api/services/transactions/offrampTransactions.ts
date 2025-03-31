@@ -218,7 +218,7 @@ export async function prepareOfframpTransactions(
         });
         
         if (!brlaEvmAddress || !pixDestination || !taxId) {
-          throw new Error('BRLA evm address, pix destination and tax id must be provided for offramp to BRL');
+          throw new Error('brlaEvmAddress, pixDestination and taxId parameters must be provided for offramp to BRL');
         }
 
         stateMeta = {
