@@ -11,7 +11,7 @@ import spacewalkRedeemHandler from './handlers/spacewalk-redeem-handler';
 import pendulumCleanupPhaseHandler from './handlers/pendulum-cleanup-handler';
 import subsidizePostSwapPhaseHandler from './handlers/subsidize-post-swap-handler';
 import subsidizePreSwapPhaseHandler  from './handlers/subsidize-pre-swap-handler';
-
+import moonbeamToPendulumPhaseHandler from './handlers/moonbeam-to-pendulum-handler';
 /**
  * Register all phase handlers
  */
@@ -30,11 +30,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(pendulumCleanupPhaseHandler);
   phaseRegistry.registerHandler(subsidizePostSwapPhaseHandler); 
   phaseRegistry.registerHandler(subsidizePreSwapPhaseHandler);
-
-  // Add more handlers here as they are implemented
-  // Example:
-  // phaseRegistry.registerHandler(pendulumFundEphemeralPhaseHandler);
-  // etc.
+  phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
 
   logger.info('Phase handlers registered');
 }

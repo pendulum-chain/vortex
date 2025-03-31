@@ -9,6 +9,9 @@ export interface StateMetadata  {
     outputTokenType: RampCurrency;
     inputAmountBeforeSwapRaw: string;
     outputAmountBeforeFees: { units: string; raw: string };
+    // Only used in offramp
+    squidRouterReceiverId: string;
+    moonbeamXcmTransactionHash: string;
     // Only used in offramp - eurc route
     stellarTarget: {stellarTargetAccountId: string, stellarTokenDetails: StellarTokenDetails};
     executeSpacewalkNonce: number;

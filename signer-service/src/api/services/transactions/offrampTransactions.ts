@@ -95,7 +95,7 @@ export async function prepareOfframpTransactions(
       throw new Error('User address must be provided for offramping from EVM network.');
     }
 
-    const { approveData, swapData } = await createOfframpSquidrouterTransactions({
+    const { approveData, swapData, squidRouterReceiverId } = await createOfframpSquidrouterTransactions({
       inputTokenDetails,
       fromNetwork,
       rawAmount: inputAmountRaw,
@@ -118,6 +118,11 @@ export async function prepareOfframpTransactions(
       nonce: 0,
       signer: userAddress,
     });
+
+    stateMeta = {
+      ...stateMeta,
+      squidRouterReceiverId,
+    }
   }
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {

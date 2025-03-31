@@ -34,6 +34,7 @@ export interface OfframpTransactionData {
     maxFeePerGas?: string;
     maxPriorityFeePerGas?: string;
   };
+  squidRouterReceiverId: string;
 }
 
 export async function createOfframpSquidrouterTransactions(
@@ -93,5 +94,6 @@ export async function createOfframpSquidrouterTransactions(
       maxFeePerGas: String(maxFeePerGas),
       maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
+    squidRouterReceiverId,
   };
 }
