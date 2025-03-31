@@ -12,6 +12,7 @@ import pendulumCleanupPhaseHandler from './handlers/pendulum-cleanup-handler';
 import subsidizePostSwapPhaseHandler from './handlers/subsidize-post-swap-handler';
 import subsidizePreSwapPhaseHandler  from './handlers/subsidize-pre-swap-handler';
 import moonbeamToPendulumPhaseHandler from './handlers/moonbeam-to-pendulum-handler';
+import brlaPayoutMoonbeamHandler from './handlers/brla-payout-moonbeam-handler';
 /**
  * Register all phase handlers
  */
@@ -31,6 +32,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(subsidizePostSwapPhaseHandler); 
   phaseRegistry.registerHandler(subsidizePreSwapPhaseHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
+  phaseRegistry.registerHandler(brlaPayoutMoonbeamHandler);
 
   logger.info('Phase handlers registered');
 }

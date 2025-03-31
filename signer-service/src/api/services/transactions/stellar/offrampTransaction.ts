@@ -1,18 +1,13 @@
 import {Asset, Keypair, Memo, Networks, Operation, TransactionBuilder} from 'stellar-sdk';
 import {FUNDING_SECRET, STELLAR_BASE_FEE,} from '../../../../constants/constants';
-import {StellarTokenDetails} from 'shared';
+import {StellarTokenDetails, PaymentData} from 'shared';
 import {loadAccountWithRetry} from '../../stellar/loadAccount';
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const MAX_TIME = Date.now() + 1000 * 60 * 10;
 
-export interface PaymentData {
-  amount: string;
-  memo: string;
-  memoType: 'text' | 'hash';
-  offrampingAccount: string;
-}
+
 
 export async function buildPaymentAndMergeTx(
   ephemeralAccountId: string,

@@ -46,13 +46,22 @@ export interface RampErrorLog {
   details?: Record<string, unknown>;
 }
 
+export interface PaymentData {
+  amount: string;
+  memo: string;
+  memoType: 'text' | 'hash';
+  offrampingAccount: string;
+}
+
 export namespace RampEndpoints {
   // POST /ramp/register
   export interface RegisterRampRequest {
     quoteId: string;
     signingAccounts: AccountMeta[];
     additionalData?: {
-      walletAddress?: string;
+      walletAddress?: string; // Wallet address initiating the offramp.
+      destinationAddress?: string; // Destination address, used for onramp.
+      paymentData?: PaymentData
       pixDestination?: string;
       taxId?: string;
       brlaEvmAddress?: string;

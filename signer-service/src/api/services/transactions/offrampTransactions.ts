@@ -13,7 +13,8 @@ import {
   Networks,
   AccountMeta
 } from 'shared';
-import { UnsignedTx } from 'shared/src';
+import { UnsignedTx, PaymentData } from 'shared';
+
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
@@ -22,17 +23,21 @@ import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
-import { buildPaymentAndMergeTx, PaymentData } from './stellar/offrampTransaction';
+import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
+
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[],
   stellarPaymentData?: PaymentData,
   userAddress?: string,
-): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
+  pixDestination?: string,
+  taxId?: string,
+  brlaEvmAddress?: string,
+): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>}> {
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
 
@@ -211,6 +216,17 @@ export async function prepareOfframpTransactions(
           nonce: 2,
           signer: account.address,
         });
+        
+        if (!brlaEvmAddress || !pixDestination || !taxId) {
+          throw new Error('BRLA evm address, pix destination and tax id must be provided for offramp to BRL');
+        }
+
+        stateMeta = {
+          ...stateMeta,
+          taxId,
+          brlaEvmAddress,
+          pixDestination,
+        };
 
       } else {
 

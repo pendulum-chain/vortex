@@ -15,4 +15,8 @@ export interface StateMetadata  {
     // Only used in offramp - eurc route
     stellarTarget: {stellarTargetAccountId: string, stellarTokenDetails: StellarTokenDetails};
     executeSpacewalkNonce: number;
+    // Only used in brla
+    taxId: string,
+    pixDestination: string;
+    brlaEvmAddress: string;
 }
