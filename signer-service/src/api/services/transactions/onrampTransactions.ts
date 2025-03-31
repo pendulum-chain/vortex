@@ -12,10 +12,10 @@ import {
   isOnChainTokenDetails,
   Networks,
   UnsignedTx,
+  AccountMeta,
 } from 'shared';
 import Big from 'big.js';
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { AccountMeta } from '../ramp/ramp.service';
 import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
 import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
 import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
@@ -23,6 +23,8 @@ import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
 import { createNablaTransactionsForQuote } from './nabla';
+import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
+import { StateMetadata } from '../phases/meta-state-types';
 
 // Creates and signs all required transactions already so they are ready to be submitted.
 // The transactions are also dumped to a Google Spreadsheet.
@@ -31,7 +33,7 @@ export async function prepareOnrampTransactions(
   signingAccounts: AccountMeta[],
   destinationAddress: string,
 ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: unknown }> {
-  let stateMeta = {};
+  let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
   const toNetwork = getNetworkFromDestination(quote.to);
@@ -81,6 +83,15 @@ export async function prepareOnrampTransactions(
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
+
+  // add common data to state metadata, for later use on the executors
+  stateMeta = {
+    outputTokenType: quote.outputCurrency,
+    inputTokenPendulumDetails,
+    outputTokenPendulumDetails,
+    outputAmountBeforeFees: { units: outputAmountBeforeFees.toFixed(), raw: outputAmountBeforeFeesRaw },
+    pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+  };
 
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
@@ -160,12 +171,22 @@ export async function prepareOnrampTransactions(
 
       stateMeta = {
         ...stateMeta,
-        pendulumEphemeralAddress: account.address,
         nablaSoftMinimumOutputRaw,
-        pendulumAmountRaw: outputAmountBeforeFeesRaw,
-        inputTokenPendulumDetails,
-        outputTokenPendulumDetails,
       };
+
+      const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
+          account.address,
+          inputTokenPendulumDetails.pendulumCurrencyId,
+          outputTokenPendulumDetails.pendulumCurrencyId,
+      )
+
+      unsignedTxs.push({
+        tx_data: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
+        phase: 'pendulumCleanup',
+        network: account.network,
+        nonce: 3, // Will always come after either pendulumToMoonbeam or pendulumToAssethub.
+        signer: account.address,
+      });
 
       if (toNetworkId === getNetworkId(Networks.AssetHub)) {
         const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(

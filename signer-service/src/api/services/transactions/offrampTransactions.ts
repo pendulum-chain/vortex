@@ -25,6 +25,7 @@ import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
 import { buildPaymentAndMergeTx, PaymentData } from './stellar/offrampTransaction';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { StateMetadata } from '../phases/meta-state-types';
+import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 
 export async function prepareOfframpTransactions(
   quote: QuoteTicketAttributes,
@@ -80,6 +81,7 @@ export async function prepareOfframpTransactions(
 
   // add common data to state metadata, for later use on the executors
   stateMeta = {
+    outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
     outputAmountBeforeFees: { units: outputAmountBeforeFees.toFixed(), raw: outputAmountBeforeFeesRaw },
@@ -170,6 +172,20 @@ export async function prepareOfframpTransactions(
         nablaSoftMinimumOutputRaw,
       };
 
+      const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
+        account.address,
+        inputTokenPendulumDetails.pendulumCurrencyId,
+        outputTokenPendulumDetails.pendulumCurrencyId,
+      )
+
+      unsignedTxs.push({
+        tx_data: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
+        phase: 'pendulumCleanup',
+        network: account.network,
+        nonce: 3, // Will always come after either pendulumToMoonbeam or spacewalkRedeem.
+        signer: account.address,
+      });
+
       if (quote.outputCurrency === FiatToken.BRL) {
         const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
           moonbeamEphemeralEntry.address,
@@ -185,10 +201,6 @@ export async function prepareOfframpTransactions(
           signer: account.address,
         });
 
-        stateMeta = {
-          ...stateMeta,
-          pendulumEphemeralAddress: account.address,
-        };
       } else {
 
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
