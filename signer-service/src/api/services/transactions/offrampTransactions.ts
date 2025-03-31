@@ -11,12 +11,12 @@ import {
   isOnChainToken,
   isStellarOutputTokenDetails,
   Networks,
-  UnsignedTx,
+  AccountMeta
 } from 'shared';
+import { UnsignedTx } from 'shared/src';
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { AccountMeta } from '../ramp/ramp.service';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
 import { createNablaTransactionsForQuote } from './nabla';

@@ -10,6 +10,7 @@ import { decodeSubmittableExtrinsic } from '../../transactions';
 import { ApiManager } from '../../pendulum/apiManager';
 import { routerAbi } from '../../../../contracts/Router';
 import { defaultReadLimits } from '../../../helpers/contracts';
+import { StateMetadata } from '../meta-state-types';
 
 export class NablaSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -27,7 +28,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       pendulumAmountRaw,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails,
-    } = state.state;
+    } = state.state as StateMetadata;
 
     if (
       !nablaSoftMinimumOutputRaw ||

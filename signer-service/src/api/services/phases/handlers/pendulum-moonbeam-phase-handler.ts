@@ -6,6 +6,7 @@ import { submitXTokens } from '../../xcm/send';
 import { decodeSubmittableExtrinsic } from '../../transactions';
 
 import { ApiManager } from '../../pendulum/apiManager';
+import { StateMetadata } from '../meta-state-types';
 
 export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -17,7 +18,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     const networkName = 'pendulum';
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress } = state.state;
+    const { pendulumEphemeralAddress } = state.state as StateMetadata;
 
     if (!pendulumEphemeralAddress) {
       throw new Error('Pendulum ephemeral address is not defined in the state. This is a bug.');
