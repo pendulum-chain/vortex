@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { v4 as uuidv4 } from 'uuid';
 import httpStatus from 'http-status';
-import { DestinationType, getNetworkFromDestination, getPendulumDetails, RampCurrency } from 'shared';
+import {DestinationType, getNetworkFromDestination, getPendulumDetails, QuoteEndpoints, RampCurrency} from 'shared';
 import { BaseRampService } from './base.service';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
@@ -10,27 +10,32 @@ import { getTokenOutAmount } from '../nablaReads/outAmount';
 import { ApiManager } from '../pendulum/apiManager';
 import { calculateTotalReceive } from '../../helpers/quote';
 
-export interface QuoteRequest {
-  rampType: 'on' | 'off';
-  from: DestinationType;
-  to: DestinationType;
-  inputAmount: string;
-  inputCurrency: RampCurrency;
-  outputCurrency: RampCurrency;
+/**
+ * Trims trailing zeros from a decimal string, keeping at least two decimal places.
+ * @param decimalString - The decimal string to format
+ * @returns Formatted string with unnecessary trailing zeros removed but at least two decimal places
+ */
+function trimTrailingZeros(decimalString: string): string {
+  if (!decimalString.includes('.')) {
+    return `${decimalString}.00`;
+  }
+
+  // Split string at decimal point
+  const [integerPart, fractionalPart] = decimalString.split('.');
+
+  // Trim trailing zeros but ensure there are at least 2 decimal places
+  let trimmedFraction = fractionalPart.replace(/0+$/g, '');
+
+  // If all were zeros or not enough digits, pad to 2 decimal places
+  if (trimmedFraction.length === 0) {
+    trimmedFraction = '00';
+  } else if (trimmedFraction.length === 1) {
+    trimmedFraction += '0';
+  }
+
+  return `${integerPart}.${trimmedFraction}`;
 }
 
-export interface QuoteResponse {
-  id: string;
-  rampType: 'on' | 'off';
-  from: DestinationType;
-  to: DestinationType;
-  inputAmount: string;
-  inputCurrency: RampCurrency;
-  outputAmount: string;
-  outputCurrency: RampCurrency;
-  fee: string;
-  expiresAt: Date;
-}
 
 export class QuoteService extends BaseRampService {
   // List of supported chains for each ramp type
@@ -51,7 +56,7 @@ export class QuoteService extends BaseRampService {
   /**
    * Create a new quote
    */
-  public async createQuote(request: QuoteRequest): Promise<QuoteResponse> {
+  public async createQuote(request: QuoteEndpoints.CreateQuoteRequest): Promise<QuoteEndpoints.QuoteResponse> {
     // Validate chain support
     this.validateChainSupport(request.rampType, request.from, request.to);
 
@@ -87,11 +92,11 @@ export class QuoteService extends BaseRampService {
       rampType: quote.rampType,
       from: quote.from,
       to: quote.to,
-      inputAmount: quote.inputAmount,
+      inputAmount: trimTrailingZeros(quote.inputAmount),
       inputCurrency: quote.inputCurrency,
-      outputAmount: quote.outputAmount,
+      outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
-      fee: quote.fee,
+      fee: trimTrailingZeros(quote.fee),
       expiresAt: quote.expiresAt,
     };
   }
@@ -99,7 +104,7 @@ export class QuoteService extends BaseRampService {
   /**
    * Get a quote by ID
    */
-  public async getQuote(id: string): Promise<QuoteResponse | null> {
+  public async getQuote(id: string): Promise<QuoteEndpoints.QuoteResponse | null> {
     const quoteTicket = await this.getQuoteTicket(id);
 
     if (!quoteTicket) {
@@ -113,11 +118,11 @@ export class QuoteService extends BaseRampService {
       rampType: quote.rampType,
       from: quote.from,
       to: quote.to,
-      inputAmount: quote.inputAmount,
+      inputAmount: trimTrailingZeros(quote.inputAmount),
       inputCurrency: quote.inputCurrency,
-      outputAmount: quote.outputAmount,
+      outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
-      fee: quote.fee,
+      fee: trimTrailingZeros(quote.fee),
       expiresAt: quote.expiresAt,
     };
   }
