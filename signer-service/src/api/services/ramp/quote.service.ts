@@ -70,8 +70,8 @@ export class QuoteService extends BaseRampService {
       request.to,
     );
 
-    // Create quote in database
-    const quoteTicket = await QuoteTicket.create({
+    // Don't store the quote in the database but only return a preliminary quote
+    const quoteTicket = {
       id: uuidv4(),
       rampType: request.rampType,
       from: request.from,
@@ -83,9 +83,9 @@ export class QuoteService extends BaseRampService {
       fee: outputAmount.fees,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
-    });
+    };
 
-    const quote = quoteTicket.dataValues;
+    const quote = quoteTicket;
 
     return {
       id: quote.id,
