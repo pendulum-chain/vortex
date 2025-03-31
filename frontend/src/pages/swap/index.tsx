@@ -108,8 +108,6 @@ export const SwapPage = () => {
   const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
 
-  console.log('initializeFailedMessage', initializeFailedMessage);
-
   const { trackEvent } = useEventsContext();
   const { selectedNetwork, setNetworkSelectorDisabled } = useNetwork();
 
@@ -194,7 +192,7 @@ export const SwapPage = () => {
       // Convert network to chain ID
       // FIXME use proper values
       const rampType = 'off';
-      const from = 'Polygon';
+      const from = 'polygon';
       const to = 'sepa';
       const inputAmount = fromAmount.toString();
       const inputCurrency = AssetHubToken.USDC;

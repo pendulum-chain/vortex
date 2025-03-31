@@ -39,12 +39,12 @@ export class QuoteService extends BaseRampService {
     on: { from: DestinationType[]; to: DestinationType[] };
   } = {
     off: {
-      from: ['AssetHub', 'Avalanche', 'Arbitrum', 'BSC', 'Base', 'Ethereum', 'Polygon'],
+      from: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
       to: ['pix', 'sepa', 'cbu'],
     },
     on: {
       from: ['pix'],
-      to: ['AssetHub', 'Avalanche', 'Arbitrum', 'BSC', 'Base', 'Ethereum', 'Polygon'],
+      to: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
     },
   };
 

@@ -18,13 +18,11 @@ import {StellarTokenDetails} from "../types/stellar";
  * Get token details for a specific network and token
  */
 export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainToken): OnChainTokenDetails | undefined {
-  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
-
   try {
-    if (networkType === Networks.AssetHub) {
+    if (network === Networks.AssetHub) {
       return assetHubTokenConfig[onChainToken as AssetHubToken];
     } else {
-      return evmTokenConfig[networkType][onChainToken as EvmToken];
+      return evmTokenConfig[network][onChainToken as EvmToken];
     }
   } catch (error) {
     console.error(`Error getting input token details: ${error}`);
@@ -42,18 +40,16 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
   }
 
   console.error(`Invalid input token type: ${onChainToken}`);
-  const networkType = (network.charAt(0).toUpperCase() + network.slice(1)) as Networks;
-
-  if (networkType === Networks.AssetHub) {
+  if (network === Networks.AssetHub) {
     const firstAvailableToken = Object.values(assetHubTokenConfig)[0];
     if (!firstAvailableToken) {
-      throw new Error(`No tokens configured for network ${networkType}`);
+      throw new Error(`No tokens configured for network ${network}`);
     }
     return firstAvailableToken;
   } else {
-    const firstAvailableToken = Object.values(evmTokenConfig[networkType])[0];
+    const firstAvailableToken = Object.values(evmTokenConfig[network])[0];
     if (!firstAvailableToken) {
-      throw new Error(`No tokens configured for network ${networkType}`);
+      throw new Error(`No tokens configured for network ${network}`);
     }
     return firstAvailableToken;
   }

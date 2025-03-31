@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken } from '../index';
+import {DestinationType, RampCurrency} from '../index';
 
 export namespace QuoteEndpoints {
   // POST /quotes
@@ -7,8 +7,8 @@ export namespace QuoteEndpoints {
     from: DestinationType;
     to: DestinationType;
     inputAmount: string;
-    inputCurrency: OnChainToken | FiatToken;
-    outputCurrency: OnChainToken | FiatToken;
+    inputCurrency: RampCurrency;
+    outputCurrency: RampCurrency;
   }
 
   export interface QuoteResponse {
@@ -17,9 +17,9 @@ export namespace QuoteEndpoints {
     from: DestinationType;
     to: DestinationType;
     inputAmount: string;
-    inputCurrency: OnChainToken | FiatToken;
     outputAmount: string;
-    outputCurrency: OnChainToken | FiatToken;
+    inputCurrency: RampCurrency;
+    outputCurrency: RampCurrency;
     fee: string;
     expiresAt: Date;
   }

@@ -15,7 +15,7 @@ import { SlackNotifier } from '../services/slack.service';
 import { ApiManager } from '../services/pendulum/apiManager';
 
 export const fundEphemeralAccountController = async (
-  req: Request<{}, {}, PendulumEndpoints.FundEphemeralRequest>,
+  req: Request<unknown, unknown, PendulumEndpoints.FundEphemeralRequest>,
   res: Response<PendulumEndpoints.FundEphemeralResponse | PendulumEndpoints.FundEphemeralErrorResponse>,
 ) => {
   const { ephemeralAddress, requiresGlmr } = req.body;
@@ -72,8 +72,8 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
         tokenConfig.pendulumCurrencyId,
       );
 
-      const data = tokenBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
-      const tokenBalance = Big(data.free.replaceAll(',', '') ?? '0');
+      const tokenData = tokenBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
+      const tokenBalance = Big(tokenData.free.replaceAll(',', '') ?? '0');
       const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
       const remainingMaxSubsidiesAvailable = tokenBalance.div(maximumSubsidyAmountRaw);
 
@@ -103,7 +103,8 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     fundingAccountKeypair.address,
     TOKEN_CONFIG.glmr.pendulumCurrencyId,
   );
-  const glmrBalance = Big(glmrBalanceResponse?.free?.toString() ?? '0');
+  const glmrData = glmrBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
+  const glmrBalance = Big(glmrData.free.replaceAll(',', '') ?? '0');
 
   if (
     nativeBalance.gte(minimumBalanceFundingAccount) &&

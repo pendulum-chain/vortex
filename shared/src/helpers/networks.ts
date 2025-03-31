@@ -1,19 +1,19 @@
 import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
 
 export type PaymentMethod = 'pix' | 'sepa' | 'cbu';
-export type DestinationType = keyof typeof Networks | PaymentMethod;
+export type DestinationType = `${Networks}` | PaymentMethod;
 
 export enum Networks {
-  AssetHub = 'AssetHub',
-  Arbitrum = 'Arbitrum',
-  Avalanche = 'Avalanche',
-  Base = 'Base',
-  BSC = 'BSC',
-  Ethereum = 'Ethereum',
-  Polygon = 'Polygon',
-  Moonbeam = 'Moonbeam',
-  Pendulum = 'Pendulum',
-  Stellar = 'Stellar',
+  AssetHub = 'assethub',
+  Arbitrum = 'arbitrum',
+  Avalanche = 'avalanche',
+  Base = 'base',
+  BSC = 'bsc',
+  Ethereum = 'ethereum',
+  Polygon = 'polygon',
+  Moonbeam = 'moonbeam',
+  Pendulum = 'pendulum',
+  Stellar = 'stellar',
 }
 
 /**
