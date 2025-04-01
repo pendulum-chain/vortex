@@ -19,7 +19,8 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     const moonbeamNode = await apiManager.getApi('moonbeam');
     const pendulumNode = await apiManager.getApi('pendulum');
 
-    const { pendulumEphemeralAddress, inputTokenPendulumDetails, moonbeamEphemeralAddress } = state.state as StateMetadata;
+    const { pendulumEphemeralAddress, inputTokenPendulumDetails, moonbeamEphemeralAddress } =
+      state.state as StateMetadata;
 
     if (!pendulumEphemeralAddress || !inputTokenPendulumDetails || !moonbeamEphemeralAddress) {
       throw new Error('MoonbeamToPendulumXcmPhaseHandler: State metadata corrupted. This is a bug.');
@@ -35,27 +36,20 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     };
 
     try {
-      
       if (!(await didInputTokenArrivedOnPendulum())) {
-        
         const moonbeamToPendulumXcmTransaction = this.getPresignedTransaction(state, 'moonbeamToPendulumXcm');
 
         const approvalExtrinsic = decodeSubmittableExtrinsic(moonbeamToPendulumXcmTransaction, moonbeamNode.api);
 
-        // TODO verify this works on Moonbeam also. 
-        const { hash
-
-         } =     await submitXcm(moonbeamEphemeralAddress, approvalExtrinsic);
-
+        // TODO verify this works on Moonbeam also.
+        const { hash } = await submitXcm(moonbeamEphemeralAddress, approvalExtrinsic);
       }
-
     } catch (e) {
       console.error('Error while executing moonbeam-to-pendulum xcm:', e);
       throw new Error('MoonbeamToPendulumXcmPhaseHandler: Failed to send XCM transaction');
     }
 
     try {
-
       await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
     } catch (e) {
       console.error('Error while waiting for transaction receipt:', e);

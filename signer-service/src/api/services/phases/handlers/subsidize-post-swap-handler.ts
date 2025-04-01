@@ -48,14 +48,26 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           .signAndSend(fundingAccountKeypair);
       }
 
-      if (outputTokenType === FiatToken.BRL) {
-        return this.transitionToNextPhase(state, 'pendulumToMoonbeam');
-      } else {
-        return this.transitionToNextPhase(state, 'spacewalkRedeem');
-      }
+      return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
     } catch (e) {
       console.error('Error in subsidizePostSwap:', e);
       throw new Error('SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.');
+    }
+  }
+
+  protected nextPhaseSelector(state: RampState): RampPhase {
+    // onramp cases
+    if (state.type === 'on' && state.to !== 'assethub') {
+      return 'pendulumToMoonbeam';
+    } else if (state.type === 'on' && state.to === 'assethub') {
+      return 'pendulumToAssethub';
+    }
+
+    // off ramp cases
+    if (state.state.outputTokenType === FiatToken.BRL) {
+      return 'pendulumToMoonbeam';
+    } else {
+      return 'spacewalkRedeem';
     }
   }
 }

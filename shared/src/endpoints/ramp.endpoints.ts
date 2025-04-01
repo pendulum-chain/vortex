@@ -8,6 +8,7 @@ export type RampPhase =
   | 'nablaApprove'
   | 'nablaSwap'
   | 'moonbeamToPendulum'
+  | 'moonbeamToPendulumXcm'
   | 'pendulumToMoonbeam'
   | 'assethubToPendulum'
   | 'pendulumToAssethub'

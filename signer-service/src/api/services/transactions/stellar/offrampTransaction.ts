@@ -23,7 +23,7 @@ export async function buildPaymentAndMergeTx(
 
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
-  const {amount, memo, memoType, anchorTargetAccount} = paymentData;
+  const { amount, memo, memoType, anchorTargetAccount } = paymentData;
 
   const transactionMemo = memoType === 'text' ? Memo.text(memo) : Memo.hash(Buffer.from(memo, 'base64'));
 

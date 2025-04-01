@@ -36,10 +36,18 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       };
       await state.update({ state: state.state });
 
-      return this.transitionToNextPhase(state, 'brlaPayoutOnMoonbeam');
+      return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
     } catch (e) {
       console.error('Error in PendulumToMoonbeamPhase:', e);
       throw e;
+    }
+  }
+
+  protected nextPhaseSelector(state: RampState): RampPhase {
+    if (state.type === 'off') {
+      return 'brlaPayoutOnMoonbeam';
+    } else {
+      return 'squidrouterSwap';
     }
   }
 }

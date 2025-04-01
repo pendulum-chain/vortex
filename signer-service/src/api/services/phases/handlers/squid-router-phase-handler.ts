@@ -1,15 +1,25 @@
-import httpStatus from 'http-status';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
-import { APIError } from '../../../errors/api-error';
 import { getNetworkFromDestination, getNetworkId, RampPhase } from 'shared';
+import { createPublicClient, http } from 'viem';
+import { moonbeam } from 'viem/chains';
 
 /**
  * Handler for the squidRouter phase
  * Only used for the onramp flow. For the offramp, the UI can send the transactions to better confirm outputs.
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
+  private publicClient: ReturnType<typeof createPublicClient>;
+
+  constructor() {
+    super();
+    this.publicClient = createPublicClient({
+      chain: moonbeam,
+      transport: http(),
+    });
+  }
+
   /**
    * Get the phase name
    */
@@ -36,19 +46,13 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       const swapTransaction = this.getPresignedTransaction(state, 'nablaSwap');
 
       if (!approveTransaction || !swapTransaction) {
-        throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Missing presigned transactions for squidRouter phase',
-        });
+        throw new Error('Missing presigned transactions for squidRouter phase');
       }
 
       const destinationNetwork = getNetworkFromDestination(state.from);
       const chainId = destinationNetwork ? getNetworkId(destinationNetwork) : null;
       if (!chainId) {
-        throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Invalid source network',
-        });
+        throw new Error('Invalid destination network');
       }
 
       // Execute the approve transaction
@@ -91,9 +95,13 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * @returns The transaction hash
    */
   private async executeTransaction(txData: string): Promise<string> {
-    // In a real implementation, this would send the transaction to the blockchain
-    // For now, we'll just return a mock hash
-    return `0x${Math.random().toString(16).substring(2, 42)}`;
+    try {
+      const txHash = await this.publicClient.sendRawTransaction({ serializedTransaction: txData as `0x${string}` });
+      return txHash;
+    } catch (error) {
+      logger.error('Error sending raw transaction', error);
+      throw new Error('Failed to send transaction');
+    }
   }
 
   /**
@@ -102,9 +110,14 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * @param chainId The chain ID
    */
   private async waitForTransactionConfirmation(txHash: string, chainId: number): Promise<void> {
-    // In a real implementation, this would wait for the transaction to be confirmed
-    // For now, we'll just wait a short time
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (!receipt || receipt.status === 'success') {
+        throw new Error(`SquidRouterPhaseHandler: Transaction ${txHash} failed or was not found`);
+      }
+    } catch (error) {
+      throw new Error(`SquidRouterPhaseHandler: Error waiting for transaction confirmation: ${error}`);
+    }
   }
 }
 
