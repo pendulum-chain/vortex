@@ -63,8 +63,8 @@ export namespace RampEndpoints {
       destinationAddress?: string; // Destination address, used for onramp.
       paymentData?: PaymentData
       pixDestination?: string;
+      receiverTaxId?: string; 
       taxId?: string;
-      brlaEvmAddress?: string;
       [key: string]: unknown;
     };
   }

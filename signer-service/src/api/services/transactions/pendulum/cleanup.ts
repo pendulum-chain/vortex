@@ -1,8 +1,7 @@
 import { SubmittableExtrinsic } from "@polkadot/api/types";
 import { ISubmittableResult } from "@polkadot/types/types";
-import { PendulumCurrencyId } from "shared";
+import { getAddressForFormat, PendulumCurrencyId } from "shared";
 import { ApiManager } from "../../pendulum/apiManager";
-import { getFundingData } from "../../pendulum/pendulum.service";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
 
 
@@ -13,7 +12,7 @@ export async function preparePendulumCleanupTransaction(inputCurrencyId: Pendulu
     const pendulumNode = await apiManager.getApi(networkName);
 
     const fundingAccountKeypair = getFundingAccount();
-    const fundingAccountAddress = fundingAccountKeypair.address;
+    const fundingAccountAddress = getAddressForFormat(fundingAccountKeypair.address, pendulumNode.ss58Format);
 
     return pendulumNode.api.tx.utility
         .batchAll([

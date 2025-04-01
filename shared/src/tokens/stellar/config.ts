@@ -33,7 +33,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       Stellar: {
         AlphaNum4: {
           code: '0x45555243',
-          issuer: 'EURC',
+          issuer: '0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136',
         },
       },
     },
@@ -72,7 +72,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
       Stellar: {
         AlphaNum4: {
           code: '0x41525300',
-          issuer: 'ARS',
+          issuer: '0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1',
         },
       },
     },

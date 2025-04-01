@@ -23,6 +23,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         outputAmountBeforeFees,
         brlaEvmAddress,
         outputTokenType,
+        receiverTaxId,
       } = state.state as StateMetadata;
     
 
@@ -74,7 +75,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       const { id: offrampId } = await brlaApiService.triggerOfframp(subaccountId, {
         pixKey: pixDestination,
         amount: Number(amount),
-        taxId: taxId, // Receiver's tax ID is assume to be the same as the sender's tax ID.
+        taxId: receiverTaxId, 
       });
 
       return this.transitionToNextPhase(state, 'pendulumCleanup');

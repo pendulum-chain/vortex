@@ -21,4 +21,5 @@ export interface StateMetadata  {
     pixDestination: string;
     brlaEvmAddress: string;
     destinationAddress: string;
+    receiverTaxId: string;
 }

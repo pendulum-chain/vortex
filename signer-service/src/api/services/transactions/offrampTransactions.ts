@@ -28,16 +28,27 @@ import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 
-
-export async function prepareOfframpTransactions(
+interface OfframpTransactionParams {
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[],
   stellarPaymentData?: PaymentData,
   userAddress?: string,
   pixDestination?: string,
   taxId?: string,
+  receiverTaxId?: string,
   brlaEvmAddress?: string,
-): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>}> {
+};
+
+export async function prepareOfframpTransactions({
+  quote,
+  signingAccounts,
+  stellarPaymentData,
+  userAddress,
+  pixDestination,
+  taxId,
+  receiverTaxId,
+  brlaEvmAddress,
+}: OfframpTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>}> {
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
 
@@ -217,8 +228,8 @@ export async function prepareOfframpTransactions(
           signer: account.address,
         });
         
-        if (!brlaEvmAddress || !pixDestination || !taxId) {
-          throw new Error('brlaEvmAddress, pixDestination and taxId parameters must be provided for offramp to BRL');
+        if (!brlaEvmAddress || !pixDestination || !taxId || !receiverTaxId) {
+          throw new Error('brlaEvmAddress, pixDestination, receiverTaxId and taxId parameters must be provided for offramp to BRL');
         }
 
         stateMeta = {
@@ -226,6 +237,7 @@ export async function prepareOfframpTransactions(
           taxId,
           brlaEvmAddress,
           pixDestination,
+          receiverTaxId,
         };
 
       } else {

@@ -1,5 +1,5 @@
 import httpStatus from 'http-status';
-import { AccountMeta, Networks, RampEndpoints, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
+import { AccountMeta, FiatToken, Networks, RampEndpoints, RampErrorLog, RampPhase, UnsignedTx, validateMaskedNumber } from 'shared';
 import { BaseRampService } from './base.service';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
@@ -9,6 +9,8 @@ import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
+import { SubaccountData } from '../brla/types';
+import { BrlaApiService } from '../brla/brlaApiService';
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
@@ -75,15 +77,43 @@ export class RampService extends BaseRampService {
       let unsignedTxs: UnsignedTx[] = [];
       let stateMeta: any = {};
       if (quote.rampType === 'off') {
-        ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions(
-          quote,
-          normalizedSigningAccounts,
-          additionalData?.paymentData,
-          additionalData?.walletAddress,
-          additionalData?.pixDestination,
-          additionalData?.taxId,
-          additionalData?.brlaEvmAddress,
-        ));
+
+        if (quote.outputCurrency === FiatToken.BRL) {
+
+          if (!additionalData || !additionalData.pixDestination || !additionalData.taxId || !additionalData.receiverTaxId) {
+            throw new Error('receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL');
+          }
+          // Validate BRLA off-ramp request
+          const subaccount = await this.validateBrlaOfframpRequest(
+            additionalData.taxId,
+            additionalData.pixDestination,
+            additionalData.receiverTaxId, 
+            quote.outputAmount
+          );
+
+          ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+            quote,
+            signingAccounts: normalizedSigningAccounts,
+            stellarPaymentData: additionalData.paymentData,
+            userAddress: additionalData.walletAddress,
+            pixDestination: additionalData.pixDestination,
+            taxId: additionalData.taxId,
+            receiverTaxId: additionalData.receiverTaxId, 
+            brlaEvmAddress: subaccount.wallets.evm,
+          }));
+
+        } else {
+
+          ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+            quote,
+            signingAccounts: normalizedSigningAccounts,
+            stellarPaymentData: additionalData?.paymentData,
+            userAddress: additionalData?.walletAddress,
+          }));
+        }
+        
+
+
       } else {
         // validate we have the destination address
         if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
@@ -231,6 +261,57 @@ export class RampService extends BaseRampService {
 
     return rampState.errorLogs;
   }
+
+  /**
+   * BRLA. Get subaccount and validate pix and tax id.
+   */
+  public async validateBrlaOfframpRequest(
+    taxId: string,
+    pixKey: string,
+    receiverTaxId: string,
+    amount: string
+  ): Promise<SubaccountData> {
+    
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+
+    if (!subaccount) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: `Subaccount not found.`,
+      });
+    }
+
+    // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
+    try {
+      const pixKeyData = await brlaApiService.validatePixKey(pixKey);
+
+      //validate the recipient's taxId with partial information
+      if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: `Invalid pixKey or receiverTaxId.`,
+        });
+      }
+    } catch (error) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: `Invalid pixKey or receiverTaxId.`,
+      });
+    }
+
+    const limitBurn = subaccount.kyc.limits.limitBurn;
+
+    if (Number(amount) > limitBurn) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: `Amount exceeds limit.`,
+      });
+    }
+
+    return subaccount;
+  }
+
 }
 
 export default new RampService();
