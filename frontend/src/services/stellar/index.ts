@@ -1,10 +1,4 @@
-import { Keypair } from 'stellar-sdk';
 import { TomlValues } from '../../types/sep';
-
-export function createStellarEphemeralSecret() {
-  const ephemeralKeys = Keypair.random();
-  return ephemeralKeys.secret();
-}
 
 export const fetchTomlValues = async (TOML_FILE_URL: string): Promise<TomlValues> => {
   const response = await fetch(TOML_FILE_URL);

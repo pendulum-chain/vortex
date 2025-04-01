@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import Big from 'big.js';
 
-import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
 import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails, getTokenDetailsSpacewalk, FiatToken } from 'shared';
-import { createStellarEphemeralSecret, fetchTomlValues } from '../../services/stellar';
+import { fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 import { useRampActions } from '../../stores/offrampStore';
@@ -104,7 +104,7 @@ export const useSubmitOfframp = () => {
 
             setRampSummaryVisible(true);
           } else {
-            const stellarEphemeralSecret = createStellarEphemeralSecret();
+            const stellarEphemeralSecret = executionInput.stellarEphemeral.secret;
             const outputToken = getTokenDetailsSpacewalk(executionInput.fiatToken);
             const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 
@@ -126,7 +126,6 @@ export const useSubmitOfframp = () => {
               offrampAmount: offrampAmount.toFixed(2, 0),
             };
 
-            setRampExecutionInput({ ...executionInput, stellarEphemeralSecret });
             setAnchorSessionParams(anchorSessionParams);
 
             const fetchAndUpdateSep24Url = async () => {

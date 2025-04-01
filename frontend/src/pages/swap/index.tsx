@@ -14,6 +14,7 @@ import { WhyVortex } from '../../sections/WhyVortex';
 import {
   AssetHubToken,
   assetHubTokenConfig,
+  DestinationType,
   evmTokenConfig,
   FiatToken,
   getAnyFiatTokenDetails,
@@ -73,6 +74,7 @@ import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
 import { QuoteService } from '../../services/api';
+import { createPendulumEphemeral, createStellarEphemeral } from '../../services/ephemerals';
 
 const getTokenDefinitionsForNetwork = (type: 'from' | 'to', selectedNetwork: Networks): TokenDefinition[] => {
   if (type === 'from') {
@@ -190,21 +192,18 @@ export const SwapPage = () => {
 
     try {
       // Convert network to chain ID
-      // FIXME use proper values
       const rampType = 'off';
-      const from = 'polygon';
-      const to = 'sepa';
+      const fromDestination: DestinationType = selectedNetwork;
+      const toDestination: DestinationType = to === FiatToken.BRL ? 'pix' : to === FiatToken.ARS ? 'cbu' : 'sepa';
       const inputAmount = fromAmount.toString();
-      const inputCurrency = AssetHubToken.USDC;
-      const outputCurrency = FiatToken.EURC;
 
       const quoteResponse = await QuoteService.createQuote(
         rampType,
+        fromDestination,
+        toDestination,
+        inputAmount,
         from,
         to,
-        inputAmount,
-        inputCurrency,
-        outputCurrency,
       );
       setQuote(quoteResponse);
 
@@ -418,11 +417,16 @@ export const SwapPage = () => {
 
     try {
       // Create execution input
+      const pendulumEphemeral = createPendulumEphemeral();
+      const stellarEphemeral = createStellarEphemeral();
+
       const executionInput: RampExecutionInput = {
+        pendulumEphemeral,
+        stellarEphemeral,
         quote,
         onChainToken: from,
         fiatToken: to,
-        address,
+        userWalletAddress: address,
         network: selectedNetwork,
         taxId,
         pixId,

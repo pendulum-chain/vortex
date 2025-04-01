@@ -6,6 +6,7 @@ import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
 import { useVortexAccount } from '../useVortexAccount';
 import { RampExecutionInput } from '../../types/phases';
 import { RampService } from '../../services/api';
+import { AccountMeta, Networks } from 'shared';
 
 export const useMainProcess = () => {
   const { resetRampState, setRampStarted, setRampState } = useRampActions();
@@ -35,21 +36,24 @@ export const useMainProcess = () => {
     }
 
     const quoteId = executionInput.quote.id;
-    // FIXME this should be a list of the ephemeral accounts + user account
-    const signingAccounts = [];
-    const walletAddress = executionInput.address;
+    const signingAccounts: AccountMeta[] = [
+      { address: executionInput.stellarEphemeral.address, network: Networks.Stellar },
+      { address: executionInput.pendulumEphemeral.address, network: Networks.Pendulum },
+      { address: executionInput.pendulumEphemeral.address, network: Networks.Moonbeam },
+    ];
     const additionalData = {
-      walletAddress,
+      walletAddress: executionInput.userWalletAddress,
       pixDestination: executionInput.pixId,
       taxId: executionInput.taxId,
       brlaEvmAddress: executionInput.brlaEvmAddress,
     };
     const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
+    console.log('rampProcess', rampProcess);
 
     setRampState({
       quote: executionInput.quote,
-      ramp: rampProcess
-    })
+      ramp: rampProcess,
+    });
   };
 
   return {

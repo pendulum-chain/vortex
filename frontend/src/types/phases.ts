@@ -1,4 +1,5 @@
 import { FiatToken, Networks, OnChainToken, QuoteEndpoints, RampEndpoints } from 'shared';
+import { EphemeralAccount } from '../services/ephemerals';
 
 export type RampSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
 
@@ -11,8 +12,9 @@ export interface RampExecutionInput {
   quote: QuoteEndpoints.QuoteResponse;
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
-  address: string;
-  stellarEphemeralSecret?: string;
+  userWalletAddress: string;
+  stellarEphemeral: EphemeralAccount;
+  pendulumEphemeral: EphemeralAccount;
   taxId?: string;
   pixId?: string;
   brlaEvmAddress?: string;
