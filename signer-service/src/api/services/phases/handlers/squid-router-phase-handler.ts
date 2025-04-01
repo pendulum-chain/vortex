@@ -1,9 +1,9 @@
 import httpStatus from 'http-status';
-import {BasePhaseHandler} from '../base-phase-handler';
+import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
-import {APIError} from '../../../errors/api-error';
-import {getNetworkFromDestination, getNetworkId, RampPhase} from "shared";
+import { APIError } from '../../../errors/api-error';
+import { getNetworkFromDestination, getNetworkId, RampPhase } from 'shared';
 
 /**
  * Handler for the squidRouter phase
@@ -13,7 +13,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   /**
    * Get the phase name
    */
-  public getPhaseName(): RampPhase{
+  public getPhaseName(): RampPhase {
     return 'squidrouterSwap';
   }
 
@@ -25,7 +25,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
-    if (state.type === "off") {
+    if (state.type === 'off') {
       logger.info(`SquidRouter phase is not supported for off-ramp`);
       return state;
     }

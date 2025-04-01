@@ -63,7 +63,6 @@ export const subsidizePreSwap = async (
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
-    
   }
 };
 
@@ -96,6 +95,5 @@ export const subsidizePostSwap = async (
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
-    
   }
 };

@@ -31,7 +31,6 @@ export const createStellarTransactionHandler = async (
   } catch (error) {
     console.error('Error in createStellarTransaction:', error);
     res.status(500).json({ error: 'Failed to create transaction', details: (error as Error).message });
-    
   }
 };
 
@@ -52,7 +51,6 @@ export const signSep10ChallengeHandler = async (
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
     res.status(500).json({ error: 'Failed to sign challenge', details: (error as Error).message });
-    
   }
 };
 
@@ -71,7 +69,6 @@ export const getSep10MasterPKHandler = async (
   } catch (error) {
     console.error('Error in getSep10MasterPK:', error);
     res.status(500).json({ error: 'Failed to get master public key', details: (error as Error).message });
-    
   }
 };
 

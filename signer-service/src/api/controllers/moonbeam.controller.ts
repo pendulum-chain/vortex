@@ -69,7 +69,6 @@ export const executeXcmController = async (
   } catch (error) {
     console.error('Error executing XCM:', error);
     res.status(500).json({ error: 'Internal Server Error' });
-    
   }
 };
 

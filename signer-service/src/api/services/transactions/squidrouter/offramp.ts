@@ -65,8 +65,8 @@ export async function createOfframpSquidrouterTransactions(
   );
 
   const routeResult = await getRoute(routeParams);
-  const {route} = routeResult.data;
-  const {transactionRequest} = route;
+  const { route } = routeResult.data;
+  const { transactionRequest } = route;
 
   const approveTransactionData = encodeFunctionData({
     abi: erc20ABI,

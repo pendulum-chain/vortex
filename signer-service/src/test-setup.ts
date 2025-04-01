@@ -5,5 +5,5 @@ import { mock } from 'bun:test';
 mock.module('../index', () => ({
   default: {},
   eventPoller: { start: () => {}, stop: () => {} },
-  initializeApp: () => {}
+  initializeApp: () => {},
 }));

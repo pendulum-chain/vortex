@@ -68,9 +68,8 @@ export function sortObject(obj: unknown): Record<string, unknown> | unknown[] | 
   if (typeof obj === 'object') {
     if (Array.isArray(obj)) {
       return sortList(obj);
-    } 
-      return sortMap(obj as Record<string, unknown>);
-    
+    }
+    return sortMap(obj as Record<string, unknown>);
   }
 
   return obj;

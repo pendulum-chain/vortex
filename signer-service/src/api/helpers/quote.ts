@@ -17,9 +17,8 @@ export function calculateTotalReceive(
 
     if (totalReceiveRaw.gt(0)) {
       return totalReceiveRaw.toFixed(2, 0);
-    } 
-      return '0';
-    
+    }
+    return '0';
   }
   // Brla only, for now, has onramp.
   if (isFiatToken(inputCurrency)) {
@@ -37,9 +36,8 @@ export function calculateTotalReceive(
 
     if (totalReceiveRaw.gt(0)) {
       return totalReceiveRaw.toFixed(2, 0);
-    } 
-      return '0';
-    
+    }
+    return '0';
   }
 
   return toAmount.toFixed(2, 0);

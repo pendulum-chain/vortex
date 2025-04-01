@@ -64,7 +64,6 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
       error: 'Error while verifying signature',
       details: err.message,
     });
-    
   }
 }
 

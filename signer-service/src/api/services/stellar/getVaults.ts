@@ -19,17 +19,16 @@ export async function getVaultsForCurrency(
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([_, value]) => value.unwrap());
 
-  const vaultsForCurrency = vaults.filter((vault) => 
-    // toString returns the hex string
-    // toHuman returns the hex string if the string has length < 4, otherwise the readable string
-     (
+  const vaultsForCurrency = vaults.filter(
+    (vault) =>
+      // toString returns the hex string
+      // toHuman returns the hex string if the string has length < 4, otherwise the readable string
       vault.id.currencies.wrapped.isStellar &&
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex &&
       // vault.bannedUntil === null &&
-      vaultHasEnoughRedeemable(vault, redeemableAmountRaw)
-    )
+      vaultHasEnoughRedeemable(vault, redeemableAmountRaw),
   );
 
   if (vaultsForCurrency.length === 0) {

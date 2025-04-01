@@ -1,48 +1,42 @@
-
 import { Horizon } from 'stellar-sdk';
 import Big from 'big.js';
 
 import { HORIZON_URL } from '../../../constants/constants';
 
-
 export function checkBalancePeriodically(
-    stellarTargetAccountId: string,
-    stellarAssetCode: string,
-    amountDesiredUnitsBig: Big,
-    intervalMs: number,
-    timeoutMs: number,
-  ) {
-    return new Promise((resolve, reject) => {
-      const startTime = Date.now();
-      const intervalId = setInterval(async () => {
-        try {
-          const someBalanceUnits = await getStellarBalanceUnits(
-            stellarTargetAccountId,
-            stellarAssetCode,
-          );
-          console.log(`Balance check: ${someBalanceUnits.toString()} / ${amountDesiredUnitsBig.toString()}`);
-  
-          if (someBalanceUnits.gte(amountDesiredUnitsBig)) {
-            clearInterval(intervalId);
-            resolve(someBalanceUnits);
-          } else if (Date.now() - startTime > timeoutMs) {
-            clearInterval(intervalId);
-            reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));
-          }
-        } catch (error) {
-          console.error('Error checking balance:', error);
-          // Don't clear the interval here, allow it to continue checking
-        }
-      }, intervalMs);
-  
-      // Set a timeout to reject the promise if the total time exceeds timeoutMs
-      setTimeout(() => {
-        clearInterval(intervalId);
-        reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));
-      }, timeoutMs);
-    });
-  }
+  stellarTargetAccountId: string,
+  stellarAssetCode: string,
+  amountDesiredUnitsBig: Big,
+  intervalMs: number,
+  timeoutMs: number,
+) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    const intervalId = setInterval(async () => {
+      try {
+        const someBalanceUnits = await getStellarBalanceUnits(stellarTargetAccountId, stellarAssetCode);
+        console.log(`Balance check: ${someBalanceUnits.toString()} / ${amountDesiredUnitsBig.toString()}`);
 
+        if (someBalanceUnits.gte(amountDesiredUnitsBig)) {
+          clearInterval(intervalId);
+          resolve(someBalanceUnits);
+        } else if (Date.now() - startTime > timeoutMs) {
+          clearInterval(intervalId);
+          reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));
+        }
+      } catch (error) {
+        console.error('Error checking balance:', error);
+        // Don't clear the interval here, allow it to continue checking
+      }
+    }, intervalMs);
+
+    // Set a timeout to reject the promise if the total time exceeds timeoutMs
+    setTimeout(() => {
+      clearInterval(intervalId);
+      reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));
+    }, timeoutMs);
+  });
+}
 
 const getStellarBalanceUnits = async (publicKey: string, assetCode: string): Promise<Big> => {
   try {

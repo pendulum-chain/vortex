@@ -10,9 +10,10 @@ import stellarCleanupHandler from './handlers/stellar-cleanup-handler';
 import spacewalkRedeemHandler from './handlers/spacewalk-redeem-handler';
 import pendulumCleanupPhaseHandler from './handlers/pendulum-cleanup-handler';
 import subsidizePostSwapPhaseHandler from './handlers/subsidize-post-swap-handler';
-import subsidizePreSwapPhaseHandler  from './handlers/subsidize-pre-swap-handler';
+import subsidizePreSwapPhaseHandler from './handlers/subsidize-pre-swap-handler';
 import moonbeamToPendulumPhaseHandler from './handlers/moonbeam-to-pendulum-handler';
 import brlaPayoutMoonbeamHandler from './handlers/brla-payout-moonbeam-handler';
+import moonbeamToPendulumXcmHandler from './handlers/moonbeam-to-pendulum-xcm-handler';
 /**
  * Register all phase handlers
  */
@@ -29,10 +30,11 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(stellarCleanupHandler);
   phaseRegistry.registerHandler(spacewalkRedeemHandler);
   phaseRegistry.registerHandler(pendulumCleanupPhaseHandler);
-  phaseRegistry.registerHandler(subsidizePostSwapPhaseHandler); 
+  phaseRegistry.registerHandler(subsidizePostSwapPhaseHandler);
   phaseRegistry.registerHandler(subsidizePreSwapPhaseHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
   phaseRegistry.registerHandler(brlaPayoutMoonbeamHandler);
+  phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
 
   logger.info('Phase handlers registered');
 }

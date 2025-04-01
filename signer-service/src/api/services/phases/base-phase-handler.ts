@@ -2,7 +2,7 @@ import httpStatus from 'http-status';
 import RampState from '../../../models/rampState.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
-import {RampPhase} from "shared";
+import { RampPhase } from 'shared';
 
 /**
  * Base interface for phase handlers

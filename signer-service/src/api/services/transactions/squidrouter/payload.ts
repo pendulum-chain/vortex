@@ -4,7 +4,7 @@ function encodePayload(address: string): `0x${string}` {
   // Encode the payload
   // Asset should match the one received on Moonbeam side. Right now this is not used
   // on the contract so it can be anything.
-  const destination = [1, ['0x000000082E', `0x01${  address.slice(2)  }00`]];
+  const destination = [1, ['0x000000082E', `0x01${address.slice(2)}00`]];
 
   // Encode the data
   const payload = eth.abi.encodeParameters(

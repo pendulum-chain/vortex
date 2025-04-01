@@ -9,7 +9,7 @@ import { ApiManager, SubstrateApiNetwork } from './apiManager';
 
 dotenv.config();
 
-const {PENDULUM_FUNDING_SEED} = process.env;
+const { PENDULUM_FUNDING_SEED } = process.env;
 
 export function getFundingData(
   ss58Format: number,
@@ -38,7 +38,7 @@ export const fundEphemeralAccount = async (
 
     if (requiresGlmr) {
       const { fundingAccountKeypair } = getFundingData(apiData.ss58Format, apiData.decimals);
-      const {pendulumCurrencyId} = TOKEN_CONFIG.glmr;
+      const { pendulumCurrencyId } = TOKEN_CONFIG.glmr;
 
       const penFundingTx = apiData.api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw);
       const glmrFundingTx = apiData.api.tx.tokens.transfer(

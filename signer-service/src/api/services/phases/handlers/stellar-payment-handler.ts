@@ -13,7 +13,6 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    
     try {
       const offrampingTransactionXDR = this.getPresignedTransaction(state, 'stellarPayment');
 
@@ -22,7 +21,6 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, 'stellarCleanup');
     } catch (e) {
-
       const horizonError = e as { response: { data: { extras: any } } };
 
       console.log(
@@ -41,4 +39,3 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
 }
 
 export default new StellarPaymentPhaseHandler();
-

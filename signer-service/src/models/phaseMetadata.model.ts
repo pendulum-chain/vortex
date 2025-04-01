@@ -17,7 +17,7 @@ interface PhaseMetadataAttributes {
 }
 
 // Define the attributes that can be set during creation
-type PhaseMetadataCreationAttributes = Optional<PhaseMetadataAttributes, 'id' | 'createdAt' | 'updatedAt'>
+type PhaseMetadataCreationAttributes = Optional<PhaseMetadataAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
 // Define the PhaseMetadata model
 class PhaseMetadata

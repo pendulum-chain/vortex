@@ -9,15 +9,15 @@ mock.module('shared', () => ({
   isFiatToken: (currency) => currency === 'BRL',
   getAnyFiatTokenDetails: () => ({
     moonbeamErc20Address: '0xmock',
-    decimals: 18
+    decimals: 18,
   }),
   getOnChainTokenDetails: () => ({
     pendulumCurrencyId: 123,
-    decimals: 12
+    decimals: 12,
   }),
   getPendulumDetails: () => ({
     pendulumDecimals: 12,
-    pendulumCurrencyId: 123
+    pendulumCurrencyId: 123,
   }),
   isMoonbeamTokenDetails: () => true,
   isOnChainToken: () => true,
@@ -27,34 +27,36 @@ mock.module('shared', () => ({
   Networks: {
     Moonbeam: 'Moonbeam',
     Pendulum: 'Pendulum',
-    AssetHub: 'AssetHub'
+    AssetHub: 'AssetHub',
   },
   FiatToken: { BRL: 'BRL' },
-  EvmToken: { USDT: 'USDT' }
+  EvmToken: { USDT: 'USDT' },
 }));
 
 // Mock transaction creation modules
 mock.module('./xcm/moonbeamToPendulum', () => ({
-  createMoonbeamToPendulumXCM: () => Promise.resolve({ mockXCM: true })
+  createMoonbeamToPendulumXCM: () => Promise.resolve({ mockXCM: true }),
 }));
 
 mock.module('./squidrouter/onramp', () => ({
-  createOnrampSquidrouterTransactions: () => Promise.resolve({
-    approveData: { mockApprove: true },
-    swapData: { mockSwap: true }
-  })
+  createOnrampSquidrouterTransactions: () =>
+    Promise.resolve({
+      approveData: { mockApprove: true },
+      swapData: { mockSwap: true },
+    }),
 }));
 
 mock.module('./nabla', () => ({
-  createNablaTransactionsForQuote: () => Promise.resolve({
-    approveTransaction: '0xapprove',
-    swapTransaction: '0xswap'
-  })
+  createNablaTransactionsForQuote: () =>
+    Promise.resolve({
+      approveTransaction: '0xapprove',
+      swapTransaction: '0xswap',
+    }),
 }));
 
 mock.module('./index', () => ({
   encodeEvmTransactionData: (data) => `encoded:${JSON.stringify(data)}`,
-  encodeSubmittableExtrinsic: (data) => `encoded:${JSON.stringify(data)}`
+  encodeSubmittableExtrinsic: (data) => `encoded:${JSON.stringify(data)}`,
 }));
 
 // Mock the app initialization
@@ -74,7 +76,7 @@ describe('prepareOnrampTransactions', () => {
     expiresAt: new Date(Date.now() + 3600000),
     status: 'pending',
     from: 'Moonbeam',
-    to: 'AssetHub'
+    to: 'AssetHub',
   };
 
   const mockAccounts = [
@@ -85,15 +87,11 @@ describe('prepareOnrampTransactions', () => {
     {
       address: 'pendulumAddr',
       network: 'Pendulum',
-    }
+    },
   ];
 
   it('should create transactions for Moonbeam and Pendulum networks', async () => {
-    const { unsignedTxs } = await prepareOnrampTransactions(
-      mockQuote,
-      mockAccounts,
-      'destinationAddr'
-    );
+    const { unsignedTxs } = await prepareOnrampTransactions(mockQuote, mockAccounts, 'destinationAddr');
 
     expect(unsignedTxs.length).toBeGreaterThan(0);
     // Just check that we have some transactions, the exact number may vary
@@ -101,19 +99,19 @@ describe('prepareOnrampTransactions', () => {
   });
 
   it('should throw error for missing Pendulum ephemeral', async () => {
-    const badAccounts = mockAccounts.filter(a => a.network !== 'Pendulum');
-    await expect(
-      prepareOnrampTransactions(mockQuote, badAccounts, 'destinationAddr')
-    ).rejects.toThrow('Pendulum ephemeral not found');
+    const badAccounts = mockAccounts.filter((a) => a.network !== 'Pendulum');
+    await expect(prepareOnrampTransactions(mockQuote, badAccounts, 'destinationAddr')).rejects.toThrow(
+      'Pendulum ephemeral not found',
+    );
   });
 
   it('should validate input token type', async () => {
-    const badQuote = { 
-      ...mockQuote, 
-      inputCurrency: 'ETH'
+    const badQuote = {
+      ...mockQuote,
+      inputCurrency: 'ETH',
     };
-    await expect(
-      prepareOnrampTransactions(badQuote, mockAccounts, 'destinationAddr')
-    ).rejects.toThrow('Input currency must be fiat token for onramp');
+    await expect(prepareOnrampTransactions(badQuote, mockAccounts, 'destinationAddr')).rejects.toThrow(
+      'Input currency must be fiat token for onramp',
+    );
   });
 });

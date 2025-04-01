@@ -1,5 +1,14 @@
 import httpStatus from 'http-status';
-import { AccountMeta, FiatToken, Networks, RampEndpoints, RampErrorLog, RampPhase, UnsignedTx, validateMaskedNumber } from 'shared';
+import {
+  AccountMeta,
+  FiatToken,
+  Networks,
+  RampEndpoints,
+  RampErrorLog,
+  RampPhase,
+  UnsignedTx,
+  validateMaskedNumber,
+} from 'shared';
 import { BaseRampService } from './base.service';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
@@ -77,18 +86,21 @@ export class RampService extends BaseRampService {
       let unsignedTxs: UnsignedTx[] = [];
       let stateMeta: any = {};
       if (quote.rampType === 'off') {
-
         if (quote.outputCurrency === FiatToken.BRL) {
-
-          if (!additionalData || !additionalData.pixDestination || !additionalData.taxId || !additionalData.receiverTaxId) {
+          if (
+            !additionalData ||
+            !additionalData.pixDestination ||
+            !additionalData.taxId ||
+            !additionalData.receiverTaxId
+          ) {
             throw new Error('receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL');
           }
           // Validate BRLA off-ramp request
           const subaccount = await this.validateBrlaOfframpRequest(
             additionalData.taxId,
             additionalData.pixDestination,
-            additionalData.receiverTaxId, 
-            quote.outputAmount
+            additionalData.receiverTaxId,
+            quote.outputAmount,
           );
 
           ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
@@ -98,12 +110,10 @@ export class RampService extends BaseRampService {
             userAddress: additionalData.walletAddress,
             pixDestination: additionalData.pixDestination,
             taxId: additionalData.taxId,
-            receiverTaxId: additionalData.receiverTaxId, 
+            receiverTaxId: additionalData.receiverTaxId,
             brlaEvmAddress: subaccount.wallets.evm,
           }));
-
         } else {
-
           ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
             quote,
             signingAccounts: normalizedSigningAccounts,
@@ -111,9 +121,6 @@ export class RampService extends BaseRampService {
             userAddress: additionalData?.walletAddress,
           }));
         }
-        
-
-
       } else {
         // validate we have the destination address
         if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
@@ -217,7 +224,7 @@ export class RampService extends BaseRampService {
         to: rampState.to,
         unsignedTxs: rampState.unsignedTxs,
         createdAt: rampState.createdAt.toISOString(),
-        updatedAt: rampState.updatedAt.toISOString()
+        updatedAt: rampState.updatedAt.toISOString(),
       };
 
       return response;
@@ -245,7 +252,7 @@ export class RampService extends BaseRampService {
       from: rampState.from,
       to: rampState.to,
       createdAt: rampState.createdAt.toISOString(),
-      updatedAt: rampState.updatedAt.toISOString()
+      updatedAt: rampState.updatedAt.toISOString(),
     };
   }
 
@@ -269,9 +276,8 @@ export class RampService extends BaseRampService {
     taxId: string,
     pixKey: string,
     receiverTaxId: string,
-    amount: string
+    amount: string,
   ): Promise<SubaccountData> {
-    
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
@@ -311,7 +317,6 @@ export class RampService extends BaseRampService {
 
     return subaccount;
   }
-
 }
 
 export default new RampService();

@@ -43,7 +43,7 @@ export class PhaseProcessor {
    */
   private async processPhase(state: RampState): Promise<void> {
     try {
-      const {currentPhase} = state;
+      const { currentPhase } = state;
       logger.info(`Processing phase ${currentPhase} for ramp ${state.id}`);
 
       // Get the phase handler

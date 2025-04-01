@@ -48,10 +48,7 @@ export async function prepareOfframpTransactions({
   taxId,
   receiverTaxId,
   brlaEvmAddress,
-}: OfframpTransactionParams): Promise<{
-  unsignedTxs: UnsignedTx[];
-  stateMeta: Partial<StateMetadata>;
-}> {
+}: OfframpTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
 

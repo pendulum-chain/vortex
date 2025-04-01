@@ -1,7 +1,7 @@
 import Big from 'big.js';
 import { v4 as uuidv4 } from 'uuid';
 import httpStatus from 'http-status';
-import {DestinationType, getNetworkFromDestination, getPendulumDetails, QuoteEndpoints, RampCurrency} from 'shared';
+import { DestinationType, getNetworkFromDestination, getPendulumDetails, QuoteEndpoints, RampCurrency } from 'shared';
 import { BaseRampService } from './base.service';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
@@ -35,7 +35,6 @@ function trimTrailingZeros(decimalString: string): string {
 
   return `${integerPart}.${trimmedFraction}`;
 }
-
 
 export class QuoteService extends BaseRampService {
   // List of supported chains for each ramp type

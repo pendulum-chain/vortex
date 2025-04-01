@@ -13,7 +13,6 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-
     try {
       const stellarCleanupTransactionXDR = this.getPresignedTransaction(state, 'stellarCleanup');
 
@@ -22,7 +21,6 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, 'complete');
     } catch (e) {
-
       const horizonError = e as { response: { data: { extras: any } } };
       console.log(
         `Could not submit the cleanup transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
@@ -40,4 +38,3 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 }
 
 export default new SpacewalkRedeemPhaseHandler();
-

@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import {DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx} from 'shared';
+import { DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
 import sequelize from '../config/database';
 
 export interface PhaseHistoryEntry {

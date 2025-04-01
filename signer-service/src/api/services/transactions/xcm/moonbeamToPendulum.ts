@@ -8,7 +8,7 @@ import { ApiManager } from '../../pendulum/apiManager';
 export async function createMoonbeamToPendulumXCM(
   receiverAddress: string,
   rawAmount: string,
-  assetAccounKey: string,
+  assetAccountKey: string,
 ): Promise<SubmittableExtrinsic<'promise', ISubmittableResult>> {
   const apiManager = ApiManager.getInstance();
   const networkName = 'moonbeam';
@@ -26,7 +26,7 @@ export async function createMoonbeamToPendulumXCM(
         id: {
           Concrete: {
             parents: 0,
-            interior: { X2: [{ PalletInstance: 110 }, { AccountKey20: { network: undefined, key: assetAccounKey } }] },
+            interior: { X2: [{ PalletInstance: 110 }, { AccountKey20: { network: undefined, key: assetAccountKey } }] },
           },
         },
         fun: { Fungible: rawAmount },

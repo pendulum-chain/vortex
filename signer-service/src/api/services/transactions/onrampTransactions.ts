@@ -92,6 +92,7 @@ export async function prepareOnrampTransactions(
     outputTokenPendulumDetails,
     outputAmountBeforeFees: { units: outputAmountBeforeFees.toFixed(), raw: outputAmountBeforeFeesRaw },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+    moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,
     taxId,
     inputAmountUnits: quote.inputAmount,
@@ -109,7 +110,7 @@ export async function prepareOnrampTransactions(
       );
       unsignedTxs.push({
         tx_data: encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
-        phase: 'moonbeamToPendulum',
+        phase: 'moonbeamToPendulumXcm',
         network: account.network,
         nonce: moonbeamEphemeralStartingNonce,
         signer: account.address,
@@ -144,11 +145,10 @@ export async function prepareOnrampTransactions(
         });
       }
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-
       const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
-          new Big(quote.inputAmount),
-          inputTokenPendulumDetails.pendulumDecimals,
-        ).toFixed(0, 0);
+        new Big(quote.inputAmount),
+        inputTokenPendulumDetails.pendulumDecimals,
+      ).toFixed(0, 0);
 
       const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
       const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
@@ -182,13 +182,13 @@ export async function prepareOnrampTransactions(
       stateMeta = {
         ...stateMeta,
         nablaSoftMinimumOutputRaw,
-        inputAmountBeforeSwapRaw
+        inputAmountBeforeSwapRaw,
       };
 
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
-          inputTokenPendulumDetails.pendulumCurrencyId,
-          outputTokenPendulumDetails.pendulumCurrencyId,
-      )
+        inputTokenPendulumDetails.pendulumCurrencyId,
+        outputTokenPendulumDetails.pendulumCurrencyId,
+      );
 
       unsignedTxs.push({
         tx_data: encodeSubmittableExtrinsic(pendulumCleanupTransaction),

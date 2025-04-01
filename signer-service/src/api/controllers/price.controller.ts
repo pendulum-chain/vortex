@@ -108,6 +108,5 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
     }
     console.error('Server error:', error);
     res.status(500).json({ error: error.message });
-    
   }
 };

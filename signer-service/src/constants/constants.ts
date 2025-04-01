@@ -20,13 +20,13 @@ const STELLAR_BASE_FEE = '1000000';
 
 dotenv.config();
 
-const {PENDULUM_FUNDING_SEED} = process.env;
-const {FUNDING_SECRET} = process.env;
-const {MOONBEAM_EXECUTOR_PRIVATE_KEY} = process.env;
+const { PENDULUM_FUNDING_SEED } = process.env;
+const { FUNDING_SECRET } = process.env;
+const { MOONBEAM_EXECUTOR_PRIVATE_KEY } = process.env;
 const SEP10_MASTER_SECRET = FUNDING_SECRET;
-const {CLIENT_DOMAIN_SECRET} = process.env;
-const {BRLA_LOGIN_PASSWORD} = process.env;
-const {BRLA_LOGIN_USERNAME} = process.env;
+const { CLIENT_DOMAIN_SECRET } = process.env;
+const { BRLA_LOGIN_PASSWORD } = process.env;
+const { BRLA_LOGIN_USERNAME } = process.env;
 
 export {
   GLMR_FUNDING_AMOUNT_RAW,

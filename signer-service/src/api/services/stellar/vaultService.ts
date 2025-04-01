@@ -1,4 +1,3 @@
-
 import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 
@@ -85,29 +84,29 @@ export class VaultService {
   }
 
   // We first check if dispatchError is of type "module",
-// If not we either return ExtrinsicFailedError or Unknown dispatch error
-handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
-  if (dispatchError?.isModule) {
-    const decoded = this.apiComponents!.api.registry.findMetaError(dispatchError.asModule);
-    const { name, section, method } = decoded;
+  // If not we either return ExtrinsicFailedError or Unknown dispatch error
+  handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
+    if (dispatchError?.isModule) {
+      const decoded = this.apiComponents!.api.registry.findMetaError(dispatchError.asModule);
+      const { name, section, method } = decoded;
 
-    return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
-  } else if (systemExtrinsicFailedEvent) {
-    const eventName =
-      systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
-        ? systemExtrinsicFailedEvent?.event.data[0].toString()
-        : 'Unknown';
+      return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
+    } else if (systemExtrinsicFailedEvent) {
+      const eventName =
+        systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
+          ? systemExtrinsicFailedEvent?.event.data[0].toString()
+          : 'Unknown';
 
-    const {
-      phase,
-      event: { method, section },
-    } = systemExtrinsicFailedEvent;
-    console.log(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
+      const {
+        phase,
+        event: { method, section },
+      } = systemExtrinsicFailedEvent;
+      console.log(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
 
-    return new Error(`Failed to dispatch ${extrinsicCalled}`);
-  } else {
-    console.log('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
-    return new Error(`Unknown error during ${extrinsicCalled}`);
+      return new Error(`Failed to dispatch ${extrinsicCalled}`);
+    } else {
+      console.log('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
+      return new Error(`Unknown error during ${extrinsicCalled}`);
+    }
   }
-}
 }

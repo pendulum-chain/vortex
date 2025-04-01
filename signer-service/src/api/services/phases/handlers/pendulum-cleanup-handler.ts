@@ -33,7 +33,7 @@ export class PendulumCleanupPhaseHandler extends BasePhaseHandler {
     }
     try {
       const pendulumCleanupTransaction = this.getPresignedTransaction(state, 'pendulumCleanup');
-      
+
       const approvalExtrinsic = decodeSubmittableExtrinsic(pendulumCleanupTransaction, pendulumNode.api);
       const result = await submitExtrinsic(approvalExtrinsic);
 
@@ -41,7 +41,6 @@ export class PendulumCleanupPhaseHandler extends BasePhaseHandler {
         console.log(`Could not perform pendulum cleanup: ${result.status.error.toString()}`);
         // we don't want to fail the whole process if this fails
       }
-
     } catch (e) {
       console.error('Error in PendulumCleanupPhase:', e);
     }

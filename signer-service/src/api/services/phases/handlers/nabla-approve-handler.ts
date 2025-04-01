@@ -1,5 +1,5 @@
 import { ExecuteMessageResult, submitExtrinsic } from '@pendulum-chain/api-solang';
-import {RampPhase} from "shared";
+import { RampPhase } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
@@ -8,7 +8,7 @@ import { decodeSubmittableExtrinsic } from '../../transactions';
 import { ApiManager } from '../../pendulum/apiManager';
 
 export class NablaApprovePhaseHandler extends BasePhaseHandler {
-  public getPhaseName(): RampPhase{
+  public getPhaseName(): RampPhase {
     return 'nablaApprove';
   }
 
@@ -39,7 +39,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, 'nablaSwap');
     } catch (e) {
       let errorMessage = '';
-      const {result} = e as ExecuteMessageResult;
+      const { result } = e as ExecuteMessageResult;
       if (result?.type === 'reverted') {
         errorMessage = result.description;
       } else if (result?.type === 'error') {
