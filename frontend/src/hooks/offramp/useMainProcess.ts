@@ -39,12 +39,12 @@ export const useMainProcess = () => {
     const signingAccounts: AccountMeta[] = [
       { address: executionInput.stellarEphemeral.address, network: Networks.Stellar },
       { address: executionInput.pendulumEphemeral.address, network: Networks.Pendulum },
-      { address: executionInput.pendulumEphemeral.address, network: Networks.Moonbeam },
     ];
     const additionalData = {
       walletAddress: executionInput.userWalletAddress,
       pixDestination: executionInput.pixId,
       taxId: executionInput.taxId,
+      receiverTaxId: executionInput.taxId,
       brlaEvmAddress: executionInput.brlaEvmAddress,
     };
     const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);

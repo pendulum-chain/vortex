@@ -25,7 +25,7 @@ export async function buildPaymentAndMergeTx(
 
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
-  const {amount, memo, memoType, offrampingAccount} = paymentData;
+  const {amount, memo, memoType, anchorTargetAccount} = paymentData;
 
   const transactionMemo = memoType === 'text' ? Memo.text(memo) : Memo.hash(Buffer.from(memo, 'base64'));
 
@@ -40,7 +40,7 @@ export async function buildPaymentAndMergeTx(
           tokenConfigStellar.stellarAsset.code.string,
           tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
         ),
-        destination: offrampingAccount,
+        destination: anchorTargetAccount,
       }),
     )
     .addMemo(transactionMemo)

@@ -38,7 +38,7 @@ export const registerRamp = async (
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error('Error starting ramp:', error);
+    logger.error('Error registering ramp:', error);
     next(error);
   }
 };
@@ -74,7 +74,7 @@ export const startRamp = async (
       route,
     );
 
-    res.status(httpStatus.CREATED).json(ramp);
+    res.status(httpStatus.OK).json(ramp);
   } catch (error) {
     logger.error('Error starting ramp:', error);
     next(error);

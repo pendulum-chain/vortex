@@ -11,7 +11,7 @@ import {
   isOnChainToken,
   isStellarOutputTokenDetails,
   Networks,
-  AccountMeta
+  AccountMeta,
 } from 'shared';
 import { UnsignedTx, PaymentData } from 'shared';
 
@@ -29,15 +29,15 @@ import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 
 interface OfframpTransactionParams {
-  quote: QuoteTicketAttributes,
-  signingAccounts: AccountMeta[],
-  stellarPaymentData?: PaymentData,
-  userAddress?: string,
-  pixDestination?: string,
-  taxId?: string,
-  receiverTaxId?: string,
-  brlaEvmAddress?: string,
-};
+  quote: QuoteTicketAttributes;
+  signingAccounts: AccountMeta[];
+  stellarPaymentData?: PaymentData;
+  userAddress?: string;
+  pixDestination?: string;
+  taxId?: string;
+  receiverTaxId?: string;
+  brlaEvmAddress?: string;
+}
 
 export async function prepareOfframpTransactions({
   quote,
@@ -48,7 +48,10 @@ export async function prepareOfframpTransactions({
   taxId,
   receiverTaxId,
   brlaEvmAddress,
-}: OfframpTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>}> {
+}: OfframpTransactionParams): Promise<{
+  unsignedTxs: UnsignedTx[];
+  stateMeta: Partial<StateMetadata>;
+}> {
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
 
@@ -85,11 +88,6 @@ export async function prepareOfframpTransactions({
   const pendulumEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Pendulum);
   if (!pendulumEphemeralEntry) {
     throw new Error('Pendulum ephemeral not found');
-  }
-
-  const moonbeamEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
-  if (!moonbeamEphemeralEntry) {
-    throw new Error('Moonbeam ephemeral not found');
   }
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
@@ -138,7 +136,7 @@ export async function prepareOfframpTransactions({
     stateMeta = {
       ...stateMeta,
       squidRouterReceiverId,
-    }
+    };
   }
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {
@@ -159,11 +157,10 @@ export async function prepareOfframpTransactions({
     }
     // If network is Pendulum, create all the swap transactions
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-
       const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
-          new Big(quote.inputAmount),
-          inputTokenPendulumDetails.pendulumDecimals,
-        ).toFixed(0, 0);
+        new Big(quote.inputAmount),
+        inputTokenPendulumDetails.pendulumDecimals,
+      ).toFixed(0, 0);
 
       const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
       const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
@@ -197,13 +194,13 @@ export async function prepareOfframpTransactions({
       stateMeta = {
         ...stateMeta,
         nablaSoftMinimumOutputRaw,
-        inputAmountBeforeSwapRaw
+        inputAmountBeforeSwapRaw,
       };
 
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
         inputTokenPendulumDetails.pendulumCurrencyId,
         outputTokenPendulumDetails.pendulumCurrencyId,
-      )
+      );
 
       unsignedTxs.push({
         tx_data: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
@@ -214,8 +211,14 @@ export async function prepareOfframpTransactions({
       });
 
       if (quote.outputCurrency === FiatToken.BRL) {
+        if (!brlaEvmAddress || !pixDestination || !taxId || !receiverTaxId) {
+          throw new Error(
+            'brlaEvmAddress, pixDestination, receiverTaxId and taxId parameters must be provided for offramp to BRL',
+          );
+        }
+
         const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
-          moonbeamEphemeralEntry.address,
+          brlaEvmAddress,
           outputAmountBeforeFeesRaw,
           outputTokenDetails.pendulumCurrencyId,
         );
@@ -227,10 +230,6 @@ export async function prepareOfframpTransactions({
           nonce: 2,
           signer: account.address,
         });
-        
-        if (!brlaEvmAddress || !pixDestination || !taxId || !receiverTaxId) {
-          throw new Error('brlaEvmAddress, pixDestination, receiverTaxId and taxId parameters must be provided for offramp to BRL');
-        }
 
         stateMeta = {
           ...stateMeta,
@@ -239,19 +238,17 @@ export async function prepareOfframpTransactions({
           pixDestination,
           receiverTaxId,
         };
-
       } else {
-
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
           throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
         }
 
-        if (!stellarPaymentData?.offrampingAccount) {
+        if (!stellarPaymentData?.anchorTargetAccount) {
           throw new Error('Stellar payment data must be provided for offramp');
         }
         const executeSpacewalkNonce = 2;
 
-        const stellarTargetAccountRaw = Keypair.fromPublicKey(stellarPaymentData.offrampingAccount).rawPublicKey();
+        const stellarTargetAccountRaw = Keypair.fromPublicKey(stellarPaymentData.anchorTargetAccount).rawPublicKey();
         const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
           outputAmountRaw: outputAmountBeforeFeesRaw,
           stellarTargetAccountRaw,
@@ -269,9 +266,12 @@ export async function prepareOfframpTransactions({
 
         stateMeta = {
           ...stateMeta,
-          stellarTarget: { stellarTargetAccountId: stellarPaymentData.offrampingAccount, stellarTokenDetails: outputTokenDetails },
+          stellarTarget: {
+            stellarTargetAccountId: stellarPaymentData.anchorTargetAccount,
+            stellarTokenDetails: outputTokenDetails,
+          },
           executeSpacewalkNonce,
-        }
+        };
       }
     } else if (accountNetworkId === getNetworkId(Networks.Stellar) && quote.outputCurrency !== FiatToken.BRL) {
       if (!isStellarOutputTokenDetails(outputTokenDetails)) {

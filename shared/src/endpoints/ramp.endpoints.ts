@@ -50,7 +50,7 @@ export interface PaymentData {
   amount: string;
   memo: string;
   memoType: 'text' | 'hash';
-  offrampingAccount: string;
+  anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
 export namespace RampEndpoints {
