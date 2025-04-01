@@ -9,10 +9,8 @@
   },
   "scripts": {
     "lint": "eslint ./src/**/*.ts --ignore-path .gitignore --ignore-pattern internals/scripts",
-    "lint-staged": "prettier --write",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "lint:ts": "tsc --noEmit",
-    "precommit": "bun lint-staged && bun lint",
     "build": "bun run swc src -d dist --strip-leading-paths",
     "serve": "bun dist/index.js",
     "start": "bun run build && bun run serve",
@@ -20,7 +18,8 @@
     "test": "bun test",
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
-    "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts"
+    "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@pendulum-chain/api-solang": "^0.7.2",
@@ -91,11 +90,15 @@
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "^2.2.0",
-    "husky": "^3.0.7",
+    "husky": "^9.1.7",
     "mocha": "^6.2.2",
     "nodemon": "^2.0.1",
     "prettier": "^2.8.7",
     "typescript": "^5.7.2"
   },
-  "packageManager": "bun@4.4.1"
+  "packageManager": "bun@4.4.1",
+  "lint-staged": {
+    "*.{js,ts}": "eslint --cache --fix",
+    "*": "prettier --write"
+  }
 }
