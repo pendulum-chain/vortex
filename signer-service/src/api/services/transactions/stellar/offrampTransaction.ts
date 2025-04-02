@@ -13,10 +13,12 @@ export async function buildPaymentAndMergeTx(
   tokenConfigStellar: StellarTokenDetails,
 ): Promise<{ paymentTransaction: string; mergeAccountTransaction: string; startingSequenceNumber: string }> {
   if (!FUNDING_SECRET) {
+    console.log('Secret not defined');
     throw new Error('Stellar funding secret not defined');
   }
   const ephemeralAccount = await loadAccountWithRetry(ephemeralAccountId);
   if (!ephemeralAccount) {
+    console.log('Ephemeral account not found');
     throw new Error(`Ephemeral account ${ephemeralAccountId} must be created at this stage`);
   }
   const startingSequenceNumber = ephemeralAccount.sequenceNumber();

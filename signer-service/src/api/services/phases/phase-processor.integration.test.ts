@@ -5,7 +5,7 @@ import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import { RampService } from '../ramp/ramp.service';
 import { BrlaApiService } from '../brla/brlaApiService';
-import { AccountMeta, Networks, RampPhase, PresignedTx, UnsignedTx, RampEndpoints, EvmToken, FiatToken } from 'shared';
+import { AccountMeta, Networks, RampEndpoints, EvmToken, FiatToken, signUnsignedTransactions } from 'shared';
 import { v4 as uuidv4 } from 'uuid';
 import { SubaccountData } from '../brla/types';
 import { APIError } from '../../errors/api-error';
@@ -14,11 +14,18 @@ import { EphemeralAccount } from 'shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { Keypair } from 'stellar-sdk';
+import { API, ApiManager } from '../pendulum/apiManager';
 
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 const EVM_TESTING_ADDRESS = '0x50bd2f7b9D912724db25D56C547672Dacd702B33';
 // Stellar mock anchor account. US.
 const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GDSDQLBVDD5RZYKNDM2LAX5JDNNQOTSZOKECUYEXYMUZMAPXTMDUJCVF';
+
+async function getPendulumNode(): Promise<API> {
+  const apiManager = ApiManager.getInstance();
+  const networkName = 'pendulum';
+  return await apiManager.getApi(networkName);
+}
 
 export async function createSubstrateEphemeral(): Promise<EphemeralAccount> {
   const seedPhrase = mnemonicGenerate();
@@ -46,7 +53,7 @@ export async function createMoonbeamEphemeralSeed() {
   // DO NOT CHANGE THE DERIVATION PATH to be compatible with common ethereum libraries like viem.
   const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
-  return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
+  return { secret: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
 const testSigningAccounts = {
@@ -75,21 +82,21 @@ RampState.update = mock(async (data: any) => {
 }) as any;
 
 RampState.findByPk = mock(async (id: string) => {
-  return { dataValues: rampState };
+  return rampState;
 });
 
 RampState.create = mock(async (data: any) => {
   rampState = data;
-  return { dataValues: rampState };
+  return rampState;
 }) as any;
 
 QuoteTicket.findByPk = mock(async (id: string) => {
-  return { dataValues: quoteTicket };
+  return quoteTicket;
 });
 
 QuoteTicket.create = mock(async (data: any) => {
   quoteTicket = data;
-  return { dataValues: quoteTicket };
+  return quoteTicket;
 }) as any;
 
 // Mock the BrlaApiService
@@ -151,21 +158,6 @@ BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApi
 
 RampService.prototype.validateBrlaOfframpRequest = mock(async () => mockSubaccountData);
 
-// Leave as is
-const generatePresignedTxs = async (unsignedTxs?: UnsignedTx[]) => {
-  // Mock implementation that converts unsigned transactions to presigned ones
-  return [
-    {
-      tx_data: '0xmocktxdata',
-      phase: 'initial' as RampPhase,
-      network: Networks.Moonbeam,
-      nonce: 1,
-      signer: '0xmoonbeam123',
-      signature: '0xmocksignature',
-    },
-  ] as PresignedTx[];
-};
-
 describe('PhaseProcessor Integration Test', () => {
   it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
     const processor = new PhaseProcessor();
@@ -190,26 +182,30 @@ describe('PhaseProcessor Integration Test', () => {
       outputCurrency: FiatToken.EURC,
     });
 
-    // Of course it would be
-    try {
-      const registeredRamp = await rampService.registerRamp({
-        signingAccounts: testSigningAccountsMeta,
-        quoteId: quoteTicket.id,
-        additionalData,
-      });
+    const registeredRamp = await rampService.registerRamp({
+      signingAccounts: testSigningAccountsMeta,
+      quoteId: quoteTicket.id,
+      additionalData,
+    });
+    console.log('register ramp:', registeredRamp);
+    // sign and send correspinding squid transactions on mainnet. Then proceed.
+    const pendulumNode = await getPendulumNode();
+    const presignedTxs = await signUnsignedTransactions(
+      registeredRamp.unsignedTxs,
+      {
+        stellarEphemeral: testSigningAccounts.stellar,
+        pendulumEphemeral: testSigningAccounts.pendulum,
+        evmEphemeral: testSigningAccounts.moonbeam,
+      },
+      pendulumNode.api,
+    );
+    console.log('Presigned transactions:', presignedTxs);
+    const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
-      // sign and send correspinding squid transactions on mainnet. Then proceed.
+    // await here, start ramp  does not wait. Poll for completion or failure.
+    await processor.processRamp(registeredRamp.id);
 
-      const presignedTxs = await generatePresignedTxs(registeredRamp.unsignedTxs);
-
-      const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
-
-      // await here, start ramp  does not wait. Poll for completion or failure.
-      await new Promise((resolve) => setTimeout(resolve, 1000000));
-      await processor.processRamp(registeredRamp.id);
-    } catch (error) {
-      console.error(error);
-    }
+    await new Promise((resolve) => setTimeout(resolve, 1000000));
 
     expect(rampState.currentPhase).toBe('complete');
 

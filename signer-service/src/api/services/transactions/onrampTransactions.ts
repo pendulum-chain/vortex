@@ -13,10 +13,11 @@ import {
   Networks,
   UnsignedTx,
   AccountMeta,
+  encodeSubmittableExtrinsic,
 } from 'shared';
 import Big from 'big.js';
 import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
-import { encodeEvmTransactionData, encodeSubmittableExtrinsic } from './index';
+import { encodeEvmTransactionData } from './index';
 import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
 import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';

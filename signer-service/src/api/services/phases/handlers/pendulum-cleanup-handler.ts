@@ -2,7 +2,6 @@ import { FiatToken, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
-
 import { ApiManager } from '../../pendulum/apiManager';
 import { StateMetadata } from '../meta-state-types';
 import { submitExtrinsic } from '@pendulum-chain/api-solang';
