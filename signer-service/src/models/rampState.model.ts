@@ -30,31 +30,31 @@ type RampStateCreationAttributes = Optional<RampStateAttributes, 'id' | 'created
 
 // Define the RampState model
 class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> implements RampStateAttributes {
-  public id!: string;
+  declare id: string;
 
-  public type!: 'on' | 'off';
+  declare type: 'on' | 'off';
 
-  public currentPhase!: RampPhase;
+  declare currentPhase: RampPhase;
 
-  public unsignedTxs!: UnsignedTx[];
+  declare unsignedTxs: UnsignedTx[];
 
-  public presignedTxs!: PresignedTx[] | null;
+  declare presignedTxs: PresignedTx[] | null;
 
-  public from!: DestinationType;
+  declare from: DestinationType;
 
-  public to!: DestinationType;
+  declare to: DestinationType;
 
-  public state!: any;
+  declare state: any;
 
-  public quoteId!: string;
+  declare quoteId: string;
 
-  public phaseHistory!: PhaseHistoryEntry[];
+  declare phaseHistory: PhaseHistoryEntry[];
 
-  public errorLogs!: RampErrorLog[];
+  declare errorLogs: RampErrorLog[];
 
-  public createdAt!: Date;
+  declare createdAt: Date;
 
-  public updatedAt!: Date;
+  declare updatedAt: Date;
 }
 
 // Initialize the model
@@ -100,9 +100,9 @@ RampState.init(
           }
 
           for (const tx of value) {
-            if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer || !tx.signature) {
+            if (!tx.tx_data || !tx.phase || !tx.network || tx.nonce === undefined || !tx.signer) {
               throw new Error(
-                'Each transaction must have tx_data, phase, network, nonce, signer, and signature properties',
+                'Each transaction must have tx_data, phase, network, nonce, and signer properties',
               );
             }
           }

@@ -70,7 +70,7 @@ export class QuoteService extends BaseRampService {
     );
 
     // Create quote in database
-    const quoteTicket = await QuoteTicket.create({
+    const quote = await QuoteTicket.create({
       id: uuidv4(),
       rampType: request.rampType,
       from: request.from,
@@ -83,7 +83,6 @@ export class QuoteService extends BaseRampService {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
     });
-    const quote = quoteTicket.dataValues;
 
     return {
       id: quote.id,
@@ -103,13 +102,11 @@ export class QuoteService extends BaseRampService {
    * Get a quote by ID
    */
   public async getQuote(id: string): Promise<QuoteEndpoints.QuoteResponse | null> {
-    const quoteTicket = await this.getQuoteTicket(id);
+    const quote = await this.getQuoteTicket(id);
 
-    if (!quoteTicket) {
+    if (!quote) {
       return null;
     }
-
-    const quote = quoteTicket.dataValues;
 
     return {
       id: quote.id,

@@ -17,6 +17,7 @@ export function encodeEvmTransactionData(data: unknown) {
 }
 
 export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
+  console.log("Validating presigned transactions...", presignedTxs, presignedTxs.length);
   if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 5) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
@@ -25,10 +26,10 @@ export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
   }
 
   for (const tx of presignedTxs) {
-    if (!tx.tx_data || !tx.phase || !tx.network || !tx.nonce || !tx.signer || !tx.signature) {
+    if (!tx.tx_data || !tx.phase || !tx.network || tx.nonce === undefined || !tx.signer) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Each transaction must have tx_data, phase, network, nonce, signer, and signature properties',
+        message: 'Each transaction must have tx_data, phase, network, nonce and signer properties',
       });
     }
   }

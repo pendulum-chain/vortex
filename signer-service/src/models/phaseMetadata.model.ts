@@ -24,24 +24,24 @@ class PhaseMetadata
   extends Model<PhaseMetadataAttributes, PhaseMetadataCreationAttributes>
   implements PhaseMetadataAttributes
 {
-  public id!: string;
+  declare id: string;
 
-  public phaseName!: string;
+  declare phaseName: string;
 
-  public requiredTransactions!: string[];
+  declare requiredTransactions: string[];
 
-  public successConditions!: any;
+  declare successConditions: any;
 
-  public retryPolicy!: {
+  declare retryPolicy: {
     maxAttempts: number;
     backoffMs: number;
   };
 
-  public validTransitions!: string[];
+  declare validTransitions: string[];
 
-  public createdAt!: Date;
+  declare createdAt: Date;
 
-  public updatedAt!: Date;
+  declare updatedAt: Date;
 }
 
 // Initialize the model

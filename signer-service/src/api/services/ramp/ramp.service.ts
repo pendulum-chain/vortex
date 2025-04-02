@@ -51,16 +51,14 @@ export class RampService extends BaseRampService {
       const { signingAccounts, quoteId, additionalData } = request;
 
       // Get and validate the quote
-      const quoteModel = await QuoteTicket.findByPk(quoteId, { transaction });
+      const quote = await QuoteTicket.findByPk(quoteId, { transaction });
 
-      if (!quoteModel) {
+      if (!quote) {
         throw new APIError({
           status: httpStatus.NOT_FOUND,
           message: 'Quote not found',
         });
       }
-
-      const quote = quoteModel.dataValues;
 
       if (quote.status !== 'pending') {
         throw new APIError({
@@ -71,7 +69,7 @@ export class RampService extends BaseRampService {
 
       if (new Date(quote.expiresAt) < new Date()) {
         // Update the quote status to expired
-        await quoteModel.update({ status: 'expired' }, { transaction });
+        await quote.update({ status: 'expired' }, { transaction });
 
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
@@ -160,8 +158,7 @@ export class RampService extends BaseRampService {
       };
 
       // Create the ramp state
-      const rampStateModel = await this.createRampState(stateData);
-      const rampState = rampStateModel.dataValues;
+      const rampState = await this.createRampState(stateData);
 
       // Create response
       const response: RampEndpoints.RegisterRampResponse = {
@@ -188,11 +185,11 @@ export class RampService extends BaseRampService {
     route = '/v1/ramp/start',
   ): Promise<RampEndpoints.StartRampResponse> {
     return this.withTransaction(async (transaction) => {
-      const rampStateModel = await RampState.findByPk(request.rampId, {
+      const rampState = await RampState.findByPk(request.rampId, {
         transaction,
       });
 
-      if (!rampStateModel) {
+      if (!rampState) {
         throw new APIError({
           status: httpStatus.NOT_FOUND,
           message: 'Ramp not found',
@@ -202,7 +199,6 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions
       validatePresignedTxs(request.presignedTxs);
 
-      const rampState = rampStateModel.dataValues;
       await this.updateRampState(request.rampId, {
         presignedTxs: request.presignedTxs,
       });
@@ -235,13 +231,11 @@ export class RampService extends BaseRampService {
    * Get the status of a ramping process
    */
   public async getRampStatus(id: string): Promise<RampEndpoints.GetRampStatusResponse | null> {
-    const rampStateModel = await this.getRampState(id);
+    const rampState = await this.getRampState(id);
 
-    if (!rampStateModel) {
+    if (!rampState) {
       return null;
     }
-
-    const rampState = rampStateModel.dataValues;
 
     return {
       id: rampState.id,

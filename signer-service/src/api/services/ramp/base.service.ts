@@ -49,13 +49,13 @@ export class BaseRampService {
    * Log a phase transition
    */
   protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: any): Promise<void> {
-    const rampStateModel = await RampState.findByPk(id);
-    if (!rampStateModel) {
+    const rampState = await RampState.findByPk(id);
+    if (!rampState) {
       throw new Error(`RampState with id ${id} not found`);
     }
 
     const phaseHistory = [
-      ...rampStateModel.dataValues.phaseHistory,
+      ...rampState.phaseHistory,
       {
         phase: newPhase,
         timestamp: new Date(),
@@ -63,7 +63,7 @@ export class BaseRampService {
       },
     ];
 
-    await rampStateModel.update({
+    await rampState.update({
       currentPhase: newPhase,
       phaseHistory,
     });
@@ -94,15 +94,13 @@ export class BaseRampService {
    * Check if a quote is valid (pending and not expired)
    */
   protected async isQuoteValid(id: string): Promise<boolean> {
-    const quoteModel = await QuoteTicket.findOne({
+    const quote = await QuoteTicket.findOne({
       where: { id },
     });
 
-    if (!quoteModel) {
+    if (!quote) {
       return false;
     }
-
-    const quote = quoteModel.dataValues;
 
     return quote.status === 'pending' && new Date(quote.expiresAt) > new Date();
   }

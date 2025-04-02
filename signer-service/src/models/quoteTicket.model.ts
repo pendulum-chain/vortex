@@ -24,31 +24,31 @@ type QuoteTicketCreationAttributes = Optional<QuoteTicketAttributes, 'id' | 'cre
 
 // Define the QuoteTicket model
 class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttributes> implements QuoteTicketAttributes {
-  public id!: string;
+  declare id: string;
 
-  public rampType!: 'on' | 'off';
+  declare rampType: 'on' | 'off';
 
-  public from!: DestinationType;
+  declare from: DestinationType;
 
-  public to!: DestinationType;
+  declare to: DestinationType;
 
-  public inputAmount!: string;
+  declare inputAmount: string;
 
-  public inputCurrency!: RampCurrency;
+  declare inputCurrency: RampCurrency;
 
-  public outputAmount!: string;
+  declare outputAmount: string;
 
-  public outputCurrency!: RampCurrency;
+  declare outputCurrency: RampCurrency;
 
-  public fee!: string;
+  declare fee: string;
 
-  public expiresAt!: Date;
+  declare expiresAt: Date;
 
-  public status!: 'pending' | 'consumed' | 'expired';
+  declare status: 'pending' | 'consumed' | 'expired';
 
-  public createdAt!: Date;
+  declare createdAt: Date;
 
-  public updatedAt!: Date;
+  declare updatedAt: Date;
 }
 
 // Initialize the model
