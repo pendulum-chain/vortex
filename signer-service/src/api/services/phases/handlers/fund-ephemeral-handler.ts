@@ -35,7 +35,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       let isMoonbeamFunded = true;
       if (state.type === 'on' && moonbeamEphemeralAddress) {
-        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, pendulumNode);
+        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonebamNode);
       }
 
       if (!isPendulumFunded || (state.type === 'on' && !isMoonbeamFunded)) {

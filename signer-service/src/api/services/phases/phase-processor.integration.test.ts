@@ -10,16 +10,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { SubaccountData } from '../brla/types';
 import { APIError } from '../../errors/api-error';
 import { QuoteService } from '../ramp/quote.service';
-import { ApiPromise } from '@polkadot/api';
-// TODO move this to shared, or other file at least
+import { EphemeralAccount } from 'shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { Keypair } from 'stellar-sdk';
 
-export interface EphemeralAccount {
-  secret: string;
-  address: string;
-}
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 const EVM_TESTING_ADDRESS = '0x50bd2f7b9D912724db25D56C547672Dacd702B33';
 // Stellar mock anchor account. US.

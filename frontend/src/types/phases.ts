@@ -1,5 +1,5 @@
 import { FiatToken, Networks, OnChainToken, PresignedTx, QuoteEndpoints, RampEndpoints } from 'shared';
-import { EphemeralAccount } from '../services/ephemerals';
+import { EphemeralAccount } from 'shared';
 
 export type RampSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
 
