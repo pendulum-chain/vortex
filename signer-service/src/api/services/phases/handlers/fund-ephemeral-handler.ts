@@ -1,0 +1,89 @@
+import { RampPhase } from 'shared';
+import { BasePhaseHandler } from '../base-phase-handler';
+import RampState from '../../../../models/rampState.model';
+import { API, ApiManager } from '../../pendulum/apiManager';
+import { StateMetadata } from '../meta-state-types';
+import { fundEphemeralAccount, getFundingData } from '../../pendulum/pendulum.service';
+import { ApiPromise } from '@polkadot/api';
+import Big from 'big.js';
+import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
+import { TOKEN_CONFIG } from 'shared';
+import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
+
+export class FundEphemeralPhaseHandler extends BasePhaseHandler {
+  public getPhaseName(): RampPhase {
+    return 'fundEphemeral';
+  }
+
+  protected async executePhase(state: RampState): Promise<RampState> {
+    const apiManager = ApiManager.getInstance();
+    const pendulumNode = await apiManager.getApi('pendulum');
+    const moonebamNode = await apiManager.getApi('moonbeam');
+
+    const { moonbeamEphemeralAddress, pendulumEphemeralAddress } = state.state as StateMetadata;
+
+    if (!pendulumEphemeralAddress) {
+      throw new Error('FundEphemeralPhaseHandler: State metadata corrupted. This is a bug.');
+    }
+    if (state.type === 'on' && !moonbeamEphemeralAddress) {
+      throw new Error('FundEphemeralPhaseHandler: State metadata corrupted. This is a bug.');
+    }
+
+    try {
+      const isPendulumFunded = await isPendulumEphemeralFunded(pendulumEphemeralAddress, pendulumNode);
+
+      let isMoonbeamFunded = true;
+      if (state.type === 'on' && moonbeamEphemeralAddress) {
+        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, pendulumNode);
+      }
+
+      if (!isPendulumFunded || (state.type === 'on' && !isMoonbeamFunded)) {
+        console.log('Funding ephemeral addresses...');
+
+        if (state.type === 'on') {
+          await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
+          await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
+        } else {
+          await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, false);
+        }
+      } else {
+        console.log('Ephemeral addresses already funded, skipping funding step');
+      }
+    } catch (e) {
+      console.error('Error in FundEphemeralPhaseHandler:', e);
+      throw e;
+    }
+
+    return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
+  }
+
+  protected nextPhaseSelector(state: RampState): RampPhase {
+    // onramp case
+    if (state.type === 'on') {
+      return 'moonbeamToPendulumXcm';
+    }
+
+    // off ramp cases
+    if (state.type === 'off' && state.from === 'assethub') {
+      return 'subsidizePreSwap';
+    } else {
+      return 'moonbeamToPendulum'; // Via contract.subsidizePreSwap
+    }
+  }
+}
+
+async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
+  const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
+  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();
+  const { data: balance } = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
+
+  return Big(balance.free.toString()).gte(fundingAmountRaw);
+}
+
+async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonebamNode: API): Promise<boolean> {
+  const { data: balance } = await moonebamNode.api.query.system.account(moonbeamEphemeralAddress);
+  return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
+}
+
+export default new FundEphemeralPhaseHandler();

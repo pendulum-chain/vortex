@@ -14,6 +14,7 @@ import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../service
 import { SlackNotifier } from '../services/slack.service';
 import { ApiManager } from '../services/pendulum/apiManager';
 
+// DEPRECATED
 export const fundEphemeralAccountController = async (
   req: Request<unknown, unknown, PendulumEndpoints.FundEphemeralRequest>,
   res: Response<PendulumEndpoints.FundEphemeralResponse | PendulumEndpoints.FundEphemeralErrorResponse>,

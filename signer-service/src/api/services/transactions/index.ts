@@ -17,7 +17,7 @@ export function encodeEvmTransactionData(data: unknown) {
 }
 
 export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
-  console.log("Validating presigned transactions...", presignedTxs, presignedTxs.length);
+  console.log('Validating presigned transactions...', presignedTxs, presignedTxs.length);
   if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 5) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
