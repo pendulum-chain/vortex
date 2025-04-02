@@ -65,7 +65,7 @@ class RampRecoveryWorker {
 
           // Add error to the state
           const errorLogs = [
-            ...state.errorLogs,
+            ...(state.errorLogs || []),
             {
               phase: state.currentPhase,
               timestamp: new Date().toISOString(),

@@ -28,8 +28,21 @@ export interface AccountMeta {
   network: Networks;
 }
 
+export interface EvmTransactionData {
+  to: `0x${string}`;
+  data: `0x${string}`;
+  value: string;
+  gas: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+}
+
+export function isEvmTransactionData(data: string | EvmTransactionData): data is EvmTransactionData {
+  return typeof data === 'object' && data !== null && 'to' in data && 'data' in data;
+}
+
 export interface UnsignedTx {
-  tx_data: string;
+  tx_data: string | EvmTransactionData;
   phase: RampPhase;
   network: Networks;
   nonce: number;
@@ -37,7 +50,7 @@ export interface UnsignedTx {
 }
 
 export type PresignedTx = UnsignedTx & {
-  signature: string;
+  signature?: string;
 };
 
 export interface RampErrorLog {
@@ -64,7 +77,7 @@ export namespace RampEndpoints {
       destinationAddress?: string; // Destination address, used for onramp.
       paymentData?: PaymentData
       pixDestination?: string;
-      receiverTaxId?: string; 
+      receiverTaxId?: string;
       taxId?: string;
       [key: string]: unknown;
     };
@@ -77,10 +90,6 @@ export namespace RampEndpoints {
     rampId: string;
     presignedTxs: PresignedTx[];
     additionalData?: {
-      walletAddress?: string;
-      pixDestination?: string;
-      taxId?: string;
-      brlaEvmAddress?: string;
       [key: string]: unknown;
     };
   }

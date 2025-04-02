@@ -1,6 +1,6 @@
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
-import { EvmTokenDetails, Networks } from 'shared';
+import { EvmTokenDetails, EvmTransactionData, Networks } from 'shared';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { u8aToHex } from '@polkadot/util';
 import { createOfframpRouteParams, getRoute } from './route';
@@ -18,22 +18,8 @@ export interface OfframpSquidrouterParams {
 }
 
 export interface OfframpTransactionData {
-  approveData: {
-    to: `0x${string}`;
-    data: `0x${string}`;
-    value: string;
-    gas: string;
-    maxFeePerGas?: string;
-    maxPriorityFeePerGas?: string;
-  };
-  swapData: {
-    to: `0x${string}`;
-    data: `0x${string}`;
-    value: string;
-    gas: string;
-    maxFeePerGas?: string;
-    maxPriorityFeePerGas?: string;
-  };
+  approveData: EvmTransactionData;
+  swapData: EvmTransactionData;
   squidRouterReceiverId: string;
 }
 
