@@ -83,7 +83,6 @@ export class QuoteService extends BaseRampService {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
     });
-
     const quote = quoteTicket.dataValues;
 
     return {
