@@ -68,7 +68,7 @@ export class RampService extends BaseRampService {
           message: `Quote is ${quote.status}`,
         });
       }
-      
+
       if (new Date(quote.expiresAt) < new Date()) {
         // Update the quote status to expired
         await quoteModel.update({ status: 'expired' }, { transaction });

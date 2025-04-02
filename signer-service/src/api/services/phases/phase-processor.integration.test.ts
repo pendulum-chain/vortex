@@ -51,24 +51,20 @@ export async function createMoonbeamEphemeralSeed() {
   // DO NOT CHANGE THE DERIVATION PATH to be compatible with common ethereum libraries like viem.
   const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
-
   return { seed: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
-
-
-const testSigningAccounts = 
-  {
-    stellar: createStellarEphemeral(),
-    moonbeam: await createMoonbeamEphemeralSeed(),
-    pendulum: await createSubstrateEphemeral(),
-  };
+const testSigningAccounts = {
+  stellar: createStellarEphemeral(),
+  moonbeam: await createMoonbeamEphemeralSeed(),
+  pendulum: await createSubstrateEphemeral(),
+};
 
 // convert into AccountMeta
 const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).map((networkKey) => {
   const address = testSigningAccounts[networkKey as keyof typeof testSigningAccounts].address;
   const network = networkKey as Networks;
-  return {network, address}
+  return { network, address };
 });
 
 console.log('Test Signing Accounts:', testSigningAccountsMeta);
@@ -84,24 +80,22 @@ RampState.update = mock(async (data: any) => {
 }) as any;
 
 RampState.findByPk = mock(async (id: string) => {
-  return {dataValues: rampState };
+  return { dataValues: rampState };
 });
-
 
 RampState.create = mock(async (data: any) => {
   rampState = data;
-  return {dataValues: rampState };
+  return { dataValues: rampState };
 }) as any;
 
 QuoteTicket.findByPk = mock(async (id: string) => {
-  return {dataValues: quoteTicket};
+  return { dataValues: quoteTicket };
 });
 
 QuoteTicket.create = mock(async (data: any) => {
   quoteTicket = data;
-  return {dataValues: quoteTicket};
+  return { dataValues: quoteTicket };
 }) as any;
-
 
 // Mock the BrlaApiService
 const mockSubaccountData: SubaccountData = {
@@ -183,41 +177,44 @@ describe('PhaseProcessor Integration Test', () => {
     const rampService = new RampService();
     const quoteService = new QuoteService();
     const additionalData = {
-        walletAddress: EVM_TESTING_ADDRESS,
-        paymentData: {
-        amount: "0.05", // Relevant for test???
+      walletAddress: EVM_TESTING_ADDRESS,
+      paymentData: {
+        amount: '0.05', // Relevant for test???
         memoType: 'text',
-        memo: "1204asjfnaksf10982e4",
-        anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT
+        memo: '1204asjfnaksf10982e4',
+        anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
       },
     };
-    
-    const quoteTicket = await quoteService.createQuote({
-          rampType: 'off',
-          from: 'polygon',
-          to: 'sepa',
-          inputAmount: '0.1',
-          inputCurrency: EvmToken.USDC,
-          outputCurrency: FiatToken.EURC,
-      })
-    
-    // Of course it would be 
-    try{
-    const registeredRamp = await rampService.registerRamp({ signingAccounts: testSigningAccountsMeta, quoteId: quoteTicket.id, additionalData });
-    
-    // sign and send correspinding squid transactions on mainnet. Then proceed.
-    
-    const presignedTxs = await generatePresignedTxs(registeredRamp.unsignedTxs);
-    
-    const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
-    // await here, start ramp  does not wait. Poll for completion or failure.
-    await new Promise((resolve) => setTimeout(resolve, 1000000));
-    await processor.processRamp(registeredRamp.id);
-    }catch (error) {
-      console.error( error);
+    const quoteTicket = await quoteService.createQuote({
+      rampType: 'off',
+      from: 'polygon',
+      to: 'sepa',
+      inputAmount: '0.1',
+      inputCurrency: EvmToken.USDC,
+      outputCurrency: FiatToken.EURC,
+    });
+
+    // Of course it would be
+    try {
+      const registeredRamp = await rampService.registerRamp({
+        signingAccounts: testSigningAccountsMeta,
+        quoteId: quoteTicket.id,
+        additionalData,
+      });
+
+      // sign and send correspinding squid transactions on mainnet. Then proceed.
+
+      const presignedTxs = await generatePresignedTxs(registeredRamp.unsignedTxs);
+
+      const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+
+      // await here, start ramp  does not wait. Poll for completion or failure.
+      await new Promise((resolve) => setTimeout(resolve, 1000000));
+      await processor.processRamp(registeredRamp.id);
+    } catch (error) {
+      console.error(error);
     }
-    
 
     expect(rampState.currentPhase).toBe('complete');
 
