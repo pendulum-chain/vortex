@@ -1,6 +1,9 @@
 import { StrKey } from 'stellar-sdk';
 import { Buffer } from 'buffer';
-import { Keyring } from '@polkadot/api';
+import { ApiPromise, Keyring } from '@polkadot/api';
+import { Extrinsic } from '@polkadot/types/interfaces';
+import { SubmittableExtrinsic } from '@polkadot/api/types';
+import { ISubmittableResult } from '@polkadot/types/types';
 
 export function stellarHexToPublic(hexString: string) {
   return StrKey.encodeEd25519PublicKey(hexToBuffer(hexString));
@@ -28,4 +31,13 @@ export function getAddressForFormat(address: string, ss58Format: number | string
   const keyring = new Keyring();
   const encodedAddress = keyring.encodeAddress(address, ss58Format);
   return encodedAddress;
+}
+
+
+export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
+  return extrinsic.toHex();
+}
+
+export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPromise): SubmittableExtrinsic<"promise", ISubmittableResult> {
+  return api.tx(encodedExtrinsic);
 }

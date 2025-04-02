@@ -1,16 +1,6 @@
-import { Extrinsic } from '@pendulum-chain/api-solang';
-import { ApiPromise } from '@polkadot/api';
 import httpStatus from 'http-status';
 import { PresignedTx } from 'shared';
 import { APIError } from '../../errors/api-error';
-
-export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
-  return extrinsic.toHex();
-}
-
-export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPromise) {
-  return api.tx(encodedExtrinsic);
-}
 
 export function encodeEvmTransactionData(data: unknown) {
   // We don't need to stringify this and can just return the plain JSON

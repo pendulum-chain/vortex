@@ -1,14 +1,11 @@
-import { EventListener, RampPhase } from 'shared';
+import { EventListener, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
-
-import { submitXTokens } from '../../xcm/send';
-import { decodeSubmittableExtrinsic } from '../../transactions';
 
 import { ApiManager } from '../../pendulum/apiManager';
 import { StateMetadata } from '../meta-state-types';
 import Big from 'big.js';
-import { Keypair } from 'stellar-sdk';
+
 import { checkBalancePeriodically } from '../../stellar/checkBalance';
 import { createVaultService } from '../../stellar/vaultService';
 

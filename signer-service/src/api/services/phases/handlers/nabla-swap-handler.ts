@@ -1,11 +1,9 @@
 import { ExecuteMessageResult, readMessage, submitExtrinsic } from '@pendulum-chain/api-solang';
 import Big from 'big.js';
-import { NABLA_ROUTER, PendulumDetails, RampPhase } from 'shared';
+import { NABLA_ROUTER, PendulumDetails, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import { Abi } from '@polkadot/api-contract';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
-
-import { decodeSubmittableExtrinsic } from '../../transactions';
 
 import { ApiManager } from '../../pendulum/apiManager';
 import { routerAbi } from '../../../../contracts/Router';
