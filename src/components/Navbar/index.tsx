@@ -91,7 +91,7 @@ const Links = () => {
   const links = [
     { title: t('components.navbar.support'), href: 'https://pendulum.gitbook.io/vortex/support-and-contact' },
     { title: t('components.navbar.docs'), href: 'https://pendulum.gitbook.io/vortex' },
-    { title: t('components.navbar.faq'), href: 'https://www.vortexfinance.co/#faq' },
+    { title: t('components.navbar.faq'), href: 'https://app.vortexfinance.co/#faq' },
   ];
 
   return (
