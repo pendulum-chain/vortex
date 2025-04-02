@@ -1,22 +1,30 @@
 import { useSubmitOfframp } from './useSubmitOfframp';
 import { useOfframpEvents } from './useOfframpEvents';
-import { useRampActions, useRampExecutionInput, useRampState } from '../../stores/offrampStore';
+import { useRampExecutionInput, useRampSigningPhase, useRampStore } from '../../stores/offrampStore';
 import { useSep24Actions, useSep24InitialResponse, useSep24UrlInterval } from '../../stores/sep24Store';
 import { useAnchorWindowHandler } from './useSEP24/useAnchorWindowHandler';
 import { useVortexAccount } from '../useVortexAccount';
-import { RampExecutionInput } from '../../types/phases';
 import { RampService } from '../../services/api';
-import { AccountMeta, getAddressForFormat, Networks, PresignedTx, UnsignedTx } from 'shared';
-import { signUnsignedTransactions } from '../../services/api/pre-signature';
+import { AccountMeta, getAddressForFormat, Networks, UnsignedTx } from 'shared';
+import { signUnsignedTransactions, signUserTransaction } from '../../services/api/pre-signature';
 import { usePendulumNode } from '../../contexts/polkadotNode';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export const useMainProcess = () => {
-  const { resetRampState, setRampStarted, setRampState } = useRampActions();
-  const rampState = useRampState();
+  const {
+    rampRegistered,
+    rampState,
+    rampStarted,
+    actions: { resetRampState, setRampStarted, setRampRegistered, setRampState, setRampSigningPhase },
+  } = useRampStore();
   const executionInput = useRampExecutionInput();
   const { address, chainId } = useVortexAccount();
   const { apiComponents } = usePendulumNode();
+
+  // States to prevent double execution of hooks
+  const [preparingTransactions, setPreparingTransactions] = useState<boolean>(false);
+  const [startingRamp, setStartingRamp] = useState<boolean>(false);
+  const [userTransactionsSigned, setUserTransactionsSigned] = useState<boolean>(false);
 
   // Sep 24 states
   const firstSep24Response = useSep24InitialResponse();
@@ -41,10 +49,14 @@ export const useMainProcess = () => {
       throw new Error('Missing chainId');
     }
 
+    if (!apiComponents?.api) {
+      throw new Error('Missing apiComponents');
+    }
+
     const quoteId = executionInput.quote.id;
     const signingAccounts: AccountMeta[] = [
-      { address: executionInput.stellarEphemeral.address, network: Networks.Stellar },
-      { address: executionInput.pendulumEphemeral.address, network: Networks.Pendulum },
+      { address: executionInput.ephemerals.stellarEphemeral.address, network: Networks.Stellar },
+      { address: executionInput.ephemerals.pendulumEphemeral.address, network: Networks.Pendulum },
     ];
     const additionalData = {
       walletAddress: executionInput.userWalletAddress,
@@ -58,26 +70,33 @@ export const useMainProcess = () => {
 
     const signedTxs = await signUnsignedTransactions(
       rampProcess.unsignedTxs,
-      {
-        stellar: executionInput.stellarEphemeral,
-        pendulum: executionInput.pendulumEphemeral,
-      },
+      executionInput.ephemerals,
       apiComponents?.api,
     );
     console.log('signedTxs', signedTxs);
 
+    setRampRegistered(true);
     setRampState({
       quote: executionInput.quote,
       ramp: rampProcess,
       signedTransactions: [],
       requiredUserActionsCompleted: false,
+      userSigningMeta: {
+        squidRouterApproveHash: undefined,
+        squidRouterSwapHash: undefined,
+        assetHubToPendulumHash: undefined,
+      },
     });
   };
 
   useEffect(() => {
-    if (!rampState?.ramp || !apiComponents?.api) {
+    if (preparingTransactions || (rampRegistered && rampStarted)) {
       return;
     }
+    if (!rampState?.ramp || !apiComponents?.api || !executionInput || !chainId) {
+      return;
+    }
+    setPreparingTransactions(true);
 
     // Check if we need to sign the transactions
     if (rampState.signedTransactions.length === 0) {
@@ -92,11 +111,10 @@ export const useMainProcess = () => {
             return acc;
           }
 
-          // Check on substrate networks
-          console.log('tx.signer', tx.signer, 'address', address);
           const isUserTx =
             chainId < 0 && (tx.network === 'pendulum' || tx.network === 'assethub')
-              ? getAddressForFormat(tx.signer, 0) === getAddressForFormat(address, 0)
+              ? // Convert to same address format for comparison
+                getAddressForFormat(tx.signer, 0) === getAddressForFormat(address, 0)
               : tx.signer.toLowerCase() === address.toLowerCase();
 
           if (isUserTx) {
@@ -111,58 +129,102 @@ export const useMainProcess = () => {
       );
 
       // Sign all unsigned transactions with ephemerals
-      signUnsignedTransactions(
-        ephemeralTxs,
-        {
-          stellar: executionInput?.stellarEphemeral,
-          pendulum: executionInput?.pendulumEphemeral,
-          evm: executionInput?.moonbeamEphemeral,
-        },
-        apiComponents?.api,
-      ).then((signedTransactions) => {
-        console.log('Assigning signed transactions to ramp state');
-        setRampState({
-          ...rampState,
-          signedTransactions,
-        });
-
-        // Kick off user signing process
-        // TODO implement this
-        setTimeout(() => {
+      signUnsignedTransactions(ephemeralTxs, executionInput.ephemerals, apiComponents?.api).then(
+        (signedTransactions) => {
+          console.log('Assigning signed transactions to ramp state');
           setRampState({
             ...rampState,
-            requiredUserActionsCompleted: true,
+            signedTransactions,
           });
-        }, 1000);
-      });
+        },
+      );
+
+      // Kick off user signing process
+      const requestSignaturesFromUser = async () => {
+        let squidRouterApproveHash: string | undefined = undefined;
+        let squidRouterSwapHash: string | undefined = undefined;
+        let assetHubToPendulumHash: string | undefined = undefined;
+
+        // Sign user transactions by nonce
+        const sortedTxs = userTxs.sort((a, b) => a.nonce - b.nonce);
+
+        console.log('sortedTxs', sortedTxs);
+
+        for (const tx of sortedTxs) {
+          if (tx.phase === 'squidrouterApprove') {
+            setRampSigningPhase('started');
+            squidRouterApproveHash = await signUserTransaction(tx);
+            setRampSigningPhase('approved');
+          } else if (tx.phase === 'squidrouterSwap') {
+            squidRouterSwapHash = await signUserTransaction(tx);
+            setRampSigningPhase('finished');
+          } else if (tx.phase === 'assethubToPendulum') {
+            setRampSigningPhase('started');
+            assetHubToPendulumHash = await signUserTransaction(tx);
+            setRampSigningPhase('finished');
+          } else {
+            throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
+          }
+        }
+
+        console.log("squidRouterApproveHash", squidRouterApproveHash);
+        console.log("squidRouterSwapHash", squidRouterSwapHash);
+        console.log("assetHubToPendulumHash", assetHubToPendulumHash);
+
+        setRampState({
+          ...rampState,
+          userSigningMeta: {
+            squidRouterApproveHash,
+            squidRouterSwapHash,
+            assetHubToPendulumHash,
+          },
+        });
+      };
+      requestSignaturesFromUser()
+        .then(() => {
+          console.log('Done requesting signatures from user');
+          setUserTransactionsSigned(true);
+        })
+        .catch((error) => console.error('Error requesting signatures from user', error))
+        .finally(() => setPreparingTransactions(false));
     }
   }, [
     address,
-    executionInput?.moonbeamEphemeral,
-    executionInput?.pendulumEphemeral,
-    executionInput?.stellarEphemeral,
+    apiComponents?.api,
+    chainId,
+    executionInput,
+    preparingTransactions,
+    rampRegistered,
+    rampStarted,
     rampState,
+    setRampSigningPhase,
     setRampState,
   ]);
 
   useEffect(() => {
     // Check if all prerequisites are met to start the ramp
     if (
-      !rampState ||
-      !rampState.ramp ||
-      rampState.signedTransactions.length === 0 ||
-      !rampState.requiredUserActionsCompleted
+      !userTransactionsSigned ||
+      startingRamp ||
+      rampStarted ||
+      !rampState?.ramp ||
+      rampState.signedTransactions.length === 0
     ) {
       return;
     }
+    setStartingRamp(true);
 
     // Call into the `startRamp` endpoint
-    RampService.startRamp(rampState.ramp.id, rampState.signedTransactions).then((response) => {
-      console.log('startRampResponse', response);
-
-      // TODO set something on the state to indicate that the ramp has started
-    });
-  }, [rampState]);
+    RampService.startRamp(rampState.ramp.id, rampState.signedTransactions, rampState.userSigningMeta)
+      .then((response) => {
+        console.log('startRampResponse', response);
+        setRampStarted(true);
+      })
+      .catch((err) => {
+        console.error('Error starting ramp:', err);
+      })
+      .finally(() => setStartingRamp(false));
+  }, [rampStarted, rampState, setRampStarted, startingRamp, userTransactionsSigned]);
 
   return {
     handleOnSubmit: useSubmitOfframp(),

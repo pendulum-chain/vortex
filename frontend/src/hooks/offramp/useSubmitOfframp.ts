@@ -49,7 +49,7 @@ export const useSubmitOfframp = () => {
       }
 
       (async () => {
-        setRampStarted(true);
+        setRampInitiating(true);
         try {
           await setSelectedNetwork(selectedNetwork);
 

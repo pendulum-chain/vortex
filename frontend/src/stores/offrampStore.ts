@@ -7,6 +7,7 @@ interface RampStore extends RampZustand {
 
 export const useRampStore = create<RampStore>()((set) => ({
   rampStarted: false,
+  rampRegistered: false,
   rampInitiating: false,
   rampKycStarted: false,
   rampState: undefined,
@@ -17,6 +18,7 @@ export const useRampStore = create<RampStore>()((set) => ({
 
   actions: {
     setRampStarted: (started) => set({ rampStarted: started }),
+    setRampRegistered: (registered) => set({ rampRegistered: registered }),
     setRampInitiating: (initiating) => set({ rampInitiating: initiating }),
     setRampState: (state) => set({ rampState: state }),
     setRampExecutionInput: (executionInput) => set({ rampExecutionInput: executionInput }),
@@ -34,6 +36,7 @@ export const useRampStore = create<RampStore>()((set) => ({
       // clearOfframpingState();
       set({
         rampStarted: false,
+        rampRegistered: false,
         rampInitiating: false,
         rampKycStarted: false,
         rampState: undefined,
@@ -49,6 +52,7 @@ export const useRampStore = create<RampStore>()((set) => ({
 export const useRampSigningPhase = () => useRampStore((state) => state.rampSigningPhase);
 export const useRampState = () => useRampStore((state) => state.rampState);
 export const useRampStarted = () => useRampStore((state) => state.rampStarted);
+export const useRampRegistered = () => useRampStore((state) => state.rampRegistered);
 export const useRampInitiating = () => useRampStore((state) => state.rampInitiating);
 export const useRampExecutionInput = () => useRampStore((state) => state.rampExecutionInput);
 export const useRampKycStarted = () => useRampStore((state) => state.rampKycStarted);

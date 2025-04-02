@@ -50,7 +50,7 @@ export interface UnsignedTx {
 }
 
 export type PresignedTx = UnsignedTx & {
-  signature?: string;
+  // TODO Any additional types needed?
 };
 
 export interface RampErrorLog {
@@ -90,6 +90,9 @@ export namespace RampEndpoints {
     rampId: string;
     presignedTxs: PresignedTx[];
     additionalData?: {
+      squidRouterApproveHash: string | undefined;
+      squidRouterSwapHash: string | undefined;
+      assetHubToPendulumHash: string | undefined;
       [key: string]: unknown;
     };
   }

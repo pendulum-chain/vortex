@@ -31,12 +31,13 @@ import { Keyring } from '@polkadot/api';
 import { Transaction, Keypair, Networks as StellarNetworks, Horizon, TransactionBuilder } from 'stellar-sdk';
 import { ApiPromise } from '@polkadot/api';
 import { moonbeam } from 'viem/chains';
-import { HORIZON_URL, isEvmTransactionData, PresignedTx, UnsignedTx } from 'shared';
+import { getNetworkId, HORIZON_URL, isEvmTransactionData, PresignedTx, UnsignedTx } from 'shared';
 
 import { EphemeralAccount } from '../ephemerals';
 import { Extrinsic } from '@pendulum-chain/api-solang';
 import { sendTransaction, signMessage, writeContract } from '@wagmi/core';
 import { wagmiConfig } from '../../wagmiConfig';
+import { waitForTransactionConfirmation } from '../../helpers/safe-wallet/waitForTransactionConfirmation';
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
 
@@ -51,7 +52,11 @@ export const horizonServer = new Horizon.Server(HORIZON_URL);
  */
 export async function signUnsignedTransactions(
   unsignedTxs: UnsignedTx[],
-  ephemerals: { stellar?: EphemeralAccount; pendulum?: EphemeralAccount; evm?: EphemeralAccount },
+  ephemerals: {
+    stellarEphemeral?: EphemeralAccount;
+    pendulumEphemeral?: EphemeralAccount;
+    evmEphemeral?: EphemeralAccount;
+  },
   pendulumApi: ApiPromise,
 ): Promise<PresignedTx[]> {
   const signedTxs: PresignedTx[] = [];
@@ -63,12 +68,12 @@ export async function signUnsignedTransactions(
 
     // Process Stellar transactions first in sequence order
     if (stellarTxs.length > 0) {
-      if (!ephemerals.stellar) {
+      if (!ephemerals.stellarEphemeral) {
         throw new Error('Missing Stellar ephemeral account');
       }
 
       const networkPassphrase = StellarNetworks.PUBLIC;
-      const keypair = Keypair.fromSecret(ephemerals.stellar.secret);
+      const keypair = Keypair.fromSecret(ephemerals.stellarEphemeral.secret);
 
       for (const tx of stellarTxs) {
         if (isEvmTransactionData(tx.tx_data)) {
@@ -85,7 +90,7 @@ export async function signUnsignedTransactions(
     }
 
     for (const tx of pendulumTxs) {
-      if (!ephemerals.pendulum) {
+      if (!ephemerals.pendulumEphemeral) {
         throw new Error('Missing Pendulum ephemeral account');
       }
 
@@ -98,7 +103,7 @@ export async function signUnsignedTransactions(
       }
 
       const keyring = new Keyring({ type: 'sr25519' });
-      const keypair = keyring.addFromUri(ephemerals.pendulum.secret);
+      const keypair = keyring.addFromUri(ephemerals.pendulumEphemeral.secret);
 
       const extrinsic = decodeSubmittableExtrinsic(tx.tx_data, pendulumApi);
 
@@ -109,14 +114,14 @@ export async function signUnsignedTransactions(
     }
 
     for (const tx of moonbeamTxs) {
-      if (!ephemerals.evm) {
+      if (!ephemerals.evmEphemeral) {
         throw new Error('Missing EVM ephemeral account');
       }
       if (!isEvmTransactionData(tx.tx_data)) {
         throw new Error('Invalid EVM transaction data format');
       }
 
-      const evmAccount = privateKeyToAccount(`0x${ephemerals.evm.secret.replace(/^0x/, '')}`);
+      const evmAccount = privateKeyToAccount(`0x${ephemerals.evmEphemeral.secret.replace(/^0x/, '')}`);
 
       const walletClient = createWalletClient({
         account: evmAccount,
@@ -140,19 +145,31 @@ export async function signUnsignedTransactions(
 }
 
 // Sign the transaction with the user's connected wallet
-async function signUserTransaction(unsignedTx: UnsignedTx) {
+export async function signUserTransaction(unsignedTx: UnsignedTx): Promise<string> {
   const { network, tx_data } = unsignedTx;
 
   if (isEvmTransactionData(tx_data)) {
-    const signedData = await signMessage(wagmiConfig, { message: { raw: tx_data.data } });
+    const chainId = getNetworkId(network);
 
-    await sendTransaction(wagmiConfig, {
+    console.log('About to send transaction for phase', unsignedTx.phase);
+    const hash = await sendTransaction(wagmiConfig, {
       to: tx_data.to,
-      data: signedData,
+      data: tx_data.data,
       value: BigInt(tx_data.value),
-      maxFeePerGas: tx_data.maxFeePerGas ? BigInt(tx_data.maxFeePerGas) : undefined,
-      maxPriorityFeePerGas: tx_data.maxPriorityFeePerGas ? BigInt(tx_data.maxPriorityFeePerGas) : undefined,
+      // TODO seems like setting the gas limit to the received value is not correct. We can leave it out and let the
+      // network estimate it.
+      // maxFeePerGas: tx_data.maxFeePerGas ? BigInt(tx_data.maxFeePerGas) : undefined,
+      // maxPriorityFeePerGas: tx_data.maxPriorityFeePerGas ? BigInt(tx_data.maxPriorityFeePerGas) : undefined,
     });
+    console.log('Transaction sent', hash);
+
+    const confirmedHash = await waitForTransactionConfirmation(hash, chainId);
+    console.log('Transaction confirmed', confirmedHash);
+    return confirmedHash;
+  } else {
+    // Must be a Substrate transaction
+    // TODO implement this
+    return '';
   }
 }
 

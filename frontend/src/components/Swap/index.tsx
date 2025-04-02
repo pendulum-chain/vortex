@@ -19,6 +19,7 @@ import { BenefitsList } from '../BenefitsList';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useEventsContext } from '../../contexts/events';
+import { usePendulumNode } from '../../contexts/polkadotNode';
 
 enum SwapButtonState {
   CONFIRMING = 'Confirming',
@@ -67,6 +68,7 @@ export const Swap = ({
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
+  const { apiComponents } = usePendulumNode();
 
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getAnyFiatTokenDetails(to);
@@ -156,7 +158,8 @@ export const Swap = ({
     return SwapButtonState.CONFIRM;
   };
 
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
+  const isSubmitButtonDisabled =
+    Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || !apiComponents?.api;
 
   const isSubmitButtonPending = isOfframpSummaryDialogVisible;
 

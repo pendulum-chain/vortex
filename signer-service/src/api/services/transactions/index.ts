@@ -13,7 +13,8 @@ export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPro
 }
 
 export function encodeEvmTransactionData(data: unknown) {
-  return JSON.stringify(data);
+  // We don't need to stringify this and can just return the plain JSON
+  return data;
 }
 
 export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {

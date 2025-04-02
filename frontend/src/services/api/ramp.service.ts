@@ -103,33 +103,4 @@ export class RampService {
 
     return poll();
   }
-
-  /**
-   * Create a complete ramping flow from quote to completion
-   * @param quoteId The quote ID
-   * @param signingAccounts The signing accounts
-   * @param presignedTxsProvider Function that returns presigned transactions
-   * @param additionalData Additional data
-   * @param onStatusUpdate Callback function to handle status updates
-   * @returns The final status of the ramp process
-   */
-  static async createRampFlow(
-    quoteId: string,
-    signingAccounts: AccountMeta[],
-    presignedTxsProvider: (rampId: string) => Promise<PresignedTx[]>,
-    additionalData?: RampEndpoints.RegisterRampRequest['additionalData'],
-    onStatusUpdate?: (status: RampEndpoints.RampProcess) => void,
-  ): Promise<RampEndpoints.RampProcess> {
-    // Step 1: Register the ramp process
-    const registeredRamp = await this.registerRamp(quoteId, signingAccounts, additionalData);
-
-    // Step 2: Generate presigned transactions
-    const presignedTxs = await presignedTxsProvider(registeredRamp.id);
-
-    // Step 3: Start the ramp process
-    const startedRamp = await this.startRamp(registeredRamp.id, presignedTxs, additionalData);
-
-    // Step 4: Poll for status updates until completion
-    return this.pollRampStatus(startedRamp.id, onStatusUpdate);
-  }
 }

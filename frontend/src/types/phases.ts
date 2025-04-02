@@ -10,6 +10,7 @@ export interface RampState {
   // This is used to track if the user has completed all required actions. For offramps, it's about signing and submitting
   // transactions. For onramps, it's about acknowledging that the payment has been made.
   requiredUserActionsCompleted: boolean;
+  userSigningMeta: RampEndpoints.StartRampRequest['additionalData']
 }
 
 export interface RampExecutionInput {
@@ -17,9 +18,11 @@ export interface RampExecutionInput {
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   userWalletAddress: string;
-  stellarEphemeral: EphemeralAccount;
-  pendulumEphemeral: EphemeralAccount;
-  moonbeamEphemeral: EphemeralAccount;
+  ephemerals: {
+    stellarEphemeral: EphemeralAccount;
+    pendulumEphemeral: EphemeralAccount;
+    evmEphemeral: EphemeralAccount;
+  };
   taxId?: string;
   pixId?: string;
   brlaEvmAddress?: string;
@@ -29,6 +32,7 @@ export interface RampExecutionInput {
 
 export interface RampZustand {
   rampStarted: boolean;
+  rampRegistered: boolean;
   rampInitiating: boolean;
   rampState: RampState | undefined;
   rampSigningPhase: RampSigningPhase | undefined;
@@ -40,6 +44,7 @@ export interface RampZustand {
 
 export interface RampActions {
   setRampStarted: (started: boolean) => void;
+  setRampRegistered: (registered: boolean) => void;
   setRampInitiating: (initiating: boolean) => void;
   setRampState: (state: RampState | undefined) => void;
   setRampSigningPhase: (phase: RampSigningPhase | undefined) => void;

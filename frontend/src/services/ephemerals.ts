@@ -7,6 +7,15 @@ export interface EphemeralAccount {
   address: string;
 }
 
+export function createMoonbeamEphemeral(): EphemeralAccount {
+  const seedPhrase = mnemonicGenerate();
+
+  const keyring = new Keyring({ type: 'sr25519' });
+  const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
+
+  return { secret: seedPhrase, address: ephemeralAccountKeypair.address };
+}
+
 export function createPendulumEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();
 

@@ -74,7 +74,7 @@ import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
 import { QuoteService } from '../../services/api';
-import { createPendulumEphemeral, createStellarEphemeral } from '../../services/ephemerals';
+import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from '../../services/ephemerals';
 
 const getTokenDefinitionsForNetwork = (type: 'from' | 'to', selectedNetwork: Networks): TokenDefinition[] => {
   if (type === 'from') {
@@ -229,7 +229,7 @@ export const SwapPage = () => {
     } finally {
       setQuoteLoading(false);
     }
-  }, [address, fromAmount, trackEvent, form]);
+  }, [fromAmount, address, selectedNetwork, to, from, form, trackEvent]);
 
   // Fetch quote when amount changes
   useEffect(() => {
@@ -366,13 +366,8 @@ export const SwapPage = () => {
       return;
     }
 
-    if (!executionInput) {
-      setInitializeFailed('Missing execution input');
-      return;
-    }
-
-    to === 'brl' ? handleBrlaOfframpStart(executionInput) : handleOnAnchorWindowOpen();
-  }, [address, to, handleBrlaOfframpStart, handleOnAnchorWindowOpen, setInitializeFailed, executionInput]);
+    to === 'brl' ? handleBrlaOfframpStart() : handleOnAnchorWindowOpen();
+  }, [address, to, handleBrlaOfframpStart, handleOnAnchorWindowOpen, setInitializeFailed]);
 
   // Show success page if ramp process is complete
   if (rampState?.ramp?.currentPhase === 'complete') {
@@ -413,16 +408,18 @@ export const SwapPage = () => {
       return;
     }
 
-    setRampInitiating(true);
-
     try {
       // Create execution input
       const pendulumEphemeral = createPendulumEphemeral();
       const stellarEphemeral = createStellarEphemeral();
+      const moonbeamEphemeral = createMoonbeamEphemeral();
 
       const executionInput: RampExecutionInput = {
-        pendulumEphemeral,
-        stellarEphemeral,
+        ephemerals: {
+          pendulumEphemeral,
+          stellarEphemeral,
+          moonbeamEphemeral,
+        },
         quote,
         onChainToken: from,
         fiatToken: to,
