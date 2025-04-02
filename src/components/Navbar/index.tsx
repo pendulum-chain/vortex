@@ -89,9 +89,9 @@ const Links = () => {
   const { t } = useTranslation();
 
   const links = [
-    { title: t('components.navbar.sellCrypto'), href: '/' },
-    { title: t('components.navbar.howItWorks'), href: 'https://www.vortexfinance.co/#lowest-code' },
-    { title: t('components.navbar.community'), href: 'https://www.vortexfinance.co/#call-to-action' },
+    { title: t('components.navbar.support'), href: 'https://pendulum.gitbook.io/vortex/support-and-contact' },
+    { title: t('components.navbar.docs'), href: 'https://pendulum.gitbook.io/vortex' },
+    { title: t('components.navbar.faq'), href: 'https://www.vortexfinance.co/#faq' },
   ];
 
   return (
