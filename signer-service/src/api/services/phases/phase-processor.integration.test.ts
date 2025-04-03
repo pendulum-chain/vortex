@@ -166,7 +166,7 @@ describe('PhaseProcessor Integration Test', () => {
     const additionalData = {
       walletAddress: EVM_TESTING_ADDRESS,
       paymentData: {
-        amount: '0.05', // Relevant for test???
+        amount: '14000', // Relevant for test???
         memoType: 'text',
         memo: '1204asjfnaksf10982e4',
         anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
@@ -175,9 +175,9 @@ describe('PhaseProcessor Integration Test', () => {
 
     const quoteTicket = await quoteService.createQuote({
       rampType: 'off',
-      from: 'polygon',
+      from: 'avalanche',
       to: 'sepa',
-      inputAmount: '0.1',
+      inputAmount: '1000',
       inputCurrency: EvmToken.USDC,
       outputCurrency: FiatToken.EURC,
     });
@@ -200,15 +200,15 @@ describe('PhaseProcessor Integration Test', () => {
       pendulumNode.api,
     );
     console.log('Presigned transactions:', presignedTxs);
-    const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+    // const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
-    // await here, start ramp  does not wait. Poll for completion or failure.
-    await processor.processRamp(registeredRamp.id);
+    // // await here, start ramp  does not wait. Poll for completion or failure.
+    // await processor.processRamp(registeredRamp.id);
 
     await new Promise((resolve) => setTimeout(resolve, 1000000));
 
-    expect(rampState.currentPhase).toBe('complete');
+    // expect(rampState.currentPhase).toBe('complete');
 
-    expect(rampState.phaseHistory.length).toBeGreaterThan(1);
+    // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
   });
 });

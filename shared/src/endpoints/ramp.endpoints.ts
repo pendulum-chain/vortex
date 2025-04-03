@@ -2,6 +2,7 @@ import {DestinationType, Networks} from '../index';
 
 export type RampPhase =
   | 'initial'
+  | 'stellarCreateAccount'
   | 'squidrouterApprove'
   | 'squidrouterSwap'
   | 'fundEphemeral'
@@ -47,6 +48,7 @@ export interface UnsignedTx {
   network: Networks;
   nonce: number;
   signer: string;
+  meta: any;
 }
 
 export type PresignedTx = UnsignedTx & {

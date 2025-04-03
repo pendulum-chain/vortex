@@ -81,7 +81,7 @@ RampState.init(
       field: 'unsigned_txs',
       validate: {
         isValidTxArray(value: UnsignedTx[]) {
-          if (!Array.isArray(value) || value.length < 1 || value.length > 8) {
+          if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
             throw new Error('unsignedTxs must be an array with 1-8 elements');
           }
         },
@@ -95,7 +95,7 @@ RampState.init(
         isValidTxArray(value: PresignedTx[] | null) {
           if (value === null) return;
 
-          if (!Array.isArray(value) || value.length < 1 || value.length > 8) {
+          if (!Array.isArray(value) || value.length < 1 || value.length > 10) {
             throw new Error('presignedTxs must be an array with 1-8 elements');
           }
 

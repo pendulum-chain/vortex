@@ -56,7 +56,7 @@ export async function signUnsignedTransactions(
   try {
     const stellarTxs = unsignedTxs
       .filter((tx) => tx.network === "stellar")
-      .sort((a, b) => a.nonce - b.nonce);
+      .sort((a, b) => a.meta.ephemeralMinSequence - b.meta.ephemeralMinSequence);
     const pendulumTxs = unsignedTxs.filter((tx) => tx.network === "pendulum");
     const moonbeamTxs = unsignedTxs.filter((tx) => tx.network === "moonbeam");
 
@@ -73,9 +73,8 @@ export async function signUnsignedTransactions(
         if (isEvmTransactionData(tx.tx_data)) {
           throw new Error("Invalid Stellar transaction data format");
         }
-        const transaction = new Transaction(tx.tx_data, networkPassphrase);
 
-        // TODO check. Signs in place? increases sequence number of keypair object?
+        const transaction = new Transaction(tx.tx_data, networkPassphrase)
         transaction.sign(keypair);
 
         const signedTxData = transaction
