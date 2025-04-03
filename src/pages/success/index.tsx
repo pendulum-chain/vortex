@@ -6,6 +6,7 @@ import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
 import { Rating } from '../../components/Rating';
 import { OutputTokenType, OutputTokenTypes } from '../../constants/tokenConfig';
+import { useOfframp } from '../swap/hooks/useOfframp';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">
@@ -13,13 +14,9 @@ const Checkmark = () => (
   </div>
 );
 
-interface SuccessPageProps {
-  finishOfframping: () => void;
-  transactionId: string | undefined;
-  toToken: OutputTokenType;
-}
+export const SuccessPage = () => {
+  const { finishOfframping, transactionId, to } = useOfframp();
 
-export const SuccessPage = ({ finishOfframping, transactionId, toToken }: SuccessPageProps) => {
   const { t } = useTranslation();
 
   const ARRIVAL_TEXT_BY_TOKEN: Record<OutputTokenType, string> = {
@@ -28,7 +25,7 @@ export const SuccessPage = ({ finishOfframping, transactionId, toToken }: Succes
     [OutputTokenTypes.BRL]: t('pages.success.arrivalText.BRL'),
   };
 
-  const arrivalText = ARRIVAL_TEXT_BY_TOKEN[toToken] || t('pages.success.arrivalText.default');
+  const arrivalText = ARRIVAL_TEXT_BY_TOKEN[to as OutputTokenType] || t('pages.success.arrivalText.default');
 
   const main = (
     <main>
