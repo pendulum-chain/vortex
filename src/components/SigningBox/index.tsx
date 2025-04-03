@@ -8,6 +8,7 @@ import { isNetworkEVM } from '../../helpers/networks';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 import { useTranslation } from 'react-i18next';
+import { useOfframpSigningPhase } from '../../stores/offrampStore';
 
 type ProgressConfig = {
   [key in OfframpSigningPhase]: number;
@@ -37,10 +38,6 @@ const getSignatureDetails = (step: OfframpSigningPhase, isEVM: boolean) => {
   return { max: 2, current: 2 };
 };
 
-interface SigningBoxProps {
-  step?: OfframpSigningPhase;
-}
-
 const isValidStep = (step: OfframpSigningPhase | undefined, isEVM: boolean): step is OfframpSigningPhase => {
   if (!step) return false;
   if (step === 'finished' || step === 'login') return true;
@@ -48,7 +45,8 @@ const isValidStep = (step: OfframpSigningPhase | undefined, isEVM: boolean): ste
   return true;
 };
 
-export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
+export const SigningBox = () => {
+  const step = useOfframpSigningPhase();
   const { t } = useTranslation();
   const { selectedNetwork } = useNetwork();
   const isEVM = isNetworkEVM(selectedNetwork);
