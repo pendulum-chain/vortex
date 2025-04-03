@@ -48,7 +48,7 @@ export interface UnsignedTx {
   network: Networks;
   nonce: number;
   signer: string;
-  meta: any;
+  meta?: any;
 }
 
 export type PresignedTx = UnsignedTx & {

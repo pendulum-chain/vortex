@@ -1,14 +1,15 @@
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from 'stellar-sdk';
 import { FUNDING_SECRET, STELLAR_BASE_FEE } from '../../../../constants/constants';
 import { StellarTokenDetails, PaymentData, HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from 'shared';
-import { loadAccountWithRetry } from '../../stellar/loadAccount';
+import { HorizonServer } from 'stellar-sdk/lib/horizon/server';
+import Big from 'big.js';
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const MAX_TIME = Date.now() + 1000 * 60 * 10;
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
-export const ARBITRARY_STARTING_SEQUENCE_NUMBER = 1596191618056193;
+
 export async function buildPaymentAndMergeTx(
   ephemeralAccountId: string,
   paymentData: PaymentData,
@@ -16,7 +17,7 @@ export async function buildPaymentAndMergeTx(
 ): Promise<{
   paymentTransaction: string;
   mergeAccountTransaction: string;
-  fundingAccountSequence: string;
+  expectedSequenceNumber: string;
   createAccountTransaction: string;
 }> {
   const baseFee = STELLAR_BASE_FEE;
@@ -26,22 +27,17 @@ export async function buildPaymentAndMergeTx(
     console.log('Secret not defined');
     throw new Error('Stellar funding secret not defined');
   }
-  // const ephemeralAccount = await loadAccountWithRetry(ephemeralAccountId);
-  // if (!ephemeralAccount) {
-  //   console.log('Ephemeral account not found');
-  //   throw new Error(`Ephemeral account ${ephemeralAccountId} must be created at this stage`);
-  // }
-  //const startingSequenceNumber = ephemeralAccount.sequenceNumber();
-  const ephemeralAccount = new Account(ephemeralAccountId, '0');
+
+  const expectedSequenceNumber = await getFutureShiftedLedgerSequence(horizonServer, 32);
+
+  const ephemeralAccount = new Account(ephemeralAccountId, String(expectedSequenceNumber));
 
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
   const { amount, memo, memoType, anchorTargetAccount } = paymentData;
-
   const transactionMemo = memoType === 'text' ? Memo.text(memo) : Memo.hash(Buffer.from(memo, 'base64'));
 
   const fundingAccount = await horizonServer.loadAccount(fundingAccountKeypair.publicKey());
-  const fundingAccountSequence = fundingAccount.sequenceNumber();
 
   const createAccountTransaction = new TransactionBuilder(fundingAccount, {
     fee: baseFee,
@@ -92,9 +88,10 @@ export async function buildPaymentAndMergeTx(
     )
     .addMemo(transactionMemo)
     .setTimebounds(0, MAX_TIME)
-    .setMinAccountSequence(String(ARBITRARY_STARTING_SEQUENCE_NUMBER))
+    .setMinAccountSequence(String(0))
     .build();
 
+  console.log('merge sequence');
   const mergeAccountTransaction = new TransactionBuilder(ephemeralAccount, {
     fee: STELLAR_BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -114,7 +111,7 @@ export async function buildPaymentAndMergeTx(
       }),
     )
     .setTimebounds(0, MAX_TIME)
-    .setMinAccountSequence(String(ARBITRARY_STARTING_SEQUENCE_NUMBER + 1))
+    .setMinAccountSequence(String(1n))
     .build();
 
   paymentTransaction.sign(fundingAccountKeypair);
@@ -124,6 +121,27 @@ export async function buildPaymentAndMergeTx(
     createAccountTransaction: createAccountTransaction.toEnvelope().toXDR().toString('base64'),
     paymentTransaction: paymentTransaction.toEnvelope().toXDR().toString('base64'),
     mergeAccountTransaction: mergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
-    fundingAccountSequence,
+    expectedSequenceNumber: String(expectedSequenceNumber),
   };
+}
+
+async function getFutureShiftedLedgerSequence(horizonServer: HorizonServer, shiftAmount = 32) {
+  try {
+    const latestLedger = await horizonServer.ledgers().order('desc').limit(1).call();
+
+    const currentLedgerSequence = latestLedger.records[0].sequence;
+
+    const ledgersIn5Minutes = Math.ceil(300 / 7);
+
+    const futureLedgerSequence = currentLedgerSequence + ledgersIn5Minutes;
+
+    const bigFutureLedger = new Big(futureLedgerSequence);
+    const bigShift = new Big(2).pow(shiftAmount);
+    const shiftedSequence = bigFutureLedger.times(bigShift).toFixed();
+
+    return shiftedSequence;
+  } catch (error) {
+    console.error('Error fetching and calculating ledger sequence:', error);
+    throw error;
+  }
 }

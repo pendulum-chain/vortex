@@ -24,7 +24,7 @@ import { encodeEvmTransactionData } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
-import { ARBITRARY_STARTING_SEQUENCE_NUMBER, buildPaymentAndMergeTx } from './stellar/offrampTransaction';
+import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
@@ -278,7 +278,7 @@ export async function prepareOfframpTransactions({
         throw new Error('Stellar payment data must be provided for offramp');
       }
       console.log('build and merge ...');
-      const { paymentTransaction, mergeAccountTransaction, createAccountTransaction, fundingAccountSequence } =
+      const { paymentTransaction, mergeAccountTransaction, createAccountTransaction, expectedSequenceNumber } =
         await buildPaymentAndMergeTx(account.address, stellarPaymentData, outputTokenDetails);
       console.log('build and merge done');
       unsignedTxs.push({
@@ -287,9 +287,6 @@ export async function prepareOfframpTransactions({
         network: account.network,
         nonce: 0,
         signer: account.address,
-        meta: {
-          fundingAccountSequence,
-        },
       });
 
       unsignedTxs.push({
@@ -299,7 +296,7 @@ export async function prepareOfframpTransactions({
         nonce: 1,
         signer: account.address,
         meta: {
-          ephemeralMinSequence: ARBITRARY_STARTING_SEQUENCE_NUMBER,
+          expectedSequenceNumber,
         },
       });
 
@@ -310,7 +307,7 @@ export async function prepareOfframpTransactions({
         nonce: 2,
         signer: account.address,
         meta: {
-          ephemeralMinSequence: ARBITRARY_STARTING_SEQUENCE_NUMBER + 1,
+          expectedSequenceNumber,
         },
       });
     }
