@@ -12,7 +12,7 @@ import {
   useSwapToTokenDetails,
   useSwapModalActions,
   useSwapActions,
-} from '../../pages/swap/swapStore';
+} from '../../stores/offrampStoreSecond';
 
 export const useSwapForm = () => {
   const schema = useSchema();

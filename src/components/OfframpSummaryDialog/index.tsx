@@ -1,5 +1,5 @@
 import { ArrowDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { useState, FC } from 'react';
+import { useState } from 'react';
 import Big from 'big.js';
 
 import {
@@ -19,9 +19,15 @@ import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
-import { OfframpExecutionInput } from '../../types/offramp';
-import { useOfframpActions, useOfframpState } from '../../stores/offrampStore';
+import {
+  useOfframpActions,
+  useOfframpExecutionInput,
+  useOfframpState,
+  useOfframpSummaryVisible,
+} from '../../stores/offrampStore';
 import { useTranslation } from 'react-i18next';
+import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
+import { useOfframp } from '../../hooks/offramp/form/useOfframp';
 
 interface AssetDisplayProps {
   amount: string;
@@ -92,26 +98,21 @@ const FeeDetails = ({
   );
 };
 
-interface OfframpSummaryDialogProps {
-  anchorUrl?: string;
-  executionInput?: OfframpExecutionInput;
-  visible: boolean;
-  onSubmit: () => void;
-  onClose: () => void;
-}
-
-export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
-  anchorUrl,
-  executionInput,
-  visible,
-  onClose,
-  onSubmit,
-}) => {
-  const [isSubmitted, setIsSubmitted] = useState(false);
+export const OfframpSummaryDialog = () => {
+  // state
+  const executionInput = useOfframpExecutionInput();
+  const anchorUrl = useSep24StoreCachedAnchorUrl();
+  const visible = useOfframpSummaryVisible();
+  const { setOfframpExecutionInput, setOfframpInitiating, setOfframpStarted, setOfframpSummaryVisible } =
+    useOfframpActions();
   const { selectedNetwork } = useNetwork();
-  const { setOfframpExecutionInput, setOfframpInitiating, setOfframpStarted } = useOfframpActions();
   const offrampState = useOfframpState();
+
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const { t } = useTranslation();
+
+  //@TODO:
+  const { handleOfframpSubmit } = useOfframp();
 
   // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
   // component will not render if the executionInput is undefined.
@@ -161,7 +162,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
       onClick={() => {
         setIsSubmitted(true);
-        onSubmit();
+        handleOfframpSubmit();
         toToken.type !== 'moonbeam' ? open(anchorUrl, '_blank') : null;
       }}
     >
@@ -195,7 +196,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
         setOfframpExecutionInput(undefined);
         setOfframpStarted(false);
         setOfframpInitiating(false);
-        onClose();
+        setOfframpSummaryVisible(false);
       }}
     />
   );
