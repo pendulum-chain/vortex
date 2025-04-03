@@ -22,7 +22,7 @@ export type EvmInputTokenDetails = BaseInputTokenDetails & {
   type: InputTokenTypes.Evm;
 };
 
-type SubstrateInputTokenDetails = BaseInputTokenDetails & {
+export type SubstrateInputTokenDetails = BaseInputTokenDetails & {
   foreignAssetId: number;
   type: InputTokenTypes.Substrate;
 };
@@ -440,4 +440,28 @@ export function getPendulumCurrencyId(outputTokenType: OutputTokenType): Pendulu
   } else {
     return tokenDetails.pendulumCurrencyId;
   }
+}
+
+export function isInputTokenType(tokenType: string): tokenType is InputTokenType {
+  return tokenType === 'usdc' || tokenType === 'usdce' || tokenType === 'usdt';
+}
+
+export function isSubstrateInputTokenDetails(inputToken: InputTokenDetails): inputToken is SubstrateInputTokenDetails {
+  return inputToken.type === InputTokenTypes.Substrate;
+}
+
+export type EvmInputTokenDetailsWithBalance = EvmInputTokenDetails & {
+  balance: string;
+};
+
+export type SubstrateInputTokenDetailsWithBalance = SubstrateInputTokenDetails & {
+  balance: string;
+};
+
+export type InputTokenDetailsWithBalance = EvmInputTokenDetailsWithBalance | SubstrateInputTokenDetailsWithBalance;
+
+export function isOutputTokenType(
+  outputTokenType: InputTokenType | OutputTokenType,
+): outputTokenType is OutputTokenType {
+  return Object.values(OutputTokenTypes).includes(outputTokenType as OutputTokenType);
 }
