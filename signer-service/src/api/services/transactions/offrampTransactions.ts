@@ -28,6 +28,7 @@ import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
+import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
 
 interface OfframpTransactionParams {
   quote: QuoteTicketAttributes;
@@ -49,7 +50,10 @@ export async function prepareOfframpTransactions({
   taxId,
   receiverTaxId,
   brlaEvmAddress,
-}: OfframpTransactionParams): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
+}: OfframpTransactionParams): Promise<{
+  unsignedTxs: UnsignedTx[];
+  stateMeta: Partial<StateMetadata>;
+}> {
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
 
@@ -134,7 +138,23 @@ export async function prepareOfframpTransactions({
       ...stateMeta,
       squidRouterReceiverId,
     };
+  } else {
+    // Create Assethub to Pendulum transaction
+    const assethubToPendulumTransaction = await createAssethubToPendulumXCM(
+      pendulumEphemeralEntry.address,
+      'usdc',
+      inputAmountRaw,
+    );
+    console.log('assethub to pendulum txs done');
+    unsignedTxs.push({
+      tx_data: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
+      phase: 'assethubToPendulum',
+      network: fromNetwork,
+      nonce: 0,
+      signer: userAddress,
+    });
   }
+
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {
     console.log(`Processing account ${account.address} on network ${account.network}`);

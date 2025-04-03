@@ -3,7 +3,6 @@ import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { Keypair } from 'stellar-sdk';
 import { EphemeralAccount } from 'shared';
 
-
 export function createMoonbeamEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();
 

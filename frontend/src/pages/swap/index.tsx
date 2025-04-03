@@ -74,7 +74,7 @@ import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
 import { QuoteService } from '../../services/api';
-import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from '../../services/ephemerals';
+import { createMoonbeamEphemeral, createPendulumEphemeral, createStellarEphemeral } from '../../services/transactions/ephemerals';
 
 const getTokenDefinitionsForNetwork = (type: 'from' | 'to', selectedNetwork: Networks): TokenDefinition[] => {
   if (type === 'from') {
