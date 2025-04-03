@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch } from 'react';
 import { useTranslation } from 'react-i18next';
+
 import { cn } from '../../helpers/cn';
 
 interface TermsAndConditionsProps {
   toggleTermsChecked: () => void;
-  setTermsError: Dispatch<SetStateAction<boolean>>;
+  setTermsError: Dispatch<boolean>;
   termsChecked: boolean;
   termsAccepted: boolean;
   termsError: boolean;
