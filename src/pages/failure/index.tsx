@@ -8,6 +8,7 @@ import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
 import { FailureType } from '../../services/offrampingFlow';
 import { config } from '../../config';
+import { useOfframp } from '../swap/hooks/useOfframp';
 
 const Cross = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-red-500 rounded-full">
@@ -22,7 +23,8 @@ interface FailurePageProps {
   failure: FailureType;
 }
 
-export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId, failure }: FailurePageProps) => {
+export const FailurePage = () => {
+  const { finishOfframping, continueFailedFlow, transactionId, failure } = useOfframp();
   const { t } = useTranslation();
 
   useEffect(() => {
