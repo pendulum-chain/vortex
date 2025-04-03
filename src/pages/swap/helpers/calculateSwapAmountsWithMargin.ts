@@ -1,8 +1,8 @@
 import Big from 'big.js';
 
-import { ContractBalance, multiplyByPowerOfTen } from '../../../../helpers/contracts';
-import { InputTokenDetails, BaseOutputTokenDetails } from '../../../../constants/tokenConfig';
-import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../../../constants/constants';
+import { ContractBalance, multiplyByPowerOfTen } from '../../../helpers/contracts';
+import { InputTokenDetails, BaseOutputTokenDetails } from '../../../constants/tokenConfig';
+import { SPACEWALK_REDEEM_SAFETY_MARGIN } from '../../../constants/constants';
 
 export const calculateSwapAmountsWithMargin = (
   fromAmount: Big,

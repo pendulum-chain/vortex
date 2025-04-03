@@ -17,7 +17,7 @@ export const SwapToggle = ({ activeDirection, onToggle }: SwapToggleProps) => {
   return (
     <div className="flex justify-center mb-6 relative">
       <button
-        className={`py-2 px-4 text-sm font-medium transition-all duration-300 flex-1 relative z-10 ${
+        className={`py-2 px-4 text-2xl font-bold text-center transition-all duration-300 flex-1 relative z-10 ${
           activeDirection === SwapDirection.ONRAMP ? 'text-blue-700' : 'text-gray-500 hover:text-gray-700'
         }`}
         onClick={() => onToggle(SwapDirection.ONRAMP)}
@@ -25,7 +25,7 @@ export const SwapToggle = ({ activeDirection, onToggle }: SwapToggleProps) => {
         {t('components.swap.buyButton')}
       </button>
       <button
-        className={`py-2 px-4 text-sm font-medium transition-all duration-300 flex-1 relative z-10 ${
+        className={`py-2 px-4 text-2xl font-bold text-center transition-all duration-300 flex-1 relative z-10 ${
           activeDirection === SwapDirection.OFFRAMP ? 'text-blue-700' : 'text-gray-500 hover:text-gray-700'
         }`}
         onClick={() => onToggle(SwapDirection.OFFRAMP)}

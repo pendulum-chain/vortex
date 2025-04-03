@@ -1,4 +1,4 @@
-import { TokenOutData } from '../../../../hooks/nabla/useTokenAmountOut';
+import { TokenOutData } from '../../../hooks/nabla/useTokenAmountOut';
 
 type ValidSwapInputs = {
   inputAmountIsStable: true;

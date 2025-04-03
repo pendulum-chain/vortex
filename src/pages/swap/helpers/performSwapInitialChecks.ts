@@ -2,10 +2,10 @@ import {
   getInputTokenDetails,
   getOutputTokenDetails,
   isStellarOutputTokenDetails,
-} from '../../../../constants/tokenConfig';
-import { getVaultsForCurrency } from '../../../../services/phases/polkadot/spacewalk';
-import { testRoute } from '../../../../services/phases/squidrouter/route';
-import { useOfframpStore } from '../../../../stores/offrampStore';
+} from '../../../constants/tokenConfig';
+import { getVaultsForCurrency } from '../../../services/phases/polkadot/spacewalk';
+import { testRoute } from '../../../services/phases/squidrouter/route';
+import { useOfframpStore } from '../../../stores/offrampStore';
 
 export const performSwapInitialChecks = async () => {
   const offrampState = useOfframpStore.getState();
