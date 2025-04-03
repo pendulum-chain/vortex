@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useTranslation } from 'react-i18next';
 
-import { OfframpingPhase, OfframpingState } from '../../services/offrampingFlow';
+import { OfframpingPhase } from '../../services/offrampingFlow';
 import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
@@ -12,6 +12,7 @@ import { isNetworkEVM } from '../../helpers/networks';
 import { useCreateOfframpingPhaseMessage } from './helpers';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
+import { useOfframpState } from '../../stores/offrampStore';
 
 const useProgressUpdate = (
   currentPhase: OfframpingPhase,
@@ -74,10 +75,6 @@ export const OFFRAMPING_PHASE_SECONDS: Record<OfframpingPhase, number> = {
 const CIRCLE_RADIUS = 80;
 const CIRCLE_STROKE_WIDTH = 12;
 const numberOfPhases = Object.keys(OFFRAMPING_PHASE_SECONDS).length;
-
-interface ProgressPageProps {
-  offrampingState: OfframpingState;
-}
 
 interface ProgressContentProps {
   currentPhase: OfframpingPhase;
@@ -188,23 +185,24 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
   );
 };
 
-export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
+export const ProgressPage = () => {
   const { trackEvent } = useEventsContext();
-  const { selectedNetwork } = useNetwork();
+  const offrampingState = useOfframpState();
 
-  const currentPhase = offrampingState.phase as OfframpingPhase;
-  const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-  const message = useCreateOfframpingPhaseMessage(offrampingState, selectedNetwork);
+  const offrampingPhase = offrampingState?.phase as OfframpingPhase;
+
+  const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(offrampingPhase ?? '');
+  const message = useCreateOfframpingPhaseMessage();
 
   useEffect(() => {
-    trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingState.phase });
-  }, [currentPhaseIndex, trackEvent, offrampingState.phase]);
+    trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: offrampingPhase ?? '' });
+  }, [currentPhaseIndex, trackEvent, offrampingPhase]);
 
   return (
     <BaseLayout
       main={
         <main>
-          <ProgressContent currentPhase={currentPhase} currentPhaseIndex={currentPhaseIndex} message={message} />
+          <ProgressContent currentPhase={offrampingPhase} currentPhaseIndex={currentPhaseIndex} message={message} />
           <GotQuestions />
         </main>
       }
