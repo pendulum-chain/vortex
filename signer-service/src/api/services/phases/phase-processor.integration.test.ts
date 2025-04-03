@@ -1,11 +1,22 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, expect, it, mock, beforeAll } from 'bun:test';
+import { describe, expect, it, mock, beforeAll, afterAll } from 'bun:test';
+import fs from 'node:fs';
+import path from 'node:path';
 import { PhaseProcessor } from './phase-processor';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import { RampService } from '../ramp/ramp.service';
 import { BrlaApiService } from '../brla/brlaApiService';
-import { AccountMeta, Networks, RampEndpoints, EvmToken, FiatToken, signUnsignedTransactions } from 'shared';
+import {
+  AccountMeta,
+  Networks,
+  RampEndpoints,
+  EvmToken,
+  FiatToken,
+  signUnsignedTransactions,
+  EvmTransactionData,
+  getNetworkId,
+} from 'shared';
 import { v4 as uuidv4 } from 'uuid';
 import { SubaccountData } from '../brla/types';
 import { APIError } from '../../errors/api-error';
@@ -15,9 +26,17 @@ import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { Keypair } from 'stellar-sdk';
 import { API, ApiManager } from '../pendulum/apiManager';
+import { createPublicClient, createWalletClient, http } from 'viem';
+import { polygon } from 'viem/chains';
+import { privateKeyToAccount } from 'viem/accounts';
+import { BACKEND_TEST_STARTER_ACCOUNT } from '../../../constants/constants';
+
+import { HDKey } from '@scure/bip32';
+import { mnemonicToSeedSync } from '@scure/bip39';
 
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
-const EVM_TESTING_ADDRESS = '0x50bd2f7b9D912724db25D56C547672Dacd702B33';
+// This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
+const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
 // Stellar mock anchor account. US.
 const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GDSDQLBVDD5RZYKNDM2LAX5JDNNQOTSZOKECUYEXYMUZMAPXTMDUJCVF';
 
@@ -75,10 +94,11 @@ console.log('Test Signing Accounts:', testSigningAccountsMeta);
 let rampState: RampState;
 let quoteTicket: QuoteTicket;
 
-RampState.update = mock(async (data: any) => {
-  rampState = { ...rampState, ...data };
+RampState.update = mock(async function (updateData: any, options?: any) {
+  // Merge the update into the current instance.
+  rampState = { ...rampState, ...updateData };
   console.log('Updated RampState:', rampState);
-  return [1, [rampState]];
+  return rampState;
 }) as any;
 
 RampState.findByPk = mock(async (id: string) => {
@@ -86,16 +106,46 @@ RampState.findByPk = mock(async (id: string) => {
 });
 
 RampState.create = mock(async (data: any) => {
-  rampState = data;
+  rampState = {
+    ...data,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    update: async function (updateData: any, options?: any) {
+      // Merge the update into the current instance.
+      rampState = { ...rampState, ...updateData };
+      console.log('Updated RampState:', rampState);
+      return rampState;
+    },
+    reload: async function (options?: any) {
+      console.log('Reloaded RampState:', this);
+      return rampState;
+    },
+  };
+  console.log('Created RampState:', rampState);
   return rampState;
 }) as any;
 
 QuoteTicket.findByPk = mock(async (id: string) => {
+  console.log('Finding QuoteTicket by ID:', id);
   return quoteTicket;
 });
 
+// QuoteTicket.update = mock(async (data: any) => {
+//   quoteTicket = { ...quoteTicket, ...data };
+//   console.log('Updated QuoteTicket:', quoteTicket);
+//   return [1, [quoteTicket]];
+// }) as any;
+
 QuoteTicket.create = mock(async (data: any) => {
-  quoteTicket = data;
+  quoteTicket = {
+    ...data,
+    update: async function (updateData: any, options?: any) {
+      quoteTicket = { ...quoteTicket, ...updateData };
+      console.log('Updated QuoteTicket:', quoteTicket);
+      return quoteTicket;
+    },
+  };
+  console.log('Created QuoteTicket:', quoteTicket);
   return quoteTicket;
 }) as any;
 
@@ -160,55 +210,111 @@ RampService.prototype.validateBrlaOfframpRequest = mock(async () => mockSubaccou
 
 describe('PhaseProcessor Integration Test', () => {
   it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
-    const processor = new PhaseProcessor();
-    const rampService = new RampService();
-    const quoteService = new QuoteService();
-    const additionalData = {
-      walletAddress: EVM_TESTING_ADDRESS,
-      paymentData: {
-        amount: '14000', // Relevant for test???
-        memoType: 'text',
-        memo: '1204asjfnaksf10982e4',
-        anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
-      },
-    };
+    try {
+      const processor = new PhaseProcessor();
+      const rampService = new RampService();
+      const quoteService = new QuoteService();
+      const additionalData = {
+        walletAddress: EVM_TESTING_ADDRESS,
+        paymentData: {
+          amount: '1', // Relevant for test???
+          memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
+          memo: '1204asjfnaksf10982e4',
+          anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
+        },
+      };
 
-    const quoteTicket = await quoteService.createQuote({
-      rampType: 'off',
-      from: 'avalanche',
-      to: 'sepa',
-      inputAmount: '1000',
-      inputCurrency: EvmToken.USDC,
-      outputCurrency: FiatToken.EURC,
-    });
+      const quoteTicket = await quoteService.createQuote({
+        rampType: 'off',
+        from: 'polygon',
+        to: 'sepa',
+        inputAmount: '0.1',
+        inputCurrency: EvmToken.USDC,
+        outputCurrency: FiatToken.EURC,
+      });
 
-    const registeredRamp = await rampService.registerRamp({
-      signingAccounts: testSigningAccountsMeta,
-      quoteId: quoteTicket.id,
-      additionalData,
-    });
-    console.log('register ramp:', registeredRamp);
-    // sign and send correspinding squid transactions on mainnet. Then proceed.
-    const pendulumNode = await getPendulumNode();
-    const presignedTxs = await signUnsignedTransactions(
-      registeredRamp.unsignedTxs,
-      {
-        stellarEphemeral: testSigningAccounts.stellar,
-        pendulumEphemeral: testSigningAccounts.pendulum,
-        evmEphemeral: testSigningAccounts.moonbeam,
-      },
-      pendulumNode.api,
-    );
-    console.log('Presigned transactions:', presignedTxs);
-    // const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+      let registeredRamp = await rampService.registerRamp({
+        signingAccounts: testSigningAccountsMeta,
+        quoteId: quoteTicket.id,
+        additionalData,
+      });
 
-    // // await here, start ramp  does not wait. Poll for completion or failure.
-    // await processor.processRamp(registeredRamp.id);
+      console.log('register ramp:', registeredRamp);
 
-    await new Promise((resolve) => setTimeout(resolve, 1000000));
+      // START - MIMIC THE UI
+      const pendulumNode = await getPendulumNode();
+      const presignedTxs = await signUnsignedTransactions(
+        registeredRamp!.unsignedTxs,
+        {
+          stellarEphemeral: testSigningAccounts.stellar,
+          pendulumEphemeral: testSigningAccounts.pendulum,
+          evmEphemeral: testSigningAccounts.moonbeam,
+        },
+        pendulumNode.api,
+      );
+      console.log('Presigned transactions:', presignedTxs);
 
-    // expect(rampState.currentPhase).toBe('complete');
+      // sign and send the squidy transactions!
+      const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterApprove');
+      const approveHash = await executeEvmTransaction(
+        squidApproveTransaction!.network,
+        squidApproveTransaction!.tx_data as EvmTransactionData,
+      );
+      console.log('Approve transaction executed with hash:', approveHash);
 
-    // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
+      const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterSwap');
+      const swapHash = await executeEvmTransaction(
+        squidSwapTransaction!.network,
+        squidSwapTransaction!.tx_data as EvmTransactionData,
+      );
+      console.log('Swap transaction executed with hash:', swapHash);
+      // END - MIMIC THE UI
+
+      //const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+      // wait for handlers to be registered
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
+      // await processor.processRamp(registeredRamp.id);
+
+      // await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
+
+      // expect(rampState.currentPhase).toBe('complete');
+      // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
+    } catch (error) {
+      throw error;
+    }
   });
 });
+
+async function executeEvmTransaction(network: Networks, txData: EvmTransactionData): Promise<string> {
+  try {
+    const seed = mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!);
+    const { privateKey } = HDKey.fromMasterSeed(seed);
+
+    const moonbeamExecutorAccount = privateKeyToAccount(`0x${privateKey!.toHex()}` as `0x${string}`);
+    console.log('sanity check derivation, public is: ', moonbeamExecutorAccount.address);
+    // const chainId = getNetworkId(network); Need to get the network based on the id.
+    const walletClient = createWalletClient({
+      account: moonbeamExecutorAccount,
+      chain: polygon,
+      transport: http(),
+    });
+
+    const publicClient = createPublicClient({
+      chain: polygon,
+      transport: http(),
+    });
+
+    const hash = await walletClient.sendTransaction({
+      to: txData.to,
+      data: txData.data,
+      value: BigInt(txData.value),
+    });
+
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+    return receipt.transactionHash;
+  } catch (error) {
+    console.error('Error sending raw EVM transaction', error);
+    throw new Error('Failed to send transaction');
+  }
+}

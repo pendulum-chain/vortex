@@ -9,10 +9,10 @@ export function encodeEvmTransactionData(data: unknown) {
 
 export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
   console.log('Validating presigned transactions...', presignedTxs, presignedTxs.length);
-  if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 5) {
+  if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 10) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
-      message: 'presignedTxs must be an array with 1-5 elements',
+      message: 'presignedTxs must be an array with 1-10 elements',
     });
   }
 

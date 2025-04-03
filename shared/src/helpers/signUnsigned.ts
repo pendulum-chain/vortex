@@ -56,7 +56,7 @@ export async function signUnsignedTransactions(
   try {
     const stellarTxs = unsignedTxs
       .filter((tx) => tx.network === "stellar")
-      .sort((a, b) => a.meta.ephemeralMinSequence - b.meta.ephemeralMinSequence);
+      .sort((a, b) => a.nonce - b.nonce);
     const pendulumTxs = unsignedTxs.filter((tx) => tx.network === "pendulum");
     const moonbeamTxs = unsignedTxs.filter((tx) => tx.network === "moonbeam");
 
