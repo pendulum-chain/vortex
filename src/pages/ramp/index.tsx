@@ -1,9 +1,9 @@
-import { useOfframp } from '../swap/hooks/useOfframp';
+import { useOfframp } from '../../hooks/offramp/form/useOfframp';
 
 import { FailurePage } from '../failure';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
-import { SwapPage } from '../swap';
+import { Swap } from '../swap';
 
 export const Ramp = () => {
   const { isSuccessPage, isFailurePage, isProgressPage } = useOfframp();
@@ -20,5 +20,5 @@ export const Ramp = () => {
     return <FailurePage />;
   }
 
-  return <SwapPage />;
+  return <Swap />;
 };

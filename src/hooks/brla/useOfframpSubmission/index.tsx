@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useSubmitOfframp } from '../../offramp/useSubmitOfframp';
 import { useOfframpActions, useOfframpExecutionInput } from '../../../stores/offrampStore';
-import { performSwapInitialChecks } from '../../../pages/swap/helpers/swapConfirm/performSwapInitialChecks';
+import { performSwapInitialChecks } from '../../../pages/swap/helpers/performSwapInitialChecks';
 
 export const useOfframpSubmission = (handleError: (message?: string) => Promise<void>) => {
   const offrampInput = useOfframpExecutionInput();
