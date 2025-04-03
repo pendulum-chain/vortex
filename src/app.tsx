@@ -10,6 +10,7 @@ import ptTranslations from './translations/pt.json';
 
 import '../App.css';
 import { getLanguageFromPath, Language } from './translations/helpers';
+import { Main } from './pages/main';
 
 export function App() {
   const lng = getLanguageFromPath();
@@ -29,7 +30,7 @@ export function App() {
 
   return (
     <>
-      <SwapPage />
+      <Main />
       <ToastContainer />
       <div id="modals">
         {/* This is where the dialogs/modals are rendered. It is placed here because it is the highest point in the app where the tailwind data-theme is available */}
