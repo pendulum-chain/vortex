@@ -219,7 +219,8 @@
       "community": "Community"
     },
     "swap": {
-      "sellCrypto": "Sell",
+      "buyButton": "Buy",
+      "sellButton": "Sell",
       "firstInputLabel": "You sell",
       "secondInputLabel": "You receive",
       "compareFees": "Compare fees",
