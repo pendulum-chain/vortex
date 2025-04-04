@@ -13,8 +13,8 @@ flows are supported:
 ## Project structure
 
 This project contains two sub projects: the frontend code resides in `/src` and the backend code resides in
-`/signer-service`. At the moment, the logic for ramping is scattered across these two but we want to move all the
-relevant logic to the signer-service.
+`/api`. At the moment, the logic for ramping is scattered across these two but we want to move all the
+relevant logic to the api.
 
 ### Offramp
 
@@ -32,24 +32,24 @@ token they want to receive at the end of the onramp, the target wallet address a
 Some data needs to be stored in a database. This is not implemented yet. We want to set up a postgreSQL database for
 storing all the relevant contextual information.
 
-## Signer-service/backend requirements
+## api/backend requirements
 
-The signer-service needs to be resilient in the sense that a crash or restart at any given time still allows to continue
+The api needs to be resilient in the sense that a crash or restart at any given time still allows to continue
 the process without any issues. This means that the on- and offramping phases needs to be fragmented into distinct
-phases, where the signer-service then moves between these phases like a state-machine. If the backend crashes during one
+phases, where the api then moves between these phases like a state-machine. If the backend crashes during one
 of the phases, it needs to continue and retry the phase afterwards without repeating any critical operation like
 submitting transactions twice.
 
 ## Relevant files
 
-- The relevant files for the signer-service can be found in `/signer-service/api/controllers`,
-  `/signer-service/api/routes`, and `/signer-service/api/services`
+- The relevant files for the api can be found in `/api/api/controllers`,
+  `/api/api/routes`, and `/api/api/services`
 - The relevant files for the frontend can be found in `/src/services`
 
 ## What needs to be done
 
 - Read the relevant project files to understand how the onramping flow and offramping flow work in detail.
-- Create new endpoints on the signer-service to kick off an onramping flow and an offramping flow respectively. These
+- Create new endpoints on the api to kick off an onramping flow and an offramping flow respectively. These
   endpoints will receive all the necessary contextual information to proceed with the flow from end to end without any
   additional interaction with the frontend.
 - Create a new endpoint to poll the status of ramping flows. This endpoint would take the ID of a ramping flow and

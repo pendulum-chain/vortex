@@ -5,7 +5,7 @@ lib/
 types/
 coverage/
 gql/
-signer-service
+api
 
 *.d.ts
 *.config.*

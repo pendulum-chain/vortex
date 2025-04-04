@@ -14,7 +14,7 @@ interface PriceProvider {
 }
 
 /**
- * The GoogleCredentials interface is the same as in the signer-service/.../spreadsheet.service.ts
+ * The GoogleCredentials interface is the same as in the api/.../spreadsheet.service.ts
  */
 interface GoogleCredentials {
   email?: string;
