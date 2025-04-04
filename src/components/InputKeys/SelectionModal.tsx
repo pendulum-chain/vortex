@@ -1,12 +1,19 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { InputTokenType, OutputTokenType } from '../../constants/tokenConfig';
-import { Dialog } from '../Dialog';
-import { Skeleton } from '../Skeleton';
-import { PoolListItem } from './PoolListItem';
+import {
+  InputTokenType,
+  OutputTokenType,
+  InputTokenDetails,
+  BaseOutputTokenDetails,
+  isInputTokenType,
+} from '../../constants/tokenConfig';
+import { useInputTokenBalances } from '../../hooks/useInputTokenBalances';
 import { AssetIconType } from '../../hooks/useGetAssetIcon';
+import { PoolListItem } from './PoolListItem';
 import { SearchInput } from '../SearchInput';
+import { Skeleton } from '../Skeleton';
+import { Dialog } from '../Dialog';
 interface PoolSelectorModalProps extends PoolListProps {
   isLoading?: boolean;
   onClose: () => void;
@@ -18,6 +25,7 @@ export interface TokenDefinition {
   type: InputTokenType | OutputTokenType;
   assetIcon: AssetIconType;
   name?: string;
+  details: InputTokenDetails | BaseOutputTokenDetails;
 }
 
 interface PoolListProps {
@@ -55,26 +63,46 @@ export function PoolSelectorModal({
 function PoolList({ onSelect, definitions, selected }: PoolListProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('');
+  const tokens = useMemo(
+    () => definitions.filter(({ type }) => isInputTokenType(type)).map(({ details }) => details),
+    [definitions],
+  ) as InputTokenDetails[];
 
-  const filteredDefinitions = definitions.filter(({ assetSymbol, name }) => {
+  const definitionsWithBalance = useInputTokenBalances(tokens);
+
+  const balanceMap = useMemo(() => {
+    if (!definitionsWithBalance.length) return {};
+
+    return definitionsWithBalance.reduce((acc, token) => {
+      acc[token.assetSymbol] = token.balance;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [definitionsWithBalance]);
+
+  const sortedDefinitions = useMemo(() => {
+    if (!definitionsWithBalance.length) return definitions;
+
+    return [...definitions].sort((a, b) => {
+      const balanceA = balanceMap[a.assetSymbol] || '0';
+      const balanceB = balanceMap[b.assetSymbol] || '0';
+      return Number(balanceB) - Number(balanceA);
+    });
+  }, [definitions, balanceMap, definitionsWithBalance.length]);
+
+  const filteredDefinitions = useMemo(() => {
     const searchTerm = filter.toLowerCase();
-    return assetSymbol.toLowerCase().includes(searchTerm) || (name && name.toLowerCase().includes(searchTerm));
-  });
+    return sortedDefinitions.filter(
+      ({ assetSymbol, name }) =>
+        assetSymbol.toLowerCase().includes(searchTerm) || (name && name.toLowerCase().includes(searchTerm)),
+    );
+  }, [sortedDefinitions, filter]);
 
   return (
     <div className="relative">
       <SearchInput set={setFilter} placeholder={t('components.dialogs.selectionModal.searchPlaceholder')} />
       <div className="flex flex-col gap-2 mt-5">
-        {filteredDefinitions.map(({ assetIcon, assetSymbol, type, name }) => (
-          <PoolListItem
-            key={type}
-            isSelected={selected === type}
-            onSelect={onSelect}
-            tokenType={type}
-            tokenSymbol={assetSymbol}
-            assetIcon={assetIcon}
-            name={name}
-          />
+        {filteredDefinitions.map((token) => (
+          <PoolListItem key={token.type} isSelected={selected === token.type} onSelect={onSelect} token={token} />
         ))}
       </div>
     </div>
