@@ -199,6 +199,12 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions
       validatePresignedTxs(request.presignedTxs);
 
+      // TODO check if the ramp has required state in additional data
+      // Offramps starting on Assethub need to have the assetHubToPendulumHash
+      // Offramps starting on an EVM network need to have the squidRouterApproveHash and squidRouterSwapHash
+      // Onramps might need other checks.
+      const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!
+
       await this.updateRampState(request.rampId, {
         presignedTxs: request.presignedTxs,
       });

@@ -64,6 +64,14 @@ export const startRamp = async (
       });
     }
 
+    // Check for the additional data field
+    if (additionalData && typeof additionalData !== 'object') {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Invalid additional data format',
+      });
+    }
+
     // Start ramping process
     const ramp = await rampService.startRamp(
       {
