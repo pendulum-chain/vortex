@@ -214,9 +214,9 @@
       "signatures": "Signatures"
     },
     "navbar": {
-      "sellCrypto": "Sell Crypto",
-      "howItWorks": "How it works",
-      "community": "Community"
+      "support": "Support",
+      "docs": "Docs",
+      "faq": "FAQ"
     },
     "swap": {
       "sellCrypto": "Sell",
