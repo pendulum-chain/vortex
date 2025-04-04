@@ -2,7 +2,7 @@ import httpStatus from 'http-status';
 import RampState from '../../../models/rampState.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
-import { RampPhase } from 'shared';
+import { PresignedTx, RampPhase } from 'shared';
 
 /**
  * Base interface for phase handlers
@@ -121,7 +121,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param phase The phase to get the transaction for
    * @returns The presigned transaction
    */
-  protected getPresignedTransaction(state: RampState, phase: RampPhase): any {
-    return state.presignedTxs?.find((tx) => tx.phase === phase);
+  protected getPresignedTransaction(state: RampState, phase: RampPhase): PresignedTx {
+    return state.presignedTxs?.find((tx) => tx.phase === phase) as PresignedTx;
   }
 }

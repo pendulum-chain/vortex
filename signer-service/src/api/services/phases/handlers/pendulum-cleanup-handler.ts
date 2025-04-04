@@ -29,9 +29,9 @@ export class PendulumCleanupPhaseHandler extends BasePhaseHandler {
       nextPhase = 'stellarPayment';
     }
     try {
-      const pendulumCleanupTransaction = this.getPresignedTransaction(state, 'pendulumCleanup');
+      const { tx_data: pendulumCleanupTransaction } = this.getPresignedTransaction(state, 'pendulumCleanup');
 
-      const approvalExtrinsic = decodeSubmittableExtrinsic(pendulumCleanupTransaction, pendulumNode.api);
+      const approvalExtrinsic = decodeSubmittableExtrinsic(pendulumCleanupTransaction as string, pendulumNode.api);
       const result = await submitExtrinsic(approvalExtrinsic);
 
       if (result.status.type === 'error') {

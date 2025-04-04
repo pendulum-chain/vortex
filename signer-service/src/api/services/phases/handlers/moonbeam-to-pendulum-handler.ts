@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { RampPhase } from 'shared';
-import { waitForTransactionReceipt } from '@wagmi/core';
+import { readContract, waitForTransactionReceipt } from '@wagmi/core';
 import { moonbeam } from 'viem/chains';
 import { encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -26,10 +26,21 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi('pendulum');
 
-    const { pendulumEphemeralAddress, inputTokenPendulumDetails, moonbeamXcmTransactionHash, squidRouterReceiverId } =
-      state.state as StateMetadata;
+    const {
+      pendulumEphemeralAddress,
+      inputTokenPendulumDetails,
+      moonbeamXcmTransactionHash,
+      squidRouterReceiverId,
+      squidRouterReceiverHash,
+    } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !inputTokenPendulumDetails || !squidRouterReceiverId || !squidRouterReceiverId) {
+    if (
+      !pendulumEphemeralAddress ||
+      !inputTokenPendulumDetails ||
+      !squidRouterReceiverId ||
+      !squidRouterReceiverId ||
+      !squidRouterReceiverHash
+    ) {
       throw new Error('MoonbeamToPendulumPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
@@ -45,8 +56,29 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       return currentBalance.gt(Big(0));
     };
 
+    const isHashRegisteredInSplitReceiver = async () => {
+      const result = (await readContract(moonbeamConfig, {
+        abi: splitReceiverABI,
+        chainId: moonbeam.id,
+        address: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+        functionName: 'xcmDataMapping',
+        args: [squidRouterReceiverHash],
+      })) as bigint;
+
+      return result > 0n;
+    };
+
     const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
     const { walletClient, publicClient, moonbeamConfig } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+
+    try {
+      if (!(await didInputTokenArrivedOnPendulum())) {
+        await waitUntilTrue(isHashRegisteredInSplitReceiver);
+      }
+    } catch (e) {
+      console.log(e);
+      throw new Error('MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.');
+    }
 
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {

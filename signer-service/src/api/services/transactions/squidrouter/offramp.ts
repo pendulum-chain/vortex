@@ -21,6 +21,7 @@ export interface OfframpTransactionData {
   approveData: EvmTransactionData;
   swapData: EvmTransactionData;
   squidRouterReceiverId: string;
+  squidRouterReceiverHash: string;
 }
 
 export async function createOfframpSquidrouterTransactions(
@@ -81,5 +82,6 @@ export async function createOfframpSquidrouterTransactions(
       maxPriorityFeePerGas: String(maxPriorityFeePerGas),
     },
     squidRouterReceiverId,
+    squidRouterReceiverHash,
   };
 }

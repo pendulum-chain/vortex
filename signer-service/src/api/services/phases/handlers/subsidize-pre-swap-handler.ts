@@ -48,11 +48,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           .signAndSend(fundingAccountKeypair);
       }
 
-      if (outputTokenType === FiatToken.BRL) {
-        return this.transitionToNextPhase(state, 'pendulumToMoonbeam');
-      } else {
-        return this.transitionToNextPhase(state, 'spacewalkRedeem');
-      }
+      return this.transitionToNextPhase(state, 'nablaApprove');
     } catch (e) {
       console.error('Error in subsidizePreSwap:', e);
       throw new Error('SubsidizePreSwapPhaseHandler: Failed to subsidize post swap.');

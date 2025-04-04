@@ -68,6 +68,7 @@ export async function buildPaymentAndMergeTx(
       }),
     )
     .setTimebounds(0, maxTime)
+    .setMinAccountSequence(String(0))
     .build();
 
   createAccountTransaction.sign(fundingAccountKeypair);

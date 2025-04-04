@@ -6,14 +6,14 @@ import { createVaultService } from '../../stellar/vaultService';
 
 interface SpacewalkRedeemParams {
   outputAmountRaw: string;
-  stellarTargetAccountRaw: Buffer;
+  stellarEphemeralAccountRaw: Buffer;
   outputTokenDetails: StellarTokenDetails;
   executeSpacewalkNonce: number;
 }
 
 export async function prepareSpacewalkRedeemTransaction({
   outputAmountRaw,
-  stellarTargetAccountRaw,
+  stellarEphemeralAccountRaw,
   outputTokenDetails,
 }: SpacewalkRedeemParams): Promise<SubmittableExtrinsic<'promise', ISubmittableResult>> {
   const apiManager = ApiManager.getInstance();
@@ -28,7 +28,10 @@ export async function prepareSpacewalkRedeemTransaction({
       outputAmountRaw,
     );
 
-    const redeemExtrinsic = await vaultService.createRequestRedeemExtrinsic(outputAmountRaw, stellarTargetAccountRaw);
+    const redeemExtrinsic = await vaultService.createRequestRedeemExtrinsic(
+      outputAmountRaw,
+      stellarEphemeralAccountRaw,
+    );
 
     return redeemExtrinsic;
   } catch (e) {

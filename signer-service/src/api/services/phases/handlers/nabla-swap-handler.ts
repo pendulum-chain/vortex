@@ -39,7 +39,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const nablaSwapTransaction = this.getPresignedTransaction(state, 'nablaSwap');
+      const { tx_data: nablaSwapTransaction } = this.getPresignedTransaction(state, 'nablaSwap');
 
       console.log('before RESPONSE prepareNablaSwapTransaction');
       // get an up to date quote for the AMM
@@ -59,8 +59,6 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         limits: defaultReadLimits,
       });
 
-      console.log('prepareNablaSwapTransaction', response);
-
       if (response.type !== 'success') {
         throw new Error("Couldn't get a quote from the AMM");
       }
@@ -74,8 +72,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const result = await submitExtrinsic(swapExtrinsic);
 
       if (result.status.type === 'error') {
-        console.log(`Could not approve token: ${result.status.error.toString()}`);
-        throw new Error('Could not approve token');
+        console.log(`Could not swap token: ${result.status.error.toString()}`);
+        throw new Error('Could not swap token');
       }
     } catch (e) {
       let errorMessage = '';
@@ -87,9 +85,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       } else {
         errorMessage = 'Something went wrong';
       }
-      console.log(`Could not swap the required amount of token: ${errorMessage}`);
 
-      throw e;
+      throw new Error(`Could not swap the required amount of token: ${errorMessage}`);
     }
 
     return this.transitionToNextPhase(state, 'subsidizePostSwap');

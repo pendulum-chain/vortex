@@ -111,13 +111,14 @@ export async function prepareOfframpTransactions({
       throw new Error('User address must be provided for offramping from EVM network.');
     }
 
-    const { approveData, swapData, squidRouterReceiverId } = await createOfframpSquidrouterTransactions({
-      inputTokenDetails,
-      fromNetwork,
-      rawAmount: inputAmountRaw,
-      pendulumAddressDestination: pendulumEphemeralEntry.address,
-      fromAddress: userAddress,
-    });
+    const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash } =
+      await createOfframpSquidrouterTransactions({
+        inputTokenDetails,
+        fromNetwork,
+        rawAmount: inputAmountRaw,
+        pendulumAddressDestination: pendulumEphemeralEntry.address,
+        fromAddress: userAddress,
+      });
     console.log('squid txs done');
     unsignedTxs.push({
       tx_data: encodeEvmTransactionData(approveData),
@@ -137,6 +138,7 @@ export async function prepareOfframpTransactions({
     stateMeta = {
       ...stateMeta,
       squidRouterReceiverId,
+      squidRouterReceiverHash,
     };
   } else {
     // Create Assethub to Pendulum transaction
@@ -265,10 +267,10 @@ export async function prepareOfframpTransactions({
         }
         const executeSpacewalkNonce = 2;
 
-        const stellarTargetAccountRaw = Keypair.fromPublicKey(stellarPaymentData.anchorTargetAccount).rawPublicKey();
+        const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
         const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
           outputAmountRaw: outputAmountBeforeFeesRaw,
-          stellarTargetAccountRaw,
+          stellarEphemeralAccountRaw,
           outputTokenDetails,
           executeSpacewalkNonce: 2,
         });
@@ -287,6 +289,7 @@ export async function prepareOfframpTransactions({
             stellarTargetAccountId: stellarPaymentData.anchorTargetAccount,
             stellarTokenDetails: outputTokenDetails,
           },
+          stellarEphemeralAccountId: stellarEphemeralEntry.address,
           executeSpacewalkNonce,
         };
       }

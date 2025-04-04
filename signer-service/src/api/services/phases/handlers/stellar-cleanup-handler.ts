@@ -14,7 +14,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
   protected async executePhase(state: RampState): Promise<RampState> {
     try {
-      const stellarCleanupTransactionXDR = this.getPresignedTransaction(state, 'stellarCleanup');
+      const { tx_data: stellarCleanupTransactionXDR } = this.getPresignedTransaction(state, 'stellarCleanup');
 
       const stellarCleanupTransactionTransaction = new Transaction(stellarCleanupTransactionXDR, NETWORK_PASSPHRASE);
       await horizonServer.submitTransaction(stellarCleanupTransactionTransaction);

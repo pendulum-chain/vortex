@@ -33,12 +33,16 @@ import { BACKEND_TEST_STARTER_ACCOUNT } from '../../../constants/constants';
 
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
+import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 // This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
 // Stellar mock anchor account. US.
 const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GDSDQLBVDD5RZYKNDM2LAX5JDNNQOTSZOKECUYEXYMUZMAPXTMDUJCVF';
+const TEST_INPUT_AMOUNT = '0.05';
+const TEST_INPUT_CURRENCY = EvmToken.USDC;
+const TEST_OUTPUT_CURRENCY = FiatToken.EURC;
 
 async function getPendulumNode(): Promise<API> {
   const apiManager = ApiManager.getInstance();
@@ -97,7 +101,6 @@ let quoteTicket: QuoteTicket;
 RampState.update = mock(async function (updateData: any, options?: any) {
   // Merge the update into the current instance.
   rampState = { ...rampState, ...updateData };
-  console.log('Updated RampState:', rampState);
   return rampState;
 }) as any;
 
@@ -113,20 +116,16 @@ RampState.create = mock(async (data: any) => {
     update: async function (updateData: any, options?: any) {
       // Merge the update into the current instance.
       rampState = { ...rampState, ...updateData };
-      console.log('Updated RampState:', rampState);
       return rampState;
     },
     reload: async function (options?: any) {
-      console.log('Reloaded RampState:', this);
       return rampState;
     },
   };
-  console.log('Created RampState:', rampState);
   return rampState;
 }) as any;
 
 QuoteTicket.findByPk = mock(async (id: string) => {
-  console.log('Finding QuoteTicket by ID:', id);
   return quoteTicket;
 });
 
@@ -141,7 +140,6 @@ QuoteTicket.create = mock(async (data: any) => {
     ...data,
     update: async function (updateData: any, options?: any) {
       quoteTicket = { ...quoteTicket, ...updateData };
-      console.log('Updated QuoteTicket:', quoteTicket);
       return quoteTicket;
     },
   };
@@ -208,6 +206,8 @@ BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApi
 
 RampService.prototype.validateBrlaOfframpRequest = mock(async () => mockSubaccountData);
 
+rampRecoveryWorker.start = mock(async () => ({}));
+
 describe('PhaseProcessor Integration Test', () => {
   it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
     try {
@@ -228,9 +228,9 @@ describe('PhaseProcessor Integration Test', () => {
         rampType: 'off',
         from: 'polygon',
         to: 'sepa',
-        inputAmount: '0.1',
-        inputCurrency: EvmToken.USDC,
-        outputCurrency: FiatToken.EURC,
+        inputAmount: TEST_INPUT_AMOUNT,
+        inputCurrency: TEST_INPUT_CURRENCY,
+        outputCurrency: TEST_OUTPUT_CURRENCY,
       });
 
       let registeredRamp = await rampService.registerRamp({
@@ -270,16 +270,18 @@ describe('PhaseProcessor Integration Test', () => {
       console.log('Swap transaction executed with hash:', swapHash);
       // END - MIMIC THE UI
 
-      //const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+      const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
       // wait for handlers to be registered
-      // await new Promise((resolve) => setTimeout(resolve, 1000));
-      // await processor.processRamp(registeredRamp.id);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await processor.processRamp(registeredRamp.id);
 
       // await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
 
       // expect(rampState.currentPhase).toBe('complete');
       // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
+      const filePath = path.join(__dirname, 'failedRampState.json');
+      fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       throw error;
     }
   });
@@ -291,7 +293,6 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
     const { privateKey } = HDKey.fromMasterSeed(seed);
 
     const moonbeamExecutorAccount = privateKeyToAccount(`0x${privateKey!.toHex()}` as `0x${string}`);
-    console.log('sanity check derivation, public is: ', moonbeamExecutorAccount.address);
     // const chainId = getNetworkId(network); Need to get the network based on the id.
     const walletClient = createWalletClient({
       account: moonbeamExecutorAccount,
@@ -309,7 +310,8 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
       data: txData.data,
       value: BigInt(txData.value),
     });
-
+    // we are naive and assume that it will take a maximum of 5 seconds to get into block
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
     return receipt.transactionHash;

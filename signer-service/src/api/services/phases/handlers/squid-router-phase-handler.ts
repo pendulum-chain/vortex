@@ -1,7 +1,7 @@
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
-import { getNetworkFromDestination, getNetworkId, RampPhase } from 'shared';
+import { EvmTransactionData, getNetworkFromDestination, getNetworkId, RampPhase } from 'shared';
 import { createPublicClient, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 
@@ -56,7 +56,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       }
 
       // Execute the approve transaction
-      const approveHash = await this.executeTransaction(approveTransaction.tx_data);
+      const approveHash = await this.executeTransaction(approveTransaction.tx_data as string);
       logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
       // Wait for the approve transaction to be confirmed
@@ -64,7 +64,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
       // Execute the swap transaction
-      const swapHash = await this.executeTransaction(swapTransaction.tx_data);
+      const swapHash = await this.executeTransaction(swapTransaction.tx_data as string);
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Wait for the swap transaction to be confirmed

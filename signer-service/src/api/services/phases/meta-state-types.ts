@@ -11,10 +11,12 @@ export interface StateMetadata {
   // Only used in offramp
   squidRouterReceiverId: string;
   moonbeamXcmTransactionHash: string;
-  // Only used in offramp - eurc route
+  squidRouterReceiverHash: string;
+  // Only used in offramp - eurc & ars route
+  stellarEphemeralAccountId: string;
   stellarTarget: { stellarTargetAccountId: string; stellarTokenDetails: StellarTokenDetails };
   executeSpacewalkNonce: number;
-  // Only used in brla
+  // Only used in onramp - brla
   inputAmountUnits: string;
   taxId: string;
   pixDestination: string;

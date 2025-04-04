@@ -22,15 +22,26 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
     const networkName = 'pendulum';
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress, outputAmountBeforeFees, stellarTarget, executeSpacewalkNonce } =
-      state.state as StateMetadata;
+    const {
+      pendulumEphemeralAddress,
+      outputAmountBeforeFees,
+      stellarTarget,
+      executeSpacewalkNonce,
+      stellarEphemeralAccountId,
+    } = state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !outputAmountBeforeFees || !stellarTarget || !executeSpacewalkNonce) {
+    if (
+      !pendulumEphemeralAddress ||
+      !outputAmountBeforeFees ||
+      !stellarTarget ||
+      !executeSpacewalkNonce ||
+      !stellarEphemeralAccountId
+    ) {
       throw new Error('SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
     try {
-      const spacewalkRedeemTransaction = this.getPresignedTransaction(state, 'spacewalkRedeem');
+      const { tx_data: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');
 
       const accountData = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
       const currentEphemeralAccountNonce = await accountData.nonce.toNumber();
@@ -39,7 +50,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       if (currentEphemeralAccountNonce !== undefined && currentEphemeralAccountNonce > executeSpacewalkNonce) {
         await this.waitForOutputTokensToArriveOnStellar(
           outputAmountBeforeFees.units,
-          stellarTarget.stellarTargetAccountId,
+          stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string,
         );
         return this.transitionToNextPhase(state, 'pendulumCleanup');
@@ -69,7 +80,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         console.log(`Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.`);
         await this.waitForOutputTokensToArriveOnStellar(
           outputAmountBeforeFees.units,
-          stellarTarget.stellarTargetAccountId,
+          stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string,
         );
         return this.transitionToNextPhase(state, 'pendulumCleanup');
