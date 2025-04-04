@@ -68,3 +68,23 @@ yarn build && yarn start
 - **No key storage** - All transactions pre-signed by frontend
 - **10-minute quotes** - Price validity windows
 - **Multi-chain sync** - Coordinated nonce management
+
+
+### Frontend Technologies (Vortex)
+
+- **Framework/Library:** React v19
+- **Build Tool:** Vite v6
+- **Language:** TypeScript v5.7
+- **Styling:** Tailwind CSS v4, DaisyUI v5, Motion (animations), custom CSS
+- **State Management:** Zustand v5
+- **Form Handling:** React Hook Form v7, Yup v1.4
+- **Data Fetching:** TanStack Query v5
+- **Wallet Connection:** Wagmi v2, @reown/appkit v1.6, @polkadot/extension-dapp v0.53, @talismn/connect-wallets v1.2, WalletConnect v2, @safe-global/api-kit v2.5
+- **Blockchain Libraries:** Viem v2, Web3.js v4, @polkadot/api v13, @pendulum-chain/api v1.1, Stellar SDK v13
+- **Utilities:** Big.js, BN.js, Buffer (via polyfill)
+- **Linting/Formatting:** ESLint, Prettier, Husky, lint-staged
+- **Testing:** Vitest v3, Happy DOM
+- **Error Reporting:** Sentry
+- **Analytics:** Google Tag Manager
+
+[2025-04-04 16:46:40] - Added frontend technology stack based on codebase analysis.

@@ -53,3 +53,18 @@ across different blockchain networks.
 4. **Security**: User funds should be secure throughout the process, with no private keys stored on the backend.
 
 5. **Efficiency**: Transactions should be processed quickly, with minimal waiting time for users.
+
+
+## Frontend Application Details (Vortex)
+
+Based on the codebase analysis, the frontend application, named Vortex, is built using:
+- **Framework/Library:** React v19
+- **Build Tool:** Vite v6
+- **Language:** TypeScript v5.7
+- **Styling:** Tailwind CSS v4, DaisyUI v5, custom CSS
+- **State Management:** Zustand v5
+- **Key Functionality:** Provides a user interface for stablecoin (USDC, USDT) off-ramping from various EVM chains (Polygon, Ethereum, BSC, Arbitrum, Base, Avalanche) and Polkadot AssetHub to fiat currencies (EUR via SEPA, ARS via Stellar/Anclap, BRL via Moonbeam/BRLA).
+- **Blockchain Integration:** Uses Wagmi/Viem for EVM interactions, @polkadot/api and @talismn/connect-wallets for Polkadot, stellar-sdk for Stellar, and @reown/appkit for wallet connections.
+- **Features:** Includes components for swapping, network selection, multi-wallet connection (EVM & Polkadot), fee display/comparison, KYC forms (specifically for BRLA), transaction status updates, and error reporting via Sentry.
+
+[2025-04-04 16:45:11] - Added frontend application details based on codebase analysis.

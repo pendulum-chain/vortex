@@ -84,4 +84,36 @@ the flow progression, while still keeping the security benefits of having transa
 4. **Idempotency**
    - We implemented idempotency keys to prevent duplicate operations
    - Keys are stored in the database and expire after 24 hours
+
+
+## Frontend Context (Vortex - Based on Codebase Analysis)
+
+**Current Focus:**
+- Implementing the core swap functionality (`SwapPage`, `Swap` component).
+- Integrating multi-network support (EVM chains + AssetHub) via `NetworkSelector` and context providers.
+- Handling wallet connections for both EVM (`@reown/appkit`, Wagmi) and Polkadot (`@talismn/connect-wallets`).
+- Developing UI sections for the landing/information page (`PitchSection`, `TrustedBy`, `WhyVortex`, etc.).
+- Implementing specific flows like BRLA KYC (`BrlaComponents`) and user feedback (`Rating`).
+- Managing application state using Zustand stores (`formStore`, `offrampStore`, `sep24Store`) and React Context.
+
+**Recent Changes (Inferred from Codebase):**
+- Addition of BRLA-specific KYC form components.
+- Implementation of a user rating component.
+- Creation of various informational sections for the main page.
+- Integration of Sentry for error reporting and Google Tag Manager for analytics.
+- Setup of multiple wallet connection providers.
+- Use of custom hooks for balance fetching, signing, and account abstraction (`useInputTokenBalance`, `useSignChallenge`, `useVortexAccount`).
+
+**Inferred Next Steps:**
+- Integrate frontend swap logic with the backend API endpoints (Quote, Ramp Start, Status Polling).
+- Refine and test the BRLA KYC flow integration.
+- Complete implementation of transaction state handling based on backend responses.
+- Add comprehensive unit and integration tests.
+
+**Open Questions/Issues (Inferred):**
+- How is the frontend state kept in sync with the backend's state machine during the ramp process?
+- What is the detailed error handling strategy for backend API failures?
+- What is the current test coverage status?
+
+[2025-04-04 16:47:04] - Added frontend context based on codebase analysis.
    - The frontend can use these keys to safely retry operations
