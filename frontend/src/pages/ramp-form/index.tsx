@@ -80,38 +80,12 @@ import {
   createStellarEphemeral,
 } from '../../services/transactions/ephemerals';
 
-const getTokenDefinitionsForNetwork = (type: 'from' | 'to', selectedNetwork: Networks): TokenDefinition[] => {
-  if (type === 'from') {
-    if (selectedNetwork === Networks.AssetHub) {
-      return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
-        type: key as OnChainToken,
-        assetSymbol: value.assetSymbol,
-        assetIcon: value.networkAssetIcon,
-      }));
-    }
-
-    return Object.entries(evmTokenConfig[selectedNetwork]).map(([key, value]) => ({
-      type: key as OnChainToken,
-      assetSymbol: value.assetSymbol,
-      assetIcon: value.networkAssetIcon,
-    }));
-  } else {
-    return [...Object.entries(moonbeamTokenConfig), ...Object.entries(stellarTokenConfig)].map(([key, value]) => ({
-      type: getEnumKeyByStringValue(FiatToken, key) as FiatToken,
-      assetSymbol: value.fiat.symbol,
-      assetIcon: value.fiat.assetIcon,
-      name: value.fiat.name,
-    }));
-  }
-};
-
 export const RampForm = () => {
   const formRef = useRef<HTMLDivElement | null>(null);
   const feeComparisonRef = useRef<HTMLDivElement | null>(null);
   const trackPrice = useRef(false);
   const { isDisconnected, address } = useVortexAccount();
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
-  const [apiInitializeFailed, setApiInitializeFailed] = useState(false);
   const [cachedId, setCachedId] = useState<string | undefined>(undefined);
 
   const { trackEvent } = useEventsContext();
@@ -262,7 +236,6 @@ export const RampForm = () => {
 
   const executionInput = useRampExecutionInput();
   const offrampKycStarted = useRampKycStarted();
-  const offrampSigningPhase = useRampSigningPhase();
   const exchangeRate = quote ? Number(quote.outputAmount) / Number(quote.inputAmount) : 0;
 
   // We create one listener to listen for the anchor callback, on initialize.
@@ -345,24 +318,6 @@ export const RampForm = () => {
 
     return null;
   }
-
-  const definitions = getTokenDefinitionsForNetwork(tokenSelectModalType, selectedNetwork);
-
-  const modals = (
-    <>
-      <PoolSelectorModal
-        open={isTokenSelectModalVisible}
-        onSelect={(token) => {
-          tokenSelectModalType === 'from' ? onFromChange(token) : onToChange(token);
-          maybeCancelSep24First();
-        }}
-        definitions={definitions}
-        selected={tokenSelectModalType === 'from' ? from : to}
-        onClose={() => closeTokenSelectModal()}
-        isLoading={false}
-      />
-    </>
-  );
 
   const handleOfframpSubmit = useCallback(() => {
     if (!address) {
@@ -467,7 +422,7 @@ export const RampForm = () => {
         onSubmit={handleOfframpSubmit}
         onClose={() => setRampSummaryVisible(false)}
       />
-      <SigningBox step={offrampSigningPhase} />
+      <SigningBox />
       {offrampKycStarted ? (
         <PIXKYCForm feeComparisonRef={feeComparisonRef} />
       ) : (
@@ -481,41 +436,14 @@ export const RampForm = () => {
           feeComparisonRef={feeComparisonRef}
           trackPrice={trackPrice}
           isOfframpSummaryDialogVisible={isOfframpSummaryDialogVisible}
-          apiInitializeFailed={apiInitializeFailed}
           initializeFailedMessage={initializeFailedMessage}
           getCurrentErrorMessage={getCurrentErrorMessage}
           openTokenSelectModal={openTokenSelectModal}
           onSwapConfirm={onSwapConfirm}
         />
       )}
-      <p className="flex items-center justify-center mr-1 text-gray-500">
-        <a
-          href="https://satoshipay.io"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-sm transition hover:opacity-80"
-        >
-          Developed by <img src={satoshipayLogo} alt="Satoshipay" className="h-4" />
-        </a>
-      </p>
-      <PitchSection />
-      <TrustedBy />
-      <FeeComparison
-        sourceAssetSymbol={fromToken.assetSymbol}
-        amount={fromAmount ?? Big(100)}
-        targetAssetSymbol={toToken.fiat.symbol}
-        vortexPrice={vortexPrice}
-        network={selectedNetwork}
-        ref={feeComparisonRef}
-        trackPrice={trackPrice.current}
-      />
-      <WhyVortex />
-      <HowToSell />
-      <PopularTokens />
-      <FAQAccordion />
-      <GotQuestions />
     </main>
   );
 
-  return <BaseLayout modals={modals} main={main} />;
+  return <BaseLayout main={main} />;
 };
