@@ -12,3 +12,7 @@ export interface AssetHubTokenDetails extends BaseTokenDetails, PendulumDetails 
   network: Networks;
   foreignAssetId: number;
 }
+
+export interface AssetHubTokenDetailsWithBalance extends AssetHubTokenDetails {
+  balance: string;
+}

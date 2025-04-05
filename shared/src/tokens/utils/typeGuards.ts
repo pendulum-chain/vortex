@@ -12,6 +12,8 @@ export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | StellarToken
 export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
 export type FiatTokenDetails = StellarTokenDetails | MoonbeamTokenDetails;
 
+export type OnChainTokenDetailsWithBalance = OnChainTokenDetails & { balance: string };
+
 /**
  * Type guard for EVM tokens
  */
