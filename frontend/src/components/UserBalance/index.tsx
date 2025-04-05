@@ -1,5 +1,5 @@
 import { OnChainTokenDetails } from 'shared';
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import {} from '../../hooks/useOnchainTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
 import wallet from '../../assets/wallet-bifold-outline.svg';
 
@@ -10,9 +10,9 @@ interface UserBalanceProps {
 
 export const UserBalance = ({ token, onClick }: UserBalanceProps) => {
   const { isDisconnected } = useVortexAccount();
-  const inputTokenBalance = useInputTokenBalance({ fromToken: token });
+  const onchainTokenBalances = useOnchainTokenBalance();
 
-  if (isDisconnected || inputTokenBalance === undefined) {
+  if (isDisconnected || onchainTokenBalances === undefined) {
     return <div className="h-6 mt-1" />;
   }
 
