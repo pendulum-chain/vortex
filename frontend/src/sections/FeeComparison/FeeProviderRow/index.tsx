@@ -4,49 +4,58 @@ import { useTranslation } from 'react-i18next';
 import Big from 'big.js';
 
 import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
-<<<<<<<< HEAD:frontend/src/sections/FeeComparison/FeeProviderRow/index.tsx
 import { Skeleton } from '../../../components/Skeleton';
-import { QuoteProvider } from '../quoteProviders';
-========
-import { Skeleton } from '../../Skeleton';
-import { PriceProvider } from '../priceProviders';
->>>>>>>> backend-migration-with-cline:frontend/src/components/FeeComparison/FeeProviderRow/index.tsx
 import { formatPrice } from '../helpers';
-import { BaseComparisonProps } from '..';
 import { cn } from '../../../helpers/cn';
+import { useRampForm } from '../../../hooks/ramp/useRampForm';
+import { useNetwork } from '../../../contexts/network';
+import { PriceProvider } from '../priceProviders';
 
-interface FeeProviderRowProps extends BaseComparisonProps {
+interface FeeProviderRowProps  {
   provider: PriceProvider;
   isBestRate: boolean;
   bestPrice: Big;
   onPriceFetched: (providerName: string, price: Big) => void;
+  amount: Big;
+  sourceAssetSymbol: string;
+  targetAssetSymbol: string;
 }
 
 export function FeeProviderRow({
   provider,
-  amount,
-  sourceAssetSymbol,
-  targetAssetSymbol,
-  vortexPrice,
-  network,
-  trackPrice,
   isBestRate,
   bestPrice,
   onPriceFetched,
+  amount,
+  sourceAssetSymbol,
+  targetAssetSymbol,
 }: FeeProviderRowProps) {
+
+
+  return <h1> 1</h1>
   const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
   const prevVortexPrice = useRef<Big | null>(null);
   const prevProviderPrice = useRef<Big | null>(null);
+  const { selectedNetwork } = useNetwork();
+
+  // const { form } = useRampForm();
+
+  // const formToAmount = form.watch('toAmount');
+  // // The price comparison is only available for Polygon (for now)
+  // const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
+
+
+  const vortexPrice = Big(100)
 
   const {
     isLoading,
     error,
     data: providerPriceRaw,
   } = useQuery({
-    queryKey: [amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, network],
-    queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, network),
+    queryKey: [amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, selectedNetwork],
+    queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, selectedNetwork),
     retry: false, // We don't want to retry the request to avoid spamming the server
   });
 
@@ -82,21 +91,9 @@ export function FeeProviderRow({
     };
 
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
-    schedulePrice(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, trackPrice);
+    schedulePrice(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, true);
     prevVortexPrice.current = vortexPrice;
-  }, [
-    amount,
-    provider.name,
-    isLoading,
-    schedulePrice,
-    sourceAssetSymbol,
-    targetAssetSymbol,
-    providerPrice,
-    vortexPrice,
-    trackPrice,
-    error,
-    onPriceFetched,
-  ]);
+  }, [amount, provider.name, isLoading, schedulePrice, sourceAssetSymbol, targetAssetSymbol, providerPrice, vortexPrice, error, onPriceFetched]);
 
   const { t } = useTranslation();
 

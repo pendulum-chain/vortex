@@ -2,13 +2,19 @@ import { useCallback, useState } from 'react';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
 
-import { getNetworkDisplayName, isNetworkEVM } from 'shared';
-import { priceProviders } from '../priceProviders';
+import { getAnyFiatTokenDetails, getNetworkDisplayName, getOnChainTokenDetailsOrDefault, isNetworkEVM } from 'shared';
 import { FeeProviderRow } from '../FeeProviderRow';
-import { BaseComparisonProps } from '..';
+import { useRampForm } from '../../../hooks/ramp/useRampForm';
+import { useNetwork } from '../../../contexts/network';
+import { priceProviders } from '../priceProviders';
 
-export function FeeComparisonTable(props: BaseComparisonProps) {
-  const { amount, sourceAssetSymbol, network, vortexPrice } = props;
+export function FeeComparisonTable() {
+
+  const {  fromAmount, from, to } = useRampForm();
+  const { selectedNetwork } = useNetwork();
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
+  const toToken = getAnyFiatTokenDetails(to);
+  const amount = fromAmount || Big(100)
 
   const [providerPrices, setProviderPrices] = useState<Record<string, Big>>({});
 
@@ -29,10 +35,10 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
     const bPrice = providerPrices[b.name] ?? new Big(0);
     return bPrice.minus(aPrice).toNumber();
   });
-  const networkDisplay = !isNetworkEVM(network) ? (
+  const networkDisplay = !isNetworkEVM(selectedNetwork) ? (
     <div
       className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-      data-tip={t('sections.feeComparison.table.tooltip', { network: getNetworkDisplayName(network) })}
+      data-tip={t('sections.feeComparison.table.tooltip', { network: getNetworkDisplayName(selectedNetwork) })}
     >
       <span translate="no">(Polygon)</span>
     </div>
@@ -43,7 +49,7 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
       <div className="flex items-center justify-center w-full mb-3">
         <div className="flex items-center justify-center w-full gap-4">
           <span className="font-bold text-md">
-            {t('sections.feeComparison.table.sending')} {amount.toFixed(2)} {sourceAssetSymbol} {networkDisplay}{' '}
+            {t('sections.feeComparison.table.sending')} {amount.toFixed(2)} {fromToken.assetSymbol} {networkDisplay}{' '}
             {t('sections.feeComparison.table.with')}
           </span>
         </div>
@@ -58,12 +64,13 @@ export function FeeComparisonTable(props: BaseComparisonProps) {
           <div className="w-full my-4 border-b border-gray-200" />
 
           <FeeProviderRow
-            {...props}
             provider={provider}
             onPriceFetched={handlePriceUpdate}
             isBestRate={provider.name === bestProvider.bestProvider}
             bestPrice={bestProvider.bestPrice}
-            vortexPrice={vortexPrice}
+            amount={amount}
+            sourceAssetSymbol={fromToken.assetSymbol}
+            targetAssetSymbol={toToken.assetSymbol}
           />
         </div>
       ))}

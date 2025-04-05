@@ -6,7 +6,6 @@ import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
 import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
 import { AssetNumericInput } from '../AssetNumericInput';
-import { TermsAndConditions } from '../TermsAndConditions';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
 import { UserBalance } from '../UserBalance';
@@ -14,15 +13,17 @@ import { ExchangeRate } from '../ExchangeRate';
 import { BenefitsList } from '../BenefitsList';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 import { useQuoteService } from '../../hooks/ramp/useQuoteService';
 import { useTokenSelection } from '../../hooks/ramp/useTokenSelection';
-import { useRampForm } from '../../stores/ramp/useRampFormStore';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useRampSummaryVisible } from '../../stores/offrampStore';
+import { useFeeComparisonStore } from '../../stores/feeComparison';
+import { useRampForm } from '../../hooks/ramp/useRampForm';
+import { RampTerms } from '../RampTerms';
+import { useValidateTerms } from '../../stores/termsStore';
 
 // Enum for different button states
 enum SwapButtonState {
@@ -31,30 +32,25 @@ enum SwapButtonState {
   CONFIRM = 'Confirm',
 }
 
-/**
- * Refactored Swap component that accesses stores and hooks directly
- * No longer relies on props passed from parent component
- */
 export const Swap = () => {
-  // Get references
-  const feeComparisonRef = useRef<HTMLDivElement | null>(null);
-  const trackPrice = useRef(false);
 
-  // Access hooks and stores directly
+  const { feeComparisonRef, setTrackPrice } = useFeeComparisonStore();
+
   const { form, fromAmount, from, to } = useRampForm();
   const { outputAmount: toAmount, exchangeRate } = useQuoteService(fromAmount, from, to);
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const { onSwapConfirm } = useRampSubmission();
   const isOfframpSummaryDialogVisible = useRampSummaryVisible();
 
+  const validateTerms = useValidateTerms();
+
   // Local state
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
-  const [termsAnimationKey, setTermsAnimationKey] = useState(0);
 
   // Get hooks
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
-  const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
+
   const { openTokenSelectModal } = useTokenSelection();
 
   // Get token details
@@ -77,8 +73,8 @@ export const Swap = () => {
   // Handle input change
   const handleInputChange = useCallback(() => {
     setFromAmountFieldTouched(true);
-    trackPrice.current = true;
-  }, [trackPrice]);
+    setTrackPrice(true);
+  }, [setTrackPrice]);
 
   // Handle balance click
   const handleBalanceClick = useCallback((amount: string) => form.setValue('fromAmount', amount), [form]);
@@ -122,30 +118,24 @@ export const Swap = () => {
     (e: React.MouseEvent) => {
       e.preventDefault();
       setTimeout(() => {
-        feeComparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
+        feeComparisonRef?.current?.scrollIntoView({ behavior: 'smooth' });
       }, 200);
-      trackPrice.current = true;
 
-      // Track event
       trackEvent({
         event: 'compare_quote',
       });
     },
-    [feeComparisonRef, trackPrice, trackEvent],
+    [feeComparisonRef, trackEvent],
   );
 
-  // Handle confirm button click
   const handleConfirm = useCallback(() => {
-    if (!termsAccepted && !termsChecked) {
-      setTermsError(true);
-      setTermsAnimationKey((prev) => prev + 1);
+    if (!validateTerms()) {
       return;
     }
 
     onSwapConfirm();
-  }, [onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
+  }, [onSwapConfirm, validateTerms]);
 
-  // Determine button state
   const getButtonState = (): SwapButtonState => {
     if (isOfframpSummaryDialogVisible) {
       return SwapButtonState.PROCESSING;
@@ -194,14 +184,7 @@ export const Swap = () => {
         )}
 
         <section className="w-full mt-5">
-          <TermsAndConditions
-            key={termsAnimationKey}
-            toggleTermsChecked={toggleTermsChecked}
-            termsChecked={termsChecked}
-            termsAccepted={termsAccepted}
-            termsError={termsError}
-            setTermsError={setTermsError}
-          />
+          <RampTerms/>
         </section>
 
         <div className="flex gap-3 mt-5">

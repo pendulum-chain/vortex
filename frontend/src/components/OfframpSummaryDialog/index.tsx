@@ -21,8 +21,8 @@ import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
-import { useRampActions, useRampState } from '../../stores/offrampStore';
-import { RampExecutionInput } from '../../types/phases';
+import { useRampActions, useRampState, useRampExecutionInput, useRampSummaryVisible } from '../../stores/offrampStore';
+import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 
 interface AssetDisplayProps {
   amount: string;
@@ -89,34 +89,24 @@ const FeeDetails = ({
   </section>
 );
 
-interface OfframpSummaryDialogProps {
-  anchorUrl?: string;
-  executionInput?: RampExecutionInput;
-  visible: boolean;
-  onSubmit: () => void;
-  onClose: () => void;
-}
-
-export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
-  anchorUrl,
-  executionInput,
-  visible,
-  onClose,
-  onSubmit,
-}) => {
+export const OfframpSummaryDialog: FC = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const { selectedNetwork } = useNetwork();
-  const { setRampExecutionInput, setRampInitiating, setRampStarted } = useRampActions();
-  const offrampState = useRampState();
 
-  // We use some defaults here to avoid issues with conditional calls to react hooks. This is safe because the
-  // component will not render if the executionInput is undefined.
+  const { selectedNetwork } = useNetwork();
+  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible } = useRampActions();
+  const offrampState = useRampState();
+  const executionInput = useRampExecutionInput();
+  const visible = useRampSummaryVisible();
+  const { handleOfframpSubmit } = useRampSubmission();
+
+  const anchorUrl = executionInput?.anchorUrl;
+
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput?.onChainToken || EvmToken.USDC);
   const fromIcon = useGetAssetIcon(fromToken.networkAssetIcon);
   const toToken = getAnyFiatTokenDetails(executionInput?.fiatToken || FiatToken.EURC);
   const toIcon = useGetAssetIcon(toToken.fiat.assetIcon);
 
-  const toAmount = Big(executionInput?.quote.outputAmount || 0);
+  const toAmount = executionInput ? Big(executionInput.quote.outputAmount || 0) : Big(0);
   const { feesCost } = useOfframpFees(toAmount, toToken);
 
   if (!visible) return null;
@@ -150,16 +140,27 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       />
     </div>
   );
+
+  const onClose = () => {
+    setIsSubmitted(false);
+    setRampExecutionInput(undefined);
+    setRampStarted(false);
+    setRampInitiating(false);
+    setRampSummaryVisible(false);
+  };
+
+  const onSubmit = () => {
+    setIsSubmitted(true);
+    handleOfframpSubmit();
+    toToken.type !== 'moonbeam' ? open(anchorUrl, '_blank') : null;
+  };
+
   const actions = (
     <button
       disabled={isSubmitted}
       className="btn-vortex-primary btn rounded-xl"
       style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-      onClick={() => {
-        setIsSubmitted(true);
-        onSubmit();
-        toToken.type !== 'moonbeam' ? open(anchorUrl, '_blank') : null;
-      }}
+      onClick={onSubmit}
     >
       {offrampState !== undefined ? (
         <>
@@ -185,13 +186,7 @@ export const OfframpSummaryDialog: FC<OfframpSummaryDialogProps> = ({
       visible={visible}
       actions={actions}
       headerText="You're selling"
-      onClose={() => {
-        setIsSubmitted(false);
-        setRampExecutionInput(undefined);
-        setRampStarted(false);
-        setRampInitiating(false);
-        onClose();
-      }}
+      onClose={onClose}
     />
   );
 };

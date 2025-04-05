@@ -2,21 +2,16 @@ import { FailurePage } from '../failure';
 import { ProgressPage } from '../progress';
 import { SuccessPage } from '../success';
 import { RampForm } from '../ramp-form';
+import { useRampNavigation } from '../../hooks/ramp/useRampNavigation';
 
 export const Ramp = () => {
-  // const { isSuccessPage, isFailurePage, isProgressPage } = useRampPageStatus();
 
-  // if (isProgressPage) {
-  //   return <ProgressPage />;
-  // }
+  const { getCurrentComponent } = useRampNavigation(
+    <SuccessPage />,
+    <FailurePage />,
+    <ProgressPage />,
+    <RampForm />
+  );
 
-  // if (isSuccessPage) {
-  //   return <SuccessPage />;
-  // }
-
-  // if (isFailurePage) {
-  //   return <FailurePage />;
-  // }
-
-  return <RampForm />;
+  return getCurrentComponent();
 };

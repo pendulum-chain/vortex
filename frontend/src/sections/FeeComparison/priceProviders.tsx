@@ -2,6 +2,7 @@ import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
 import vortexIcon from '../../assets/logo/blue.svg';
+
 import { JSX } from 'react';
 import Big from 'big.js';
 import { PriceEndpoints } from 'shared';

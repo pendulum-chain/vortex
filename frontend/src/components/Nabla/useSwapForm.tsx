@@ -20,7 +20,7 @@ type SwapSettings = {
 type TokenSelectType = 'from' | 'to';
 
 const storageSet = debounce(storageService.set, 1000);
-const setStorageForSwapSettings = storageSet.bind(null, storageKeys.SWAP_SETTINGS);
+const setStorageForSwapSettings = storageSet.bind(null, storageKeys.RAMP_SETTINGS);
 
 function mergeIfDefined<T>(target: T, source: T | undefined): void {
   if (!source) return;
@@ -42,7 +42,7 @@ export const useSwapForm = () => {
     const searchParams = new URLSearchParams(window.location.search);
 
     const defaultValues = { from: 'usdc', to: 'eurc', network: selectedNetwork };
-    const storageValues = storageService.getParsed<SwapSettings>(storageKeys.SWAP_SETTINGS);
+    const storageValues = storageService.getParsed<SwapSettings>(storageKeys.RAMP_SETTINGS);
     const searchParamValues = {
       from: searchParams.get('from'),
       to: searchParams.get('to'),
