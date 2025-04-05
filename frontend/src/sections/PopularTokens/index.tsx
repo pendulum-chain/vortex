@@ -6,6 +6,7 @@ import { Networks, getNetworkDisplayName } from 'shared';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useNetwork } from '../../contexts/network';
+import { cn } from '../../helpers/cn';
 
 const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDC', assetIcon: 'usdc' },

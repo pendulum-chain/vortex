@@ -11132,6 +11132,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tailwind-merge@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "tailwind-merge@npm:3.1.0"
+  checksum: 10/408aec29a07f07093d4987174f3a259b83af3db2559deca853a3da50351c35c0969392399bd308a67304dc7ec81bb979bff7da3a532dd9495a2b8a3f0e7bdc98
+  languageName: node
+  linkType: hard
+
 "tailwindcss@npm:4.0.6, tailwindcss@npm:^4.0.3":
   version: 4.0.6
   resolution: "tailwindcss@npm:4.0.6"
@@ -12013,6 +12020,7 @@ __metadata:
     react-toastify: "npm:^10.0.6"
     stellar-base: "npm:^11.0.1"
     stellar-sdk: "npm:^13.1.0"
+    tailwind-merge: "npm:^3.1.0"
     tailwindcss: "npm:^4.0.3"
     ts-node: "npm:^10.9.1"
     typescript: "npm:^5.7.3"
