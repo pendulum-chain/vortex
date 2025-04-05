@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { SwapFormValues } from '../../components/Nabla/schema';
+import { SwapFormValues } from '../components/Nabla/schema';
 import { FiatToken } from 'shared';
 
 interface UseSwapUrlParamsProps {
