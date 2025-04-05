@@ -9,7 +9,7 @@ import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase } from 'shared';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
-import { RampState } from '../../types/phases';
+import { useRampState } from '../../stores/offrampStore';
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -78,10 +78,6 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
 const CIRCLE_RADIUS = 80;
 const CIRCLE_STROKE_WIDTH = 12;
 const numberOfPhases = Object.keys(OFFRAMPING_PHASE_SECONDS).length;
-
-interface ProgressPageProps {
-  offrampingState: RampState;
-}
 
 interface ProgressContentProps {
   currentPhase: RampPhase;
@@ -188,19 +184,19 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
   );
 };
 
-export const ProgressPage: FC<ProgressPageProps> = ({ offrampingState }) => {
+export const ProgressPage = () => {
   const { trackEvent } = useEventsContext();
-  const { selectedNetwork } = useNetwork();
+  const rampState = useRampState();
 
-  const currentPhase = offrampingState.ramp?.currentPhase as RampPhase;
+  const currentPhase = rampState.ramp?.currentPhase as RampPhase;
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
   // FIXME get message from backend
-  // const message = createOfframpingPhaseMessage(offrampingState, selectedNetwork);
+  // const message = createOfframpingPhaseMessage(rampState, selectedNetwork);
   const message = 'This is a placeholder message.';
 
   useEffect(() => {
     trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: currentPhase });
-  }, [currentPhaseIndex, trackEvent, offrampingState.ramp]);
+  }, [currentPhaseIndex, trackEvent, rampState.ramp]);
 
   return (
     <BaseLayout
