@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch } from 'react';
 
 interface TermsAndConditionsProps {
   toggleTermsChecked: () => void;
-  setTermsError: Dispatch<SetStateAction<boolean>>;
+  setTermsError: Dispatch<boolean>;
   termsChecked: boolean;
   termsAccepted: boolean;
   termsError: boolean;

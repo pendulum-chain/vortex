@@ -1,11 +1,11 @@
-import { TermsAndConditions } from '../../TermsAndConditions';
+import { TermsAndConditions } from '../TermsAndConditions';
 import {
   useTermsChecked,
   useTermsAccepted,
   useTermsError,
   useTermsAnimationKey,
   useTermsActions,
-} from '../../../stores/termsStore';
+} from '../../stores/termsStore';
 
 export const SwapTerms = () => {
   const termsChecked = useTermsChecked();
