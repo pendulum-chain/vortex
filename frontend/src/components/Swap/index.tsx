@@ -1,80 +1,65 @@
-import React, { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {  useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { motion } from 'motion/react';
+import { FormProvider } from 'react-hook-form';
 
 import { LabeledInput } from '../LabeledInput';
 import { FeeCollapse } from '../FeeCollapse';
 import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
-import { SwapFormValues } from '../Nabla/schema';
-import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { AssetNumericInput } from '../AssetNumericInput';
-import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails, OnChainToken, FiatToken } from 'shared';
-import { useNetwork } from '../../contexts/network';
 import { TermsAndConditions } from '../TermsAndConditions';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
 import { UserBalance } from '../UserBalance';
-import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
 import { ExchangeRate } from '../ExchangeRate';
 import { BenefitsList } from '../BenefitsList';
-import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useEventsContext } from '../../contexts/events';
-import { usePendulumNode } from '../../contexts/polkadotNode';
+import { useNetwork } from '../../contexts/network';
+import { useTermsAndConditions } from '../../hooks/useTermsAndConditions';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
+import { useQuoteService } from '../../hooks/ramp/useQuoteService';
+import { useTokenSelection } from '../../hooks/ramp/useTokenSelection';
+import { useRampForm } from '../../stores/ramp/useRampFormStore';
+import { useRampValidation } from '../../hooks/ramp/useRampValidation';
+import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
+import { useRampSummaryVisible } from '../../stores/offrampStore';
 
+// Enum for different button states
 enum SwapButtonState {
   CONFIRMING = 'Confirming',
   PROCESSING = 'Processing',
   CONFIRM = 'Confirm',
 }
 
-enum TokenSelectType {
-  FROM = 'from',
-  TO = 'to',
-}
+/**
+ * Refactored Swap component that accesses stores and hooks directly
+ * No longer relies on props passed from parent component
+ */
+export const Swap = () => {
+  // Get references
+  const feeComparisonRef = useRef<HTMLDivElement | null>(null);
+  const trackPrice = useRef(false);
 
-interface SwapProps {
-  form: UseFormReturn<SwapFormValues, unknown, undefined>;
-  from: OnChainToken;
-  to: FiatToken;
-  fromAmount: Big.Big | undefined;
-  toAmount: Big.Big | undefined;
-  exchangeRate: number;
-  feeComparisonRef: RefObject<HTMLDivElement | null>;
-  trackPrice: React.RefObject<boolean>;
-  initializeFailedMessage: string | null;
-  isOfframpSummaryDialogVisible: boolean;
-  openTokenSelectModal: (token: TokenSelectType) => void;
-  onSwapConfirm: () => void;
-  getCurrentErrorMessage: () => string | null | undefined;
-}
+  // Access hooks and stores directly
+  const { form, fromAmount, from, to } = useRampForm();
+  const { outputAmount: toAmount, exchangeRate } = useQuoteService(fromAmount, from, to);
+  const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
+  const { onSwapConfirm } = useRampSubmission();
+  const isOfframpSummaryDialogVisible = useRampSummaryVisible();
 
-export const Swap = ({
-  form,
-  from,
-  to,
-  fromAmount,
-  toAmount,
-  exchangeRate,
-  feeComparisonRef,
-  trackPrice,
-  initializeFailedMessage,
-  isOfframpSummaryDialogVisible,
-  getCurrentErrorMessage,
-  onSwapConfirm,
-  openTokenSelectModal,
-}: SwapProps) => {
-  const { selectedNetwork } = useNetwork();
-  const { trackEvent } = useEventsContext();
-  const cachedAnchorUrl = useSep24StoreCachedAnchorUrl();
-  const { apiComponents } = usePendulumNode();
-
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = getAnyFiatTokenDetails(to);
-
-  const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
-
+  // Local state
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
   const [termsAnimationKey, setTermsAnimationKey] = useState(0);
+
+  // Get hooks
+  const { trackEvent } = useEventsContext();
+  const { selectedNetwork } = useNetwork();
+  const { toggleTermsChecked, termsChecked, termsAccepted, termsError, setTermsError } = useTermsAndConditions();
+  const { openTokenSelectModal } = useTokenSelection();
+
+  // Get token details
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
+  const toToken = getAnyFiatTokenDetails(to);
 
   // Debounced value to avoid tracking the amount while the user is typing
   const debouncedFromAmount = useDebouncedValue(fromAmount, 1000);
@@ -89,13 +74,16 @@ export const Swap = ({
     });
   }, [fromAmountFieldTouched, debouncedFromAmount, fromAmount, trackEvent]);
 
+  // Handle input change
   const handleInputChange = useCallback(() => {
     setFromAmountFieldTouched(true);
     trackPrice.current = true;
   }, [trackPrice]);
 
+  // Handle balance click
   const handleBalanceClick = useCallback((amount: string) => form.setValue('fromAmount', amount), [form]);
 
+  // Withdraw numeric input component
   const WithdrawNumericInput = useMemo(
     () => (
       <>
@@ -103,7 +91,7 @@ export const Swap = ({
           registerInput={form.register('fromAmount')}
           tokenSymbol={fromToken.assetSymbol}
           assetIcon={fromToken.networkAssetIcon}
-          onClick={() => openTokenSelectModal(TokenSelectType.FROM)}
+          onClick={() => openTokenSelectModal('from')}
           onChange={handleInputChange}
           id="fromAmount"
         />
@@ -113,12 +101,13 @@ export const Swap = ({
     [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick],
   );
 
+  // Receive numeric input component
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
         assetIcon={toToken.fiat.assetIcon}
         tokenSymbol={toToken.fiat.symbol}
-        onClick={() => openTokenSelectModal(TokenSelectType.TO)}
+        onClick={() => openTokenSelectModal('to')}
         registerInput={form.register('toAmount')}
         disabled={!toAmount}
         readOnly={true}
@@ -128,6 +117,7 @@ export const Swap = ({
     [toToken.fiat.assetIcon, toToken.fiat.symbol, form, toAmount, openTokenSelectModal],
   );
 
+  // Handle compare fees click
   const handleCompareFeesClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -135,11 +125,17 @@ export const Swap = ({
         feeComparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 200);
       trackPrice.current = true;
+
+      // Track event
+      trackEvent({
+        event: 'compare_quote',
+      });
     },
-    [feeComparisonRef, trackPrice],
+    [feeComparisonRef, trackPrice, trackEvent],
   );
 
-  const onConfirm = useCallback(() => {
+  // Handle confirm button click
+  const handleConfirm = useCallback(() => {
     if (!termsAccepted && !termsChecked) {
       setTermsError(true);
       setTermsAnimationKey((prev) => prev + 1);
@@ -149,6 +145,7 @@ export const Swap = ({
     onSwapConfirm();
   }, [onSwapConfirm, setTermsError, termsAccepted, termsChecked]);
 
+  // Determine button state
   const getButtonState = (): SwapButtonState => {
     if (isOfframpSummaryDialogVisible) {
       return SwapButtonState.PROCESSING;
@@ -156,12 +153,12 @@ export const Swap = ({
     return SwapButtonState.CONFIRM;
   };
 
-  const isSubmitButtonDisabled =
-    Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || !apiComponents?.api;
+  // Determine if submit button is disabled
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
 
+  // Determine if submit button is pending
   const isSubmitButtonPending = isOfframpSummaryDialogVisible;
 
-  const displayInitializeFailedMessage = initializeFailedMessage;
   return (
     <FormProvider {...form}>
       <motion.form
@@ -169,7 +166,7 @@ export const Swap = ({
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
-        onSubmit={form.handleSubmit(onConfirm)}
+        onSubmit={form.handleSubmit(handleConfirm)}
       >
         <h1 className="mt-2 mb-5 text-3xl font-bold text-center text-blue-700">Sell Crypto</h1>
         <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
@@ -191,7 +188,7 @@ export const Swap = ({
         {initializeFailedMessage && (
           <section className="flex justify-center w-full mt-5">
             <div className="flex items-center gap-4">
-              <p className="text-red-600">{displayInitializeFailedMessage}</p>
+              <p className="text-red-600">{initializeFailedMessage}</p>
             </div>
           </section>
         )}
