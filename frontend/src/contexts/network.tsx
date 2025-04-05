@@ -61,7 +61,6 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
     [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetRampState, cleanupSep24Variables],
   );
 
-  // Only run on first render
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const networkParam = params.get('network')?.toLowerCase();

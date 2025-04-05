@@ -91,7 +91,7 @@ sequenceDiagram
     Participant B as Backend
     Participant P as Pendulum
     Participant M as Moonbeam
-    
+
     F->>B: Initiate cross-chain swap
     B->>P: Create ephemeral account
     P-->>B: Account details
@@ -128,7 +128,7 @@ graph TD
 1.  **Component-Based UI:** React components organized into pages (`pages/`), sections (`sections/`), and reusable UI elements (`components/`).
 2.  **Context API for Global State/Services:** Extensive use of React Context (`contexts/`) to provide access to network state, wallet connections, event tracking, SIWE signing, and Polkadot node connections throughout the application.
 3.  **Zustand for Localized State:** Zustand stores (`stores/`) are used for managing specific feature states like the swap form (`formStore`), offramp process (`offrampStore`), SEP-24 flow (`sep24Store`), and Safe wallet signatures (`safeWalletSignaturesStore`).
-4.  **Custom Hooks for Logic Abstraction:** Custom hooks (`hooks/`) encapsulate logic for interacting with wallets (`useVortexAccount`), fetching balances (`useInputTokenBalance`), signing challenges (`useSignChallenge`), managing network/asset icons (`useGetNetworkIcon`, `useGetAssetIcon`), and handling specific flows like BRLA KYC (`hooks/brla/`).
+4.  **Custom Hooks for Logic Abstraction:** Custom hooks (`hooks/`) encapsulate logic for interacting with wallets (`useVortexAccount`), fetching balances (`useOnchainTokenBalance`), signing challenges (`useSignChallenge`), managing network/asset icons (`useGetNetworkIcon`, `useGetAssetIcon`), and handling specific flows like BRLA KYC (`hooks/brla/`).
 5.  **Service Layer for API Interaction:** Services (`services/`) abstract backend communication (e.g., `services/api/`, `services/backend.ts`, `services/signingService.tsx`).
 6.  **Type Safety:** TypeScript is used throughout for strong typing.
 7.  **Modular Styling:** Tailwind CSS and DaisyUI provide utility-based styling, supplemented by custom CSS (`App.css`).

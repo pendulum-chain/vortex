@@ -1,55 +1,38 @@
 import Big from 'big.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { PoolSelectorModal, TokenDefinition } from '../../components/InputKeys/SelectionModal';
 import { useSwapForm } from '../../components/Nabla/useSwapForm';
 
-import { FeeComparison } from '../../components/FeeComparison';
 import { SigningBox } from '../../components/SigningBox';
 
-import { PitchSection } from '../../sections/Pitch';
-import { TrustedBy } from '../../sections/TrustedBy';
-import { WhyVortex } from '../../sections/WhyVortex';
 
 import {
-  AssetHubToken,
-  assetHubTokenConfig,
   DestinationType,
-  evmTokenConfig,
   FiatToken,
   getAnyFiatTokenDetails,
-  getEnumKeyByStringValue,
   getOnChainTokenDetailsOrDefault,
-  moonbeamTokenConfig,
-  Networks,
-  OnChainToken,
   QuoteEndpoints,
-  RampEndpoints,
-  stellarTokenConfig,
 } from 'shared';
 import { config } from '../../config';
 
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { usePendulumNode } from '../../contexts/polkadotNode';
 
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { showToast, ToastMessage } from '../../helpers/notifications';
-import { isNetworkEVM } from 'shared';
 
-import { useInputTokenBalance } from '../../hooks/useInputTokenBalance';
+import { useOnchainTokenBalance } from '../../hooks/useOnchainTokenBalance';
 import { useMainProcess } from '../../hooks/offramp/useMainProcess';
 import {
   useRampActions,
   useRampExecutionInput,
   useRampInitiating,
   useRampKycStarted,
-  useRampSigningPhase,
   useRampStarted,
   useRampState,
   useRampSummaryVisible,
 } from '../../stores/offrampStore';
-import { RampExecutionInput, RampState } from '../../types/phases';
+import { RampExecutionInput } from '../../types/phases';
 import { useSwapUrlParams } from '../../hooks/useRampUrlParams';
 
 import { BaseLayout } from '../../layouts';
@@ -57,7 +40,6 @@ import { ProgressPage } from '../progress';
 import { FailurePage } from '../failure';
 import { SuccessPage } from '../success';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
-import { GotQuestions } from '../../sections/GotQuestions';
 import {
   MoonbeamFundingAccountError,
   PendulumFundingAccountError,
@@ -66,10 +48,6 @@ import {
 } from '../../services/signingService';
 import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 
-import satoshipayLogo from '../../assets/logo/satoshipay.svg';
-import { FAQAccordion } from '../../sections/FAQAccordion';
-import { HowToSell } from '../../sections/HowToSell';
-import { PopularTokens } from '../../sections/PopularTokens';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { Swap } from '../../components/Swap';
@@ -232,7 +210,7 @@ export const RampForm = () => {
   // The price comparison is only available for Polygon (for now)
   const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
-  const userInputTokenBalance = useInputTokenBalance({ fromToken });
+  const userInputTokenBalance = useOnchainTokenBalance({ token: fromToken });
 
   const executionInput = useRampExecutionInput();
   const offrampKycStarted = useRampKycStarted();
