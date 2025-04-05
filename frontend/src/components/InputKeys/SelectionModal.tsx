@@ -1,17 +1,29 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { assetHubTokenConfig, evmTokenConfig, FiatToken, FiatTokenDetails, getEnumKeyByStringValue, moonbeamTokenConfig, Networks, OnChainToken, OnChainTokenDetails, stellarTokenConfig } from 'shared';
+import {
+  assetHubTokenConfig,
+  evmTokenConfig,
+  FiatToken,
+  FiatTokenDetails,
+  getEnumKeyByStringValue,
+  moonbeamTokenConfig,
+  Networks,
+  OnChainToken,
+  OnChainTokenDetails,
+  stellarTokenConfig,
+} from 'shared';
 
-import { useRampModalActions, useRampModalState } from '../../stores/rampModalStore';
-import { useSwapDirection } from '../../stores/rampDirectionStore';
+import { useOnchainTokenBalances } from '../../hooks/useOnchainTokenBalances';
 import { useNetwork } from '../../contexts/network';
 import { PoolListItem } from './PoolListItem';
 import { SearchInput } from '../SearchInput';
 import { Skeleton } from '../Skeleton';
 import { Dialog } from '../Dialog';
-import { useOnchainTokenBalances } from '../../hooks/useOnchainTokenBalances';
-import { SwapDirection } from '../Swap/SwapToggle';
+import { RampDirection } from '../RampToggle';
+import { useRampModalActions } from '../../stores/rampModalStore';
+import { useRampModalState } from '../../stores/rampModalStore';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 
 export interface TokenDefinition {
   assetSymbol: string;
@@ -24,20 +36,11 @@ export interface TokenDefinition {
 export function PoolSelectorModal() {
   const { t } = useTranslation();
 
-  const {
-    isOpen,
-    isLoading,
-  } = useRampModalState();
+  const { isOpen, isLoading } = useRampModalState();
 
-  const {  closeTokenSelectModal } = useRampModalActions();
+  const { closeTokenSelectModal } = useRampModalActions();
 
-
-
-  const content = isLoading ? (
-    <LoadingContent />
-  ) : (
-    <TokenSelectionList/>
-  );
+  const content = isLoading ? <LoadingContent /> : <TokenSelectionList />;
 
   return (
     <Dialog
@@ -58,14 +61,12 @@ function TokenSelectionList() {
   const [filter, setFilter] = useState<string>('');
   const { filteredDefinitions } = useTokenDefinitions(filter);
 
-  const {
-    tokenSelectModalType,
-    fromToken,
-    toToken,
-  } = useRampModalState();
+  const { tokenSelectModalType, fromToken, toToken } = useRampModalState();
 
   const { selectFromToken, selectToToken } = useRampModalActions();
 
+  // tokenSelectModalType === 'from' ? onFromChange(token) : onToChange(token);
+  // maybeCancelSep24First();
   const handleTokenSelect = (token: OnChainToken | FiatToken) => {
     if (tokenSelectModalType === 'from') {
       selectFromToken(token);
@@ -81,7 +82,12 @@ function TokenSelectionList() {
       <SearchInput set={setFilter} placeholder={t('components.dialogs.selectionModal.searchPlaceholder')} />
       <div className="flex flex-col gap-2 mt-5">
         {filteredDefinitions.map((token) => (
-          <PoolListItem key={token.type} isSelected={selectedToken === token.type} onSelect={handleTokenSelect} token={token} />
+          <PoolListItem
+            key={token.type}
+            isSelected={selectedToken === token.type}
+            onSelect={handleTokenSelect}
+            token={token}
+          />
         ))}
       </div>
     </div>
@@ -89,20 +95,18 @@ function TokenSelectionList() {
 }
 
 function useTokenDefinitions(filter: string) {
-  const {
-    tokenSelectModalType,
-  } = useRampModalState();
+  const { tokenSelectModalType } = useRampModalState();
 
   const { selectedNetwork } = useNetwork();
 
-  const swapDirection = useSwapDirection();
+  const rampDirection = useRampDirection();
 
-  const definitions = useMemo(() =>
-    getTokenDefinitionsForNetwork(tokenSelectModalType, swapDirection, selectedNetwork),
-    [tokenSelectModalType, swapDirection, selectedNetwork]
+  const definitions = useMemo(
+    () => getTokenDefinitionsForNetwork(tokenSelectModalType, rampDirection, selectedNetwork),
+    [tokenSelectModalType, rampDirection, selectedNetwork],
   );
 
-  const definitionsWithBalance = useOnchainTokenBalances(definitions.map(d => d.details));
+  const definitionsWithBalance = useOnchainTokenBalances(definitions.map((d) => d.details));
 
   const balanceMap = useMemo(() => {
     if (!definitionsWithBalance.length) return {};
@@ -134,8 +138,7 @@ function useTokenDefinitions(filter: string) {
   return { definitions, filteredDefinitions };
 }
 
-
-function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks){
+function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks) {
   if (selectedNetwork === Networks.AssetHub) {
     return Object.entries(assetHubTokenConfig).map(([key, value]) => ({
       type: key as OnChainToken,
@@ -153,11 +156,14 @@ function getOnChainTokensDefinitionsForNetwork(selectedNetwork: Networks){
   }));
 }
 
-const getTokenDefinitionsForNetwork = (type: 'from' | 'to', direction: SwapDirection, selectedNetwork: Networks): TokenDefinition[] => {
+const getTokenDefinitionsForNetwork = (
+  type: 'from' | 'to',
+  direction: RampDirection,
+  selectedNetwork: Networks,
+): TokenDefinition[] => {
+  const isOnramp = direction === RampDirection.ONRAMP;
 
-  const isOnramp = direction === SwapDirection.ONRAMP;
-
-  if(isOnramp){
+  if (isOnramp) {
     if (type === 'from') {
       // @TODO: RESTRICT IT TO BRLA ONLY
       return Object.entries(moonbeamTokenConfig).map(([key, value]) => ({
