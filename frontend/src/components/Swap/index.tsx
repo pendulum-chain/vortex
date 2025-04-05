@@ -41,7 +41,6 @@ interface SwapProps {
   exchangeRate: number;
   feeComparisonRef: RefObject<HTMLDivElement | null>;
   trackPrice: React.RefObject<boolean>;
-  apiInitializeFailed: boolean;
   initializeFailedMessage: string | null;
   isOfframpSummaryDialogVisible: boolean;
   openTokenSelectModal: (token: TokenSelectType) => void;
@@ -58,7 +57,6 @@ export const Swap = ({
   exchangeRate,
   feeComparisonRef,
   trackPrice,
-  apiInitializeFailed,
   initializeFailedMessage,
   isOfframpSummaryDialogVisible,
   getCurrentErrorMessage,
@@ -190,7 +188,7 @@ export const Swap = ({
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
         <BrlaSwapFields toToken={to} />
-        {(initializeFailedMessage || apiInitializeFailed) && (
+        {initializeFailedMessage && (
           <section className="flex justify-center w-full mt-5">
             <div className="flex items-center gap-4">
               <p className="text-red-600">{displayInitializeFailedMessage}</p>
