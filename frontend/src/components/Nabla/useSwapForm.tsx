@@ -10,7 +10,7 @@ import { storageService } from '../../services/storage/local';
 import schema, { SwapFormValues } from './schema';
 import { getCaseSensitiveNetwork } from 'shared';
 import { useNetwork } from '../../contexts/network';
-import { useFormStoreActions } from '../../stores/formStore';
+import { useRampFormStoreActions } from '../../stores/ramp/useRampFormStore';
 
 type SwapSettings = {
   from: string;
@@ -36,7 +36,7 @@ export const useSwapForm = () => {
   const [isTokenSelectModalVisible, setIsTokenSelectModalVisible] = useState(false);
   const [tokenSelectModalType, setTokenModalType] = useState<TokenSelectType>('from');
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
-  const { setFromAmount, setPixId, setTaxId } = useFormStoreActions();
+  const { setFromAmount, setPixId, setTaxId } = useRampFormStoreActions();
 
   const initialState = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
