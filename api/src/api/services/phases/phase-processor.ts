@@ -4,13 +4,15 @@ import PhaseMetadata from '../../../models/phaseMetadata.model';
 import phaseRegistry from './phase-registry';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
-import e from 'express';
+import { PhaseError } from '../../errors/phase-error';
 
 /**
  * Process phases for a ramping process
  */
 export class PhaseProcessor {
   private static instance: PhaseProcessor;
+  private retriesMap = new Map<string, number>();
+  private readonly MAX_RETRIES = 8;
 
   /**
    * Get the singleton instance
@@ -61,18 +63,43 @@ export class PhaseProcessor {
       // except for complete or fail phases which are terminal.
       if (updatedState.currentPhase !== currentPhase && updatedState.currentPhase !== 'complete' && updatedState.currentPhase !== 'failed') {
         logger.info(`Phase changed from ${currentPhase} to ${updatedState.currentPhase} for ramp ${state.id}`);
-
+        
+        this.retriesMap.delete(state.id);
+        
         // Process the next phase
         await this.processPhase(updatedState);
       } else if (updatedState.currentPhase === 'complete') {
         logger.info(`Ramp ${state.id} completed successfully`);
+        this.retriesMap.delete(state.id);
       } else if (updatedState.currentPhase === 'failed') {
         logger.error(`Ramp ${state.id} failed unrecoverably, giving up.`);
+        this.retriesMap.delete(state.id);
       } else {
         logger.info(`Current phase must be different to updated phase for non-terminal states. This is a bug.`);
+        this.retriesMap.delete(state.id);
       }
     } catch (error: any) {
       logger.error(`Error processing phase ${state.currentPhase} for ramp ${state.id}:`, error);
+
+      const isPhaseError = error instanceof PhaseError;
+      const isRecoverable = isPhaseError && error.isRecoverable === true;
+
+      if (isRecoverable) {
+        const currentRetries = this.retriesMap.get(state.id) || 0;
+        
+        if (currentRetries < this.MAX_RETRIES) {
+          const nextRetry = currentRetries + 1;
+          this.retriesMap.set(state.id, nextRetry);
+          const delayMs = Math.pow(2, currentRetries) * 1000; 
+          
+          logger.info(`Scheduling retry ${nextRetry}/${this.MAX_RETRIES} for ramp ${state.id} in ${delayMs}ms`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          return this.processPhase(state);
+        }
+        
+        logger.error(`Max retries (${this.MAX_RETRIES}) reached for ramp ${state.id}`);
+        this.retriesMap.delete(state.id);
+      }
 
       // Add error to the state
       const errorLogs = [
@@ -82,6 +109,8 @@ export class PhaseProcessor {
           timestamp: new Date().toISOString(),
           error: error.message || 'Unknown error',
           details: error.stack || {},
+          recoverable: isRecoverable,
+          isPhaseError,
         },
       ];
 

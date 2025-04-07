@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import RampState from '../../../models/rampState.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
+import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from '../../errors/phase-error';
 import { PresignedTx, RampPhase } from 'shared';
 
 /**
@@ -49,22 +50,33 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       logger.info(`Phase ${this.getPhaseName()} executed successfully for ramp ${state.id}`);
 
       return updatedState;
-    } catch (error) {
+    } catch (error: any) {
       logger.error(`Error executing phase ${this.getPhaseName()} for ramp ${state.id}:`, error);
 
       // Add error to the state
       await this.logError(state, error);
 
-      throw error;
+      if (error instanceof PhaseError) {
+        throw error;
+      }
+      
+      throw new UnrecoverablePhaseError(error.message || 'Unknown error in phase execution');
     }
   }
 
-  /**
-   * Log an error
-   * @param state The current ramp state
-   * @param error The error to log
-   */
+
+  protected createRecoverableError(message: string): RecoverablePhaseError {
+    return new RecoverablePhaseError(message);
+  }
+
+  protected createUnrecoverableError(message: string): UnrecoverablePhaseError {
+    return new UnrecoverablePhaseError(message);
+  }
+
   private async logError(state: RampState, error: any): Promise<void> {
+    const isPhaseError = error instanceof PhaseError;
+    const isRecoverable = isPhaseError && error.isRecoverable === true;
+    
     const errorLogs = [
       ...state.errorLogs,
       {
@@ -72,6 +84,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
         timestamp: new Date().toISOString(),
         error: error.message || 'Unknown error',
         details: error.stack || {},
+        recoverable: isRecoverable,
       },
     ];
 
