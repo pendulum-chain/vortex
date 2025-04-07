@@ -1,4 +1,4 @@
-# Vortex Signer Service
+# Vortex API Service
 
 ## About
 
@@ -130,3 +130,19 @@ yarn seed:phase-metadata
 - `RATE_LIMIT_MAX_REQUESTS`: Maximum number of requests per IP address (default: 100)
 - `RATE_LIMIT_WINDOW_MINUTES`: Time window in minutes for the rate limit (default: 1)
 - `RATE_LIMIT_NUMBER_OF_PROXIES`: Number of proxies between server and user (default: 1)
+
+
+## Testing.
+
+There are two test/scripts that can help with testing a flow of interest, by-passing some of the external services and checks, and focusing on the phase executions alone.
+
+These are `phase-processor.integration.test.ts` and `phase-processor.recovery.integration.test.ts`
+
+These tests will fetch a quote, and attempt to register and start a ramp by signing and sending the funds from a testing account, which simulates the actions of the UI and the user. 
+
+It is important to keep in mind that both BRLA subaccount and ramp interactions are mocked. Similarly, Stellar interactions with anchors is skipped and an account is chosen as the anchor's target, to recover the funds.
+
+
+To test, please run `bun test phase-processor.integration.test.ts --timeuout X` where X is a reasonable timeframe for the phases to complete. Note: all the environment variables used to run the service MUST be provided, with the addition of BACKEND_TEST_STARTER_ACCOUNT, the account simulates the user.
+
+The state of the ramp is stored in `lastRampState.json`, which mocks the database. In the event of a failure, copy the state into `failedRampStateRecovery.json` and run `bun test phase-processor.recovery.integration.test.ts --timeout X` to simply restart the flow from the last phase. This is useful to test fixes or bugs.

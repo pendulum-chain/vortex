@@ -69,6 +69,14 @@ export class QuoteService extends BaseRampService {
       request.to,
     );
 
+    // Validate that the output amount is positive after fees
+    if (Big(outputAmount.receiveAmount).lte(0)) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Input amount is too low - fixed fee would exceed the output amount',
+      });
+    }
+
     // Create quote in database
     const quote = await QuoteTicket.create({
       id: uuidv4(),

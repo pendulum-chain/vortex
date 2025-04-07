@@ -1,4 +1,4 @@
-import { RampPhase } from 'shared';
+import { FiatToken, RampPhase } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import { API, ApiManager } from '../../pendulum/apiManager';
@@ -40,11 +40,14 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       if (!isPendulumFunded || (state.type === 'on' && !isMoonbeamFunded)) {
         console.log('Funding ephemeral addresses...');
-
-        if (state.type === 'on') {
+        if (state.type === 'on' && state.to !== 'assethub') {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
           await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
-        } else {
+
+        } else if (state.state.outputCurrency === FiatToken.BRL) {
+          console.log('Funding with glrm....')
+          await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
+        } else{
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, false);
         }
       } else {
