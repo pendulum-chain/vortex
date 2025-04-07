@@ -12,11 +12,11 @@ const DEFAULT_PROVIDERS = [...priceProviders];
 
 export function FeeComparisonTable() {
   const { t } = useTranslation();
-  const { fromAmount, from, to } = useRampFormStore();
+  const { inputAmount, onChainToken, fiatToken } = useRampFormStore();
   const { selectedNetwork } = useNetwork();
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = getAnyFiatTokenDetails(to);
-  const amount = fromAmount || Big(100);
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  const toToken = getAnyFiatTokenDetails(fiatToken);
+  const amount = inputAmount || Big(100);
 
   const [providerPrices, setProviderPrices] = useState<Record<string, Big>>({});
 
