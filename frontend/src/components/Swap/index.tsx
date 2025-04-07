@@ -5,7 +5,6 @@ import { FormProvider } from 'react-hook-form';
 import { LabeledInput } from '../LabeledInput';
 import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
 import { AssetNumericInput } from '../AssetNumericInput';
-import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
 import { UserBalance } from '../UserBalance';
 import { BenefitsList } from '../BenefitsList';
@@ -16,7 +15,6 @@ import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared'
 import { useQuoteService } from '../../hooks/ramp/useQuoteService';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
-import { useRampSummaryVisible } from '../../stores/offrampStore';
 import { useFeeComparisonStore } from '../../stores/feeComparison';
 import { useRampForm } from '../../hooks/ramp/useRampForm';
 import { RampTerms } from '../RampTerms';
@@ -25,15 +23,10 @@ import { useRampModalActions } from '../../stores/rampModalStore';
 import { useFromToken, useFromAmount, useToToken } from '../../stores/ramp/useRampFormStore';
 import { useSwapUrlParams } from '../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../RampFeeCollapse';
-
-enum SwapButtonState {
-  CONFIRMING = 'Confirming',
-  PROCESSING = 'Processing',
-  CONFIRM = 'Confirm',
-}
+import { RampSubmitButtons } from '../RampSubmitButtons';
 
 export const Swap = () => {
-  const { feeComparisonRef, setTrackPrice } = useFeeComparisonStore();
+  const { setTrackPrice } = useFeeComparisonStore();
 
   const { form } = useRampForm();
   const from = useFromToken();
@@ -43,7 +36,6 @@ export const Swap = () => {
   const { outputAmount: toAmount } = useQuoteService(fromAmount, from, to);
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const { onSwapConfirm } = useRampSubmission();
-  const isOfframpSummaryDialogVisible = useRampSummaryVisible();
 
   const validateTerms = useValidateTerms();
 
@@ -109,20 +101,6 @@ export const Swap = () => {
     [toToken.fiat.assetIcon, toToken.fiat.symbol, form, toAmount, openTokenSelectModal],
   );
 
-  const handleCompareFeesClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      setTimeout(() => {
-        feeComparisonRef?.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 200);
-
-      trackEvent({
-        event: 'compare_quote',
-      });
-    },
-    [feeComparisonRef, trackEvent],
-  );
-
   const handleConfirm = useCallback(() => {
     if (!validateTerms()) {
       return;
@@ -130,17 +108,6 @@ export const Swap = () => {
 
     onSwapConfirm();
   }, [onSwapConfirm, validateTerms]);
-
-  const getButtonState = (): SwapButtonState => {
-    if (isOfframpSummaryDialogVisible) {
-      return SwapButtonState.PROCESSING;
-    }
-    return SwapButtonState.CONFIRM;
-  };
-
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
-
-  const isSubmitButtonPending = isOfframpSummaryDialogVisible;
 
   return (
     <FormProvider {...form}>
@@ -168,21 +135,10 @@ export const Swap = () => {
             </div>
           </section>
         )}
-
         <section className="w-full mt-5">
           <RampTerms />
         </section>
-
-        <div className="flex gap-3 mt-5">
-          <button
-            className="btn-vortex-primary-inverse btn"
-            style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-            onClick={handleCompareFeesClick}
-          >
-            Compare fees
-          </button>
-          <SwapSubmitButton text={getButtonState()} disabled={isSubmitButtonDisabled} pending={isSubmitButtonPending} />
-        </div>
+        <RampSubmitButtons />
         <div className="mb-16" />
         <PoweredBy />
       </motion.form>
