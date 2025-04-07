@@ -24,6 +24,7 @@ import { RampDirection } from '../RampToggle';
 import { useRampModalActions } from '../../stores/rampModalStore';
 import { useRampModalState } from '../../stores/rampModalStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
+import { useFiatToken, useOnChainToken, useRampFormStoreActions } from '../../stores/ramp/useRampFormStore';
 
 export interface TokenDefinition {
   assetSymbol: string;
@@ -60,20 +61,38 @@ function TokenSelectionList() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<string>('');
   const { filteredDefinitions } = useTokenDefinitions(filter);
-
-  const { tokenSelectModalType, fromToken, toToken } = useRampModalState();
-
-  const { selectFromToken, selectToToken } = useRampModalActions();
+  const { tokenSelectModalType } = useRampModalState();
+  const { closeTokenSelectModal } = useRampModalActions();
+  const fiatToken = useFiatToken();
+  const onChainToken = useOnChainToken();
+  const { setFiatToken, setOnChainToken } = useRampFormStoreActions();
+  const rampDirection = useRampDirection();
 
   const handleTokenSelect = (token: OnChainToken | FiatToken) => {
-    if (tokenSelectModalType === 'from') {
-      selectFromToken(token);
+    if (rampDirection === RampDirection.ONRAMP) {
+      if (tokenSelectModalType === 'from') {
+        setFiatToken(token as FiatToken);
+      } else {
+        setOnChainToken(token as OnChainToken);
+      }
     } else {
-      selectToToken(token);
+      if (tokenSelectModalType === 'from') {
+        setOnChainToken(token as OnChainToken);
+      } else {
+        setFiatToken(token as FiatToken);
+      }
     }
+    closeTokenSelectModal();
   };
 
-  const selectedToken = tokenSelectModalType === 'from' ? fromToken : toToken;
+  const selectedToken =
+    rampDirection === RampDirection.ONRAMP
+      ? tokenSelectModalType === 'from'
+        ? fiatToken
+        : onChainToken
+      : tokenSelectModalType === 'from'
+      ? onChainToken
+      : fiatToken;
 
   return (
     <div className="relative">
