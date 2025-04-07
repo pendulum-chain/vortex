@@ -302,7 +302,7 @@ export async function prepareOfframpTransactions({
       }
       console.log('build and merge ...');
       const { paymentTransaction, mergeAccountTransaction, createAccountTransaction, expectedSequenceNumber } =
-        await buildPaymentAndMergeTx(account.address, stellarPaymentData, outputTokenDetails);
+      await buildPaymentAndMergeTx({ephemeralAccountId: account.address, amountToAnchorUnits: outputAmountBeforeFees.toFixed() , paymentData: stellarPaymentData, tokenConfigStellar: outputTokenDetails});
       console.log('build and merge done');
       unsignedTxs.push({
         tx_data: createAccountTransaction,

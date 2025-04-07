@@ -34,7 +34,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
         const stellarCreationTransaction = new Transaction(stellarCreationTransactionXDR, NETWORK_PASSPHRASE);
         await horizonServer.submitTransaction(stellarCreationTransaction);
 
-        return this.transitionToNextPhase(state, 'complete');
+        return this.transitionToNextPhase(state, 'fundEphemeral');
       } catch (e) {
         const horizonError = e as { response: { data: { extras: any } } };
         console.log(

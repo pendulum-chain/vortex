@@ -7,14 +7,23 @@ import Big from 'big.js';
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const MAX_TIME = Date.now() + 1000 * 60 * 10;
+const SEQUENCE_SHIFT_IN_SECONDS = 240; // 4 minutes
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
 
-export async function buildPaymentAndMergeTx(
-  ephemeralAccountId: string,
-  paymentData: PaymentData,
-  tokenConfigStellar: StellarTokenDetails,
-): Promise<{
+interface StellarBuildPaymentAndMergeTx {
+  ephemeralAccountId: string;
+  amountToAnchorUnits: string;
+  paymentData: PaymentData;
+  tokenConfigStellar: StellarTokenDetails;
+}
+
+export async function buildPaymentAndMergeTx({
+  ephemeralAccountId,
+  amountToAnchorUnits,
+  paymentData,
+  tokenConfigStellar,
+}: StellarBuildPaymentAndMergeTx ): Promise<{
   paymentTransaction: string;
   mergeAccountTransaction: string;
   expectedSequenceNumber: string;
@@ -34,7 +43,7 @@ export async function buildPaymentAndMergeTx(
 
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
-  const { amount, memo, memoType, anchorTargetAccount } = paymentData;
+  const { memo, memoType, anchorTargetAccount } = paymentData;
   const transactionMemo = memoType === 'text' ? Memo.text(memo) : Memo.hash(Buffer.from(memo, 'base64'));
 
   const fundingAccount = await horizonServer.loadAccount(fundingAccountKeypair.publicKey());
@@ -79,7 +88,7 @@ export async function buildPaymentAndMergeTx(
   })
     .addOperation(
       Operation.payment({
-        amount,
+        amount: amountToAnchorUnits,
         asset: new Asset(
           tokenConfigStellar.stellarAsset.code.string,
           tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
@@ -92,7 +101,7 @@ export async function buildPaymentAndMergeTx(
     .setMinAccountSequence(String(0))
     .build();
 
-  console.log('merge sequence');
+
   const mergeAccountTransaction = new TransactionBuilder(ephemeralAccount, {
     fee: STELLAR_BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -132,7 +141,7 @@ async function getFutureShiftedLedgerSequence(horizonServer: HorizonServer, shif
 
     const currentLedgerSequence = latestLedger.records[0].sequence;
 
-    const ledgersIn5Minutes = Math.ceil(300 / 7);
+    const ledgersIn5Minutes = Math.ceil(SEQUENCE_SHIFT_IN_SECONDS / 7);
 
     const futureLedgerSequence = currentLedgerSequence + ledgersIn5Minutes;
 

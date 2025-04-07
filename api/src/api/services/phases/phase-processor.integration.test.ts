@@ -26,7 +26,7 @@ import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { Keypair } from 'stellar-sdk';
 import { API, ApiManager } from '../pendulum/apiManager';
-import { createPublicClient, createWalletClient, http } from 'viem';
+import { createPublicClient, createWalletClient, http, parseGwei } from 'viem';
 import { polygon } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { BACKEND_TEST_STARTER_ACCOUNT } from '../../../constants/constants';
@@ -34,12 +34,13 @@ import { BACKEND_TEST_STARTER_ACCOUNT } from '../../../constants/constants';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
+import registerPhaseHandlers from './register-handlers';
 
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 // This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
-// Stellar mock anchor account. US.
-const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GDSDQLBVDD5RZYKNDM2LAX5JDNNQOTSZOKECUYEXYMUZMAPXTMDUJCVF';
+// Stellar mock anchor account. Back to the vault, for now.
+const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GAXW7RTC4LA3MGNEA3LO626ABUCZBW3FDQPYBTH6VQA5BFHXXYZUQWY7';
 const TEST_INPUT_AMOUNT = '0.05';
 const TEST_INPUT_CURRENCY = EvmToken.USDC;
 const TEST_OUTPUT_CURRENCY = FiatToken.EURC;
@@ -101,6 +102,9 @@ let quoteTicket: QuoteTicket;
 RampState.update = mock(async function (updateData: any, options?: any) {
   // Merge the update into the current instance.
   rampState = { ...rampState, ...updateData };
+
+  const filePath = path.join(__dirname, 'lastRampState.json');
+  fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
 }) as any;
 
@@ -116,12 +120,17 @@ RampState.create = mock(async (data: any) => {
     update: async function (updateData: any, options?: any) {
       // Merge the update into the current instance.
       rampState = { ...rampState, ...updateData };
+
+      const filePath = path.join(__dirname, 'lastRampState.json');
+      fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
     reload: async function (options?: any) {
       return rampState;
     },
   };
+  const filePath = path.join(__dirname, 'lastRampState.json');
+  fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
 }) as any;
 
@@ -214,10 +223,13 @@ describe('PhaseProcessor Integration Test', () => {
       const processor = new PhaseProcessor();
       const rampService = new RampService();
       const quoteService = new QuoteService();
+
+      registerPhaseHandlers();
+
       const additionalData = {
         walletAddress: EVM_TESTING_ADDRESS,
         paymentData: {
-          amount: '1', // Relevant for test???
+          amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
           memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
           memo: '1204asjfnaksf10982e4',
           anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
@@ -242,6 +254,7 @@ describe('PhaseProcessor Integration Test', () => {
       console.log('register ramp:', registeredRamp);
 
       // START - MIMIC THE UI
+
       const pendulumNode = await getPendulumNode();
       const presignedTxs = await signUnsignedTransactions(
         registeredRamp!.unsignedTxs,
@@ -252,9 +265,8 @@ describe('PhaseProcessor Integration Test', () => {
         },
         pendulumNode.api,
       );
-      console.log('Presigned transactions:', presignedTxs);
-
-      // sign and send the squidy transactions!
+      
+      //sign and send the squidy transactions!
       const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterApprove');
       const approveHash = await executeEvmTransaction(
         squidApproveTransaction!.network,
@@ -268,19 +280,18 @@ describe('PhaseProcessor Integration Test', () => {
         squidSwapTransaction!.tx_data as EvmTransactionData,
       );
       console.log('Swap transaction executed with hash:', swapHash);
+
+
       // END - MIMIC THE UI
-
+      
       const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
-      // wait for handlers to be registered
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await processor.processRamp(registeredRamp.id);
 
-      // await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
+      await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
 
       // expect(rampState.currentPhase).toBe('complete');
       // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
-      const filePath = path.join(__dirname, 'failedRampState.json');
+      const filePath = path.join(__dirname, 'lastRampState.json');
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       throw error;
     }
@@ -304,15 +315,24 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
       chain: polygon,
       transport: http(),
     });
-
+    console.log("gas parameters", txData.gas, txData.maxFeePerGas, txData.maxPriorityFeePerGas);
     const hash = await walletClient.sendTransaction({
       to: txData.to,
       data: txData.data,
       value: BigInt(txData.value),
+      maxFeePerGas: parseGwei('250'), // Set a high max fee
+      maxPriorityFeePerGas: parseGwei('50'), // Set a high priority fee
+      //maxFeePerGas: txData.maxFeePerGas ? BigInt(txData.maxFeePerGas)*100n : BigInt(5750000000000),
+      //maxPriorityFeePerGas: txData.maxFeePerGas ? BigInt(txData.maxFeePerGas)*100n : BigInt(5750000000000),
     });
-    // we are naive and assume that it will take a maximum of 5 seconds to get into block
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    console.log('Transaction hash:', hash);
+    // we are naive and assume that it will take a maximum of 30 seconds to get into block, and potentially be reverted.
+    await new Promise((resolve) => setTimeout(resolve, 30000));
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    console.log('Transaction receipt:', receipt);
+    if (!receipt || receipt.status !== 'success') {
+      throw new Error(`Transaction ${hash} failed or was not found`);
+    }
 
     return receipt.transactionHash;
   } catch (error) {

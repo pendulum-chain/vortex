@@ -80,6 +80,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       throw new Error('MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.');
     }
 
+    let obtainedHash: string | undefined = moonbeamXcmTransactionHash;
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
         if (moonbeamXcmTransactionHash === undefined) {
@@ -90,7 +91,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
           });
 
           const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-          const hash = await walletClient.sendTransaction({
+          obtainedHash = await walletClient.sendTransaction({
             to: MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
             value: 0n,
             data,
@@ -104,7 +105,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
           // For recovery purposes.
           state.state = {
             ...state.state,
-            moonbeamXcmTransactionHash: hash,
+            moonbeamXcmTransactionHash: obtainedHash,
           };
           await state.update({ state: state.state });
         }
@@ -115,10 +116,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      await waitForTransactionReceipt(moonbeamConfig, {
-        hash: moonbeamXcmTransactionHash as `0x${string}`,
-        chainId: moonbeam.id,
-      });
+      
       await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
     } catch (e) {
       console.error('Error while waiting for transaction receipt:', e);
