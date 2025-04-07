@@ -1,29 +1,49 @@
-import { useForm } from 'react-hook-form';
-
-import { UseFormReturn } from 'react-hook-form';
-import { SwapFormValues } from '../../components/Nabla/schema';
-import { useFromAmount, usePixId, useRampFormStoreActions, useTaxId } from '../../stores/ramp/useRampFormStore';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import { useEffect, useRef } from 'react';
 import Big from 'big.js';
 
+import { RampFormValues } from '../../components/Nabla/schema';
+import {
+  DEFAULT_RAMP_FORM_STORE_VALUES,
+  useFiatToken,
+  useInputAmount,
+  useOnChainToken,
+  usePixId,
+  useRampFormStoreActions,
+  useTaxId,
+} from '../../stores/ramp/useRampFormStore';
+
+const DEFAULT_RAMP_FORM_VALUES: RampFormValues = {
+  ...DEFAULT_RAMP_FORM_STORE_VALUES,
+  inputAmount: '',
+  outputAmount: undefined,
+  deadline: 0,
+  slippage: 0,
+};
+
 export const useRampForm = (): {
-  form: UseFormReturn<SwapFormValues>;
+  form: UseFormReturn<RampFormValues>;
   reset: () => void;
 } => {
-  const form = useForm<SwapFormValues>({
-    defaultValues: {
-      fromAmount: '',
-      toAmount: '',
-      taxId: '',
-      pixId: '',
-    },
+  const form = useForm<RampFormValues>({
+    defaultValues: DEFAULT_RAMP_FORM_VALUES,
   });
 
   // Get store state and actions
   const taxId = useTaxId();
   const pixId = usePixId();
-  const fromAmount = useFromAmount();
-  const { setFromAmount, setTaxId, setPixId, reset: resetStore } = useRampFormStoreActions();
+  const inputAmount = useInputAmount();
+  const onChainToken = useOnChainToken();
+  const fiatToken = useFiatToken();
+
+  const {
+    setInputAmount,
+    setOnChainToken,
+    setFiatToken,
+    setTaxId,
+    setPixId,
+    reset: resetStore,
+  } = useRampFormStoreActions();
 
   const isFirstRender = useRef(true);
 
@@ -34,22 +54,36 @@ export const useRampForm = (): {
     }
 
     const subscription = form.watch((values, { name }) => {
-      if (name === 'fromAmount' && values.fromAmount !== undefined) {
-        setFromAmount(Big(values.fromAmount));
+      if (name === 'inputAmount' && values.inputAmount !== undefined) {
+        setInputAmount(Big(values.inputAmount));
       } else if (name === 'taxId' && values.taxId !== undefined) {
         setTaxId(values.taxId);
       } else if (name === 'pixId' && values.pixId !== undefined) {
         setPixId(values.pixId);
+      } else if (name === 'onChainToken' && values.onChainToken !== undefined) {
+        setOnChainToken(values.onChainToken);
+      } else if (name === 'fiatToken' && values.fiatToken !== undefined) {
+        setFiatToken(values.fiatToken);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [form, setFromAmount, setTaxId, setPixId]);
+  }, [form, setInputAmount, setTaxId, setPixId, setOnChainToken, setFiatToken]);
 
   useEffect(() => {
-    const currentFromAmount = form.getValues('fromAmount');
-    if (fromAmount && !fromAmount.eq(Big(currentFromAmount))) {
-      form.setValue('fromAmount', fromAmount.toString());
+    const currentInputAmount = form.getValues('inputAmount');
+    if (inputAmount && !inputAmount.eq(Big(currentInputAmount))) {
+      form.setValue('inputAmount', inputAmount.toString());
+    }
+
+    const currentOnChainToken = form.getValues('onChainToken');
+    if (onChainToken && onChainToken !== currentOnChainToken) {
+      form.setValue('onChainToken', onChainToken);
+    }
+
+    const currentFiatToken = form.getValues('fiatToken');
+    if (fiatToken && fiatToken !== currentFiatToken) {
+      form.setValue('fiatToken', fiatToken);
     }
 
     const currentTaxId = form.getValues('taxId');
@@ -61,15 +95,10 @@ export const useRampForm = (): {
     if (pixId && pixId !== currentPixId) {
       form.setValue('pixId', pixId);
     }
-  }, [form, taxId, pixId, fromAmount]);
+  }, [form, taxId, pixId, inputAmount, onChainToken, fiatToken]);
 
   const reset = () => {
-    form.reset({
-      fromAmount: '',
-      toAmount: '',
-      taxId: '',
-      pixId: '',
-    });
+    form.reset(DEFAULT_RAMP_FORM_VALUES);
     resetStore();
   };
 
