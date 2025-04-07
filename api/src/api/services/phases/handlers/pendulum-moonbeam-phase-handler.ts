@@ -1,4 +1,4 @@
-import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
+import { RampPhase, decodeSubmittableExtrinsic, getAddressForFormat } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
@@ -27,7 +27,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       const { tx_data: pendulumToMoonbeamTransaction } = this.getPresignedTransaction(state, 'pendulumToMoonbeam');
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(pendulumToMoonbeamTransaction, pendulumNode.api);
-      const { hash } = await submitXTokens(pendulumEphemeralAddress, xcmExtrinsic);
+      const { hash } = await submitXTokens(getAddressForFormat(pendulumEphemeralAddress, pendulumNode.ss58Format), xcmExtrinsic);
 
       state.state = {
         ...state.state,

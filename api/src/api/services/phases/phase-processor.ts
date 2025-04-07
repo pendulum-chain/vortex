@@ -4,6 +4,7 @@ import PhaseMetadata from '../../../models/phaseMetadata.model';
 import phaseRegistry from './phase-registry';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
+import e from 'express';
 
 /**
  * Process phases for a ramping process
@@ -57,13 +58,18 @@ export class PhaseProcessor {
       const updatedState = await handler.execute(state);
 
       // If the phase has changed, process the next phase
-      if (updatedState.currentPhase !== currentPhase) {
+      // except for complete or fail phases which are terminal.
+      if (updatedState.currentPhase !== currentPhase && updatedState.currentPhase !== 'complete' && updatedState.currentPhase !== 'failed') {
         logger.info(`Phase changed from ${currentPhase} to ${updatedState.currentPhase} for ramp ${state.id}`);
 
         // Process the next phase
         await this.processPhase(updatedState);
+      } else if (updatedState.currentPhase === 'complete') {
+        logger.info(`Ramp ${state.id} completed successfully`);
+      } else if (updatedState.currentPhase === 'failed') {
+        logger.error(`Ramp ${state.id} failed unrecoverably, giving up.`);
       } else {
-        logger.info(`Phase ${currentPhase} completed for ramp ${state.id}`);
+        logger.info(`Current phase must be different to updated phase for non-terminal states. This is a bug.`);
       }
     } catch (error: any) {
       logger.error(`Error processing phase ${state.currentPhase} for ramp ${state.id}:`, error);
