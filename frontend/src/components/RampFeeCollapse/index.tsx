@@ -3,7 +3,7 @@ import Big from 'big.js';
 
 import { FeeCollapse } from '../FeeCollapse';
 import { ExchangeRate } from '../ExchangeRate';
-import { useFromToken, useFromAmount, useToToken } from '../../stores/ramp/useRampFormStore';
+import { useOnChainToken, useInputAmount, useFiatToken } from '../../stores/ramp/useRampFormStore';
 import { useQuoteService } from '../../hooks/ramp/useQuoteService';
 import { useNetwork } from '../../contexts/network';
 import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
@@ -11,9 +11,9 @@ import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared'
 export const RampFeeCollapse: FC = () => {
   const { selectedNetwork } = useNetwork();
 
-  const from = useFromToken();
-  const to = useToToken();
-  const fromAmount = useFromAmount();
+  const from = useOnChainToken();
+  const to = useFiatToken();
+  const fromAmount = useInputAmount();
 
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getAnyFiatTokenDetails(to);
