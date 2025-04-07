@@ -1,5 +1,5 @@
 import { createPublicClient, http } from 'viem';
-import { polygon } from 'viem/chains';
+import { moonbeam, polygon } from 'viem/chains';
 import erc20ABI from '../../../contracts/ERC20';
 import Big from 'big.js';
 import { ApiManager } from '../pendulum/apiManager';
@@ -8,6 +8,8 @@ import { KeyringPair } from '@polkadot/keyring/types';
 import { Keyring } from '@polkadot/api';
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_SEED } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import { privateKeyToAccount } from 'viem/accounts';
+import { createMoonbeamClientsAndConfig } from './createServices';
 
 export function checkMoonbeamBalancePeriodically(
   tokenAddress: string,
@@ -21,7 +23,7 @@ export function checkMoonbeamBalancePeriodically(
     const intervalId = setInterval(async () => {
       try {
         const publicClient = createPublicClient({
-          chain: polygon,
+          chain: moonbeam,
           transport: http(),
         });
 
@@ -55,30 +57,38 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
   try {
     const apiManager = ApiManager.getInstance();
     const apiData = await apiManager.getApi('moonbeam');
-    const { fundingAccountKeypair, fundingAmountRaw } = getMoonbeamFundingData(apiData.ss58Format, apiData.decimals);
+    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals);
 
-    await apiManager.executeApiCall(
-      (api) => api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw),
-      fundingAccountKeypair,
-      'moonbeam',
-    );
+    const txHash = await walletClient.sendTransaction({
+      to: ephemeralAddress as `0x${string}`,
+      value: BigInt(fundingAmountRaw),
+    });
+    // wait 15 seconds.
+    await new Promise((resolve) => setTimeout(resolve, 15000)); // TODO needs to be improved.
+
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (!receipt || receipt.status === 'success') {
+        throw new Error(`fundMoonbeamEphemeralAccount: Transaction ${txHash} failed or was not found`);
+      }
   } catch (error) {
     console.error('Error during funding Moonbeam ephemeral:', error);
-    return false;
+    throw new Error('Error during funding Moonbeam ephemeral: ' + error);
   }
 };
 
 export function getMoonbeamFundingData(
-  ss58Format: number,
   decimals: number,
 ): {
-  fundingAccountKeypair: KeyringPair;
   fundingAmountRaw: string;
+  walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>['walletClient'];
+  publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>['publicClient'];
 } {
-  const keyring = new Keyring({ type: 'sr25519', ss58Format });
-  const fundingAccountKeypair = keyring.addFromUri(MOONBEAM_FUNDING_SEED || '');
+
   const fundingAmountUnits = Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
-  return { fundingAccountKeypair, fundingAmountRaw };
+  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_SEED as `0x${string}`);
+  const { walletClient, publicClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
+
+  return { fundingAmountRaw , walletClient, publicClient};
 }

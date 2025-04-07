@@ -14,9 +14,9 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, destinationAddress, inputAmountUnits, inputAmountBeforeSwapRaw} = state.state as StateMetadata;
+    const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw} = state.state as StateMetadata;
 
-    if (!taxId || !destinationAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
+    if (!taxId || !moonbeamEphemeralAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
       throw new Error('CreatePayInPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
@@ -29,12 +29,12 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
       if (!subaccount) {
         throw new Error('Subaccount not found');
       }
-      console.log('Requesting teleport:', subaccount.id, inputAmountBrla, destinationAddress);
+      console.log('Requesting teleport:', subaccount.id, inputAmountBrla, moonbeamEphemeralAddress);
       const teleportService = BrlaTeleportService.getInstance();
       await teleportService.requestTeleport(
         subaccount.id,
         Number(inputAmountUnits),
-        destinationAddress as `0x${string}`,
+        moonbeamEphemeralAddress as `0x${string}`,
       );
 
       // now we wait and verify that funds have arrived at the actual destination ephemeral.
@@ -51,7 +51,7 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
 
       await checkMoonbeamBalancePeriodically(
         tokenDetails.moonbeamErc20Address,
-        destinationAddress,
+        moonbeamEphemeralAddress,
         inputAmountBeforeSwapRaw, // TODO verify this is okay, regarding decimals.
         pollingTimeMs,
         maxWaitingTimeMs,
@@ -67,7 +67,7 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
       }
     }
 
-    return this.transitionToNextPhase(state, 'moonbeamToPendulum');
+    return this.transitionToNextPhase(state, 'moonbeamToPendulumXcm');
   }
 }
 

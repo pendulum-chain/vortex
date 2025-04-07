@@ -38,24 +38,28 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonebamNode);
       }
 
-      if (!isPendulumFunded || (state.type === 'on' && !isMoonbeamFunded)) {
-        console.log('Funding ephemeral addresses...');
+      if (!isPendulumFunded) {
+        console.log('Funding pen ephemeral...');
         if (state.type === 'on' && state.to !== 'assethub') {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
-          await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
-
         } else if (state.state.outputCurrency === FiatToken.BRL) {
-          console.log('Funding with glrm....')
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
         } else{
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, false);
         }
       } else {
-        console.log('Ephemeral addresses already funded, skipping funding step');
+        console.log('Pendulum ephemeral address already funded.');
       }
+
+      if (state.type === 'on' && !isMoonbeamFunded) {
+        console.log('Funding moonbeam ephemeral...');
+        await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
+      }
+      
     } catch (e) {
       console.error('Error in FundEphemeralPhaseHandler:', e);
-      throw e;
+      const recoverableError = this.createRecoverableError("Error funding ephemeral account");
+      throw recoverableError;
     }
 
     return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
@@ -64,7 +68,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected nextPhaseSelector(state: RampState): RampPhase {
     // onramp case
     if (state.type === 'on') {
-      return 'moonbeamToPendulumXcm';
+      return 'createPayInRequest';
     }
 
     // off ramp cases

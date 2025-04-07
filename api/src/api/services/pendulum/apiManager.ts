@@ -153,7 +153,7 @@ export class ApiManager {
         const nonceRpc = (await apiInstance.api.rpc.system.accountNextIndex(senderKeypair.publicKey)).toNumber();
         const lastUsedNonce = nonceMap.get(senderKeypair.address) ?? 0;
 
-        if (nonceRpc > lastUsedNonce) {
+        if (nonceRpc > lastUsedNonce || nonceRpc === 0) {
           nonceMap.set(senderKeypair.address, nonceRpc);
           return nonceRpc;
         }
