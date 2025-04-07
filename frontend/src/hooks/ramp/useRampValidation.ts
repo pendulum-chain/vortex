@@ -16,7 +16,7 @@ import { config } from '../../config';
  * Encapsulates validation rules and error messages
  */
 export const useRampValidation = () => {
-  const { fromAmount, from, to } = useRampFormStore();
+  const { inputAmount, onChainToken, fiatToken } = useRampFormStore();
   const { quote, loading: quoteLoading } = useQuoteStore();
   const { isDisconnected } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
@@ -25,8 +25,10 @@ export const useRampValidation = () => {
   // Initialization failure state
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
 
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = getAnyFiatTokenDetails(to);
+  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  const toToken = getAnyFiatTokenDetails(fiatToken);
+
+  console.log('toToken', toToken);
 
   const userInputTokenBalance = useOnchainTokenBalance({ token: fromToken });
 
@@ -37,11 +39,11 @@ export const useRampValidation = () => {
     if (isDisconnected) return 'Please connect your wallet';
 
     if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(fromAmount ?? 0)) {
+      if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
         trackEvent({
           event: 'form_error',
           error_message: 'insufficient_balance',
-          input_amount: fromAmount ? fromAmount.toString() : '0',
+          input_amount: inputAmount ? inputAmount.toString() : '0',
         });
         return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
       }
@@ -53,11 +55,11 @@ export const useRampValidation = () => {
     // Use exchange rate from quote if available
     const exchangeRate = quote ? Number(quote.outputAmount) / Number(quote.inputAmount) : 0;
 
-    if (fromAmount && exchangeRate && maxAmountUnits.lt(fromAmount.mul(exchangeRate))) {
+    if (inputAmount && exchangeRate && maxAmountUnits.lt(inputAmount.mul(exchangeRate))) {
       trackEvent({
         event: 'form_error',
         error_message: 'more_than_maximum_withdrawal',
-        input_amount: fromAmount ? fromAmount.toString() : '0',
+        input_amount: inputAmount ? inputAmount.toString() : '0',
       });
       return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
         toToken.fiat.symbol
@@ -72,7 +74,7 @@ export const useRampValidation = () => {
         trackEvent({
           event: 'form_error',
           error_message: 'less_than_minimum_withdrawal',
-          input_amount: fromAmount ? fromAmount.toString() : '0',
+          input_amount: inputAmount ? inputAmount.toString() : '0',
         });
         return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
           toToken.fiat.symbol
@@ -83,16 +85,7 @@ export const useRampValidation = () => {
     if (quoteLoading) return 'Calculating quote...';
 
     return null;
-  }, [
-    isDisconnected,
-    userInputTokenBalance,
-    fromAmount,
-    toToken,
-    quote,
-    quoteLoading,
-    fromToken,
-    trackEvent
-  ]);
+  }, [isDisconnected, userInputTokenBalance, inputAmount, toToken, quote, quoteLoading, fromToken, trackEvent]);
 
   /**
    * Sets initialization failed message
