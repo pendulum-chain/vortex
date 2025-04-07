@@ -1,10 +1,8 @@
 import { FC, useCallback } from 'react';
+import Big from 'big.js';
 import { useEventsContext } from '../../contexts/events';
 import { useFeeComparisonStore } from '../../stores/feeComparison';
 import { useRampSummaryVisible } from '../../stores/offrampStore';
-import { useValidateTerms } from '../../stores/termsStore';
-import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
-import { useQuoteService } from '../../hooks/ramp/useQuoteService';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 
@@ -14,12 +12,13 @@ enum SwapButtonState {
   CONFIRM = 'Confirm',
 }
 
-export const RampSubmitButtons: FC = () => {
+interface RampSubmitButtonsProps {
+  toAmount?: Big;
+}
+
+export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
-  const validateTerms = useValidateTerms();
-  const { onSwapConfirm } = useRampSubmission();
-  const { outputAmount: toAmount } = useQuoteService();
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const isOfframpSummaryDialogVisible = useRampSummaryVisible();
 
