@@ -37,6 +37,7 @@ import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import registerPhaseHandlers from './register-handlers';
 import { verifyReferenceLabel } from '../brla/helpers';
 
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 // This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
@@ -327,12 +328,12 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
     const walletClient = createWalletClient({
       account: moonbeamExecutorAccount,
       chain: polygon,
-      transport: http(),
+      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
     });
 
     const publicClient = createPublicClient({
       chain: polygon,
-      transport: http(),
+      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
     });
 
     const estimateFeePerGas = await publicClient.estimateFeesPerGas();
@@ -342,9 +343,9 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
       to: txData.to,
       data: txData.data,
       value: BigInt(txData.value),
-      gas: BigInt(1000000),
-      maxFeePerGas: estimateFeePerGas.maxFeePerGas*10n,
-      maxPriorityFeePerGas: estimateFeePerGas.maxPriorityFeePerGas*10n,
+      gas: BigInt(txData.gas),
+      maxFeePerGas: estimateFeePerGas.maxFeePerGas*5n,
+      maxPriorityFeePerGas: estimateFeePerGas.maxPriorityFeePerGas*5n,
     });
     console.log('Transaction hash:', hash);
     // we are naive and assume that it will take a maximum of 30 seconds to get into block, and potentially be reverted.
