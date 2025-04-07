@@ -3,7 +3,6 @@ import { getAnyFiatTokenDetails, isFiatToken, RampCurrency } from 'shared';
 
 export function calculateTotalReceive(
   toAmount: Big,
-  inputCurrency: RampCurrency,
   outputCurrency: RampCurrency,
 ): string {
   if (isFiatToken(outputCurrency)) {
@@ -20,6 +19,15 @@ export function calculateTotalReceive(
     }
     return '0';
   }
+
+  throw new Error('calculateTotalReceive: No offramp fees defined for output token');
+}
+
+
+export function calculateTotalReceiveOnramp(
+  fromAmount: Big,
+  inputCurrency: RampCurrency,
+): string {
   // Brla only, for now, has onramp.
   if (isFiatToken(inputCurrency)) {
     const inputTokenDetails = getAnyFiatTokenDetails(inputCurrency);
@@ -31,8 +39,8 @@ export function calculateTotalReceive(
     const fixedFees = new Big(
       inputTokenDetails.onrampFeesFixedComponent ? inputTokenDetails.onrampFeesFixedComponent : 0,
     );
-    const fees = toAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
-    const totalReceiveRaw = toAmount.minus(fees);
+    const fees = fromAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
+    const totalReceiveRaw = fromAmount.minus(fees);
 
     if (totalReceiveRaw.gt(0)) {
       return totalReceiveRaw.toFixed(2, 0);
@@ -40,5 +48,5 @@ export function calculateTotalReceive(
     return '0';
   }
 
-  return toAmount.toFixed(2, 0);
+  throw new Error('calculateTotalReceiveOnramp: No onramp fees defined for input token');
 }

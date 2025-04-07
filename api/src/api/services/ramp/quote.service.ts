@@ -8,7 +8,7 @@ import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { getTokenOutAmount } from '../nablaReads/outAmount';
 import { ApiManager } from '../pendulum/apiManager';
-import { calculateTotalReceive } from '../../helpers/quote';
+import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
@@ -182,21 +182,31 @@ export class QuoteService extends BaseRampService {
         });
       }
 
+      const inputAmountAfterFees = rampType === 'on' ? calculateTotalReceiveOnramp(
+        new Big(inputAmount),
+        inputCurrency,
+      ) : inputAmount;
+
+
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
-        fromAmountString: inputAmount,
+        fromAmountString: inputAmountAfterFees,
         inputTokenDetails: inputTokenPendulumDetails,
         outputTokenDetails: outputTokenPendulumDetails,
       });
 
-      const outputAmountAfterFees = calculateTotalReceive(
+      const outputAmountAfterFees = rampType === 'off' ? calculateTotalReceive(
         amountOut.roundedDownQuotedAmountOut,
-        inputCurrency,
         outputCurrency,
-      );
-      const effectiveFees = amountOut.preciseQuotedAmountOut.preciseBigDecimal
+      ): amountOut.roundedDownQuotedAmountOut.toFixed(2, 0);
+
+      const effectiveFeesOfframp = amountOut.preciseQuotedAmountOut.preciseBigDecimal
         .minus(outputAmountAfterFees)
         .toFixed(2, 0);
+
+      const effectiveFeesOnramp = new Big(inputAmount).minus(inputAmountAfterFees).toFixed(2, 0);
+      const effectiveFees = rampType === 'off' ? effectiveFeesOfframp : effectiveFeesOnramp;
+
 
       return {
         receiveAmount: outputAmountAfterFees,

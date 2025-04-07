@@ -37,7 +37,14 @@ export class PhaseProcessor {
       });
     }
 
-    await this.processPhase(state);
+    try {
+      await this.processPhase(state);
+      // We just return, since the error management should be handled in the processPhase method.
+      // We do not want to crash the whole process if one ramp fails.
+    } catch (error) {
+      return;
+    }
+
   }
 
   /**
@@ -79,7 +86,6 @@ export class PhaseProcessor {
         this.retriesMap.delete(state.id);
       }
     } catch (error: any) {
-      logger.error(`Error processing phase ${state.currentPhase} for ramp ${state.id}:`, error);
 
       const isPhaseError = error instanceof PhaseError;
       const isRecoverable = isPhaseError && error.isRecoverable === true;
@@ -116,7 +122,6 @@ export class PhaseProcessor {
 
       await state.update({ errorLogs });
 
-      // Throw the error to be handled by the caller
       throw error;
     }
   }

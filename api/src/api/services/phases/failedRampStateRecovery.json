@@ -171,6 +171,14 @@
       "timestamp": "2025-04-07T16:57:11.672Z",
       "error": "No XcmSent event found for account 5GgHSRfTQH2hzBpX5sey6cz3k9P4otzXHbTLFPiYBR27chR1",
       "details": "Error: No XcmSent event found for account 5GgHSRfTQH2hzBpX5sey6cz3k9P4otzXHbTLFPiYBR27chR1\n    at <anonymous> (/Users/gianni/root/Pendulum/vortexRepo/vortex/api/src/api/services/xcm/send.ts:126:24)\n    at <anonymous> (/Users/gianni/root/Pendulum/vortexRepo/vortex/api/node_modules/@polkadot/util/nextTick.js:13:13)\n    at processTicksAndRejections (native:7:39)"
+    },
+    {
+      "phase": "pendulumToMoonbeam",
+      "timestamp": "2025-04-07T17:45:13.681Z",
+      "error": "Failed to do XCM transfer: RpcError: 1010: Invalid Transaction: Transaction is outdated",
+      "details": "UnrecoverablePhaseError: Failed to do XCM transfer: RpcError: 1010: Invalid Transaction: Transaction is outdated\n    at new PhaseError (/Users/gianni/root/Pendulum/vortexRepo/vortex/api/src/api/errors/phase-error.ts:6:5)\n    at new UnrecoverablePhaseError (/Users/gianni/root/Pendulum/vortexRepo/vortex/api/src/api/errors/phase-error.ts:20:5)\n    at <anonymous> (/Users/gianni/root/Pendulum/vortexRepo/vortex/api/src/api/services/phases/base-phase-handler.ts:63:17)\n    at processTicksAndRejections (native:7:39)",
+      "recoverable": false,
+      "isPhaseError": true
     }
   ],
   "createdAt": "2025-04-07T16:53:00.896Z",

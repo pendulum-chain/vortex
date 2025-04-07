@@ -11,6 +11,8 @@ import {
   EphemeralAccount,
   decodeSubmittableExtrinsic,
 } from "../index";
+import { u8aToHex } from "@polkadot/util";
+import { hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
 
 /**
  * Signs an array of unsigned transactions using network-specific methods.
@@ -50,6 +52,7 @@ export async function signUnsignedTransactions(
     evmEphemeral?: EphemeralAccount;
   },
   pendulumApi: ApiPromise,
+  moonbeamApi: ApiPromise,
 ): Promise<PresignedTx[]> {
   const signedTxs: PresignedTx[] = [];
 
@@ -113,26 +116,48 @@ export async function signUnsignedTransactions(
       if (!ephemerals.evmEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
-      if (!isEvmTransactionData(tx.tx_data)) {
-        throw new Error("Invalid EVM transaction data format");
+      const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
+      if (isEvmTransactionData(tx.tx_data)) {
+
+        const privateKey = u8aToHex(
+          hdEthereum(mnemonicToLegacySeed(ephemerals.evmEphemeral.secret, '', false, 64), ethDerPath)
+            .secretKey
+        );
+        const evmAccount = privateKeyToAccount(privateKey);
+  
+        const walletClient = createWalletClient({
+          account: evmAccount,
+          chain: moonbeam,
+          transport: http(),
+        });
+
+  
+        // Ensure the transaction data is in the correct format. 
+        // Fee values should be specified upon transaction creation.
+        const txData = { ...tx.tx_data, 
+          gas: BigInt(tx.tx_data.gas),
+          value: BigInt(tx.tx_data.value),
+          maxFeePerGas: tx.tx_data.maxFeePerGas ? BigInt(tx.tx_data.maxFeePerGas) : BigInt(0),
+          maxPriorityFeePerGas: tx.tx_data.maxPriorityFeePerGas ? BigInt(tx.tx_data.maxPriorityFeePerGas) : BigInt(0),
+        };
+  
+        const signedTxData = await walletClient.signTransaction(txData);
+  
+        signedTxs.push({ ...tx, tx_data: signedTxData });
+      } else {
+
+        const keyring = new Keyring({ type: 'ethereum' });
+        const keypair = keyring.addFromUri(`${ephemerals.evmEphemeral.secret}/${ethDerPath}`);
+        
+        const extrinsic = decodeSubmittableExtrinsic(tx.tx_data, moonbeamApi);
+        await extrinsic.signAsync(keypair, { nonce: tx.nonce, era: 0 });
+
+        const signedTxData = extrinsic.toHex();
+        signedTxs.push({ ...tx, tx_data: signedTxData });
+
       }
 
-      const evmAccount = privateKeyToAccount(
-        `0x${ephemerals.evmEphemeral.secret.replace(/^0x/, "")}`,
-      );
-
-      const walletClient = createWalletClient({
-        account: evmAccount,
-        chain: moonbeam,
-        transport: http(),
-      });
-
-      const signedTxData = await walletClient.signTransaction({
-        account: evmAccount,
-        data: tx.tx_data.data,
-      });
-
-      signedTxs.push({ ...tx, tx_data: signedTxData });
+      
     }
   } catch (error) {
     console.error("Error signing transactions:", error);

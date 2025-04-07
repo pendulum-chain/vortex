@@ -41,18 +41,25 @@ const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 // This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
+const EVM_DESTINATION_ADDRESS = '0x7ba99e99bc669b3508aff9cc0a898e869459f877'; // Controlled by us, so funds can arrive here during tests.
 // Stellar mock anchor account. Back to the vault, for now.
 const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GAXW7RTC4LA3MGNEA3LO626ABUCZBW3FDQPYBTH6VQA5BFHXXYZUQWY7';
-const TEST_INPUT_AMOUNT = '0.2';
-const TEST_INPUT_CURRENCY = EvmToken.USDC;
-const TEST_OUTPUT_CURRENCY = FiatToken.BRL;
+const TEST_INPUT_AMOUNT = '1';
+const TEST_INPUT_CURRENCY = FiatToken.BRL;
+const TEST_OUTPUT_CURRENCY = EvmToken.USDC;
 
-const QUOTE_TO = 'pix';
-const QUOTE_FROM = 'polygon';
+const QUOTE_TO = 'polygon';
+const QUOTE_FROM = 'pix';
 
 async function getPendulumNode(): Promise<API> {
   const apiManager = ApiManager.getInstance();
   const networkName = 'pendulum';
+  return await apiManager.getApi(networkName);
+}
+
+async function getMoonbeamNode(): Promise<API> {
+  const apiManager = ApiManager.getInstance();
+  const networkName = 'moonbeam';
   return await apiManager.getApi(networkName);
 }
 
@@ -189,7 +196,7 @@ const mockSubaccountData: SubaccountData = {
   },
   createdAt: new Date().toISOString(),
   wallets: {
-    evm: '0x7ba99e99bc669b3508aff9cc0a898e869459f877', // Controlled by us, so funds can arrive here during tests.
+    evm: EVM_DESTINATION_ADDRESS, // simulating user's wallet on polygon.
     tron: 'tron123',
   },
   brCode: 'brcode123',
@@ -233,8 +240,100 @@ RampService.prototype.validateBrlaOfframpRequest = mock(async () => mockSubaccou
 
 rampRecoveryWorker.start = mock(async () => ({}));
 
-describe('PhaseProcessor Integration Test', () => {
-  it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
+// describe('PhaseProcessor Integration Test', () => {
+//   it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
+//     try {
+//       const processor = new PhaseProcessor();
+//       const rampService = new RampService();
+//       const quoteService = new QuoteService();
+
+//       registerPhaseHandlers();
+
+//       const additionalData = {
+//         walletAddress: EVM_TESTING_ADDRESS,
+//         // paymentData: {
+//         //   amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
+//         //   memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
+//         //   memo: '1204asjfnaksf10982e4',
+//         //   anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
+//         // },
+//         taxId: "758.444.017-77",
+//         // receiverTaxId: "758.444.017-77",
+//         // pixDestination: "758.444.017-77"
+//       };
+
+//       const quoteTicket = await quoteService.createQuote({
+//         rampType: 'off',
+//         from: QUOTE_FROM,
+//         to: QUOTE_TO,
+//         inputAmount: TEST_INPUT_AMOUNT,
+//         inputCurrency: TEST_INPUT_CURRENCY,
+//         outputCurrency: TEST_OUTPUT_CURRENCY,
+//       });
+
+//       let registeredRamp = await rampService.registerRamp({
+//         signingAccounts: testSigningAccountsMeta,
+//         quoteId: quoteTicket.id,
+//         additionalData,
+//       });
+
+//       console.log('register ramp:', registeredRamp);
+
+//       // START - MIMIC THE UI
+
+//       const pendulumNode = await getPendulumNode();
+//       const presignedTxs = await signUnsignedTransactions(
+//         registeredRamp!.unsignedTxs,
+//         {
+//           stellarEphemeral: testSigningAccounts.stellar,
+//           pendulumEphemeral: testSigningAccounts.pendulum,
+//           evmEphemeral: testSigningAccounts.moonbeam,
+//         },
+//         pendulumNode.api,
+//       );
+      
+//       //sign and send the squidy transactions!
+//       const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterApprove');
+//       const approveHash = await executeEvmTransaction(
+//         squidApproveTransaction!.network,
+//         squidApproveTransaction!.tx_data as EvmTransactionData,
+//       );
+//       console.log('Approve transaction executed with hash:', approveHash);
+
+//       const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterSwap');
+//       const swapHash = await executeEvmTransaction(
+//         squidSwapTransaction!.network,
+//         squidSwapTransaction!.tx_data as EvmTransactionData,
+//       );
+//       console.log('Swap transaction executed with hash:', swapHash);
+
+
+//       // END - MIMIC THE UI
+      
+//       const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+
+//       await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
+
+//       // expect(rampState.currentPhase).toBe('complete');
+//       // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
+//     } catch (error) {
+//       console.error('Error during test execution:', error);
+//       const filePath = path.join(__dirname, 'lastRampState.json');
+//       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
+//       throw error;
+//     }
+//   });
+// });
+
+describe('Onramp PhaseProcessor Integration Test', () => {
+  it('should process an onramp (pix -> evm) through multiple phases until completion', async () => {
+    const TEST_INPUT_AMOUNT = '3';
+    const TEST_INPUT_CURRENCY = FiatToken.BRL;
+    const TEST_OUTPUT_CURRENCY = EvmToken.USDC;
+
+    const QUOTE_TO = 'polygon';
+    const QUOTE_FROM = 'pix';
+
     try {
       const processor = new PhaseProcessor();
       const rampService = new RampService();
@@ -244,19 +343,14 @@ describe('PhaseProcessor Integration Test', () => {
 
       const additionalData = {
         walletAddress: EVM_TESTING_ADDRESS,
-        // paymentData: {
-        //   amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
-        //   memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
-        //   memo: '1204asjfnaksf10982e4',
-        //   anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
-        // },
         taxId: "758.444.017-77",
-        receiverTaxId: "758.444.017-77",
-        pixDestination: "758.444.017-77"
+        destinationAddress: EVM_DESTINATION_ADDRESS,
+        // receiverTaxId: "758.444.017-77",
+        // pixDestination: "758.444.017-77"
       };
 
       const quoteTicket = await quoteService.createQuote({
-        rampType: 'off',
+        rampType: 'on',
         from: QUOTE_FROM,
         to: QUOTE_TO,
         inputAmount: TEST_INPUT_AMOUNT,
@@ -270,11 +364,12 @@ describe('PhaseProcessor Integration Test', () => {
         additionalData,
       });
 
-      console.log('register ramp:', registeredRamp);
+      console.log('register onramp:', registeredRamp);
 
       // START - MIMIC THE UI
 
       const pendulumNode = await getPendulumNode();
+      const moonbeamNode = await getMoonbeamNode();
       const presignedTxs = await signUnsignedTransactions(
         registeredRamp!.unsignedTxs,
         {
@@ -283,23 +378,10 @@ describe('PhaseProcessor Integration Test', () => {
           evmEphemeral: testSigningAccounts.moonbeam,
         },
         pendulumNode.api,
+        moonbeamNode.api,
       );
-      
-      //sign and send the squidy transactions!
-      const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterApprove');
-      const approveHash = await executeEvmTransaction(
-        squidApproveTransaction!.network,
-        squidApproveTransaction!.tx_data as EvmTransactionData,
-      );
-      console.log('Approve transaction executed with hash:', approveHash);
 
-      const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterSwap');
-      const swapHash = await executeEvmTransaction(
-        squidSwapTransaction!.network,
-        squidSwapTransaction!.tx_data as EvmTransactionData,
-      );
-      console.log('Swap transaction executed with hash:', swapHash);
-
+      // At this stage, user would send the BRL through pix.
 
       // END - MIMIC THE UI
       

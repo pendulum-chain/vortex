@@ -14,7 +14,7 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, destinationAddress, inputAmountUnits, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
+    const { taxId, destinationAddress, inputAmountUnits, inputAmountBeforeSwapRaw} = state.state as StateMetadata;
 
     if (!taxId || !destinationAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
       throw new Error('CreatePayInPhaseHandler: State metadata corrupted. This is a bug.');
@@ -33,11 +33,11 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
       const teleportService = BrlaTeleportService.getInstance();
       await teleportService.requestTeleport(
         subaccount.id,
-        Number(destinationAddress),
+        Number(inputAmountUnits),
         destinationAddress as `0x${string}`,
       );
 
-      // now we wait until and verify that funds have arrived at the actual destination ephemeral.
+      // now we wait and verify that funds have arrived at the actual destination ephemeral.
     } catch (e) {
       console.error('Error in createPayIn', e);
       throw new Error('CreatePayInPhaseHandler: Failed to trigger BRLA pay in.');

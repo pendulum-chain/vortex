@@ -74,7 +74,9 @@ export async function prepareOnrampTransactions(
     throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
   }
 
-  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
+  // For BRLA, fee is charged after minting, so we always work with the amount after anchor fees.
+  const inputAmountUnits = new Big(quote.inputAmount).sub(new Big(quote.fee));
+  const inputAmountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenDetails.decimals).toFixed(0, 0);
 
   const outputAmountBeforeFees = new Big(quote.outputAmount).add(new Big(quote.fee));
 
@@ -96,7 +98,7 @@ export async function prepareOnrampTransactions(
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,
     taxId,
-    inputAmountUnits: quote.inputAmount,
+    inputAmountUnits: inputAmountUnits.toFixed(),
   };
 
   for (const account of signingAccounts) {
@@ -146,8 +148,10 @@ export async function prepareOnrampTransactions(
         });
       }
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
+
+      // We need to be carefull with pendulum decimals. 
       const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
-        new Big(quote.inputAmount),
+        inputAmountUnits,
         inputTokenPendulumDetails.pendulumDecimals,
       ).toFixed(0, 0);
 
