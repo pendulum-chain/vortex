@@ -5,13 +5,10 @@ import { FeeComparisonTable } from './FeeComparisonTable';
 import { useFeeComparisonStore } from '../../stores/feeComparison';
 import { useEffect, useRef } from 'react';
 
-
 export const FeeComparison = () => {
   const ref = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
   const { setFeeComparisonRef } = useFeeComparisonStore();
-
-
 
   useEffect(() => {
     setFeeComparisonRef(ref);

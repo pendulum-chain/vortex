@@ -1,4 +1,4 @@
-import React, {  useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider } from 'react-hook-form';
 
@@ -16,7 +16,6 @@ import { useNetwork } from '../../contexts/network';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 import { useQuoteService } from '../../hooks/ramp/useQuoteService';
-import { useTokenSelection } from '../../hooks/ramp/useTokenSelection';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useRampSummaryVisible } from '../../stores/offrampStore';
@@ -24,8 +23,10 @@ import { useFeeComparisonStore } from '../../stores/feeComparison';
 import { useRampForm } from '../../hooks/ramp/useRampForm';
 import { RampTerms } from '../RampTerms';
 import { useValidateTerms } from '../../stores/termsStore';
+import { useRampModalActions } from '../../stores/rampModalStore';
+import { useFromToken, useFromAmount, useToToken } from '../../stores/ramp/useRampFormStore';
+import { useSwapUrlParams } from '../../hooks/useRampUrlParams';
 
-// Enum for different button states
 enum SwapButtonState {
   CONFIRMING = 'Confirming',
   PROCESSING = 'Processing',
@@ -33,10 +34,13 @@ enum SwapButtonState {
 }
 
 export const Swap = () => {
-
   const { feeComparisonRef, setTrackPrice } = useFeeComparisonStore();
 
-  const { form, fromAmount, from, to } = useRampForm();
+  const { form } = useRampForm();
+  const from = useFromToken();
+  const to = useToToken();
+  const fromAmount = useFromAmount();
+
   const { outputAmount: toAmount, exchangeRate } = useQuoteService(fromAmount, from, to);
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const { onSwapConfirm } = useRampSubmission();
@@ -44,23 +48,20 @@ export const Swap = () => {
 
   const validateTerms = useValidateTerms();
 
-  // Local state
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
 
-  // Get hooks
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
 
-  const { openTokenSelectModal } = useTokenSelection();
+  const { openTokenSelectModal } = useRampModalActions();
 
-  // Get token details
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getAnyFiatTokenDetails(to);
 
-  // Debounced value to avoid tracking the amount while the user is typing
   const debouncedFromAmount = useDebouncedValue(fromAmount, 1000);
 
-  // Track amount changes after user interaction
+  useSwapUrlParams({ form });
+
   useEffect(() => {
     if (!fromAmountFieldTouched || debouncedFromAmount !== fromAmount) return;
 
@@ -70,16 +71,13 @@ export const Swap = () => {
     });
   }, [fromAmountFieldTouched, debouncedFromAmount, fromAmount, trackEvent]);
 
-  // Handle input change
   const handleInputChange = useCallback(() => {
     setFromAmountFieldTouched(true);
     setTrackPrice(true);
   }, [setTrackPrice]);
 
-  // Handle balance click
   const handleBalanceClick = useCallback((amount: string) => form.setValue('fromAmount', amount), [form]);
 
-  // Withdraw numeric input component
   const WithdrawNumericInput = useMemo(
     () => (
       <>
@@ -97,7 +95,6 @@ export const Swap = () => {
     [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick],
   );
 
-  // Receive numeric input component
   const ReceiveNumericInput = useMemo(
     () => (
       <AssetNumericInput
@@ -113,7 +110,6 @@ export const Swap = () => {
     [toToken.fiat.assetIcon, toToken.fiat.symbol, form, toAmount, openTokenSelectModal],
   );
 
-  // Handle compare fees click
   const handleCompareFeesClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -143,10 +139,8 @@ export const Swap = () => {
     return SwapButtonState.CONFIRM;
   };
 
-  // Determine if submit button is disabled
   const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
 
-  // Determine if submit button is pending
   const isSubmitButtonPending = isOfframpSummaryDialogVisible;
 
   return (
@@ -184,7 +178,7 @@ export const Swap = () => {
         )}
 
         <section className="w-full mt-5">
-          <RampTerms/>
+          <RampTerms />
         </section>
 
         <div className="flex gap-3 mt-5">

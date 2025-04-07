@@ -7,7 +7,6 @@ interface FeeComparisonStore {
   setTrackPrice: (trackPrice: boolean) => void;
 }
 
-
 export const useFeeComparisonStore = create<FeeComparisonStore>((set) => ({
   feeComparisonRef: null,
   setFeeComparisonRef: (ref) => set({ feeComparisonRef: ref }),

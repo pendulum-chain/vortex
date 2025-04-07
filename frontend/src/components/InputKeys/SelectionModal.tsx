@@ -65,8 +65,6 @@ function TokenSelectionList() {
 
   const { selectFromToken, selectToToken } = useRampModalActions();
 
-  // tokenSelectModalType === 'from' ? onFromChange(token) : onToChange(token);
-  // maybeCancelSep24First();
   const handleTokenSelect = (token: OnChainToken | FiatToken) => {
     if (tokenSelectModalType === 'from') {
       selectFromToken(token);
@@ -106,7 +104,8 @@ function useTokenDefinitions(filter: string) {
     [tokenSelectModalType, rampDirection, selectedNetwork],
   );
 
-  const definitionsWithBalance = useOnchainTokenBalances(definitions.map((d) => d.details));
+  const tokenDetails = useMemo(() => definitions.map((d) => d.details), [definitions]);
+  const definitionsWithBalance = useOnchainTokenBalances(tokenDetails);
 
   const balanceMap = useMemo(() => {
     if (!definitionsWithBalance.length) return {};

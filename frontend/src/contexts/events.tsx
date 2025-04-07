@@ -1,15 +1,13 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
-import Big from 'big.js';
-import { getPendulumDetails, PriceEndpoints } from 'shared';
-import { calculateTotalReceive } from '../components/FeeCollapse';
+import { PriceEndpoints } from 'shared';
 import { useVortexAccount } from '../hooks/useVortexAccount';
 import { getNetworkId, isNetworkEVM, Networks } from 'shared';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
-import { useFromAmount } from '../stores/formStore';
 import { RampState } from '../types/phases';
+import { useFromAmount } from '../stores/ramp/useRampFormStore';
 
 declare global {
   interface Window {

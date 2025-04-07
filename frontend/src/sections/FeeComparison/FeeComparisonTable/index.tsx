@@ -1,20 +1,22 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
 
 import { getAnyFiatTokenDetails, getNetworkDisplayName, getOnChainTokenDetailsOrDefault, isNetworkEVM } from 'shared';
 import { FeeProviderRow } from '../FeeProviderRow';
-import { useRampForm } from '../../../hooks/ramp/useRampForm';
 import { useNetwork } from '../../../contexts/network';
 import { priceProviders } from '../priceProviders';
+import { useRampFormStore } from '../../../stores/ramp/useRampFormStore';
+
+const DEFAULT_PROVIDERS = [...priceProviders];
 
 export function FeeComparisonTable() {
-
-  const {  fromAmount, from, to } = useRampForm();
+  const { t } = useTranslation();
+  const { fromAmount, from, to } = useRampFormStore();
   const { selectedNetwork } = useNetwork();
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
   const toToken = getAnyFiatTokenDetails(to);
-  const amount = fromAmount || Big(100)
+  const amount = fromAmount || Big(100);
 
   const [providerPrices, setProviderPrices] = useState<Record<string, Big>>({});
 
@@ -22,19 +24,23 @@ export function FeeComparisonTable() {
     setProviderPrices((prev) => ({ ...prev, [providerName]: price }));
   }, []);
 
-  const bestProvider = Object.entries(providerPrices).reduce(
-    (best, [provider, price]) => {
-      return price.gt(best.bestPrice) ? { bestPrice: price, bestProvider: provider } : best;
-    },
-    { bestPrice: new Big(0), bestProvider: '' },
-  );
-  const { t } = useTranslation();
+  const bestProvider = useMemo(() => {
+    return Object.entries(providerPrices).reduce(
+      (best, [provider, price]) => {
+        return price.gt(best.bestPrice) ? { bestPrice: price, bestProvider: provider } : best;
+      },
+      { bestPrice: new Big(0), bestProvider: '' },
+    );
+  }, [providerPrices]);
 
-  const sortedProviders = priceProviders.sort((a, b) => {
-    const aPrice = providerPrices[a.name] ?? new Big(0);
-    const bPrice = providerPrices[b.name] ?? new Big(0);
-    return bPrice.minus(aPrice).toNumber();
-  });
+  const sortedProviders = useMemo(() => {
+    return [...DEFAULT_PROVIDERS].sort((a, b) => {
+      const aPrice = providerPrices[a.name]?.toNumber() ?? 0;
+      const bPrice = providerPrices[b.name]?.toNumber() ?? 0;
+      return bPrice - aPrice;
+    });
+  }, [providerPrices]);
+
   const networkDisplay = !isNetworkEVM(selectedNetwork) ? (
     <div
       className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"

@@ -15,6 +15,7 @@ interface RampFormState {
     setTo: (token: FiatToken) => void;
     setTaxId: (taxId: string) => void;
     setPixId: (pixId: string) => void;
+    reset: () => void;
   };
 }
 
@@ -40,6 +41,15 @@ export const useRampFormStore = create<RampFormState>((set) => ({
     setFromAmount: (amount?: Big) => set({ fromAmount: amount }),
     setPixId: (pixId: string) => {
       set({ pixId });
+    },
+    reset: () => {
+      set({
+        fromAmount: undefined,
+        from: 'usdc' as OnChainToken,
+        to: 'eurc' as FiatToken,
+        taxId: undefined,
+        pixId: undefined,
+      });
     },
   },
 }));

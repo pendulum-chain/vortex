@@ -7,7 +7,7 @@ export interface RampDirectionStore {
 }
 
 export const useRampDirectionStore = create<RampDirectionStore>((set) => ({
-  activeDirection: RampDirection.ONRAMP,
+  activeDirection: RampDirection.OFFRAMP,
   onToggle: (direction: RampDirection) => set({ activeDirection: direction }),
 }));
 

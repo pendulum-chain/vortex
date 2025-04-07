@@ -1,5 +1,3 @@
-import { useRef } from 'react';
-
 import { SigningBox } from '../../components/SigningBox';
 import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
@@ -13,14 +11,10 @@ export const RampForm = () => {
 
   return (
     <main>
-      <PoolSelectorModal/>
+      <PoolSelectorModal />
       <OfframpSummaryDialog />
       <SigningBox />
-      {offrampKycStarted ? (
-        <PIXKYCForm />
-      ) : (
-        <Swap />
-      )}
+      {offrampKycStarted ? <PIXKYCForm /> : <Swap />}
     </main>
   );
 };

@@ -11,7 +11,7 @@ import { useRampForm } from '../../../hooks/ramp/useRampForm';
 import { useNetwork } from '../../../contexts/network';
 import { PriceProvider } from '../priceProviders';
 
-interface FeeProviderRowProps  {
+interface FeeProviderRowProps {
   provider: PriceProvider;
   isBestRate: boolean;
   bestPrice: Big;
@@ -30,9 +30,6 @@ export function FeeProviderRow({
   sourceAssetSymbol,
   targetAssetSymbol,
 }: FeeProviderRowProps) {
-
-
-  return <h1> 1</h1>
   const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
@@ -46,17 +43,16 @@ export function FeeProviderRow({
   // // The price comparison is only available for Polygon (for now)
   // const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
 
-
-  const vortexPrice = Big(100)
+  const vortexPrice = useMemo(() => Big(100), []);
 
   const {
     isLoading,
     error,
     data: providerPriceRaw,
   } = useQuery({
-    queryKey: [amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice, provider.name, selectedNetwork],
+    queryKey: [amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice.toString(), provider.name, selectedNetwork],
     queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, selectedNetwork),
-    retry: false, // We don't want to retry the request to avoid spamming the server
+    retry: false,
   });
 
   const providerPrice = useMemo(() => {
@@ -71,17 +67,15 @@ export function FeeProviderRow({
   }, [isLoading, error, providerPrice, bestPrice]);
 
   useEffect(() => {
-    if (isLoading || !providerPrice || error) return;
-    if (prevProviderPrice.current?.eq(providerPrice)) return;
-
+    if (isLoading || !providerPrice || prevProviderPrice.current?.eq(providerPrice)) return;
+    const currentPrice = providerPrice ? providerPrice : new Big(0);
+    onPriceFetched(provider.name, currentPrice);
     prevProviderPrice.current = providerPrice;
-  }, [isLoading, providerPrice, error, provider.name]);
+  }, [isLoading, providerPrice, provider.name, onPriceFetched]);
 
   useEffect(() => {
-    if (isLoading) return;
-    onPriceFetched(provider.name, providerPrice ? providerPrice : new Big(0));
-
-    if (!providerPrice && !error) return;
+    if (isLoading || !providerPrice || error) return;
+    if (prevVortexPrice.current?.eq(vortexPrice)) return;
 
     const parameters: OfframpingParameters = {
       from_amount: amount.toFixed(2),
@@ -90,10 +84,19 @@ export function FeeProviderRow({
       to_asset: targetAssetSymbol,
     };
 
-    if (prevVortexPrice.current?.eq(vortexPrice)) return;
-    schedulePrice(provider.name, providerPrice ? providerPrice.toFixed(2, 0) : '-1', parameters, true);
+    schedulePrice(provider.name, providerPrice.toFixed(2, 0), parameters, true);
     prevVortexPrice.current = vortexPrice;
-  }, [amount, provider.name, isLoading, schedulePrice, sourceAssetSymbol, targetAssetSymbol, providerPrice, vortexPrice, error, onPriceFetched]);
+  }, [
+    isLoading,
+    error,
+    providerPrice,
+    vortexPrice,
+    amount,
+    sourceAssetSymbol,
+    targetAssetSymbol,
+    provider.name,
+    schedulePrice,
+  ]);
 
   const { t } = useTranslation();
 

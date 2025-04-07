@@ -3,8 +3,18 @@ import { useReadContracts } from 'wagmi';
 import { Abi } from 'viem';
 import Big from 'big.js';
 
-import { AssetHubTokenDetails, AssetHubTokenDetailsWithBalance, EvmTokenDetails, EvmTokenDetailsWithBalance, FiatTokenDetails, getNetworkId, isAssetHubTokenDetails, isEvmTokenDetails, OnChainTokenDetails, OnChainTokenDetailsWithBalance } from 'shared';
-
+import {
+  AssetHubTokenDetails,
+  AssetHubTokenDetailsWithBalance,
+  EvmTokenDetails,
+  EvmTokenDetailsWithBalance,
+  FiatTokenDetails,
+  getNetworkId,
+  isAssetHubTokenDetails,
+  isEvmTokenDetails,
+  OnChainTokenDetails,
+  OnChainTokenDetailsWithBalance,
+} from 'shared';
 
 import { useVortexAccount } from './useVortexAccount';
 import { useNetwork } from '../contexts/network';
@@ -13,7 +23,6 @@ import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
 import { nativeToDecimal } from '../helpers/parseNumbers';
-
 
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { address } = useVortexAccount();
@@ -92,7 +101,9 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
   return balances;
 };
 
-export const useOnchainTokenBalances = (tokens: (FiatTokenDetails | OnChainTokenDetails)[]): OnChainTokenDetailsWithBalance[] => {
+export const useOnchainTokenBalances = (
+  tokens: (FiatTokenDetails | OnChainTokenDetails)[],
+): OnChainTokenDetailsWithBalance[] => {
   const evmTokens = useMemo(() => tokens.filter(isEvmTokenDetails) as EvmTokenDetailsWithBalance[], [tokens]);
   const substrateTokens = useMemo(
     () => tokens.filter(isAssetHubTokenDetails) as AssetHubTokenDetailsWithBalance[],

@@ -5,12 +5,11 @@ import { FiatToken } from 'shared';
 
 interface UseSwapUrlParamsProps {
   form: UseFormReturn<SwapFormValues, unknown, undefined>;
-  feeComparisonRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const defaultFromAmounts: Record<FiatToken, number> = { eurc: 1000, ars: 200, brl: 300 };
 
-export const useSwapUrlParams = ({ form, feeComparisonRef }: UseSwapUrlParamsProps) => {
+export const useSwapUrlParams = ({ form }: UseSwapUrlParamsProps) => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromAmountParam = params.get('fromAmount');
@@ -27,5 +26,5 @@ export const useSwapUrlParams = ({ form, feeComparisonRef }: UseSwapUrlParamsPro
       const defaultAmount = defaultFromAmounts[toTokenForm];
       form.setValue('fromAmount', defaultAmount.toFixed(2));
     }
-  }, [form, feeComparisonRef]);
+  }, [form]);
 };
