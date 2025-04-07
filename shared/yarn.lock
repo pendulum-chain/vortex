@@ -569,7 +569,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@polkadot/types@npm:13.2.1":
+"@polkadot/types@npm:13.2.1, @polkadot/types@npm:^13.2.1":
   version: 13.2.1
   resolution: "@polkadot/types@npm:13.2.1"
   dependencies:
@@ -2506,6 +2506,7 @@ __metadata:
   resolution: "shared@workspace:."
   dependencies:
     "@polkadot/api": "npm:^13.2.1"
+    "@polkadot/types": "npm:^13.2.1"
     "@polkadot/types-codec": "npm:^13.2.1"
     "@polkadot/util": "npm:^13.2.1"
     "@polkadot/util-crypto": "npm:^13.2.1"
