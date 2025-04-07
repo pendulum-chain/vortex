@@ -3,60 +3,53 @@ import Big from 'big.js';
 import { FiatToken, OnChainToken } from 'shared';
 
 interface RampFormState {
-  fromAmount?: Big;
-  from: OnChainToken;
-  to: FiatToken;
+  inputAmount?: Big;
+  onChainToken: OnChainToken;
+  fiatToken: FiatToken;
   taxId?: string;
   pixId?: string;
+}
 
+interface RampFormActions {
   actions: {
-    setFromAmount: (amount?: Big) => void;
-    setFrom: (token: OnChainToken) => void;
-    setTo: (token: FiatToken) => void;
+    setInputAmount: (amount?: Big) => void;
+    setOnChainToken: (token: OnChainToken) => void;
+    setFiatToken: (token: FiatToken) => void;
     setTaxId: (taxId: string) => void;
     setPixId: (pixId: string) => void;
     reset: () => void;
   };
 }
 
-export const useRampFormStore = create<RampFormState>((set) => ({
-  fromAmount: undefined,
-  from: 'usdc' as OnChainToken,
-  to: 'eurc' as FiatToken,
+export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
+  inputAmount: undefined,
+  onChainToken: 'usdc' as OnChainToken,
+  fiatToken: 'eurc' as FiatToken,
   taxId: undefined,
   pixId: undefined,
+};
+
+export const useRampFormStore = create<RampFormState & RampFormActions>((set) => ({
+  ...DEFAULT_RAMP_FORM_STORE_VALUES,
   actions: {
-    setFrom: (token: OnChainToken) => {
-      set({ from: token });
-    },
+    setInputAmount: (amount?: Big) => set({ inputAmount: amount }),
+    setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
+    setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
 
-    setTo: (token: FiatToken) => {
-      set({ to: token });
-    },
+    setTaxId: (taxId: string) => set({ taxId }),
+    setPixId: (pixId: string) => set({ pixId }),
 
-    setTaxId: (taxId: string) => {
-      set({ taxId });
-    },
-
-    setFromAmount: (amount?: Big) => set({ fromAmount: amount }),
-    setPixId: (pixId: string) => {
-      set({ pixId });
-    },
     reset: () => {
       set({
-        fromAmount: undefined,
-        from: 'usdc' as OnChainToken,
-        to: 'eurc' as FiatToken,
-        taxId: undefined,
-        pixId: undefined,
+        ...DEFAULT_RAMP_FORM_STORE_VALUES,
       });
     },
   },
 }));
 
-export const useFromAmount = () => useRampFormStore((state) => state.fromAmount);
-export const useFromToken = () => useRampFormStore((state) => state.from);
-export const useToToken = () => useRampFormStore((state) => state.to);
+export const useInputAmount = () => useRampFormStore((state) => state.inputAmount);
+export const useOnChainToken = () => useRampFormStore((state) => state.onChainToken);
+export const useFiatToken = () => useRampFormStore((state) => state.fiatToken);
 export const useTaxId = () => useRampFormStore((state) => state.taxId);
 export const usePixId = () => useRampFormStore((state) => state.pixId);
 
