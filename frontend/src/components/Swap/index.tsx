@@ -3,13 +3,11 @@ import { motion } from 'motion/react';
 import { FormProvider } from 'react-hook-form';
 
 import { LabeledInput } from '../LabeledInput';
-import { FeeCollapse } from '../FeeCollapse';
 import { BrlaSwapFields } from '../BrlaComponents/BrlaSwapFields';
 import { AssetNumericInput } from '../AssetNumericInput';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { PoweredBy } from '../PoweredBy';
 import { UserBalance } from '../UserBalance';
-import { ExchangeRate } from '../ExchangeRate';
 import { BenefitsList } from '../BenefitsList';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
@@ -26,6 +24,7 @@ import { useValidateTerms } from '../../stores/termsStore';
 import { useRampModalActions } from '../../stores/rampModalStore';
 import { useFromToken, useFromAmount, useToToken } from '../../stores/ramp/useRampFormStore';
 import { useSwapUrlParams } from '../../hooks/useRampUrlParams';
+import { RampFeeCollapse } from '../RampFeeCollapse';
 
 enum SwapButtonState {
   CONFIRMING = 'Confirming',
@@ -41,7 +40,7 @@ export const Swap = () => {
   const to = useToToken();
   const fromAmount = useFromAmount();
 
-  const { outputAmount: toAmount, exchangeRate } = useQuoteService(fromAmount, from, to);
+  const { outputAmount: toAmount } = useQuoteService(fromAmount, from, to);
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const { onSwapConfirm } = useRampSubmission();
   const isOfframpSummaryDialogVisible = useRampSummaryVisible();
@@ -157,14 +156,7 @@ export const Swap = () => {
         <div className="my-10" />
         <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
-        <FeeCollapse
-          fromAmount={fromAmount?.toString()}
-          toAmount={toAmount}
-          toToken={toToken}
-          exchangeRate={
-            <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={toToken.fiat.symbol} />
-          }
-        />
+        <RampFeeCollapse />
         <section className="flex items-center justify-center w-full mt-5">
           <BenefitsList amount={fromAmount} currency={from} />
         </section>
