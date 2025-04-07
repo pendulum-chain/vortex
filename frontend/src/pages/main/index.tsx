@@ -15,14 +15,14 @@ export const Main = () => {
   const main = (
     <main>
       <Ramp />
+      <PitchSection />
+      <TrustedBy />
+      <FeeComparison />
       <WhyVortex />
       <HowToSell />
       <PopularTokens />
       <FAQAccordion />
       <GotQuestions />
-      <PitchSection />
-      <TrustedBy />
-      <FeeComparison />
     </main>
   );
 
