@@ -6,7 +6,7 @@ import { Rating } from '../../components/Rating';
 import { FiatToken } from 'shared';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useRampExecutionInput } from '../../stores/offrampStore';
-import { useRampForm } from '../../hooks/ramp/useRampForm';
+import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">
@@ -17,14 +17,14 @@ const Checkmark = () => (
 export const SuccessPage = () => {
   const { finishOfframping } = useRampSubmission();
   const executionInput = useRampExecutionInput();
-  const { to: toToken } = useRampForm();
+  const { fiatToken } = useRampFormStore();
 
   const transactionId = executionInput?.quote?.id;
 
   const eurcArrivalText =
     'Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.';
   const arsArrivalText = 'Your funds will arrive in your bank account in a few minutes.';
-  const arrivalText = toToken === FiatToken.EURC ? eurcArrivalText : arsArrivalText;
+  const arrivalText = fiatToken === FiatToken.EURC ? eurcArrivalText : arsArrivalText;
 
   const main = (
     <main>
