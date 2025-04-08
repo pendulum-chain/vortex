@@ -13,8 +13,9 @@ export const useRampTokenConstraints = () => {
   const { setFiatToken } = useRampFormStoreActions();
 
   useEffect(() => {
-    if (direction === RampDirection.ONRAMP && currentFiatToken !== 'brl') {
-      setFiatToken('brl' as FiatToken);
+    console.log('currentFiatToken', currentFiatToken, direction);
+    if (direction === RampDirection.ONRAMP && currentFiatToken !== FiatToken.BRL) {
+      setFiatToken(FiatToken.BRL);
     }
   }, [direction, currentFiatToken, setFiatToken]);
 };
