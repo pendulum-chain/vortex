@@ -1,30 +1,28 @@
 import { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { SwapFormValues } from '../components/Nabla/schema';
+import { RampFormValues } from '../components/Nabla/schema';
 import { FiatToken } from 'shared';
 
-interface UseSwapUrlParamsProps {
-  form: UseFormReturn<SwapFormValues, unknown, undefined>;
+interface UseRampUrlParamsProps {
+  form: UseFormReturn<RampFormValues, unknown, undefined>;
 }
 
-const defaultFromAmounts: Record<FiatToken, number> = { eurc: 1000, ars: 200, brl: 300 };
+const defaultFiatTokenAmounts: Record<FiatToken, number> = { eurc: 1000, ars: 200, brl: 300 };
 
-export const useSwapUrlParams = ({ form }: UseSwapUrlParamsProps) => {
+export const useRampUrlParams = ({ form }: UseRampUrlParamsProps) => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const fromAmountParam = params.get('fromAmount');
-    const toTokenForm = form.getValues('to');
+    const inputAmountParam = params.get('fromAmount');
+    const fiatToken = form.getValues('fiatToken');
 
-    if (fromAmountParam) {
-      const parsedAmount = Number(fromAmountParam);
-      if (!isNaN(parsedAmount) && parsedAmount >= 0) {
-        form.setValue('fromAmount', parsedAmount.toFixed(2));
+    if (inputAmountParam) {
+      const parsedAmount = Number(inputAmountParam);
+      if (Number.isFinite(parsedAmount) && !isNaN(parsedAmount) && parsedAmount >= 0) {
+        form.setValue('inputAmount', parsedAmount.toFixed(2));
       }
-    }
-
-    if (toTokenForm) {
-      const defaultAmount = defaultFromAmounts[toTokenForm];
-      form.setValue('fromAmount', defaultAmount.toFixed(2));
+    } else if (fiatToken) {
+      const defaultAmount = defaultFiatTokenAmounts[fiatToken as FiatToken];
+      form.setValue('inputAmount', defaultAmount.toFixed(2));
     }
   }, [form]);
 };
