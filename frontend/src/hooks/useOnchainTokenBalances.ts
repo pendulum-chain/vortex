@@ -14,6 +14,7 @@ import {
   isEvmTokenDetails,
   OnChainTokenDetails,
   OnChainTokenDetailsWithBalance,
+  nativeToDecimal,
 } from 'shared';
 
 import { useVortexAccount } from './useVortexAccount';
@@ -22,7 +23,6 @@ import erc20ABI from '../contracts/ERC20';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import { useAssetHubNode } from '../contexts/polkadotNode';
-import { nativeToDecimal } from '../helpers/parseNumbers';
 
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { address } = useVortexAccount();
