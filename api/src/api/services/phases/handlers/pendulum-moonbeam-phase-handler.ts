@@ -27,7 +27,10 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
       const { tx_data: pendulumToMoonbeamTransaction } = this.getPresignedTransaction(state, 'pendulumToMoonbeam');
 
       const xcmExtrinsic = decodeSubmittableExtrinsic(pendulumToMoonbeamTransaction, pendulumNode.api);
-      const { hash } = await submitXTokens(getAddressForFormat(pendulumEphemeralAddress, pendulumNode.ss58Format), xcmExtrinsic);
+      const { hash } = await submitXTokens(
+        getAddressForFormat(pendulumEphemeralAddress, pendulumNode.ss58Format),
+        xcmExtrinsic,
+      );
 
       state.state = {
         ...state.state,

@@ -1,10 +1,7 @@
 import Big from 'big.js';
 import { getAnyFiatTokenDetails, isFiatToken, RampCurrency } from 'shared';
 
-export function calculateTotalReceive(
-  toAmount: Big,
-  outputCurrency: RampCurrency,
-): string {
+export function calculateTotalReceive(toAmount: Big, outputCurrency: RampCurrency): string {
   if (isFiatToken(outputCurrency)) {
     const outputTokenDetails = getAnyFiatTokenDetails(outputCurrency);
     const feeBasisPoints = outputTokenDetails.offrampFeesBasisPoints;
@@ -23,11 +20,7 @@ export function calculateTotalReceive(
   throw new Error('calculateTotalReceive: No offramp fees defined for output token');
 }
 
-
-export function calculateTotalReceiveOnramp(
-  fromAmount: Big,
-  inputCurrency: RampCurrency,
-): string {
+export function calculateTotalReceiveOnramp(fromAmount: Big, inputCurrency: RampCurrency): string {
   // Brla only, for now, has onramp.
   if (isFiatToken(inputCurrency)) {
     const inputTokenDetails = getAnyFiatTokenDetails(inputCurrency);

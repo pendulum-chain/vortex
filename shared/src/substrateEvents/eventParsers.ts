@@ -65,6 +65,19 @@ export function parseEventXcmSent(event: any) {
   return mappedData;
 }
 
+export function parseEventMoonbeamXcmSent(event: any) {
+  const rawEventData = JSON.parse(event.event.data.toString());
+  console.log("raw event data", rawEventData[0]);
+  console.log("raw event data", rawEventData[0].interior);
+  console.log("raw event data", rawEventData[0].interior.x1);
+  console.log("raw event data", rawEventData[0].interior.x1[0]);
+
+  const mappedData = {
+    originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId20.key.toString()),
+  };
+  return mappedData;
+}
+
 export function parseEventXTokens(event: any) {
   const rawEventData = JSON.parse(event.event.data.toString());
   const mappedData = {

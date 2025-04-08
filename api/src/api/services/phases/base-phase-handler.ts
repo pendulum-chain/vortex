@@ -59,11 +59,10 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       if (error instanceof PhaseError) {
         throw error;
       }
-      
+
       throw new UnrecoverablePhaseError(error.message || 'Unknown error in phase execution');
     }
   }
-
 
   protected createRecoverableError(message: string): RecoverablePhaseError {
     return new RecoverablePhaseError(message);
@@ -76,7 +75,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
   private async logError(state: RampState, error: any): Promise<void> {
     const isPhaseError = error instanceof PhaseError;
     const isRecoverable = isPhaseError && error.isRecoverable === true;
-    
+
     const errorLogs = [
       ...state.errorLogs,
       {

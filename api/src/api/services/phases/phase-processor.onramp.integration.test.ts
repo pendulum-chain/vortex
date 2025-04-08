@@ -35,23 +35,24 @@ import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import registerPhaseHandlers from './register-handlers';
+import { verifyReferenceLabel } from '../brla/helpers';
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 const TAX_ID = process.env.TAX_ID;
+
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 // This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
 const EVM_DESTINATION_ADDRESS = '0x7ba99e99bc669b3508aff9cc0a898e869459f877'; // Controlled by us, so funds can arrive here during tests.
-// Stellar mock anchor account. Back to the vault, for now.
-const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GAXW7RTC4LA3MGNEA3LO626ABUCZBW3FDQPYBTH6VQA5BFHXXYZUQWY7';
+
 const TEST_INPUT_AMOUNT = '1';
-const TEST_INPUT_CURRENCY = EvmToken.USDC;
-const TEST_OUTPUT_CURRENCY = FiatToken.BRL;
+const TEST_INPUT_CURRENCY = FiatToken.BRL;
+const TEST_OUTPUT_CURRENCY = EvmToken.USDC;
 
-const QUOTE_TO = 'pix';
-const QUOTE_FROM = 'polygon';
+const QUOTE_TO = 'polygon';
+const QUOTE_FROM = 'pix';
 
-const filePath = path.join(__dirname, 'lastRampState.json');
+const filePath = path.join(__dirname, 'lastRampStateOnramp.json');
 
 async function getPendulumNode(): Promise<API> {
   const apiManager = ApiManager.getInstance();
@@ -117,7 +118,6 @@ RampState.update = mock(async function (updateData: any, options?: any) {
   // Merge the update into the current instance.
   rampState = { ...rampState, ...updateData };
 
-  const filePath = path.join(__dirname, 'lastRampState.json');
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
 }) as any;
@@ -134,8 +134,6 @@ RampState.create = mock(async (data: any) => {
     update: async function (updateData: any, options?: any) {
       // Merge the update into the current instance.
       rampState = { ...rampState, ...updateData };
-
-      const filePath = path.join(__dirname, 'lastRampState.json');
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
@@ -143,7 +141,6 @@ RampState.create = mock(async (data: any) => {
       return rampState;
     },
   };
-  const filePath = path.join(__dirname, 'lastRampState.json');
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
 }) as any;
@@ -152,6 +149,10 @@ QuoteTicket.findByPk = mock(async (id: string) => {
   return quoteTicket;
 });
 
+QuoteTicket.update = mock(async (data: any) => {
+  quoteTicket = { ...quoteTicket, ...data };
+  return [1, [quoteTicket]];
+}) as any;
 
 QuoteTicket.create = mock(async (data: any) => {
   quoteTicket = {
@@ -165,61 +166,6 @@ QuoteTicket.create = mock(async (data: any) => {
   return quoteTicket;
 }) as any;
 
-// Mock the BrlaApiService
-const mockSubaccountData: SubaccountData = {
-  id: 'subaccount123',
-  fullName: 'Test User',
-  phone: '+1234567890',
-  kyc: {
-    level: 2,
-    documentData: '75844401777',
-    documentType: 'CPF',
-    limits: {
-      limitMint: 10000,
-      limitBurn: 10000,
-      limitSwapBuy: 10000,
-      limitSwapSell: 10000,
-      limitBRLAOutOwnAccount: 10000,
-      limitBRLAOutThirdParty: 10000,
-    },
-  },
-  address: {
-    cep: '12345-678',
-    city: 'Test City',
-    state: 'TS',
-    street: 'Test Street',
-    number: '123',
-    district: 'Test District',
-  },
-  createdAt: new Date().toISOString(),
-  wallets: {
-    evm: EVM_DESTINATION_ADDRESS, // simulating user's wallet on polygon.
-    tron: 'tron123',
-  },
-  brCode: 'brcode123',
-};
-
-// Mock the BrlaApiService
-const mockBrlaApiService = {
-  getSubaccount: mock(async () => mockSubaccountData),
-  validatePixKey: mock(async () => ({
-    name: 'Test Receiver',
-    taxId: '758.444.017-77',
-    bankName: 'Test Bank',
-  })),
-  sendRequest: mock(async () => ({})),
-  login: mock(async () => {}),
-  triggerOfframp: mock(async () => ({ id: 'offramp123' })),
-  createSubaccount: mock(async () => ({ id: 'subaccount123' })),
-  getAllEventsByUser: mock(async () => []),
-  acknowledgeEvents: mock(async () => {}),
-  generateBrCode: mock(async () => ({ brCode: 'brcode123' })),
-  getPayInHistory: mock(async () => []),
-  createFastQuote: mock(async () => ({ basePrice: '100' })),
-  swapRequest: mock(async () => ({ id: 'swap123' })),
-  getOnChainHistoryOut: mock(async () => []),
-};
-
 const mockVerifyReferenceLabel = mock(async (reference: any, receiverAddress: any) => {
   console.log('Verifying reference label:', reference, receiverAddress);
   return true;
@@ -231,14 +177,10 @@ mock.module('../brla/helpers', () => {
   };
 });
 
-BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApiService);
-
-RampService.prototype.validateBrlaOfframpRequest = mock(async () => mockSubaccountData);
-
 rampRecoveryWorker.start = mock(async () => ({}));
 
-describe('PhaseProcessor Integration Test', () => {
-  it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
+describe('Onramp PhaseProcessor Integration Test', () => {
+  it('should process an onramp (pix -> evm) through multiple phases until completion', async () => {
     try {
       const processor = new PhaseProcessor();
       const rampService = new RampService();
@@ -248,19 +190,12 @@ describe('PhaseProcessor Integration Test', () => {
 
       const additionalData = {
         walletAddress: EVM_TESTING_ADDRESS,
-        // paymentData: {
-        //   amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
-        //   memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
-        //   memo: '1204asjfnaksf10982e4',
-        //   anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
-        // },
-        taxId: '758.444.017-77',
-        receiverTaxId: '758.444.017-77',
-        pixDestination: '758.444.017-77',
+        taxId: TAX_ID,
+        destinationAddress: EVM_DESTINATION_ADDRESS,
       };
 
       const quoteTicket = await quoteService.createQuote({
-        rampType: 'off',
+        rampType: 'on',
         from: QUOTE_FROM,
         to: QUOTE_TO,
         inputAmount: TEST_INPUT_AMOUNT,
@@ -274,7 +209,7 @@ describe('PhaseProcessor Integration Test', () => {
         additionalData,
       });
 
-      console.log('register ramp:', registeredRamp);
+      console.log('register onramp:', registeredRamp);
 
       // START - MIMIC THE UI
 
@@ -291,20 +226,7 @@ describe('PhaseProcessor Integration Test', () => {
         moonbeamNode.api,
       );
 
-      //sign and send the squidy transactions!
-      const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterApprove');
-      const approveHash = await executeEvmTransaction(
-        squidApproveTransaction!.network,
-        squidApproveTransaction!.tx_data as EvmTransactionData,
-      );
-      console.log('Approve transaction executed with hash:', approveHash);
-
-      const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterSwap');
-      const swapHash = await executeEvmTransaction(
-        squidSwapTransaction!.network,
-        squidSwapTransaction!.tx_data as EvmTransactionData,
-      );
-      console.log('Swap transaction executed with hash:', swapHash);
+      // At this stage, user would send the BRL through pix.
 
       // END - MIMIC THE UI
 
@@ -316,7 +238,6 @@ describe('PhaseProcessor Integration Test', () => {
       // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
       console.error('Error during test execution:', error);
-
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       throw error;
     }
@@ -342,6 +263,8 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
     });
 
     const estimateFeePerGas = await publicClient.estimateFeesPerGas();
+
+    console.log('gas parameters', estimateFeePerGas.maxFeePerGas, estimateFeePerGas.maxPriorityFeePerGas);
     const hash = await walletClient.sendTransaction({
       to: txData.to,
       data: txData.data,

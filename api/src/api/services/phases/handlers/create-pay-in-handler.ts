@@ -14,7 +14,8 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw} = state.state as StateMetadata;
+    const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw } =
+      state.state as StateMetadata;
 
     if (!taxId || !moonbeamEphemeralAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
       throw new Error('CreatePayInPhaseHandler: State metadata corrupted. This is a bug.');
@@ -33,7 +34,7 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
       const teleportService = BrlaTeleportService.getInstance();
       await teleportService.requestTeleport(
         subaccount.id,
-        Number(inputAmountUnits),
+        Number(inputAmountBrla),
         moonbeamEphemeralAddress as `0x${string}`,
       );
 

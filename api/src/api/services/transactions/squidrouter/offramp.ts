@@ -71,7 +71,7 @@ export async function createOfframpSquidrouterTransactions(
       value: '0',
       gas: '150000',
       maxFeePerGas: String(maxFeePerGas),
-      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
+      maxPriorityFeePerGas: String(maxFeePerGas),
     },
     swapData: {
       to: transactionRequest.target as `0x${string}`,
@@ -79,7 +79,7 @@ export async function createOfframpSquidrouterTransactions(
       value: transactionRequest.value,
       gas: transactionRequest.gasLimit, // TODO do we still need * 2 here?
       maxFeePerGas: String(maxFeePerGas),
-      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
+      maxPriorityFeePerGas: String(maxFeePerGas),
     },
     squidRouterReceiverId,
     squidRouterReceiverHash,

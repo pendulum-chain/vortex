@@ -325,6 +325,7 @@ export const validatePixKey = async (
   }
 };
 
+// DEPRECATED
 /**
  * Trigger an onramp operation
  *

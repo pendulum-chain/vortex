@@ -1,12 +1,12 @@
 import Big from 'big.js';
-import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
+import { RampPhase, decodeSubmittableExtrinsic, getAddressForFormat } from 'shared';
 
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { ApiManager } from '../../pendulum/apiManager';
 import { waitUntilTrue } from '../../../helpers/functions';
-import { submitXcm } from '../../xcm/send';
+import { submitMoonbeamXcm, submitXcm } from '../../xcm/send';
 
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -41,10 +41,13 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
           'moonbeamToPendulumXcm',
         );
 
-        const approvalExtrinsic = decodeSubmittableExtrinsic(moonbeamToPendulumXcmTransaction, moonbeamNode.api);
+        const approvalExtrinsic = decodeSubmittableExtrinsic(
+          moonbeamToPendulumXcmTransaction as string,
+          moonbeamNode.api,
+        );
 
-        // TODO verify this works on Moonbeam also.
-        const { hash } = await submitXcm(moonbeamEphemeralAddress, approvalExtrinsic);
+        // TODO verify this works on Moonbeam also. It does not.
+        const { hash } = await submitMoonbeamXcm(moonbeamEphemeralAddress, approvalExtrinsic);
       }
     } catch (e) {
       console.error('Error while executing moonbeam-to-pendulum xcm:', e);
@@ -52,6 +55,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     }
 
     try {
+      console.log('waiting for token to arrive on pendulum...');
       await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
     } catch (e) {
       console.error('Error while waiting for transaction receipt:', e);

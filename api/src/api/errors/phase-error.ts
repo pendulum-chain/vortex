@@ -1,4 +1,3 @@
-
 export class PhaseError extends Error {
   readonly isRecoverable: boolean;
 

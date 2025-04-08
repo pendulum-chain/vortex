@@ -17,6 +17,7 @@ export type RampPhase =
   | 'stellarPayment'
   | 'stellarCleanup'
   | 'pendulumCleanup'
+  | 'moonbeamCleanup'
   | 'subsidizePreSwap'
   | 'subsidizePostSwap'
   | 'createPayInRequest'

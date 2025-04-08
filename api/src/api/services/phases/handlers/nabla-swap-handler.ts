@@ -52,19 +52,21 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         messageArguments: [
           inputAmountBeforeSwapRaw,
           [
-            (inputTokenPendulumDetails as PendulumDetails).pendulumErc20WrapperAddress,
-            (outputTokenPendulumDetails as PendulumDetails).pendulumErc20WrapperAddress,
+            inputTokenPendulumDetails.pendulumErc20WrapperAddress,
+            outputTokenPendulumDetails.pendulumErc20WrapperAddress,
           ],
         ],
         limits: defaultReadLimits,
       });
-
       if (response.type !== 'success') {
         throw new Error("Couldn't get a quote from the AMM");
       }
 
       const ouputAmountQuoteRaw = Big(response.value[0].toString());
       if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
+        console.log(
+          `The estimated output amount is too low to swap. Expected: ${nablaSoftMinimumOutputRaw}, got: ${ouputAmountQuoteRaw}`,
+        );
         throw new Error("Won't execute the swap now. The estimated output amount is too low.");
       }
 

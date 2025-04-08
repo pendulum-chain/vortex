@@ -44,7 +44,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
         } else if (state.state.outputCurrency === FiatToken.BRL) {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
-        } else{
+        } else {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, false);
         }
       } else {
@@ -55,10 +55,9 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         console.log('Funding moonbeam ephemeral...');
         await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
       }
-      
     } catch (e) {
       console.error('Error in FundEphemeralPhaseHandler:', e);
-      const recoverableError = this.createRecoverableError("Error funding ephemeral account");
+      const recoverableError = this.createRecoverableError('Error funding ephemeral account');
       throw recoverableError;
     }
 

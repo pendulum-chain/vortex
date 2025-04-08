@@ -38,7 +38,14 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
         console.log('Subsidizing pre-swap with', requiredAmount.toString());
+        console.log(
+          'Target value: ',
+          inputAmountBeforeSwapRaw.toString(),
+          'Current value: ',
+          currentBalance.toString(),
+        );
         const fundingAccountKeypair = getFundingAccount();
+        // TODO this and other calls, add to executeApiCall to avoid low priority errors.
         await pendulumNode.api.tx.tokens
           .transfer(
             pendulumEphemeralAddress,

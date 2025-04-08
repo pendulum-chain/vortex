@@ -75,7 +75,8 @@ export async function createOnrampSquidrouterTransactions(
     value: '0',
     nonce: params.moonbeamEphemeralStartingNonce,
     gas: '150000',
-    maxFeePerGas: String(maxFeePerGas),
+    maxFeePerGas: maxFeePerGas.toString(),
+    maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
   };
 
   const swapData = {
@@ -84,6 +85,7 @@ export async function createOnrampSquidrouterTransactions(
     value: transactionRequest.value,
     gas: transactionRequest.gasLimit,
     maxFeePerGas: String(maxFeePerGas),
+    maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     nonce: params.moonbeamEphemeralStartingNonce + 1,
   };
 

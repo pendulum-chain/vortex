@@ -182,11 +182,8 @@ export class QuoteService extends BaseRampService {
         });
       }
 
-      const inputAmountAfterFees = rampType === 'on' ? calculateTotalReceiveOnramp(
-        new Big(inputAmount),
-        inputCurrency,
-      ) : inputAmount;
-
+      const inputAmountAfterFees =
+        rampType === 'on' ? calculateTotalReceiveOnramp(new Big(inputAmount), inputCurrency) : inputAmount;
 
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
@@ -195,10 +192,10 @@ export class QuoteService extends BaseRampService {
         outputTokenDetails: outputTokenPendulumDetails,
       });
 
-      const outputAmountAfterFees = rampType === 'off' ? calculateTotalReceive(
-        amountOut.roundedDownQuotedAmountOut,
-        outputCurrency,
-      ): amountOut.roundedDownQuotedAmountOut.toFixed(2, 0);
+      const outputAmountAfterFees =
+        rampType === 'off'
+          ? calculateTotalReceive(amountOut.roundedDownQuotedAmountOut, outputCurrency)
+          : amountOut.roundedDownQuotedAmountOut.toFixed(2, 0);
 
       const effectiveFeesOfframp = amountOut.preciseQuotedAmountOut.preciseBigDecimal
         .minus(outputAmountAfterFees)
@@ -206,7 +203,6 @@ export class QuoteService extends BaseRampService {
 
       const effectiveFeesOnramp = new Big(inputAmount).minus(inputAmountAfterFees).toFixed(2, 0);
       const effectiveFees = rampType === 'off' ? effectiveFeesOfframp : effectiveFeesOnramp;
-
 
       return {
         receiveAmount: outputAmountAfterFees,

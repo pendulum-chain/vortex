@@ -134,11 +134,14 @@ export async function signUnsignedTransactions(
   
         // Ensure the transaction data is in the correct format. 
         // Fee values should be specified upon transaction creation.
-        const txData = { ...tx.tx_data, 
-          gas: BigInt(tx.tx_data.gas),
+        const txData = { 
+          to: tx.tx_data.to,
+          data: tx.tx_data.data,
           value: BigInt(tx.tx_data.value),
-          maxFeePerGas: tx.tx_data.maxFeePerGas ? BigInt(tx.tx_data.maxFeePerGas) : BigInt(0),
-          maxPriorityFeePerGas: tx.tx_data.maxPriorityFeePerGas ? BigInt(tx.tx_data.maxPriorityFeePerGas) : BigInt(0),
+          nonce: Number(tx.nonce), 
+          gas: BigInt(tx.tx_data.gas),
+          maxFeePerGas: tx.tx_data.maxFeePerGas ? BigInt(tx.tx_data.maxFeePerGas) * 5n : BigInt(187500000000),
+          maxPriorityFeePerGas: tx.tx_data.maxPriorityFeePerGas ? BigInt(tx.tx_data.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
         };
   
         const signedTxData = await walletClient.signTransaction(txData);

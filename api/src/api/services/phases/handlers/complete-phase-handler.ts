@@ -11,11 +11,9 @@ const NETWORK_PASSPHRASE = Networks.PUBLIC;
  * Placeholder phase to perform any final actions after the ramp flow is complete.
  */
 export class InitialPhaseHandler extends BasePhaseHandler {
-
   public getPhaseName(): RampPhase {
     return 'complete';
   }
-
 
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing final steps for ramp ${state.id}`);

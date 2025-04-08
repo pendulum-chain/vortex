@@ -23,7 +23,7 @@ import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
-import { createNablaTransactionsForQuote } from './nabla';
+import { createNablaTransactionsForOnramp, createNablaTransactionsForQuote } from './nabla';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { StateMetadata } from '../phases/meta-state-types';
 
@@ -78,12 +78,8 @@ export async function prepareOnrampTransactions(
   const inputAmountUnits = new Big(quote.inputAmount).sub(new Big(quote.fee));
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenDetails.decimals).toFixed(0, 0);
 
-  const outputAmountBeforeFees = new Big(quote.outputAmount).add(new Big(quote.fee));
-
-  const outputAmountBeforeFeesRaw = multiplyByPowerOfTen(outputAmountBeforeFees, outputTokenDetails.decimals).toFixed(
-    0,
-    0,
-  );
+  const outputAmount = new Big(quote.outputAmount);
+  const outputAmountRaw = multiplyByPowerOfTen(outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
@@ -93,7 +89,7 @@ export async function prepareOnrampTransactions(
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    outputAmountBeforeFees: { units: outputAmountBeforeFees.toFixed(), raw: outputAmountBeforeFeesRaw },
+    outputAmountBeforeFees: { units: outputAmount.toFixed(), raw: outputAmountRaw },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,
@@ -126,7 +122,7 @@ export async function prepareOnrampTransactions(
         const { approveData, swapData } = await createOnrampSquidrouterTransactions({
           outputTokenDetails,
           toNetwork,
-          rawAmount: outputAmountBeforeFeesRaw,
+          rawAmount: outputAmountRaw,
           addressDestination: account.address,
           fromAddress: account.address,
           moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 1,
@@ -148,20 +144,20 @@ export async function prepareOnrampTransactions(
         });
       }
     } else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-
-      // We need to be carefull with pendulum decimals. 
+      // We need to be carefull with pendulum decimals.
       const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
         inputAmountUnits,
         inputTokenPendulumDetails.pendulumDecimals,
       ).toFixed(0, 0);
 
-      const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+      const nablaSoftMinimumOutput = outputAmount.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
       const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
         nablaSoftMinimumOutput,
-        inputTokenPendulumDetails.pendulumDecimals,
+        outputTokenDetails.pendulumDecimals,
       ).toFixed();
-
-      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(
+      console.log('fixed? soft minimum output raw....', nablaSoftMinimumOutputRaw);
+      const { approveTransaction, swapTransaction } = await createNablaTransactionsForOnramp(
+        inputAmountUnits,
         quote,
         account,
         inputTokenPendulumDetails,
@@ -180,7 +176,7 @@ export async function prepareOnrampTransactions(
         tx_data: swapTransaction,
         phase: 'nablaSwap',
         network: account.network,
-        nonce: 0,
+        nonce: 1,
         signer: account.address,
       });
 
@@ -207,7 +203,7 @@ export async function prepareOnrampTransactions(
         const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
           destinationAddress,
           outputTokenDetails.pendulumCurrencyId,
-          outputAmountBeforeFeesRaw,
+          outputAmountRaw,
         );
         unsignedTxs.push({
           tx_data: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction),
@@ -217,9 +213,13 @@ export async function prepareOnrampTransactions(
           signer: account.address,
         });
       } else {
+        if (!moonbeamEphemeralEntry) {
+          throw new Error('prepareOnrampTransactions: Moonbeam ephemeral not found');
+        }
+
         const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
           moonbeamEphemeralEntry.address,
-          outputAmountBeforeFeesRaw,
+          outputAmountRaw,
           outputTokenDetails.pendulumCurrencyId,
         );
         unsignedTxs.push({

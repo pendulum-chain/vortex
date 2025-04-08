@@ -49,7 +49,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         throw new Error('Missing presigned transactions for squidRouter phase');
       }
 
-      const destinationNetwork = getNetworkFromDestination(state.from);
+      const destinationNetwork = getNetworkFromDestination(state.to);
       const chainId = destinationNetwork ? getNetworkId(destinationNetwork) : null;
       if (!chainId) {
         throw new Error('Invalid destination network');

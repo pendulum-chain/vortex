@@ -44,7 +44,6 @@ export class PhaseProcessor {
     } catch (error) {
       return;
     }
-
   }
 
   /**
@@ -68,11 +67,15 @@ export class PhaseProcessor {
 
       // If the phase has changed, process the next phase
       // except for complete or fail phases which are terminal.
-      if (updatedState.currentPhase !== currentPhase && updatedState.currentPhase !== 'complete' && updatedState.currentPhase !== 'failed') {
+      if (
+        updatedState.currentPhase !== currentPhase &&
+        updatedState.currentPhase !== 'complete' &&
+        updatedState.currentPhase !== 'failed'
+      ) {
         logger.info(`Phase changed from ${currentPhase} to ${updatedState.currentPhase} for ramp ${state.id}`);
-        
+
         this.retriesMap.delete(state.id);
-        
+
         // Process the next phase
         await this.processPhase(updatedState);
       } else if (updatedState.currentPhase === 'complete') {
@@ -86,23 +89,22 @@ export class PhaseProcessor {
         this.retriesMap.delete(state.id);
       }
     } catch (error: any) {
-
       const isPhaseError = error instanceof PhaseError;
       const isRecoverable = isPhaseError && error.isRecoverable === true;
 
       if (isRecoverable) {
         const currentRetries = this.retriesMap.get(state.id) || 0;
-        
+
         if (currentRetries < this.MAX_RETRIES) {
           const nextRetry = currentRetries + 1;
           this.retriesMap.set(state.id, nextRetry);
-          const delayMs = Math.pow(2, currentRetries) * 1000; 
-          
+          const delayMs = Math.pow(2, currentRetries) * 1000;
+
           logger.info(`Scheduling retry ${nextRetry}/${this.MAX_RETRIES} for ramp ${state.id} in ${delayMs}ms`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
           return this.processPhase(state);
         }
-        
+
         logger.error(`Max retries (${this.MAX_RETRIES}) reached for ramp ${state.id}`);
         this.retriesMap.delete(state.id);
       }

@@ -116,7 +116,6 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      
       await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
     } catch (e) {
       console.error('Error while waiting for transaction receipt:', e);

@@ -1,5 +1,5 @@
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from 'shared';
+import { parseEventMoonbeamXcmSent, parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from 'shared';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { ApiPromise } from '@polkadot/api';
 import { SignedBlock } from '@polkadot/types/interfaces';
@@ -85,6 +85,43 @@ export const submitXcm = async (
             .map((event) => parseEventXcmSent(event))
             .filter((event) => event.originAddress == address);
 
+          if (event.length == 0) {
+            reject(new Error(`No XcmSent event found for account ${address}`));
+          }
+          resolve({ event: event[0], hash });
+        }
+      })
+      .catch((error) => {
+        reject(new Error(`Failed to do XCM transfer: ${error}`));
+      });
+  });
+
+export const submitMoonbeamXcm = async (
+  address: string,
+  extrinsic: SubmittableExtrinsic<'promise'>,
+): Promise<{ event: XcmSentEvent; hash: string }> =>
+  new Promise((resolve, reject) => {
+    extrinsic
+      .send((submissionResult: ISubmittableResult) => {
+        const { status, events, dispatchError } = submissionResult;
+
+        if (status.isFinalized) {
+          const hash = status.asFinalized.toString();
+
+          // Try to find a 'system.ExtrinsicFailed' event
+          if (dispatchError) {
+            reject('Xcm transaction failed');
+          }
+
+          // Try to find 'polkadotXcm.Sent' events
+          const xcmSentEvents = events.filter(
+            (record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent',
+          );
+          console.log(xcmSentEvents);
+          const event = xcmSentEvents
+            .map((event) => parseEventMoonbeamXcmSent(event))
+            .filter((event) => event.originAddress == address);
+          console.log(event);
           if (event.length == 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
           }

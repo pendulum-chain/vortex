@@ -23,7 +23,7 @@ export async function buildPaymentAndMergeTx({
   amountToAnchorUnits,
   paymentData,
   tokenConfigStellar,
-}: StellarBuildPaymentAndMergeTx ): Promise<{
+}: StellarBuildPaymentAndMergeTx): Promise<{
   paymentTransaction: string;
   mergeAccountTransaction: string;
   expectedSequenceNumber: string;
@@ -100,7 +100,6 @@ export async function buildPaymentAndMergeTx({
     .setTimebounds(0, MAX_TIME)
     .setMinAccountSequence(String(0))
     .build();
-
 
   const mergeAccountTransaction = new TransactionBuilder(ephemeralAccount, {
     fee: STELLAR_BASE_FEE,
