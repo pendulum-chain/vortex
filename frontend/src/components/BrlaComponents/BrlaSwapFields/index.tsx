@@ -12,10 +12,7 @@ const containerAnimation: MotionProps = {
   transition: { duration: 0.3 },
 };
 
-const STANDARD_FIELDS = [
-  { id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 },
-  { id: StandardBrlaFieldOptions.PIX_ID, label: 'PIX key', index: 1 },
-];
+const STANDARD_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 }];
 
 /**
  * BrlaSwapFields component
@@ -43,7 +40,7 @@ export const BrlaSwapFields: FC = () => {
             />
           ))}
           <div className="mt-2">
-            CPF and PIX key need to belong to the <b>same person</b>.
+            CPF must belong to <b>you</b>.
           </div>
         </motion.div>
       )}
