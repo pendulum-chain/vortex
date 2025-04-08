@@ -1,12 +1,34 @@
 import Big from 'big.js';
-import { calculateOfframpTotalReceive } from '../components/FeeCollapse';
-import { BaseFiatTokenDetails, roundDownToTwoDecimals } from 'shared';
+import { calculateOfframpTotalReceive, calculateOnrampTotalReceive } from '../components/FeeCollapse';
+import { BaseFiatTokenDetails, OnChainTokenDetails, roundDownToTwoDecimals } from 'shared';
+import { useRampDirection } from '../stores/rampDirectionStore';
+import { RampDirection } from '../components/RampToggle';
 
-export const useOfframpFees = (toAmount: Big, toToken: BaseFiatTokenDetails) => {
-  const toAmountFixed = roundDownToTwoDecimals(toAmount);
-  const totalReceive = calculateOfframpTotalReceive(toAmount, toToken);
-  const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive));
-  const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive));
+interface OfframpFeesParams {
+  toAmount: Big;
+  toToken: BaseFiatTokenDetails | OnChainTokenDetails;
+}
+
+const calculateTotalReceive = (
+  flowType: RampDirection,
+  amount: Big,
+  token: BaseFiatTokenDetails | OnChainTokenDetails,
+) => {
+  if (flowType === RampDirection.OFFRAMP) {
+    return calculateOfframpTotalReceive(amount, token as BaseFiatTokenDetails);
+  } else {
+    return calculateOnrampTotalReceive(amount);
+  }
+};
+
+export const useOfframpFees = ({ toAmount, toToken }: OfframpFeesParams) => {
+  const toAmountFixed = roundDownToTwoDecimals(toAmount || Big(0));
+  const flowType = useRampDirection();
+
+  const totalReceive = calculateTotalReceive(flowType, toAmount, toToken);
+
+  const totalReceiveFormatted = roundDownToTwoDecimals(Big(totalReceive || 0));
+  const feesCost = roundDownToTwoDecimals(Big(toAmountFixed || 0).sub(totalReceive || 0));
 
   return {
     toAmountFixed,
