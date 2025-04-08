@@ -9,70 +9,61 @@ import { useEventsContext } from '../../contexts/events';
 import {
   createMoonbeamEphemeral,
   createPendulumEphemeral,
-  createStellarEphemeral
+  createStellarEphemeral,
 } from '../../services/transactions/ephemerals';
 import { useMainProcess } from '../offramp/useMainProcess';
+import { useRampDirection } from '../../stores/rampDirectionStore';
+import { RampDirection } from '../../components/RampToggle';
+import { FiatToken } from 'shared';
 
-/**
- * Hook for handling ramp submission logic
- * Encapsulates the process of preparing and submitting ramp transactions
- */
+interface SubmissionError extends Error {
+  code?: string;
+  message: string;
+}
+
+const createEphemerals = () => ({
+  pendulumEphemeral: createPendulumEphemeral(),
+  stellarEphemeral: createStellarEphemeral(),
+  moonbeamEphemeral: createMoonbeamEphemeral(),
+});
+
 export const useRampSubmission = () => {
   const [executionPreparing, setExecutionPreparing] = useState(false);
-
-  // Get state from stores
-  const { fromAmount, from, to, taxId, pixId } = useRampFormStore();
+  const { inputAmount, fiatToken, onChainToken, taxId, pixId } = useRampFormStore();
   const { quote } = useQuoteStore();
   const { address } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
+  const rampDirection = useRampDirection();
+  const { setRampExecutionInput, setRampSummaryVisible, setRampInitiating } = useRampActions();
+  const { handleOnSubmit, finishOfframping, continueFailedFlow, handleOnAnchorWindowOpen, handleBrlaOfframpStart } =
+    useMainProcess();
 
-  // Get store actions
-  const {
-    setRampExecutionInput,
-    setRampSummaryVisible,
-    setRampInitiating
-  } = useRampActions();
-
-  // Get main process functions
-  const {
-    handleOnSubmit,
-    finishOfframping,
-    continueFailedFlow,
-    handleOnAnchorWindowOpen,
-    handleBrlaOfframpStart,
-  } = useMainProcess();
-
-  /**
-   * Prepares the execution input for submission
-   */
-  const prepareExecutionInput = useCallback(() => {
+  const validateSubmissionData = useCallback(() => {
     if (!address) {
-      throw new Error('No address found');
+      throw new Error('No wallet address found. Please connect your wallet.');
     }
-
     if (!quote) {
-      throw new Error('No quote available');
+      throw new Error('No quote available. Please try again.');
     }
-
-    if (!fromAmount) {
-      throw new Error('No amount specified');
+    if (!inputAmount) {
+      throw new Error('No amount specified. Please enter an amount.');
     }
+    if (fiatToken === 'brl') {
+      if (!taxId) {
+        throw new Error('Tax ID is required for BRL transactions.');
+      }
+    }
+  }, [address, quote, inputAmount, fiatToken, taxId]);
 
-    // Create ephemeral accounts for the transaction
-    const pendulumEphemeral = createPendulumEphemeral();
-    const stellarEphemeral = createStellarEphemeral();
-    const moonbeamEphemeral = createMoonbeamEphemeral();
-
+  const prepareExecutionInput = useCallback(() => {
+    validateSubmissionData();
+    const ephemerals = createEphemerals();
     const executionInput: RampExecutionInput = {
-      ephemerals: {
-        pendulumEphemeral,
-        stellarEphemeral,
-        moonbeamEphemeral,
-      },
-      quote,
-      onChainToken: from,
-      fiatToken: to,
+      ephemerals,
+      quote: quote,
+      onChainToken,
+      fiatToken,
       userWalletAddress: address,
       network: selectedNetwork,
       taxId,
@@ -81,41 +72,46 @@ export const useRampSubmission = () => {
         console.error('Initialization failed:', message);
       },
     };
-
     return executionInput;
-  }, [address, quote, fromAmount, from, to, selectedNetwork, taxId, pixId]);
+  }, [validateSubmissionData, quote, onChainToken, fiatToken, address, selectedNetwork, taxId, pixId]);
 
-  /**
-   * Handles the swap confirmation process
-   */
-  const onSwapConfirm = useCallback(async () => {
+  const trackTransaction = useCallback(() => {
+    const fromAsset = rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken;
+    const toAsset = rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken;
+    trackEvent({
+      event: 'transaction_confirmation',
+      from_asset: fromAsset,
+      to_asset: toAsset,
+      from_amount: inputAmount?.toString() || '0',
+      to_amount: quote?.outputAmount || '0',
+    });
+  }, [trackEvent, rampDirection, fiatToken, onChainToken, inputAmount, quote]);
+
+  const handleSubmissionError = useCallback(
+    (error: SubmissionError) => {
+      console.error('Error preparing submission:', error);
+      const errorMessage = error.message || 'An unknown error occurred';
+      trackEvent({
+        event: 'transaction_error',
+        error_message: errorMessage,
+        error_code: error.code || 'unknown',
+      });
+      setRampInitiating(false);
+    },
+    [trackEvent, setRampInitiating],
+  );
+
+  const onRampConfirm = useCallback(async () => {
     if (executionPreparing) return;
-
     setExecutionPreparing(true);
-
     try {
       const executionInput = prepareExecutionInput();
-
-      // Store execution input in global state
       setRampExecutionInput(executionInput);
-
-      // Show summary dialog
       setRampSummaryVisible(true);
-
-      // Handle submission
       handleOnSubmit(executionInput);
-
-      // Track event
-      trackEvent({
-        event: 'transaction_confirmation',
-        from_asset: from,
-        to_asset: to,
-        from_amount: fromAmount?.toString() || '0',
-        to_amount: quote?.outputAmount || '0',
-      });
+      trackTransaction();
     } catch (error) {
-      console.error('Error preparing swap:', error);
-      setRampInitiating(false);
+      handleSubmissionError(error as SubmissionError);
     } finally {
       setExecutionPreparing(false);
     }
@@ -125,31 +121,39 @@ export const useRampSubmission = () => {
     setRampExecutionInput,
     setRampSummaryVisible,
     handleOnSubmit,
-    trackEvent,
-    from,
-    to,
-    fromAmount,
-    quote,
-    setRampInitiating
+    trackTransaction,
+    handleSubmissionError,
   ]);
 
-  /**
-   * Handles the offramp submission after the summary is confirmed
-   */
-  const handleOfframpSubmit = useCallback(() => {
+  const handleTransactionInitiation = useCallback(() => {
     if (!address) {
       throw new Error('No address found');
     }
-
-    // Different handling based on token
-    to === 'brl' ? handleBrlaOfframpStart() : handleOnAnchorWindowOpen();
-  }, [address, to, handleBrlaOfframpStart, handleOnAnchorWindowOpen]);
+    if (rampDirection === RampDirection.OFFRAMP) {
+      if (fiatToken === ('brl' as FiatToken)) {
+        handleBrlaOfframpStart();
+      } else {
+        handleOnAnchorWindowOpen();
+      }
+    } else {
+      handleOnSubmit(prepareExecutionInput());
+    }
+  }, [
+    address,
+    rampDirection,
+    fiatToken,
+    handleBrlaOfframpStart,
+    handleOnAnchorWindowOpen,
+    handleOnSubmit,
+    prepareExecutionInput,
+  ]);
 
   return {
-    onSwapConfirm,
-    handleOfframpSubmit,
+    onRampConfirm,
+    handleTransactionInitiation,
     finishOfframping,
     continueFailedFlow,
-    isExecutionPreparing: executionPreparing
+    isExecutionPreparing: executionPreparing,
+    validateSubmissionData,
   };
 };
