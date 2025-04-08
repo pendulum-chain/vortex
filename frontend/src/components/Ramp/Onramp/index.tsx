@@ -34,6 +34,12 @@ export const Onramp = () => {
   const fiatToken = useFiatToken();
 
   const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
+
+  // TODO: This is a hack to get the output amount to the form
+  useEffect(() => {
+    form.setValue('outputAmount', toAmount?.toString() || '0');
+  }, [toAmount, form]);
+
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const { onSwapConfirm } = useRampSubmission();
   const validateTerms = useValidateTerms();

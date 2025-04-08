@@ -11,7 +11,6 @@ import { useEventsContext } from '../../../contexts/events';
 import { useNetwork } from '../../../contexts/network';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
-import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
 import { useRampValidation } from '../../../hooks/ramp/useRampValidation';
 import { useRampSubmission } from '../../../hooks/ramp/useRampSubmission';
 import { useFeeComparisonStore } from '../../../stores/feeComparison';
@@ -23,6 +22,7 @@ import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/r
 import { useSwapUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
+import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
 
 export const Offramp = () => {
   const { setTrackPrice } = useFeeComparisonStore();
@@ -33,6 +33,12 @@ export const Offramp = () => {
   const fiatToken = useFiatToken();
 
   const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
+
+  // TODO: This is a hack to get the output amount to the form
+  useEffect(() => {
+    form.setValue('outputAmount', toAmount?.toString() || '0');
+  }, [toAmount, form]);
+
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const { onSwapConfirm } = useRampSubmission();
   const validateTerms = useValidateTerms();
