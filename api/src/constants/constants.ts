@@ -9,7 +9,7 @@ const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = '5'; // 5 Subsidies considering maximum
 const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = '0x2AB52086e8edaB28193172209407FF9df1103CDc';
 const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the new stellar ephemeral account created
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new pendulum ephemeral account created
-const MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new moonbeam ephemeral account created
+const MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS = '1.5'; // Amount to send to the new moonbeam ephemeral account created
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
 const DEFAULT_POLLING_INTERVAL = 3000;
@@ -28,7 +28,7 @@ const SEP10_MASTER_SECRET = FUNDING_SECRET;
 const { CLIENT_DOMAIN_SECRET } = process.env;
 const { BRLA_LOGIN_PASSWORD } = process.env;
 const { BRLA_LOGIN_USERNAME } = process.env;
-const MOONBEAM_FUNDING_SEED = MOONBEAM_EXECUTOR_PRIVATE_KEY;
+const MOONBEAM_FUNDING_PRIVATE_KEY = MOONBEAM_EXECUTOR_PRIVATE_KEY;
 const { BACKEND_TEST_STARTER_ACCOUNT } = process.env;
 
 export {
@@ -37,7 +37,7 @@ export {
   HORIZON_URL,
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   PENDULUM_FUNDING_AMOUNT_UNITS,
-  MOONBEAM_FUNDING_SEED,
+  MOONBEAM_FUNDING_PRIVATE_KEY,
   PENDULUM_FUNDING_SEED,
   STELLAR_FUNDING_AMOUNT_UNITS,
   MOONBEAM_FUNDING_AMOUNT_UNITS,

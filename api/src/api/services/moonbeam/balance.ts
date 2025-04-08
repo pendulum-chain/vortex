@@ -6,7 +6,7 @@ import { ApiManager } from '../pendulum/apiManager';
 import { getFundingData } from '../pendulum/pendulum.service';
 import { KeyringPair } from '@polkadot/keyring/types';
 import { Keyring } from '@polkadot/api';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_SEED } from '../../../constants/constants';
+import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { privateKeyToAccount } from 'viem/accounts';
 import { createMoonbeamClientsAndConfig } from './createServices';
@@ -85,7 +85,7 @@ export function getMoonbeamFundingData(decimals: number): {
   const fundingAmountUnits = Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
-  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_SEED as `0x${string}`);
+  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
   const { walletClient, publicClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
 
   return { fundingAmountRaw, walletClient, publicClient };

@@ -42,8 +42,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
     try {
       // Get the presigned transactions for this phase
-      const approveTransaction = this.getPresignedTransaction(state, 'nablaApprove');
-      const swapTransaction = this.getPresignedTransaction(state, 'nablaSwap');
+      const approveTransaction = this.getPresignedTransaction(state, 'squidrouterApprove');
+      const swapTransaction = this.getPresignedTransaction(state, 'squidrouterSwap');
 
       if (!approveTransaction || !swapTransaction) {
         throw new Error('Missing presigned transactions for squidRouter phase');

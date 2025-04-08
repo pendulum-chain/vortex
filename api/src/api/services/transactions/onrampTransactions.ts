@@ -101,7 +101,7 @@ export async function prepareOnrampTransactions(
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-      if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+    if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       const moonbeamEphemeralStartingNonce = 0;
       const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
         pendulumEphemeralEntry.address,
@@ -115,13 +115,13 @@ export async function prepareOnrampTransactions(
         nonce: moonbeamEphemeralStartingNonce,
         signer: account.address,
       });
-      
+
       const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
       unsignedTxs.push({
         tx_data: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup',
         network: account.network,
-        nonce: moonbeamEphemeralStartingNonce + 3, 
+        nonce: moonbeamEphemeralStartingNonce + 4,
         signer: account.address,
       });
 
@@ -135,21 +135,21 @@ export async function prepareOnrampTransactions(
           rawAmount: outputAmountRaw,
           addressDestination: account.address,
           fromAddress: account.address,
-          moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 1,
+          moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 2,
         });
 
         unsignedTxs.push({
           tx_data: encodeEvmTransactionData(approveData) as any,
           phase: 'squidrouterApprove',
           network: account.network,
-          nonce: moonbeamEphemeralStartingNonce + 1,
+          nonce: moonbeamEphemeralStartingNonce + 2,
           signer: account.address,
         });
         unsignedTxs.push({
           tx_data: encodeEvmTransactionData(swapData) as any,
           phase: 'squidrouterSwap',
           network: account.network,
-          nonce: moonbeamEphemeralStartingNonce + 2,
+          nonce: moonbeamEphemeralStartingNonce + 3,
           signer: account.address,
         });
       }

@@ -54,54 +54,59 @@ export async function createOnrampSquidrouterTransactions(
     params.toNetwork,
     params.addressDestination,
   );
-  const routeResult = await getRoute(routeParams);
 
-  const { route } = routeResult.data;
+  try {
+    const routeResult = await getRoute(routeParams);
 
-  const { transactionRequest } = route;
+    const { route } = routeResult.data;
 
-  const approveTransactionData = encodeFunctionData({
-    abi: erc20ABI,
-    functionName: 'approve',
-    args: [transactionRequest?.target, params.rawAmount],
-  });
+    const { transactionRequest } = route;
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+    const approveTransactionData = encodeFunctionData({
+      abi: erc20ABI,
+      functionName: 'approve',
+      args: [transactionRequest?.target, params.rawAmount],
+    });
 
-  // Create transaction data objects
-  const approveData = {
-    to: AXL_USDC_MOONBEAM as `0x${string}`,
-    data: approveTransactionData,
-    value: '0',
-    nonce: params.moonbeamEphemeralStartingNonce,
-    gas: '150000',
-    maxFeePerGas: maxFeePerGas.toString(),
-    maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-  };
+    const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
-  const swapData = {
-    to: transactionRequest.target as `0x${string}`,
-    data: transactionRequest.data,
-    value: transactionRequest.value,
-    gas: transactionRequest.gasLimit,
-    maxFeePerGas: String(maxFeePerGas),
-    maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-    nonce: params.moonbeamEphemeralStartingNonce + 1,
-  };
+    // Create transaction data objects
+    const approveData = {
+      to: AXL_USDC_MOONBEAM as `0x${string}`,
+      data: approveTransactionData,
+      value: '0',
+      nonce: params.moonbeamEphemeralStartingNonce,
+      gas: '150000',
+      maxFeePerGas: (maxFeePerGas * 2n).toString(),
+      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
+    };
 
-  // Alternative way, untested.
-  // const keyring = new Keyring({ type: 'ethereum' });
+    const swapData = {
+      to: transactionRequest.target as `0x${string}`,
+      data: transactionRequest.data,
+      value: transactionRequest.value,
+      gas: transactionRequest.gasLimit,
+      maxFeePerGas: String(maxFeePerGas),
+      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
+      nonce: params.moonbeamEphemeralStartingNonce + 1,
+    };
 
-  // const ephemeralKeypair = keyring.addFromUri(`${params.moonbeamEphemeralSeed}/m/44'/60'/${0}'/${0}/${0}`);
+    // Alternative way, untested.
+    // const keyring = new Keyring({ type: 'ethereum' });
 
-  // const swapEvmCall =  params.moonbeamNode.api.tx.evm.call(params.moonbeamEphemeralAddress, transactionRequest.target, transactionRequest.data,  transactionRequest.value,  transactionRequest.gasLimit, maxFeePerGas, undefined, undefined, undefined);
-  // const signedSwapEvmCall = await swapEvmCall.signAsync(ephemeralKeypair, {nonce: params.moonbeamEphemeralStartingNonce + 1});
+    // const ephemeralKeypair = keyring.addFromUri(`${params.moonbeamEphemeralSeed}/m/44'/60'/${0}'/${0}/${0}`);
 
-  // console.log('Swap transaction prepared substrate: ', encodeSubmittableExtrinsic(signedSwapEvmCall));
+    // const swapEvmCall =  params.moonbeamNode.api.tx.evm.call(params.moonbeamEphemeralAddress, transactionRequest.target, transactionRequest.data,  transactionRequest.value,  transactionRequest.gasLimit, maxFeePerGas, undefined, undefined, undefined);
+    // const signedSwapEvmCall = await swapEvmCall.signAsync(ephemeralKeypair, {nonce: params.moonbeamEphemeralStartingNonce + 1});
 
-  // Return both signed transactions and transaction data
-  return {
-    approveData,
-    swapData,
-  };
+    // console.log('Swap transaction prepared substrate: ', encodeSubmittableExtrinsic(signedSwapEvmCall));
+
+    // Return both signed transactions and transaction data
+    return {
+      approveData,
+      swapData,
+    };
+  } catch (e) {
+    throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);
+  }
 }

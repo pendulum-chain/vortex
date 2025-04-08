@@ -141,7 +141,6 @@ export async function prepareOfframpTransactions({
       squidRouterReceiverHash,
     };
   } else {
-
     if (!userAddress) {
       throw new Error('User address must be provided for offramping.');
     }
