@@ -25,6 +25,7 @@ import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
 import { createNablaTransactionsForOnramp, createNablaTransactionsForQuote } from './nabla';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
+import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
 import { StateMetadata } from '../phases/meta-state-types';
 
 // Creates and signs all required transactions already so they are ready to be submitted.
@@ -100,7 +101,7 @@ export async function prepareOnrampTransactions(
   for (const account of signingAccounts) {
     const accountNetworkId = getNetworkId(account.network);
 
-    if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+      if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
       const moonbeamEphemeralStartingNonce = 0;
       const moonbeamToPendulumXCMTransaction = await createMoonbeamToPendulumXCM(
         pendulumEphemeralEntry.address,
@@ -112,6 +113,15 @@ export async function prepareOnrampTransactions(
         phase: 'moonbeamToPendulumXcm',
         network: account.network,
         nonce: moonbeamEphemeralStartingNonce,
+        signer: account.address,
+      });
+      
+      const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
+      unsignedTxs.push({
+        tx_data: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
+        phase: 'moonbeamCleanup',
+        network: account.network,
+        nonce: moonbeamEphemeralStartingNonce + 3, 
         signer: account.address,
       });
 
@@ -129,14 +139,14 @@ export async function prepareOnrampTransactions(
         });
 
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(approveData),
+          tx_data: encodeEvmTransactionData(approveData) as any,
           phase: 'squidrouterApprove',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 1,
           signer: account.address,
         });
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(swapData),
+          tx_data: encodeEvmTransactionData(swapData) as any,
           phase: 'squidrouterSwap',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 2,

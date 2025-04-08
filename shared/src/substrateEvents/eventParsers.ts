@@ -73,7 +73,7 @@ export function parseEventMoonbeamXcmSent(event: any) {
   console.log("raw event data", rawEventData[0].interior.x1[0]);
 
   const mappedData = {
-    originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId20.key.toString()),
+    originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountKey20.key),
   };
   return mappedData;
 }

@@ -121,14 +121,14 @@ export async function prepareOfframpTransactions({
       });
     console.log('squid txs done');
     unsignedTxs.push({
-      tx_data: encodeEvmTransactionData(approveData),
+      tx_data: encodeEvmTransactionData(approveData) as any,
       phase: 'squidrouterApprove',
       network: fromNetwork,
       nonce: 0,
       signer: userAddress,
     });
     unsignedTxs.push({
-      tx_data: encodeEvmTransactionData(swapData),
+      tx_data: encodeEvmTransactionData(swapData) as any,
       phase: 'squidrouterSwap',
       network: fromNetwork,
       nonce: 0,
@@ -141,6 +141,11 @@ export async function prepareOfframpTransactions({
       squidRouterReceiverHash,
     };
   } else {
+
+    if (!userAddress) {
+      throw new Error('User address must be provided for offramping.');
+    }
+
     // Create Assethub to Pendulum transaction
     const assethubToPendulumTransaction = await createAssethubToPendulumXCM(
       pendulumEphemeralEntry.address,
@@ -172,7 +177,6 @@ export async function prepareOfframpTransactions({
 
     // If network is Moonbeam, we need to create a second transaction to send the funds to the user
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
-      // TODO implement creation of unsigned ephemeral tx for Moonbeam -> Pendulum
     }
     // If network is Pendulum, create all the swap transactions
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {

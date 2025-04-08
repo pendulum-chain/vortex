@@ -117,11 +117,10 @@ export const submitMoonbeamXcm = async (
           const xcmSentEvents = events.filter(
             (record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent',
           );
-          console.log(xcmSentEvents);
           const event = xcmSentEvents
             .map((event) => parseEventMoonbeamXcmSent(event))
             .filter((event) => event.originAddress == address);
-          console.log(event);
+
           if (event.length == 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
           }
