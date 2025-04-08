@@ -1,63 +1,9 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import {
-  BaseFiatTokenDetails,
-  FiatToken,
-  FiatTokenDetails,
-  getAnyFiatTokenDetails,
-  isFiatTokenDetails,
-  isOnChainTokenDetails,
-  OnChainToken,
-  OnChainTokenDetails,
-  TokenDetails,
-} from 'shared';
+import { BaseFiatTokenDetails, OnChainTokenDetails } from 'shared';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
-
-export function calculateTotalReceive(
-  flowType: 'on' | 'off',
-  toAmount: Big,
-  outputTokenType: FiatToken | OnChainToken,
-): string {
-  if (flowType === 'off') {
-    return calculateOfframpTotalReceive(toAmount, getAnyFiatTokenDetails(outputTokenType as FiatToken));
-  } else {
-    return calculateOnrampTotalReceive(toAmount);
-  }
-}
-
-export function calculateOfframpTotalReceive(toAmount: Big, outputToken: BaseFiatTokenDetails): string {
-  if (!outputToken || !toAmount) {
-    return '0';
-  }
-
-  const feeBasisPoints = outputToken.offrampFeesBasisPoints || Big(0);
-  const fixedFees = new Big(outputToken.offrampFeesFixedComponent ? outputToken.offrampFeesFixedComponent : 0);
-  const fees = toAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
-  const totalReceiveRaw = toAmount.minus(fees);
-
-  if (totalReceiveRaw.gt(0)) {
-    return totalReceiveRaw.toFixed(2, 0);
-  } else {
-    return '0';
-  }
-}
-
-export function calculateOnrampTotalReceive(toAmount: Big): string {
-  if (toAmount && toAmount.gt(0)) {
-    return toAmount.toFixed(2, 0);
-  }
-  return '0';
-}
-
-const getTokenSymbol = (token: BaseFiatTokenDetails | OnChainTokenDetails): string => {
-  if (isFiatTokenDetails(token as TokenDetails)) {
-    return (token as FiatTokenDetails).fiat.symbol;
-  } else if (isOnChainTokenDetails(token as TokenDetails)) {
-    return (token as OnChainTokenDetails).assetSymbol;
-  }
-  return '';
-};
+import { getTokenSymbol } from '../../helpers/getTokenSymbol';
 
 interface CollapseProps {
   fromAmount?: string;
