@@ -19,7 +19,7 @@ import { RampTerms } from '../../RampTerms';
 import { useValidateTerms } from '../../../stores/termsStore';
 import { useRampModalActions } from '../../../stores/rampModalStore';
 import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
-import { useSwapUrlParams } from '../../../hooks/useRampUrlParams';
+import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
@@ -55,7 +55,7 @@ export const Offramp = () => {
 
   const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
 
-  useSwapUrlParams({ form });
+  useRampUrlParams({ form });
 
   useEffect(() => {
     if (!fromAmountFieldTouched || debouncedInputAmount !== inputAmount) return;
