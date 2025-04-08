@@ -1,4 +1,3 @@
-import { FC } from 'react';
 import Big from 'big.js';
 
 import { FeeCollapse } from '../FeeCollapse';
@@ -14,24 +13,29 @@ export const RampFeeCollapse = () => {
   const { selectedNetwork } = useNetwork();
   const rampDirection = useRampDirection();
 
-  const from = useOnChainToken();
-  const to = useFiatToken();
+  const onChainToken = useOnChainToken();
+  const fiatToken = useFiatToken();
   const fromAmount = useInputAmount();
 
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, from);
-  const toToken = getAnyFiatTokenDetails(to);
+  const onChainTokenDetails = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  const fiatTokenDetails = getAnyFiatTokenDetails(fiatToken);
   const toAmount = useQuoteOutputAmount();
   const exchangeRate = useQuoteExchangeRate();
 
-  const displayToken = rampDirection === RampDirection.ONRAMP ? fromToken : fromToken;
+  const exchangeRateInputToken = rampDirection === RampDirection.ONRAMP ? fiatTokenDetails : onChainTokenDetails;
+  const exchangeRateOutputToken = rampDirection === RampDirection.ONRAMP ? onChainTokenDetails : fiatTokenDetails;
 
   return (
     <FeeCollapse
       fromAmount={fromAmount?.toString()}
-      toAmount={toAmount || Big(0)}
-      toToken={displayToken}
+      toAmount={toAmount}
+      toToken={exchangeRateOutputToken}
       exchangeRate={
-        <ExchangeRate exchangeRate={exchangeRate} fromToken={fromToken} toTokenSymbol={toToken.fiat.symbol} />
+        <ExchangeRate
+          exchangeRate={exchangeRate}
+          inputToken={exchangeRateInputToken}
+          outputToken={exchangeRateOutputToken}
+        />
       }
     />
   );
