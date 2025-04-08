@@ -40,7 +40,7 @@ export const Offramp = () => {
   }, [toAmount, form]);
 
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
-  const { onSwapConfirm } = useRampSubmission();
+  const { onRampConfirm } = useRampSubmission();
   const validateTerms = useValidateTerms();
 
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
@@ -110,8 +110,8 @@ export const Offramp = () => {
       return;
     }
 
-    onSwapConfirm();
-  }, [onSwapConfirm, validateTerms]);
+    onRampConfirm();
+  }, [onRampConfirm, validateTerms]);
 
   return (
     <FormProvider {...form}>
