@@ -152,7 +152,6 @@ QuoteTicket.findByPk = mock(async (id: string) => {
   return quoteTicket;
 });
 
-
 QuoteTicket.create = mock(async (data: any) => {
   quoteTicket = {
     ...data,

@@ -15,7 +15,7 @@ export class MoonbeamCleanupPhaseHandler extends BasePhaseHandler {
     const networkName = 'moonbeam';
     const moonbeamNode = await apiManager.getApi(networkName);
 
-    if (state.type === 'on') {
+    if (state.type !== 'on') {
       throw new Error(
         'MoonbeamCleanupPhaseHandler: Invalid transition, moonbeam cleanup is only required for BRL onramp.',
       );

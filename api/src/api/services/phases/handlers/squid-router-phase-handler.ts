@@ -82,7 +82,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
       // Transition to the next phase
       // FIXME we are in onramp here, so we should transition to a different phase
-      return this.transitionToNextPhase(updatedState, 'fundEphemeral');
+      return this.transitionToNextPhase(updatedState, 'moonbeamCleanup');
     } catch (error: any) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;
@@ -112,7 +112,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   private async waitForTransactionConfirmation(txHash: string, chainId: number): Promise<void> {
     try {
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-      if (!receipt || receipt.status === 'success') {
+      if (!receipt || receipt.status !== 'success') {
         throw new Error(`SquidRouterPhaseHandler: Transaction ${txHash} failed or was not found`);
       }
     } catch (error) {

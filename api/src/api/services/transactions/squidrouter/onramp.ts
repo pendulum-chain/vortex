@@ -77,7 +77,7 @@ export async function createOnrampSquidrouterTransactions(
       value: '0',
       nonce: params.moonbeamEphemeralStartingNonce,
       gas: '150000',
-      maxFeePerGas: (maxFeePerGas * 2n).toString(),
+      maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     };
 
@@ -86,7 +86,7 @@ export async function createOnrampSquidrouterTransactions(
       data: transactionRequest.data,
       value: transactionRequest.value,
       gas: transactionRequest.gasLimit,
-      maxFeePerGas: String(maxFeePerGas),
+      maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
       nonce: params.moonbeamEphemeralStartingNonce + 1,
     };

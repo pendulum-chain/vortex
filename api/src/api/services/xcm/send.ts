@@ -121,7 +121,7 @@ export const submitMoonbeamXcm = async (
             .map((event) => parseEventMoonbeamXcmSent(event))
             .filter((event) => event.originAddress == address);
 
-          if (event.length == 0) {
+          if (!event) {
             reject(new Error(`No XcmSent event found for account ${address}`));
           }
           resolve({ event: event[0], hash });

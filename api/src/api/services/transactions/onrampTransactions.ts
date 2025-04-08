@@ -116,12 +116,13 @@ export async function prepareOnrampTransactions(
         signer: account.address,
       });
 
+      // TODO this does not execute properly. Has no effect (?)
       const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
       unsignedTxs.push({
         tx_data: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup',
         network: account.network,
-        nonce: moonbeamEphemeralStartingNonce + 4,
+        nonce: 4,
         signer: account.address,
       });
 
@@ -133,7 +134,7 @@ export async function prepareOnrampTransactions(
           outputTokenDetails,
           toNetwork,
           rawAmount: outputAmountRaw,
-          addressDestination: account.address,
+          addressDestination: destinationAddress,
           fromAddress: account.address,
           moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 2,
         });

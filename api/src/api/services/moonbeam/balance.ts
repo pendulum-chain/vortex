@@ -63,12 +63,9 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
       to: ephemeralAddress as `0x${string}`,
       value: BigInt(fundingAmountRaw),
     });
-    // wait 30 seconds.
-    await new Promise((resolve) => setTimeout(resolve, 30000)); // TODO needs to be improved.
 
-    // TODO investigate why this is failing even though the funding works.
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-    if (!receipt || receipt.status === 'success') {
+    if (!receipt || receipt.status !== 'success') {
       throw new Error(`fundMoonbeamEphemeralAccount: Transaction ${txHash} failed or was not found`);
     }
   } catch (error) {

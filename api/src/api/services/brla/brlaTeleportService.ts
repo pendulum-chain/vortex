@@ -152,7 +152,7 @@ export class BrlaTeleportService {
       // start the actual transfer process.
       if (teleport.status === 'claimed') {
         const payIns = await this.brlaApiService.getPayInHistory(subaccountId);
-
+        // TODO we also need to check actual balance, which has to be gte what is requested.
         if (payIns.length === 0) {
           return;
         }

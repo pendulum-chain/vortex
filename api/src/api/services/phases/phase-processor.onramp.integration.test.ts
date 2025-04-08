@@ -225,7 +225,6 @@ describe('Onramp PhaseProcessor Integration Test', () => {
         pendulumNode.api,
         moonbeamNode.api,
       );
-
       // At this stage, user would send the BRL through pix.
 
       // END - MIMIC THE UI
