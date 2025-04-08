@@ -1,5 +1,5 @@
 import { useForm, UseFormReturn } from 'react-hook-form';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import Big from 'big.js';
 
 import { RampFormValues } from '../../components/Nabla/schema';
@@ -29,7 +29,6 @@ export const useRampForm = (): {
     defaultValues: DEFAULT_RAMP_FORM_VALUES,
   });
 
-  // Get store state and actions
   const taxId = useTaxId();
   const pixId = usePixId();
   const inputAmount = useInputAmount();
@@ -45,14 +44,7 @@ export const useRampForm = (): {
     reset: resetStore,
   } = useRampFormStoreActions();
 
-  const isFirstRender = useRef(true);
-
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
     const subscription = form.watch((values, { name }) => {
       if (name === 'inputAmount' && values.inputAmount !== undefined) {
         setInputAmount(Big(values.inputAmount));
@@ -72,7 +64,7 @@ export const useRampForm = (): {
 
   useEffect(() => {
     const currentInputAmount = form.getValues('inputAmount');
-    if (inputAmount && !inputAmount.eq(Big(currentInputAmount))) {
+    if (inputAmount && !inputAmount.eq(Big(currentInputAmount || 0))) {
       form.setValue('inputAmount', inputAmount.toString());
     }
 
