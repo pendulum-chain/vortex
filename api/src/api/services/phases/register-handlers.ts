@@ -17,6 +17,7 @@ import moonbeamToPendulumXcmHandler from './handlers/moonbeam-to-pendulum-xcm-ha
 import fundEphemeralHandler from './handlers/fund-ephemeral-handler';
 import createPayInHandler from './handlers/create-pay-in-handler';
 import moonbeamCleanupHandler from './handlers/moonbeam-cleanup-handler';
+import completePhaseHandler from './handlers/complete-phase-handler';
 /**
  * Register all phase handlers
  */
@@ -25,6 +26,7 @@ export function registerPhaseHandlers(): void {
 
   // Register handlers
   phaseRegistry.registerHandler(initialPhaseHandler);
+  phaseRegistry.registerHandler(completePhaseHandler)
   phaseRegistry.registerHandler(squidRouterPhaseHandler);
   phaseRegistry.registerHandler(pendulumToMoonbeamXCMPhaseHandler);
   phaseRegistry.registerHandler(nablaApproveHandler);

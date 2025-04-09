@@ -7,6 +7,7 @@ import Big from 'big.js';
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const MAX_TIME = Date.now() + 1000 * 60 * 10;
+const APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS = 7; 
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
 
@@ -139,7 +140,7 @@ async function getFutureShiftedLedgerSequence(horizonServer: HorizonServer, shif
 
     const currentLedgerSequence = latestLedger.records[0].sequence;
 
-    const ledgersIn5Minutes = Math.ceil(SEQUENCE_TIME_WINDOW_IN_SECONDS / 7);
+    const ledgersIn5Minutes = Math.ceil(SEQUENCE_TIME_WINDOW_IN_SECONDS / APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS);
 
     const futureLedgerSequence = currentLedgerSequence + ledgersIn5Minutes;
 
