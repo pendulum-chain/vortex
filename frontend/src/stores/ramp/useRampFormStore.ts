@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Big from 'big.js';
-import { FiatToken, OnChainToken } from 'shared';
+import { EvmToken, FiatToken, OnChainToken } from 'shared';
 
 interface RampFormState {
   inputAmount?: Big;
@@ -23,8 +23,8 @@ interface RampFormActions {
 
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   inputAmount: undefined,
-  onChainToken: 'usdc' as OnChainToken,
-  fiatToken: 'eurc' as FiatToken,
+  onChainToken: EvmToken.USDC,
+  fiatToken: FiatToken.EURC,
   taxId: undefined,
   pixId: undefined,
 };

@@ -28,8 +28,6 @@ export const useRampValidation = () => {
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
   const toToken = getAnyFiatTokenDetails(fiatToken);
 
-  console.log('toToken', toToken);
-
   const userInputTokenBalance = useOnchainTokenBalance({ token: fromToken });
 
   /**
