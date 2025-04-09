@@ -6,17 +6,13 @@ import { UserBalance } from '../../UserBalance';
 interface PoolListItemProps {
   isSelected?: boolean;
   onSelect: (tokenType: OnChainToken | FiatToken) => void;
-  token: TokenDefinition
+  token: TokenDefinition;
 }
 
-export function PoolListItem({
-  token,
-  isSelected,
-  onSelect,
-}: PoolListItemProps) {
+export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps) {
   const tokenIcon = useGetAssetIcon(token.assetIcon);
 
-  const showBalance = isOnChainToken(token.type)
+  const showBalance = isOnChainToken(token.type);
 
   return (
     <button
@@ -43,7 +39,7 @@ export function PoolListItem({
           <span className="text-sm leading-5 text-neutral-500">{token.name || token.assetSymbol}</span>
         </span>
         <span className="text-base">
-          { showBalance && <UserBalance token={token.details as OnChainTokenDetails} className="font-bold" />}
+          {showBalance && <UserBalance token={token.details as OnChainTokenDetails} className="font-bold" />}
         </span>
       </div>
     </button>
