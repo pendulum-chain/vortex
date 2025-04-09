@@ -10,7 +10,8 @@ import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase } from 'shared';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
-import { useRampState } from '../../stores/offrampStore';
+import { useRampActions, useRampState } from '../../stores/offrampStore';
+import { RampService } from '../../services/api';
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -194,22 +195,51 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
 export const ProgressPage = () => {
   const { trackEvent } = useEventsContext();
   const rampState = useRampState();
-
-  const currentPhase = rampState?.ramp?.currentPhase as RampPhase;
+  const { setRampState } = useRampActions();
+  const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || 'initial');
+  const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-  // FIXME get message from backend
-  // const message = useCreateOfframpingPhaseMessage(rampState, selectedNetwork);
   const message = 'This is a placeholder message.';
-
+  
   useEffect(() => {
-    trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: currentPhase });
-  }, [currentPhaseIndex, trackEvent, rampState?.ramp, currentPhase]);
-
+    const fetchRampState = async () => {
+      try {
+        if (!rampState?.ramp?.id) return;
+        const updatedRampProcess = await RampService.getRampStatus(rampState?.ramp?.id);
+        const updatedRampState = { ...rampState, ramp: updatedRampProcess };
+        setRampState(updatedRampState);
+        
+        const maybeNewPhase = updatedRampProcess.currentPhase;
+        if (maybeNewPhase !== prevPhaseRef.current) {
+          trackEvent({
+            event: 'progress',
+            phase_index: Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(maybeNewPhase),
+            phase_name: maybeNewPhase
+          });
+          
+          prevPhaseRef.current = maybeNewPhase;
+          setCurrentPhase(maybeNewPhase);
+        }
+      } catch (error) {
+        console.error('Failed to fetch ramp state:', error);
+      }
+    };
+    
+    fetchRampState();
+    const intervalId = setInterval(fetchRampState, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, [setRampState, trackEvent, rampState]);
+  
   return (
     <BaseLayout
       main={
         <main>
-          <ProgressContent currentPhase={currentPhase} currentPhaseIndex={currentPhaseIndex} message={message} />
+          <ProgressContent
+            currentPhase={currentPhase}
+            currentPhaseIndex={currentPhaseIndex}
+            message={message}
+          />
           <GotQuestions />
         </main>
       }
