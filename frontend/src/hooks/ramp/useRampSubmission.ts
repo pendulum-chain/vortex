@@ -61,10 +61,10 @@ export const useRampSubmission = () => {
     const ephemerals = createEphemerals();
     const executionInput: RampExecutionInput = {
       ephemerals,
-      quote: quote,
+      quote: quote!,
       onChainToken,
       fiatToken,
-      userWalletAddress: address,
+      userWalletAddress: address!,
       network: selectedNetwork,
       taxId,
       pixId,
@@ -90,15 +90,18 @@ export const useRampSubmission = () => {
   const handleSubmissionError = useCallback(
     (error: SubmissionError) => {
       console.error('Error preparing submission:', error);
-      const errorMessage = error.message || 'An unknown error occurred';
       trackEvent({
-        event: 'transaction_error',
-        error_message: errorMessage,
-        error_code: error.code || 'unknown',
+        event: 'transaction_failure',
+        error_message: error.code || 'unknown',
+        phase_index: 0,
+        from_asset: fiatToken,
+        to_asset: onChainToken,
+        from_amount: inputAmount?.toString() || '0',
+        to_amount: quote?.outputAmount || '0',
       });
       setRampInitiating(false);
     },
-    [trackEvent, setRampInitiating],
+    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount, setRampInitiating],
   );
 
   const onRampConfirm = useCallback(async () => {
