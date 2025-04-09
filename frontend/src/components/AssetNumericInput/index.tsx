@@ -1,9 +1,8 @@
 import { ChangeEvent, FC } from 'react';
 import { UseFormRegisterReturn } from 'react-hook-form';
 import { AssetButton } from '../buttons/AssetButton';
-import { SwapFormValues } from '../Nabla/schema';
+import { RampFormValues } from '../Nabla/schema';
 import { NumericInput } from '../NumericInput';
-import { AssetIconType } from '../../hooks/useGetAssetIcon';
 
 interface AssetNumericInputProps {
   assetIcon: string;
@@ -12,7 +11,7 @@ interface AssetNumericInputProps {
   onChange?: (e: ChangeEvent) => void;
   disabled?: boolean;
   readOnly?: boolean;
-  registerInput: UseFormRegisterReturn<keyof SwapFormValues>;
+  registerInput: UseFormRegisterReturn<keyof RampFormValues>;
   id: string;
 }
 

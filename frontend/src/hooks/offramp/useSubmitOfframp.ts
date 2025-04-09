@@ -71,9 +71,8 @@ export const useSubmitOfframp = () => {
 
           // @TODO: BRL-related logic should be in a separate function/hook
           if (executionInput.fiatToken === FiatToken.BRL) {
-            const { taxId, pixId } = executionInput;
-            if (!taxId || !pixId) {
-              console.log('no tax id or pix id defined');
+            const { taxId } = executionInput;
+            if (!taxId) {
               setRampStarted(false);
               setRampInitiating(false);
               return;
@@ -104,7 +103,7 @@ export const useSubmitOfframp = () => {
 
             setRampSummaryVisible(true);
           } else {
-            const stellarEphemeralSecret = executionInput.stellarEphemeral.secret;
+            const stellarEphemeralSecret = executionInput.ephemerals.stellarEphemeral.secret;
             const outputToken = getTokenDetailsSpacewalk(executionInput.fiatToken);
             const tomlValues = await fetchTomlValues(outputToken.tomlFileUrl);
 

@@ -12,12 +12,12 @@ export const useTrackSEP24Events = () => {
       from_asset: getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken).assetSymbol,
       to_asset: getAnyFiatTokenDetails(executionInput.fiatToken).fiat.symbol,
       from_amount: executionInput.quote.inputAmount,
-      to_amount: executionInput.quote.outputAmount
+      to_amount: executionInput.quote.outputAmount,
     });
   };
 
-  const trackKYCCompleted = (initialState: RampState, selectedNetwork: Networks) => {
-    trackEvent(createTransactionEvent('kyc_completed', initialState, selectedNetwork));
+  const trackKYCCompleted = (initialState: RampState) => {
+    trackEvent(createTransactionEvent('kyc_completed', initialState));
   };
 
   return { trackKYCStarted, trackKYCCompleted };

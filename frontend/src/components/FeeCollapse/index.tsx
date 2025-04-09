@@ -1,55 +1,30 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import { BaseFiatTokenDetails, FiatToken, getAnyFiatTokenDetails, OnChainToken } from 'shared';
+import { OnChainTokenDetails, FiatTokenDetails } from 'shared';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
-
-export function calculateTotalReceive(
-  flowType: 'on' | 'off',
-  toAmount: Big,
-  outputTokenType: FiatToken | OnChainToken,
-): string {
-  if (flowType === 'off') {
-    return calculateOfframpTotalReceive(toAmount, getAnyFiatTokenDetails(outputTokenType as FiatToken));
-  } else {
-    return calculateOnrampTotalReceive(toAmount, outputTokenType as OnChainToken);
-  }
-}
-
-export function calculateOfframpTotalReceive(toAmount: Big, outputToken: BaseFiatTokenDetails): string {
-  const feeBasisPoints = outputToken.offrampFeesBasisPoints;
-  const fixedFees = new Big(outputToken.offrampFeesFixedComponent ? outputToken.offrampFeesFixedComponent : 0);
-  const fees = toAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
-  const totalReceiveRaw = toAmount.minus(fees);
-
-  if (totalReceiveRaw.gt(0)) {
-    return totalReceiveRaw.toFixed(2, 0);
-  } else {
-    return '0';
-  }
-}
-
-// TODO:  implement
-export function calculateOnrampTotalReceive(toAmount: Big, outputToken: OnChainToken): string {
-  return '0';
-}
+import { getTokenSymbol } from '../../helpers/getTokenSymbol';
 
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: Big;
-  toToken: BaseFiatTokenDetails;
+  toToken: FiatTokenDetails | OnChainTokenDetails;
   exchangeRate?: JSX.Element;
 }
 
 export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exchangeRate }) => {
   const { trackEvent } = useEventsContext();
-  const toTokenSymbol = toToken.fiat.symbol;
+
+  const toTokenSymbol = getTokenSymbol(toToken);
 
   const trackFeeCollapseOpen = () => {
     trackEvent({ event: 'click_details' });
   };
 
-  const { toAmountFixed, totalReceiveFormatted, feesCost } = useOfframpFees(toAmount, toToken);
+  const { toAmountFixed, totalReceiveFormatted, feesCost } = useOfframpFees({
+    toAmount,
+    toToken,
+  });
 
   return (
     <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>

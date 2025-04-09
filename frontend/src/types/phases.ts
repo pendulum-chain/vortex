@@ -10,7 +10,7 @@ export interface RampState {
   // This is used to track if the user has completed all required actions. For offramps, it's about signing and submitting
   // transactions. For onramps, it's about acknowledging that the payment has been made.
   requiredUserActionsCompleted: boolean;
-  userSigningMeta: RampEndpoints.StartRampRequest['additionalData']
+  userSigningMeta: RampEndpoints.StartRampRequest['additionalData'];
 }
 
 export interface RampExecutionInput {
@@ -21,7 +21,7 @@ export interface RampExecutionInput {
   ephemerals: {
     stellarEphemeral: EphemeralAccount;
     pendulumEphemeral: EphemeralAccount;
-    evmEphemeral: EphemeralAccount;
+    moonbeamEphemeral: EphemeralAccount;
   };
   taxId?: string;
   pixId?: string;

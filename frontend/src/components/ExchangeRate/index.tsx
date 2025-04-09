@@ -1,16 +1,17 @@
 import { FC } from 'react';
-import { OnChainTokenDetails } from 'shared';
+import { FiatTokenDetails, OnChainTokenDetails } from 'shared';
+import { getTokenSymbol } from '../../helpers/getTokenSymbol';
 
 interface ExchangeRateProps {
-  fromToken: OnChainTokenDetails;
-  toTokenSymbol: string;
+  inputToken: OnChainTokenDetails | FiatTokenDetails;
+  outputToken: OnChainTokenDetails | FiatTokenDetails;
   exchangeRate?: number;
 }
 
-export const ExchangeRate: FC<ExchangeRateProps> = ({ exchangeRate, fromToken, toTokenSymbol }) => {
+export const ExchangeRate: FC<ExchangeRateProps> = ({ exchangeRate, inputToken, outputToken }) => {
   const exchangeRateElement =
-    fromToken !== undefined && exchangeRate ? (
-      <>{`1 ${fromToken.assetSymbol} = ${Number(exchangeRate).toFixed(4)} ${toTokenSymbol}`}</>
+    inputToken !== undefined && exchangeRate ? (
+      <>{`1 ${getTokenSymbol(inputToken)} = ${Number(exchangeRate).toFixed(4)} ${getTokenSymbol(outputToken)}`}</>
     ) : (
       `-`
     );

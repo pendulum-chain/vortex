@@ -1,15 +1,13 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
-import Big from 'big.js';
-import { getPendulumDetails, PriceEndpoints } from 'shared';
-import { calculateTotalReceive } from '../components/FeeCollapse';
+import { PriceEndpoints } from 'shared';
 import { useVortexAccount } from '../hooks/useVortexAccount';
-import { getNetworkId, isNetworkEVM, Networks } from 'shared';
+import { getNetworkId, isNetworkEVM } from 'shared';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { storageService } from '../services/storage/local';
 import { useNetwork } from './network';
-import { useFromAmount } from '../stores/formStore';
 import { RampState } from '../types/phases';
+import { useInputAmount } from '../stores/ramp/useRampFormStore';
 
 declare global {
   interface Window {
@@ -151,7 +149,7 @@ const useEvents = () => {
   const previousChainId = useRef<number | undefined>(undefined);
   const firstRender = useRef(true);
   const { selectedNetwork } = useNetwork();
-  const fromAmount = useFromAmount();
+  const inputAmount = useInputAmount();
 
   const scheduledPrices = useRef<
     | {
@@ -287,7 +285,7 @@ const useEvents = () => {
         event: 'wallet_connect',
         wallet_action: 'disconnect',
         account_address: previous,
-        input_amount: fromAmount ? fromAmount.toString() : '0',
+        input_amount: inputAmount ? inputAmount.toString() : '0',
         network_selected: getNetworkId(selectedNetwork).toString(),
       });
     } else if (wasChanged) {
@@ -295,7 +293,7 @@ const useEvents = () => {
         event: 'wallet_connect',
         wallet_action: wasConnected ? 'change' : 'connect',
         account_address: address,
-        input_amount: fromAmount ? fromAmount.toString() : '0',
+        input_amount: inputAmount ? inputAmount.toString() : '0',
         network_selected: getNetworkId(selectedNetwork).toString(),
       });
     }
@@ -305,7 +303,7 @@ const useEvents = () => {
     } else {
       storageService.remove(storageKey);
     }
-  }, [fromAmount, selectedNetwork, address, trackEvent]);
+  }, [inputAmount, selectedNetwork, address, trackEvent]);
 
   return {
     trackEvent,
@@ -330,7 +328,7 @@ export function EventsProvider({ children }: PropsWithChildren) {
   return <Context.Provider value={useEventsResult}>{children}</Context.Provider>;
 }
 
-export function createTransactionEvent(type: TransactionEvent['event'], state: RampState, selectedNetwork: Networks) {
+export function createTransactionEvent(type: TransactionEvent['event'], state: RampState) {
   return {
     event: type,
     from_asset: state.quote.inputCurrency,

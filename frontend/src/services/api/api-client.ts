@@ -1,6 +1,8 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 
+// TODO: CONSIDER REACT TANSTACK QUERY
+
 /**
  * Base API client for making requests to the backend
  */

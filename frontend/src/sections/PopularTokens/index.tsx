@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
+
 import { Networks, getNetworkDisplayName } from 'shared';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
-import { useEffect, useState } from 'react';
 import { useNetwork } from '../../contexts/network';
+import { cn } from '../../helpers/cn';
 
 const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDC', assetIcon: 'usdc' },
@@ -29,9 +32,11 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
 
   return (
     <motion.li
-      className={`flex items-center justify-center px-4 py-2 shadow-lg rounded-full ${bgColor} ${
-        onClick ? 'cursor-pointer active:bg-gray-400 active:scale-95' : ''
-      }`}
+      className={cn(
+        'flex items-center justify-center px-4 py-2 shadow-lg rounded-full',
+        bgColor,
+        onClick && 'cursor-pointer active:bg-gray-400 active:scale-95',
+      )}
       whileHover={{
         scale: 1.05,
         rotate: [0, -1, 1, -1, 0],
@@ -74,6 +79,8 @@ const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: 
 };
 
 export function PopularTokens() {
+  const { t } = useTranslation();
+
   const [animatingIndex, setAnimatingIndex] = useState<{ type: 'network' | 'token'; index: number }>({
     type: 'network',
     index: 0,
@@ -97,8 +104,8 @@ export function PopularTokens() {
   return (
     <div className="max-w-2xl p-8 mx-auto text-center mt-8">
       <div className="mb-12">
-        <h2 className="text-3xl font-bold text-gray-900">Supported Networks</h2>
-        <p className="mt-2 text-lg text-gray-600">Trade across multiple blockchain networks</p>
+        <h2 className="text-3xl font-bold text-gray-900">{t('sections.popularTokens.networks.title')}</h2>
+        <p className="mt-2 text-lg text-gray-600">{t('sections.popularTokens.networks.description')}</p>
 
         <ul className="flex flex-wrap items-center justify-center gap-2 mt-4">
           {networks.map((network, index) => (
@@ -112,8 +119,8 @@ export function PopularTokens() {
       </div>
 
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">Supported Tokens</h2>
-        <p className="mt-2 text-lg text-gray-600">Trade these popular stablecoins</p>
+        <h2 className="text-3xl font-bold text-gray-900">{t('sections.popularTokens.tokens.title')}</h2>
+        <p className="mt-2 text-lg text-gray-600">{t('sections.popularTokens.tokens.description')}</p>
         <motion.ul
           className="flex flex-wrap items-center justify-center gap-2 mt-4"
           initial={{ opacity: 0, y: 20 }}

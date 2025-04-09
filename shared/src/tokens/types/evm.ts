@@ -18,3 +18,7 @@ export interface EvmTokenDetails extends BaseTokenDetails, PendulumDetails {
   network: Networks;
   erc20AddressSourceChain: `0x${string}`;
 }
+
+export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {
+  balance: string;
+}

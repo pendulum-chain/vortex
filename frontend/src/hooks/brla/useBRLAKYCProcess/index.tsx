@@ -5,8 +5,8 @@ import { useRampActions } from '../../../stores/offrampStore';
 import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
-import { useFormStore } from '../../../stores/formStore';
 import { showToast, ToastMessage } from '../../../helpers/notifications';
+import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 
 export interface BrlaKycStatus {
   status: string;
@@ -48,7 +48,7 @@ const useVerificationStatusUI = () => {
 
 export function useKYCProcess() {
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
-  const { taxId } = useFormStore();
+  const taxId = useTaxId();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const [cpf, setCpf] = useState<string | null>(null);

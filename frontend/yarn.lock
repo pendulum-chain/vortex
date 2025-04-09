@@ -1158,6 +1158,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/runtime@npm:^7.26.10":
+  version: 7.27.0
+  resolution: "@babel/runtime@npm:7.27.0"
+  dependencies:
+    regenerator-runtime: "npm:^0.14.0"
+  checksum: 10/e6966e03b695feb4c0ac0856a4355231c2580bf9ebd0298f47739f85c0ea658679dd84409daf26378d42c86c1cbe7e33feab709b14e784254b6c441d91606465
+  languageName: node
+  linkType: hard
+
 "@babel/template@npm:^7.25.9, @babel/template@npm:^7.26.8":
   version: 7.26.8
   resolution: "@babel/template@npm:7.26.8"
@@ -7698,6 +7707,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"i18next@npm:^24.2.3":
+  version: 24.2.3
+  resolution: "i18next@npm:24.2.3"
+  dependencies:
+    "@babel/runtime": "npm:^7.26.10"
+  peerDependencies:
+    typescript: ^5
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: 10/6c73d964f2a98b1aa2c2717fe6da66fc265bcbbc5fcd52b2bfff51ff013d30d4f7d7449c4eb7f464d27af43e2e73f2e7f1d46a144d731bd3bdb1385d4c199e4c
+  languageName: node
+  linkType: hard
+
 "iconv-lite@npm:^0.6.2":
   version: 0.6.3
   resolution: "iconv-lite@npm:0.6.3"
@@ -11109,6 +11132,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tailwind-merge@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "tailwind-merge@npm:3.1.0"
+  checksum: 10/408aec29a07f07093d4987174f3a259b83af3db2559deca853a3da50351c35c0969392399bd308a67304dc7ec81bb979bff7da3a532dd9495a2b8a3f0e7bdc98
+  languageName: node
+  linkType: hard
+
 "tailwindcss@npm:4.0.6, tailwindcss@npm:^4.0.3":
   version: 4.0.6
   resolution: "tailwindcss@npm:4.0.6"
@@ -11980,6 +12010,7 @@ __metadata:
     eslint-plugin-react-hooks: "npm:^4.6.0"
     happy-dom: "npm:^14.12.3"
     husky: "npm:>=6"
+    i18next: "npm:^24.2.3"
     lint-staged: "npm:>=10"
     motion: "npm:^12.0.3"
     prettier: "npm:^2.8.4"
@@ -11989,6 +12020,7 @@ __metadata:
     react-toastify: "npm:^10.0.6"
     stellar-base: "npm:^11.0.1"
     stellar-sdk: "npm:^13.1.0"
+    tailwind-merge: "npm:^3.1.0"
     tailwindcss: "npm:^4.0.3"
     ts-node: "npm:^10.9.1"
     typescript: "npm:^5.7.3"

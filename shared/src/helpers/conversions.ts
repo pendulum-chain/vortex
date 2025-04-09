@@ -1,9 +1,12 @@
 import { StrKey } from 'stellar-sdk';
 import { Buffer } from 'buffer';
 import { ApiPromise, Keyring } from '@polkadot/api';
-import { Extrinsic } from '@polkadot/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api/types';
-import { ISubmittableResult } from '@polkadot/types/types';
+// import { Extrinsic } from '@polkadot/types/interfaces';
+// import { ISubmittableResult } from '@polkadot/types/types';
+
+type Extrinsic = any;
+type ISubmittableResult = any;
 
 export function stellarHexToPublic(hexString: string) {
   return StrKey.encodeEd25519PublicKey(hexToBuffer(hexString));

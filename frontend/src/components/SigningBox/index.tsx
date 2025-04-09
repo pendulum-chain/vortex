@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
@@ -7,6 +7,7 @@ import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 import { RampSigningPhase } from '../../types/phases';
+import { useRampSigningPhase } from '../../stores/offrampStore';
 
 type ProgressConfig = {
   [key in RampSigningPhase]: number;
@@ -36,10 +37,6 @@ const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean) => {
   return { max: 2, current: 2 };
 };
 
-interface SigningBoxProps {
-  step?: RampSigningPhase;
-}
-
 const isValidStep = (step: RampSigningPhase | undefined, isEVM: boolean): step is RampSigningPhase => {
   if (!step) return false;
   if (step === 'finished' || step === 'login') return true;
@@ -47,7 +44,8 @@ const isValidStep = (step: RampSigningPhase | undefined, isEVM: boolean): step i
   return true;
 };
 
-export const SigningBox: FC<SigningBoxProps> = ({ step }) => {
+export const SigningBox = () => {
+  const step = useRampSigningPhase();
   const { selectedNetwork } = useNetwork();
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;

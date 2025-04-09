@@ -102,7 +102,7 @@ the flow progression, while still keeping the security benefits of having transa
 - Creation of various informational sections for the main page.
 - Integration of Sentry for error reporting and Google Tag Manager for analytics.
 - Setup of multiple wallet connection providers.
-- Use of custom hooks for balance fetching, signing, and account abstraction (`useInputTokenBalance`, `useSignChallenge`, `useVortexAccount`).
+- Use of custom hooks for balance fetching, signing, and account abstraction (`useOnchainTokenBalance`, `useSignChallenge`, `useVortexAccount`).
 
 **Inferred Next Steps:**
 - Integrate frontend swap logic with the backend API endpoints (Quote, Ramp Start, Status Polling).

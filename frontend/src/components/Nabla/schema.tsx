@@ -1,15 +1,15 @@
 import * as Yup from 'yup';
 import { OnChainToken, FiatToken } from 'shared';
 
-export type SwapFormValues = {
-  from: OnChainToken;
-  fromAmount: string;
-  to: FiatToken;
-  toAmount: string;
+export type RampFormValues = {
+  inputAmount: string;
+  outputAmount?: string;
+  onChainToken: OnChainToken;
+  fiatToken: FiatToken;
   slippage: number | undefined;
   deadline: number;
-  taxId: string | undefined;
-  pixId: string | undefined;
+  taxId?: string;
+  pixId?: string;
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -30,7 +30,7 @@ const pixKeyRegex = [
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, // Random
 ];
 
-const schema = Yup.object<SwapFormValues>().shape({
+const schema = Yup.object<RampFormValues>().shape({
   from: Yup.string().required(),
   fromAmount: Yup.string().required(),
   to: Yup.string().required(),

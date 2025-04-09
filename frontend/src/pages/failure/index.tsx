@@ -4,6 +4,8 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
 import { config } from '../../config';
+import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
+import { useRampExecutionInput } from '../../stores/offrampStore';
 
 const Cross = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-red-500 rounded-full">
@@ -11,13 +13,11 @@ const Cross = () => (
   </div>
 );
 
-interface FailurePageProps {
-  finishOfframping: () => void;
-  continueFailedFlow: () => void;
-  transactionId: string | undefined;
-}
+export const FailurePage = () => {
+  const { finishOfframping } = useRampSubmission();
+  const executionInput = useRampExecutionInput();
+  const transactionId = executionInput?.quote?.id;
 
-export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionId }: FailurePageProps) => {
   const main = (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12">
@@ -36,7 +36,7 @@ export const FailurePage = ({ finishOfframping, continueFailedFlow, transactionI
           <a href={config.supportUrl} target="_blank" rel="noreferrer" className="underline">
             support team
           </a>
-          . We’re here to help!
+          . We're here to help!
         </p>
         <p className="mb-5 text-center text-gray-400">
           Contacted support and ready to start fresh with a new transaction?
