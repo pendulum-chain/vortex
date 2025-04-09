@@ -2,15 +2,11 @@ import * as path from 'path';
 import { defineConfig } from 'vite';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import react from '@vitejs/plugin-react';
-// @ts-ignore
 import tailwindcss from '@tailwindcss/vite';
-
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   plugins: [
     react(),
-    nodePolyfills(),
     tailwindcss(),
     sentryVitePlugin({
       org: 'satoshipay',
@@ -29,20 +25,6 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     testTimeout: 15000,
-  },
-  optimizeDeps: {
-    exclude: [],
-    esbuildOptions: {
-      // Node.js global to browser globalThis
-      define: {
-        global: 'globalThis',
-      },
-      target: 'esnext',
-      supported: {
-        bigint: true,
-      },
-      plugins: [],
-    },
   },
   resolve: {
     alias: {
