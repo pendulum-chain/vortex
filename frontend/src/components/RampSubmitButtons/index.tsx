@@ -5,6 +5,9 @@ import { useFeeComparisonStore } from '../../stores/feeComparison';
 import { useRampSummaryVisible } from '../../stores/offrampStore';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
+import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../../stores/rampDirectionStore';
+import { RampDirection } from '../RampToggle';
 
 enum SwapButtonState {
   CONFIRMING = 'Confirming',
@@ -21,6 +24,10 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
   const isOfframpSummaryDialogVisible = useRampSummaryVisible();
+  const inputAmount = useInputAmount();
+  const fiatToken = useFiatToken();
+  const onChainToken = useOnChainToken();
+  const rampDirection = useRampDirection();
 
   const handleCompareFeesClick = useCallback(
     (e: React.MouseEvent) => {
@@ -31,9 +38,13 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
 
       trackEvent({
         event: 'compare_quote',
+        from_asset: rampDirection === RampDirection.OFFRAMP ? onChainToken : fiatToken,
+        to_asset: rampDirection === RampDirection.OFFRAMP ? fiatToken : onChainToken,
+        from_amount: inputAmount?.toString() || '0',
+        to_amount: toAmount?.toString() || '0',
       });
     },
-    [feeComparisonRef, trackEvent],
+    [trackEvent, rampDirection, fiatToken, onChainToken, inputAmount, toAmount, feeComparisonRef],
   );
 
   const getButtonState = (): SwapButtonState => {
