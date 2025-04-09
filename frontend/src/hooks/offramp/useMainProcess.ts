@@ -152,7 +152,7 @@ export const useMainProcess = () => {
     setUserSigningInProgress(true);
 
     // Now filter the transactions after passing the main guard
-    const userTxs = rampState.ramp.unsignedTxs.filter((tx) => {
+    const userTxs = rampState?.ramp?.unsignedTxs.filter((tx) => {
       if (!address) {
         return false;
       }
@@ -163,7 +163,7 @@ export const useMainProcess = () => {
     });
 
     // Add a check to ensure there are actually transactions for the user to sign
-    if (userTxs.length === 0) {
+    if (userTxs?.length === 0) {
       console.log('No user transactions found requiring signature.');
       return;
     }
@@ -177,9 +177,9 @@ export const useMainProcess = () => {
       let assetHubToPendulumHash: string | undefined = undefined;
 
       // Sign user transactions by nonce
-      const sortedTxs = userTxs.sort((a, b) => a.nonce - b.nonce);
+      const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
-      for (const tx of sortedTxs) {
+      for (const tx of sortedTxs!) {
         if (tx.phase === 'squidrouterApprove') {
           setRampSigningPhase('started');
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
