@@ -15,7 +15,6 @@ export type RampPhase =
   | 'pendulumToAssethub'
   | 'spacewalkRedeem'
   | 'stellarPayment'
-  | 'stellarCleanup'
   | 'pendulumCleanup'
   | 'moonbeamCleanup'
   | 'subsidizePreSwap'
