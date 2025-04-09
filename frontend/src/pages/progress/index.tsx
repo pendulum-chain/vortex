@@ -73,6 +73,8 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   stellarCleanup: 6,
   pendulumToMoonbeam: 40,
   brlaPayoutOnMoonbeam: 120,
+  stellarCreateAccount: 10,
+  moonbeamToPendulumXcm: 30,
 };
 
 const CIRCLE_RADIUS = 80;
@@ -188,7 +190,7 @@ export const ProgressPage = () => {
   const { trackEvent } = useEventsContext();
   const rampState = useRampState();
 
-  const currentPhase = rampState.ramp?.currentPhase as RampPhase;
+  const currentPhase = rampState?.ramp?.currentPhase as RampPhase;
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
   // FIXME get message from backend
   // const message = createOfframpingPhaseMessage(rampState, selectedNetwork);
@@ -196,7 +198,7 @@ export const ProgressPage = () => {
 
   useEffect(() => {
     trackEvent({ event: 'progress', phase_index: currentPhaseIndex, phase_name: currentPhase });
-  }, [currentPhaseIndex, trackEvent, rampState.ramp]);
+  }, [currentPhaseIndex, trackEvent, rampState?.ramp, currentPhase]);
 
   return (
     <BaseLayout
