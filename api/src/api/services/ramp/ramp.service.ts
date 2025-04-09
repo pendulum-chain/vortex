@@ -20,6 +20,7 @@ import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
 import { SubaccountData } from '../brla/types';
 import { BrlaApiService } from '../brla/brlaApiService';
+import { generateReferenceLabel } from '../brla/helpers';
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
@@ -83,6 +84,7 @@ export class RampService extends BaseRampService {
       // Create to-be-signed transactions
       let unsignedTxs: UnsignedTx[] = [];
       let stateMeta: any = {};
+      let brCode: string | undefined;
       if (quote.rampType === 'off') {
         if (quote.outputCurrency === FiatToken.BRL) {
           if (
@@ -127,6 +129,20 @@ export class RampService extends BaseRampService {
             message: 'Parameters destinationAddress and taxId are required for onramp',
           });
         }
+
+        const moonbeamEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
+        if (!moonbeamEphemeralEntry) {
+          throw new APIError({
+            status: httpStatus.BAD_REQUEST,
+            message: 'Moonbeam ephemeral not found',
+          });
+        }
+
+        brCode = await this.validateBrlaOnrampRequest(
+          additionalData.taxId,
+          moonbeamEphemeralEntry.address as `0x${string}`,
+          quote.inputAmount,
+        );
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
@@ -172,6 +188,8 @@ export class RampService extends BaseRampService {
         createdAt: rampState.createdAt.toISOString(),
         updatedAt: rampState.updatedAt.toISOString(),
       };
+
+      brCode ? (response.brCode = brCode) : undefined;
 
       return response;
     });
@@ -316,6 +334,39 @@ export class RampService extends BaseRampService {
     }
 
     return subaccount;
+  }
+
+  /**
+   * BRLA. Validate the onramp request. Returns appropiate pay in code if valid.
+   */
+  public async validateBrlaOnrampRequest(
+    taxId: string,
+    ephemeralAddress: `0x${string}`,
+    amount: string,
+  ): Promise<string> {
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      throw new APIError({ status: httpStatus.BAD_REQUEST, message: `Subaccount not found.` });
+    }
+
+    if (subaccount.kyc.level < 1) {
+      throw new APIError({ status: httpStatus.BAD_REQUEST, message: `KYC invalid.` });
+    }
+
+    const { limitMint } = subaccount.kyc.limits;
+
+    if (Number(amount) > limitMint) {
+      throw new APIError({ status: httpStatus.BAD_REQUEST, message: `Amount exceeds KYC limits.` });
+    }
+
+    const brCode = await brlaApiService.generateBrCode({
+      subaccountId: subaccount.id,
+      amount: String(amount),
+      referenceLabel: generateReferenceLabel(ephemeralAddress),
+    });
+
+    return brCode.brCode;
   }
 }
 
