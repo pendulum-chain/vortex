@@ -6,6 +6,11 @@ import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { PhaseError } from '../../errors/phase-error';
 
+type ProcessingLock = {
+  locked: boolean;
+  lockedAt: Date | null;
+};
+
 /**
  * Process phases for a ramping process
  */
@@ -13,6 +18,7 @@ export class PhaseProcessor {
   private static instance: PhaseProcessor;
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
+  private lockedRamps = new Set<string>();
 
   /**
    * Get the singleton instance
@@ -22,6 +28,52 @@ export class PhaseProcessor {
       PhaseProcessor.instance = new PhaseProcessor();
     }
     return PhaseProcessor.instance;
+  }
+
+  /**
+   * Acquire a lock for a ramp.
+   * Returns false if the ramp is already locked either by this process
+   * or by another.
+   */
+  private async acquireLock(state: RampState): Promise<boolean> {
+    if (this.lockedRamps.has(state.id) || (state.processingLock as ProcessingLock).locked === true) {
+      return false;
+    }
+
+    this.lockedRamps.add(state.id);
+    RampState.update(
+      {
+        processingLock: {
+          locked: true,
+          lockedAt: new Date(),
+        },
+      },
+      { where: { id: state.id } },
+    );
+
+    return true;
+  }
+
+  /**
+   * Release lock for a ramp.
+   */
+  private async releaseLock(state: RampState): Promise<void> {
+    try {
+      // Remove in-memory lock
+      this.lockedRamps.delete(state.id);
+      // Release db lock
+      RampState.update(
+        {
+          processingLock: {
+            locked: false,
+            lockedAt: null,
+          },
+        },
+        { where: { id: state.id } },
+      );
+    } catch (error) {
+      logger.error(`Error releasing lock for ramp ${state.id}: ${error}`);
+    }
   }
 
   /**
@@ -37,16 +89,21 @@ export class PhaseProcessor {
       });
     }
 
-    // TODO Add a lock to prevent multiple processes from running at the same time.
-    // both in memory lock from this class, and a database lock
-    // The lock will be released after processPhase returns or, when it throws.
+    // Try to acquire the lock
+    const lockAcquired = await this.acquireLock(state);
+    if (!lockAcquired) {
+      logger.info(`Skipping processing for ramp ${rampId} as it's already being processed`);
+      return;
+    }
 
     try {
       await this.processPhase(state);
       // We just return, since the error management should be handled in the processPhase method.
       // We do not want to crash the whole process if one ramp fails.
     } catch (error) {
-      return;
+      logger.error(`Error processing ramp ${rampId}: ${error}`);
+    } finally {
+      await this.releaseLock(state);
     }
   }
 

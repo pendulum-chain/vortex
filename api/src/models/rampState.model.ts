@@ -21,6 +21,7 @@ export interface RampStateAttributes {
   quoteId: string; // UUID reference to QuoteTicket
   phaseHistory: PhaseHistoryEntry[]; // JSONB array
   errorLogs: RampErrorLog[]; // JSONB array
+  processingLock: any;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +52,8 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   declare phaseHistory: PhaseHistoryEntry[];
 
   declare errorLogs: RampErrorLog[];
+
+  declare processingLock: any;
 
   declare createdAt: Date;
 
@@ -139,6 +142,10 @@ RampState.init(
       allowNull: false,
       defaultValue: [],
       field: 'error_logs',
+    },
+    processingLock: {
+      type: DataTypes.JSONB,
+      allowNull: false,
     },
     createdAt: {
       type: DataTypes.DATE,
