@@ -21,6 +21,7 @@ import { prepareOfframpTransactions } from '../transactions/offrampTransactions'
 import { SubaccountData } from '../brla/types';
 import { BrlaApiService } from '../brla/brlaApiService';
 import { generateReferenceLabel } from '../brla/helpers';
+import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../constants/constants';
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
@@ -217,16 +218,29 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions
       validatePresignedTxs(request.presignedTxs);
 
-      // TODO check if the ramp has required state in additional data
+      // TODO check if the ramp has actually been stared. Either assetHub's initial XCM
+      // or EVM's initial squidrouter transaction.
       // Offramps starting on Assethub need to have the assetHubToPendulumHash
       // Offramps starting on an EVM network need to have the squidRouterApproveHash and squidRouterSwapHash
       // Onramps might need other checks.
       //const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
 
+      const rampStateCreationTime = new Date(rampState.createdAt);
+      const currentTime = new Date();
+      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
+
+      // We leave 20% of the time window for to reach the stellar creation operation.
+      if (timeDifferenceSeconds > SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8) {
+        this.cancelRamp(rampState.id);
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: 'Maximum time window to start process exceeded. Ramp invalidated.',
+        });
+      }
+
       await this.updateRampState(request.rampId, {
         presignedTxs: request.presignedTxs,
       });
-      // TODO add or check expiry of rampState as well?
 
       // Start processing the ramp asynchronously
       // We don't await this to avoid blocking the response
@@ -285,6 +299,18 @@ export class RampService extends BaseRampService {
     }
 
     return rampState.errorLogs;
+  }
+
+  private async cancelRamp(id: string): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      throw new Error('Ramp not found.');
+    }
+
+    await this.updateRampState(id, {
+      currentPhase: 'timedOut',
+    });
   }
 
   /**

@@ -1,5 +1,5 @@
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from 'stellar-sdk';
-import { FUNDING_SECRET, STELLAR_BASE_FEE } from '../../../../constants/constants';
+import { FUNDING_SECRET, STELLAR_BASE_FEE, SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../../constants/constants';
 import { StellarTokenDetails, PaymentData, HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from 'shared';
 import { HorizonServer } from 'stellar-sdk/lib/horizon/server';
 import Big from 'big.js';
@@ -7,7 +7,6 @@ import Big from 'big.js';
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const MAX_TIME = Date.now() + 1000 * 60 * 10;
-const SEQUENCE_SHIFT_IN_SECONDS = 240; // 4 minutes
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
 
@@ -140,7 +139,7 @@ async function getFutureShiftedLedgerSequence(horizonServer: HorizonServer, shif
 
     const currentLedgerSequence = latestLedger.records[0].sequence;
 
-    const ledgersIn5Minutes = Math.ceil(SEQUENCE_SHIFT_IN_SECONDS / 7);
+    const ledgersIn5Minutes = Math.ceil(SEQUENCE_TIME_WINDOW_IN_SECONDS / 7);
 
     const futureLedgerSequence = currentLedgerSequence + ledgersIn5Minutes;
 

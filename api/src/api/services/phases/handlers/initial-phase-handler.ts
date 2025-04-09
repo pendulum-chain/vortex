@@ -41,6 +41,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
           `Could not submit the stellar account creation transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
         );
 
+        // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
         if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
           console.log('Recovery mode: Creation already performed.');
 

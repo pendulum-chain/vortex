@@ -8,7 +8,6 @@ const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = '0x2AB52086e8edaB28193172209407FF9df1
 const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = '2.5'; // Amount to send to the new stellar ephemeral account created
 const PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS = '0.1'; // Amount to send to the new pendulum ephemeral account created
 const MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS = '3'; // Amount to send to the new moonbeam ephemeral account created
-const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 const BRLA_BASE_URL = 'https://api.brla.digital:5567/v1/business';
 const DEFAULT_POLLING_INTERVAL = 3000;
 const GLMR_FUNDING_AMOUNT_RAW = '50000000000000000';
@@ -16,6 +15,10 @@ const GLMR_FUNDING_AMOUNT_RAW = '50000000000000000';
 const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
 
 const STELLAR_BASE_FEE = '1000000';
+
+// Expiration and timeout values
+const SEQUENCE_TIME_WINDOW_IN_SECONDS = 300; // 5 minutes. Marks the MAXIMUM window between creating the stellar ephemeral transactions and it's creation on chain.
+const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 
 const { PENDULUM_FUNDING_SEED } = process.env;
 const { FUNDING_SECRET } = process.env;
@@ -28,6 +31,7 @@ const MOONBEAM_FUNDING_PRIVATE_KEY = MOONBEAM_EXECUTOR_PRIVATE_KEY;
 const { BACKEND_TEST_STARTER_ACCOUNT } = process.env;
 
 export {
+  SEQUENCE_TIME_WINDOW_IN_SECONDS,
   BACKEND_TEST_STARTER_ACCOUNT,
   GLMR_FUNDING_AMOUNT_RAW,
   HORIZON_URL,
