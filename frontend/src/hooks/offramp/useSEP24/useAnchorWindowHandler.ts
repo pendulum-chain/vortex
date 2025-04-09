@@ -52,7 +52,7 @@ export const useAnchorWindowHandler = () => {
         return;
       }
 
-      if (!executionInput.stellarEphemeralSecret) {
+      if (!executionInput.ephemerals.stellarEphemeral.secret) {
         throw new Error('Missing stellarEphemeralSecret on executionInput');
       }
 
