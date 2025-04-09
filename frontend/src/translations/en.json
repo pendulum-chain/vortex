@@ -18,17 +18,21 @@
       "resetAndRestart": "Reset and Restart"
     },
     "progress": {
+      "initial": "Starting process",
+      "createStellarAccount" : "Creating Stellar account",
+      "fundEphemeral": "Funding ephemeral accounts",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
-      "bridgingAssetHub": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
-      "executeMoonbeamToPendulumXCM": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
-      "executePendulumToMoonbeamXCM": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
+      "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
+      "pendulumToMoonbeam": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
       "swappingTo": "Swapping to {{assetSymbol}} on Vortex DEX",
       "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
       "transferringToLocalPartner": "Transferring to local partner for bank transfer",
       "success": "Transaction completed successfully!",
       "transactionInProgress": "Your transaction is in progress.",
       "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
-      "estimatedTimeEVM": "This usually takes 6-8 minutes."
+      "estimatedTimeEVM": "This usually takes 6-8 minutes.",
+      "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
+      "stellarPayment" : "Transferring {{assetSymbol}} from Stellar --> local partner"
     },
     "success": {
       "title": "All set! The withdrawal has been sent to your bank.",

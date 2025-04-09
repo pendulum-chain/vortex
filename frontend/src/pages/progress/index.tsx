@@ -12,6 +12,7 @@ import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
 import { useRampActions, useRampState } from '../../stores/offrampStore';
 import { RampService } from '../../services/api';
+import { getMessageForPhase } from './phaseMessages';
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -196,10 +197,12 @@ export const ProgressPage = () => {
   const { trackEvent } = useEventsContext();
   const rampState = useRampState();
   const { setRampState } = useRampActions();
+  const { t } = useTranslation();
+
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || 'initial');
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
-  const message = 'This is a placeholder message.';
+  const message = getMessageForPhase(rampState, t);
   
   useEffect(() => {
     const fetchRampState = async () => {
