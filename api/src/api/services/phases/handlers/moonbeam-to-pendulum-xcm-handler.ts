@@ -36,7 +36,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
 
     try {
       if (!(await didInputTokenArrivedOnPendulum())) {
-        const { tx_data: moonbeamToPendulumXcmTransaction } = this.getPresignedTransaction(
+        const { txData: moonbeamToPendulumXcmTransaction } = this.getPresignedTransaction(
           state,
           'moonbeamToPendulumXcm',
         );

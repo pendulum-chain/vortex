@@ -39,7 +39,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const { tx_data: nablaSwapTransaction } = this.getPresignedTransaction(state, 'nablaSwap');
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, 'nablaSwap');
 
       console.log('before RESPONSE prepareNablaSwapTransaction');
       // get an up to date quote for the AMM

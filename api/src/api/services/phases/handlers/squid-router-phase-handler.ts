@@ -56,7 +56,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       }
 
       // Execute the approve transaction
-      const approveHash = await this.executeTransaction(approveTransaction.tx_data as string);
+      const approveHash = await this.executeTransaction(approveTransaction.txData as string);
       logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
       // Wait for the approve transaction to be confirmed
@@ -64,7 +64,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
       // Execute the swap transaction
-      const swapHash = await this.executeTransaction(swapTransaction.tx_data as string);
+      const swapHash = await this.executeTransaction(swapTransaction.txData as string);
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Wait for the swap transaction to be confirmed

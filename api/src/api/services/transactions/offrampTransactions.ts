@@ -121,14 +121,14 @@ export async function prepareOfframpTransactions({
       });
     console.log('squid txs done');
     unsignedTxs.push({
-      tx_data: encodeEvmTransactionData(approveData) as any,
+      txData: encodeEvmTransactionData(approveData) as any,
       phase: 'squidrouterApprove',
       network: fromNetwork,
       nonce: 0,
       signer: userAddress,
     });
     unsignedTxs.push({
-      tx_data: encodeEvmTransactionData(swapData) as any,
+      txData: encodeEvmTransactionData(swapData) as any,
       phase: 'squidrouterSwap',
       network: fromNetwork,
       nonce: 0,
@@ -153,7 +153,7 @@ export async function prepareOfframpTransactions({
     );
     console.log('assethub to pendulum txs done');
     unsignedTxs.push({
-      tx_data: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
+      txData: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
       phase: 'assethubToPendulum',
       network: fromNetwork,
       nonce: 0,
@@ -198,7 +198,7 @@ export async function prepareOfframpTransactions({
       );
 
       unsignedTxs.push({
-        tx_data: approveTransaction,
+        txData: approveTransaction,
         phase: 'nablaApprove',
         network: account.network,
         nonce: 0,
@@ -206,7 +206,7 @@ export async function prepareOfframpTransactions({
       });
 
       unsignedTxs.push({
-        tx_data: swapTransaction,
+        txData: swapTransaction,
         phase: 'nablaSwap',
         network: account.network,
         nonce: 1,
@@ -225,7 +225,7 @@ export async function prepareOfframpTransactions({
       );
       console.log('pendulum cleanup done');
       unsignedTxs.push({
-        tx_data: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
+        txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
         phase: 'pendulumCleanup',
         network: account.network,
         nonce: 3, // Will always come after either pendulumToMoonbeam or spacewalkRedeem.
@@ -246,7 +246,7 @@ export async function prepareOfframpTransactions({
         );
         console.log('pendulum to moonbeam txs done');
         unsignedTxs.push({
-          tx_data: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
+          txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
           phase: 'pendulumToMoonbeam',
           network: account.network,
           nonce: 2,
@@ -279,7 +279,7 @@ export async function prepareOfframpTransactions({
         });
 
         unsignedTxs.push({
-          tx_data: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
+          txData: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
           phase: 'spacewalkRedeem',
           network: account.network,
           nonce: executeSpacewalkNonce,
@@ -313,7 +313,7 @@ export async function prepareOfframpTransactions({
         });
       console.log('build and merge done');
       unsignedTxs.push({
-        tx_data: createAccountTransaction,
+        txData: createAccountTransaction,
         phase: 'stellarCreateAccount',
         network: account.network,
         nonce: 0,
@@ -321,7 +321,7 @@ export async function prepareOfframpTransactions({
       });
 
       unsignedTxs.push({
-        tx_data: paymentTransaction,
+        txData: paymentTransaction,
         phase: 'stellarPayment',
         network: account.network,
         nonce: 1,
@@ -332,7 +332,7 @@ export async function prepareOfframpTransactions({
       });
 
       unsignedTxs.push({
-        tx_data: mergeAccountTransaction,
+        txData: mergeAccountTransaction,
         phase: 'stellarCleanup',
         network: account.network,
         nonce: 2,

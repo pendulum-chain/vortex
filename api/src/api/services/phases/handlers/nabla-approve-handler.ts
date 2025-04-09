@@ -24,7 +24,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     // }
 
     try {
-      const { tx_data: nablaApproveTransaction } = this.getPresignedTransaction(state, 'nablaApprove');
+      const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, 'nablaApprove');
 
       const approvalExtrinsic = decodeSubmittableExtrinsic(nablaApproveTransaction, pendulumNode.api);
       const result = await submitExtrinsic(approvalExtrinsic);

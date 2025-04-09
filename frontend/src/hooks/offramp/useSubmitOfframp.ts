@@ -119,13 +119,14 @@ export const useSubmitOfframp = () => {
               forceRefreshAndWaitForSignature,
             );
 
-            const offrampAmount = Big(executionInput.quote.outputAmount).minus(executionInput.quote.fee);
+            // We have to add the fee to the amount we are going to send to the anchor. It will be deducted from the amount we are going to receive.
+            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee);
 
             const anchorSessionParams = {
               token: sep10Token,
               tomlValues,
               tokenConfig: outputToken,
-              offrampAmount: offrampAmount.toFixed(2, 0),
+              offrampAmount: offrampAmountBeforeFees.toFixed(2, 0),
             };
 
             setAnchorSessionParams(anchorSessionParams);

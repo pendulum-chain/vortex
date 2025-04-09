@@ -14,7 +14,7 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
 
   protected async executePhase(state: RampState): Promise<RampState> {
     try {
-      const { tx_data: offrampingTransactionXDR } = this.getPresignedTransaction(state, 'stellarPayment');
+      const { txData: offrampingTransactionXDR } = this.getPresignedTransaction(state, 'stellarPayment');
 
       const offrampingTransaction = new Transaction(offrampingTransactionXDR, NETWORK_PASSPHRASE);
       await horizonServer.submitTransaction(offrampingTransaction);

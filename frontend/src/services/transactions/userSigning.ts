@@ -8,9 +8,9 @@ import { ISubmittableResult, Signer } from '@polkadot/types/types';
 
 // Sign the transaction with the user's connected wallet.
 export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promise<string> {
-  const { network, tx_data } = unsignedTx;
+  const { network, txData } = unsignedTx;
 
-  if (!isEvmTransactionData(tx_data)) {
+  if (!isEvmTransactionData(txData)) {
     throw new Error('Invalid EVM transaction data format for signing transaction');
   }
 
@@ -18,9 +18,9 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
 
   console.log('About to send transaction for phase', unsignedTx.phase);
   const hash = await sendTransaction(wagmiConfig, {
-    to: tx_data.to,
-    data: tx_data.data,
-    value: BigInt(tx_data.value),
+    to: txData.to,
+    data: txData.data,
+    value: BigInt(txData.value),
   });
   console.log('Transaction sent', hash);
 
@@ -35,13 +35,13 @@ export async function signAndSubmitSubstrateTransaction(
   api: ApiPromise,
   walletAccount: WalletAccount,
 ): Promise<string> {
-  const { tx_data } = unsignedTx;
+  const { txData } = unsignedTx;
 
-  if (isEvmTransactionData(tx_data)) {
+  if (isEvmTransactionData(txData)) {
     throw new Error('Invalid Substrate transaction data format for signing transaction');
   }
 
-  const extrinsic = decodeSubmittableExtrinsic(tx_data, api);
+  const extrinsic = decodeSubmittableExtrinsic(txData, api);
   return new Promise((resolve, reject) => {
     let inBlockHash: string | null = null;
 

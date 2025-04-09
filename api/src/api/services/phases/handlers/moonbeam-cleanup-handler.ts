@@ -21,7 +21,7 @@ export class MoonbeamCleanupPhaseHandler extends BasePhaseHandler {
       );
     }
     try {
-      const { tx_data: moonbeamCleanupTransaction } = this.getPresignedTransaction(state, 'moonbeamCleanup');
+      const { txData: moonbeamCleanupTransaction } = this.getPresignedTransaction(state, 'moonbeamCleanup');
 
       const approvalExtrinsic = decodeSubmittableExtrinsic(moonbeamCleanupTransaction as string, moonbeamNode.api);
       const result = await submitExtrinsic(approvalExtrinsic);

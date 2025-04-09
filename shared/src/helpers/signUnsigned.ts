@@ -73,18 +73,18 @@ export async function signUnsignedTransactions(
       const keypair = Keypair.fromSecret(ephemerals.stellarEphemeral.secret);
 
       for (const tx of stellarTxs) {
-        if (isEvmTransactionData(tx.tx_data)) {
+        if (isEvmTransactionData(tx.txData)) {
           throw new Error("Invalid Stellar transaction data format");
         }
 
-        const transaction = new Transaction(tx.tx_data, networkPassphrase)
+        const transaction = new Transaction(tx.txData, networkPassphrase)
         transaction.sign(keypair);
 
         const signedTxData = transaction
           .toEnvelope()
           .toXDR()
           .toString("base64");
-        signedTxs.push({ ...tx, tx_data: signedTxData });
+        signedTxs.push({ ...tx, txData: signedTxData });
       }
     }
 
@@ -97,19 +97,19 @@ export async function signUnsignedTransactions(
         throw new Error("Pendulum API is required for signing transactions");
       }
 
-      if (isEvmTransactionData(tx.tx_data)) {
+      if (isEvmTransactionData(tx.txData)) {
         throw new Error("Invalid Pendulum transaction data format");
       }
 
       const keyring = new Keyring({ type: "sr25519" });
       const keypair = keyring.addFromUri(ephemerals.pendulumEphemeral.secret);
 
-      const extrinsic = decodeSubmittableExtrinsic(tx.tx_data, pendulumApi);
+      const extrinsic = decodeSubmittableExtrinsic(tx.txData, pendulumApi);
 
       await extrinsic.signAsync(keypair, { nonce: tx.nonce, era: 0 });
 
       const signedTxData = extrinsic.toHex();
-      signedTxs.push({ ...tx, tx_data: signedTxData });
+      signedTxs.push({ ...tx, txData: signedTxData });
     }
 
     for (const tx of moonbeamTxs) {
@@ -117,7 +117,7 @@ export async function signUnsignedTransactions(
         throw new Error("Missing EVM ephemeral account");
       }
       const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-      if (isEvmTransactionData(tx.tx_data)) {
+      if (isEvmTransactionData(tx.txData)) {
 
         const privateKey = u8aToHex(
           hdEthereum(mnemonicToLegacySeed(ephemerals.evmEphemeral.secret, '', false, 64), ethDerPath)
@@ -135,28 +135,28 @@ export async function signUnsignedTransactions(
         // Ensure the transaction data is in the correct format. 
         // Fee values should be specified upon transaction creation.
         const txData = { 
-          to: tx.tx_data.to,
-          data: tx.tx_data.data,
-          value: BigInt(tx.tx_data.value),
+          to: tx.txData.to,
+          data: tx.txData.data,
+          value: BigInt(tx.txData.value),
           nonce: Number(tx.nonce), 
-          gas: BigInt(tx.tx_data.gas),
-          maxFeePerGas: tx.tx_data.maxFeePerGas ? BigInt(tx.tx_data.maxFeePerGas) * 5n : BigInt(187500000000),
-          maxPriorityFeePerGas: tx.tx_data.maxPriorityFeePerGas ? BigInt(tx.tx_data.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
+          gas: BigInt(tx.txData.gas),
+          maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 5n : BigInt(187500000000),
+          maxPriorityFeePerGas: tx.txData.maxPriorityFeePerGas ? BigInt(tx.txData.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
         };
   
         const signedTxData = await walletClient.signTransaction(txData);
   
-        signedTxs.push({ ...tx, tx_data: signedTxData });
+        signedTxs.push({ ...tx, txData: signedTxData });
       } else {
 
         const keyring = new Keyring({ type: 'ethereum' });
         const keypair = keyring.addFromUri(`${ephemerals.evmEphemeral.secret}/${ethDerPath}`);
         
-        const extrinsic = decodeSubmittableExtrinsic(tx.tx_data, moonbeamApi);
+        const extrinsic = decodeSubmittableExtrinsic(tx.txData, moonbeamApi);
         await extrinsic.signAsync(keypair, { nonce: tx.nonce, era: 0 });
 
         const signedTxData = extrinsic.toHex();
-        signedTxs.push({ ...tx, tx_data: signedTxData });
+        signedTxs.push({ ...tx, txData: signedTxData });
 
       }
 

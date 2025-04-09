@@ -108,8 +108,8 @@ RampState.init(
           }
 
           for (const tx of value) {
-            if (!tx.tx_data || !tx.phase || !tx.network || tx.nonce === undefined || !tx.signer) {
-              throw new Error('Each transaction must have tx_data, phase, network, nonce, and signer properties');
+            if (!tx.txData || !tx.phase || !tx.network || tx.nonce === undefined || !tx.signer) {
+              throw new Error('Each transaction must have txData, phase, network, nonce, and signer properties');
             }
           }
         },

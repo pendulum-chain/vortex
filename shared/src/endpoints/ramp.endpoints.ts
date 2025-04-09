@@ -43,7 +43,7 @@ export function isEvmTransactionData(data: string | EvmTransactionData): data is
 }
 
 export interface UnsignedTx {
-  tx_data: string | EvmTransactionData;
+  txData: string | EvmTransactionData;
   phase: RampPhase;
   network: Networks;
   nonce: number;

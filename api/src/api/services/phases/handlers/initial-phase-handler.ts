@@ -29,7 +29,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
     //Only stellar case requires an initial operation, sending the create ephemeral transaction
     if (state.state.stellarTarget) {
       try {
-        const { tx_data: stellarCreationTransactionXDR } = this.getPresignedTransaction(state, 'stellarCreateAccount');
+        const { txData: stellarCreationTransactionXDR } = this.getPresignedTransaction(state, 'stellarCreateAccount');
 
         const stellarCreationTransaction = new Transaction(stellarCreationTransactionXDR, NETWORK_PASSPHRASE);
         await horizonServer.submitTransaction(stellarCreationTransaction);
@@ -38,7 +38,9 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       } catch (e) {
         const horizonError = e as { response: { data: { extras: any } } };
         console.log(
-          `Could not submit the stellar account creation transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
+          `Could not submit the stellar account creation transaction ${JSON.stringify(
+            horizonError.response.data.extras.result_codes,
+          )}`,
         );
 
         // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.

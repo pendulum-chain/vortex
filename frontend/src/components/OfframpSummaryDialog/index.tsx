@@ -90,8 +90,8 @@ const FeeDetails = ({
         <p>Quote</p>
         <p>
           <ExchangeRate
-            inputToken={isOfframp ? toToken : fromToken}
-            outputToken={isOfframp ? fromToken : toToken}
+            inputToken={isOfframp ? fromToken : toToken}
+            outputToken={isOfframp ? toToken : fromToken}
             exchangeRate={Number(exchangeRate)}
           />
         </p>
@@ -148,6 +148,8 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
     ? (fromToken as BaseFiatTokenDetails).fiat.symbol
     : (toToken as BaseFiatTokenDetails).fiat.symbol;
 
+  console.log('quote', executionInput.quote);
+
   return (
     <div className="flex flex-col justify-center">
       <AssetDisplay
@@ -174,10 +176,7 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
         fromToken={fromToken}
         toToken={toToken}
         partnerUrl={getPartnerUrl()}
-        exchangeRate={Big(executionInput.quote.outputAmount)
-          .minus(executionInput.quote.fee)
-          .div(executionInput.quote.inputAmount)
-          .toFixed(4)}
+        exchangeRate={Big(executionInput.quote.outputAmount).div(executionInput.quote.inputAmount).toFixed(4)}
         network={selectedNetwork}
         feesCost={feesCost}
         direction={rampDirection}
@@ -201,7 +200,9 @@ export const OfframpSummaryDialog: FC = () => {
 
   const { feesCost } = useOfframpFees({
     toAmount: Big(executionInput?.quote.outputAmount || 0),
-    toToken: isOnramp
+    toToken: !executionInput
+      ? undefined
+      : isOnramp
       ? getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput!.onChainToken)
       : getAnyFiatTokenDetails(executionInput!.fiatToken),
   });

@@ -41,7 +41,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const { tx_data: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');
+      const { txData: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');
 
       const accountData = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
       const currentEphemeralAccountNonce = await accountData.nonce.toNumber();

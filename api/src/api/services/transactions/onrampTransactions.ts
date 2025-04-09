@@ -109,7 +109,7 @@ export async function prepareOnrampTransactions(
         inputTokenDetails.moonbeamErc20Address,
       );
       unsignedTxs.push({
-        tx_data: encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
+        txData: encodeSubmittableExtrinsic(moonbeamToPendulumXCMTransaction),
         phase: 'moonbeamToPendulumXcm',
         network: account.network,
         nonce: moonbeamEphemeralStartingNonce,
@@ -119,7 +119,7 @@ export async function prepareOnrampTransactions(
       // TODO why do we need several? First transfer_all either has no effect or does not transfer... all.
       const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
       unsignedTxs.push({
-        tx_data: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
+        txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup',
         network: account.network,
         nonce: 4,
@@ -127,7 +127,7 @@ export async function prepareOnrampTransactions(
       });
 
       unsignedTxs.push({
-        tx_data: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
+        txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup2',
         network: account.network,
         nonce: 5,
@@ -148,14 +148,14 @@ export async function prepareOnrampTransactions(
         });
 
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(approveData) as any,
+          txData: encodeEvmTransactionData(approveData) as any,
           phase: 'squidrouterApprove',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 2,
           signer: account.address,
         });
         unsignedTxs.push({
-          tx_data: encodeEvmTransactionData(swapData) as any,
+          txData: encodeEvmTransactionData(swapData) as any,
           phase: 'squidrouterSwap',
           network: account.network,
           nonce: moonbeamEphemeralStartingNonce + 3,
@@ -184,7 +184,7 @@ export async function prepareOnrampTransactions(
       );
 
       unsignedTxs.push({
-        tx_data: approveTransaction,
+        txData: approveTransaction,
         phase: 'nablaApprove',
         network: account.network,
         nonce: 0,
@@ -192,7 +192,7 @@ export async function prepareOnrampTransactions(
       });
 
       unsignedTxs.push({
-        tx_data: swapTransaction,
+        txData: swapTransaction,
         phase: 'nablaSwap',
         network: account.network,
         nonce: 1,
@@ -211,7 +211,7 @@ export async function prepareOnrampTransactions(
       );
 
       unsignedTxs.push({
-        tx_data: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
+        txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
         phase: 'pendulumCleanup',
         network: account.network,
         nonce: 3, // Will always come after either pendulumToMoonbeam or pendulumToAssethub.
@@ -225,7 +225,7 @@ export async function prepareOnrampTransactions(
           outputAmountRaw,
         );
         unsignedTxs.push({
-          tx_data: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction),
+          txData: encodeSubmittableExtrinsic(pendulumToAssethubXcmTransaction),
           phase: 'pendulumToAssethub',
           network: account.network,
           nonce: 2,
@@ -242,7 +242,7 @@ export async function prepareOnrampTransactions(
           outputTokenDetails.pendulumCurrencyId,
         );
         unsignedTxs.push({
-          tx_data: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
+          txData: encodeSubmittableExtrinsic(pendulumToMoonbeamXcmTransaction),
           phase: 'pendulumToMoonbeam',
           network: account.network,
           nonce: 2,
