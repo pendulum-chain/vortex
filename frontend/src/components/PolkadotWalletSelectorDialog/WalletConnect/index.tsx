@@ -3,7 +3,7 @@ import UniversalProvider from '@walletconnect/universal-provider';
 import { SessionTypes } from '@walletconnect/types';
 import { useCallback, useEffect, useState } from 'react';
 
-import { showToast, ToastMessage } from '../../../helpers/notifications';
+import { useToastMessage } from '../../../hooks/useToastMessage';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import logo from '../../../assets/wallets/wallet-connect.svg';
 import { WALLETCONNECT_ASSETHUB_ID } from '../../../constants/constants';
@@ -38,6 +38,8 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
   const [modal, setModal] = useState<WalletConnectModal | undefined>();
   const { setWalletAccount, removeWalletAccount } = usePolkadotWalletState();
   const { walletConnectPolkadotSelectedNetworkId } = useNetwork();
+
+  const { showToast, ToastMessage } = useToastMessage();
 
   const setupClientDisconnectListener = useCallback(
     async (provider: Promise<UniversalProvider>) => {
@@ -87,7 +89,7 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
       setLoading(false);
       onClick();
     }
-  }, [handleConnect, onClick]);
+  }, [handleConnect, onClick, showToast, ToastMessage.ERROR]);
 
   useEffect(() => {
     if (provider) return;

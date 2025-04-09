@@ -1,3 +1,7 @@
+import { useAccount, useSignMessage } from 'wagmi';
+import { useMemo, useCallback, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
+import { Signer } from '@polkadot/types/types';
 import { useNetwork } from '../contexts/network';
 import { useCallback, useMemo } from 'react';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
@@ -21,6 +25,17 @@ export const useVortexAccount = () => {
       return evmAccountAddress;
     }
   }, [evmAccountAddress, polkadotWalletAccount, selectedNetwork]);
+
+  useEffect(() => {
+    const user = Sentry.getCurrentScope().getUser();
+    // Set the wallet address in Sentry user context
+    if (address) {
+      Sentry.setUser({
+        ...user,
+        wallet: address,
+      });
+    }
+  }, [address]);
 
   const isDisconnected = useMemo(() => {
     if (isNetworkEVM(selectedNetwork)) {

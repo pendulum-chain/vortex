@@ -5,11 +5,18 @@ import Big from 'big.js';
 
 import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
 import { Skeleton } from '../../../components/Skeleton';
+<<<<<<<< HEAD:frontend/src/sections/FeeComparison/FeeProviderRow/index.tsx
 import { formatPrice } from '../helpers';
 import { cn } from '../../../helpers/cn';
 import { useRampForm } from '../../../hooks/ramp/useRampForm';
 import { useNetwork } from '../../../contexts/network';
 import { PriceProvider } from '../priceProviders';
+========
+import { QuoteProvider } from '../quoteProviders';
+import { formatPrice } from '../helpers';
+import { BaseComparisonProps } from '..';
+import { cn } from '../../../helpers/cn';
+>>>>>>>> staging:src/sections/FeeComparison/FeeProviderRow/index.tsx
 
 interface FeeProviderRowProps {
   provider: PriceProvider;

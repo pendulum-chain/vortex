@@ -26,4 +26,5 @@ export enum TransactionSubmissionIndices {
   SQUIDROUTER_SWAP = 1,
 
   ASSETHUB_XCM = 0,
+  MOONBEAM_XCM = 1,
 }

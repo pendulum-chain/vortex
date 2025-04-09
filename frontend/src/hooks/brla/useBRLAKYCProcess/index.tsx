@@ -1,32 +1,42 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useRampActions } from '../../../stores/offrampStore';
 import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
-import { showToast, ToastMessage } from '../../../helpers/notifications';
+import { useToastMessage } from '../../../hooks/useToastMessage';
 import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 
 export interface BrlaKycStatus {
   status: string;
 }
 
-const STATUS_MESSAGES = {
-  PENDING: 'Verifying your data, please wait',
-  SUCCESS: 'Verification successful',
-  REJECTED: 'KYC verification rejected',
-  ERROR: 'Verification error',
-};
-
-type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
-
 const ERROR_DISPLAY_DURATION_MS = 3000;
 const SUCCESS_DISPLAY_DURATION_MS = 2000;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+const useStatusMessages = () => {
+  const { t } = useTranslation();
+
+  const STATUS_MESSAGES = {
+    PENDING: t('components.brlaExtendedForm.verificationStatus.pending'),
+    SUCCESS: t('components.brlaExtendedForm.verificationStatus.success'),
+    REJECTED: t('components.brlaExtendedForm.verificationStatus.rejected'),
+    ERROR: t('components.brlaExtendedForm.verificationStatus.error'),
+  };
+
+  return {
+    STATUS_MESSAGES,
+  };
+};
+
 const useVerificationStatusUI = () => {
+  const { STATUS_MESSAGES } = useStatusMessages();
+  type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
+
   const [verificationStatus, setVerificationStatus] = useState<KycStatus>(KycStatus.PENDING);
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
 
@@ -42,11 +52,13 @@ const useVerificationStatusUI = () => {
     resetToDefault: useCallback(() => {
       setVerificationStatus(KycStatus.PENDING);
       setStatusMessage(STATUS_MESSAGES.PENDING);
-    }, []),
+    }, [STATUS_MESSAGES.PENDING]),
   };
 };
 
 export function useKYCProcess() {
+  const { STATUS_MESSAGES } = useStatusMessages();
+  const { showToast, ToastMessage } = useToastMessage();
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
   const taxId = useTaxId();
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -73,7 +85,14 @@ export function useKYCProcess() {
         handleBackClick();
       });
     },
-    [handleBackClick, updateStatus, resetToDefault],
+    [
+      updateStatus,
+      STATUS_MESSAGES.ERROR,
+      showToast,
+      ToastMessage.KYC_VERIFICATION_FAILED,
+      resetToDefault,
+      handleBackClick,
+    ],
   );
 
   // const proceedWithOfframp = useOfframpSubmission(handleError);
@@ -117,7 +136,6 @@ export function useKYCProcess() {
   );
 
   useEffect(() => {
-    console.log('in useEffect kycResponse', kycResponse);
     if (!kycResponse) return;
 
     const handleStatus = async (status: string) => {

@@ -1,5 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+
 import { TextInput } from '../TextInput';
 import { useEventsContext } from '../../contexts/events';
 import { EmailService } from '../../services/api';
@@ -11,6 +13,7 @@ interface EmailFormProps {
 }
 
 export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps) => {
+  const { t } = useTranslation();
   const { register, handleSubmit } = useForm();
   const { trackEvent } = useEventsContext();
 
@@ -38,12 +41,18 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
   const FormButtonSection = () => {
     if (isSuccess) {
       return (
-        <div className="flex items-center justify-center mt-2 text-white btn-success btn">Successfully saved!</div>
+        <div className="flex items-center justify-center mt-2 text-white btn-success btn">
+          {t('components.emailForm.success')}
+        </div>
       );
     }
 
     if (isPending) {
-      return <div className="flex items-center justify-center mt-2 btn-vortex-primary btn">Loading...</div>;
+      return (
+        <div className="flex items-center justify-center mt-2 btn-vortex-primary btn">
+          {t('components.emailForm.loading')}
+        </div>
+      );
     }
 
     return (
@@ -53,12 +62,12 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
             <TextInput type="email" placeholder="example@mail.com" register={register('email')} />
           </div>
           <button className="px-5 btn-vortex-primary btn rounded-xl" type="submit">
-            Submit
+            {t('components.emailForm.submit')}
           </button>
         </div>
         {isError && (
           <p className="mt-1 text-center text-red-600" id="request-error-message">
-            Error while saving your email. Please try again.
+            {t('components.emailForm.error')}
           </p>
         )}
       </>
@@ -67,12 +76,9 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
   return (
     <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? 'request-error-message' : undefined}>
-      <p className="font-bold text-center text-blue-700">Thank you for using our new product!</p>
-      <p className="font-light text-center text-blue-700">
-        We’re always looking to improve, and we’d greatly appreciate your feedback. If you’re willing, please leave your
-        email below so we can reach out for a quick chat about your experience.
-      </p>
-      <p className="font-light text-center text-blue-700">No newsletters, no spam — just your honest thoughts.</p>
+      <p className="font-bold text-center text-blue-700">{t('components.emailForm.title')}</p>
+      <p className="font-light text-center text-blue-700">{t('components.emailForm.description')}</p>
+      <p className="font-light text-center text-blue-700">{t('components.emailForm.noNewslettersNoSpam')}</p>
       <FormButtonSection />
     </form>
   );

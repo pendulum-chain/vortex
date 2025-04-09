@@ -1,3 +1,5 @@
+import { cn } from '../../helpers/cn';
+
 export type SpinnerSize = 'sm' | 'md' | 'lg';
 export type SpinnerTheme = 'light' | 'dark';
 
@@ -15,7 +17,11 @@ export function Spinner({ size = 'sm', theme = 'light' }: { size?: SpinnerSize; 
 
   return (
     <div
-      className={`${themeClasses[theme]} border-t-transparent rounded-full animate-spin border-[2.5px] ${sizeClasses[size]}`}
+      className={cn(
+        themeClasses[theme],
+        'border-t-transparent rounded-full animate-spin border-[2.5px]',
+        sizeClasses[size],
+      )}
     />
   );
 }

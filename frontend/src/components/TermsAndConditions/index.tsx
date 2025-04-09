@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { Dispatch } from 'react';
+import { useTranslation } from 'react-i18next';
+import { cn } from '../../helpers/cn';
 
 interface TermsAndConditionsProps {
   toggleTermsChecked: () => void;
@@ -44,20 +46,24 @@ const TermsAndConditionsContent = ({
   </motion.div>
 );
 
-const TermsText = ({ error }: { error: boolean }) => (
-  <motion.span
-    className={`pl-2 ${error ? 'text-red-600' : ''}`}
-    animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
-  >
-    I have read and accept the{' '}
-    <a
-      href="https://www.vortexfinance.co/terms-conditions"
-      className={`link link-accent transition-all duration-300 ${error ? 'text-red-600 font-bold' : ''}`}
-      target="_blank"
-      rel="noreferrer"
-      style={{ textDecoration: 'underline' }}
+const TermsText = ({ error }: { error: boolean }) => {
+  const { t } = useTranslation();
+
+  return (
+    <motion.span
+      className={cn('pl-2', error && 'text-red-600')}
+      animate={{ scale: [1, 1.02, 1], transition: { duration: 0.2 } }}
     >
-      Terms and Conditions
-    </a>
-  </motion.span>
-);
+      {t('components.termsAndConditions.text')}{' '}
+      <a
+        href="https://www.vortexfinance.co/terms-conditions"
+        className={cn('link link-accent transition-all duration-300', error && 'text-red-600 font-bold')}
+        target="_blank"
+        rel="noreferrer"
+        style={{ textDecoration: 'underline' }}
+      >
+        {t('components.termsAndConditions.link')}
+      </a>
+    </motion.span>
+  );
+};

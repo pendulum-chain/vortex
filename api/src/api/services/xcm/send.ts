@@ -3,6 +3,7 @@ import { parseEventMoonbeamXcmSent, parseEventXcmSent, parseEventXTokens, XcmSen
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { ApiPromise } from '@polkadot/api';
 import { SignedBlock } from '@polkadot/types/interfaces';
+import { encodeAddress } from '@polkadot/util-crypto';
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -13,6 +14,87 @@ export class TransactionInclusionError extends Error {
     Object.setPrototypeOf(this, TransactionInclusionError.prototype);
   }
 }
+
+/// Error thrown when a transaction is temporarily banned by the RPC node (Error code 1012)
+export class TransactionTemporarilyBannedError extends Error {
+  constructor(message?: string) {
+    super(message);
+    Object.setPrototypeOf(this, TransactionTemporarilyBannedError.prototype);
+  }
+}
+
+/// Compare two substrate addresses with arbitrary ss58 format
+function substrateAddressEqual(a: string, b: string): boolean {
+  // Convert both addresses to same ss58 format before comparing
+  return encodeAddress(a, 0) === encodeAddress(b, 0);
+}
+
+export const signAndSubmitXcm = async (
+  walletAccount: WalletAccount,
+  extrinsic: SubmittableExtrinsic<'promise'>,
+  afterSignCallback: () => void,
+): Promise<{ event: XcmSentEvent; hash: string }> => {
+  return new Promise((resolve, reject) => {
+    let inBlockHash: string | null = null;
+
+    extrinsic
+      .signAndSend(
+        walletAccount.address,
+        { signer: walletAccount.signer as Signer },
+        (submissionResult: ISubmittableResult) => {
+          const { status, events, dispatchError } = submissionResult;
+          afterSignCallback();
+
+          if (status.isInBlock && !inBlockHash) {
+            inBlockHash = status.asInBlock.toString();
+          }
+
+          if (status.isFinalized) {
+            const hash = status.asFinalized.toString();
+
+            // Try to find a 'system.ExtrinsicFailed' event
+            if (dispatchError) {
+              reject('Xcm transaction failed');
+            }
+
+            // Try to find 'polkadotXcm.Sent' events
+            const xcmSentEvents = events.filter((record) => {
+              return record.event.section === 'polkadotXcm' && record.event.method === 'Sent';
+            });
+
+            const event = xcmSentEvents
+              .map((event) => parseEventXcmSent(event))
+              .filter((event) => {
+                return substrateAddressEqual(event.originAddress, walletAccount.address);
+              });
+
+            if (event.length == 0) {
+              reject(new Error(`No XcmSent event found for account ${walletAccount.address}`));
+            }
+            resolve({ event: event[0], hash });
+          }
+        },
+      )
+      .catch((error) => {
+        afterSignCallback();
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes('1012:')) {
+          reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
+        }
+
+        if (inBlockHash) {
+          return reject(
+            new TransactionInclusionError(
+              inBlockHash,
+              `Transaction may have been included in block ${inBlockHash} despite error: ${error}`,
+            ),
+          );
+        }
+
+        reject(new Error(`Failed to do XCM transfer: ${error}`));
+      });
+  });
+};
 
 async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 60000): Promise<SignedBlock> {
   const pollIntervalMs = 1000;
@@ -50,7 +132,7 @@ export async function verifyXcmSentEvent(
   const xcmSentEvent = events
     .filter((record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent') // TODO why is this broken?? filter method not part of codec?
     .map(parseEventXcmSent)
-    .find((event) => event.originAddress === address);
+    .find((event) => substrateAddressEqual(event.originAddress, address));
 
   if (!xcmSentEvent) {
     throw new Error(`No XcmSent event found for account ${address}`);
@@ -62,7 +144,7 @@ export async function verifyXcmSentEvent(
 export const submitXcm = async (
   address: string,
   extrinsic: SubmittableExtrinsic<'promise'>,
-): Promise<{ event: XcmSentEvent; hash: string }> =>
+): Promise<{ event: XcmSentEvent; hash: string | undefined }> =>
   new Promise((resolve, reject) => {
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
@@ -83,7 +165,9 @@ export const submitXcm = async (
 
           const event = xcmSentEvents
             .map((event) => parseEventXcmSent(event))
-            .filter((event) => event.originAddress == address);
+            .filter((event) => {
+              return substrateAddressEqual(event.originAddress, address);
+            });
 
           if (event.length == 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
@@ -92,6 +176,10 @@ export const submitXcm = async (
         }
       })
       .catch((error) => {
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes('1012:')) {
+          reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
+        }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });
@@ -135,9 +223,9 @@ export const submitMoonbeamXcm = async (
 export const submitXTokens = async (
   address: string,
   extrinsic: SubmittableExtrinsic<'promise'>,
-): Promise<{ event: XTokensEvent; hash: string }> =>
+): Promise<{ event: XTokensEvent; hash: string | undefined }> =>
   new Promise((resolve, reject) => {
-    extrinsic
+    return extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
 
@@ -156,7 +244,9 @@ export const submitXTokens = async (
 
           const event = xTokenEvents
             .map((event) => parseEventXTokens(event))
-            .filter((event) => event.sender == address);
+            .filter((event) => {
+              return substrateAddressEqual(event.sender, address);
+            });
 
           if (event.length == 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
@@ -165,6 +255,10 @@ export const submitXTokens = async (
         }
       })
       .catch((error) => {
+        // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+        if (error?.message.includes('1012:')) {
+          reject(new TransactionTemporarilyBannedError('Transaction for xtokens transfer is temporarily banned.'));
+        }
         reject(new Error(`Failed to do XCM transfer: ${error}`));
       });
   });

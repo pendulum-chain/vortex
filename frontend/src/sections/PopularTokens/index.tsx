@@ -3,6 +3,9 @@ import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 
 import { Networks, getNetworkDisplayName } from 'shared';
+import { useTranslation } from 'react-i18next';
+import { cn } from '../../helpers/cn';
+
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useNetwork } from '../../contexts/network';

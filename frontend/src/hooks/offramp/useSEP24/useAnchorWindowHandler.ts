@@ -5,18 +5,13 @@ import { useNetwork } from '../../../contexts/network';
 
 import { sep24Second } from '../../../services/anchor/sep24/second';
 
-import { showToast, ToastMessage } from '../../../helpers/notifications';
+import { useToastMessage } from '../../../hooks/useToastMessage';
 
 import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
 import { useRampActions, useRampExecutionInput } from '../../../stores/offrampStore';
-import { useSep24Actions, useSep24InitialResponse, useSep24AnchorSessionParams } from '../../../stores/sep24Store';
+import { useSep24InitialResponse, useSep24AnchorSessionParams } from '../../../stores/sep24Store';
 import { useVortexAccount } from '../../useVortexAccount';
-
-const handleAmountMismatch = (setRampingStarted: (started: boolean) => void): void => {
-  setRampingStarted(false);
-  showToast(ToastMessage.AMOUNT_MISMATCH);
-};
 
 const handleError = (error: unknown, setRampingStarted: (started: boolean) => void): void => {
   console.error('Error in SEP-24 flow:', error);
@@ -30,11 +25,20 @@ export const useAnchorWindowHandler = () => {
   const { setRampStarted } = useRampActions();
   const { address, chainId } = useVortexAccount();
 
+  const { showToast, ToastMessage } = useToastMessage();
+
   const firstSep24Response = useSep24InitialResponse();
   const anchorSessionParams = useSep24AnchorSessionParams();
 
   const executionInput = useRampExecutionInput();
-  const { cleanup: cleanupSep24State } = useSep24Actions();
+
+  const handleAmountMismatch = useCallback(
+    (setOfframpingStarted: (started: boolean) => void): void => {
+      setOfframpingStarted(false);
+      showToast(ToastMessage.AMOUNT_MISMATCH);
+    },
+    [showToast, ToastMessage],
+  );
 
   return useCallback(async () => {
     if (!firstSep24Response || !anchorSessionParams || !executionInput) {

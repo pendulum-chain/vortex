@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import Big from 'big.js';
+import { useTranslation } from 'react-i18next';
 
 import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
@@ -11,12 +12,14 @@ import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 import { useRampActions } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
-import { showToast, ToastMessage } from '../../helpers/notifications';
+import { useToastMessage } from '../../hooks/useToastMessage';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
 
 export const useSubmitOfframp = () => {
+  const { t } = useTranslation();
+  const { showToast, ToastMessage } = useToastMessage();
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
@@ -88,7 +91,7 @@ export const useSubmitOfframp = () => {
                 return;
               }
               if ((await response.text()).includes('KYC invalid')) {
-                setInitializeFailedMessage('Your KYC level is invalid. Please contact support.');
+                setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
                 setRampStarted(false);
                 setRampInitiating(false);
                 cleanupSEP24();

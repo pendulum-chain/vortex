@@ -1,0 +1,355 @@
+{
+  "pages": {
+    "failure": {
+      "title": "Oops! Something went wrong",
+      "recoverable": {
+        "description": "Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary problem such as bad internet connection.",
+        "cta": "Either try to continue or start over.",
+        "retry": "Retry"
+      },
+      "copyTransactionId": "In case you experience any issues, please copy this",
+      "contactSupport": {
+        "beforeUrl": "Contact our",
+        "url": "support team",
+        "afterUrl": ". We’re here to help!"
+      },
+      "contactedSupport": "Contacted support and ready to start fresh with a new transaction?",
+      "tapToReset": "Tap",
+      "resetAndRestart": "Reset and Restart"
+    },
+    "progress": {
+      "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
+      "bridgingAssetHub": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
+      "executeMoonbeamToPendulumXCM": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
+      "executePendulumToMoonbeamXCM": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
+      "swappingTo": "Swapping to {{assetSymbol}} on Vortex DEX",
+      "executeSpacewalkRedeem": "Bridging {{assetSymbol}} to Stellar via Spacewalk",
+      "transferringToLocalPartner": "Transferring to local partner for bank transfer",
+      "success": "Transaction completed successfully!",
+      "transactionInProgress": "Your transaction is in progress.",
+      "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
+      "estimatedTimeEVM": "This usually takes 6-8 minutes."
+    },
+    "success": {
+      "title": "All set! The withdrawal has been sent to your bank.",
+      "returnHome": "Return Home",
+      "arrivalText": {
+        "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
+        "ARS": "Your funds will arrive in your bank account in a few minutes.",
+        "BRL": "Your funds were sent via PIX and are now in your bank account.",
+        "default": "Your funds will arrive in your bank account soon."
+      }
+    },
+    "swap": {
+      "error": {
+        "initializeFailed": {
+          "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
+          "noAddress": "No address found.",
+          "noApiComponents": "No API components found.",
+          "noApi": "No API found."
+        },
+        "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
+        "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
+        "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
+        "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount."
+      },
+      "developedBy": "Developed by"
+    }
+  },
+  "sections": {
+    "whyVortex": {
+      "title": "Sell Crypto the secure Way",
+      "description": "Vortex is a non-custodial exchange that allows you to swap between different cryptocurrencies. It is built on top of the Stellar blockchain and uses the Stellar SDK to interact with the Stellar network.",
+      "features": {
+        "lowFees": {
+          "title": "Lower Fees, Better Value",
+          "description": "Fees are at just 0.25%, far below the market average. There are no hidden fees in the exchange rates."
+        },
+        "easyToUse": {
+          "title": "Easy to Use",
+          "description": "Sell your crypto easily without the need for a centralized exchange."
+        },
+        "securityFirst": {
+          "title": "Security First, Always",
+          "description": "Vortex is non-custodial by design. Your assets are handled with care and security."
+        },
+        "smartKYC": {
+          "title": "Smart KYC",
+          "description": "Get verified quickly and enjoy high transaction limits and a seamless and user-friendly verification process."
+        }
+      },
+      "withVortexFinance": "with <1>Vortex Finance</1>?"
+    },
+    "trustedBy": {
+      "title": "Trusted by",
+      "comingSoon": "Coming soon"
+    },
+    "popularTokens": {
+      "networks": {
+        "title": "Supported Networks",
+        "description": "Trade across multiple blockchain networks"
+      },
+      "tokens": {
+        "title": "Supported Tokens",
+        "description": "Trade these popular stablecoins"
+      }
+    },
+    "pitch": {
+      "title": "Sell <1>Stablecoins</1> and receive <br class='hidden sm:block' /> the money directly in your Bank Account",
+      "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market."
+    },
+    "howToSell": {
+      "title": "How to sell cryptocurrency online <br class='hidden md:block' /> with Vortex Finance",
+      "steps": {
+        "1": "Connect your wallet and enter the amount in cryptocurrency you wish to sell.",
+        "2": "Continue to the partner site and provide your email and payment details.",
+        "3": "Return to VortexFinance.co and confirm the transaction in your wallet.",
+        "4": "Wait for the funds to arrive in your account."
+      }
+    },
+    "gotQuestions": {
+      "title": "Got Questions? We're here to help!",
+      "description": "Get in touch with us for answers and support.",
+      "contactUs": "Contact Us"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "learnMore": "LEARN MORE",
+      "items": {
+        "fees": {
+          "question": "How much does Vortex charge in fees?",
+          "answer": "Vortex's fees are completely transparent and depend on the payment method you choose. These are all-in fees, meaning there are no hidden charges from Vortex or local banking partners. The cost of your transfer comes from the clearly disclosed fee and exchange rate. Unlike many providers that claim “no fees” but hide extra costs in inflated exchange rates, Vortex ensures you're never overcharged. Our fees are shown upfront so you always know exactly what you're paying."
+        },
+        "countries": {
+          "question": "Which countries and currencies does Vortex support?",
+          "answer": "Vortex is available in all 44 European countries and also supports users in Brazil and Argentina. Our service coverage is constantly expanding, with new countries being added every few weeks. As we grow, we aim to provide access to even more regions and currencies to better serve our global users."
+        },
+        "verification": {
+          "question": "How long does verification take?",
+          "answer": "Our KYC process is designed to be as fast and seamless as possible, usually taking less than six minutes to complete. In rare cases where additional checks are necessary, verification may take until the next business day. The time required largely depends on the validity and completeness of the documents provided. We recommend double-checking your submission to ensure a smooth process."
+        },
+        "cryptocurrencies": {
+          "question": "What cryptocurrencies are supported?",
+          "answer": "Vortex supports a range of stablecoins, including USDC and USDT. These stablecoins are available on multiple blockchain networks, such as Polkadot, Arbitrum, Avalanche, Base, BNB, Ethereum, and Polygon. We are constantly working to expand our offerings and will add additional cryptocurrencies and networks in the future to meet growing user demands."
+        },
+        "timing": {
+          "question": "How long does it take to sell crypto (for the money to arrive)?",
+          "answer": "The crypto-to-fiat transaction process with Vortex is exceptionally quick, taking only about three minutes. If your bank supports instant payments, you’ll see the funds in your account within five minutes. For banks without instant payment capabilities, the processing time depends on your bank, but it usually takes one to two business days for the money to arrive."
+        },
+        "business": {
+          "question": "Does Vortex offer solutions for businesses?",
+          "answer": "Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex’s competitive rates, ease of use, and seamless transactions. If you’re interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business."
+        }
+      }
+    },
+    "feeComparison": {
+      "title": "<0>Save</0> on exchange rate markups",
+      "description": "The cost of your transfer comes from the fee and the exchange rate. Many providers offer <1>”no fee”</1>, while hiding a markup in the exchange rate, making you pay more.",
+      "description2": "At Vortex, we’ll never do that and show our fees upfront.",
+      "table": {
+        "sending": "Sending",
+        "with": "with",
+        "recipientGets": "Recipient gets",
+        "totalAfterFees": "Total after fees",
+        "bestRate": "Best rate",
+        "tooltip": "Quotes are for Polygon, as the providers don't support {{network}}."
+      }
+    }
+  },
+  "components": {
+    "emailForm": {
+      "success": "Successfully saved!",
+      "loading": "Loading...",
+      "error": "Error while saving your email. Please try again.",
+      "title": "Thank you for using our new product!",
+      "description": "We’re always looking to improve, and we’d greatly appreciate your feedback. If you’re willing, please leave your email below so we can reach out for a quick chat about your experience.",
+      "noNewslettersNoSpam": "No newsletters, no spam — just your honest thoughts.",
+      "submit": "Submit"
+    },
+    "termsAndConditions": {
+      "text": "I have read and accept the",
+      "link": "Terms and Conditions"
+    },
+    "searchInput": {
+      "placeholder": "Search"
+    },
+    "dialogs": {
+      "OfframpSummaryDialog": {
+        "headerText": "You're selling",
+        "offrampFee": "Offramp fee",
+        "continueWithPartner": "Continue with Partner",
+        "continueOnPartnersPage": "Continue on Partner's page",
+        "processing": "Processing",
+        "continue": "Continue",
+        "quote": "Quote",
+        "partner": "Partner"
+      },
+      "selectionModal": {
+        "title": "Select a token",
+        "searchPlaceholder": "Find by name or address"
+      },
+      "polkadotDisconnectWallet": {
+        "disconnect": "Disconnect"
+      },
+      "polkadotWalletSelectorDialog": {
+        "title": "Connect wallet",
+        "selectWallet": "Select Wallet",
+        "chooseAccount": "Choose Account",
+        "noWalletInstalled": "No wallet installed"
+      },
+      "polkadotWalletSelectorDialogLoading": {
+        "title": "Connecting wallet",
+        "description": "Please approve {selectedWallet} and approve the transaction."
+      },
+      "connectWallet": {
+        "connect": "Connect",
+        "wrongNetwork": "Wrong network"
+      }
+    },
+    "signingBox": {
+      "actionRequired": "Action Required",
+      "pleaseSignTransaction": "Please sign the transaction in",
+      "yourConnectedWallet": "your connected wallet to proceed",
+      "waitingForSignature": "Waiting for signature",
+      "signatures": "Signatures"
+    },
+    "navbar": {
+      "sellCrypto": "Sell Crypto",
+      "howItWorks": "How it works",
+      "community": "Community"
+    },
+    "swap": {
+      "sellCrypto": "Sell",
+      "firstInputLabel": "You sell",
+      "secondInputLabel": "You receive",
+      "compareFees": "Compare fees",
+      "validation": {
+        "taxId": {
+          "required": "CPF is required when transferring BRL",
+          "format": "Invalid CPF"
+        },
+        "pixId": {
+          "required": "PIX key is required when transferring BRL",
+          "format": "PIX key does not match any of the valid formats"
+        }
+      }
+    },
+    "benefitsList": {
+      "noHiddenFees": "No hidden fees",
+      "takes5Minutes": "Takes <1>5 minutes</1>"
+    },
+    "brlaSwapField": {
+      "placeholder": "Enter your {{label}}",
+      "disclaimer": "CPF and Pix key need to belong to the <1>same person</1>."
+    },
+    "swapSubmitButton": {
+      "confirming": "Confirming",
+      "processing": "Processing",
+      "confirm": "Confirm"
+    },
+    "feeCollapse": {
+      "details": "Details",
+      "yourQuote": "Your quote",
+      "vortexFee": "Vortex fee",
+      "finalAmount": "Final Amount"
+    },
+    "brlaKYCForm": {
+      "title": "KYC Details",
+      "description": "KYC verification is required to complete your transaction. The information you provide is processed securely by our local partner ",
+      "buttons": {
+        "back": "Back",
+        "finish": "Finish",
+        "compareFees": "Compare Fees"
+      }
+    },
+    "brlaExtendedForm": {
+      "form": {
+        "fullName": "Full Name",
+        "phoneNumber": "Phone Number",
+        "city": "City",
+        "state": "State",
+        "street": "Street",
+        "number": "Number",
+        "district": "District",
+        "birthdate": "Birthdate"
+      },
+      "verificationStatus": {
+        "pending": "Verifying your data, please wait",
+        "success": "Verification successful",
+        "rejected": "KYC verification rejected",
+        "error": "Verification error"
+      },
+      "validation": {
+        "phone": {
+          "required": "Phone number is required",
+          "format": "Invalid phone number format"
+        },
+        "fullName": {
+          "required": "Full name is required",
+          "minLength": "Name must be at least 3 characters",
+          "format": "Name can only contain letters and spaces"
+        },
+        "cep": {
+          "required": "CEP is required",
+          "minLength": "CEP must be at least 3 characters"
+        },
+        "city": {
+          "required": "City is required",
+          "minLength": "City must be at least 5 characters"
+        },
+        "state": {
+          "required": "State is required",
+          "minLength": "State must be at least 3 characters"
+        },
+        "street": {
+          "required": "Street is required",
+          "minLength": "Street must be at least 5 characters"
+        },
+        "number": {
+          "required": "Number is required"
+        },
+        "district": {
+          "required": "District is required",
+          "minLength": "District must be at least 3 characters"
+        },
+        "birthdate": {
+          "required": "Birthdate is required",
+          "future": "Birthdate cannot be in the future",
+          "tooOld": "Invalid birthdate"
+        }
+      }
+    },
+    "rating": {
+      "title": "Your opinion matters!",
+      "howWouldYouRateYourExperience": "How would you rate your experience?",
+      "thankYou": "Thank you!"
+    },
+    "footer": {
+      "poweredBy": "Powered by",
+      "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
+    },
+
+    "warningBanner": {
+      "title": "Keep this tab open",
+      "description": "Closing this tab will halt the process"
+    }
+  },
+  "hooks": {
+    "useTokenAmountOut": {
+      "insufficientLiquidity": "Insufficient liquidity for this exchange. Please try a smaller amount or try again later.",
+      "default": "Something went wrong"
+    },
+    "useSubmitOfframp": {
+      "kycInvalid": "Your KYC level is invalid. Please contact support."
+    }
+  },
+  "toasts": {
+    "amountMismatch": "Mismatching offramp amounts detected. Please restart the offramp process.",
+    "kycCompleted": "Success! Get ready to off-ramp.",
+    "kycVerificationFailed": "Could not verify KYC status. Please try again.",
+    "signingFailed": "Signing failed. Please try again.",
+    "walletAlreadyOpen": "Wallet already open pending connection. Please try again.",
+    "nodeConnectionError": "Error while connecting to the node. Refresh the page to re-connect.",
+    "genericError": "An error occurred. Please try again."
+  }
+}

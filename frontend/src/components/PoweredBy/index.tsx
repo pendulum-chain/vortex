@@ -3,6 +3,8 @@ import bank from '../../assets/payments/bank.svg';
 import VISA from '../../assets/payments/visa.svg';
 import vortexLogo from '../../assets/logo/blue.svg';
 import SEPA from '../../assets/payments/sepa.svg';
+import { useTranslation } from 'react-i18next';
+import { cn } from '../../helpers/cn';
 
 interface ImageProps {
   src: string;
@@ -20,7 +22,7 @@ const paymentImages = [
 
 const Image = ({ src, alt, comingSoon, additionalClass }: ImageProps) => (
   <div className="flex flex-col items-normal text-center">
-    <img src={src} alt={alt} className={`${comingSoon ? 'h-[12px]' : 'h-4'} ${additionalClass}`} />
+    <img src={src} alt={alt} className={cn(comingSoon ? 'h-[12px]' : 'h-4', additionalClass)} />
     {comingSoon && <div className="text-[7px] w-12 text-blue-700">Coming soon</div>}
   </div>
 );
@@ -34,11 +36,13 @@ const ImageList = ({ images }: { images: ImageProps[] }) => (
 );
 
 export function PoweredBy() {
+  const { t } = useTranslation();
+
   return (
     <section className="flex flex-col justify-between gap-y-2.5 my-2">
       <ImageList images={paymentImages} />
       <div className="flex items-center justify-center">
-        <p className="mr-1 text-xs text-gray-500">Powered by</p>
+        <p className="mr-1 text-xs text-gray-500">{t('components.footer.poweredBy')}</p>
         <a
           href="https://www.vortexfinance.co"
           target="_blank"
