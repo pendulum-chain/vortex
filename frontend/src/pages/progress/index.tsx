@@ -1,4 +1,4 @@
-import { FC, useEffect, useState, useRef } from 'react';
+import { FC, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useTranslation } from 'react-i18next';
@@ -71,11 +71,11 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   spacewalkRedeem: 130,
   pendulumCleanup: 6,
   stellarPayment: 6,
-  stellarCleanup: 6,
   pendulumToMoonbeam: 40,
   brlaPayoutOnMoonbeam: 120,
   stellarCreateAccount: 10,
   moonbeamToPendulumXcm: 30,
+  moonbeamCleanup: 30,
 };
 
 const CIRCLE_RADIUS = 80;

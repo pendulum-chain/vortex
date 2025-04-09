@@ -1,12 +1,9 @@
 import { useAccount, useSignMessage } from 'wagmi';
-import { useMemo, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import * as Sentry from '@sentry/react';
 import { Signer } from '@polkadot/types/types';
 import { useNetwork } from '../contexts/network';
-import { useCallback, useMemo } from 'react';
 import { usePolkadotWalletState } from '../contexts/polkadotWallet';
-import { useAccount, useSignMessage } from 'wagmi';
-import { Signer } from '@polkadot/types/types';
 import { ASSETHUB_CHAIN_ID, isNetworkEVM } from 'shared';
 
 // A helper hook to provide an abstraction over the account used.

@@ -5,13 +5,12 @@ import { useNetwork } from '../../../contexts/network';
 
 import { sep24Second } from '../../../services/anchor/sep24/second';
 
-import { useToastMessage } from '../../../hooks/useToastMessage';
-
 import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
 import { useRampActions, useRampExecutionInput } from '../../../stores/offrampStore';
 import { useSep24InitialResponse, useSep24AnchorSessionParams } from '../../../stores/sep24Store';
 import { useVortexAccount } from '../../useVortexAccount';
+import { useToastMessage } from '../../../helpers/notifications';
 
 const handleError = (error: unknown, setRampingStarted: (started: boolean) => void): void => {
   console.error('Error in SEP-24 flow:', error);

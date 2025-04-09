@@ -3,13 +3,13 @@ import UniversalProvider from '@walletconnect/universal-provider';
 import { SessionTypes } from '@walletconnect/types';
 import { useCallback, useEffect, useState } from 'react';
 
-import { useToastMessage } from '../../../hooks/useToastMessage';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import logo from '../../../assets/wallets/wallet-connect.svg';
 import { WALLETCONNECT_ASSETHUB_ID } from '../../../constants/constants';
 import { useNetwork } from '../../../contexts/network';
 import { config } from '../../../config';
 import { walletConnectService } from './WalletConnectService';
+import { useToastMessage } from '../../../helpers/notifications';
 
 export const walletConnectConfig = {
   requiredNamespaces: {

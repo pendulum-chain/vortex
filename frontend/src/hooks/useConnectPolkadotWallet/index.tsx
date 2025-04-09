@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Wallet, getWallets } from '@talismn/connect-wallets';
+import { getWallets, Wallet } from '@talismn/connect-wallets';
 import { useMutation } from '@tanstack/react-query';
 
-import { useToastMessage } from '../../hooks/useToastMessage';
 import { storageService } from '../../services/storage/local';
 import { LocalStorageKeys } from '../useLocalStorage';
+import { useToastMessage } from '../../helpers/notifications';
 
 const alwaysShowWallets = ['talisman', 'subwallet-js', 'polkadot-js'];
 

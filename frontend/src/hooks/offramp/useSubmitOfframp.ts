@@ -12,10 +12,10 @@ import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 import { useRampActions } from '../../stores/offrampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
-import { useToastMessage } from '../../hooks/useToastMessage';
 import { usePendulumNode } from '../../contexts/polkadotNode';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
+import { useToastMessage } from '../../helpers/notifications';
 
 export const useSubmitOfframp = () => {
   const { t } = useTranslation();

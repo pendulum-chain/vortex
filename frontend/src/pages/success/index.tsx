@@ -24,13 +24,13 @@ export const SuccessPage = () => {
 
   const transactionId = executionInput?.quote?.id;
 
-  const ARRIVAL_TEXT_BY_TOKEN: Record<OutputTokenType, string> = {
-    [OutputTokenTypes.EURC]: t('pages.success.arrivalText.EURC'),
-    [OutputTokenTypes.ARS]: t('pages.success.arrivalText.ARS'),
-    [OutputTokenTypes.BRL]: t('pages.success.arrivalText.BRL'),
+  const ARRIVAL_TEXT_BY_TOKEN: Record<FiatToken, string> = {
+    [FiatToken.EURC]: t('pages.success.arrivalText.EURC'),
+    [FiatToken.ARS]: t('pages.success.arrivalText.ARS'),
+    [FiatToken.BRL]: t('pages.success.arrivalText.BRL'),
   };
 
-  const arrivalText = ARRIVAL_TEXT_BY_TOKEN[toToken] || t('pages.success.arrivalText.default');
+  const arrivalText = ARRIVAL_TEXT_BY_TOKEN[fiatToken] || t('pages.success.arrivalText.default');
 
   const main = (
     <main>

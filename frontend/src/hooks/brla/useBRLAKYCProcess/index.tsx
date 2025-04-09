@@ -6,8 +6,8 @@ import { useRampActions } from '../../../stores/offrampStore';
 import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
-import { useToastMessage } from '../../../hooks/useToastMessage';
 import { useTaxId } from '../../../stores/ramp/useRampFormStore';
+import { useToastMessage } from '../../../helpers/notifications';
 
 export interface BrlaKycStatus {
   status: string;

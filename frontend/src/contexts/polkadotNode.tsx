@@ -3,7 +3,7 @@ import { createContext, useContext, JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ASSETHUB_WSS, PENDULUM_WSS, MOONBEAM_WSS } from '../constants/constants';
-import { useToastMessage } from '../hooks/useToastMessage';
+import { useToastMessage } from '../helpers/notifications';
 
 export interface ApiComponents {
   api: ApiPromise;
