@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { BaseFiatTokenDetails, OnChainTokenDetails, roundDownToTwoDecimals } from 'shared';
+import { BaseFiatTokenDetails, FiatTokenDetails, OnChainTokenDetails, roundDownToTwoDecimals } from 'shared';
 import { useRampDirection } from '../stores/rampDirectionStore';
 import { RampDirection } from '../components/RampToggle';
 
@@ -28,15 +28,11 @@ export function calculateOnrampTotalReceive(toAmount: Big): string {
 }
 
 interface OfframpFeesParams {
-  toAmount: Big;
-  toToken: BaseFiatTokenDetails | OnChainTokenDetails;
+  toAmount?: Big;
+  toToken?: FiatTokenDetails | OnChainTokenDetails;
 }
 
-const calculateTotalReceive = (
-  flowType: RampDirection,
-  amount: Big,
-  token: BaseFiatTokenDetails | OnChainTokenDetails,
-) => {
+const calculateTotalReceive = (flowType: RampDirection, amount: Big, token: FiatTokenDetails | OnChainTokenDetails) => {
   if (flowType === RampDirection.OFFRAMP) {
     return calculateOfframpTotalReceive(amount, token as BaseFiatTokenDetails);
   } else {
@@ -47,6 +43,15 @@ const calculateTotalReceive = (
 export const useOfframpFees = ({ toAmount, toToken }: OfframpFeesParams) => {
   const toAmountFixed = roundDownToTwoDecimals(toAmount || Big(0));
   const flowType = useRampDirection();
+
+  if (!toAmount || !toToken) {
+    return {
+      toAmountFixed: '0',
+      totalReceive: '0',
+      totalReceiveFormatted: '0',
+      feesCost: '0',
+    };
+  }
 
   const totalReceive = calculateTotalReceive(flowType, toAmount, toToken);
 
