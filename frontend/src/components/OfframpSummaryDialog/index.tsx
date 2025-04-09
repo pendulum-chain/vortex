@@ -12,7 +12,6 @@ import {
   FiatTokenDetails,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
-import { useOfframpFees } from '../../hooks/useOfframpFees';
 import { useNetwork } from '../../contexts/network';
 import { Networks } from 'shared';
 
@@ -110,7 +109,6 @@ interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
   isOnramp: boolean;
   selectedNetwork: Networks;
-  feesCost: string;
   rampDirection: RampDirection;
 }
 
@@ -118,7 +116,6 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   executionInput,
   isOnramp,
   selectedNetwork,
-  feesCost,
   rampDirection,
 }) => {
   const fromToken = isOnramp
@@ -178,7 +175,7 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
         partnerUrl={getPartnerUrl()}
         exchangeRate={Big(executionInput.quote.outputAmount).div(executionInput.quote.inputAmount).toFixed(4)}
         network={selectedNetwork}
-        feesCost={feesCost}
+        feesCost={executionInput.quote.fee}
         direction={rampDirection}
       />
     </div>
@@ -197,15 +194,6 @@ export const OfframpSummaryDialog: FC = () => {
   const anchorUrl = useSep24StoreCachedAnchorUrl();
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.ONRAMP;
-
-  const { feesCost } = useOfframpFees({
-    toAmount: Big(executionInput?.quote.outputAmount || 0),
-    toToken: !executionInput
-      ? undefined
-      : isOnramp
-      ? getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput!.onChainToken)
-      : getAnyFiatTokenDetails(executionInput!.fiatToken),
-  });
 
   if (!visible) return null;
   if (!executionInput) return null;
@@ -269,7 +257,6 @@ export const OfframpSummaryDialog: FC = () => {
       executionInput={executionInput}
       isOnramp={isOnramp}
       selectedNetwork={selectedNetwork}
-      feesCost={feesCost}
       rampDirection={rampDirection}
     />
   );

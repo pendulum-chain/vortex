@@ -2,32 +2,26 @@ import { FC, JSX } from 'react';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
 
-import { OnChainTokenDetails, FiatTokenDetails } from 'shared';
+import { FiatTokenDetails, OnChainTokenDetails } from 'shared';
 import { useEventsContext } from '../../contexts/events';
-import { useOfframpFees } from '../../hooks/useOfframpFees';
 import { getTokenSymbol } from '../../helpers/getTokenSymbol';
 
 interface CollapseProps {
-  fromAmount?: string;
-  toAmount?: Big;
+  toAmount: Big;
   toToken: FiatTokenDetails | OnChainTokenDetails;
-  exchangeRate?: JSX.Element;
+  exchangeRateBeforeFees: JSX.Element;
+  fee: Big.Big;
 }
 
-export const FeeCollapse: FC<CollapseProps> = ({ toAmount = Big(0), toToken, exchangeRate }) => {
+export const FeeCollapse: FC<CollapseProps> = ({ toAmount, toToken, exchangeRateBeforeFees, fee }) => {
   const { trackEvent } = useEventsContext();
 
-const { t } = useTranslation();
+  const { t } = useTranslation();
   const toTokenSymbol = getTokenSymbol(toToken);
 
   const trackFeeCollapseOpen = () => {
     trackEvent({ event: 'click_details' });
   };
-
-  const { toAmountFixed, totalReceiveFormatted, feesCost } = useOfframpFees({
-    toAmount,
-    toToken,
-  });
 
   return (
     <div className="border border-blue-700 collapse-arrow collapse" onClick={trackFeeCollapseOpen}>
@@ -40,11 +34,11 @@ const { t } = useTranslation();
       <div className="text-[15px] collapse-content">
         <div className="flex justify-between mt-2 ">
           <p>
-            {t('components.feeCollapse.yourQuote')} ({exchangeRate})
+            {t('components.feeCollapse.yourQuote')} ({exchangeRateBeforeFees})
           </p>
           <div className="flex">
             <span>
-              {toAmountFixed} {toTokenSymbol}
+              {toAmount.plus(fee).toFixed(2)} {toTokenSymbol}
             </span>
           </div>
         </div>
@@ -52,7 +46,7 @@ const { t } = useTranslation();
           <p>{t('components.feeCollapse.vortexFee')}</p>
           <div className="flex">
             <span>
-              - {feesCost} {toTokenSymbol}
+              - {fee.toFixed(2)} {toTokenSymbol}
             </span>
           </div>
         </div>
@@ -60,7 +54,7 @@ const { t } = useTranslation();
           <strong className="font-bold">{t('components.feeCollapse.finalAmount')}</strong>
           <div className="flex">
             <span>
-              {totalReceiveFormatted} {toTokenSymbol}
+              {toAmount.toFixed(2)} {toTokenSymbol}
             </span>
           </div>
         </div>
