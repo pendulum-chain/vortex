@@ -5,7 +5,7 @@ import wallet from '../../assets/wallet-bifold-outline.svg';
 
 interface UserBalanceProps {
   token: OnChainTokenDetails;
-  onClick: (amount: string) => void;
+  onClick?: (amount: string) => void;
   className?: string;
 }
 
