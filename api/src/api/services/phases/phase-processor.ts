@@ -6,11 +6,6 @@ import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { PhaseError } from '../../errors/phase-error';
 
-type ProcessingLock = {
-  locked: boolean;
-  lockedAt: Date | null;
-};
-
 /**
  * Process phases for a ramping process
  */
@@ -36,12 +31,12 @@ export class PhaseProcessor {
    * or by another.
    */
   private async acquireLock(state: RampState): Promise<boolean> {
-    if (this.lockedRamps.has(state.id) || (state.processingLock as ProcessingLock).locked === true) {
+    if (this.lockedRamps.has(state.id) || state.processingLock.locked) {
       return false;
     }
 
     this.lockedRamps.add(state.id);
-    RampState.update(
+    await RampState.update(
       {
         processingLock: {
           locked: true,
@@ -62,7 +57,7 @@ export class PhaseProcessor {
       // Remove in-memory lock
       this.lockedRamps.delete(state.id);
       // Release db lock
-      RampState.update(
+      await RampState.update(
         {
           processingLock: {
             locked: false,
@@ -151,7 +146,7 @@ export class PhaseProcessor {
       }
     } catch (error: any) {
       const isPhaseError = error instanceof PhaseError;
-      const isRecoverable = isPhaseError && error.isRecoverable === true;
+      const isRecoverable = isPhaseError && error.isRecoverable;
 
       if (isRecoverable) {
         const currentRetries = this.retriesMap.get(state.id) || 0;

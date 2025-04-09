@@ -8,6 +8,11 @@ export interface PhaseHistoryEntry {
   metadata?: any;
 }
 
+type ProcessingLock = {
+  locked: boolean;
+  lockedAt: Date | null;
+};
+
 // Define the attributes of the RampState model
 export interface RampStateAttributes {
   id: string; // UUID
@@ -21,7 +26,7 @@ export interface RampStateAttributes {
   quoteId: string; // UUID reference to QuoteTicket
   phaseHistory: PhaseHistoryEntry[]; // JSONB array
   errorLogs: RampErrorLog[]; // JSONB array
-  processingLock: any;
+  processingLock: ProcessingLock;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,7 +58,7 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
 
   declare errorLogs: RampErrorLog[];
 
-  declare processingLock: any;
+  declare processingLock: ProcessingLock;
 
   declare createdAt: Date;
 
@@ -146,6 +151,7 @@ RampState.init(
     processingLock: {
       type: DataTypes.JSONB,
       allowNull: false,
+      field: 'processing_lock',
     },
     createdAt: {
       type: DataTypes.DATE,
