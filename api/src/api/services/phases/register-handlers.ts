@@ -26,7 +26,7 @@ export function registerPhaseHandlers(): void {
 
   // Register handlers
   phaseRegistry.registerHandler(initialPhaseHandler);
-  phaseRegistry.registerHandler(completePhaseHandler)
+  phaseRegistry.registerHandler(completePhaseHandler);
   phaseRegistry.registerHandler(squidRouterPhaseHandler);
   phaseRegistry.registerHandler(pendulumToMoonbeamXCMPhaseHandler);
   phaseRegistry.registerHandler(nablaApproveHandler);

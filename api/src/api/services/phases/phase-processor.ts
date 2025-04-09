@@ -37,6 +37,10 @@ export class PhaseProcessor {
       });
     }
 
+    // TODO Add a lock to prevent multiple processes from running at the same time.
+    // both in memory lock from this class, and a database lock
+    // The lock will be released after processPhase returns or, when it throws.
+
     try {
       await this.processPhase(state);
       // We just return, since the error management should be handled in the processPhase method.

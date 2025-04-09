@@ -1,43 +1,23 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, expect, it, mock, beforeAll, afterAll } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PhaseProcessor } from './phase-processor';
 import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import { RampService } from '../ramp/ramp.service';
-import { BrlaApiService } from '../brla/brlaApiService';
-import {
-  AccountMeta,
-  Networks,
-  RampEndpoints,
-  EvmToken,
-  FiatToken,
-  signUnsignedTransactions,
-  EvmTransactionData,
-  getNetworkId,
-} from 'shared';
-import { v4 as uuidv4 } from 'uuid';
-import { SubaccountData } from '../brla/types';
-import { APIError } from '../../errors/api-error';
+import { AccountMeta, Networks, EvmToken, FiatToken, signUnsignedTransactions } from 'shared';
+
 import { QuoteService } from '../ramp/quote.service';
 import { EphemeralAccount } from 'shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { Keypair } from 'stellar-sdk';
 import { API, ApiManager } from '../pendulum/apiManager';
-import { createPublicClient, createWalletClient, formatGwei, gweiUnits, http, parseGwei } from 'viem';
-import { polygon } from 'viem/chains';
-import { privateKeyToAccount } from 'viem/accounts';
-import { BACKEND_TEST_STARTER_ACCOUNT } from '../../../constants/constants';
 
-import { HDKey } from '@scure/bip32';
-import { mnemonicToSeedSync } from '@scure/bip39';
 import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import registerPhaseHandlers from './register-handlers';
-import { verifyReferenceLabel } from '../brla/helpers';
 
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 const TAX_ID = process.env.TAX_ID;
 
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
@@ -116,7 +96,7 @@ let quoteTicket: QuoteTicket;
 
 RampState.update = mock(async function (updateData: any, options?: any) {
   // Merge the update into the current instance.
-  rampState = { ...rampState, ...updateData };
+  rampState = { ...rampState, ...updateData, updatedAt: new Date() };
 
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
@@ -133,7 +113,7 @@ RampState.create = mock(async (data: any) => {
     updatedAt: new Date(),
     update: async function (updateData: any, options?: any) {
       // Merge the update into the current instance.
-      rampState = { ...rampState, ...updateData };
+      rampState = { ...rampState, ...updateData, updatedAt: new Date() };
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
@@ -225,16 +205,18 @@ describe('Onramp PhaseProcessor Integration Test', () => {
         pendulumNode.api,
         moonbeamNode.api,
       );
+
       // At this stage, user would send the BRL through pix.
 
       // END - MIMIC THE UI
 
       const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
-      await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
+      const finalRampState = await waitForCompleteRamp(registeredRamp.id);
 
-      // expect(rampState.currentPhase).toBe('complete');
-      // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
+      // Some sanity checks.
+      expect(finalRampState.currentPhase).toBe('complete');
+      expect(finalRampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
       console.error('Error during test execution:', error);
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
@@ -243,47 +225,33 @@ describe('Onramp PhaseProcessor Integration Test', () => {
   });
 });
 
-async function executeEvmTransaction(network: Networks, txData: EvmTransactionData): Promise<string> {
-  try {
-    const seed = mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!);
-    const { privateKey } = HDKey.fromMasterSeed(seed);
+async function waitForCompleteRamp(rampId: string) {
+  const pollInterval = 10 * 1000; // 10 seconds
+  const globalTimeout = 15 * 60 * 1000; // 15 minutes
+  const stalePhaseTimeout = 5 * 60 * 1000; // 5 minutes
 
-    const moonbeamExecutorAccount = privateKeyToAccount(`0x${privateKey!.toHex()}` as `0x${string}`);
-    // const chainId = getNetworkId(network); Need to get the network based on the id.
-    const walletClient = createWalletClient({
-      account: moonbeamExecutorAccount,
-      chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
-    });
+  const startTime = Date.now();
+  let lastUpdated = new Date(rampState.createdAt).getTime(); // Will be creation time on the first iteration.
 
-    const publicClient = createPublicClient({
-      chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
-    });
+  while (true) {
+    const currentState = rampState;
 
-    const estimateFeePerGas = await publicClient.estimateFeesPerGas();
-
-    console.log('gas parameters', estimateFeePerGas.maxFeePerGas, estimateFeePerGas.maxPriorityFeePerGas);
-    const hash = await walletClient.sendTransaction({
-      to: txData.to,
-      data: txData.data,
-      value: BigInt(txData.value),
-      gas: BigInt(txData.gas),
-      maxFeePerGas: estimateFeePerGas.maxFeePerGas * 5n,
-      maxPriorityFeePerGas: estimateFeePerGas.maxPriorityFeePerGas * 5n,
-    });
-    console.log('Transaction hash:', hash);
-    // we are naive and assume that it will take a maximum of 30 seconds to get into block, and potentially be reverted.
-    await new Promise((resolve) => setTimeout(resolve, 30000));
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    console.log('Transaction receipt:', receipt);
-    if (!receipt || receipt.status !== 'success') {
-      throw new Error(`Transaction ${hash} failed or was not found`);
+    if (currentState.currentPhase === 'complete') {
+      return currentState;
+    }
+    const currentUpdated = new Date(currentState.updatedAt).getTime();
+    if (currentUpdated > lastUpdated) {
+      lastUpdated = currentUpdated;
     }
 
-    return receipt.transactionHash;
-  } catch (error) {
-    console.error('Error sending raw EVM transaction', error);
-    throw new Error('Failed to send transaction');
+    if (Date.now() - lastUpdated > stalePhaseTimeout) {
+      throw new Error('Ramp state has been stale for more than 5 minutes.');
+    }
+
+    if (Date.now() - startTime > globalTimeout) {
+      throw new Error('Global timeout of 15 minutes reached without completing the ramp process.');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 }

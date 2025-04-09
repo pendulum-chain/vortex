@@ -3,7 +3,6 @@ import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
 
-
 /**
  * Placeholder phase to perform any final actions after the ramp flow is complete.
  */

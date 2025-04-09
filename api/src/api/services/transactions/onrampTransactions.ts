@@ -116,13 +116,21 @@ export async function prepareOnrampTransactions(
         signer: account.address,
       });
 
-      // TODO this does not execute properly. Has no effect (?)
+      // TODO why do we need several? First transfer_all either has no effect or does not transfer... all.
       const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
       unsignedTxs.push({
         tx_data: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup',
         network: account.network,
         nonce: 4,
+        signer: account.address,
+      });
+
+      unsignedTxs.push({
+        tx_data: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
+        phase: 'moonbeamCleanup2',
+        network: account.network,
+        nonce: 5,
         signer: account.address,
       });
 

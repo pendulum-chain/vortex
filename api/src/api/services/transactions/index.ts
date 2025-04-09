@@ -8,7 +8,7 @@ export function encodeEvmTransactionData(data: unknown) {
 }
 
 export function validatePresignedTxs(presignedTxs: PresignedTx[]): void {
-  if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 10) {
+  if (!Array.isArray(presignedTxs) || presignedTxs.length < 1 || presignedTxs.length > 100) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
       message: 'presignedTxs must be an array with 1-10 elements',

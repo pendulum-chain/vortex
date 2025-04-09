@@ -115,7 +115,7 @@ let quoteTicket: QuoteTicket;
 
 RampState.update = mock(async function (updateData: any, options?: any) {
   // Merge the update into the current instance.
-  rampState = { ...rampState, ...updateData };
+  rampState = { ...rampState, ...updateData, updatedAt: new Date() };
 
   const filePath = path.join(__dirname, 'lastRampState.json');
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
@@ -133,7 +133,7 @@ RampState.create = mock(async (data: any) => {
     updatedAt: new Date(),
     update: async function (updateData: any, options?: any) {
       // Merge the update into the current instance.
-      rampState = { ...rampState, ...updateData };
+      rampState = { ...rampState, ...updateData, updatedAt: new Date() };
 
       const filePath = path.join(__dirname, 'lastRampState.json');
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
@@ -309,10 +309,11 @@ describe('PhaseProcessor Integration Test', () => {
 
       const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
-      await new Promise((resolve) => setTimeout(resolve, 3000000)); // 3000 seconds timeout is reasonable for THIS test.
+      const finalRampState = await waitForCompleteRamp(registeredRamp.id);
 
-      // expect(rampState.currentPhase).toBe('complete');
-      // expect(rampState.phaseHistory.length).toBeGreaterThan(1);
+      // Some sanity checks.
+      expect(finalRampState.currentPhase).toBe('complete');
+      expect(finalRampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
       console.error('Error during test execution:', error);
 
@@ -362,5 +363,36 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
   } catch (error) {
     console.error('Error sending raw EVM transaction', error);
     throw new Error('Failed to send transaction');
+  }
+}
+
+async function waitForCompleteRamp(rampId: string) {
+  const pollInterval = 10 * 1000; // 10 seconds
+  const globalTimeout = 15 * 60 * 1000; // 15 minutes
+  const stalePhaseTimeout = 5 * 60 * 1000; // 5 minutes
+
+  const startTime = Date.now();
+  let lastUpdated = new Date(rampState.createdAt).getTime(); // Will be creation time on the first iteration.
+
+  while (true) {
+    const currentState = rampState;
+
+    if (currentState.currentPhase === 'complete') {
+      return currentState;
+    }
+    const currentUpdated = new Date(currentState.updatedAt).getTime();
+    if (currentUpdated > lastUpdated) {
+      lastUpdated = currentUpdated;
+    }
+
+    if (Date.now() - lastUpdated > stalePhaseTimeout) {
+      throw new Error('Ramp state has been stale for more than 5 minutes.');
+    }
+
+    if (Date.now() - startTime > globalTimeout) {
+      throw new Error('Global timeout of 15 minutes reached without completing the ramp process.');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 }
