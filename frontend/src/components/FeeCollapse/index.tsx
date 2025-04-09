@@ -1,6 +1,6 @@
 import { FC, JSX } from 'react';
 import Big from 'big.js';
-import { BaseFiatTokenDetails, OnChainTokenDetails } from 'shared';
+import { OnChainTokenDetails, FiatTokenDetails } from 'shared';
 import { useEventsContext } from '../../contexts/events';
 import { useOfframpFees } from '../../hooks/useOfframpFees';
 import { getTokenSymbol } from '../../helpers/getTokenSymbol';
@@ -8,7 +8,7 @@ import { getTokenSymbol } from '../../helpers/getTokenSymbol';
 interface CollapseProps {
   fromAmount?: string;
   toAmount?: Big;
-  toToken: BaseFiatTokenDetails | OnChainTokenDetails;
+  toToken: FiatTokenDetails | OnChainTokenDetails;
   exchangeRate?: JSX.Element;
 }
 
