@@ -7,7 +7,7 @@ interface UseRampUrlParamsProps {
   form: UseFormReturn<RampFormValues, unknown, undefined>;
 }
 
-const defaultFiatTokenAmounts: Record<FiatToken, number> = { eurc: 1000, ars: 200, brl: 300 };
+const defaultFiatTokenAmounts: Record<FiatToken, number> = { eurc: 20, ars: 20, brl: 5 };
 
 export const useRampUrlParams = ({ form }: UseRampUrlParamsProps) => {
   useEffect(() => {
