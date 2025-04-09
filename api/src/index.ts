@@ -1,4 +1,9 @@
 import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({
+  path: [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '../.env')],
+});
 
 import { config } from './config/vars';
 import logger from './config/logger';
@@ -20,8 +25,6 @@ import registerPhaseHandlers from './api/services/phases/register-handlers';
 import { EventPoller } from './api/services/brla/webhooks';
 
 const { port, env } = config;
-
-dotenv.config();
 
 // Consider grouping all environment checks into a single function
 const validateRequiredEnvVars = () => {

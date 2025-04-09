@@ -1,5 +1,3 @@
-import * as dotenv from 'dotenv';
-
 const HORIZON_URL = 'https://horizon.stellar.org';
 const PENDULUM_FUNDING_AMOUNT_UNITS = '10'; // 10 PEN. Minimum balance of funding account
 const PENDULUM_GLMR_FUNDING_AMOUNT_UNITS = '10'; // 10 GLMR. Minimum balance of funding account
@@ -18,8 +16,6 @@ const GLMR_FUNDING_AMOUNT_RAW = '50000000000000000';
 const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMPLE URL
 
 const STELLAR_BASE_FEE = '1000000';
-
-dotenv.config();
 
 const { PENDULUM_FUNDING_SEED } = process.env;
 const { FUNDING_SECRET } = process.env;
