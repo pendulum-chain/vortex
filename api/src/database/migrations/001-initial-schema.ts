@@ -130,17 +130,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       defaultValue: [],
       field: 'error_logs',
     },
-    subsidyDetails: {
+    processingLock: {
       type: DataTypes.JSONB,
       allowNull: false,
-      defaultValue: {},
-      field: 'subsidy_details',
-    },
-    nonceSequences: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: {},
-      field: 'nonce_sequences',
+      defaultValue: { locked: false, lockedAt: null },
+      field: 'processing_lock',
     },
     createdAt: {
       type: DataTypes.DATE,
@@ -151,55 +145,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.DATE,
       allowNull: false,
       field: 'updated_at',
-    },
-  });
-
-  // Create phase_metadata table from the second migration
-  await queryInterface.createTable('phase_metadata', {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    phase_name: {
-      type: DataTypes.STRING(64),
-      allowNull: false,
-      unique: true,
-    },
-    required_transactions: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: [],
-    },
-    success_conditions: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: {},
-    },
-    retry_policy: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: {
-        max_attempts: 3,
-        backoff_ms: 1000,
-      },
-    },
-    valid_transitions: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: [],
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'created_at',
-      defaultValue: DataTypes.NOW,
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'updated_at',
-      defaultValue: DataTypes.NOW,
     },
   });
 
@@ -221,28 +166,15 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex('ramp_states', ['quote_id'], {
     name: 'idx_ramp_quote',
   });
-
-  // From second migration
-  await queryInterface.addIndex('phase_metadata', ['phase_name'], {
-    name: 'idx_phase_metadata_name',
-  });
-
-  await queryInterface.addIndex('phase_metadata', ['valid_transitions'], {
-    name: 'idx_phase_metadata_transitions',
-    using: 'gin',
-  });
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Drop all indexes
-  await queryInterface.removeIndex('phase_metadata', 'idx_phase_metadata_transitions');
-  await queryInterface.removeIndex('phase_metadata', 'idx_phase_metadata_name');
   await queryInterface.removeIndex('ramp_states', 'idx_ramp_current_phase');
   await queryInterface.removeIndex('ramp_states', 'idx_ramp_quote');
   await queryInterface.removeIndex('quote_tickets', 'idx_quote_chain_expiry');
 
   // Drop tables in reverse order
-  await queryInterface.dropTable('phase_metadata');
   await queryInterface.dropTable('ramp_states');
   await queryInterface.dropTable('quote_tickets');
 }

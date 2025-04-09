@@ -1,6 +1,5 @@
 import httpStatus from 'http-status';
 import RampState from '../../../models/rampState.model';
-import PhaseMetadata from '../../../models/phaseMetadata.model';
 import phaseRegistry from './phase-registry';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
@@ -182,23 +181,6 @@ export class PhaseProcessor {
 
       throw error;
     }
-  }
-
-  /**
-   * Get the valid next phases for a phase
-   * @param phaseName The name of the phase
-   * @returns The valid next phases
-   */
-  public async getValidNextPhases(phaseName: string): Promise<string[]> {
-    const phaseMetadata = await PhaseMetadata.findOne({
-      where: { phaseName },
-    });
-
-    if (!phaseMetadata) {
-      return [];
-    }
-
-    return phaseMetadata.validTransitions;
   }
 }
 
