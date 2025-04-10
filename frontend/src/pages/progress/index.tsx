@@ -7,10 +7,10 @@ import { Box } from '../../components/Box';
 import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { isNetworkEVM, RampPhase } from 'shared';
+import { isNetworkEVM, RampPhase, CleanupPhase } from 'shared';
 import { GotQuestions } from '../../sections/GotQuestions';
 import { WarningBanner } from '../../components/WarningBanner';
-import { useRampActions, useRampState } from '../../stores/offrampStore';
+import { useRampActions, useRampState, useRampStore } from '../../stores/offrampStore';
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
 
@@ -54,7 +54,7 @@ const useProgressUpdate = (
   }, [currentPhase, currentPhaseIndex, displayedPercentage, setDisplayedPercentage, setShowCheckmark]);
 };
 
-export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
+export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase | CleanupPhase, number> = {
   complete: 0,
   brlaTeleport: 0,
   failed: 0,
@@ -78,6 +78,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   stellarCreateAccount: 10,
   moonbeamToPendulumXcm: 30,
   moonbeamCleanup: 30,
+  stellarCleanup: 6, // Added missing cleanup phase
 };
 
 const CIRCLE_RADIUS = 80;
@@ -205,12 +206,22 @@ export const ProgressPage = () => {
   const message = getMessageForPhase(rampState, t);
   
   useEffect(() => {
+    // Only set up the polling if we have a ramp ID
+    if (!rampState?.ramp?.id) return;
+    
+    // Extract the ramp ID once to avoid dependency on the entire rampState object
+    const rampId = rampState.ramp.id;
+    
     const fetchRampState = async () => {
       try {
-        if (!rampState?.ramp?.id) return;
-        const updatedRampProcess = await RampService.getRampStatus(rampState?.ramp?.id);
-        const updatedRampState = { ...rampState, ramp: updatedRampProcess };
-        setRampState(updatedRampState);
+        const updatedRampProcess = await RampService.getRampStatus(rampId);
+        
+        // Get the latest rampState from the store to ensure we're using current data
+        const currentRampState = useRampStore.getState().rampState;
+        if (currentRampState) {
+          const updatedRampState = { ...currentRampState, ramp: updatedRampProcess };
+          setRampState(updatedRampState);
+        }
         
         const maybeNewPhase = updatedRampProcess.currentPhase;
         if (maybeNewPhase !== prevPhaseRef.current) {
@@ -228,11 +239,15 @@ export const ProgressPage = () => {
       }
     };
     
+    // Initial fetch
     fetchRampState();
+    
+    // Set up polling
     const intervalId = setInterval(fetchRampState, 5000);
     
+    // Clean up
     return () => clearInterval(intervalId);
-  }, [setRampState, trackEvent, rampState]);
+  }, [rampState?.ramp?.id, setRampState, trackEvent]); // Only depend on the ramp ID, not the entire state
   
   return (
     <BaseLayout
