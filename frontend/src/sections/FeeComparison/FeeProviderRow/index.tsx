@@ -10,6 +10,7 @@ import { cn } from '../../../helpers/cn';
 import { useRampForm } from '../../../hooks/ramp/useRampForm';
 import { useNetwork } from '../../../contexts/network';
 import { PriceProvider } from '../priceProviders';
+import { useQuote } from '../../../stores/ramp/useQuoteStore';
 
 interface FeeProviderRowProps {
   provider: PriceProvider;
@@ -30,20 +31,17 @@ export function FeeProviderRow({
   sourceAssetSymbol,
   targetAssetSymbol,
 }: FeeProviderRowProps) {
+  const { t } = useTranslation();
+
   const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
   const prevVortexPrice = useRef<Big | null>(null);
   const prevProviderPrice = useRef<Big | null>(null);
   const { selectedNetwork } = useNetwork();
+  const quote = useQuote();
 
-  // const { form } = useRampForm();
-
-  // const formToAmount = form.watch('toAmount');
-  // // The price comparison is only available for Polygon (for now)
-  // const vortexPrice = useMemo(() => (formToAmount ? Big(formToAmount) : Big(0)), [formToAmount]);
-
-  const vortexPrice = useMemo(() => Big(100), []);
+  const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
   const {
     isLoading,
@@ -97,8 +95,6 @@ export function FeeProviderRow({
     provider.name,
     schedulePrice,
   ]);
-
-  const { t } = useTranslation();
 
   return (
     <div className={cn(isBestRate && 'bg-green-500/10 rounded-md py-1')}>
