@@ -42,6 +42,7 @@ import { hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
  * @param ephemerals - Mapping from network to its corresponding EphemeralAccount.
  *                     Expected keys: stellar, pendulum, evm.
  * @param pendulumApi - ApiPromise instance for Pendulum transactions.
+ * @param moonbeamApi - ApiPromise instance for Moonbeam transactions.
  * @returns Promise resolving to an array of SignedTx.
  */
 export async function signUnsignedTransactions(

@@ -10,7 +10,7 @@ import {
   signAndSubmitEvmTransaction,
   signAndSubmitSubstrateTransaction,
 } from '../../services/transactions/userSigning';
-import { useAssetHubNode, usePendulumNode } from '../../contexts/polkadotNode';
+import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../contexts/polkadotNode';
 import { useEffect, useState } from 'react';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 
@@ -25,6 +25,7 @@ export const useMainProcess = () => {
   const { address, chainId } = useVortexAccount();
   const { apiComponents: pendulumApiComponents } = usePendulumNode();
   const { apiComponents: assethubApiComponents } = useAssetHubNode();
+  const { apiComponents: moonbeamApiComponents } = useMoonbeamNode();
   const { walletAccount: substrateWalletAccount } = usePolkadotWalletState();
 
   // TODO if user declined signing, do something
@@ -54,10 +55,6 @@ export const useMainProcess = () => {
       throw new Error('Missing chainId');
     }
 
-    if (!pendulumApiComponents?.api) {
-      throw new Error('Missing pendulumApiComponents');
-    }
-
     const quoteId = executionInput.quote.id;
     const signingAccounts: AccountMeta[] = [
       { address: executionInput.ephemerals.stellarEphemeral.address, network: Networks.Stellar },
@@ -71,12 +68,6 @@ export const useMainProcess = () => {
       brlaEvmAddress: executionInput.brlaEvmAddress,
     };
     const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
-
-    const signedTxs = await signUnsignedTransactions(
-      rampProcess.unsignedTxs,
-      executionInput.ephemerals,
-      pendulumApiComponents.api,
-    );
 
     setRampRegistered(true);
     setRampState({
@@ -96,7 +87,10 @@ export const useMainProcess = () => {
     if (rampRegistered && rampStarted) {
       return;
     }
-    if (!rampState?.ramp || !pendulumApiComponents?.api || !executionInput || !chainId) {
+    if (!rampState?.ramp || !executionInput || !chainId) {
+      return;
+    }
+    if (!moonbeamApiComponents?.api || !pendulumApiComponents?.api) {
       return;
     }
 
@@ -113,25 +107,19 @@ export const useMainProcess = () => {
       });
 
       // Sign all unsigned transactions with ephemerals
-      signUnsignedTransactions(ephemeralTxs, executionInput.ephemerals, pendulumApiComponents.api).then(
-        (signedTransactions) => {
-          setRampState({
-            ...rampState,
-            signedTransactions,
-          });
-        },
-      );
+      signUnsignedTransactions(
+        ephemeralTxs,
+        executionInput.ephemerals,
+        pendulumApiComponents.api,
+        moonbeamApiComponents.api,
+      ).then((signedTransactions) => {
+        setRampState({
+          ...rampState,
+          signedTransactions,
+        });
+      });
     }
-  }, [
-    address,
-    chainId,
-    executionInput,
-    pendulumApiComponents?.api,
-    rampRegistered,
-    rampStarted,
-    rampState,
-    setRampState,
-  ]);
+  }, [address, chainId, executionInput, moonbeamApiComponents?.api, pendulumApiComponents?.api, rampRegistered, rampStarted, rampState, setRampState]);
 
   useEffect(() => {
     // Determine if conditions are met before filtering transactions

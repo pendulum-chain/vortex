@@ -77,6 +77,7 @@ const usePolkadotNodes = () => {
 enum NodeName {
   AssetHub = 'assetHub',
   Pendulum = 'pendulum',
+  Moonbeam = 'moonbeam',
 }
 
 const usePolkadotNode = (nodeName: NodeName) => {
@@ -93,7 +94,6 @@ const usePolkadotNode = (nodeName: NodeName) => {
 
 const useAssetHubNode = () => usePolkadotNode(NodeName.AssetHub);
 const usePendulumNode = () => usePolkadotNode(NodeName.Pendulum);
-
 const useMoonbeamNode = () => {
   const { state, isFetched } = usePolkadotNodes();
   return { apiComponents: state.moonbeam, isFetched };
