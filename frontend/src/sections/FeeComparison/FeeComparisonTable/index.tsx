@@ -7,6 +7,8 @@ import { FeeProviderRow } from '../FeeProviderRow';
 import { useNetwork } from '../../../contexts/network';
 import { priceProviders } from '../priceProviders';
 import { useRampFormStore } from '../../../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../../../stores/rampDirectionStore';
+import { RampDirection } from '../../../components/RampToggle';
 
 const DEFAULT_PROVIDERS = [...priceProviders];
 
@@ -14,8 +16,14 @@ export function FeeComparisonTable() {
   const { t } = useTranslation();
   const { inputAmount, onChainToken, fiatToken } = useRampFormStore();
   const { selectedNetwork } = useNetwork();
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
-  const toToken = getAnyFiatTokenDetails(fiatToken);
+
+  const rampDirection = useRampDirection();
+  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const onChainTokenDetails = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+  const fiatTokenDetails = getAnyFiatTokenDetails(fiatToken);
+  const sourceAssetSymbol = isOnramp ? fiatTokenDetails.fiat.symbol : onChainTokenDetails.assetSymbol;
+  const targetAssetSymbol = isOnramp ? onChainTokenDetails.assetSymbol : fiatTokenDetails.fiat.symbol;
+
   const amount = inputAmount || Big(100);
 
   const [providerPrices, setProviderPrices] = useState<Record<string, Big>>({});
@@ -55,7 +63,7 @@ export function FeeComparisonTable() {
       <div className="flex items-center justify-center w-full mb-3">
         <div className="flex items-center justify-center w-full gap-4">
           <span className="font-bold text-md">
-            {t('sections.feeComparison.table.sending')} {amount.toFixed(2)} {fromToken.assetSymbol} {networkDisplay}{' '}
+            {t('sections.feeComparison.table.sending')} {amount.toFixed(2)} {sourceAssetSymbol} {networkDisplay}{' '}
             {t('sections.feeComparison.table.with')}
           </span>
         </div>
@@ -68,15 +76,14 @@ export function FeeComparisonTable() {
       {sortedProviders.map((provider) => (
         <div key={provider.name}>
           <div className="w-full my-4 border-b border-gray-200" />
-
           <FeeProviderRow
             provider={provider}
             onPriceFetched={handlePriceUpdate}
             isBestRate={provider.name === bestProvider.bestProvider}
             bestPrice={bestProvider.bestPrice}
             amount={amount}
-            sourceAssetSymbol={fromToken.assetSymbol}
-            targetAssetSymbol={toToken.fiat.symbol}
+            sourceAssetSymbol={sourceAssetSymbol}
+            targetAssetSymbol={targetAssetSymbol}
           />
         </div>
       ))}

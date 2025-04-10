@@ -7,10 +7,11 @@ import { OfframpingParameters, useEventsContext } from '../../../contexts/events
 import { Skeleton } from '../../../components/Skeleton';
 import { formatPrice } from '../helpers';
 import { cn } from '../../../helpers/cn';
-import { useRampForm } from '../../../hooks/ramp/useRampForm';
 import { useNetwork } from '../../../contexts/network';
 import { PriceProvider } from '../priceProviders';
 import { useQuote } from '../../../stores/ramp/useQuoteStore';
+import { useRampDirection } from '../../../stores/rampDirectionStore';
+import { RampDirection } from '../../../components/RampToggle';
 
 interface FeeProviderRowProps {
   provider: PriceProvider;
@@ -41,6 +42,9 @@ export function FeeProviderRow({
   const { selectedNetwork } = useNetwork();
   const quote = useQuote();
 
+  const rampDirection = useRampDirection();
+  const isOnramp = rampDirection === RampDirection.ONRAMP;
+
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
   const {
@@ -55,6 +59,9 @@ export function FeeProviderRow({
 
   const providerPrice = useMemo(() => {
     if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
+
+    // FIXME - this is a hack until we implement fetching prices for onramp providers
+    if (isOnramp) return undefined
 
     return providerPriceRaw && providerPriceRaw.gte(0) ? providerPriceRaw : undefined;
   }, [providerPriceRaw, vortexPrice, provider.name]);
