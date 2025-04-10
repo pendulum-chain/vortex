@@ -182,7 +182,6 @@ export const useRegisterRamp = () => {
 
       setRampRegistered(true);
       setRampState({
-        brCode: rampProcess.brCode,
         quote: executionInput.quote,
         ramp: rampProcess,
         signedTransactions,

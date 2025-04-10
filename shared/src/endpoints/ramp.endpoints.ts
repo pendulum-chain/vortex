@@ -116,7 +116,7 @@ export namespace RampEndpoints {
     createdAt: string;
     updatedAt: string;
     unsignedTxs: UnsignedTx[]; // Array of unsigned txs that need to be signed
-    brCode?: string; 
+    brCode?: string;
   }
 
   // GET /ramp/:id

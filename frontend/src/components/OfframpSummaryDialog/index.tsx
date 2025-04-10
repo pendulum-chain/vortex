@@ -117,7 +117,7 @@ const BRLOnrampDetails = () => {
   const rampState = useRampState();
 
   if (rampDirection !== RampDirection.ONRAMP) return null;
-  if (!rampState?.brCode) return null;
+  if (!rampState?.ramp?.brCode) return null;
 
   return (
     <section>
@@ -129,12 +129,12 @@ const BRLOnrampDetails = () => {
       <p className="pt-2 text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.qrCode')}</p>
       <div className="flex justify-center my-6">
         <div className="border-1 border-gray-300 rounded-lg p-4">
-          <QRCodeSVG value={rampState.brCode} />
+          <QRCodeSVG value={rampState.ramp?.brCode} />
         </div>
       </div>
       <p className="text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.copyCode')}</p>
       <p className="text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.pixCode')}:</p>
-      <CopyButton text={rampState.brCode} className="w-full mt-4 py-10" />
+      <CopyButton text={rampState.ramp?.brCode} className="w-full mt-4 py-10" />
     </section>
   );
 };
