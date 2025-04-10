@@ -85,7 +85,7 @@ export async function prepareOfframpTransactions({
   // Validate output amount from UI/sep24
   if (stellarPaymentData && stellarPaymentData.amount) {
     const stellarAmount = new Big(stellarPaymentData.amount);
-    if (stellarAmount !== (outputAmountBeforeFees)) {
+    if (!stellarAmount.eq(outputAmountBeforeFees)) {
       throw new Error(
         `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${outputAmountBeforeFees.toString()}`,
       );
