@@ -10,10 +10,10 @@ import {
   getAnyFiatTokenDetails,
   TokenType,
   FiatTokenDetails,
+  Networks,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useNetwork } from '../../contexts/network';
-import { Networks } from 'shared';
 
 import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
@@ -25,6 +25,8 @@ import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { RampExecutionInput } from '../../types/phases';
+import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
+import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 
 interface AssetDisplayProps {
   amount: string;
@@ -135,7 +137,7 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
 
   const getPartnerUrl = (): string => {
     if (isOnramp) {
-      return 'https://vortex.finance';
+      return 'mock';
     }
     const fiatToken = toToken as FiatTokenDetails;
     return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
@@ -194,19 +196,28 @@ export const OfframpSummaryDialog: FC = () => {
   const anchorUrl = useSep24StoreCachedAnchorUrl();
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const fiatToken = useFiatToken();
+  const onChainToken = useOnChainToken();
+  const { outputAmount } = useQuoteStore();
+
+  const { feesCost } = useOfframpFees({
+    toAmount: outputAmount,
+    toToken: isOnramp
+      ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
+      : getAnyFiatTokenDetails(fiatToken),
+  });
 
   if (!visible) return null;
   if (!executionInput) return null;
 
   if (!isOnramp) {
-    if (!anchorUrl && getAnyFiatTokenDetails(executionInput.fiatToken).type === TokenType.Stellar) return null;
-    if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(executionInput.fiatToken).type === 'moonbeam')
-      return null;
+    if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return null;
+    if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === 'moonbeam') return null;
   }
 
   const toToken = isOnramp
-    ? getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken)
-    : getAnyFiatTokenDetails(executionInput.fiatToken);
+    ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
+    : getAnyFiatTokenDetails(fiatToken);
 
   const onClose = () => {
     setIsSubmitted(false);
@@ -261,5 +272,5 @@ export const OfframpSummaryDialog: FC = () => {
     />
   );
 
-  return <Dialog content={content} visible={true} actions={actions} headerText={headerText} onClose={onClose} />;
+  return <Dialog content={content} visible={visible} actions={actions} headerText={headerText} onClose={onClose} />;
 };
