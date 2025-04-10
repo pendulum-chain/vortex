@@ -1,5 +1,5 @@
 import { ArrowDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { useState, FC } from 'react';
+import { useState, FC, useMemo } from 'react';
 import Big from 'big.js';
 
 import {
@@ -176,8 +176,6 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
     ? (fromToken as BaseFiatTokenDetails).fiat.symbol
     : (toToken as BaseFiatTokenDetails).fiat.symbol;
 
-  console.log('quote', executionInput.quote);
-
   return (
     <div className="flex flex-col justify-center">
       <AssetDisplay
@@ -231,13 +229,19 @@ export const OfframpSummaryDialog: FC = () => {
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
 
+  const submitButtonDisabled = useMemo(() => {
+    if (!executionInput) return true;
+
+    if (!isOnramp) {
+      if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
+      if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === 'moonbeam') return true;
+    }
+
+    return isSubmitted;
+  }, [anchorUrl, executionInput, fiatToken, isOnramp, isSubmitted]);
+
   if (!visible) return null;
   if (!executionInput) return null;
-
-  if (!isOnramp) {
-    if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return null;
-    if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === 'moonbeam') return null;
-  }
 
   const toToken = isOnramp
     ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
@@ -266,7 +270,7 @@ export const OfframpSummaryDialog: FC = () => {
 
   const actions = (
     <button
-      disabled={isSubmitted}
+      disabled={submitButtonDisabled}
       className="btn-vortex-primary btn rounded-xl"
       style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
       onClick={onSubmit}
