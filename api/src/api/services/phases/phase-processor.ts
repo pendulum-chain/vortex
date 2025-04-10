@@ -70,6 +70,16 @@ export class PhaseProcessor {
     }
   }
 
+  private isLockExpired(state: RampState): boolean {
+    const lockDuration = 30 * 10 * 1000; // 10 minutes
+    const now = new Date();
+    const lockTime = state.processingLock.lockedAt;
+    if (!lockTime) {
+      return true; // No lock time means it's not locked
+    }
+    return now.getTime() - lockTime.getTime() > lockDuration;
+  }
+
   /**
    * Process a ramping process
    * @param rampId The ID of the ramping process
@@ -86,8 +96,13 @@ export class PhaseProcessor {
     // Try to acquire the lock
     const lockAcquired = await this.acquireLock(state);
     if (!lockAcquired) {
-      logger.info(`Skipping processing for ramp ${rampId} as it's already being processed`);
-      return;
+      if (this.isLockExpired(state)) {
+        logger.info(`Lock for ramp ${rampId} has expired, releasing it`);
+        await this.releaseLock(state);
+      } else {
+        logger.info(`Skipping processing for ramp ${rampId} as it's already being processed`);
+        return;
+      }
     }
 
     try {
