@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { ReactNode } from 'react';
-import { useRampState, useRampKycStarted } from '../../stores/offrampStore';
+import { useRampState, useRampKycStarted, useRampStarted } from '../../stores/offrampStore';
 
 export const useRampNavigation = (
   successComponent: ReactNode,
@@ -9,6 +9,7 @@ export const useRampNavigation = (
   formComponent: ReactNode,
 ) => {
   const rampState = useRampState();
+  const rampStarted = useRampStarted();
   const offrampKycStarted = useRampKycStarted();
 
   const getCurrentComponent = useCallback(() => {
@@ -21,15 +22,13 @@ export const useRampNavigation = (
     }
 
     if (rampState !== undefined && rampState.ramp?.currentPhase) {
-      const isExecuting = rampState.ramp.currentPhase !== 'initial'; // complete and failed are already handled above
-
-      if (isExecuting) {
+      if (rampStarted) {
         return progressComponent;
       }
     }
 
     return formComponent;
-  }, [rampState, successComponent, failureComponent, progressComponent, formComponent]);
+  }, [rampState, formComponent, successComponent, failureComponent, rampStarted, progressComponent]);
 
   const shouldShowKycForm = useCallback(() => {
     return offrampKycStarted;
