@@ -5,13 +5,14 @@ import { EphemeralAccount } from 'shared';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
 export function createMoonbeamEphemeral(): EphemeralAccount {
-  const privateKey = generatePrivateKey();
+  const seedPhrase = mnemonicGenerate();
+  const keyring = new Keyring({ type: 'ethereum' });
 
-  const account = privateKeyToAccount(privateKey);
+  const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
   return {
-    secret: privateKey,
-    address: account.address
+    secret: seedPhrase,
+    address: ephemeralAccountKeypair.address
   };
 }
 

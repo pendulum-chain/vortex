@@ -50,7 +50,7 @@ export async function signUnsignedTransactions(
   ephemerals: {
     stellarEphemeral?: EphemeralAccount;
     pendulumEphemeral?: EphemeralAccount;
-    evmEphemeral?: EphemeralAccount;
+    moonbeamEphemeral?: EphemeralAccount;
   },
   pendulumApi: ApiPromise,
   moonbeamApi: ApiPromise,
@@ -114,14 +114,14 @@ export async function signUnsignedTransactions(
     }
 
     for (const tx of moonbeamTxs) {
-      if (!ephemerals.evmEphemeral) {
+      if (!ephemerals.moonbeamEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
       const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
       if (isEvmTransactionData(tx.txData)) {
 
         const privateKey = u8aToHex(
-          hdEthereum(mnemonicToLegacySeed(ephemerals.evmEphemeral.secret, '', false, 64), ethDerPath)
+          hdEthereum(mnemonicToLegacySeed(ephemerals.moonbeamEphemeral.secret, '', false, 64), ethDerPath)
             .secretKey
         );
         const evmAccount = privateKeyToAccount(privateKey);
@@ -151,7 +151,7 @@ export async function signUnsignedTransactions(
       } else {
 
         const keyring = new Keyring({ type: 'ethereum' });
-        const keypair = keyring.addFromUri(`${ephemerals.evmEphemeral.secret}/${ethDerPath}`);
+        const keypair = keyring.addFromUri(`${ephemerals.moonbeamEphemeral.secret}/${ethDerPath}`);
         
         const extrinsic = decodeSubmittableExtrinsic(tx.txData, moonbeamApi);
         await extrinsic.signAsync(keypair, { nonce: tx.nonce, era: 0 });

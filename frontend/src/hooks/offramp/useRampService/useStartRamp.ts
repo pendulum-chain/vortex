@@ -10,6 +10,7 @@ export const useStartRamp = () => {
   } = useRampStore();
 
   useEffect(() => {
+    // TODO wait for user confirmation for onramp.
     const shouldStartRamp =
       rampState?.userSigningMeta && !rampStarted && rampState?.ramp && (rampState?.signedTransactions?.length || 0) > 0;
 

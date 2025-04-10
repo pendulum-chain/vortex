@@ -200,7 +200,7 @@ describe('Onramp PhaseProcessor Integration Test', () => {
         {
           stellarEphemeral: testSigningAccounts.stellar,
           pendulumEphemeral: testSigningAccounts.pendulum,
-          evmEphemeral: testSigningAccounts.moonbeam,
+          moonbeamEphemeral: testSigningAccounts.moonbeam,
         },
         pendulumNode.api,
         moonbeamNode.api,
