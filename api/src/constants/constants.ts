@@ -17,7 +17,7 @@ const WEBHOOKS_CACHE_URL = 'https://webhooks-cache.pendulumchain.tech'; // EXAMP
 const STELLAR_BASE_FEE = '1000000';
 
 // Expiration and timeout values
-const SEQUENCE_TIME_WINDOW_IN_SECONDS = 300; // 5 minutes. Marks the MAXIMUM window between creating the stellar ephemeral transactions and it's creation on chain.
+const SEQUENCE_TIME_WINDOW_IN_SECONDS = 600; // 10 minutes. Marks the MAXIMUM window between creating the stellar ephemeral transactions and it's creation on chain.
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 
 const { PENDULUM_FUNDING_SEED } = process.env;

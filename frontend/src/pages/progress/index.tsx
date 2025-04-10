@@ -56,7 +56,7 @@ const useProgressUpdate = (
 
 export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   complete: 0,
-  createPayInRequest: 0,
+  brlaTeleport: 0,
   failed: 0,
   initial: 0,
 

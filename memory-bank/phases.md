@@ -62,7 +62,7 @@ sequenceDiagram
     participant M as MoonbeamNode
 
     F->>S: InitiateOnramp
-    S->>B: createPayInRequest
+    S->>B: brlaTeleport
     S->>M: createMoonbeamEphemeralSeed
     S->>M: executeMoonbeamToPendulumXCM
     S->>S: subsidizePreSwap

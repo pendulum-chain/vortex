@@ -32,7 +32,10 @@
       "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
-      "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner"
+      "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
+      "squidrouterApprove": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
+      "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
+      "brlaTeleport": "Transferring newly minted assets to Moonbeam"
     },
     "success": {
       "title": "All set! The withdrawal has been sent to your bank.",

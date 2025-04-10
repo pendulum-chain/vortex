@@ -15,7 +15,7 @@ import moonbeamToPendulumPhaseHandler from './handlers/moonbeam-to-pendulum-hand
 import brlaPayoutMoonbeamHandler from './handlers/brla-payout-moonbeam-handler';
 import moonbeamToPendulumXcmHandler from './handlers/moonbeam-to-pendulum-xcm-handler';
 import fundEphemeralHandler from './handlers/fund-ephemeral-handler';
-import createPayInHandler from './handlers/create-pay-in-handler';
+import brlaTeleportHandler from './handlers/brla-teleport-handler';
 import moonbeamCleanupHandler from './handlers/moonbeam-cleanup-handler';
 import completePhaseHandler from './handlers/complete-phase-handler';
 /**
@@ -41,7 +41,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(brlaPayoutMoonbeamHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
-  phaseRegistry.registerHandler(createPayInHandler);
+  phaseRegistry.registerHandler(brlaTeleportHandler);
   phaseRegistry.registerHandler(moonbeamCleanupHandler);
 
   logger.info('Phase handlers registered');

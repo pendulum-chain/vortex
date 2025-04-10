@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { FiatToken, getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum, RampPhase } from 'shared';
+import { FiatToken, getAnyFiatTokenDetailsMoonbeam, RampPhase } from 'shared';
 
 import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
@@ -8,9 +8,9 @@ import { BrlaApiService } from '../../brla/brlaApiService';
 import { checkMoonbeamBalancePeriodically } from '../../moonbeam/balance';
 import { BrlaTeleportService } from '../../brla/brlaTeleportService';
 
-export class CreatePayInPhaseHandler extends BasePhaseHandler {
+export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return 'createPayInRequest';
+    return 'brlaTeleport';
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -18,7 +18,7 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
       state.state as StateMetadata;
 
     if (!taxId || !moonbeamEphemeralAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
-      throw new Error('CreatePayInPhaseHandler: State metadata corrupted. This is a bug.');
+      throw new Error('BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
     try {
@@ -40,8 +40,8 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
 
       // now we wait and verify that funds have arrived at the actual destination ephemeral.
     } catch (e) {
-      console.error('Error in createPayIn', e);
-      throw new Error('CreatePayInPhaseHandler: Failed to trigger BRLA pay in.');
+      console.error('Error in brlaTeleport', e);
+      throw new Error('BrlaTeleportPhaseHandler: Failed to trigger BRLA pay in.');
     }
 
     try {
@@ -60,10 +60,10 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {
         if (balanceCheckError.message === 'Balance did not meet the limit within the specified time') {
-          throw new Error(`CreatePayInPhaseHandler: balanceCheckError ${balanceCheckError.message}`);
+          throw new Error(`BrlaTeleportPhaseHandler: balanceCheckError ${balanceCheckError.message}`);
         } else {
           console.log('Error checking Moonbeam balance:', balanceCheckError);
-          throw new Error(`CreatePayInPhaseHandler: Error checking Moonbeam balance`);
+          throw new Error(`BrlaTeleportPhaseHandler: Error checking Moonbeam balance`);
         }
       }
     }
@@ -72,4 +72,4 @@ export class CreatePayInPhaseHandler extends BasePhaseHandler {
   }
 }
 
-export default new CreatePayInPhaseHandler();
+export default new BrlaTeleportPhaseHandler();
