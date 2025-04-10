@@ -218,7 +218,7 @@ export const OfframpSummaryDialog: FC = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { selectedNetwork } = useNetwork();
-  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible } = useRampActions();
+  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible, setRampPaymentConfirmed } = useRampActions();
   const offrampState = useRampState();
   const executionInput = useRampExecutionInput();
   const visible = useRampSummaryVisible();
@@ -257,7 +257,13 @@ export const OfframpSummaryDialog: FC = () => {
 
   const onSubmit = () => {
     setIsSubmitted(true);
-    onRampConfirm();
+
+    if (executionInput.quote.rampType === 'on') {
+      console.log('calling setramppaymentconfirmed');
+      setRampPaymentConfirmed(true);
+    } else {
+      onRampConfirm();
+    }
 
     if (!isOnramp && (toToken as FiatTokenDetails).type !== 'moonbeam' && anchorUrl) {
       window.open(anchorUrl, '_blank');

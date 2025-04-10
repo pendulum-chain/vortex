@@ -6,15 +6,20 @@ export const useStartRamp = () => {
   const {
     rampState,
     rampStarted,
+    rampPaymentConfirmed,
     actions: { setRampStarted },
   } = useRampStore();
 
   useEffect(() => {
-    // TODO wait for user confirmation for onramp.
     const shouldStartRamp =
       rampState?.userSigningMeta && !rampStarted && rampState?.ramp && (rampState?.signedTransactions?.length || 0) > 0;
 
+
     if (!shouldStartRamp) {
+      return;
+    }
+
+    if (Boolean(rampState?.ramp?.type === 'on') && !rampPaymentConfirmed) {
       return;
     }
 
@@ -26,5 +31,5 @@ export const useStartRamp = () => {
       .catch((err) => {
         console.error('Error starting ramp:', err);
       });
-  }, [rampStarted, rampState, setRampStarted]);
+  }, [rampPaymentConfirmed, rampStarted, rampState, setRampStarted]);
 };

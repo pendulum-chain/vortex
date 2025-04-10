@@ -265,7 +265,8 @@
     "swapSubmitButton": {
       "confirming": "Confirmando",
       "processing": "Processando",
-      "confirm": "Confirmar"
+      "confirm": "Confirmar",
+      "confirmPayment": "Confirmar pagamento"
     },
     "feeCollapse": {
       "details": "Detalhes",

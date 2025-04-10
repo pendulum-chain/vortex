@@ -39,6 +39,7 @@ export interface RampZustand {
   rampSigningPhase: RampSigningPhase | undefined;
   rampExecutionInput: RampExecutionInput | undefined;
   rampKycStarted: boolean;
+  rampPaymentConfirmed: boolean;
   initializeFailedMessage: string | undefined;
   rampSummaryVisible: boolean;
 }
@@ -50,6 +51,7 @@ export interface RampActions {
   setRampState: (state: RampState | undefined) => void;
   setRampSigningPhase: (phase: RampSigningPhase | undefined) => void;
   setRampKycStarted: (kycStarted: boolean) => void;
+  setRampPaymentConfirmed: (paymentConfirmed: boolean) => void;
   setRampExecutionInput: (executionInput: RampExecutionInput | undefined) => void;
   setInitializeFailedMessage: (message: string | undefined) => void;
   setRampSummaryVisible: (visible: boolean) => void;
