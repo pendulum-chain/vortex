@@ -82,6 +82,16 @@ export async function prepareOfframpTransactions({
     0,
   );
 
+  // Validate output amount from UI/sep24
+  if (stellarPaymentData && stellarPaymentData.amount) {
+    const stellarAmount = new Big(stellarPaymentData.amount);
+    if (stellarAmount !== (outputAmountBeforeFees)) {
+      throw new Error(
+        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${outputAmountBeforeFees.toString()}`,
+      );
+    }
+  }
+
   const stellarEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Stellar);
   if (!stellarEphemeralEntry) {
     throw new Error('Stellar ephemeral not found');
