@@ -65,10 +65,13 @@ export function FeeProviderRow({
   }, [isLoading, error, providerPrice, bestPrice]);
 
   useEffect(() => {
-    if (isLoading || !providerPrice || prevProviderPrice.current?.eq(providerPrice)) return;
+    if (isLoading) return;
+
     const currentPrice = providerPrice ? providerPrice : new Big(0);
+    if (prevProviderPrice.current?.eq(currentPrice)) return;
+
     onPriceFetched(provider.name, currentPrice);
-    prevProviderPrice.current = providerPrice;
+    prevProviderPrice.current = currentPrice;
   }, [isLoading, providerPrice, provider.name, onPriceFetched]);
 
   useEffect(() => {
