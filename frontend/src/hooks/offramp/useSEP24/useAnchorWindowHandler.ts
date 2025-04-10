@@ -84,8 +84,7 @@ export const useAnchorWindowHandler = () => {
     executionInput,
     trackKYCStarted,
     selectedNetwork,
-    address,
-    chainId,
+    setRampExecutionInput,
     handleAmountMismatch,
     setRampStarted,
   ]);

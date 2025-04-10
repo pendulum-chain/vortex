@@ -3,7 +3,7 @@ import { useVortexAccount } from '../../useVortexAccount';
 import { RampService } from '../../../services/api';
 import { AccountMeta, FiatToken, getAddressForFormat, Networks, signUnsignedTransactions } from 'shared';
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   signAndSubmitEvmTransaction,
   signAndSubmitSubstrateTransaction,
@@ -13,9 +13,48 @@ import { RampExecutionInput } from '../../../types/phases';
 import { useAnchorWindowHandler } from '../useSEP24/useAnchorWindowHandler';
 import { useSubmitOfframp } from '../useSubmitOfframp';
 
+const REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey';
+const START_KEY_LOCAL_STORAGE = 'rampStartKey';
+
+/**
+ * A utility hook to manage process locks using localStorage
+ * Prevents multiple processes from running simultaneously
+ */
+const useProcessLock = (lockKey: string) => {
+  // Checks if a lock exists and returns true if the process can proceed
+  const checkLock = useCallback(() => {
+    const existingLock = localStorage.getItem(lockKey);
+    if (existingLock !== null) {
+      console.log(`Process for ${lockKey} already started, skipping...`);
+      return { canProceed: false };
+    }
+
+    const processRef = new Date().toISOString();
+    localStorage.setItem(lockKey, processRef);
+    return { canProceed: true, processRef };
+  }, [lockKey]);
+
+  // Verifies that the current process still owns the lock
+  const verifyLock = useCallback((processRef?: string) => {
+    const currentLock = localStorage.getItem(lockKey);
+    if (currentLock && currentLock !== processRef) {
+      console.log(`Process for ${lockKey} taken over by another process, skipping...`);
+      return false;
+    }
+    return true;
+  }, [lockKey]);
+
+  // Releases the lock when the process is complete
+  const releaseLock = useCallback(() => {
+    localStorage.removeItem(lockKey);
+    console.log(`Completed process for ${lockKey}`);
+  }, [lockKey]);
+
+  return { checkLock, verifyLock, releaseLock };
+};
+
 // For Offramp EUR/ARS we trigger it after returning from anchor window
 // For Offramp/Onramp BRL we trigger it while clicking Continue in the ramp form
-
 export const useRegisterRamp = () => {
   const {
     rampRegistered,
@@ -31,19 +70,17 @@ export const useRegisterRamp = () => {
   const { apiComponents: assethubApiComponents } = useAssetHubNode();
   const { walletAccount: substrateWalletAccount } = usePolkadotWalletState();
 
+  const executionInput = useRampExecutionInput();
   const prepareOfframpSubmission = useSubmitOfframp();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
 
-  // TODO if user declined signing, do something
-  const [userDeclinedSigning, setUserDeclinedSigning] = useState(false);
-  const [userSigningInProgress, setUserSigningInProgress] = useState(false);
   // This flag is used to track if the user signaled to start the ramp process
   const [canRegisterRamp, setCanRegisterRamp] = useState(false);
-
-  const executionInput = useRampExecutionInput();
+  // TODO if user declined signing, do something
+  const [userDeclinedSigning, setUserDeclinedSigning] = useState(false);
 
   const registerRamp = async (executionInput: RampExecutionInput) => {
-    await prepareOfframpSubmission(executionInput);
+    prepareOfframpSubmission(executionInput);
 
     // For Stellar offramps, we need to prepare something in advance
     // Calling this function will result in eventually having the necessary prerequisites set
@@ -56,12 +93,25 @@ export const useRegisterRamp = () => {
     setCanRegisterRamp(true);
   };
 
+  const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
+
   useEffect(() => {
-    if (!canRegisterRamp) {
+    console.log(`Starting ramp registry process at ${new Date().toISOString()}`);
+
+    // Check if we can proceed with the registration process
+    const lockResult = checkLock();
+    if (!lockResult.canProceed) {
       return;
     }
 
+    const { processRef } = lockResult;
+
     const registerRampProcess = async () => {
+      // Verify we still own the lock before proceeding
+      if (!verifyLock(processRef)) {
+        return;
+      }
+
       if (!executionInput) {
         throw new Error('Missing execution input');
       }
@@ -109,9 +159,9 @@ export const useRegisterRamp = () => {
               pixDestination: executionInput.pixId,
             };
 
-      console.log('Registering ramp with additional data:', additionalData);
+      console.log(`Registering ramp with additional data:`, additionalData);
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
-      console.log('Ramp process registered:', rampProcess);
+      console.log(`Ramp process registered:`, rampProcess);
 
       const ephemeralTxs = rampProcess.unsignedTxs.filter((tx) => {
         if (!address) {
@@ -132,6 +182,7 @@ export const useRegisterRamp = () => {
 
       setRampRegistered(true);
       setRampState({
+        brCode: rampProcess.brCode,
         quote: executionInput.quote,
         ramp: rampProcess,
         signedTransactions,
@@ -144,19 +195,30 @@ export const useRegisterRamp = () => {
       });
     };
 
-    registerRampProcess().catch((error) => {
-      console.error('Error registering ramp:', error);
-    });
+    registerRampProcess()
+      .catch((error) => {
+        console.error(`Error registering ramp:`, error);
+      })
+      .finally(() => {
+        console.log("Completed ramp registry process")
+        releaseLock();
+      });
   }, [
     address,
     canRegisterRamp,
     chainId,
+    checkLock,
     executionInput,
     moonbeamApiComponents?.api,
     pendulumApiComponents?.api,
+    releaseLock,
     setRampRegistered,
     setRampState,
+    verifyLock,
   ]);
+
+  // Create a process lock for the signing process
+  const { checkLock: checkSigningLock, verifyLock: verifySigningLock, releaseLock: releaseSigningLock } = useProcessLock(START_KEY_LOCAL_STORAGE);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
   // This is only relevant for offramps. @TODO: Extract this to a separate hook for offramp
@@ -173,16 +235,18 @@ export const useRegisterRamp = () => {
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (
-      !rampState ||
-      rampState?.ramp?.type === 'on' ||
-      !shouldRequestSignatures ||
-      userSigningInProgress ||
-      userDeclinedSigning
-    ) {
+    if (!rampState || rampState?.ramp?.type === 'on' || !shouldRequestSignatures || userDeclinedSigning) {
       return; // Exit early if conditions aren't met
     }
-    setUserSigningInProgress(true);
+
+    // Check if we can proceed with the signing process
+    const lockResult = checkSigningLock();
+    if (!lockResult.canProceed) {
+      return;
+    }
+
+    const { processRef } = lockResult;
+    console.log(`Starting user signing process at ${new Date().toISOString()}`);
 
     // Now filter the transactions after passing the main guard
     const userTxs = rampState?.ramp?.unsignedTxs.filter((tx) => {
@@ -197,11 +261,11 @@ export const useRegisterRamp = () => {
 
     // Add a check to ensure there are actually transactions for the user to sign
     if (userTxs?.length === 0) {
-      console.log('No user transactions found requiring signature.');
+      console.log(`No user transactions found requiring signature.`);
       return;
     }
 
-    console.log('Proceeding to request signatures from user...');
+    console.log(`Proceeding to request signatures from user...`);
 
     // Kick off user signing process
     const requestSignaturesFromUser = async () => {
@@ -211,6 +275,11 @@ export const useRegisterRamp = () => {
 
       // Sign user transactions by nonce
       const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
+
+      // Verify we still own the lock
+      if (!verifySigningLock(processRef)) {
+        return;
+      }
 
       for (const tx of sortedTxs!) {
         if (tx.phase === 'squidrouterApprove') {
@@ -251,26 +320,28 @@ export const useRegisterRamp = () => {
 
     requestSignaturesFromUser()
       .then(() => {
-        console.log('Done requesting signatures from user');
+        console.log(`Done requesting signatures from user`);
       })
       .catch((error) => {
-        console.error('Error requesting signatures from user', error);
+        console.error(`Error requesting signatures from user`, error);
         // TODO check if user declined based on error provided
         // For now, assume it failed because the user declined
         setUserDeclinedSigning(true);
       })
-      .finally(() => setUserSigningInProgress(false));
+      .finally(() => releaseSigningLock());
   }, [
     address,
     assethubApiComponents?.api,
     chainId,
+    checkSigningLock,
     rampStarted,
     rampState,
+    releaseSigningLock,
     setRampSigningPhase,
     setRampState,
     substrateWalletAccount,
     userDeclinedSigning,
-    userSigningInProgress,
+    verifySigningLock,
   ]);
 
   return {
