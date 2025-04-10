@@ -25,10 +25,11 @@ export const RampFeeCollapse = () => {
 
   // We use a default of 1 to avoid dividing by zero
   const fromAmount = inputAmount ? Big(inputAmount) : Big(1);
+  const fromAmountGreaterZero = fromAmount.gt(0) ? fromAmount : Big(1);
   const toAmount = outputAmount ? Big(outputAmount) : Big(1);
   const fee = quote ? Big(quote.fee) : Big(0);
 
-  const exchangeRateBeforeFees = toAmount.plus(fee).div(fromAmount).toNumber();
+  const exchangeRateBeforeFees = toAmount.plus(fee).div(fromAmountGreaterZero).toNumber();
 
   return (
     <FeeCollapse
