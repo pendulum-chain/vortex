@@ -9,7 +9,6 @@ import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase, CleanupPhase } from 'shared';
 import { GotQuestions } from '../../sections/GotQuestions';
-import { WarningBanner } from '../../components/WarningBanner';
 import { useRampActions, useRampState, useRampStore } from '../../stores/offrampStore';
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
@@ -162,7 +161,6 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
   return (
     <Box className="flex flex-col items-center justify-center mt-4">
       <div className="flex flex-col items-center justify-center max-w-[400px]">
-        <WarningBanner />
         <ProgressCircle
           displayedPercentage={displayedPercentage}
           showCheckmark={showCheckmark}
