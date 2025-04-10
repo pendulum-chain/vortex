@@ -31,22 +31,28 @@ export function getMessageForPhase(ramp: RampState | undefined, t: any): string 
     const getTransferringMessage = () => t('pages.progress.transferringToLocalPartner');
 
     const messages: Record<RampPhase, string> = {
-        initial: t('pages.progress.initial'),
-        stellarCreateAccount: t('pages.progress.createStellarAccount'),
-        fundEphemeral: t('pages.progress.fundEphemeral'),
-        nablaApprove: getApproveMessage(),
-        nablaSwap: getSwappingMessage(),
-        subsidizePreSwap: getSwappingMessage(),
-        subsidizePostSwap: getSwappingMessage(),
-        moonbeamToPendulum: getMoonbeamToPendulumMessage(),
-        moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
-        assethubToPendulum: t('pages.progress.assethubToPendulum', { assetSymbol: inputAssetSymbol }),
-        pendulumToMoonbeam: t('pages.progress.pendulumToMoonbeam', { assetSymbol: outputAssetSymbol }),
-        spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputAssetSymbol }),
-        brlaPayoutOnMoonbeam: getTransferringMessage(),
-        stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
-        pendulumCleanup: '', // TODO deprecated phases.
-        moonbeamCleanup: '', // TODO deprecated phases.
+      initial: t('pages.progress.initial'),
+      stellarCreateAccount: t('pages.progress.createStellarAccount'),
+      fundEphemeral: t('pages.progress.fundEphemeral'),
+      nablaApprove: getApproveMessage(),
+      nablaSwap: getSwappingMessage(),
+      subsidizePreSwap: getSwappingMessage(),
+      subsidizePostSwap: getSwappingMessage(),
+      moonbeamToPendulum: getMoonbeamToPendulumMessage(),
+      moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
+      assethubToPendulum: t('pages.progress.assethubToPendulum', { assetSymbol: inputAssetSymbol }),
+      pendulumToMoonbeam: t('pages.progress.pendulumToMoonbeam', { assetSymbol: outputAssetSymbol }),
+      spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputAssetSymbol }),
+      brlaPayoutOnMoonbeam: getTransferringMessage(),
+      stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
+      pendulumCleanup: '', // TODO deprecated phases.
+      moonbeamCleanup: '',
+      squidrouterApprove: '',
+      squidrouterSwap: '',
+      pendulumToAssethub: '',
+      createPayInRequest: '',
+      failed: '',
+      complete: '',
     };
 
     return messages[currentPhase];
