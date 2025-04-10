@@ -4,6 +4,7 @@ import { EphemeralAccount } from 'shared';
 export type RampSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
 
 export interface RampState {
+  brCode: string | undefined;
   quote: QuoteEndpoints.QuoteResponse;
   ramp?: RampEndpoints.RampProcess;
   signedTransactions: PresignedTx[];

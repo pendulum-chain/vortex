@@ -48,7 +48,7 @@ export const useRegisterRamp = () => {
     // For Stellar offramps, we need to prepare something in advance
     // Calling this function will result in eventually having the necessary prerequisites set
     if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL) {
-      console.log("Registering ramp for Stellar offramps");
+      console.log('Registering ramp for Stellar offramps');
       await handleOnAnchorWindowOpen();
     }
 
@@ -109,9 +109,9 @@ export const useRegisterRamp = () => {
               pixDestination: executionInput.pixId,
             };
 
-      console.log("Registering ramp with additional data:", additionalData);
+      console.log('Registering ramp with additional data:', additionalData);
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
-      console.log("Ramp process registered:", rampProcess);
+      console.log('Ramp process registered:', rampProcess);
 
       const ephemeralTxs = rampProcess.unsignedTxs.filter((tx) => {
         if (!address) {
@@ -159,7 +159,7 @@ export const useRegisterRamp = () => {
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
-  // This is only relevant for offramps.
+  // This is only relevant for offramps. @TODO: Extract this to a separate hook for offramp
   useEffect(() => {
     // Determine if conditions are met before filtering transactions
     const requiredMetaIsEmpty =
