@@ -2,6 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { storageService } from '../services/storage/local';
 import { Storage } from '../services/storage/types';
 
+export enum LocalStorageKeys {
+  RATING = 'RATING',
+  SELECTED_NETWORK = 'SELECTED_NETWORK',
+  TRIGGER_ACCOUNT_EVM = 'TRIGGER_ACCOUNT_EVM',
+  TRIGGER_ACCOUNT_POLKADOT = 'TRIGGER_ACCOUNT_POLKADOT',
+  SELECTED_POLKADOT_WALLET = 'SELECTED_POLKADOT_WALLET',
+  SELECTED_POLKADOT_ACCOUNT = 'SELECTED_POLKADOT_ACCOUNT',
+  FIRED_INITIALIZATION_EVENTS = 'FIRED_INITIALIZATION_EVENTS',
+  TERMS_AND_CONDITIONS = 'TERMS_AND_CONDITIONS',
+  RAMPING_STATE = 'RAMPING_STATE',
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const debounce = <T extends any[]>(func: (...args: T) => any, timeout = 300) => {
   let timer: NodeJS.Timeout | undefined;
@@ -112,14 +124,3 @@ export const useLocalStorage = <T>({
 
   return { state, set, merge, clear };
 };
-
-export enum LocalStorageKeys {
-  RATING = 'RATING',
-  SELECTED_NETWORK = 'SELECTED_NETWORK',
-  TRIGGER_ACCOUNT_EVM = 'TRIGGER_ACCOUNT_EVM',
-  TRIGGER_ACCOUNT_POLKADOT = 'TRIGGER_ACCOUNT_POLKADOT',
-  SELECTED_POLKADOT_WALLET = 'SELECTED_POLKADOT_WALLET',
-  SELECTED_POLKADOT_ACCOUNT = 'SELECTED_POLKADOT_ACCOUNT',
-  FIRED_INITIALIZATION_EVENTS = 'FIRED_INITIALIZATION_EVENTS',
-  TERMS_AND_CONDITIONS = 'TERMS_AND_CONDITIONS',
-}
