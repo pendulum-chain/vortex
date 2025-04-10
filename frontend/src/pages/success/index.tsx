@@ -1,7 +1,6 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useTranslation } from 'react-i18next';
 
-import { BaseLayout } from '../../layouts';
 import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
 import { Rating } from '../../components/Rating';
@@ -32,7 +31,7 @@ export const SuccessPage = () => {
 
   const arrivalText = ARRIVAL_TEXT_BY_TOKEN[fiatToken] || t('pages.success.arrivalText.default');
 
-  const main = (
+  return (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12 ">
         <Checkmark />
@@ -48,6 +47,4 @@ export const SuccessPage = () => {
       <Rating />
     </main>
   );
-
-  return <BaseLayout main={main} />;
 };

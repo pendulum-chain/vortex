@@ -4,7 +4,6 @@ import { CheckIcon } from '@heroicons/react/20/solid';
 import { useTranslation } from 'react-i18next';
 
 import { Box } from '../../components/Box';
-import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase, CleanupPhase } from 'shared';

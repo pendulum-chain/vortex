@@ -4,7 +4,6 @@ import * as Sentry from '@sentry/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { TransactionInfo } from '../../components/TransactionInfo';
 import { Box } from '../../components/Box';
-import { BaseLayout } from '../../layouts';
 import { EmailForm } from '../../components/EmailForm';
 import { config } from '../../config';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
@@ -23,7 +22,7 @@ export const FailurePage = () => {
 
   const { t } = useTranslation();
 
-  const main = (
+  return (
     <main>
       <Box className="flex flex-col items-center justify-center mx-auto mt-12">
         <Cross />
@@ -62,5 +61,4 @@ export const FailurePage = () => {
     </main>
   );
 
-  return <BaseLayout main={main} />;
 };
