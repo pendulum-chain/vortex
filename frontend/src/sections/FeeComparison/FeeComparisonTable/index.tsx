@@ -35,9 +35,9 @@ export function FeeComparisonTable() {
 
   const sortedProviders = useMemo(() => {
     return [...DEFAULT_PROVIDERS].sort((a, b) => {
-      const aPrice = providerPrices[a.name]?.toNumber() ?? 0;
-      const bPrice = providerPrices[b.name]?.toNumber() ?? 0;
-      return bPrice - aPrice;
+      const aPrice = providerPrices[a.name] ?? Big(0);
+      const bPrice = providerPrices[b.name] ?? Big(0);
+      return bPrice.minus(aPrice).toNumber();
     });
   }, [providerPrices]);
 
@@ -76,7 +76,7 @@ export function FeeComparisonTable() {
             bestPrice={bestProvider.bestPrice}
             amount={amount}
             sourceAssetSymbol={fromToken.assetSymbol}
-            targetAssetSymbol={toToken.assetSymbol}
+            targetAssetSymbol={toToken.fiat.symbol}
           />
         </div>
       ))}

@@ -15,6 +15,7 @@ import { useRegisterBRLRamp } from '../offramp/useRampService/brl/useRegisterBRL
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { FiatToken } from 'shared';
+import { useMainProcess } from '../offramp/useMainProcess';
 
 interface SubmissionError extends Error {
   code?: string;
@@ -37,6 +38,7 @@ export const useRampSubmission = () => {
   const rampDirection = useRampDirection();
   const { setRampExecutionInput, setRampSummaryVisible, setRampInitiating } = useRampActions();
   const { registerBRLOnramp } = useRegisterBRLRamp();
+  const { handleOnSubmit } = useMainProcess();
 
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {
@@ -122,7 +124,7 @@ export const useRampSubmission = () => {
       if (rampDirection === RampDirection.ONRAMP) {
         registerBRLOnramp(executionInput);
       } else {
-        // handleOnSubmit(executionInput);
+        handleOnSubmit(executionInput);
       }
       trackTransaction();
     } catch (error) {
@@ -130,16 +132,7 @@ export const useRampSubmission = () => {
     } finally {
       setExecutionPreparing(false);
     }
-  }, [
-    executionPreparing,
-    prepareExecutionInput,
-    setRampExecutionInput,
-    setRampSummaryVisible,
-    rampDirection,
-    trackTransaction,
-    registerBRLOnramp,
-    handleSubmissionError,
-  ]);
+  }, [executionPreparing, prepareExecutionInput, setRampExecutionInput, setRampSummaryVisible, rampDirection, trackTransaction, registerBRLOnramp, handleOnSubmit, handleSubmissionError]);
 
   const handleTransactionInitiation = useCallback(() => {
     if (!address) {
@@ -147,7 +140,7 @@ export const useRampSubmission = () => {
     }
     if (rampDirection === RampDirection.ONRAMP) {
       if (fiatToken === FiatToken.BRL) {
-        registerBRLOnramp();
+        // registerBRLOnramp();
       } else {
         // handleOnAnchorWindowOpen();
       }
@@ -160,6 +153,9 @@ export const useRampSubmission = () => {
     onRampConfirm,
     handleTransactionInitiation,
     isExecutionPreparing: executionPreparing,
+    finishOfframping: () => {
+      // TODO cleanup offramping state and allow starting a new one
+    },
     validateSubmissionData,
   };
 };
