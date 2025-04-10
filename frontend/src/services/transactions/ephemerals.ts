@@ -2,14 +2,17 @@ import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import { Keypair } from 'stellar-sdk';
 import { EphemeralAccount } from 'shared';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
 export function createMoonbeamEphemeral(): EphemeralAccount {
-  const seedPhrase = mnemonicGenerate();
+  const privateKey = generatePrivateKey();
 
-  const keyring = new Keyring({ type: 'sr25519' });
-  const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
+  const account = privateKeyToAccount(privateKey);
 
-  return { secret: seedPhrase, address: ephemeralAccountKeypair.address };
+  return {
+    secret: privateKey,
+    address: account.address
+  };
 }
 
 export function createPendulumEphemeral(): EphemeralAccount {
