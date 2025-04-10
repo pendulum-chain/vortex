@@ -7,7 +7,7 @@ interface RampStore extends RampZustand {
   actions: RampActions;
 }
 
-export const clearRampingState = () => {
+const clearRampingState = () => {
   storageService.remove(LocalStorageKeys.RAMPING_STATE);
 };
 
@@ -103,6 +103,8 @@ export const useRampStore = create<RampStore>()((set, get) => {
           rampState: undefined,
           rampSigningPhase: undefined,
           rampExecutionInput: undefined,
+          rampSummaryVisible: false,
+          initializeFailedMessage: undefined,
         });
         // No need to save state here as we just cleared it
       },
