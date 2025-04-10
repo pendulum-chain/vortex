@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useRampStore } from '../../../../stores/offrampStore';
-import { RampService } from '../../../../services/api';
+import { useRampStore } from '../../../stores/offrampStore';
+import { RampService } from '../../../services/api';
 
 export const useStartRamp = () => {
   const {
@@ -17,9 +17,6 @@ export const useStartRamp = () => {
       return;
     }
 
-    console.log('Proceeding to start the ramp...');
-
-    console.log('startRamp');
     RampService.startRamp(rampState.quote.id, rampState.signedTransactions, rampState.userSigningMeta)
       .then((response) => {
         console.log('startRampResponse', response);

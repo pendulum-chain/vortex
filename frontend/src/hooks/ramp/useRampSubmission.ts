@@ -11,7 +11,7 @@ import {
   createPendulumEphemeral,
   createStellarEphemeral,
 } from '../../services/transactions/ephemerals';
-import { useRegisterBRLRamp } from '../offramp/useRampService/brl/useRegisterBRLRamp';
+import { useRegisterRamp } from '../offramp/useRampService/useRegisterRamp';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { FiatToken } from 'shared';
@@ -36,7 +36,7 @@ export const useRampSubmission = () => {
   const { trackEvent } = useEventsContext();
   const rampDirection = useRampDirection();
   const { setRampExecutionInput, setRampSummaryVisible, setRampInitiating } = useRampActions();
-  const { registerBRLOnramp } = useRegisterBRLRamp();
+  const { registerRamp } = useRegisterRamp();
 
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {
@@ -120,7 +120,7 @@ export const useRampSubmission = () => {
       setRampSummaryVisible(true);
 
       if (rampDirection === RampDirection.ONRAMP) {
-        registerBRLOnramp(executionInput);
+        registerRamp(executionInput);
       } else {
         // handleOnSubmit(executionInput);
       }
@@ -137,7 +137,7 @@ export const useRampSubmission = () => {
     setRampSummaryVisible,
     rampDirection,
     trackTransaction,
-    registerBRLOnramp,
+    registerRamp,
     handleSubmissionError,
   ]);
 
@@ -147,14 +147,14 @@ export const useRampSubmission = () => {
     }
     if (rampDirection === RampDirection.ONRAMP) {
       if (fiatToken === FiatToken.BRL) {
-        registerBRLOnramp();
+        registerRamp();
       } else {
         // handleOnAnchorWindowOpen();
       }
     } else {
       // handleOnSubmit(prepareExecutionInput());
     }
-  }, [address, rampDirection, fiatToken, registerBRLOnramp]);
+  }, [address, rampDirection, fiatToken, registerRamp]);
 
   return {
     onRampConfirm,

@@ -1,11 +1,13 @@
-import { useRampStore } from '../../../../stores/offrampStore';
-import { useVortexAccount } from '../../../useVortexAccount';
-import { RampService } from '../../../../services/api';
+import { useRampExecutionInput, useRampStore } from '../../../stores/offrampStore';
+import { useVortexAccount } from '../../useVortexAccount';
+import { RampService } from '../../../services/api';
 import { AccountMeta, Networks, signUnsignedTransactions } from 'shared';
-import { usePendulumNode } from '../../../../contexts/polkadotNode';
-import { RampExecutionInput } from '../../../../types/phases';
+import { useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
 
-export const useRegisterBRLRamp = () => {
+// For Offramp EUR/ARS we trigger it after returning from anchor window
+// For Offramp/Onramp BRL we trigger it while clicking Continue in the ramp form
+
+export const useRegisterRamp = () => {
   const {
     rampRegistered,
     actions: { setRampRegistered, setRampState },
@@ -14,8 +16,11 @@ export const useRegisterBRLRamp = () => {
   const { address } = useVortexAccount();
   const { chainId } = useVortexAccount();
   const { apiComponents: pendulumApiComponents } = usePendulumNode();
+  const { apiComponents: moonbeamApiComponents } = useMoonbeamNode();
 
-  const registerBRLOnramp = async (executionInput: RampExecutionInput) => {
+  const executionInput = useRampExecutionInput();
+
+  const registerRamp = async () => {
     if (!executionInput) {
       throw new Error('Missing execution input');
     }
@@ -32,6 +37,10 @@ export const useRegisterBRLRamp = () => {
       throw new Error('Missing pendulumApiComponents');
     }
 
+    if (!moonbeamApiComponents?.api) {
+      throw new Error('Missing moonbeamApiComponents');
+    }
+
     const quoteId = executionInput.quote.id;
     const signingAccounts: AccountMeta[] = [
       { address: executionInput.ephemerals.stellarEphemeral.address, network: Networks.Stellar },
@@ -39,20 +48,18 @@ export const useRegisterBRLRamp = () => {
       { address: executionInput.ephemerals.pendulumEphemeral.address, network: Networks.Pendulum },
     ];
 
-    const additionalData = {
+    // DATA IS ONRAMP ONLY NOW
+    const onrampAdditionalData = {
       destinationAddress: address,
       pixDestination: executionInput.pixId,
-      receiverTaxId: executionInput.taxId,
       taxId: executionInput.taxId,
     };
-    const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
 
-    console.log('registerRamp: rampProcess', rampProcess);
+    const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, onrampAdditionalData);
 
-    await signUnsignedTransactions(rampProcess.unsignedTxs, executionInput.ephemerals, pendulumApiComponents.api);
+    await signUnsignedTransactions(rampProcess.unsignedTxs, executionInput.ephemerals, pendulumApiComponents.api, moonbeamApiComponents.api);
 
     setRampRegistered(true);
-
     setRampState({
       quote: executionInput.quote,
       ramp: rampProcess,
@@ -67,7 +74,7 @@ export const useRegisterBRLRamp = () => {
   };
 
   return {
-    registerBRLOnramp,
+    registerRamp,
     rampRegistered,
   };
 };
