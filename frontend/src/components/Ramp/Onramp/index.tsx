@@ -23,6 +23,7 @@ import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useTranslation } from 'react-i18next';
+import { useRampActions } from '../../../stores/offrampStore';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -42,8 +43,8 @@ export const Onramp = () => {
   }, [toAmount, form]);
 
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
-  const { onRampConfirm } = useRampSubmission();
   const validateTerms = useValidateTerms();
+  const { onRampConfirm } = useRampSubmission();
 
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
 

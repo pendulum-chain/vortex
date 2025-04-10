@@ -4,12 +4,10 @@ import { CheckIcon } from '@heroicons/react/20/solid';
 import { useTranslation } from 'react-i18next';
 
 import { Box } from '../../components/Box';
-import { BaseLayout } from '../../layouts';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase, CleanupPhase } from 'shared';
 import { GotQuestions } from '../../sections/GotQuestions';
-import { WarningBanner } from '../../components/WarningBanner';
 import { useRampActions, useRampState, useRampStore } from '../../stores/offrampStore';
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
@@ -162,7 +160,6 @@ const ProgressContent: FC<ProgressContentProps> = ({ currentPhase, currentPhaseI
   return (
     <Box className="flex flex-col items-center justify-center mt-4">
       <div className="flex flex-col items-center justify-center max-w-[400px]">
-        <WarningBanner />
         <ProgressCircle
           displayedPercentage={displayedPercentage}
           showCheckmark={showCheckmark}
@@ -204,33 +201,33 @@ export const ProgressPage = () => {
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
   const currentPhaseIndex = Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(currentPhase);
   const message = getMessageForPhase(rampState, t);
-  
+
   useEffect(() => {
     // Only set up the polling if we have a ramp ID
     if (!rampState?.ramp?.id) return;
-    
+
     // Extract the ramp ID once to avoid dependency on the entire rampState object
     const rampId = rampState.ramp.id;
-    
+
     const fetchRampState = async () => {
       try {
         const updatedRampProcess = await RampService.getRampStatus(rampId);
-        
+
         // Get the latest rampState from the store to ensure we're using current data
         const currentRampState = useRampStore.getState().rampState;
         if (currentRampState) {
           const updatedRampState = { ...currentRampState, ramp: updatedRampProcess };
           setRampState(updatedRampState);
         }
-        
+
         const maybeNewPhase = updatedRampProcess.currentPhase;
         if (maybeNewPhase !== prevPhaseRef.current) {
           trackEvent({
             event: 'progress',
             phase_index: Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(maybeNewPhase),
-            phase_name: maybeNewPhase
+            phase_name: maybeNewPhase,
           });
-          
+
           prevPhaseRef.current = maybeNewPhase;
           setCurrentPhase(maybeNewPhase);
         }
@@ -238,29 +235,25 @@ export const ProgressPage = () => {
         console.error('Failed to fetch ramp state:', error);
       }
     };
-    
+
     // Initial fetch
     fetchRampState();
-    
+
     // Set up polling
     const intervalId = setInterval(fetchRampState, 5000);
-    
+
     // Clean up
     return () => clearInterval(intervalId);
   }, [rampState?.ramp?.id, setRampState, trackEvent]); // Only depend on the ramp ID, not the entire state
-  
+
   return (
-    <BaseLayout
-      main={
-        <main>
-          <ProgressContent
-            currentPhase={currentPhase}
-            currentPhaseIndex={currentPhaseIndex}
-            message={message}
-          />
-          <GotQuestions />
-        </main>
-      }
-    />
-  );
+    <main>
+      <ProgressContent
+        currentPhase={currentPhase}
+        currentPhaseIndex={currentPhaseIndex}
+        message={message}
+      />
+      <GotQuestions />
+    </main>
+  )
 };

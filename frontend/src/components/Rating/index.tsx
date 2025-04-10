@@ -60,7 +60,7 @@ export function Rating() {
             <div className="bg-white border rounded shadow-2xl border-neutral-200">
               <section className="px-6 py-5">
                 <div className="flex justify-between w-full">
-                  <h1 className="text-lg sm:text-2xl">{t('rating.title')}</h1>
+                  <h1 className="text-lg sm:text-2xl">{t('components.rating.title')}</h1>
                   <CloseButton onClick={onClose} />
                 </div>
                 <div className="flex flex-wrap items-center justify-center w-full mt-10">

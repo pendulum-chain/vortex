@@ -156,7 +156,7 @@ export const useRegisterRamp = () => {
               paymentData: executionInput.paymentData,
               taxId: executionInput.taxId,
               receiverTaxId: executionInput.taxId,
-              pixDestination: executionInput.pixId,
+              pixDestination: executionInput.taxId,
             };
 
       console.log(`Registering ramp with additional data:`, additionalData);

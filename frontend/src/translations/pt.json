@@ -265,7 +265,8 @@
     "swapSubmitButton": {
       "confirming": "Confirmando",
       "processing": "Processando",
-      "confirm": "Confirmar"
+      "confirm": "Confirmar",
+      "confirmPayment": "Confirmar pagamento"
     },
     "feeCollapse": {
       "details": "Detalhes",
@@ -347,10 +348,6 @@
     "footer": {
       "poweredBy": "Desenvolvido por",
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados."
-    },
-    "warningBanner": {
-      "title": "Mantenha esta janela aberta",
-      "description": "Fechar esta janela interromperá o processo."
     }
   },
   "hooks": {

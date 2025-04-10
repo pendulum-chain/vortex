@@ -7,7 +7,7 @@ interface RampStore extends RampZustand {
   actions: RampActions;
 }
 
-export const clearRampingState = () => {
+const clearRampingState = () => {
   storageService.remove(LocalStorageKeys.RAMPING_STATE);
 };
 
@@ -24,6 +24,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
     rampRegistered: false,
     rampInitiating: false,
     rampKycStarted: false,
+    rampPaymentConfirmed: false,
     rampState: undefined,
     rampSigningPhase: undefined,
     rampExecutionInput: undefined,
@@ -40,6 +41,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
       rampRegistered: state.rampRegistered,
       rampInitiating: state.rampInitiating,
       rampKycStarted: state.rampKycStarted,
+      rampPaymentConfirmed: state.rampPaymentConfirmed,
       rampState: state.rampState,
       rampSigningPhase: state.rampSigningPhase,
       rampExecutionInput: state.rampExecutionInput,
@@ -80,6 +82,10 @@ export const useRampStore = create<RampStore>()((set, get) => {
         set({ rampKycStarted: kycStarted });
         saveState();
       },
+      setRampPaymentConfirmed: (paymentConfirmed) => {
+        set({ rampPaymentConfirmed: paymentConfirmed });
+        saveState();
+      },
       setRampSummaryVisible: (visible) => {
         set({ rampSummaryVisible: visible });
         saveState();
@@ -100,9 +106,12 @@ export const useRampStore = create<RampStore>()((set, get) => {
           rampRegistered: false,
           rampInitiating: false,
           rampKycStarted: false,
+          rampPaymentConfirmed: false,
           rampState: undefined,
           rampSigningPhase: undefined,
           rampExecutionInput: undefined,
+          rampSummaryVisible: false,
+          initializeFailedMessage: undefined,
         });
         // No need to save state here as we just cleared it
       },
@@ -122,6 +131,7 @@ export const useRampRegistered = () => useRampStore((state) => state.rampRegiste
 export const useRampInitiating = () => useRampStore((state) => state.rampInitiating);
 export const useRampExecutionInput = () => useRampStore((state) => state.rampExecutionInput);
 export const useRampKycStarted = () => useRampStore((state) => state.rampKycStarted);
+export const useRampPaymentConfirmed = () => useRampStore((state) => state.rampPaymentConfirmed);
 export const useInitializeFailedMessage = () => useRampStore((state) => state.initializeFailedMessage);
 export const useRampSummaryVisible = () => useRampStore((state) => state.rampSummaryVisible);
 export const clearInitializeFailedMessage = () => useRampStore.getState().actions.clearInitializeFailedMessage();
