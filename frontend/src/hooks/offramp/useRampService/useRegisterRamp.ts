@@ -85,6 +85,16 @@ export const useRegisterRamp = () => {
         { address: executionInput.ephemerals.pendulumEphemeral.address, network: Networks.Pendulum },
       ];
 
+      if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL) {
+        // Checks for Stellar offramps
+        if (!executionInput.ephemerals.stellarEphemeral.secret) {
+          throw new Error('Missing Stellar ephemeral secret');
+        }
+        if (!executionInput.paymentData) {
+          throw new Error('Missing payment data for Stellar offramps');
+        }
+      }
+
       const additionalData =
         executionInput.quote.rampType === 'on'
           ? {

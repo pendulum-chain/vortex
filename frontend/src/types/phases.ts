@@ -1,4 +1,4 @@
-import { FiatToken, Networks, OnChainToken, PresignedTx, QuoteEndpoints, RampEndpoints } from 'shared';
+import { FiatToken, Networks, OnChainToken, PaymentData, PresignedTx, QuoteEndpoints, RampEndpoints } from 'shared';
 import { EphemeralAccount } from 'shared';
 
 export type RampSigningPhase = 'login' | 'started' | 'approved' | 'signed' | 'finished';
@@ -23,6 +23,7 @@ export interface RampExecutionInput {
     pendulumEphemeral: EphemeralAccount;
     moonbeamEphemeral: EphemeralAccount;
   };
+  paymentData?: PaymentData;
   taxId?: string;
   pixId?: string;
   brlaEvmAddress?: string;
