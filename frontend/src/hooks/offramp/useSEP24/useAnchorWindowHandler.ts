@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import Big from 'big.js';
+import { PaymentData } from 'shared';
 
 import { useNetwork } from '../../../contexts/network';
 
@@ -7,8 +8,8 @@ import { sep24Second } from '../../../services/anchor/sep24/second';
 
 import { useTrackSEP24Events } from './useTrackSEP24Events';
 import { usePendulumNode } from '../../../contexts/polkadotNode';
-import { useRampActions, useRampExecutionInput } from '../../../stores/offrampStore';
-import { useSep24InitialResponse, useSep24AnchorSessionParams } from '../../../stores/sep24Store';
+import { useRampActions, useRampStore } from '../../../stores/offrampStore';
+import { useSep24AnchorSessionParams, useSep24InitialResponse } from '../../../stores/sep24Store';
 import { useVortexAccount } from '../../useVortexAccount';
 import { useToastMessage } from '../../../helpers/notifications';
 
@@ -29,7 +30,10 @@ export const useAnchorWindowHandler = () => {
   const firstSep24Response = useSep24InitialResponse();
   const anchorSessionParams = useSep24AnchorSessionParams();
 
-  const executionInput = useRampExecutionInput();
+  const {
+    rampExecutionInput: executionInput,
+    actions: { setRampExecutionInput },
+  } = useRampStore();
 
   const handleAmountMismatch = useCallback(
     (setOfframpingStarted: (started: boolean) => void): void => {
@@ -40,6 +44,14 @@ export const useAnchorWindowHandler = () => {
   );
 
   return useCallback(async () => {
+    console.log(
+      'firstSep24Response',
+      firstSep24Response,
+      'anchorSessionParams',
+      anchorSessionParams,
+      'executionInput',
+      executionInput,
+    );
     if (!firstSep24Response || !anchorSessionParams || !executionInput) {
       return;
     }
@@ -55,20 +67,14 @@ export const useAnchorWindowHandler = () => {
         return;
       }
 
-      if (!executionInput.ephemerals.stellarEphemeral.secret) {
-        throw new Error('Missing stellarEphemeralSecret on executionInput');
-      }
+      const paymentData: PaymentData = {
+        amount: secondSep24Response.amount,
+        anchorTargetAccount: secondSep24Response.offrampingAccount,
+        memo: secondSep24Response.memo,
+        memoType: secondSep24Response.memoType as 'text' | 'hash',
+      };
 
-      if (!address) {
-        throw new Error('Missing address');
-      }
-
-      if (!chainId) {
-        throw new Error('Missing chainId');
-      }
-
-      // TODO call into api
-      // trackKYCCompleted(initialState, selectedNetwork);
+      setRampExecutionInput({ ...executionInput, paymentData });
     } catch (error) {
       handleError(error, setRampStarted);
     }

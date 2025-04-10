@@ -40,13 +40,11 @@ export const useSubmitOfframp = () => {
     setUrlInterval: setUrlIntervalSEP24,
     cleanup: cleanupSEP24,
   } = useSep24Actions();
-  const { apiComponents: pendulumNode } = usePendulumNode();
-
   const { chainId } = useVortexAccount();
 
   return useCallback(
     (executionInput: RampExecutionInput) => {
-      if (!pendulumNode || !executionInput) {
+      if (!executionInput) {
         setRampInitiating(false);
         return;
       }
@@ -168,7 +166,6 @@ export const useSubmitOfframp = () => {
       })();
     },
     [
-      pendulumNode,
       setRampInitiating,
       setSelectedNetwork,
       selectedNetwork,

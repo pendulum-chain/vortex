@@ -14,8 +14,7 @@ import {
 import { useRegisterRamp } from '../offramp/useRampService/useRegisterRamp';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
-import { FiatToken } from 'shared';
-import { useMainProcess } from '../offramp/useMainProcess';
+import { useStartRamp } from '../offramp/useRampService/useStartRamp';
 
 interface SubmissionError extends Error {
   code?: string;
@@ -38,6 +37,7 @@ export const useRampSubmission = () => {
   const rampDirection = useRampDirection();
   const { setRampExecutionInput, setRampSummaryVisible, setRampInitiating } = useRampActions();
   const { registerRamp } = useRegisterRamp();
+  useStartRamp(); // This will automatically start the ramp process when the conditions are met
 
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {
@@ -120,11 +120,7 @@ export const useRampSubmission = () => {
       setRampExecutionInput(executionInput);
       setRampSummaryVisible(true);
 
-      if (rampDirection === RampDirection.ONRAMP) {
-        registerRamp();
-      } else {
-        // handleOnSubmit(executionInput);
-      }
+      await registerRamp(executionInput);
       trackTransaction();
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
@@ -136,30 +132,13 @@ export const useRampSubmission = () => {
     prepareExecutionInput,
     setRampExecutionInput,
     setRampSummaryVisible,
-    rampDirection,
     trackTransaction,
     registerRamp,
     handleSubmissionError,
   ]);
 
-  const handleTransactionInitiation = useCallback(() => {
-    if (!address) {
-      throw new Error('No address found');
-    }
-    if (rampDirection === RampDirection.ONRAMP) {
-      if (fiatToken === FiatToken.BRL) {
-        registerRamp();
-      } else {
-        // handleOnAnchorWindowOpen();
-      }
-    } else {
-      // handleOnSubmit(prepareExecutionInput());
-    }
-  }, [address, rampDirection, fiatToken, registerRamp]);
-
   return {
     onRampConfirm,
-    handleTransactionInitiation,
     isExecutionPreparing: executionPreparing,
     finishOfframping: () => {
       // TODO cleanup offramping state and allow starting a new one
