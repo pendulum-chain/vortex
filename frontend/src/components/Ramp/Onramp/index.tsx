@@ -22,13 +22,11 @@ import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/r
 import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
-import { useRampTokenConstraints } from '../../../hooks/ramp/useRampTokenConstraints';
 import { useTranslation } from 'react-i18next';
 
 export const Onramp = () => {
   const { t } = useTranslation();
 
-  useRampTokenConstraints();
   const { setTrackPrice } = useFeeComparisonStore();
 
   const { form } = useRampForm();

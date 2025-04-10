@@ -1,6 +1,7 @@
 import { useForm, UseFormReturn } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import Big from 'big.js';
+import { FiatToken } from 'shared';
 
 import { RampFormValues } from '../../components/Nabla/schema';
 import {
@@ -12,6 +13,8 @@ import {
   useRampFormStoreActions,
   useTaxId,
 } from '../../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../../stores/rampDirectionStore';
+import { RampDirection } from '../../components/RampToggle';
 
 const DEFAULT_RAMP_FORM_VALUES: RampFormValues = {
   ...DEFAULT_RAMP_FORM_STORE_VALUES,
@@ -34,6 +37,7 @@ export const useRampForm = (): {
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
+  const direction = useRampDirection();
 
   const {
     setInputAmount,
@@ -43,6 +47,24 @@ export const useRampForm = (): {
     setPixId,
     reset: resetStore,
   } = useRampFormStoreActions();
+
+  const enforceTokenConstraints = useCallback(
+    (token: FiatToken): FiatToken => {
+      // For onramp, we only allow BRL
+      if (direction === RampDirection.ONRAMP && token !== FiatToken.BRL) {
+        return FiatToken.BRL;
+      }
+      return token;
+    },
+    [direction]
+  );
+
+  useEffect(() => {
+    const constrainedToken = enforceTokenConstraints(fiatToken);
+    if (constrainedToken !== fiatToken) {
+      setFiatToken(constrainedToken);
+    }
+  }, [direction, fiatToken, setFiatToken, enforceTokenConstraints]);
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
@@ -56,12 +78,18 @@ export const useRampForm = (): {
       } else if (name === 'onChainToken' && values.onChainToken !== undefined) {
         setOnChainToken(values.onChainToken);
       } else if (name === 'fiatToken' && values.fiatToken !== undefined) {
-        setFiatToken(values.fiatToken);
+        const constrainedToken = enforceTokenConstraints(values.fiatToken);
+
+        if (constrainedToken !== values.fiatToken) {
+          form.setValue('fiatToken', constrainedToken);
+        }
+
+        setFiatToken(constrainedToken);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [form, setInputAmount, setTaxId, setPixId, setOnChainToken, setFiatToken]);
+  }, [form, setInputAmount, setTaxId, setPixId, setOnChainToken, setFiatToken, enforceTokenConstraints]);
 
   useEffect(() => {
     const currentInputAmount = form.getValues('inputAmount');
@@ -76,8 +104,10 @@ export const useRampForm = (): {
     }
 
     const currentFiatToken = form.getValues('fiatToken');
-    if (fiatToken !== currentFiatToken) {
-      form.setValue('fiatToken', fiatToken);
+    const constrainedToken = enforceTokenConstraints(fiatToken);
+
+    if (constrainedToken !== currentFiatToken) {
+      form.setValue('fiatToken', constrainedToken);
     }
 
     const currentTaxId = form.getValues('taxId');
@@ -89,7 +119,7 @@ export const useRampForm = (): {
     if (pixId !== currentPixId) {
       form.setValue('pixId', pixId || '');
     }
-  }, [form, taxId, pixId, inputAmount, onChainToken, fiatToken]);
+  }, [form, taxId, pixId, inputAmount, onChainToken, fiatToken, enforceTokenConstraints]);
 
   const reset = () => {
     resetStore();
