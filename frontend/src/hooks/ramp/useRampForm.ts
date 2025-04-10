@@ -47,7 +47,8 @@ export const useRampForm = (): {
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
       if (name === 'inputAmount' && values.inputAmount !== undefined) {
-        setInputAmount(Big(values.inputAmount));
+        const newAmount = values.inputAmount === '' ? Big(0) : Big(values.inputAmount);
+        setInputAmount(newAmount);
       } else if (name === 'taxId' && values.taxId !== undefined) {
         setTaxId(values.taxId);
       } else if (name === 'pixId' && values.pixId !== undefined) {
@@ -64,8 +65,9 @@ export const useRampForm = (): {
 
   useEffect(() => {
     const currentInputAmount = form.getValues('inputAmount');
-    if (inputAmount && !inputAmount.eq(Big(currentInputAmount || 0))) {
-      form.setValue('inputAmount', inputAmount.toString());
+    const storeInputAmountStr = inputAmount?.toString() || '0';
+    if (storeInputAmountStr !== '0' && currentInputAmount !== storeInputAmountStr) {
+      form.setValue('inputAmount', storeInputAmountStr);
     }
 
     const currentOnChainToken = form.getValues('onChainToken');
@@ -74,24 +76,24 @@ export const useRampForm = (): {
     }
 
     const currentFiatToken = form.getValues('fiatToken');
-    if (fiatToken && fiatToken !== currentFiatToken) {
+    if (fiatToken !== currentFiatToken) {
       form.setValue('fiatToken', fiatToken);
     }
 
     const currentTaxId = form.getValues('taxId');
-    if (taxId && taxId !== currentTaxId) {
-      form.setValue('taxId', taxId);
+    if (taxId !== currentTaxId) {
+      form.setValue('taxId', taxId || '');
     }
 
     const currentPixId = form.getValues('pixId');
-    if (pixId && pixId !== currentPixId) {
-      form.setValue('pixId', pixId);
+    if (pixId !== currentPixId) {
+      form.setValue('pixId', pixId || '');
     }
   }, [form, taxId, pixId, inputAmount, onChainToken, fiatToken]);
 
   const reset = () => {
-    form.reset(DEFAULT_RAMP_FORM_VALUES);
     resetStore();
+    form.reset(DEFAULT_RAMP_FORM_VALUES);
   };
 
   return {
