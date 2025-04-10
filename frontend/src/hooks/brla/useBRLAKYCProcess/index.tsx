@@ -169,7 +169,16 @@ export function useKYCProcess() {
     if (kycResponse.status) {
       handleStatus(kycResponse.status);
     }
-  }, [kycResponse, handleBackClick, proceedWithOfframp, updateStatus, resetToDefault, setRampKycStarted]);
+  }, [
+    kycResponse,
+    handleBackClick,
+    proceedWithOfframp,
+    updateStatus,
+    resetToDefault,
+    setRampKycStarted,
+    STATUS_MESSAGES.SUCCESS,
+    STATUS_MESSAGES.REJECTED,
+  ]);
 
   useEffect(() => {
     if (error) {
