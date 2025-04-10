@@ -11,7 +11,7 @@ import {
   createPendulumEphemeral,
   createStellarEphemeral,
 } from '../../services/transactions/ephemerals';
-import { useMainProcess } from '../offramp/useMainProcess';
+import { useRegisterBRLRamp } from '../offramp/useRampService/brl/useRegisterBRLRamp';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { FiatToken } from 'shared';
@@ -36,9 +36,9 @@ export const useRampSubmission = () => {
   const { trackEvent } = useEventsContext();
   const rampDirection = useRampDirection();
   const { setRampExecutionInput, setRampSummaryVisible, setRampInitiating } = useRampActions();
-  const { handleOnSubmit, finishOfframping, continueFailedFlow, handleOnAnchorWindowOpen, handleBrlaOfframpStart } =
-    useMainProcess();
+  const { registerBRLOnramp } = useRegisterBRLRamp();
 
+  // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {
     if (!address) {
       throw new Error('No wallet address found. Please connect your wallet.');
@@ -58,13 +58,20 @@ export const useRampSubmission = () => {
 
   const prepareExecutionInput = useCallback(() => {
     validateSubmissionData();
+    if (!quote) {
+      throw new Error('No quote available. Please try again.');
+    }
+    if (!address) {
+      throw new Error('No address found. Please connect your wallet.');
+    }
+
     const ephemerals = createEphemerals();
     const executionInput: RampExecutionInput = {
       ephemerals,
-      quote: quote!,
+      quote,
       onChainToken,
       fiatToken,
-      userWalletAddress: address!,
+      userWalletAddress: address,
       network: selectedNetwork,
       taxId,
       pixId,
@@ -111,7 +118,12 @@ export const useRampSubmission = () => {
       const executionInput = prepareExecutionInput();
       setRampExecutionInput(executionInput);
       setRampSummaryVisible(true);
-      handleOnSubmit(executionInput);
+
+      if (rampDirection === RampDirection.ONRAMP) {
+        registerBRLOnramp(executionInput);
+      } else {
+        // handleOnSubmit(executionInput);
+      }
       trackTransaction();
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
@@ -123,8 +135,9 @@ export const useRampSubmission = () => {
     prepareExecutionInput,
     setRampExecutionInput,
     setRampSummaryVisible,
-    handleOnSubmit,
+    rampDirection,
     trackTransaction,
+    registerBRLOnramp,
     handleSubmissionError,
   ]);
 
@@ -132,30 +145,20 @@ export const useRampSubmission = () => {
     if (!address) {
       throw new Error('No address found');
     }
-    if (rampDirection === RampDirection.OFFRAMP) {
-      if (fiatToken === ('brl' as FiatToken)) {
-        handleBrlaOfframpStart();
+    if (rampDirection === RampDirection.ONRAMP) {
+      if (fiatToken === FiatToken.BRL) {
+        registerBRLOnramp();
       } else {
-        handleOnAnchorWindowOpen();
+        // handleOnAnchorWindowOpen();
       }
     } else {
-      handleOnSubmit(prepareExecutionInput());
+      // handleOnSubmit(prepareExecutionInput());
     }
-  }, [
-    address,
-    rampDirection,
-    fiatToken,
-    handleBrlaOfframpStart,
-    handleOnAnchorWindowOpen,
-    handleOnSubmit,
-    prepareExecutionInput,
-  ]);
+  }, [address, rampDirection, fiatToken, registerBRLOnramp]);
 
   return {
     onRampConfirm,
     handleTransactionInitiation,
-    finishOfframping,
-    continueFailedFlow,
     isExecutionPreparing: executionPreparing,
     validateSubmissionData,
   };
