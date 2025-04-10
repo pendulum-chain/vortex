@@ -10,7 +10,7 @@ import {
   validateMaskedNumber,
 } from 'shared';
 import { BaseRampService } from './base.service';
-import RampState from '../../../models/rampState.model';
+import RampState, { RampStateAttributes } from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
@@ -171,6 +171,8 @@ export class RampService extends BaseRampService {
           ...request.additionalData,
           ...stateMeta,
         },
+        processingLock: { locked: false, lockedAt: null },
+        postCompleteState: { cleanup: { cleanupCompleted: false, cleanupAt: null, error: null } },
         quoteId: quote.id,
       };
 
