@@ -132,13 +132,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     processingLock: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       defaultValue: { locked: false, lockedAt: null },
       field: 'processing_lock',
     },
     postCompleteState: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       defaultValue: {
         cleanup: {
           cleanupCompleted: false,
