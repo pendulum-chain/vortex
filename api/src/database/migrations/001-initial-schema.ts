@@ -136,6 +136,18 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       defaultValue: { locked: false, lockedAt: null },
       field: 'processing_lock',
     },
+    postCompleteState: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {
+        cleanup: {
+          cleanupCompleted: false,
+          cleanupAt: null,
+          error: null,
+        }
+      },
+      field: 'post_complete_state',
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

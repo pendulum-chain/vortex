@@ -1,5 +1,6 @@
 import { FC } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'motion/react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { FiatToken } from 'shared';
 import { BrlaField, StandardBrlaFieldOptions } from '../BrlaField';
@@ -23,6 +24,8 @@ const STANDARD_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', in
  */
 
 export const BrlaSwapFields: FC = () => {
+  const { t } = useTranslation();
+
   const fiatToken = useFiatToken();
 
   return (
@@ -36,11 +39,13 @@ export const BrlaSwapFields: FC = () => {
               id={field.id}
               label={field.label}
               index={field.index}
-              placeholder={`Enter your ${field.label}`}
+              placeholder={t(`components.brlaSwapField.placeholder`, { label: field.label })}
             />
           ))}
           <div className="mt-2">
-            CPF must belong to <b>you</b>.
+            <Trans i18nKey="components.brlaSwapField.disclaimer">
+              CPF must belong to <b>you</b>.
+            </Trans>
           </div>
         </motion.div>
       )}

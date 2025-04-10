@@ -19,7 +19,7 @@ export type RampPhase =
   | 'moonbeamCleanup'
   | 'subsidizePreSwap'
   | 'subsidizePostSwap'
-  | 'createPayInRequest'
+  | 'brlaTeleport'
   | 'brlaPayoutOnMoonbeam'
   | 'failed'
   | 'complete';

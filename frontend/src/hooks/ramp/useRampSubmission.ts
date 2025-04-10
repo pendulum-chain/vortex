@@ -15,6 +15,7 @@ import { useRegisterRamp } from '../offramp/useRampService/useRegisterRamp';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { FiatToken } from 'shared';
+import { useMainProcess } from '../offramp/useMainProcess';
 
 interface SubmissionError extends Error {
   code?: string;
@@ -120,7 +121,7 @@ export const useRampSubmission = () => {
       setRampSummaryVisible(true);
 
       if (rampDirection === RampDirection.ONRAMP) {
-        registerRamp(executionInput);
+        registerRamp();
       } else {
         // handleOnSubmit(executionInput);
       }
@@ -160,6 +161,9 @@ export const useRampSubmission = () => {
     onRampConfirm,
     handleTransactionInitiation,
     isExecutionPreparing: executionPreparing,
+    finishOfframping: () => {
+      // TODO cleanup offramping state and allow starting a new one
+    },
     validateSubmissionData,
   };
 };

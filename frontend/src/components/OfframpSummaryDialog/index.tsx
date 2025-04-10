@@ -10,6 +10,7 @@ import {
   getAnyFiatTokenDetails,
   TokenType,
   FiatTokenDetails,
+  isFiatTokenDetails,
   Networks,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
@@ -25,6 +26,7 @@ import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { RampExecutionInput } from '../../types/phases';
+import { useTranslation } from 'react-i18next';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 
 interface AssetDisplayProps {
@@ -64,21 +66,22 @@ const FeeDetails = ({
   partnerUrl,
   direction,
 }: FeeDetailsProps) => {
-  const isOfframp = direction === RampDirection.OFFRAMP;
-  const feeLabel = isOfframp ? 'Offramp fee' : 'Onramp fee';
+  const { t } = useTranslation();
 
-  const feeDisplayText = isOfframp
-    ? `${feeLabel} (${(toToken as BaseFiatTokenDetails).offrampFeesBasisPoints / 100}%${
-        (toToken as BaseFiatTokenDetails).offrampFeesFixedComponent
-          ? ` + ${(toToken as BaseFiatTokenDetails).offrampFeesFixedComponent} ${fiatSymbol}`
-          : ''
-      })`
-    : `${feeLabel}`;
+  const isOfframp = direction === RampDirection.OFFRAMP;
+
+  const fiatToken = (isOfframp ? toToken : fromToken) as FiatTokenDetails;
+  if (!isFiatTokenDetails(fiatToken)) {
+    throw new Error('Invalid fiat token details');
+  }
 
   return (
     <section className="mt-6">
       <div className="flex justify-between mb-2">
-        <p>{feeDisplayText}</p>
+        <p>
+          {t('components.dialogs.OfframpSummaryDialog.offrampFee')} ({`${fiatToken.offrampFeesBasisPoints / 100}%`}
+          {fiatToken.offrampFeesFixedComponent ? ` + ${fiatToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
+        </p>
         <p className="flex items-center gap-2">
           <NetworkIcon network={network} className="w-4 h-4" />
           <strong>
@@ -87,7 +90,7 @@ const FeeDetails = ({
         </p>
       </div>
       <div className="flex justify-between mb-2">
-        <p>Quote</p>
+        <p>{t('components.dialogs.OfframpSummaryDialog.quote')}</p>
         <p>
           <ExchangeRate
             inputToken={isOfframp ? fromToken : toToken}
@@ -97,7 +100,7 @@ const FeeDetails = ({
         </p>
       </div>
       <div className="flex justify-between">
-        <p>Partner</p>
+        <p>{t('components.dialogs.OfframpSummaryDialog.partner')}</p>
         <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           {partnerUrl}
         </a>
@@ -135,10 +138,7 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   );
 
   const getPartnerUrl = (): string => {
-    if (isOnramp) {
-      return 'mock';
-    }
-    const fiatToken = toToken as FiatTokenDetails;
+    const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
     return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
   };
 
@@ -184,6 +184,8 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
 };
 
 export const OfframpSummaryDialog: FC = () => {
+  const { t } = useTranslation();
+
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { selectedNetwork } = useNetwork();
@@ -227,7 +229,9 @@ export const OfframpSummaryDialog: FC = () => {
     }
   };
 
-  const headerText = isOnramp ? "You're buying" : "You're selling";
+  const headerText = isOnramp
+    ? t('components.dialogs.OfframpSummaryDialog.headerText.buy')
+    : t('components.dialogs.OfframpSummaryDialog.headerText.sell');
 
   const actions = (
     <button
@@ -238,18 +242,19 @@ export const OfframpSummaryDialog: FC = () => {
     >
       {offrampState !== undefined ? (
         <>
-          <Spinner /> Processing
+          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
         </>
       ) : isSubmitted ? (
         <>
-          <Spinner /> Continue on Partner&apos;s page
+          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.continueOnPartnersPage')}
         </>
       ) : !isOnramp && (toToken as FiatTokenDetails).type !== 'moonbeam' ? (
         <>
-          Continue with Partner <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+          {t('components.dialogs.OfframpSummaryDialog.continueWithPartner')}{' '}
+          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
         </>
       ) : (
-        <>Continue</>
+        <>{t('components.dialogs.OfframpSummaryDialog.continue')}</>
       )}
     </button>
   );

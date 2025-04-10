@@ -13,6 +13,14 @@ type ProcessingLock = {
   lockedAt: Date | null;
 };
 
+type PostCompleteState = {
+  cleanup: {
+    cleanupCompleted: boolean;
+    cleanupAt: Date | null;
+    error: string | null;
+  }
+}
+
 // Define the attributes of the RampState model
 export interface RampStateAttributes {
   id: string; // UUID
@@ -27,6 +35,7 @@ export interface RampStateAttributes {
   phaseHistory: PhaseHistoryEntry[]; // JSONB array
   errorLogs: RampErrorLog[]; // JSONB array
   processingLock: ProcessingLock;
+  postCompleteState: PostCompleteState;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +68,8 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   declare errorLogs: RampErrorLog[];
 
   declare processingLock: ProcessingLock;
+
+  declare postCompleteState: PostCompleteState;
 
   declare createdAt: Date;
 
@@ -152,6 +163,11 @@ RampState.init(
       type: DataTypes.JSONB,
       allowNull: false,
       field: 'processing_lock',
+    },
+    postCompleteState: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      field: 'post_complete_state',
     },
     createdAt: {
       type: DataTypes.DATE,

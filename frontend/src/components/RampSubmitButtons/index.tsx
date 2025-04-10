@@ -8,18 +8,15 @@ import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
-
-enum SwapButtonState {
-  CONFIRMING = 'Confirming',
-  PROCESSING = 'Processing',
-  CONFIRM = 'Confirm',
-}
+import { useTranslation } from 'react-i18next';
 
 interface RampSubmitButtonsProps {
   toAmount?: Big;
 }
 
 export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
+  const { t } = useTranslation();
+
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
@@ -47,11 +44,11 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
     [trackEvent, rampDirection, fiatToken, onChainToken, inputAmount, toAmount, feeComparisonRef],
   );
 
-  const getButtonState = (): SwapButtonState => {
+  const getButtonState = (): string => {
     if (isOfframpSummaryDialogVisible) {
-      return SwapButtonState.PROCESSING;
+      return t('components.swapSubmitButton.processing')
     }
-    return SwapButtonState.CONFIRM;
+    return t('components.swapSubmitButton.confirm');
   };
 
   const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
@@ -64,7 +61,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
         style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
         onClick={handleCompareFeesClick}
       >
-        Compare fees
+        {t('components.swap.compareFees')}
       </button>
       <SwapSubmitButton text={getButtonState()} disabled={isSubmitButtonDisabled} pending={isSubmitButtonPending} />
     </div>

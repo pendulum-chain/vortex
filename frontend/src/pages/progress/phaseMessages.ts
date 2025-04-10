@@ -27,26 +27,33 @@ export function getMessageForPhase(ramp: RampState | undefined, t: any): string 
     const getSwappingMessage = () => t('pages.progress.swappingTo', { assetSymbol: outputAssetSymbol });
     const getApproveMessage = () => t('pages.progress.nablaApprove', { assetSymbol: inputAssetSymbol });
     const getMoonbeamToPendulumMessage = () => t('pages.progress.moonbeamToPendulum', { assetSymbol: inputAssetSymbol });
+    const getSquidrouterSwapMessage = () => t('pages.progress.squidrouterSwap', { assetSymbol: outputAssetSymbol, network: toNetwork });
 
     const getTransferringMessage = () => t('pages.progress.transferringToLocalPartner');
 
     const messages: Record<RampPhase, string> = {
-        initial: t('pages.progress.initial'),
-        stellarCreateAccount: t('pages.progress.createStellarAccount'),
-        fundEphemeral: t('pages.progress.fundEphemeral'),
-        nablaApprove: getApproveMessage(),
-        nablaSwap: getSwappingMessage(),
-        subsidizePreSwap: getSwappingMessage(),
-        subsidizePostSwap: getSwappingMessage(),
-        moonbeamToPendulum: getMoonbeamToPendulumMessage(),
-        moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
-        assethubToPendulum: t('pages.progress.assethubToPendulum', { assetSymbol: inputAssetSymbol }),
-        pendulumToMoonbeam: t('pages.progress.pendulumToMoonbeam', { assetSymbol: outputAssetSymbol }),
-        spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputAssetSymbol }),
-        brlaPayoutOnMoonbeam: getTransferringMessage(),
-        stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
-        pendulumCleanup: '', // TODO deprecated phases.
-        moonbeamCleanup: '', // TODO deprecated phases.
+      initial: t('pages.progress.initial'),
+      stellarCreateAccount: t('pages.progress.createStellarAccount'),
+      fundEphemeral: t('pages.progress.fundEphemeral'),
+      nablaApprove: getApproveMessage(),
+      nablaSwap: getSwappingMessage(),
+      subsidizePreSwap: getSwappingMessage(),
+      subsidizePostSwap: getSwappingMessage(),
+      moonbeamToPendulum: getMoonbeamToPendulumMessage(),
+      moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
+      assethubToPendulum: t('pages.progress.assethubToPendulum', { assetSymbol: inputAssetSymbol }),
+      pendulumToMoonbeam: t('pages.progress.pendulumToMoonbeam', { assetSymbol: outputAssetSymbol }),
+      spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputAssetSymbol }),
+      brlaPayoutOnMoonbeam: getTransferringMessage(),
+      stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
+      pendulumCleanup: '', // TODO deprecated phases.
+      moonbeamCleanup: '', // TODO deprecated phases.
+      squidrouterApprove: getSquidrouterSwapMessage(),
+      squidrouterSwap: getSquidrouterSwapMessage(),
+      pendulumToAssethub: t('pages.progress.pendulumToAssethub', { assetSymbol: outputAssetSymbol }),
+      brlaTeleport: t('pages.progress.brlaTeleport'), 
+      failed: '', // Not relevant for progress page
+      complete: '', // Not relevant for progress page
     };
 
     return messages[currentPhase];

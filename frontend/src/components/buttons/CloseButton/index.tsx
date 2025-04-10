@@ -1,6 +1,6 @@
 import closeIcon from '../../../assets/close-icon.svg';
 
-interface CloseButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
+type CloseButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 export const CloseButton = (props: CloseButtonProps) => (
   <button

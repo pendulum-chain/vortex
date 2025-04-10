@@ -18,17 +18,24 @@
       "resetAndRestart": "Reinicie e comece de novo"
     },
     "progress": {
+      "initial": "Iniciando processo",
+      "createStellarAccount": "Criando conta Stellar",
+      "fundEphemeral": "Financiando contas efêmeras",
       "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
-      "bridgingAssetHub": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
-      "executeMoonbeamToPendulumXCM": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
-      "executePendulumToMoonbeamXCM": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
+      "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
+      "pendulumToMoonbeam": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
       "swappingTo": "Trocando para {{assetSymbol}} no Vortex DEX",
       "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
       "transferringToLocalPartner": "Transferindo para parceiro local para transferência bancária",
-      "success": "Sua transação foi concluída com sucesso!",
-      "transactionInProgress": "Estamos processando sua transação.",
+      "success": "Transação concluída com sucesso!",
+      "transactionInProgress": "Sua transação está em andamento.",
       "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
-      "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos."
+      "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
+      "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
+      "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
+      "squidrouterApprove": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
+      "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
+      "brlaTeleport": "Transferindo ativos recém-criados para Moonbeam"
     },
     "success": {
       "title": "Tudo certo! Enviamos o saque para sua conta bancária.",
@@ -175,7 +182,10 @@
     },
     "dialogs": {
       "OfframpSummaryDialog": {
-        "headerText": "Você está vendendo",
+        "headerText": {
+          "buy": "Você está comprando",
+          "sell": "Você está vendendo"
+        },
         "offrampFee": "Taxa de saque",
         "continueWithPartner": "Continuar com Parceiro",
         "continueOnPartnersPage": "Continuar na página do Parceiro",
@@ -218,8 +228,12 @@
       "community": "Comunidade"
     },
     "swap": {
-      "sellCrypto": "Vender Cripto",
-      "firstInputLabel": "Você vende",
+      "buyButton": "Comprar",
+      "sellButton": "Vender",
+      "firstInputLabel": {
+        "buy": "Você compra",
+        "sell": "Você vende"
+      },
       "secondInputLabel": "Você recebe",
       "compareFees": "Comparar taxas",
       "validation": {
@@ -327,7 +341,6 @@
       "poweredBy": "Desenvolvido por",
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados."
     },
-
     "warningBanner": {
       "title": "Mantenha esta janela aberta",
       "description": "Fechar esta janela interromperá o processo."

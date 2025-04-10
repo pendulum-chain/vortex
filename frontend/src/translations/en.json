@@ -19,7 +19,7 @@
     },
     "progress": {
       "initial": "Starting process",
-      "createStellarAccount" : "Creating Stellar account",
+      "createStellarAccount": "Creating Stellar account",
       "fundEphemeral": "Funding ephemeral accounts",
       "bridgingEVM": "Bridging {{assetSymbol}} from {{network}} --> Moonbeam",
       "assethubToPendulum": "Bridging {{assetSymbol}} from AssetHub --> Pendulum",
@@ -32,7 +32,10 @@
       "estimatedTimeAssetHub": "This usually takes 4-6 minutes.",
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
-      "stellarPayment" : "Transferring {{assetSymbol}} from Stellar --> local partner"
+      "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
+      "squidrouterApprove": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
+      "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
+      "brlaTeleport": "Transferring newly minted assets to Moonbeam"
     },
     "success": {
       "title": "All set! The withdrawal has been sent to your bank.",
@@ -179,7 +182,10 @@
     },
     "dialogs": {
       "OfframpSummaryDialog": {
-        "headerText": "You're selling",
+        "headerText": {
+          "buy": "You're buying",
+          "sell": "You're selling"
+        },
         "offrampFee": "Offramp fee",
         "continueWithPartner": "Continue with Partner",
         "continueOnPartnersPage": "Continue on Partner's page",
@@ -225,7 +231,10 @@
     "swap": {
       "buyButton": "Buy",
       "sellButton": "Sell",
-      "firstInputLabel": "You sell",
+      "firstInputLabel": {
+        "buy": "You pay",
+        "sell": "You sell"
+      },
       "secondInputLabel": "You receive",
       "compareFees": "Compare fees",
       "validation": {
@@ -333,7 +342,6 @@
       "poweredBy": "Powered by",
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
     },
-
     "warningBanner": {
       "title": "Keep this tab open",
       "description": "Closing this tab will halt the process"

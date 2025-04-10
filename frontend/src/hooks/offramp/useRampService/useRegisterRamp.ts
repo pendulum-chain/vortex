@@ -1,7 +1,7 @@
 import { useRampExecutionInput, useRampStore } from '../../../stores/offrampStore';
 import { useVortexAccount } from '../../useVortexAccount';
 import { RampService } from '../../../services/api';
-import { AccountMeta, Networks, signUnsignedTransactions } from 'shared';
+import { AccountMeta, getAddressForFormat, Networks, signUnsignedTransactions } from 'shared';
 import { useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
 
 // For Offramp EUR/ARS we trigger it after returning from anchor window
@@ -57,13 +57,28 @@ export const useRegisterRamp = () => {
 
     const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, onrampAdditionalData);
 
-    await signUnsignedTransactions(rampProcess.unsignedTxs, executionInput.ephemerals, pendulumApiComponents.api, moonbeamApiComponents.api);
+    const ephemeralTxs = rampProcess.unsignedTxs.filter((tx) => {
+      if (!address) {
+        return true;
+      }
+
+      return chainId < 0 && (tx.network === 'pendulum' || tx.network === 'assethub')
+        ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(address, 0)
+        : tx.signer.toLowerCase() !== address.toLowerCase();
+    });
+
+    const signedTransactions = await signUnsignedTransactions(
+      ephemeralTxs,
+      executionInput.ephemerals,
+      pendulumApiComponents.api,
+      moonbeamApiComponents.api,
+    );
 
     setRampRegistered(true);
     setRampState({
       quote: executionInput.quote,
       ramp: rampProcess,
-      signedTransactions: [],
+      signedTransactions,
       requiredUserActionsCompleted: false,
       userSigningMeta: {
         squidRouterApproveHash: undefined,

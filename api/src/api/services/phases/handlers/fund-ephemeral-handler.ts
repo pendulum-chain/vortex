@@ -67,7 +67,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected nextPhaseSelector(state: RampState): RampPhase {
     // onramp case
     if (state.type === 'on') {
-      return 'createPayInRequest';
+      return 'brlaTeleport';
     }
 
     // off ramp cases
