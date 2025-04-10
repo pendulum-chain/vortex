@@ -64,7 +64,7 @@ export function FeeProviderRow({
     if (isOnramp) return undefined
 
     return providerPriceRaw && providerPriceRaw.gte(0) ? providerPriceRaw : undefined;
-  }, [providerPriceRaw, vortexPrice, provider.name]);
+  }, [provider.name, vortexPrice, isOnramp, providerPriceRaw]);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) return;
