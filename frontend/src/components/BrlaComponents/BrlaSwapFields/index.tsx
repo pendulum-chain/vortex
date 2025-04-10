@@ -5,6 +5,8 @@ import { Trans, useTranslation } from 'react-i18next';
 import { FiatToken } from 'shared';
 import { BrlaField, StandardBrlaFieldOptions } from '../BrlaField';
 import { useFiatToken } from '../../../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../../../stores/rampDirectionStore';
+import { RampDirection } from '../../RampToggle';
 
 const containerAnimation: MotionProps = {
   initial: { opacity: 0, height: 0 },
@@ -13,7 +15,14 @@ const containerAnimation: MotionProps = {
   transition: { duration: 0.3 },
 };
 
-const STANDARD_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 }];
+const OFFRAMP_FIELDS = [
+  { id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 },
+  { id: StandardBrlaFieldOptions.PIX_ID, label: 'PIX', index: 1 },
+];
+
+const ONRAMP_FIELDS = [
+  { id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 }
+]
 
 /**
  * BrlaSwapFields component
@@ -28,11 +37,15 @@ export const BrlaSwapFields: FC = () => {
 
   const fiatToken = useFiatToken();
 
+  const rampDirection =  useRampDirection();
+
+  const FIELDS = rampDirection === RampDirection.OFFRAMP ? OFFRAMP_FIELDS : ONRAMP_FIELDS;
+
   return (
     <AnimatePresence>
       {fiatToken === FiatToken.BRL && (
         <motion.div {...containerAnimation}>
-          {STANDARD_FIELDS.map((field) => (
+          {FIELDS.map((field) => (
             <BrlaField
               className="mt-2"
               key={field.id}
