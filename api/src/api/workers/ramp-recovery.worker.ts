@@ -48,6 +48,7 @@ class RampRecoveryWorker {
           updatedAt: {
             [Op.lt]: new Date(Date.now() - 10 * 60 * 1000), // 10 minutes ago
           },
+          presignedTxs: {[Op.not]: null},
         },
       });
 
