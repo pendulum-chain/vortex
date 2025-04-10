@@ -15,14 +15,18 @@ export type RampPhase =
   | 'pendulumToAssethub'
   | 'spacewalkRedeem'
   | 'stellarPayment'
-  | 'pendulumCleanup'
-  | 'moonbeamCleanup'
   | 'subsidizePreSwap'
   | 'subsidizePostSwap'
   | 'brlaTeleport'
   | 'brlaPayoutOnMoonbeam'
   | 'failed'
   | 'complete';
+
+export type CleanupPhase =
+  | 'moonbeamCleanup'
+  | 'pendulumCleanup'
+  | 'stellarCleanup';
+
 
 export interface AccountMeta {
   address: string;
@@ -44,7 +48,7 @@ export function isEvmTransactionData(data: string | EvmTransactionData): data is
 
 export interface UnsignedTx {
   txData: string | EvmTransactionData;
-  phase: RampPhase;
+  phase: RampPhase | CleanupPhase;
   network: Networks;
   nonce: number;
   signer: string;

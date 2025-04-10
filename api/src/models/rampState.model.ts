@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
+import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
 import sequelize from '../config/database';
 
 export interface PhaseHistoryEntry {
@@ -13,13 +13,18 @@ type ProcessingLock = {
   lockedAt: Date | null;
 };
 
+type CleanupError = {
+  name: CleanupPhase;
+  error: string;
+};
+
 type PostCompleteState = {
   cleanup: {
     cleanupCompleted: boolean;
     cleanupAt: Date | null;
-    error: string | null;
-  }
-}
+    errors: CleanupError[] | null;
+  };
+};
 
 // Define the attributes of the RampState model
 export interface RampStateAttributes {
@@ -161,12 +166,12 @@ RampState.init(
     },
     processingLock: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       field: 'processing_lock',
     },
     postCompleteState: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       field: 'post_complete_state',
     },
     createdAt: {

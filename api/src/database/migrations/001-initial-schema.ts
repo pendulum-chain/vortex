@@ -144,7 +144,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
           cleanupCompleted: false,
           cleanupAt: null,
           error: null,
-        }
+        },
       },
       field: 'post_complete_state',
     },

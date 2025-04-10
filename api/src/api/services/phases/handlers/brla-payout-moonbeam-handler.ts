@@ -72,7 +72,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         taxId: receiverTaxId,
       });
 
-      return this.transitionToNextPhase(state, 'pendulumCleanup');
+      return this.transitionToNextPhase(state, 'complete');
     } catch (e) {
       console.error('Error in brlaPayoutOnMoonbeam', e);
       throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.');

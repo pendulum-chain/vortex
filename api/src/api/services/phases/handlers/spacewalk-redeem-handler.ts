@@ -53,9 +53,9 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
           stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string,
         );
-        return this.transitionToNextPhase(state, 'pendulumCleanup');
+        return this.transitionToNextPhase(state, 'stellarPayment');
       }
-
+   
       const vaultService = await createVaultService(
         pendulumNode,
         stellarTarget.stellarTokenDetails.stellarAsset.code.hex,
@@ -73,7 +73,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       const eventListener = EventListener.getEventListener(pendulumNode.api);
       await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
 
-      return this.transitionToNextPhase(state, 'pendulumCleanup');
+      return this.transitionToNextPhase(state, 'stellarPayment');
     } catch (e) {
       // This is a potentially recoverable error (due to redeem request done before app shut down, but not registered)
       if ((e as Error).message.includes('AmountExceedsUserBalance')) {
@@ -83,7 +83,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
           stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string,
         );
-        return this.transitionToNextPhase(state, 'pendulumCleanup');
+        return this.transitionToNextPhase(state, 'stellarPayment');
       } else {
         // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
         console.log(`Failed to request redeem: ${e}`);
