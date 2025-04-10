@@ -70,10 +70,15 @@ export class PhaseProcessor {
     }
   }
 
+  /**
+   * Check if the lock has expired. We do this to avoid stale locks that can happen when the service crashes or restarts.
+   * @param state The current ramp state
+   * @private
+   */
   private isLockExpired(state: RampState): boolean {
     const lockDuration = 30 * 10 * 1000; // 10 minutes
     const now = new Date();
-    const lockTime = state.processingLock.lockedAt;
+    const lockTime = new Date(state.processingLock.lockedAt || 0);
     if (!lockTime) {
       return true; // No lock time means it's not locked
     }
