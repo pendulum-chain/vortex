@@ -182,6 +182,13 @@
     },
     "dialogs": {
       "OfframpSummaryDialog": {
+        "BRLOnrampDetails": {
+          "title": "Pay with Pix",
+          "description": "Continue in your bank's app",
+          "qrCode": "Select Pix in your bank's app and scan the QR code below.",
+          "copyCode": "Or copy the Pix code below, select Pix in your bank's app and paste the code provided.",
+          "pixCode": "Pix code"
+        },
         "headerText": {
           "buy": "You're buying",
           "sell": "You're selling"
