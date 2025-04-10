@@ -5,9 +5,9 @@ import { EphemeralAccount } from 'shared';
 
 export function createMoonbeamEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();
+  const keyring = new Keyring({ type: 'ethereum' });
 
-  const keyring = new Keyring({ type: 'sr25519' });
-  const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
+  const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
   return { secret: seedPhrase, address: ephemeralAccountKeypair.address };
 }
