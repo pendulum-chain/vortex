@@ -175,7 +175,10 @@
     },
     "dialogs": {
       "OfframpSummaryDialog": {
-        "headerText": "Você está vendendo",
+        "headerText": {
+          "buy": "Você está comprando",
+          "sell": "Você está vendendo"
+        },
         "offrampFee": "Taxa de saque",
         "continueWithPartner": "Continuar com Parceiro",
         "continueOnPartnersPage": "Continuar na página do Parceiro",
@@ -218,8 +221,12 @@
       "community": "Comunidade"
     },
     "swap": {
-      "sellCrypto": "Vender Cripto",
-      "firstInputLabel": "Você vende",
+      "buyButton": "Comprar",
+      "sellButton": "Vender",
+      "firstInputLabel": {
+        "buy": "Você compra",
+        "sell": "Você vende"
+      },
       "secondInputLabel": "Você recebe",
       "compareFees": "Comparar taxas",
       "validation": {
@@ -327,7 +334,6 @@
       "poweredBy": "Desenvolvido por",
       "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados."
     },
-
     "warningBanner": {
       "title": "Mantenha esta janela aberta",
       "description": "Fechar esta janela interromperá o processo."

@@ -23,8 +23,11 @@ import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
+import { useTranslation } from 'react-i18next';
 
 export const Offramp = () => {
+  const { t } = useTranslation();
+
   const { setTrackPrice } = useFeeComparisonStore();
 
   const { form } = useRampForm();
@@ -116,9 +119,13 @@ export const Offramp = () => {
   return (
     <FormProvider {...form}>
       <motion.form onSubmit={form.handleSubmit(handleConfirm)}>
-        <LabeledInput label="You sell" htmlFor="fromAmount" Input={WithdrawNumericInput} />
+        <LabeledInput
+          label={t('components.swap.firstInputLabel.sell')}
+          htmlFor="fromAmount"
+          Input={WithdrawNumericInput}
+        />
         <div className="my-10" />
-        <LabeledInput label="You receive" htmlFor="toAmount" Input={ReceiveNumericInput} />
+        <LabeledInput label={t('components.swap.secondInputLabel')} htmlFor="toAmount" Input={ReceiveNumericInput} />
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="flex items-center justify-center w-full mt-5">
