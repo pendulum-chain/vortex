@@ -166,12 +166,12 @@ RampState.init(
     },
     processingLock: {
       type: DataTypes.JSONB,
-      allowNull: true,
+      allowNull: false,
       field: 'processing_lock',
     },
     postCompleteState: {
       type: DataTypes.JSONB,
-      allowNull: true,
+      allowNull: false,
       field: 'post_complete_state',
     },
     createdAt: {
