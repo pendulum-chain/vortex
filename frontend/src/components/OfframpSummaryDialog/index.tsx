@@ -26,7 +26,6 @@ import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { RampExecutionInput } from '../../types/phases';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 
 interface AssetDisplayProps {
   amount: string;
@@ -198,14 +197,6 @@ export const OfframpSummaryDialog: FC = () => {
   const isOnramp = rampDirection === RampDirection.ONRAMP;
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
-  const { outputAmount } = useQuoteStore();
-
-  const { feesCost } = useOfframpFees({
-    toAmount: outputAmount,
-    toToken: isOnramp
-      ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
-      : getAnyFiatTokenDetails(fiatToken),
-  });
 
   if (!visible) return null;
   if (!executionInput) return null;
