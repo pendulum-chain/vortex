@@ -1,0 +1,371 @@
+{
+  "pages": {
+    "failure": {
+      "title": "Ops! Algo não saiu como esperado.",
+      "recoverable": {
+        "description": "Lamentamos, mas seu pedido de saque não foi processado a tempo, possivelmente devido a uma falha temporária na conexão de internet.",
+        "cta": "Você pode tentar prosseguir ou reiniciar o processo.",
+        "retry": "Tentar outra vez"
+      },
+      "copyTransactionId": "Caso você encontre algum problema, por favor copie isso",
+      "contactSupport": {
+        "beforeUrl": "Entre em contato com nossa",
+        "url": "equipe de suporte",
+        "afterUrl": ". Estamos aqui para ajudar!"
+      },
+      "contactedSupport": "Já falou com o suporte e quer iniciar uma nova transação?",
+      "tapToReset": "Clique aqui",
+      "resetAndRestart": "Reinicie e comece de novo"
+    },
+    "progress": {
+      "initial": "Iniciando processo",
+      "createStellarAccount": "Criando conta Stellar",
+      "fundEphemeral": "Financiando contas efêmeras",
+      "bridgingEVM": "Transferindo {{assetSymbol}} de {{network}} --> Moonbeam",
+      "assethubToPendulum": "Transferindo {{assetSymbol}} de AssetHub --> Pendulum",
+      "pendulumToMoonbeam": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
+      "swappingTo": "Trocando para {{assetSymbol}} no Vortex DEX",
+      "executeSpacewalkRedeem": "Transferindo {{assetSymbol}} para Stellar via Spacewalk",
+      "transferringToLocalPartner": "Transferindo para parceiro local para transferência bancária",
+      "success": "Transação concluída com sucesso!",
+      "transactionInProgress": "Sua transação está em andamento.",
+      "estimatedTimeAssetHub": "Isso geralmente leva de 4 a 6 minutos.",
+      "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
+      "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
+      "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
+      "squidrouterApprove": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
+      "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
+      "brlaTeleport": "Transferindo ativos recém-criados para Moonbeam"
+    },
+    "success": {
+      "title": "Tudo certo! Enviamos o saque para sua conta bancária.",
+      "returnHome": "Voltar para a página inicial.",
+      "arrivalText": {
+        "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
+        "ARS": "Em breve os fundos estarão disponíveis em sua conta bancária.",
+        "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
+        "default": "Em breve os fundos estarão disponíveis em sua conta bancária."
+      }
+    },
+    "swap": {
+      "error": {
+        "initializeFailed": {
+          "default": "Estamos enfrentando um congestionamento digital. Por favor, aguarde enquanto liberamos o caminho e fazemos as coisas funcionarem novamente!",
+          "noAddress": "Nenhum endereço encontrado.",
+          "noApiComponents": "Nenhum componente de API encontrado.",
+          "noApi": "Nenhuma API encontrada."
+        },
+        "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
+        "moreThanMaximumWithdrawal": "O valor máximo de saque é {{maxAmountUnits}} {{assetSymbol}}.",
+        "lessThanMinimumWithdrawal": "O valor mínimo de saque é {{minAmountUnits}} {{assetSymbol}}.",
+        "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor."
+      },
+      "developedBy": "Desenvolvido por"
+    }
+  },
+  "sections": {
+    "whyVortex": {
+      "title": "Venda criptomoedas com segurança",
+      "description": "A Vortex é uma plataforma de troca não custodial, permitindo que você negocie diversas criptomoedas com facilidade.",
+      "features": {
+        "lowFees": {
+          "title": "Taxas reduzidas para mais economia",
+          "description": "As taxas são de apenas 0,25%, muito abaixo da média do mercado. Não há taxas ocultas nas taxas de câmbio."
+        },
+        "easyToUse": {
+          "title": "Simples de usar",
+          "description": "Venda suas criptomoedas facilmente sem a necessidade de uma exchange centralizada."
+        },
+        "securityFirst": {
+          "title": "Priorizamos sua segurança acima de tudo",
+          "description": "Vortex é não-custodial por design. Seus ativos são tratados com cuidado e segurança."
+        },
+        "smartKYC": {
+          "title": "KYC rápido e fácil",
+          "description": "Seja verificado rapidamente e desfrute de altos limites de transação e um processo de verificação simples e amigável."
+        }
+      },
+      "withVortexFinance": "com <1>Vortex Finance</1>?"
+    },
+    "trustedBy": {
+      "title": "Confiado por",
+      "comingSoon": "Em breve"
+    },
+    "popularTokens": {
+      "networks": {
+        "title": "Redes Suportadas",
+        "description": "Negocie em várias redes blockchain"
+      },
+      "tokens": {
+        "title": "Tokens Suportados",
+        "description": "Negocie estas stablecoins populares"
+      }
+    },
+    "pitch": {
+      "title": "Venda <1>Stablecoins</1> e receba <br class='hidden sm:block' /> o dinheiro diretamente na sua Conta Bancária",
+      "description": "Complete tudo em uma única etapa simples. Com nossos parceiros locais confiáveis, <br class='hidden sm:block' /> desfrute de transações rápidas, seguras e as melhores taxas do mercado."
+    },
+    "howToSell": {
+      "title": "Como vender criptomoedas online <br class='hidden md:block' /> com Vortex Finance",
+      "steps": {
+        "1": "Conecte sua carteira e insira o valor em criptomoeda que deseja vender.",
+        "2": "Continue para o site do parceiro e forneça seu e-mail e detalhes de pagamento.",
+        "3": "Retorne ao VortexFinance.co e confirme a transação em sua carteira.",
+        "4": "Aguarde a chegada dos fundos em sua conta."
+      }
+    },
+    "gotQuestions": {
+      "title": "Tem Perguntas? Estamos aqui para ajudar!",
+      "description": "Entre em contato conosco para respostas e suporte.",
+      "contactUs": "Fale Conosco"
+    },
+    "faq": {
+      "title": "Perguntas frequentes",
+      "learnMore": "SAIBA MAIS",
+      "items": {
+        "fees": {
+          "question": "Quanto a Vortex cobra em taxas?",
+          "answer": "As taxas da Vortex são completamente transparentes e dependem do método de pagamento escolhido. São taxas completas, o que significa que não há cobranças ocultas da Vortex ou de parceiros bancários locais. O custo da sua transferência vem da taxa claramente divulgada e da taxa de câmbio. Ao contrário de muitos provedores que afirmam 'sem taxas', mas escondem custos extras em taxas de câmbio inflacionadas, a Vortex garante que você nunca seja cobrado em excesso. Nossas taxas são mostradas antecipadamente para que você sempre saiba exatamente o que está pagando."
+        },
+        "countries": {
+          "question": "Quais países e moedas a Vortex suporta?",
+          "answer": "A Vortex está disponível em todos os 44 países europeus e também atende usuários no Brasil e na Argentina. Nossa cobertura de serviço está em constante expansão, com novos países sendo adicionados a cada poucas semanas. À medida que crescemos, nosso objetivo é fornecer acesso a ainda mais regiões e moedas para melhor atender nossos usuários globais."
+        },
+        "verification": {
+          "question": "Quanto tempo leva a verificação?",
+          "answer": "Nosso processo de KYC foi projetado para ser o mais rápido e simples possível, geralmente levando menos de seis minutos para ser concluído. Em casos raros em que verificações adicionais são necessárias, a verificação pode levar até o próximo dia útil. O tempo necessário depende em grande parte da validade e integridade dos documentos fornecidos. Recomendamos verificar duas vezes sua submissão para garantir um processo tranquilo."
+        },
+        "cryptocurrencies": {
+          "question": "Quais criptomoedas são suportadas?",
+          "answer": "A Vortex suporta uma variedade de stablecoins, incluindo USDC e USDT. Essas stablecoins estão disponíveis em várias redes blockchain, como Polkadot, Arbitrum, Avalanche, Base, BNB, Ethereum e Polygon. Estamos constantemente trabalhando para expandir nossas ofertas e adicionaremos criptomoedas e redes adicionais no futuro para atender às crescentes demandas dos usuários."
+        },
+        "timing": {
+          "question": "Quanto tempo leva para vender cripto (para o dinheiro chegar)?",
+          "answer": "O processo de transação cripto-para-fiat com a Vortex é excepcionalmente rápido, levando apenas cerca de três minutos. Se o seu banco suporta pagamentos instantâneos, você verá os fundos em sua conta dentro de cinco minutos. Para bancos sem recursos de pagamento instantâneo, o tempo de processamento depende do seu banco, mas geralmente leva de um a dois dias úteis para o dinheiro chegar."
+        },
+        "business": {
+          "question": "A Vortex oferece soluções para empresas?",
+          "answer": "Absolutamente! A Vortex oferece soluções personalizadas para empresas que desejam integrar nossa plataforma em seus serviços. As empresas podem fornecer aos seus usuários as taxas competitivas, facilidade de uso e transações sem problemas da Vortex. Se você estiver interessado, nossa equipe de vendas está pronta para discutir como podemos ajudar a atender às suas necessidades específicas e estabelecer uma parceria que entregue valor para o seu negócio."
+        }
+      }
+    },
+    "feeComparison": {
+      "title": "<0>Economize</0> em margens de taxa de câmbio",
+      "description": "O custo da sua transferência vem da taxa e da taxa de câmbio. Muitos provedores oferecem <1>”sem taxa”</1>, enquanto escondem uma margem na taxa de câmbio, fazendo você pagar mais.",
+      "description2": "Na Vortex, nunca faremos isso e mostraremos nossas taxas antecipadamente.",
+      "table": {
+        "sending": "Enviando",
+        "with": "com",
+        "recipientGets": "Destinatário recebe",
+        "totalAfterFees": "Total após taxas",
+        "bestRate": "Melhor taxa",
+        "tooltip": "Cotações são para Polygon, como os provedores não suportam {{network}}."
+      }
+    }
+  },
+  "components": {
+    "emailForm": {
+      "success": "Salvo com sucesso!",
+      "loading": "Carregando...",
+      "error": "Erro ao salvar seu e-mail. Por favor, tente novamente.",
+      "title": "Obrigado por usar nosso novo produto!",
+      "description": "Estamos sempre buscando melhorar e gostaríamos muito de receber seu feedback. Se possível, deixe seu e-mail abaixo para que possamos entrar em contato para uma rápida conversa sobre sua experiência.",
+      "noNewslettersNoSpam": "Sem newsletters, sem spam — apenas suas opiniões sinceras.",
+      "submit": "Enviar"
+    },
+    "termsAndConditions": {
+      "text": "Eu li e aceito os",
+      "link": "Termos e Condições"
+    },
+    "searchInput": {
+      "placeholder": "Pesquisar"
+    },
+    "dialogs": {
+      "OfframpSummaryDialog": {
+        "BRLOnrampDetails": {
+          "title": "Pagar com PIX",
+          "description": "Continue no app do seu banco",
+          "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
+          "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
+          "pixCode": "Código PIX"
+        },
+        "headerText": {
+          "buy": "Você está comprando",
+          "sell": "Você está vendendo"
+        },
+        "offrampFee": "Taxa de saque",
+        "continueWithPartner": "Continuar com Parceiro",
+        "continueOnPartnersPage": "Continuar na página do Parceiro",
+        "processing": "Processando",
+        "continue": "Continuar",
+        "quote": "Cotação",
+        "partner": "Parceiro"
+      },
+      "selectionModal": {
+        "title": "Selecione um token",
+        "searchPlaceholder": "Encontre por nome ou endereço"
+      },
+      "polkadotDisconnectWallet": {
+        "disconnect": "Desconectar"
+      },
+      "polkadotWalletSelectorDialog": {
+        "title": "Conectar wallet",
+        "selectWallet": "Selecionar wallet",
+        "chooseAccount": "Escolher Conta",
+        "noWalletInstalled": "Nenhuma carteira instalada"
+      },
+      "polkadotWalletSelectorDialogLoading": {
+        "title": "Conectando wallet",
+        "description": "Por favor, aprove {selectedWallet} e aprove a transação."
+      },
+      "connectWallet": {
+        "connect": "Conectar"
+      }
+    },
+    "signingBox": {
+      "actionRequired": "Ação necessária",
+      "pleaseSignTransaction": "Por favor, assine a transação na",
+      "yourConnectedWallet": "sua carteira conectada para prosseguir",
+      "waitingForSignature": "Aguardando assinatura",
+      "signatures": "Assinaturas"
+    },
+    "navbar": {
+      "sellCrypto": "Vender Cripto",
+      "howItWorks": "Como funciona",
+      "community": "Comunidade"
+    },
+    "swap": {
+      "buyButton": "Comprar",
+      "sellButton": "Vender",
+      "firstInputLabel": {
+        "buy": "Você compra",
+        "sell": "Você vende"
+      },
+      "secondInputLabel": "Você recebe",
+      "compareFees": "Comparar taxas",
+      "validation": {
+        "taxId": {
+          "required": "CPF é obrigatório para transferências em BRL",
+          "format": "CPF inválido"
+        },
+        "pixId": {
+          "required": "Chave PIX é obrigatória para transferências em BRL",
+          "format": "A chave PIX não corresponde a nenhum dos formatos válidos"
+        }
+      }
+    },
+    "benefitsList": {
+      "noHiddenFees": "Sem taxas ocultas",
+      "takes5Minutes": "Leva <1>5 minutos</1>"
+    },
+    "brlaSwapField": {
+      "placeholder": "Digite seu {{label}}",
+      "disclaimer": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>."
+    },
+    "swapSubmitButton": {
+      "confirming": "Confirmando",
+      "processing": "Processando",
+      "confirm": "Confirmar",
+      "confirmPayment": "Confirmar pagamento"
+    },
+    "feeCollapse": {
+      "details": "Detalhes",
+      "yourQuote": "Sua cotação",
+      "vortexFee": "Taxa da Vortex",
+      "finalAmount": "Valor final"
+    },
+    "brlaKYCForm": {
+      "title": "Detalhes KYC",
+      "description": "A verificação KYC é necessária para completar sua transação. As informações fornecidas são processadas com segurança pelo nosso parceiro local ",
+      "buttons": {
+        "back": "Voltar",
+        "finish": "Finalizar",
+        "compareFees": "Comparar Taxas"
+      }
+    },
+    "brlaExtendedForm": {
+      "form": {
+        "fullName": "Nome Completo",
+        "phoneNumber": "Número de Telefone",
+        "city": "Cidade",
+        "state": "Estado",
+        "street": "Rua",
+        "number": "Número",
+        "district": "Bairro",
+        "birthdate": "Data de Nascimento"
+      },
+      "verificationStatus": {
+        "pending": "Verificando seus dados, por favor aguarde",
+        "success": "Verificação bem-sucedida",
+        "rejected": "Verificação KYC rejeitada",
+        "error": "Erro na verificação"
+      },
+      "validation": {
+        "phone": {
+          "required": "Número de telefone é obrigatório",
+          "format": "Formato de número de telefone inválido"
+        },
+        "fullName": {
+          "required": "Nome completo é obrigatório",
+          "minLength": "O nome deve ter pelo menos 3 caracteres",
+          "format": "O nome só pode conter letras e espaços"
+        },
+        "cep": {
+          "required": "CEP é obrigatório",
+          "minLength": "CEP deve ter pelo menos 3 caracteres"
+        },
+        "city": {
+          "required": "Cidade é obrigatória",
+          "minLength": "Cidade deve ter pelo menos 5 caracteres"
+        },
+        "state": {
+          "required": "Estado é obrigatório",
+          "minLength": "Estado deve ter pelo menos 3 caracteres"
+        },
+        "street": {
+          "required": "Rua é obrigatória",
+          "minLength": "Rua deve ter pelo menos 5 caracteres"
+        },
+        "number": {
+          "required": "Número é obrigatório"
+        },
+        "district": {
+          "required": "Bairro é obrigatório",
+          "minLength": "Bairro deve ter pelo menos 3 caracteres"
+        },
+        "birthdate": {
+          "required": "Data de nascimento é obrigatória",
+          "future": "Data de nascimento não pode ser no futuro",
+          "tooOld": "Data de nascimento inválida"
+        }
+      }
+    },
+    "rating": {
+      "title": "Sua opinião é importante!",
+      "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
+      "thankYou": "Obrigado!"
+    },
+    "footer": {
+      "poweredBy": "Desenvolvido por",
+      "copyright": "Copyright © {{year}}, Vortex. Todos os direitos reservados."
+    }
+  },
+  "hooks": {
+    "useTokenAmountOut": {
+      "insufficientLiquidity": "Insuficiente liquidez para esta troca. Por favor, tente com um valor menor ou tente novamente mais tarde.",
+      "default": "Algo deu errado"
+    },
+    "useSubmitOfframp": {
+      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."
+    }
+  },
+  "toasts": {
+    "amountMismatch": "Valores de saque incompatíveis detectados. Por favor, reinicie o processo de saque.",
+    "kycCompleted": "Sucesso! Prepare-se para sacar.",
+    "kycVerificationFailed": "Não foi possível verificar o status do KYC. Por favor, tente novamente.",
+    "signingFailed": "Falha na assinatura. Por favor, tente novamente.",
+    "walletAlreadyOpen": "Carteira já aberta aguardando conexão. Por favor, tente novamente.",
+    "nodeConnectionError": "Erro ao conectar ao nó. Atualize a página para reconectar.",
+    "genericError": "Ocorreu um erro. Por favor, tente novamente."
+  }
+}
