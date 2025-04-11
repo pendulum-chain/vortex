@@ -309,9 +309,6 @@ export const ProgressPage = () => {
     return false;
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.updatedAt]);
 
-  // TODO the recovery worker will change the 'updatedAt' field to the current time, so this will always be false
-  console.log('showIsDelayedWarning', showIsDelayedWarning);
-
   useEffect(() => {
     // Only set up the polling if we have a ramp ID
     if (!rampState?.ramp?.id) return;
