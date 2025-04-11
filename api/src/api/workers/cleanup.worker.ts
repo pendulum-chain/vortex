@@ -112,7 +112,7 @@ export class CleanupWorker {
   private async processCleanup(state: RampState): Promise<void> {
     // Identify which handlers should process this state
     const applicableHandlers = postProcessHandlers.filter((handler) => handler.shouldProcess(state));
-
+    
     if (applicableHandlers.length === 0) {
       logger.info(`No applicable cleanup handlers for state ${state.id}`);
       return;
@@ -120,16 +120,15 @@ export class CleanupWorker {
 
     logger.info(`Found ${applicableHandlers.length} applicable cleanup handlers for state ${state.id}`);
 
-    // Get the current list of errors (if any)
     const currentErrors = state.postCompleteState.cleanup.errors || [];
     let updatedErrors = [...currentErrors];
     let allSuccessful = true;
 
     // If there are errors, remove from applicable those that are NOT in the current errors.
-    // We can retry only the ones that failed
-    const filteredApplicableHandlers = applicableHandlers.filter((handler) =>
+    // We will retry only the ones that failed
+    const filteredApplicableHandlers = currentErrors.length > 0 ? applicableHandlers.filter((handler) =>
       currentErrors.some((error) => error.name === handler.getCleanupName()),
-    );
+    ) : applicableHandlers;
 
     // Process each handler
     for (const handler of filteredApplicableHandlers) {

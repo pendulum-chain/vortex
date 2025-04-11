@@ -126,14 +126,6 @@ export async function prepareOnrampTransactions(
         signer: account.address,
       });
 
-      unsignedTxs.push({
-        txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
-        phase: 'moonbeamCleanup2',
-        network: account.network,
-        nonce: 5,
-        signer: account.address,
-      });
-
       if (toNetworkId !== getNetworkId(Networks.AssetHub)) {
         if (!isEvmTokenDetails(outputTokenDetails)) {
           throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${quote.outputCurrency}`);
@@ -145,6 +137,7 @@ export async function prepareOnrampTransactions(
           addressDestination: destinationAddress,
           fromAddress: account.address,
           moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 2,
+          desiredToAmountUnits: outputAmount.toFixed(),
         });
 
         unsignedTxs.push({
@@ -174,7 +167,7 @@ export async function prepareOnrampTransactions(
         nablaSoftMinimumOutput,
         outputTokenDetails.pendulumDecimals,
       ).toFixed();
-      console.log('fixed? soft minimum output raw....', nablaSoftMinimumOutputRaw);
+
       const { approveTransaction, swapTransaction } = await createNablaTransactionsForOnramp(
         inputAmountUnits,
         quote,

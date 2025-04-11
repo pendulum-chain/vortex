@@ -22,6 +22,7 @@
     "prepare": "cd .. && husky ./husky"
   },
   "dependencies": {
+    "@0xsquid/sdk": "^2.9.4",
     "@pendulum-chain/api-solang": "^0.7.2",
     "@polkadot/api": "^13.2.1",
     "@polkadot/api-contract": "^13.2.1",
