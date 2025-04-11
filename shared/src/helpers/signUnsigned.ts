@@ -17,7 +17,7 @@ import { hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 3;
 
-function addAdditionalTransactionsToMeta(
+export function addAdditionalTransactionsToMeta(
   primaryTx: PresignedTx,
   multiSignedTxs: PresignedTx[]
 ): PresignedTx {
@@ -44,46 +44,49 @@ function addAdditionalTransactionsToMeta(
 /**
  * Signs multiple Stellar transactions with increasing sequence numbers
  * 
- * @param tx - The original unsigned transaction
+ * @param tx - The original backend-signed transaction. Can contain meta field with multiple-nonce transactions.
  * @param keypair - The Stellar keypair to sign with
  * @param networkPassphrase - The Stellar network passphrase
  * @param startingNonce - The starting nonce/sequence number value
- * @returns - Array of signed transactions with increasing nonces
+ * @returns - Multi-nonce presigned transaction object.
  */
 async function signMultipleStellarTransactions(
   tx: UnsignedTx,
   keypair: Keypair,
   networkPassphrase: string,
-  startingNonce: number
-): Promise<PresignedTx[]> {
-  const signedTxs: PresignedTx[] = [];
-  
-  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
+): Promise<PresignedTx> {
 
-    const currentNonce = startingNonce + i;
-    const transaction = new Transaction(tx.txData as string, networkPassphrase);
-  
-    if (i > 0) {
-      transaction.sequence = currentNonce.toString();
-    }
-
-    transaction.sign(keypair);
+  const transaction = new Transaction(tx.txData as string, networkPassphrase);
+  transaction.sign(keypair);
     
-    const signedTxData = transaction
+  const primarySignedTxData = transaction
+    .toEnvelope()
+    .toXDR()
+    .toString("base64");
+    
+  const signedTx: PresignedTx = {
+    ...tx,
+    txData: primarySignedTxData
+  };
+  // iterate objects of array meta
+  for (const key in signedTx.meta.additionalTxs) {
+    console.log(`key: ${key}`);
+    console.log(`value: ${signedTx.meta[key]}`);
+    if (!key.includes(tx.phase)) continue;
+
+    const extraTransactionUnsigned = signedTx.meta.additionalTxs[key].txData;
+    const extraTransaction = new Transaction(extraTransactionUnsigned as string, networkPassphrase);
+    extraTransaction.sign(keypair);
+
+    const extraTransactionSigned = extraTransaction
       .toEnvelope()
       .toXDR()
       .toString("base64");
-    
-    const signedTx: PresignedTx = {
-      ...tx,
-      nonce: currentNonce,
-      txData: signedTxData
-    };
-    
-    signedTxs.push(signedTx);
-  }
+    signedTx.meta.additionalTxs[key].txData = extraTransactionSigned;
+
+  };
   
-  return signedTxs;
+  return signedTx;
 }
 
 /**
@@ -239,17 +242,7 @@ export async function signUnsignedTransactions(
           throw new Error("Invalid Stellar transaction data format");
         }
 
-        const multiSignedTxs = await signMultipleStellarTransactions(
-          tx,
-          keypair,
-          networkPassphrase,
-          tx.nonce
-        );
-        
-        const primaryTx = multiSignedTxs[0];
-        
-        const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
-        
+        const txWithMeta = await signMultipleStellarTransactions(tx, keypair, networkPassphrase);
         signedTxs.push(txWithMeta);
       }
     }
