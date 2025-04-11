@@ -11,6 +11,7 @@ import { GotQuestions } from '../../sections';
 import { useRampActions, useRampState, useRampStore } from '../../stores/offrampStore';
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
+import { config } from '../../config';
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -189,15 +190,25 @@ interface ProgressContentProps {
 
 const WarningBanner: FC = () => {
   const { t } = useTranslation();
+  const rampState = useRampState();
 
   return (
-    <section className="flex items-center gap-4 p-4 bg-yellow-500 border-l-8 border-yellow-700 rounded shadow-lg">
+    <section className="flex items-center gap-4 p-4 bg-yellow-400 border-l-8 border-yellow-700 rounded shadow-lg">
       <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
         <ExclamationCircleIcon className="w-12 text-yellow-800" />
       </motion.div>
       <div>
         <h1 className="text-xl font-extrabold text-yellow-900">{t('components.warningBanner.title')}</h1>
-        <p className="text-sm font-medium text-yellow-900">{t('components.warningBanner.description')}</p>
+        <p className="text-sm font-medium text-yellow-900">
+          {t('components.warningBanner.beforeUrl')}
+          <a href={config.supportUrl} target="_blank" rel="noreferrer" className="underline">
+            {t('components.warningBanner.url')}
+          </a>
+          {t('components.warningBanner.afterUrl')}
+        </p>
+        <p className="text-sm mt-2 font-medium text-yellow-900">
+          Your transaction ID is <span className="">{rampState?.ramp?.id || 'N/A'}</span>.
+        </p>
       </div>
     </section>
   );
@@ -284,6 +295,9 @@ export const ProgressPage = () => {
     }
     return false;
   }, [rampState?.ramp?.currentPhase, rampState?.ramp?.updatedAt]);
+
+  // TODO the recovery worker will change the 'updatedAt' field to the current time, so this will always be false
+  console.log('showIsDelayedWarning', showIsDelayedWarning);
 
   useEffect(() => {
     // Only set up the polling if we have a ramp ID

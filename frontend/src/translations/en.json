@@ -275,6 +275,12 @@
       "vortexFee": "Vortex fee",
       "finalAmount": "Final Amount"
     },
+    "warningBanner": {
+      "title": "Unusual delay",
+      "beforeUrl": "The processing of your transaction is taking an unusually long time. If this problem persists for more than 30 minutes, please contact our ",
+      "url": "support team",
+      "afterUrl": ". We’re here to help!"
+    },
     "brlaKYCForm": {
       "title": "KYC Details",
       "description": "KYC verification is required to complete your transaction. The information you provide is processed securely by our local partner ",
