@@ -27,10 +27,12 @@ interface NetworkProviderProps {
 }
 
 export const NetworkProvider = ({ children }: NetworkProviderProps) => {
-  const { state: selectedNetworkLocalStorage, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
+  const { state: selectedNetworkLocalStorageState, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
     key: LocalStorageKeys.SELECTED_NETWORK,
     defaultValue: Networks.AssetHub,
   });
+  // We do this to ensure that the local storage value is always in lowercase. Previously the first letter was uppercase
+  const selectedNetworkLocalStorage = selectedNetworkLocalStorageState.toLowerCase() as Networks;
 
   const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(selectedNetworkLocalStorage);
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
