@@ -188,27 +188,40 @@ interface ProgressContentProps {
   rampPhaseRecords: Record<RampPhase, number>;
 }
 
-const WarningBanner: FC = () => {
+const TransactionStatusBanner: FC = () => {
   const { t } = useTranslation();
   const rampState = useRampState();
 
   return (
-    <section className="flex items-center gap-4 p-4 bg-yellow-400 border-l-8 border-yellow-700 rounded shadow-lg">
-      <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
-        <ExclamationCircleIcon className="w-12 text-yellow-800" />
-      </motion.div>
-      <div>
-        <h1 className="text-xl font-extrabold text-yellow-900">{t('components.warningBanner.title')}</h1>
-        <p className="text-sm font-medium text-yellow-900">
-          {t('components.warningBanner.beforeUrl')}
-          <a href={config.supportUrl} target="_blank" rel="noreferrer" className="underline">
-            {t('components.warningBanner.url')}
+    <section className="flex items-center gap-4 p-5 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+      <div className="flex-shrink-0 bg-blue-100 rounded-full p-2">
+        <motion.div
+          animate={{ opacity: [0.8, 1, 0.8] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <ExclamationCircleIcon className="w-8 h-8 text-blue-600" />
+        </motion.div>
+      </div>
+      <div className="flex-1">
+        <h1 className="text-lg font-semibold text-gray-800">{t('components.transactionStatusBanner.title')}</h1>
+        <p className="text-sm text-gray-700 mt-1">
+          {t('components.transactionStatusBanner.beforeUrl')}
+          <a
+            href={config.supportUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-600 hover:text-blue-800 font-medium mx-1 transition-colors"
+          >
+            {t('components.transactionStatusBanner.url')}
           </a>
-          {t('components.warningBanner.afterUrl')}
+          {t('components.transactionStatusBanner.afterUrl')}
         </p>
-        <p className="text-sm mt-2 font-medium text-yellow-900">
-          Your transaction ID is <span className="">{rampState?.ramp?.id || 'N/A'}</span>.
-        </p>
+        <div className="text-sm mt-2 text-gray-700 flex flex-row items-center">
+          <span className="whitespace-nowrap mr-2">{t('components.transactionStatusBanner.transactionId')}</span>
+          <span className="font-mono bg-blue-50 border border-blue-100 px-2 py-0.5 rounded text-gray-800 overflow-x-auto">
+            {rampState?.ramp?.id || 'N/A'}
+          </span>
+        </div>
       </div>
     </section>
   );
@@ -240,7 +253,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
   return (
     <Box className="flex flex-col items-center justify-center mt-4">
       <div className="flex flex-col items-center justify-center max-w-[400px]">
-        {showIsDelayedWarning && <WarningBanner />}
+        {showIsDelayedWarning && <TransactionStatusBanner />}
         <ProgressCircle
           displayedPercentage={displayedPercentage}
           showCheckmark={showCheckmark}

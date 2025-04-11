@@ -274,6 +274,13 @@
       "vortexFee": "Taxa da Vortex",
       "finalAmount": "Valor final"
     },
+    "transactionStatusBanner": {
+      "title": "Status da Transação",
+      "beforeUrl": "Sua transação ainda está sendo processada, mas está demorando mais do que o esperado. Se não for concluída em 30 minutos, entre em contato com nossa ",
+      "url": "equipe de suporte",
+      "afterUrl": " para assistência. Estamos monitorando ativamente sua transação.",
+      "transactionId": "ID da transação"
+    },
     "brlaKYCForm": {
       "title": "Detalhes KYC",
       "description": "A verificação KYC é necessária para completar sua transação. As informações fornecidas são processadas com segurança pelo nosso parceiro local ",

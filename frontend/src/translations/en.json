@@ -11,7 +11,7 @@
       "contactSupport": {
         "beforeUrl": "Contact our",
         "url": "support team",
-        "afterUrl": ". We’re here to help!"
+        "afterUrl": ". We're here to help!"
       },
       "contactedSupport": "Contacted support and ready to start fresh with a new transaction?",
       "tapToReset": "Tap",
@@ -125,7 +125,7 @@
       "items": {
         "fees": {
           "question": "How much does Vortex charge in fees?",
-          "answer": "Vortex's fees are completely transparent and depend on the payment method you choose. These are all-in fees, meaning there are no hidden charges from Vortex or local banking partners. The cost of your transfer comes from the clearly disclosed fee and exchange rate. Unlike many providers that claim “no fees” but hide extra costs in inflated exchange rates, Vortex ensures you're never overcharged. Our fees are shown upfront so you always know exactly what you're paying."
+          "answer": "Vortex's fees are completely transparent and depend on the payment method you choose. These are all-in fees, meaning there are no hidden charges from Vortex or local banking partners. The cost of your transfer comes from the clearly disclosed fee and exchange rate. Unlike many providers that claim \"no fees\" but hide extra costs in inflated exchange rates, Vortex ensures you're never overcharged. Our fees are shown upfront so you always know exactly what you're paying."
         },
         "countries": {
           "question": "Which countries and currencies does Vortex support?",
@@ -141,18 +141,18 @@
         },
         "timing": {
           "question": "How long does it take to sell crypto (for the money to arrive)?",
-          "answer": "The crypto-to-fiat transaction process with Vortex is exceptionally quick, taking only about three minutes. If your bank supports instant payments, you’ll see the funds in your account within five minutes. For banks without instant payment capabilities, the processing time depends on your bank, but it usually takes one to two business days for the money to arrive."
+          "answer": "The crypto-to-fiat transaction process with Vortex is exceptionally quick, taking only about three minutes. If your bank supports instant payments, you'll see the funds in your account within five minutes. For banks without instant payment capabilities, the processing time depends on your bank, but it usually takes one to two business days for the money to arrive."
         },
         "business": {
           "question": "Does Vortex offer solutions for businesses?",
-          "answer": "Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex’s competitive rates, ease of use, and seamless transactions. If you’re interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business."
+          "answer": "Absolutely! Vortex offers tailored solutions for businesses looking to integrate our platform into their services. Companies can provide their users with Vortex's competitive rates, ease of use, and seamless transactions. If you're interested, our sales team is ready to discuss how we can help meet your specific needs and set up a partnership that delivers value for your business."
         }
       }
     },
     "feeComparison": {
       "title": "<0>Save</0> on exchange rate markups",
-      "description": "The cost of your transfer comes from the fee and the exchange rate. Many providers offer <1>”no fee”</1>, while hiding a markup in the exchange rate, making you pay more.",
-      "description2": "At Vortex, we’ll never do that and show our fees upfront.",
+      "description": "The cost of your transfer comes from the fee and the exchange rate. Many providers offer <1>\"no fee\"</1>, while hiding a markup in the exchange rate, making you pay more.",
+      "description2": "At Vortex, we'll never do that and show our fees upfront.",
       "table": {
         "sending": "Sending",
         "with": "with",
@@ -169,7 +169,7 @@
       "loading": "Loading...",
       "error": "Error while saving your email. Please try again.",
       "title": "Thank you for using our new product!",
-      "description": "We’re always looking to improve, and we’d greatly appreciate your feedback. If you’re willing, please leave your email below so we can reach out for a quick chat about your experience.",
+      "description": "We're always looking to improve, and we'd greatly appreciate your feedback. If you're willing, please leave your email below so we can reach out for a quick chat about your experience.",
       "noNewslettersNoSpam": "No newsletters, no spam — just your honest thoughts.",
       "submit": "Submit"
     },
@@ -275,11 +275,12 @@
       "vortexFee": "Vortex fee",
       "finalAmount": "Final Amount"
     },
-    "warningBanner": {
-      "title": "Unusual delay",
-      "beforeUrl": "The processing of your transaction is taking an unusually long time. If this problem persists for more than 30 minutes, please contact our ",
+    "transactionStatusBanner": {
+      "title": "Transaction Status",
+      "beforeUrl": "Your transaction is still processing but taking longer than expected. If not completed within 30 minutes, please contact our ",
       "url": "support team",
-      "afterUrl": ". We’re here to help!"
+      "afterUrl": " for assistance. We're actively monitoring your transaction.",
+      "transactionId": "Transaction ID"
     },
     "brlaKYCForm": {
       "title": "KYC Details",
