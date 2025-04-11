@@ -78,21 +78,22 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
     },
+    quoteId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: 'quote_id',
+      references: {
+        model: 'quote_tickets',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'RESTRICT',
+    },
     currentPhase: {
       type: DataTypes.STRING(32),
       allowNull: false,
       defaultValue: 'initial',
       field: 'current_phase',
-    },
-    unsignedTxs: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      field: 'unsigned_txs',
-    },
-    presignedTxs: {
-      type: DataTypes.JSONB,
-      allowNull: true,
-      field: 'presigned_txs',
     },
     from: {
       type: DataTypes.STRING(20),
@@ -106,18 +107,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.JSONB,
       allowNull: false,
     },
-    quoteId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      field: 'quote_id',
-      references: {
-        model: 'quote_tickets',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'RESTRICT',
-    },
-    // Additional columns from the second migration
     phaseHistory: {
       type: DataTypes.JSONB,
       allowNull: false,
@@ -157,6 +146,16 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.DATE,
       allowNull: false,
       field: 'updated_at',
+    },
+    unsignedTxs: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      field: 'unsigned_txs',
+    },
+    presignedTxs: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: 'presigned_txs',
     },
   });
 
