@@ -102,8 +102,7 @@ export class PhaseProcessor {
     const lockAcquired = await this.acquireLock(state);
     if (!lockAcquired) {
       if (this.isLockExpired(state)) {
-        logger.info(`Lock for ramp ${rampId} has expired, releasing it`);
-        await this.releaseLock(state);
+        logger.info(`Lock for ramp ${rampId} has expired. Ignoring previous lock and continue processing...`);
       } else {
         logger.info(`Skipping processing for ramp ${rampId} as it's already being processed`);
         return;
