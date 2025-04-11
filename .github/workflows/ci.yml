@@ -52,6 +52,13 @@ jobs:
         if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds
 
+      - name: Install 'shared' directory
+        run: |
+          cd ../shared
+          yarn install 
+          yarn build
+          cd ../frontend
+
       - name: ✏️ Lint
         run: yarn lint:ts
 
