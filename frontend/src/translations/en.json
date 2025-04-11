@@ -1,21 +1,21 @@
 {
   "pages": {
     "failure": {
-      "title": "Oops! Something went wrong",
+      "title": "Transaction Interrupted",
       "recoverable": {
-        "description": "Unfortunately, your withdrawal request could not be processed in time. This could be due to a temporary problem such as bad internet connection.",
-        "cta": "Either try to continue or start over.",
+        "description": "Your withdrawal request could not be completed. This is usually due to a temporary network issue or timeout.",
+        "cta": "Please contact our support team and we'll ensure this issue is resolved.",
         "retry": "Retry"
       },
-      "copyTransactionId": "In case you experience any issues, please copy this",
+      "copyTransactionId": "Please reference this ID when contacting support",
       "contactSupport": {
-        "beforeUrl": "Contact our",
-        "url": "support team",
-        "afterUrl": ". We're here to help!"
+        "beforeUrl": "",
+        "url": "Contact Support Team",
+        "afterUrl": ""
       },
-      "contactedSupport": "Contacted support and ready to start fresh with a new transaction?",
-      "tapToReset": "Tap",
-      "resetAndRestart": "Reset and Restart"
+      "contactedSupport": "Ready to try again?",
+      "tapToReset": "",
+      "resetAndRestart": "Start New Transaction"
     },
     "progress": {
       "initial": "Starting process",
