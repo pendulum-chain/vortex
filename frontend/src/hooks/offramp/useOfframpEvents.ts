@@ -20,7 +20,7 @@ export const useOfframpEvents = () => {
         //   ...createTransactionEvent('transaction_failure', state, selectedNetwork),
         //   event: 'transaction_failure',
         //   phase_name: state.phase,
-        //   phase_index: Object.keys(OFFRAMPING_PHASE_SECONDS).indexOf(state.phase),
+        //   phase_index: Object.keys(RAMPING_PHASE_SECONDS).indexOf(state.phase),
         //   from_asset: inputTokenDetails.pendulumAssetSymbol,
         //   error_message: state.failure.message || 'Unknown error',
         // });
