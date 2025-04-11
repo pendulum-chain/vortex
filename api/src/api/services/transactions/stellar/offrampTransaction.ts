@@ -53,11 +53,8 @@ export async function buildPaymentAndMergeTx({
   const mergeAccountTransactions: Array<{ sequence: string; tx: string }> = [];
   const createAccountTransactions: Array<{ sequence: string; tx: string }> = [];
 
-  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
-    const currentSequence = BigInt(expectedSequenceNumber) + BigInt(i);
-    const currentSequenceStr = String(currentSequence);
 
-    const currentEphemeralAccount = new Account(ephemeralAccountId, currentSequenceStr);
+  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
 
     const currentFundingAccount =
       i === 0
@@ -97,6 +94,18 @@ export async function buildPaymentAndMergeTx({
       .build();
 
     currentCreateAccountTransaction.sign(fundingAccountKeypair);
+
+    createAccountTransactions.push({
+      sequence: fundingAccount.sequenceNumber(), // TODO do we require this?
+      tx: currentCreateAccountTransaction.toEnvelope().toXDR().toString('base64'),
+    });
+  }
+
+  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
+    const currentSequence = BigInt(expectedSequenceNumber) + BigInt(i);
+    const currentSequenceStr = String(currentSequence);
+    const currentEphemeralAccount = new Account(ephemeralAccountId, currentSequenceStr);
+
 
     const currentPaymentTransaction = new TransactionBuilder(currentEphemeralAccount, {
       fee: STELLAR_BASE_FEE,
@@ -143,10 +152,6 @@ export async function buildPaymentAndMergeTx({
 
     currentMergeAccountTransaction.sign(fundingAccountKeypair);
 
-    createAccountTransactions.push({
-      sequence: currentSequenceStr,
-      tx: currentCreateAccountTransaction.toEnvelope().toXDR().toString('base64'),
-    });
 
     paymentTransactions.push({
       sequence: currentSequenceStr,
