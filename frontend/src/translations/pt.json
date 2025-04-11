@@ -1,21 +1,21 @@
 {
   "pages": {
     "failure": {
-      "title": "Ops! Algo não saiu como esperado.",
+      "title": "Transação Interrompida",
       "recoverable": {
         "description": "Lamentamos, mas seu pedido de saque não foi processado a tempo, possivelmente devido a uma falha temporária na conexão de internet.",
-        "cta": "Você pode tentar prosseguir ou reiniciar o processo.",
+        "cta": "Entre em contato com nossa equipe de suporte e garantiremos que este problema seja resolvido.",
         "retry": "Tentar outra vez"
       },
       "copyTransactionId": "Caso você encontre algum problema, por favor copie isso",
       "contactSupport": {
         "beforeUrl": "Entre em contato com nossa",
-        "url": "equipe de suporte",
+        "url": "Contato equipe de suporte",
         "afterUrl": ". Estamos aqui para ajudar!"
       },
       "contactedSupport": "Já falou com o suporte e quer iniciar uma nova transação?",
       "tapToReset": "Clique aqui",
-      "resetAndRestart": "Reinicie e comece de novo"
+      "resetAndRestart": "Iniciar Nova Transação"
     },
     "progress": {
       "initial": "Iniciando processo",
