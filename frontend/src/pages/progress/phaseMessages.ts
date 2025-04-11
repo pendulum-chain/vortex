@@ -46,8 +46,6 @@ export function getMessageForPhase(ramp: RampState | undefined, t: any): string 
       spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputAssetSymbol }),
       brlaPayoutOnMoonbeam: getTransferringMessage(),
       stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
-      pendulumCleanup: '', // TODO deprecated phases.
-      moonbeamCleanup: '', // TODO deprecated phases.
       squidrouterApprove: getSquidrouterSwapMessage(),
       squidrouterSwap: getSquidrouterSwapMessage(),
       pendulumToAssethub: t('pages.progress.pendulumToAssethub', { assetSymbol: outputAssetSymbol }),
