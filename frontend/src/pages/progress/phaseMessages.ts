@@ -52,6 +52,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: any): string 
       brlaTeleport: t('pages.progress.brlaTeleport'), 
       failed: '', // Not relevant for progress page
       complete: '', // Not relevant for progress page
+      timedOut: '', // Not relevant for progress page
     };
 
     return messages[currentPhase];
