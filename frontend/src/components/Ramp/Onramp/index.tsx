@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 
 import { LabeledInput } from '../../LabeledInput';
@@ -22,8 +23,6 @@ import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/r
 import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
-import { useTranslation } from 'react-i18next';
-import { useRampActions } from '../../../stores/offrampStore';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -126,7 +125,7 @@ export const Onramp = () => {
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="flex items-center justify-center w-full mt-5">
-          <BenefitsList amount={inputAmount} currency={onChainToken} />
+          <BenefitsList />
         </section>
         <BrlaSwapFields />
         {initializeFailedMessage && (

@@ -24,7 +24,7 @@ export function FeeComparisonTable() {
   const sourceAssetSymbol = isOnramp ? fiatTokenDetails.fiat.symbol : onChainTokenDetails.assetSymbol;
   const targetAssetSymbol = isOnramp ? onChainTokenDetails.assetSymbol : fiatTokenDetails.fiat.symbol;
 
-  const amount = inputAmount || Big(100);
+  const amount = inputAmount || '100';
 
   const [providerPrices, setProviderPrices] = useState<Record<string, Big>>({});
 
@@ -63,7 +63,7 @@ export function FeeComparisonTable() {
       <div className="flex items-center justify-center w-full mb-3">
         <div className="flex items-center justify-center w-full gap-4">
           <span className="font-bold text-md">
-            {t('sections.feeComparison.table.sending')} {amount.toFixed(2)} {sourceAssetSymbol} {networkDisplay}{' '}
+            {t('sections.feeComparison.table.sending')} {Number(amount).toFixed(2)} {sourceAssetSymbol} {networkDisplay}{' '}
             {t('sections.feeComparison.table.with')}
           </span>
         </div>
@@ -81,7 +81,7 @@ export function FeeComparisonTable() {
             onPriceFetched={handlePriceUpdate}
             isBestRate={provider.name === bestProvider.bestProvider}
             bestPrice={bestProvider.bestPrice}
-            amount={amount}
+            amountRaw={amount}
             sourceAssetSymbol={sourceAssetSymbol}
             targetAssetSymbol={targetAssetSymbol}
           />

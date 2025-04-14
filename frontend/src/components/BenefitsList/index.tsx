@@ -1,14 +1,7 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { FC } from 'react';
-import Big from 'big.js';
 import { Trans, useTranslation } from 'react-i18next';
 
-interface BenefitsListProps {
-  amount: Big | undefined;
-  currency: string;
-}
-
-export const BenefitsList: FC<BenefitsListProps> = () => {
+export const BenefitsList = () => {
   const { t } = useTranslation();
 
   return (

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Big from 'big.js';
 import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from 'shared';
 
@@ -16,11 +16,14 @@ import { config } from '../../config';
  * Encapsulates validation rules and error messages
  */
 export const useRampValidation = () => {
-  const { inputAmount, onChainToken, fiatToken } = useRampFormStore();
+  const { inputAmount: inputAmountString, onChainToken, fiatToken } = useRampFormStore();
   const { quote, loading: quoteLoading } = useQuoteStore();
   const { isDisconnected } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
+
+  const inputAmount = useMemo(() => Big(inputAmountString || '0'), [inputAmountString]);
+
 
   // Initialization failure state
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);

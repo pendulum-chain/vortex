@@ -129,7 +129,7 @@ export const Offramp = () => {
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="flex items-center justify-center w-full mt-5">
-          <BenefitsList amount={inputAmount} currency={onChainToken} />
+          <BenefitsList />
         </section>
         <BrlaSwapFields />
         {initializeFailedMessage && (
