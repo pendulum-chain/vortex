@@ -9,11 +9,10 @@ import { submitExtrinsic } from '@pendulum-chain/api-solang';
  * Post process handler for Moonbeam cleanup operations
  */
 export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
-
   public getCleanupName(): CleanupPhase {
-      return 'moonbeamCleanup';
-    }
-  
+    return 'moonbeamCleanup';
+  }
+
   /**
    * Check if this handler should process the given state
    */
@@ -49,7 +48,7 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
       if (result.status.type === 'error') {
         return [false, this.createErrorObject(`Moonbeam cleanup failed: ${result.status.error.toString()}`)];
       }
-      
+
       logger.info(`Successfully processed Moonbeam cleanup for ramp state ${state.id}`);
       return [true, null];
     } catch (e) {

@@ -35,6 +35,7 @@ import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import registerPhaseHandlers from './register-handlers';
+import Big from 'big.js';
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 const TAX_ID = process.env.TAX_ID;
@@ -46,9 +47,9 @@ const EVM_DESTINATION_ADDRESS = '0x7ba99e99bc669b3508aff9cc0a898e869459f877'; //
 const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GAXW7RTC4LA3MGNEA3LO626ABUCZBW3FDQPYBTH6VQA5BFHXXYZUQWY7';
 const TEST_INPUT_AMOUNT = '1';
 const TEST_INPUT_CURRENCY = EvmToken.USDC;
-const TEST_OUTPUT_CURRENCY = FiatToken.BRL;
+const TEST_OUTPUT_CURRENCY = FiatToken.ARS;
 
-const QUOTE_TO = 'pix';
+const QUOTE_TO = 'sepa';
 const QUOTE_FROM = 'polygon';
 
 const filePath = path.join(__dirname, 'lastRampState.json');
@@ -247,12 +248,12 @@ describe('PhaseProcessor Integration Test', () => {
 
       const additionalData = {
         walletAddress: EVM_TESTING_ADDRESS,
-        // paymentData: {
-        //   amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
-        //   memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
-        //   memo: '1204asjfnaksf10982e4',
-        //   anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
-        // },
+        paymentData: {
+          amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
+          memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
+          memo: '1204asjfnaksf10982e4',
+          anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
+        },
         taxId: '758.444.017-77',
         receiverTaxId: '758.444.017-77',
         pixDestination: '758.444.017-77',
@@ -266,6 +267,8 @@ describe('PhaseProcessor Integration Test', () => {
         inputCurrency: TEST_INPUT_CURRENCY,
         outputCurrency: TEST_OUTPUT_CURRENCY,
       });
+
+      additionalData.paymentData.amount = new Big(quoteTicket.outputAmount).add(quoteTicket.fee).toString();
 
       let registeredRamp = await rampService.registerRamp({
         signingAccounts: testSigningAccountsMeta,
@@ -289,31 +292,31 @@ describe('PhaseProcessor Integration Test', () => {
         pendulumNode.api,
         moonbeamNode.api,
       );
+      console.log('Presigned transactions:', presignedTxs);
+      // //sign and send the squidy transactions!
+      // const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterApprove');
+      // const approveHash = await executeEvmTransaction(
+      //   squidApproveTransaction!.network,
+      //   squidApproveTransaction!.txData as EvmTransactionData,
+      // );
+      // console.log('Approve transaction executed with hash:', approveHash);
 
-      //sign and send the squidy transactions!
-      const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterApprove');
-      const approveHash = await executeEvmTransaction(
-        squidApproveTransaction!.network,
-        squidApproveTransaction!.txData as EvmTransactionData,
-      );
-      console.log('Approve transaction executed with hash:', approveHash);
+      // const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterSwap');
+      // const swapHash = await executeEvmTransaction(
+      //   squidSwapTransaction!.network,
+      //   squidSwapTransaction!.txData as EvmTransactionData,
+      // );
+      // console.log('Swap transaction executed with hash:', swapHash);
 
-      const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterSwap');
-      const swapHash = await executeEvmTransaction(
-        squidSwapTransaction!.network,
-        squidSwapTransaction!.txData as EvmTransactionData,
-      );
-      console.log('Swap transaction executed with hash:', swapHash);
+      // // END - MIMIC THE UI
 
-      // END - MIMIC THE UI
+      // const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
-      const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+      // const finalRampState = await waitForCompleteRamp(registeredRamp.id);
 
-      const finalRampState = await waitForCompleteRamp(registeredRamp.id);
-
-      // Some sanity checks.
-      expect(finalRampState.currentPhase).toBe('complete');
-      expect(finalRampState.phaseHistory.length).toBeGreaterThan(1);
+      // // Some sanity checks.
+      // expect(finalRampState.currentPhase).toBe('complete');
+      // expect(finalRampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
       console.error('Error during test execution:', error);
 

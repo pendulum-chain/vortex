@@ -46,11 +46,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
 
   const getButtonState = (): string => {
     if (isOfframpSummaryDialogVisible) {
-      if (rampDirection === RampDirection.ONRAMP) {
-        return t('components.swapSubmitButton.confirmPayment');
-      } else {
-        return t('components.swapSubmitButton.processing');
-      }
+      return t('components.swapSubmitButton.processing');
     }
     return t('components.swapSubmitButton.confirm');
   };

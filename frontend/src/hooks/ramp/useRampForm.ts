@@ -1,6 +1,5 @@
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { useEffect, useCallback } from 'react';
-import Big from 'big.js';
 import { FiatToken } from 'shared';
 
 import { RampFormValues } from '../../components/Nabla/schema';
@@ -69,8 +68,7 @@ export const useRampForm = (): {
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
       if (name === 'inputAmount' && values.inputAmount !== undefined) {
-        const newAmount = values.inputAmount === '' ? Big(0) : Big(values.inputAmount);
-        setInputAmount(newAmount);
+        setInputAmount(values.inputAmount || '0' );
       } else if (name === 'taxId' && values.taxId !== undefined) {
         setTaxId(values.taxId);
       } else if (name === 'pixId' && values.pixId !== undefined) {

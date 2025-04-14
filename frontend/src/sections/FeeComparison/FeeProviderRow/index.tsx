@@ -18,7 +18,7 @@ interface FeeProviderRowProps {
   isBestRate: boolean;
   bestPrice: Big;
   onPriceFetched: (providerName: string, price: Big) => void;
-  amount: Big;
+  amountRaw: string;
   sourceAssetSymbol: string;
   targetAssetSymbol: string;
 }
@@ -28,7 +28,7 @@ export function FeeProviderRow({
   isBestRate,
   bestPrice,
   onPriceFetched,
-  amount,
+  amountRaw,
   sourceAssetSymbol,
   targetAssetSymbol,
 }: FeeProviderRowProps) {
@@ -46,6 +46,8 @@ export function FeeProviderRow({
   const isOnramp = rampDirection === RampDirection.ONRAMP;
 
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
+
+  const amount = useMemo(() => Big(amountRaw || '0'), [amountRaw]);
 
   const {
     isLoading,

@@ -128,123 +128,69 @@ class CleanupWorker {
     const applicableHandlers = postProcessHandlers.filter((handler) => handler.shouldProcess(state));
 
     if (applicableHandlers.length === 0) {
-      logger.info(`No applicable cleanup handlers for state ${state.id}. Marking as complete.`);
-      // Mark as complete if no handlers apply
-      await RampState.update(
-        {
-          postCompleteState: {
-            ...state.postCompleteState,
-            cleanup: {
-              ...(state.postCompleteState?.cleanup || {}), // Ensure cleanup object exists
-              cleanupCompleted: true,
-              cleanupAt: new Date(),
-              errors: null,
-            },
-          },
-        },
-        { where: { id: state.id } },
-      );
+      logger.info(`No applicable cleanup handlers for state ${state.id}`);
       return;
     }
 
     logger.info(`Found ${applicableHandlers.length} applicable cleanup handlers for state ${state.id}`);
 
-    const currentErrors: HandlerError[] = state.postCompleteState?.cleanup?.errors || [];
-    let handlersToRun: BasePostProcessHandler[];
+    const currentErrors = state.postCompleteState.cleanup.errors || [];
+    let updatedErrors = [...currentErrors];
+    let allSuccessful = true;
 
-    // If there are existing errors, only retry the handlers that failed previously.
-    // Otherwise, run all applicable handlers.
-    if (currentErrors.length > 0) {
-      const failedHandlerNames = new Set(currentErrors.map((err) => err.name));
-      handlersToRun = applicableHandlers.filter((handler) => failedHandlerNames.has(handler.getCleanupName()));
-      logger.info(`Retrying ${handlersToRun.length} previously failed handlers for state ${state.id}`);
-      if (handlersToRun.length === 0) {
-        logger.warn(`State ${state.id} has errors, but no matching applicable handlers found for retry.`);
-        // Decide if we should mark complete or leave as is. Leaving as is for now.
-        return;
-      }
-    } else {
-      handlersToRun = applicableHandlers;
-    }
+    // If there are errors, remove from applicable those that are NOT in the current errors.
+    // We will retry only the ones that failed
+    const filteredApplicableHandlers =
+      currentErrors.length > 0
+        ? applicableHandlers.filter((handler) => currentErrors.some((error) => error.name === handler.getCleanupName()))
+        : applicableHandlers;
 
-    // Process handlers concurrently
-    const handlerPromises = handlersToRun.map(async (handler) => {
+    // Process each handler
+    for (const handler of filteredApplicableHandlers) {
       const handlerName = handler.getCleanupName();
       logger.info(`Processing state ${state.id} with handler ${handler.constructor.name}`);
-      try {
-        const [success, error] = await handler.process(state);
-        if (!success) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error during handler processing';
-          logger.error(`Handler ${handler.constructor.name} failed for state ${state.id}: ${errorMessage}`);
-          return { status: 'rejected', name: handlerName, error: errorMessage };
-        }
-        logger.info(`Handler ${handler.constructor.name} succeeded for state ${state.id}`);
-        return { status: 'fulfilled', name: handlerName };
-      } catch (processError: any) {
-        const errorMessage =
-          processError instanceof Error ? processError.message : 'Exception during handler processing';
-        logger.error(`Exception in handler ${handler.constructor.name} for state ${state.id}:`, processError);
-        // Ensure handlerName retains CleanupPhase type
-        return { status: 'rejected', name: handlerName as CleanupPhase, error: errorMessage };
-      }
-    });
 
-    const results = await Promise.allSettled(handlerPromises);
+      // Process with this handler
+      const [success, error] = await handler.process(state);
 
-    // Aggregate results and update state
-    const finalErrors = [...currentErrors]; // Start with existing errors
-    // The 'allSuccessfulThisRun' variable is not needed as completion is determined by finalErrors.length
+      if (!success) {
+        allSuccessful = false;
 
-    results.forEach((result) => {
-      if (result.status === 'fulfilled') {
-        // Remove error if handler succeeded this time
-        const index = finalErrors.findIndex((err) => err.name === result.value.name);
-        if (index > -1) {
-          finalErrors.splice(index, 1);
-        }
-      } else {
-        // status === 'rejected'
-        // Explicitly type the reason object to ensure name is CleanupPhase
-        const failedHandler = result.reason as { name: CleanupPhase; error: string };
         // Add or update error entry
-        const existingErrorIndex = finalErrors.findIndex((err) => err.name === failedHandler.name);
-        if (existingErrorIndex > -1) {
-          finalErrors[existingErrorIndex].error = failedHandler.error; // Update error message
-        } else {
-          // Now failedHandler.name is correctly typed as CleanupPhase
-          finalErrors.push({ name: failedHandler.name, error: failedHandler.error });
-        }
+        const errorMessage = error ? error.message : 'Unknown error';
+        const newError = { name: handlerName, error: errorMessage };
+
+        updatedErrors = updatedErrors.filter((err) => err.name !== handlerName);
+        updatedErrors.push(newError);
+
+        logger.error(`Handler ${handler.constructor.name} failed for state ${state.id}: ${errorMessage}`);
+      } else {
+        // Remove any existing error for this handler on success, if it exists there.
+        updatedErrors = updatedErrors.filter((err) => err.name !== handlerName);
+        logger.info(`Handler ${handler.constructor.name} succeeded for state ${state.id}`);
       }
-    });
+    }
 
-    // Determine overall completion status
-    // It's complete only if all *applicable* handlers succeeded *eventually* (i.e., no errors remain)
-    const cleanupCompleted = finalErrors.length === 0;
-
-    // Update the state
+    // Update the state with the results
     await RampState.update(
       {
         postCompleteState: {
           ...state.postCompleteState,
           cleanup: {
-            ...(state.postCompleteState?.cleanup || {}), // Ensure cleanup object exists
-            cleanupCompleted,
-            cleanupAt: new Date(), // Update timestamp on every attempt
-            errors: finalErrors.length > 0 ? finalErrors : null,
+            ...state.postCompleteState.cleanup,
+            cleanupCompleted: allSuccessful,
+            cleanupAt: new Date(),
+            errors: updatedErrors.length > 0 ? updatedErrors : null,
           },
         },
       },
       { where: { id: state.id } },
     );
 
-    if (cleanupCompleted) {
+    if (allSuccessful) {
       logger.info(`All cleanup handlers successful for state ${state.id}, marked cleanup as complete`);
     } else {
-      logger.warn(
-        `Some cleanup handlers failed for state ${state.id}. Errors: ${JSON.stringify(
-          finalErrors,
-        )}. Will retry on next cycle.`,
-      );
+      logger.warn(`Some cleanup handlers failed for state ${state.id}, will retry on next cycle`);
     }
   }
 }

@@ -1,9 +1,8 @@
 import { create } from 'zustand';
-import Big from 'big.js';
 import { EvmToken, FiatToken, OnChainToken } from 'shared';
 
 interface RampFormState {
-  inputAmount?: Big;
+  inputAmount?: string;
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   taxId?: string;
@@ -12,7 +11,7 @@ interface RampFormState {
 
 interface RampFormActions {
   actions: {
-    setInputAmount: (amount?: Big) => void;
+    setInputAmount: (amount?: string) => void;
     setOnChainToken: (token: OnChainToken) => void;
     setFiatToken: (token: FiatToken) => void;
     setTaxId: (taxId: string) => void;
@@ -32,7 +31,7 @@ export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
 export const useRampFormStore = create<RampFormState & RampFormActions>((set) => ({
   ...DEFAULT_RAMP_FORM_STORE_VALUES,
   actions: {
-    setInputAmount: (amount?: Big) => set({ inputAmount: amount }),
+    setInputAmount: (amount?: string) => set({ inputAmount: amount }),
     setOnChainToken: (token: OnChainToken) => set({ onChainToken: token }),
     setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
 

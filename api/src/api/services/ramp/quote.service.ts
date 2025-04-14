@@ -1,14 +1,25 @@
 import Big from 'big.js';
 import { v4 as uuidv4 } from 'uuid';
 import httpStatus from 'http-status';
-import { DestinationType, getNetworkFromDestination, getPendulumDetails, QuoteEndpoints, RampCurrency } from 'shared';
+import {
+  DestinationType,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  QuoteEndpoints,
+  RampCurrency,
+  getOnChainTokenDetails,
+  OnChainToken,
+  isEvmTokenDetails,
+} from 'shared';
 import { BaseRampService } from './base.service';
-import QuoteTicket from '../../../models/quoteTicket.model';
+import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { getTokenOutAmount } from '../nablaReads/outAmount';
 import { ApiManager } from '../pendulum/apiManager';
 import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
+import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
+import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
@@ -90,6 +101,10 @@ export class QuoteService extends BaseRampService {
       fee: outputAmount.fees,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
+      metadata: {
+        onrampOutputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
+        onrampInputAmountUnits: outputAmount.inputAmountAfterFees,
+      } as QuoteTicketMetadata,
     });
 
     return {
@@ -149,7 +164,7 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string }> {
+  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string; outputAmountMoonbeamRaw: string, inputAmountAfterFees: string }> {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
@@ -185,29 +200,66 @@ export class QuoteService extends BaseRampService {
       const inputAmountAfterFees =
         rampType === 'on' ? calculateTotalReceiveOnramp(new Big(inputAmount), inputCurrency) : inputAmount;
 
-      const amountOut = await getTokenOutAmount({
+      let amountOut = await getTokenOutAmount({
         api: apiInstance.api,
         fromAmountString: inputAmountAfterFees,
         inputTokenDetails: inputTokenPendulumDetails,
         outputTokenDetails: outputTokenPendulumDetails,
       });
 
+      // if onramp, adjust for axlUSDC price difference.
+      const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.rawBalance.toFixed(); // Store the value before the adjustment.
+      if (rampType === 'on') {
+        const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
+        if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
+          throw new APIError({
+            status: httpStatus.BAD_REQUEST,
+            message: 'Invalid token details for onramp',
+          });
+        }
+
+        const routeParams = createOnrampRouteParams(
+          '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
+          amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
+          outTokenDetails,
+          getNetworkFromDestination(to)!,
+          '0x30a300612ab372cc73e53ffe87fb73d62ed68da3',
+        );
+
+        const routeResult = await getRoute(routeParams);
+        const { route } = routeResult.data;
+        const toAmountMin = route.estimate.toAmountMin;
+
+        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
+          outTokenDetails.pendulumDecimals,
+          BigInt(toAmountMin),
+        );
+        (amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0)),
+          (amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
+            amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountAfterFees)),
+            4,
+          ));
+      }
+
       const outputAmountAfterFees =
         rampType === 'off'
-          ? calculateTotalReceive(amountOut.roundedDownQuotedAmountOut, outputCurrency)
-          : amountOut.roundedDownQuotedAmountOut.toFixed(2, 0);
+          ? calculateTotalReceive(amountOut.preciseQuotedAmountOut.preciseBigDecimal, outputCurrency)
+          : amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
 
       const effectiveFeesOfframp = amountOut.preciseQuotedAmountOut.preciseBigDecimal
         .minus(outputAmountAfterFees)
-        .toFixed(2, 0);
+        .toFixed(6, 0);
 
-      const effectiveFeesOnramp = new Big(inputAmount).minus(inputAmountAfterFees).toFixed(2, 0);
+      const effectiveFeesOnrampBrl = new Big(inputAmount).minus(inputAmountAfterFees);
+      const effectiveFeesOnramp = effectiveFeesOnrampBrl.mul(amountOut.effectiveExchangeRate).toFixed(6, 0);
       const effectiveFees = rampType === 'off' ? effectiveFeesOfframp : effectiveFeesOnramp;
 
       return {
         receiveAmount: outputAmountAfterFees,
         fees: effectiveFees,
         outputAmountBeforeFees: amountOut.roundedDownQuotedAmountOut.toString(),
+        outputAmountMoonbeamRaw,
+        inputAmountAfterFees,
       };
     } catch (error) {
       logger.error('Error calculating output amount:', error);

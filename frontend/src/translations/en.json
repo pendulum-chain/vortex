@@ -195,6 +195,7 @@
           "sell": "You're selling"
         },
         "offrampFee": "Offramp fee",
+        "onrampFee": "Onramp fee",
         "continueWithPartner": "Continue with Partner",
         "continueOnPartnersPage": "Continue on Partner's page",
         "processing": "Processing",

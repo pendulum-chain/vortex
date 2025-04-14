@@ -26,16 +26,16 @@ export abstract class BasePostProcessHandler {
 
   /**
    * Create an error object for a failed cleanup
-   * 
+   *
    * @param error The error that occurred
    * @returns The formatted error object
    */
   protected createErrorObject(error: Error | string): Error {
     const errorMessage = error instanceof Error ? error.message : error;
     const handlerName = this.getCleanupName();
-    
+
     logger.error(`Cleanup phase '${handlerName}' failed: ${errorMessage}`);
-    
+
     return new Error(`Cleanup phase '${handlerName}' failed: ${errorMessage}`);
   }
 

@@ -34,8 +34,8 @@ export const Offramp = () => {
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
-
-  const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
+  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
+  const { outputAmount: toAmount } = useQuoteService(debouncedInputAmount, onChainToken, fiatToken);
 
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
@@ -55,8 +55,6 @@ export const Offramp = () => {
 
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
   const toToken = getAnyFiatTokenDetails(fiatToken);
-
-  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
 
   useRampUrlParams({ form });
 
@@ -129,7 +127,7 @@ export const Offramp = () => {
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="flex items-center justify-center w-full mt-5">
-          <BenefitsList amount={inputAmount} currency={onChainToken} />
+          <BenefitsList />
         </section>
         <BrlaSwapFields />
         {initializeFailedMessage && (
