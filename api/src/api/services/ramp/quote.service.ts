@@ -248,7 +248,7 @@ export class QuoteService extends BaseRampService {
 
       const effectiveFeesOfframp = amountOut.preciseQuotedAmountOut.preciseBigDecimal
         .minus(outputAmountAfterFees)
-        .toFixed(6, 0);
+        .toFixed(2, 0);
 
       const effectiveFeesOnrampBrl = new Big(inputAmount).minus(inputAmountAfterFees);
       const effectiveFeesOnramp = effectiveFeesOnrampBrl.mul(amountOut.effectiveExchangeRate).toFixed(6, 0);
