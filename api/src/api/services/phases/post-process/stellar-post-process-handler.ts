@@ -1,5 +1,5 @@
-import { HORIZON_URL, Networks as AppNetworks, PresignedTx, RampPhase, FiatToken, CleanupPhase } from 'shared';
-import { Horizon, Networks as StellarNetworks, Transaction } from 'stellar-sdk';
+import { CleanupPhase, FiatToken, HORIZON_URL } from 'shared';
+import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from 'stellar-sdk';
 import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';
 import { BasePostProcessHandler } from './base-post-process-handler';
@@ -43,25 +43,35 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
     try {
       const { txData: stellarCleanupTransactionXDR } = this.getPresignedTransaction(state, 'stellarCleanup');
 
-      const stellarCleanupTransactionTransaction = new Transaction(stellarCleanupTransactionXDR as string, NETWORK_PASSPHRASE);
+      const stellarCleanupTransactionTransaction = new Transaction(
+        stellarCleanupTransactionXDR as string,
+        NETWORK_PASSPHRASE,
+      );
       await horizonServer.submitTransaction(stellarCleanupTransactionTransaction);
-      
+
       logger.info(`Successfully processed Stellar cleanup for ramp state ${state.id}`);
       return [true, null];
     } catch (e) {
       try {
-        const horizonError = e as { response: { data: { extras: any } } };
-        logger.info(
-          `Could not submit the cleanup transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
-        );
+        const horizonError = e as NetworkError;
+        if (horizonError.response.data?.status === 400) {
+          logger.info(
+            `Could not submit the cleanup transaction ${JSON.stringify(
+              horizonError.response?.data?.extras.result_codes,
+            )}`,
+          );
 
-        if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
-          logger.info('Recovery mode: Cleanup already performed.');
-          return [true, null];
-        } else {
+          if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
+            logger.info('Recovery mode: Cleanup already performed.');
+            return [true, null];
+          }
+
           logger.error(horizonError.response.data.extras);
           return [false, this.createErrorObject('Could not submit the cleanup transaction')];
         }
+
+        logger.error('Error while submitting the cleanup transaction', e);
+        return [false, this.createErrorObject('Could not submit the cleanup transaction')];
       } catch (parseError) {
         // If we can't parse the error as a Horizon error, it's a different type of error
         return [false, this.createErrorObject(e instanceof Error ? e : String(e))];

@@ -1,10 +1,10 @@
-import { EventListener, RampPhase, decodeSubmittableExtrinsic } from 'shared';
+import { decodeSubmittableExtrinsic, EventListener, RampPhase } from 'shared';
+import Big from 'big.js';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
 import { ApiManager } from '../../pendulum/apiManager';
 import { StateMetadata } from '../meta-state-types';
-import Big from 'big.js';
 
 import { checkBalancePeriodically } from '../../stellar/checkBalance';
 import { createVaultService } from '../../stellar/vaultService';
@@ -40,9 +40,14 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       throw new Error('SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
-    try {
-      const { txData: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');
+    const { txData: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');
+    if (typeof spacewalkRedeemTransaction !== 'string') {
+      throw new Error(
+        'SpacewalkRedeemPhaseHandler: Presigned transaction is not a string -> not an encoded Stellar transaction.',
+      );
+    }
 
+    try {
       const accountData = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
       const currentEphemeralAccountNonce = await accountData.nonce.toNumber();
 
@@ -55,7 +60,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         );
         return this.transitionToNextPhase(state, 'stellarPayment');
       }
-   
+
       const vaultService = await createVaultService(
         pendulumNode,
         stellarTarget.stellarTokenDetails.stellarAsset.code.hex,
@@ -84,11 +89,11 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
           stellarTarget.stellarTokenDetails.stellarAsset.code.string,
         );
         return this.transitionToNextPhase(state, 'stellarPayment');
-      } else {
-        // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
-        console.log(`Failed to request redeem: ${e}`);
-        throw new Error(`Failed to request redeem`);
       }
+
+      // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
+      console.log(`Failed to request redeem: ${e}`);
+      throw new Error(`Failed to request redeem`);
     }
   }
 
