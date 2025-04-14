@@ -172,7 +172,7 @@ export class RampService extends BaseRampService {
           ...stateMeta,
         },
         processingLock: { locked: false, lockedAt: null },
-        postCompleteState: { cleanup: { cleanupCompleted: false, cleanupAt: null, error: null } },
+        postCompleteState: { cleanup: { cleanupCompleted: false, cleanupAt: null, errors: null } },
         quoteId: quote.id,
       };
 

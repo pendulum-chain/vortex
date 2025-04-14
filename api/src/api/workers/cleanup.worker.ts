@@ -111,52 +111,52 @@ export class CleanupWorker {
    */
   private async processCleanup(state: RampState): Promise<void> {
     // Identify which handlers should process this state
-    const applicableHandlers = postProcessHandlers.filter(handler => handler.shouldProcess(state));
-    
+    const applicableHandlers = postProcessHandlers.filter((handler) => handler.shouldProcess(state));
+
     if (applicableHandlers.length === 0) {
       logger.info(`No applicable cleanup handlers for state ${state.id}`);
       return;
     }
-    
+
     logger.info(`Found ${applicableHandlers.length} applicable cleanup handlers for state ${state.id}`);
-    
-    // Get the current list of errors (if any)
+
     const currentErrors = state.postCompleteState.cleanup.errors || [];
     let updatedErrors = [...currentErrors];
     let allSuccessful = true;
 
-    // If there are errors, remove from applicable those that are NOT in the current errors. 
-    // We can retry only the ones that failed
-    const filteredApplicableHandlers = applicableHandlers.filter(handler => 
-      currentErrors.some(error => error.name === handler.getCleanupName())
-    );
-    
+    // If there are errors, remove from applicable those that are NOT in the current errors.
+    // We will retry only the ones that failed
+    const filteredApplicableHandlers =
+      currentErrors.length > 0
+        ? applicableHandlers.filter((handler) => currentErrors.some((error) => error.name === handler.getCleanupName()))
+        : applicableHandlers;
+
     // Process each handler
     for (const handler of filteredApplicableHandlers) {
       const handlerName = handler.getCleanupName();
       logger.info(`Processing state ${state.id} with handler ${handler.constructor.name}`);
-      
+
       // Process with this handler
       const [success, error] = await handler.process(state);
-      
+
       if (!success) {
         allSuccessful = false;
-        
+
         // Add or update error entry
         const errorMessage = error ? error.message : 'Unknown error';
         const newError = { name: handlerName, error: errorMessage };
-        
-        updatedErrors = updatedErrors.filter(err => err.name !== handlerName);
+
+        updatedErrors = updatedErrors.filter((err) => err.name !== handlerName);
         updatedErrors.push(newError);
-        
+
         logger.error(`Handler ${handler.constructor.name} failed for state ${state.id}: ${errorMessage}`);
       } else {
         // Remove any existing error for this handler on success, if it exists there.
-        updatedErrors = updatedErrors.filter(err => err.name !== handlerName);
+        updatedErrors = updatedErrors.filter((err) => err.name !== handlerName);
         logger.info(`Handler ${handler.constructor.name} succeeded for state ${state.id}`);
       }
     }
-    
+
     // Update the state with the results
     await RampState.update(
       {
@@ -170,9 +170,9 @@ export class CleanupWorker {
           },
         },
       },
-      { where: { id: state.id } }
+      { where: { id: state.id } },
     );
-    
+
     if (allSuccessful) {
       logger.info(`All cleanup handlers successful for state ${state.id}, marked cleanup as complete`);
     } else {

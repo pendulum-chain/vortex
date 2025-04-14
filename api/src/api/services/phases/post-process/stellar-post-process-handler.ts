@@ -43,9 +43,12 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
     try {
       const { txData: stellarCleanupTransactionXDR } = this.getPresignedTransaction(state, 'stellarCleanup');
 
-      const stellarCleanupTransactionTransaction = new Transaction(stellarCleanupTransactionXDR as string, NETWORK_PASSPHRASE);
+      const stellarCleanupTransactionTransaction = new Transaction(
+        stellarCleanupTransactionXDR as string,
+        NETWORK_PASSPHRASE,
+      );
       await horizonServer.submitTransaction(stellarCleanupTransactionTransaction);
-      
+
       logger.info(`Successfully processed Stellar cleanup for ramp state ${state.id}`);
       return [true, null];
     } catch (e) {

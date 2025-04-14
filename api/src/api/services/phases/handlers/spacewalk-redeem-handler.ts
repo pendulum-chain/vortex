@@ -55,7 +55,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         );
         return this.transitionToNextPhase(state, 'stellarPayment');
       }
-   
+
       const vaultService = await createVaultService(
         pendulumNode,
         stellarTarget.stellarTokenDetails.stellarAsset.code.hex,

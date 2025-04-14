@@ -13,6 +13,7 @@ import {
   Networks,
   AccountMeta,
   encodeSubmittableExtrinsic,
+  addAdditionalTransactionsToMeta,
 } from 'shared';
 import { UnsignedTx, PaymentData } from 'shared';
 
@@ -313,25 +314,24 @@ export async function prepareOfframpTransactions({
       if (!stellarPaymentData) {
         throw new Error('Stellar payment data must be provided for offramp');
       }
-      console.log('build and merge ...');
-      const { paymentTransaction, mergeAccountTransaction, createAccountTransaction, expectedSequenceNumber } =
+      const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumber } =
         await buildPaymentAndMergeTx({
           ephemeralAccountId: account.address,
           amountToAnchorUnits: outputAmountBeforeFees.toFixed(),
           paymentData: stellarPaymentData,
           tokenConfigStellar: outputTokenDetails,
         });
-      console.log('build and merge done');
-      unsignedTxs.push({
-        txData: createAccountTransaction,
+
+      const createAccountPrimaryTx: UnsignedTx = {
+        txData: createAccountTransactions[0].tx,
         phase: 'stellarCreateAccount',
         network: account.network,
         nonce: 0,
         signer: account.address,
-      });
+      };
 
-      unsignedTxs.push({
-        txData: paymentTransaction,
+      const paymentTransactionPrimary: UnsignedTx = {
+        txData: paymentTransactions[0].tx,
         phase: 'stellarPayment',
         network: account.network,
         nonce: 1,
@@ -339,10 +339,10 @@ export async function prepareOfframpTransactions({
         meta: {
           expectedSequenceNumber,
         },
-      });
+      };
 
-      unsignedTxs.push({
-        txData: mergeAccountTransaction,
+      const mergeAccountTransactionPrimary: UnsignedTx = {
+        txData: mergeAccountTransactions[0].tx,
         phase: 'stellarCleanup',
         network: account.network,
         nonce: 2,
@@ -350,7 +350,39 @@ export async function prepareOfframpTransactions({
         meta: {
           expectedSequenceNumber,
         },
-      });
+      };
+
+      const createAccountMultiSignedTxs = createAccountTransactions.map((tx, index) => ({
+        ...createAccountPrimaryTx,
+        txData: tx.tx,
+        nonce: createAccountPrimaryTx.nonce + index,
+      }));
+
+      const createAccountTx = addAdditionalTransactionsToMeta(createAccountPrimaryTx, createAccountMultiSignedTxs);
+      unsignedTxs.push(createAccountTx);
+
+      const paymentTransactionMultiSignedTxs = paymentTransactions.map((tx, index) => ({
+        ...paymentTransactionPrimary,
+        txData: tx.tx,
+        nonce: paymentTransactionPrimary.nonce + index,
+      }));
+
+      const paymentTransaction = addAdditionalTransactionsToMeta(
+        paymentTransactionPrimary,
+        paymentTransactionMultiSignedTxs,
+      );
+      unsignedTxs.push(paymentTransaction);
+
+      const mergeAccountTransactionMultiSignedTxs = mergeAccountTransactions.map((tx, index) => ({
+        ...mergeAccountTransactionPrimary,
+        txData: tx.tx,
+        nonce: mergeAccountTransactionPrimary.nonce + index,
+      }));
+      const mergeAccountTx = addAdditionalTransactionsToMeta(
+        mergeAccountTransactionPrimary,
+        mergeAccountTransactionMultiSignedTxs,
+      );
+      unsignedTxs.push(mergeAccountTx);
     }
   }
 

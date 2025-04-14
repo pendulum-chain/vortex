@@ -41,26 +41,23 @@ export class PendulumPostProcessHandler extends BasePostProcessHandler {
     const { outputTokenType } = state.state as StateMetadata;
 
     if (!outputTokenType) {
-        return [false, this.createErrorObject('Output token type is not defined in the state. This is a bug.')];
+      return [false, this.createErrorObject('Output token type is not defined in the state. This is a bug.')];
     }
 
     try {
-        const { txData: pendulumCleanupTransaction } = this.getPresignedTransaction(state, 'pendulumCleanup');
+      const { txData: pendulumCleanupTransaction } = this.getPresignedTransaction(state, 'pendulumCleanup');
 
-        const approvalExtrinsic = decodeSubmittableExtrinsic(pendulumCleanupTransaction as string, pendulumNode.api);
-        const result = await submitExtrinsic(approvalExtrinsic);
+      const approvalExtrinsic = decodeSubmittableExtrinsic(pendulumCleanupTransaction as string, pendulumNode.api);
+      const result = await submitExtrinsic(approvalExtrinsic);
 
-        if (result.status.type === 'error') {
-            return [
-                false, 
-                this.createErrorObject(`Could not perform pendulum cleanup: ${result.status.error.toString()}`)
-            ];
-        }
-        
-        logger.info(`Successfully processed Pendulum cleanup for ramp state ${state.id}`);
-        return [true, null];
+      if (result.status.type === 'error') {
+        return [false, this.createErrorObject(`Could not perform pendulum cleanup: ${result.status.error.toString()}`)];
+      }
+
+      logger.info(`Successfully processed Pendulum cleanup for ramp state ${state.id}`);
+      return [true, null];
     } catch (e) {
-        return [false, this.createErrorObject(`Error in PendulumCleanupPhase: ${e}`)];
+      return [false, this.createErrorObject(`Error in PendulumCleanupPhase: ${e}`)];
     }
   }
 }

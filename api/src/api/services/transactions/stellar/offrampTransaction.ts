@@ -1,8 +1,10 @@
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from 'stellar-sdk';
 import { FUNDING_SECRET, STELLAR_BASE_FEE, SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../../constants/constants';
 import { StellarTokenDetails, PaymentData, HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from 'shared';
-import { HorizonServer } from 'stellar-sdk/lib/horizon/server';
 import Big from 'big.js';
+
+// Define HorizonServer type
+type HorizonServer = Horizon.Server;
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
@@ -24,13 +26,14 @@ export async function buildPaymentAndMergeTx({
   paymentData,
   tokenConfigStellar,
 }: StellarBuildPaymentAndMergeTx): Promise<{
-  paymentTransaction: string;
-  mergeAccountTransaction: string;
   expectedSequenceNumber: string;
-  createAccountTransaction: string;
+  paymentTransactions: Array<{ sequence: string; tx: string }>;
+  mergeAccountTransactions: Array<{ sequence: string; tx: string }>;
+  createAccountTransactions: Array<{ sequence: string; tx: string }>;
 }> {
   const baseFee = STELLAR_BASE_FEE;
   const maxTime = Date.now() + 1000 * 60 * 10;
+  const NUMBER_OF_PRESIGNED_TXS = 3;
 
   if (!FUNDING_SECRET) {
     console.log('Secret not defined');
@@ -39,8 +42,6 @@ export async function buildPaymentAndMergeTx({
 
   const expectedSequenceNumber = await getFutureShiftedLedgerSequence(horizonServer, 32);
 
-  const ephemeralAccount = new Account(ephemeralAccountId, String(expectedSequenceNumber));
-
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
   const { memo, memoType, anchorTargetAccount } = paymentData;
@@ -48,89 +49,122 @@ export async function buildPaymentAndMergeTx({
 
   const fundingAccount = await horizonServer.loadAccount(fundingAccountKeypair.publicKey());
 
-  const createAccountTransaction = new TransactionBuilder(fundingAccount, {
-    fee: baseFee,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(
-      Operation.createAccount({
-        destination: ephemeralAccountId,
-        startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
-      }),
-    )
-    .addOperation(
-      Operation.setOptions({
-        source: ephemeralAccountId,
-        signer: { ed25519PublicKey: fundingAccountKeypair.publicKey(), weight: 1 },
-        lowThreshold: 2,
-        medThreshold: 2,
-        highThreshold: 2,
-      }),
-    )
-    .addOperation(
-      Operation.changeTrust({
-        source: ephemeralAccountId,
-        asset: new Asset(
-          tokenConfigStellar.stellarAsset.code.string,
-          tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
-        ),
-      }),
-    )
-    .setTimebounds(0, maxTime)
-    .setMinAccountSequence(String(0))
-    .build();
+  const paymentTransactions: Array<{ sequence: string; tx: string }> = [];
+  const mergeAccountTransactions: Array<{ sequence: string; tx: string }> = [];
+  const createAccountTransactions: Array<{ sequence: string; tx: string }> = [];
 
-  createAccountTransaction.sign(fundingAccountKeypair);
+  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
+    const currentFundingAccount =
+      i === 0
+        ? fundingAccount
+        : new Account(fundingAccountKeypair.publicKey(), String(BigInt(fundingAccount.sequenceNumber()) + BigInt(i)));
 
-  const paymentTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: STELLAR_BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(
-      Operation.payment({
-        amount: amountToAnchorUnits,
-        asset: new Asset(
-          tokenConfigStellar.stellarAsset.code.string,
-          tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
-        ),
-        destination: anchorTargetAccount,
-      }),
-    )
-    .addMemo(transactionMemo)
-    .setTimebounds(0, MAX_TIME)
-    .setMinAccountSequence(String(0))
-    .build();
+    const currentCreateAccountTransaction = new TransactionBuilder(currentFundingAccount, {
+      fee: baseFee,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(
+        Operation.createAccount({
+          destination: ephemeralAccountId,
+          startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
+        }),
+      )
+      .addOperation(
+        Operation.setOptions({
+          source: ephemeralAccountId,
+          signer: { ed25519PublicKey: fundingAccountKeypair.publicKey(), weight: 1 },
+          lowThreshold: 2,
+          medThreshold: 2,
+          highThreshold: 2,
+        }),
+      )
+      .addOperation(
+        Operation.changeTrust({
+          source: ephemeralAccountId,
+          asset: new Asset(
+            tokenConfigStellar.stellarAsset.code.string,
+            tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
+          ),
+        }),
+      )
+      .setTimebounds(0, maxTime)
+      .setMinAccountSequence(String(0))
+      .build();
 
-  const mergeAccountTransaction = new TransactionBuilder(ephemeralAccount, {
-    fee: STELLAR_BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(
-      Operation.changeTrust({
-        asset: new Asset(
-          tokenConfigStellar.stellarAsset.code.string,
-          tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
-        ),
-        limit: '0',
-      }),
-    )
-    .addOperation(
-      Operation.accountMerge({
-        destination: FUNDING_PUBLIC_KEY,
-      }),
-    )
-    .setTimebounds(0, MAX_TIME)
-    .setMinAccountSequence(String(1n))
-    .build();
+    currentCreateAccountTransaction.sign(fundingAccountKeypair);
 
-  paymentTransaction.sign(fundingAccountKeypair);
-  mergeAccountTransaction.sign(fundingAccountKeypair);
+    createAccountTransactions.push({
+      sequence: fundingAccount.sequenceNumber(), // TODO do we require this?
+      tx: currentCreateAccountTransaction.toEnvelope().toXDR().toString('base64'),
+    });
+  }
+
+  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
+    const currentSequence = BigInt(expectedSequenceNumber) + BigInt(i);
+    const currentSequenceStr = String(currentSequence);
+    const currentEphemeralAccount = new Account(ephemeralAccountId, currentSequenceStr);
+
+    const currentPaymentTransaction = new TransactionBuilder(currentEphemeralAccount, {
+      fee: STELLAR_BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(
+        Operation.payment({
+          amount: amountToAnchorUnits,
+          asset: new Asset(
+            tokenConfigStellar.stellarAsset.code.string,
+            tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
+          ),
+          destination: anchorTargetAccount,
+        }),
+      )
+      .addMemo(transactionMemo)
+      .setTimebounds(0, MAX_TIME)
+      .setMinAccountSequence(String(0))
+      .build();
+
+    currentPaymentTransaction.sign(fundingAccountKeypair);
+
+    const currentMergeAccountTransaction = new TransactionBuilder(currentEphemeralAccount, {
+      fee: STELLAR_BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(
+        Operation.changeTrust({
+          asset: new Asset(
+            tokenConfigStellar.stellarAsset.code.string,
+            tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
+          ),
+          limit: '0',
+        }),
+      )
+      .addOperation(
+        Operation.accountMerge({
+          destination: FUNDING_PUBLIC_KEY,
+        }),
+      )
+      .setTimebounds(0, MAX_TIME)
+      .setMinAccountSequence(String(1n))
+      .build();
+
+    currentMergeAccountTransaction.sign(fundingAccountKeypair);
+
+    paymentTransactions.push({
+      sequence: currentSequenceStr,
+      tx: currentPaymentTransaction.toEnvelope().toXDR().toString('base64'),
+    });
+
+    mergeAccountTransactions.push({
+      sequence: currentSequenceStr,
+      tx: currentMergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
+    });
+  }
 
   return {
-    createAccountTransaction: createAccountTransaction.toEnvelope().toXDR().toString('base64'),
-    paymentTransaction: paymentTransaction.toEnvelope().toXDR().toString('base64'),
-    mergeAccountTransaction: mergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
     expectedSequenceNumber: String(expectedSequenceNumber),
+    createAccountTransactions,
+    paymentTransactions,
+    mergeAccountTransactions,
   };
 }
 

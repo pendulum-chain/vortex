@@ -1,6 +1,6 @@
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks } from 'shared';
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from 'shared';
 import { createOnrampRouteParams, getRoute } from './route';
 
 import erc20ABI from '../../../../contracts/ERC20';
@@ -59,7 +59,6 @@ export async function createOnrampSquidrouterTransactions(
     const routeResult = await getRoute(routeParams);
 
     const { route } = routeResult.data;
-
     const { transactionRequest } = route;
 
     const approveTransactionData = encodeFunctionData({
