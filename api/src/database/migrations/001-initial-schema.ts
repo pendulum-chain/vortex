@@ -55,6 +55,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: false,
       defaultValue: 'pending',
     },
+    metadata: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

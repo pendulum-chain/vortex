@@ -79,7 +79,6 @@ export class QuoteService extends BaseRampService {
       request.from,
       request.to,
     );
-    console.log('output amount', outputAmount);
 
     // Validate that the output amount is positive after fees
     if (Big(outputAmount.receiveAmount).lte(0)) {
@@ -102,6 +101,9 @@ export class QuoteService extends BaseRampService {
       fee: outputAmount.fees,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
+      metadata: {
+        outputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
+      },
     });
 
     return {
@@ -161,7 +163,7 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string }> {
+  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string; outputAmountMoonbeamRaw: string }> {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
@@ -205,6 +207,7 @@ export class QuoteService extends BaseRampService {
       });
 
       // if onramp, adjust for axlUSDC price difference.
+      const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.preciseString; // Store the value before the adjustment.
       if (rampType === 'on') {
         const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
         if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
@@ -254,6 +257,7 @@ export class QuoteService extends BaseRampService {
         receiveAmount: outputAmountAfterFees,
         fees: effectiveFees,
         outputAmountBeforeFees: amountOut.roundedDownQuotedAmountOut.toString(),
+        outputAmountMoonbeamRaw,
       };
     } catch (error) {
       logger.error('Error calculating output amount:', error);

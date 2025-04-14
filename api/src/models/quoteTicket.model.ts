@@ -15,8 +15,13 @@ export interface QuoteTicketAttributes {
   fee: string;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
+  metadata: any;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface QuoteTicketMetadata {
+  outputAmountMoonbeamRaw: string;
 }
 
 // Define the attributes that can be set during creation
@@ -45,6 +50,8 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
   declare expiresAt: Date;
 
   declare status: 'pending' | 'consumed' | 'expired';
+
+  declare metadata: string;
 
   declare createdAt: Date;
 
@@ -106,6 +113,10 @@ QuoteTicket.init(
       type: DataTypes.ENUM('pending', 'consumed', 'expired'),
       allowNull: false,
       defaultValue: 'pending',
+    },
+    metadata: {
+      type: DataTypes.JSONB,
+      allowNull: false,
     },
     createdAt: {
       type: DataTypes.DATE,

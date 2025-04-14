@@ -16,7 +16,7 @@ import {
   encodeSubmittableExtrinsic,
 } from 'shared';
 import Big from 'big.js';
-import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
+import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import { encodeEvmTransactionData } from './index';
 import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
 import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
@@ -78,9 +78,13 @@ export async function prepareOnrampTransactions(
   // For BRLA, fee is charged after minting, so we always work with the amount after anchor fees.
   const inputAmountUnits = new Big(quote.inputAmount).sub(new Big(quote.fee));
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenDetails.decimals).toFixed(0, 0);
-
-  const outputAmount = new Big(quote.outputAmount);
-  const outputAmountRaw = multiplyByPowerOfTen(outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
+  
+  // The output amount to be obtained on Moonbeam, differs from the amount to be obtained on destination evm chain.
+  const outputAmountRaw = (quote.metadata as QuoteTicketMetadata).outputAmountMoonbeamRaw;
+  const outputAmount = multiplyByPowerOfTen(
+    new Big(outputAmountRaw),
+    -outputTokenDetails.decimals,
+  );
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
@@ -137,7 +141,6 @@ export async function prepareOnrampTransactions(
           addressDestination: destinationAddress,
           fromAddress: account.address,
           moonbeamEphemeralStartingNonce: moonbeamEphemeralStartingNonce + 2,
-          desiredToAmountUnits: outputAmount.toFixed(),
         });
 
         unsignedTxs.push({

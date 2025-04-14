@@ -4,12 +4,10 @@ import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from 'shar
 import { createOnrampRouteParams, getRoute } from './route';
 
 import erc20ABI from '../../../../contracts/ERC20';
-import { squidRouterConfigBase } from './config';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
   rawAmount: string;
-  desiredToAmountUnits: string;
   outputTokenDetails: EvmTokenDetails;
   toNetwork: Networks;
   addressDestination: string;
