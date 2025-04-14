@@ -27,7 +27,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
     logger.info(`Executing initial phase for ramp ${state.id}`);
 
     // Check if signed_transactions are present for offramps. If they are not, return early.
-    if (state.type === 'off' && (state.presignedTxs === null || state.presignedTxs.length > 0)) {
+    if (state.type === 'off' && (state.presignedTxs === null || state.presignedTxs.length === 0)) {
       throw new Error('InitialPhaseHandler: No signed transactions found. Cannot proceed.');
     }
 
