@@ -116,8 +116,11 @@ const BRLOnrampDetails = () => {
   const { t } = useTranslation();
   const rampState = useRampState();
 
+  console.log("In BRLAOnrampDetails", rampState, rampDirection);
   if (rampDirection !== RampDirection.ONRAMP) return null;
+  console.log("after rampDirection")
   if (!rampState?.ramp?.brCode) return null;
+  console.log("after brcode")
 
   return (
     <section>
