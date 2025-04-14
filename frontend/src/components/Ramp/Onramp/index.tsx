@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 
 import { LabeledInput } from '../../LabeledInput';
@@ -22,8 +23,6 @@ import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/r
 import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
-import { useTranslation } from 'react-i18next';
-import { useRampActions } from '../../../stores/offrampStore';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -35,7 +34,9 @@ export const Onramp = () => {
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
 
-  const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
+  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
+
+  const { outputAmount: toAmount } = useQuoteService(debouncedInputAmount, onChainToken, fiatToken);
 
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
@@ -55,8 +56,6 @@ export const Onramp = () => {
 
   const fromToken = getAnyFiatTokenDetails(fiatToken);
   const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
-
-  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
 
   useRampUrlParams({ form });
 
@@ -126,7 +125,7 @@ export const Onramp = () => {
         <p className="mb-6 text-red-600">{getCurrentErrorMessage()}</p>
         <RampFeeCollapse />
         <section className="flex items-center justify-center w-full mt-5">
-          <BenefitsList amount={inputAmount} currency={onChainToken} />
+          <BenefitsList />
         </section>
         <BrlaSwapFields />
         {initializeFailedMessage && (

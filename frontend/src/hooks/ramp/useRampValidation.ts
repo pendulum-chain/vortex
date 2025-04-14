@@ -1,93 +1,182 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Big from 'big.js';
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from 'shared';
+import {
+  FiatTokenDetails,
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  OnChainTokenDetails,
+  QuoteEndpoints,
+} from 'shared';
 
-import { useVortexAccount } from '../useVortexAccount';
 import { useOnchainTokenBalance } from '../useOnchainTokenBalance';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 import { useNetwork } from '../../contexts/network';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { useEventsContext } from '../../contexts/events';
+import { TrackableEvent, useEventsContext } from '../../contexts/events';
 import { config } from '../../config';
+import { useRampDirection } from '../../stores/rampDirectionStore';
+import { RampDirection } from '../../components/RampToggle';
+import { useVortexAccount } from '../useVortexAccount';
 
-/**
- * Hook for handling ramp validation logic
- * Encapsulates validation rules and error messages
- */
-export const useRampValidation = () => {
-  const { inputAmount, onChainToken, fiatToken } = useRampFormStore();
-  const { quote, loading: quoteLoading } = useQuoteStore();
-  const { isDisconnected } = useVortexAccount();
-  const { selectedNetwork } = useNetwork();
-  const { trackEvent } = useEventsContext();
+function validateOnramp({
+  inputAmount,
+  fromToken,
+  trackEvent,
+}: {
+  inputAmount: Big;
+  fromToken: FiatTokenDetails;
+  trackEvent: (event: TrackableEvent) => void;
+}): string | null {
+  const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
+  const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
 
-  // Initialization failure state
-  const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
+  if (inputAmount && maxAmountUnits.lt(inputAmount)) {
+    trackEvent({
+      event: 'form_error',
+      error_message: 'more_than_maximum_withdrawal',
+      input_amount: inputAmount ? inputAmount.toString() : '0',
+    });
+    return `Maximum onramp amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+      fromToken.fiat.symbol
+    }.`;
+  }
 
-  const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
-  const toToken = getAnyFiatTokenDetails(fiatToken);
+  if (inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount)) {
+    trackEvent({
+      event: 'form_error',
+      error_message: 'less_than_minimum_withdrawal',
+      input_amount: inputAmount ? inputAmount.toString() : '0',
+    });
+    return `Minimum onramp amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
+      fromToken.fiat.symbol
+    }.`;
+  }
 
-  const userInputTokenBalance = useOnchainTokenBalance({ token: fromToken });
+  return null;
+}
 
-  /**
-   * Validates the current state and returns an error message if validation fails
-   */
-  const getCurrentErrorMessage = useCallback(() => {
-    if (isDisconnected) return 'Please connect your wallet';
-
-    if (typeof userInputTokenBalance === 'string') {
-      if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
-        trackEvent({
-          event: 'form_error',
-          error_message: 'insufficient_balance',
-          input_amount: inputAmount ? inputAmount.toString() : '0',
-        });
-        return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
-      }
-    }
-
-    const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
-    const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
-
-    // Use exchange rate from quote if available
-    const exchangeRate = quote ? Number(quote.outputAmount) / Number(quote.inputAmount) : 0;
-
-    if (inputAmount && exchangeRate && maxAmountUnits.lt(inputAmount.mul(exchangeRate))) {
+function validateOfframp({
+  inputAmount,
+  fromToken,
+  toToken,
+  quote,
+  userInputTokenBalance,
+  trackEvent,
+}: {
+  inputAmount: Big;
+  fromToken: OnChainTokenDetails;
+  toToken: FiatTokenDetails;
+  quote: QuoteEndpoints.QuoteResponse;
+  userInputTokenBalance: string | null;
+  trackEvent: (event: TrackableEvent) => void;
+}): string | null {
+  if (typeof userInputTokenBalance === 'string') {
+    if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
       trackEvent({
         event: 'form_error',
-        error_message: 'more_than_maximum_withdrawal',
+        error_message: 'insufficient_balance',
         input_amount: inputAmount ? inputAmount.toString() : '0',
       });
-      return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+      return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+    }
+  }
+
+  const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);
+  const minAmountUnits = multiplyByPowerOfTen(Big(toToken.minWithdrawalAmountRaw), -toToken.decimals);
+  const exchangeRate = quote ? Number(quote.outputAmount) / Number(quote.inputAmount) : 0;
+
+  if (inputAmount && exchangeRate && maxAmountUnits.lt(inputAmount.mul(exchangeRate))) {
+    trackEvent({
+      event: 'form_error',
+      error_message: 'more_than_maximum_withdrawal',
+      input_amount: inputAmount ? inputAmount.toString() : '0',
+    });
+    return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
+      toToken.fiat.symbol
+    }.`;
+  }
+
+  const amountOut = quote ? Big(quote.outputAmount) : Big(0);
+
+  if (!amountOut.eq(0)) {
+    if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
+      trackEvent({
+        event: 'form_error',
+        error_message: 'less_than_minimum_withdrawal',
+        input_amount: inputAmount ? inputAmount.toString() : '0',
+      });
+      return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
         toToken.fiat.symbol
       }.`;
     }
+  }
 
-    // Use amount from quote if available
-    const amountOut = quote ? Big(quote.outputAmount) : Big(0);
+  return null;
+}
 
-    if (!amountOut.eq(0)) {
-      if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
-        trackEvent({
-          event: 'form_error',
-          error_message: 'less_than_minimum_withdrawal',
-          input_amount: inputAmount ? inputAmount.toString() : '0',
-        });
-        return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-          toToken.fiat.symbol
-        }.`;
-      }
+export const useRampValidation = () => {
+  const { inputAmount: inputAmountString, onChainToken, fiatToken } = useRampFormStore();
+  const { quote, loading: quoteLoading } = useQuoteStore();
+  const { selectedNetwork } = useNetwork();
+  const { trackEvent } = useEventsContext();
+  const rampDirection = useRampDirection();
+  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const { isDisconnected } = useVortexAccount();
+
+  const inputAmount = useMemo(() => Big(inputAmountString || '0'), [inputAmountString]);
+  const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
+
+  const fromToken = isOnramp
+    ? getAnyFiatTokenDetails(fiatToken)
+    : getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
+
+  const toToken = isOnramp
+    ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
+    : getAnyFiatTokenDetails(fiatToken);
+
+  const userInputTokenBalance = useOnchainTokenBalance({
+    token: (isOnramp ? toToken : fromToken) as OnChainTokenDetails,
+  });
+
+  const getCurrentErrorMessage = useCallback(() => {
+    if (isDisconnected) return;
+
+    let validationError = null;
+
+    if (isOnramp) {
+      validationError = validateOnramp({
+        inputAmount,
+        fromToken: fromToken as FiatTokenDetails,
+        trackEvent,
+      });
+    } else {
+      validationError = validateOfframp({
+        inputAmount,
+        fromToken: fromToken as OnChainTokenDetails,
+        toToken: toToken as FiatTokenDetails,
+        quote: quote as QuoteEndpoints.QuoteResponse,
+        userInputTokenBalance: userInputTokenBalance?.balance || '0',
+        trackEvent,
+      });
     }
 
+    if (validationError) return validationError;
     if (quoteLoading) return 'Calculating quote...';
 
     return null;
-  }, [isDisconnected, userInputTokenBalance, inputAmount, toToken, quote, quoteLoading, fromToken, trackEvent]);
+  }, [
+    isOnramp,
+    inputAmount,
+    fromToken,
+    toToken,
+    quote,
+    userInputTokenBalance,
+    quoteLoading,
+    trackEvent,
+    isDisconnected,
+  ]);
 
-  /**
-   * Sets initialization failed message
-   */
   const setInitializeFailed = useCallback((message?: string | null) => {
     setInitializeFailedMessage(
       message ??

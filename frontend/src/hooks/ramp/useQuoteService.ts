@@ -5,7 +5,6 @@ import { FiatToken, OnChainToken } from 'shared';
 import { useEventsContext } from '../../contexts/events';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useNetwork } from '../../contexts/network';
-import { useVortexAccount } from '../useVortexAccount';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 
@@ -14,26 +13,24 @@ import { RampDirection } from '../../components/RampToggle';
 // if you don't want to get a new quote - you get outputAmount through useQuoteStore
 // This is not optimal, and introduce too much cognitive load
 
-export const useQuoteService = (inputAmount: Big | undefined, onChainToken: OnChainToken, fiatToken: FiatToken) => {
+export const useQuoteService = (inputAmount: string | undefined, onChainToken: OnChainToken, fiatToken: FiatToken) => {
   const { trackEvent } = useEventsContext();
   const { selectedNetwork } = useNetwork();
-  const { address } = useVortexAccount();
   const rampDirection = useRampDirection();
   const rampType = rampDirection === RampDirection.ONRAMP ? 'on' : 'off';
 
   const { quote, fetchQuote, outputAmount } = useQuoteStore();
 
   const getQuote = useCallback(async () => {
-    if (!inputAmount || !address) return;
+    if (!inputAmount) return;
 
     try {
       await fetchQuote({
         rampType,
-        inputAmount,
+        inputAmount: Big(inputAmount),
         onChainToken,
         fiatToken,
         selectedNetwork,
-        address,
       });
     } catch (err) {
       trackEvent({
@@ -41,7 +38,7 @@ export const useQuoteService = (inputAmount: Big | undefined, onChainToken: OnCh
         error_message: 'signer_service_issue',
       });
     }
-  }, [inputAmount, address, fetchQuote, rampType, onChainToken, fiatToken, selectedNetwork, trackEvent]);
+  }, [inputAmount, fetchQuote, rampType, onChainToken, fiatToken, selectedNetwork, trackEvent]);
 
   useEffect(() => {
     if (quote && inputAmount) {
@@ -49,7 +46,7 @@ export const useQuoteService = (inputAmount: Big | undefined, onChainToken: OnCh
         event: 'transaction_confirmation',
         from_asset: onChainToken,
         to_asset: fiatToken,
-        from_amount: inputAmount.toString(),
+        from_amount: inputAmount,
         to_amount: quote.outputAmount,
       });
     }

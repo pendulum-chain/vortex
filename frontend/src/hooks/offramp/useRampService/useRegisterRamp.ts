@@ -35,14 +35,17 @@ const useProcessLock = (lockKey: string) => {
   }, [lockKey]);
 
   // Verifies that the current process still owns the lock
-  const verifyLock = useCallback((processRef?: string) => {
-    const currentLock = localStorage.getItem(lockKey);
-    if (currentLock && currentLock !== processRef) {
-      console.log(`Process for ${lockKey} taken over by another process, skipping...`);
-      return false;
-    }
-    return true;
-  }, [lockKey]);
+  const verifyLock = useCallback(
+    (processRef?: string) => {
+      const currentLock = localStorage.getItem(lockKey);
+      if (currentLock && currentLock !== processRef) {
+        console.log(`Process for ${lockKey} taken over by another process, skipping...`);
+        return false;
+      }
+      return true;
+    },
+    [lockKey],
+  );
 
   // Releases the lock when the process is complete
   const releaseLock = useCallback(() => {
@@ -95,6 +98,7 @@ export const useRegisterRamp = () => {
 
   const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
 
+  // @TODO: maybe change to useCallback
   useEffect(() => {
     console.log(`Starting ramp registry process at ${new Date().toISOString()}`);
 
@@ -199,7 +203,7 @@ export const useRegisterRamp = () => {
         console.error(`Error registering ramp:`, error);
       })
       .finally(() => {
-        console.log("Completed ramp registry process")
+        console.log('Completed ramp registry process');
         releaseLock();
       });
   }, [
@@ -217,7 +221,11 @@ export const useRegisterRamp = () => {
   ]);
 
   // Create a process lock for the signing process
-  const { checkLock: checkSigningLock, verifyLock: verifySigningLock, releaseLock: releaseSigningLock } = useProcessLock(START_KEY_LOCAL_STORAGE);
+  const {
+    checkLock: checkSigningLock,
+    verifyLock: verifySigningLock,
+    releaseLock: releaseSigningLock,
+  } = useProcessLock(START_KEY_LOCAL_STORAGE);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
   // This is only relevant for offramps. @TODO: Extract this to a separate hook for offramp

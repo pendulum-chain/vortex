@@ -9,7 +9,6 @@ interface QuoteParams {
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
-  address?: string;
   rampType: RampType;
 }
 
@@ -101,9 +100,9 @@ export const useQuoteStore = create<QuoteState>((set) => ({
   exchangeRate: 0,
 
   fetchQuote: async (params: QuoteParams) => {
-    const { inputAmount, address } = params;
+    const { inputAmount } = params;
 
-    if (!inputAmount || !address) {
+    if (!inputAmount) {
       set({ error: 'Invalid input parameters', loading: false });
       return;
     }
