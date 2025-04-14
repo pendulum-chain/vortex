@@ -84,7 +84,7 @@ const FeeDetails = ({
         <p>
           {isOfframp
             ? t('components.dialogs.OfframpSummaryDialog.offrampFee')
-            : t('components.dialogs.OfframpSummaryDialog.onrampFee')}
+            : t('components.dialogs.OfframpSummaryDialog.onrampFee')}{' '}
           ({`${fiatToken.offrampFeesBasisPoints / 100}%`}
           {fiatToken.offrampFeesFixedComponent ? ` + ${fiatToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
         </p>
