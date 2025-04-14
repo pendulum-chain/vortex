@@ -20,9 +20,7 @@ const OFFRAMP_FIELDS = [
   { id: StandardBrlaFieldOptions.PIX_ID, label: 'PIX', index: 1 },
 ];
 
-const ONRAMP_FIELDS = [
-  { id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 }
-]
+const ONRAMP_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 }];
 
 /**
  * BrlaSwapFields component
@@ -37,9 +35,10 @@ export const BrlaSwapFields: FC = () => {
 
   const fiatToken = useFiatToken();
 
-  const rampDirection =  useRampDirection();
+  const rampDirection = useRampDirection();
+  const isOnramp = rampDirection === RampDirection.ONRAMP;
 
-  const FIELDS = rampDirection === RampDirection.OFFRAMP ? OFFRAMP_FIELDS : ONRAMP_FIELDS;
+  const FIELDS = isOnramp ? ONRAMP_FIELDS : OFFRAMP_FIELDS;
 
   return (
     <AnimatePresence>
@@ -56,9 +55,11 @@ export const BrlaSwapFields: FC = () => {
             />
           ))}
           <div className="mt-2">
-            <Trans i18nKey="components.brlaSwapField.disclaimer">
-              CPF must belong to <b>you</b>.
-            </Trans>
+            {!isOnramp && (
+              <Trans i18nKey="components.brlaSwapField.disclaimer">
+                CPF must belong to <b>you</b>.
+              </Trans>
+            )}
           </div>
         </motion.div>
       )}

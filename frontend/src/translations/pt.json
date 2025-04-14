@@ -56,8 +56,14 @@
           "noApi": "Nenhuma API encontrada."
         },
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
-        "moreThanMaximumWithdrawal": "O valor máximo de saque é {{maxAmountUnits}} {{assetSymbol}}.",
-        "lessThanMinimumWithdrawal": "O valor mínimo de saque é {{minAmountUnits}} {{assetSymbol}}.",
+        "moreThanMaximumWithdrawal": {
+          "sell": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
+          "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
+        },
+        "lessThanMinimumWithdrawal": {
+          "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
+          "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
+        },
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor."
       },
       "developedBy": "Desenvolvido por"

@@ -56,8 +56,14 @@
           "noApi": "No API found."
         },
         "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
-        "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
-        "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
+        "moreThanMaximumWithdrawal": {
+          "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
+          "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
+        },
+        "lessThanMinimumWithdrawal": {
+          "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
+          "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
+        },
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount."
       },
       "developedBy": "Developed by"

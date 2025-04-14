@@ -18,16 +18,21 @@ import { config } from '../../config';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { useVortexAccount } from '../useVortexAccount';
+import { useTranslation } from 'react-i18next';
+import { TFunction } from 'i18next';
 
-function validateOnramp({
-  inputAmount,
-  fromToken,
-  trackEvent,
-}: {
-  inputAmount: Big;
-  fromToken: FiatTokenDetails;
-  trackEvent: (event: TrackableEvent) => void;
-}): string | null {
+function validateOnramp(
+  t: TFunction<'translation', undefined>,
+  {
+    inputAmount,
+    fromToken,
+    trackEvent,
+  }: {
+    inputAmount: Big;
+    fromToken: FiatTokenDetails;
+    trackEvent: (event: TrackableEvent) => void;
+  },
+): string | null {
   const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
   const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
 
@@ -37,9 +42,10 @@ function validateOnramp({
       error_message: 'more_than_maximum_withdrawal',
       input_amount: inputAmount ? inputAmount.toString() : '0',
     });
-    return `Maximum onramp amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-      fromToken.fiat.symbol
-    }.`;
+    return t('pages.swap.error.moreThanMaximumWithdrawal.buy', {
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+      assetSymbol: fromToken.fiat.symbol,
+    });
   }
 
   if (inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount)) {
@@ -48,29 +54,33 @@ function validateOnramp({
       error_message: 'less_than_minimum_withdrawal',
       input_amount: inputAmount ? inputAmount.toString() : '0',
     });
-    return `Minimum onramp amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-      fromToken.fiat.symbol
-    }.`;
+    return t('pages.swap.error.lessThanMinimumWithdrawal.buy', {
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2),
+      assetSymbol: fromToken.fiat.symbol,
+    });
   }
 
   return null;
 }
 
-function validateOfframp({
-  inputAmount,
-  fromToken,
-  toToken,
-  quote,
-  userInputTokenBalance,
-  trackEvent,
-}: {
-  inputAmount: Big;
-  fromToken: OnChainTokenDetails;
-  toToken: FiatTokenDetails;
-  quote: QuoteEndpoints.QuoteResponse;
-  userInputTokenBalance: string | null;
-  trackEvent: (event: TrackableEvent) => void;
-}): string | null {
+function validateOfframp(
+  t: TFunction<'translation', undefined>,
+  {
+    inputAmount,
+    fromToken,
+    toToken,
+    quote,
+    userInputTokenBalance,
+    trackEvent,
+  }: {
+    inputAmount: Big;
+    fromToken: OnChainTokenDetails;
+    toToken: FiatTokenDetails;
+    quote: QuoteEndpoints.QuoteResponse;
+    userInputTokenBalance: string | null;
+    trackEvent: (event: TrackableEvent) => void;
+  },
+): string | null {
   if (typeof userInputTokenBalance === 'string') {
     if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
       trackEvent({
@@ -78,7 +88,10 @@ function validateOfframp({
         error_message: 'insufficient_balance',
         input_amount: inputAmount ? inputAmount.toString() : '0',
       });
-      return `Insufficient balance. Your balance is ${userInputTokenBalance} ${fromToken?.assetSymbol}.`;
+      return t('pages.swap.error.insufficientFunds', {
+        userInputTokenBalance,
+        assetSymbol: fromToken?.assetSymbol,
+      });
     }
   }
 
@@ -92,9 +105,10 @@ function validateOfframp({
       error_message: 'more_than_maximum_withdrawal',
       input_amount: inputAmount ? inputAmount.toString() : '0',
     });
-    return `Maximum withdrawal amount is ${stringifyBigWithSignificantDecimals(maxAmountUnits, 2)} ${
-      toToken.fiat.symbol
-    }.`;
+    return t('pages.swap.error.moreThanMinimumWithdrawal.sell', {
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2),
+      assetSymbol: toToken.fiat.symbol,
+    });
   }
 
   const amountOut = quote ? Big(quote.outputAmount) : Big(0);
@@ -106,9 +120,11 @@ function validateOfframp({
         error_message: 'less_than_minimum_withdrawal',
         input_amount: inputAmount ? inputAmount.toString() : '0',
       });
-      return `Minimum withdrawal amount is ${stringifyBigWithSignificantDecimals(minAmountUnits, 2)} ${
-        toToken.fiat.symbol
-      }.`;
+
+      return t('pages.swap.error.lessThanMinimumWithdrawal.sell', {
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2),
+        assetSymbol: toToken.fiat.symbol,
+      });
     }
   }
 
@@ -116,6 +132,8 @@ function validateOfframp({
 }
 
 export const useRampValidation = () => {
+  const { t } = useTranslation();
+
   const { inputAmount: inputAmountString, onChainToken, fiatToken } = useRampFormStore();
   const { quote, loading: quoteLoading } = useQuoteStore();
   const { selectedNetwork } = useNetwork();
@@ -145,13 +163,13 @@ export const useRampValidation = () => {
     let validationError = null;
 
     if (isOnramp) {
-      validationError = validateOnramp({
+      validationError = validateOnramp(t, {
         inputAmount,
         fromToken: fromToken as FiatTokenDetails,
         trackEvent,
       });
     } else {
-      validationError = validateOfframp({
+      validationError = validateOfframp(t, {
         inputAmount,
         fromToken: fromToken as OnChainTokenDetails,
         toToken: toToken as FiatTokenDetails,
@@ -166,15 +184,16 @@ export const useRampValidation = () => {
 
     return null;
   }, [
+    isDisconnected,
     isOnramp,
+    quoteLoading,
+    t,
     inputAmount,
     fromToken,
+    trackEvent,
     toToken,
     quote,
-    userInputTokenBalance,
-    quoteLoading,
-    trackEvent,
-    isDisconnected,
+    userInputTokenBalance?.balance,
   ]);
 
   const setInitializeFailed = useCallback((message?: string | null) => {
