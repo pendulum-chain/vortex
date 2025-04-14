@@ -34,7 +34,9 @@ export const Onramp = () => {
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
 
-  const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
+  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
+
+  const { outputAmount: toAmount } = useQuoteService(debouncedInputAmount, onChainToken, fiatToken);
 
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
@@ -54,8 +56,6 @@ export const Onramp = () => {
 
   const fromToken = getAnyFiatTokenDetails(fiatToken);
   const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
-
-  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
 
   useRampUrlParams({ form });
 
