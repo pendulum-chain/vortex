@@ -53,9 +53,7 @@ export async function buildPaymentAndMergeTx({
   const mergeAccountTransactions: Array<{ sequence: string; tx: string }> = [];
   const createAccountTransactions: Array<{ sequence: string; tx: string }> = [];
 
-
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
-
     const currentFundingAccount =
       i === 0
         ? fundingAccount
@@ -106,7 +104,6 @@ export async function buildPaymentAndMergeTx({
     const currentSequenceStr = String(currentSequence);
     const currentEphemeralAccount = new Account(ephemeralAccountId, currentSequenceStr);
 
-
     const currentPaymentTransaction = new TransactionBuilder(currentEphemeralAccount, {
       fee: STELLAR_BASE_FEE,
       networkPassphrase: NETWORK_PASSPHRASE,
@@ -151,7 +148,6 @@ export async function buildPaymentAndMergeTx({
       .build();
 
     currentMergeAccountTransaction.sign(fundingAccountKeypair);
-
 
     paymentTransactions.push({
       sequence: currentSequenceStr,

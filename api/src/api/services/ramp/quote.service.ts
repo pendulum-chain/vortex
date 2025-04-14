@@ -1,7 +1,16 @@
 import Big from 'big.js';
 import { v4 as uuidv4 } from 'uuid';
 import httpStatus from 'http-status';
-import { DestinationType, getNetworkFromDestination, getPendulumDetails, QuoteEndpoints, RampCurrency, getOnChainTokenDetails, OnChainToken, isEvmTokenDetails } from 'shared';
+import {
+  DestinationType,
+  getNetworkFromDestination,
+  getPendulumDetails,
+  QuoteEndpoints,
+  RampCurrency,
+  getOnChainTokenDetails,
+  OnChainToken,
+  isEvmTokenDetails,
+} from 'shared';
 import { BaseRampService } from './base.service';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
@@ -197,36 +206,35 @@ export class QuoteService extends BaseRampService {
 
       // if onramp, adjust for axlUSDC price difference.
       if (rampType === 'on') {
-        const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken );
+        const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
         if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
           throw new APIError({
             status: httpStatus.BAD_REQUEST,
             message: 'Invalid token details for onramp',
           });
-        };
+        }
 
         const routeParams = createOnrampRouteParams(
-            "0x30a300612ab372cc73e53ffe87fb73d62ed68da3", // It does not matter.
-            amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
-            outTokenDetails,
-            getNetworkFromDestination(to)!,
-            "0x30a300612ab372cc73e53ffe87fb73d62ed68da3",
-          );
+          '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
+          amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
+          outTokenDetails,
+          getNetworkFromDestination(to)!,
+          '0x30a300612ab372cc73e53ffe87fb73d62ed68da3',
+        );
 
         const routeResult = await getRoute(routeParams);
         const { route } = routeResult.data;
         const toAmountMin = route.estimate.toAmountMin;
 
-        console.log('before squidy adjustment ', amountOut.preciseQuotedAmountOut);
-      
-        amountOut.preciseQuotedAmountOut  =  parseContractBalanceResponse(outTokenDetails.pendulumDecimals, BigInt(toAmountMin));
-        amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0),
-        amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
-                  amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountAfterFees)),
-                  4,
-                );
-
-              
+        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
+          outTokenDetails.pendulumDecimals,
+          BigInt(toAmountMin),
+        );
+        (amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0)),
+          (amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
+            amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountAfterFees)),
+            4,
+          ));
       }
 
       const outputAmountAfterFees =
@@ -238,10 +246,9 @@ export class QuoteService extends BaseRampService {
         .minus(outputAmountAfterFees)
         .toFixed(6, 0);
 
-      const effectiveFeesOnramp = new Big(inputAmount).minus(inputAmountAfterFees).toFixed(6, 0);
+      const effectiveFeesOnrampBrl = new Big(inputAmount).minus(inputAmountAfterFees);
+      const effectiveFeesOnramp = effectiveFeesOnrampBrl.mul(amountOut.effectiveExchangeRate).toFixed(6, 0);
       const effectiveFees = rampType === 'off' ? effectiveFeesOfframp : effectiveFeesOnramp;
-
-
 
       return {
         receiveAmount: outputAmountAfterFees,
