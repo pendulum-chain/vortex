@@ -187,7 +187,8 @@
           "description": "Continue in your bank's app",
           "qrCode": "Select Pix in your bank's app and scan the QR code below.",
           "copyCode": "Or copy the Pix code below, select Pix in your bank's app and paste the code provided.",
-          "pixCode": "Pix code"
+          "pixCode": "Pix code",
+          "timerLabel": "Quote expires in:"
         },
         "headerText": {
           "buy": "You're buying",

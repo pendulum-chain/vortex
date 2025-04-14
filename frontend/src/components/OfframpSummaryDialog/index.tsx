@@ -1,5 +1,5 @@
 import { ArrowDownIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { useState, FC, useMemo } from 'react';
+import { useState, FC, useMemo, useEffect } from 'react';
 import Big from 'big.js';
 
 import {
@@ -115,6 +115,34 @@ const BRLOnrampDetails = () => {
   const rampDirection = useRampDirection();
   const { t } = useTranslation();
   const rampState = useRampState();
+  const [timeLeft, setTimeLeft] = useState({ minutes: 5, seconds: 0 });
+
+  useEffect(() => {
+    if (!rampState?.ramp?.createdAt) return;
+
+    const createdAtTimestamp = new Date(rampState.ramp.createdAt).getTime();
+    const targetTimestamp = createdAtTimestamp + 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    const intervalId = setInterval(() => {
+      const now = Date.now();
+      const diff = targetTimestamp - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ minutes: 0, seconds: 0 });
+        clearInterval(intervalId);
+        // Optionally: Add logic here to handle timer expiration, e.g., close dialog, show message
+        return;
+      }
+
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+      setTimeLeft({ minutes, seconds });
+    }, 1000);
+
+    // Cleanup interval on component unmount or when dependencies change
+    return () => clearInterval(intervalId);
+  }, [rampState?.ramp?.createdAt]);
+
 
   console.log("In BRLAOnrampDetails", rampState, rampDirection);
   if (rampDirection !== RampDirection.ONRAMP) return null;
@@ -122,10 +150,13 @@ const BRLOnrampDetails = () => {
   if (!rampState?.ramp?.brCode) return null;
   console.log("after brcode")
 
+  const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? '0' : ''}${timeLeft.seconds}`;
+
   return (
     <section>
       <hr className="my-5" />
       <h1 className="font-bold text-lg">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.title')}</h1>
+      {/* Timer moved below */}
       <h2 className="font-bold text-center text-lg">
         {t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.description')}
       </h2>
@@ -138,6 +169,9 @@ const BRLOnrampDetails = () => {
       <p className="text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.copyCode')}</p>
       <p className="text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.pixCode')}:</p>
       <CopyButton text={rampState.ramp?.brCode} className="w-full mt-4 py-10" />
+      <div className="text-center text-gray-600 font-semibold my-4"> 
+        {t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.timerLabel')} {formattedTime}
+      </div>
     </section>
   );
 };
