@@ -207,7 +207,7 @@ export class QuoteService extends BaseRampService {
       });
 
       // if onramp, adjust for axlUSDC price difference.
-      const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.preciseString; // Store the value before the adjustment.
+      const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.rawBalance.toFixed(); // Store the value before the adjustment.
       if (rampType === 'on') {
         const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
         if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {

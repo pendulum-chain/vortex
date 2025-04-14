@@ -2,6 +2,7 @@ import {DestinationType, Networks} from '../index';
 
 export type RampPhase =
   | 'initial'
+  | 'timedOut'
   | 'stellarCreateAccount'
   | 'squidrouterApprove'
   | 'squidrouterSwap'
