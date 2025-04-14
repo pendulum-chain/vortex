@@ -143,12 +143,8 @@ const BRLOnrampDetails = () => {
     return () => clearInterval(intervalId);
   }, [rampState?.ramp?.createdAt]);
 
-
-  console.log("In BRLAOnrampDetails", rampState, rampDirection);
   if (rampDirection !== RampDirection.ONRAMP) return null;
-  console.log("after rampDirection")
   if (!rampState?.ramp?.brCode) return null;
-  console.log("after brcode")
 
   const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? '0' : ''}${timeLeft.seconds}`;
 
@@ -167,9 +163,8 @@ const BRLOnrampDetails = () => {
         </div>
       </div>
       <p className="text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.copyCode')}</p>
-      <p className="text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.pixCode')}:</p>
       <CopyButton text={rampState.ramp?.brCode} className="w-full mt-4 py-10" />
-      <div className="text-center text-gray-600 font-semibold my-4"> 
+      <div className="text-center text-gray-600 font-semibold my-4">
         {t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.timerLabel')} {formattedTime}
       </div>
     </section>
@@ -255,8 +250,9 @@ export const OfframpSummaryDialog: FC = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { selectedNetwork } = useNetwork();
-  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible, setRampPaymentConfirmed } = useRampActions();
-  const offrampState = useRampState();
+  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible, setRampPaymentConfirmed } =
+    useRampActions();
+  const rampState = useRampState();
   const executionInput = useRampExecutionInput();
   const visible = useRampSummaryVisible();
   const { onRampConfirm } = useRampSubmission();
@@ -272,10 +268,16 @@ export const OfframpSummaryDialog: FC = () => {
     if (!isOnramp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === 'moonbeam') return true;
+      // For onramps, we register immediately when opening this summary, so the ramp should be available.
+      if (!rampState?.ramp === undefined) return true;
+      // Check if ramp is already expired
+      if (rampState?.ramp?.createdAt && Date.now() - new Date(rampState?.ramp?.createdAt).getTime() > 5 * 60 * 1000) {
+        return true;
+      }
     }
 
     return isSubmitted;
-  }, [anchorUrl, executionInput, fiatToken, isOnramp, isSubmitted]);
+  }, [anchorUrl, executionInput, fiatToken, isOnramp, isSubmitted, rampState?.ramp]);
 
   if (!visible) return null;
   if (!executionInput) return null;
@@ -318,7 +320,7 @@ export const OfframpSummaryDialog: FC = () => {
       style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
       onClick={onSubmit}
     >
-      {offrampState !== undefined ? (
+      {rampState !== undefined ? (
         <>
           <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
         </>
