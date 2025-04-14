@@ -180,7 +180,20 @@ export const useRegisterRamp = () => {
         moonbeamApiComponents.api,
       );
 
+      console.log("setRampRegistered(true)")
       setRampRegistered(true);
+      console.log("setRampState to ", {
+        quote: executionInput.quote,
+        ramp: rampProcess,
+        signedTransactions,
+        requiredUserActionsCompleted: false,
+        userSigningMeta: {
+          squidRouterApproveHash: undefined,
+          squidRouterSwapHash: undefined,
+          assetHubToPendulumHash: undefined,
+        },
+      })
+
       setRampState({
         quote: executionInput.quote,
         ramp: rampProcess,
