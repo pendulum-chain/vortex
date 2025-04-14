@@ -3,6 +3,7 @@ import { FUNDING_SECRET, STELLAR_BASE_FEE, SEQUENCE_TIME_WINDOW_IN_SECONDS } fro
 import { StellarTokenDetails, PaymentData, HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from 'shared';
 import { HorizonServer } from 'stellar-sdk/lib/horizon/server';
 import Big from 'big.js';
+import logger from '../../../../config/logger';
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
@@ -33,7 +34,7 @@ export async function buildPaymentAndMergeTx({
   const maxTime = Date.now() + 1000 * 60 * 10;
 
   if (!FUNDING_SECRET) {
-    console.log('Secret not defined');
+    logger.error('Stellar funding secret not defined');
     throw new Error('Stellar funding secret not defined');
   }
 

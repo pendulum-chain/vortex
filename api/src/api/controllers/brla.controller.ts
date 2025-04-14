@@ -5,6 +5,7 @@ import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
 import { BrlaTeleportService } from '../services/brla/brlaTeleportService';
 import { generateReferenceLabel } from '../services/brla/helpers';
+import logger from '../../config/logger';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -351,7 +352,7 @@ export const triggerPayIn = async (
       res.status(400).json({ error: 'taxId invalid' });
       return;
     }
-    console.log('Requesting teleport:', subaccount.id, amount, receiverAddress);
+    logger.info('Requesting teleport:', subaccount.id, amount, receiverAddress);
     const teleportService = BrlaTeleportService.getInstance();
     await teleportService.requestTeleport(subaccount.id, Number(amount), receiverAddress);
 

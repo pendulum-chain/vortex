@@ -5,6 +5,7 @@ import Big from 'big.js';
 import { StateMetadata } from '../meta-state-types';
 import { ApiManager } from '../../pendulum/apiManager';
 import { getFundingAccount } from '../../../controllers/subsidize.controller';
+import logger from '../../../../config/logger';
 
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -37,7 +38,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       const requiredAmount = Big(outputAmountBeforeFees.raw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
-        console.log('Subsidizing post-swap with', requiredAmount.toString());
+        logger.info('Subsidizing post-swap with', requiredAmount.toString());
         const fundingAccountKeypair = getFundingAccount();
         await pendulumNode.api.tx.tokens
           .transfer(

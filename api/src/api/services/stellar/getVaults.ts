@@ -1,5 +1,6 @@
 import { ApiPromise } from '@polkadot/api';
 import Big from 'big.js';
+import logger from '../../../config/logger';
 
 function vaultHasEnoughRedeemable(vault: any, redeemableAmount: string): boolean {
   // issuedTokens - toBeRedeemedTokens = redeemableTokens
@@ -33,7 +34,7 @@ export async function getVaultsForCurrency(
 
   if (vaultsForCurrency.length === 0) {
     const errorMessage = `No vaults found for currency ${assetCodeHex} and amount ${redeemableAmountRaw}`;
-    console.log(errorMessage);
+    logger.error(errorMessage);
     throw new Error(errorMessage);
   }
 

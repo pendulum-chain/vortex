@@ -1,10 +1,11 @@
 import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 
-import { API } from '../pendulum/apiManager';
-import { getVaultsForCurrency } from './getVaults';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { getAddressForFormat, parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from 'shared';
+import { API } from '../pendulum/apiManager';
+import { getVaultsForCurrency } from './getVaults';
+import logger from '../../../config/logger';
 
 export async function createVaultService(
   apiComponents: API,
@@ -44,33 +45,30 @@ export class VaultService {
           const { status, events, dispatchError } = submissionResult;
 
           if (status.isFinalized) {
-            console.log(`Requested redeem for vault ${this.vaultId} with status ${status.type}`);
+            logger.info(`Requested redeem for vault ${this.vaultId} with status ${status.type}`);
 
             // Try to find a 'system.ExtrinsicFailed' event
-            const systemExtrinsicFailedEvent = events.find((record) => {
-              return record.event.section === 'system' && record.event.method === 'ExtrinsicFailed';
-            });
+            const systemExtrinsicFailedEvent = events.find(
+              (record) => record.event.section === 'system' && record.event.method === 'ExtrinsicFailed',
+            );
 
             if (dispatchError) {
               reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'Redeem Request'));
             }
-            //find all redeem request events and filter the one that matches the requester
-            const redeemEvents = events.filter((event) => {
-              return (
-                event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem'
-              );
-            });
+            // find all redeem request events and filter the one that matches the requester
+            const redeemEvents = events.filter(
+              (event) =>
+                event.event.section.toLowerCase() === 'redeem' && event.event.method.toLowerCase() === 'requestredeem',
+            );
 
             const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
-              .filter((event) => {
-                return event.redeemer === getAddressForFormat(senderAddress, this.apiComponents!.ss58Format);
-              });
+              .filter((event) => event.redeemer === getAddressForFormat(senderAddress, this.apiComponents!.ss58Format));
 
             if (event.length == 0) {
               reject(new Error(`No redeem event found for account ${senderAddress}`));
             }
-            //we should only find one event corresponding to the issue request
+            // we should only find one event corresponding to the issue request
             if (event.length != 1) {
               reject(new Error('Inconsistent amount of redeem request events for account'));
             }
@@ -91,7 +89,8 @@ export class VaultService {
       const { name, section, method } = decoded;
 
       return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
-    } else if (systemExtrinsicFailedEvent) {
+    }
+    if (systemExtrinsicFailedEvent) {
       const eventName =
         systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
           ? systemExtrinsicFailedEvent?.event.data[0].toString()
@@ -101,12 +100,12 @@ export class VaultService {
         phase,
         event: { method, section },
       } = systemExtrinsicFailedEvent;
-      console.log(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
+      logger.error(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
 
       return new Error(`Failed to dispatch ${extrinsicCalled}`);
-    } else {
-      console.log('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
-      return new Error(`Unknown error during ${extrinsicCalled}`);
     }
+
+    logger.error('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
+    return new Error(`Unknown error during ${extrinsicCalled}`);
   }
 }

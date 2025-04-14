@@ -2,6 +2,7 @@ import { HORIZON_URL, RampPhase } from 'shared';
 import { Horizon, NetworkError, Networks, Transaction } from 'stellar-sdk';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
+import logger from '../../../../config/logger';
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -26,12 +27,12 @@ export class StellarPaymentPhaseHandler extends BasePhaseHandler {
       const horizonError = e as NetworkError;
 
       if (horizonError.response.data?.status === 400) {
-        console.log(
+        logger.error(
           `Could not submit the offramp transaction ${JSON.stringify(horizonError.response.data.extras.result_codes)}`,
         );
         // check https://developers.stellar.org/docs/data/horizon/api-reference/errors/result-codes/transactions
         if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
-          console.log('Assuming offramp was already performed.');
+          logger.info('Assuming offramp was already performed.');
           return this.transitionToNextPhase(state, 'complete');
         }
 

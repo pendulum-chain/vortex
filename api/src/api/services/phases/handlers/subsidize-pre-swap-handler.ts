@@ -1,10 +1,11 @@
-import { BasePhaseHandler } from '../base-phase-handler';
-import { FiatToken, RampPhase } from 'shared';
-import RampState from '../../../../models/rampState.model';
+import { RampPhase } from 'shared';
 import Big from 'big.js';
+import { BasePhaseHandler } from '../base-phase-handler';
+import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { ApiManager } from '../../pendulum/apiManager';
 import { getFundingAccount } from '../../../controllers/subsidize.controller';
+import logger from '../../../../config/logger';
 
 export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -37,8 +38,8 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       const requiredAmount = Big(inputAmountBeforeSwapRaw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
-        console.log('Subsidizing pre-swap with', requiredAmount.toString());
-        console.log(
+        logger.info('Subsidizing pre-swap with', requiredAmount.toString());
+        logger.info(
           'Target value: ',
           inputAmountBeforeSwapRaw.toString(),
           'Current value: ',

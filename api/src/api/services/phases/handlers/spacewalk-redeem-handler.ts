@@ -8,6 +8,7 @@ import { StateMetadata } from '../meta-state-types';
 
 import { checkBalancePeriodically } from '../../stellar/checkBalance';
 import { createVaultService } from '../../stellar/vaultService';
+import logger from '../../../../config/logger';
 
 const maxWaitingTimeMinutes = 10;
 const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
@@ -67,12 +68,12 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         stellarTarget.stellarTokenDetails.stellarAsset.issuer.hex,
         outputAmountBeforeFees.raw,
       );
-      console.log(`Requesting redeem of ${outputAmountBeforeFees.units} tokens for vault ${vaultService.vaultId}`);
+      logger.info(`Requesting redeem of ${outputAmountBeforeFees.units} tokens for vault ${vaultService.vaultId}`);
 
       const redeemExtrinsic = decodeSubmittableExtrinsic(spacewalkRedeemTransaction, pendulumNode.api);
       const redeemRequestEvent = await vaultService.submitRedeem(pendulumEphemeralAddress, redeemExtrinsic);
 
-      console.log(`Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${vaultService.vaultId}`);
+      logger.info(`Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${vaultService.vaultId}`);
 
       // TODO we may want to use a singleton for the event listener across the backend.
       const eventListener = EventListener.getEventListener(pendulumNode.api);
@@ -82,7 +83,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
     } catch (e) {
       // This is a potentially recoverable error (due to redeem request done before app shut down, but not registered)
       if ((e as Error).message.includes('AmountExceedsUserBalance')) {
-        console.log(`Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.`);
+        logger.info(`Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.`);
         await this.waitForOutputTokensToArriveOnStellar(
           outputAmountBeforeFees.units,
           stellarEphemeralAccountId,
@@ -92,7 +93,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       }
 
       // Generic failure of the extrinsic itself OR lack of funds to even make the transaction
-      console.log(`Failed to request redeem: ${e}`);
+      logger.error(`Failed to request redeem: ${e}`);
       throw new Error(`Failed to request redeem`);
     }
   }
@@ -115,7 +116,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         stellarPollingTimeMs,
         maxWaitingTimeMs,
       );
-      console.log('Balance check completed successfully.');
+      logger.info('Balance check completed successfully.');
     } catch (balanceCheckError) {
       throw new Error(`Stellar balance did not arrive on time`);
     }

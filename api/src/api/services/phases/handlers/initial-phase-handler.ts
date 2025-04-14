@@ -48,7 +48,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       } catch (e) {
         const horizonError = e as NetworkError;
         if (horizonError.response.data?.status === 400) {
-          console.log(
+          logger.info(
             `Could not submit the stellar account creation transaction ${JSON.stringify(
               horizonError.response.data.extras.result_codes,
             )}`,
@@ -56,7 +56,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
 
           // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
           if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
-            console.log('Recovery mode: Creation already performed.');
+            logger.info('Recovery mode: Creation already performed.');
 
             return this.transitionToNextPhase(state, 'fundEphemeral');
           }

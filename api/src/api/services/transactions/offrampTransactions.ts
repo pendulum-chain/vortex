@@ -129,7 +129,6 @@ export async function prepareOfframpTransactions({
         pendulumAddressDestination: pendulumEphemeralEntry.address,
         fromAddress: userAddress,
       });
-    console.log('squid txs done');
     unsignedTxs.push({
       txData: encodeEvmTransactionData(approveData) as any,
       phase: 'squidrouterApprove',
@@ -161,7 +160,7 @@ export async function prepareOfframpTransactions({
       'usdc',
       inputAmountRaw,
     );
-    console.log('assethub to pendulum txs done');
+    logger.info('assethub to pendulum txs done');
     unsignedTxs.push({
       txData: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
       phase: 'assethubToPendulum',
@@ -173,7 +172,7 @@ export async function prepareOfframpTransactions({
 
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {
-    console.log(`Processing account ${account.address} on network ${account.network}`);
+    logger.info(`Processing account ${account.address} on network ${account.network}`);
     const accountNetworkId = getNetworkId(account.network);
 
     if (!isOnChainToken(quote.inputCurrency)) {
@@ -222,7 +221,6 @@ export async function prepareOfframpTransactions({
         nonce: 1,
         signer: account.address,
       });
-      console.log('nabla txs done');
       stateMeta = {
         ...stateMeta,
         nablaSoftMinimumOutputRaw,
@@ -233,7 +231,6 @@ export async function prepareOfframpTransactions({
         inputTokenPendulumDetails.pendulumCurrencyId,
         outputTokenPendulumDetails.pendulumCurrencyId,
       );
-      console.log('pendulum cleanup done');
       unsignedTxs.push({
         txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
         phase: 'pendulumCleanup',
@@ -254,7 +251,6 @@ export async function prepareOfframpTransactions({
           outputAmountBeforeFeesRaw,
           outputTokenDetails.pendulumCurrencyId,
         );
-        console.log('pendulum to moonbeam txs done');
         unsignedTxs.push({
           txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
           phase: 'pendulumToMoonbeam',
@@ -313,7 +309,6 @@ export async function prepareOfframpTransactions({
       if (!stellarPaymentData) {
         throw new Error('Stellar payment data must be provided for offramp');
       }
-      console.log('build and merge ...');
       const { paymentTransaction, mergeAccountTransaction, createAccountTransaction, expectedSequenceNumber } =
         await buildPaymentAndMergeTx({
           ephemeralAccountId: account.address,
@@ -321,7 +316,6 @@ export async function prepareOfframpTransactions({
           paymentData: stellarPaymentData,
           tokenConfigStellar: outputTokenDetails,
         });
-      console.log('build and merge done');
       unsignedTxs.push({
         txData: createAccountTransaction,
         phase: 'stellarCreateAccount',

@@ -10,6 +10,7 @@ import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import { TOKEN_CONFIG } from 'shared';
 import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
+import logger from '../../../../config/logger';
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -39,7 +40,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       if (!isPendulumFunded) {
-        console.log('Funding pen ephemeral...');
+        logger.info('Funding pen ephemeral...');
         if (state.type === 'on' && state.to !== 'assethub') {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
         } else if (state.state.outputCurrency === FiatToken.BRL) {
@@ -48,11 +49,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, false);
         }
       } else {
-        console.log('Pendulum ephemeral address already funded.');
+        logger.info('Pendulum ephemeral address already funded.');
       }
 
       if (state.type === 'on' && !isMoonbeamFunded) {
-        console.log('Funding moonbeam ephemeral...');
+        logger.info('Funding moonbeam ephemeral...');
         await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
       }
     } catch (e) {

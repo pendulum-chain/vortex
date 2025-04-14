@@ -6,6 +6,7 @@ import { createWriteOptions, defaultWriteLimits } from '../../../helpers/contrac
 import { API } from '../../pendulum/apiManager';
 import { config } from '../../../../config';
 import { routerAbi } from '../../../../contracts/Router';
+import logger from '../../../../config/logger';
 
 export interface PrepareNablaSwapParams {
   inputTokenDetails: PendulumDetails;
@@ -88,7 +89,7 @@ export async function prepareNablaSwapTransaction({
       callerAddress: pendulumEphemeralAddress,
     });
   } catch (e) {
-    console.log(`Error creating swap extrinsic: ${e}`);
+    logger.error(`Error creating swap extrinsic: ${e}`);
     throw Error("Couldn't create swap extrinsic");
   }
 }
