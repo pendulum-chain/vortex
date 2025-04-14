@@ -19,8 +19,8 @@ import { ApiManager } from './api/services/pendulum/apiManager';
 import { testDatabaseConnection } from './config/database';
 import { runMigrations } from './database/migrator';
 import './models'; // Initialize models
-import cleanupWorker from './api/workers/cleanup.worker';
-import rampRecoveryWorker from './api/workers/ramp-recovery.worker';
+import CleanupWorker from './api/workers/cleanup.worker';
+import RampRecoveryWorker from './api/workers/ramp-recovery.worker';
 import registerPhaseHandlers from './api/services/phases/register-handlers';
 import { EventPoller } from './api/services/brla/webhooks';
 
@@ -59,8 +59,8 @@ const initializeApp = async () => {
     await apiManager.populateAllApis();
 
     // Start background workers
-    cleanupWorker.start();
-    rampRecoveryWorker.start();
+    new CleanupWorker().start();
+    new RampRecoveryWorker().start();
 
     // Register phase handlers
     registerPhaseHandlers();
