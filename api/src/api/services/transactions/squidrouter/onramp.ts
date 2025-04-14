@@ -2,7 +2,6 @@ import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from 'shared';
 import { createOnrampRouteParams, getRoute } from './route';
-import { Squid } from '@0xsquid/sdk';
 
 
 import erc20ABI from '../../../../contracts/ERC20';
@@ -39,7 +38,6 @@ export interface OnrampTransactionData {
   };
 }
 
-const squid = new Squid({integratorId: squidRouterConfigBase.integratorId});
 
 export async function createOnrampSquidrouterTransactions(
   params: OnrampSquidrouterParams,
@@ -63,28 +61,8 @@ export async function createOnrampSquidrouterTransactions(
 
   try {
     const routeResult = await getRoute(routeParams);
-
-    // Will always be axlUSDC on moonbeam.
-    // const fromTokenSquid = squid.getTokenData(
-    //   AXL_USDC_MOONBEAM,
-    //   String(moonbeam.id)
-    // );
-
-    // const toTokenSquid = squid.getTokenData(
-    //   params.outputTokenDetails.erc20AddressSourceChain,
-    //   getNetworkId(params.toNetwork).toString()
-    // );
     
-
-    // const fromAmount = squid.getFromAmount({
-    //   fromToken: fromTokenSquid,
-    //   toToken: toTokenSquid,
-    //   toAmount: params.desiredToAmountUnits,
-    // })
-
-    // console.log('From amount squid estimate: ', fromAmount);
     const { route } = routeResult.data;
-
     const { transactionRequest } = route;
 
     const approveTransactionData = encodeFunctionData({
