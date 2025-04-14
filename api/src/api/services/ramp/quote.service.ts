@@ -12,7 +12,7 @@ import {
   isEvmTokenDetails,
 } from 'shared';
 import { BaseRampService } from './base.service';
-import QuoteTicket from '../../../models/quoteTicket.model';
+import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { getTokenOutAmount } from '../nablaReads/outAmount';
@@ -102,8 +102,9 @@ export class QuoteService extends BaseRampService {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
       metadata: {
-        outputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
-      },
+        onrampOutputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
+        onrampInputAmountUnits: outputAmount.inputAmountAfterFees,
+      } as QuoteTicketMetadata,
     });
 
     return {
@@ -163,7 +164,7 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string; outputAmountMoonbeamRaw: string }> {
+  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string; outputAmountMoonbeamRaw: string, inputAmountAfterFees: string }> {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
@@ -258,6 +259,7 @@ export class QuoteService extends BaseRampService {
         fees: effectiveFees,
         outputAmountBeforeFees: amountOut.roundedDownQuotedAmountOut.toString(),
         outputAmountMoonbeamRaw,
+        inputAmountAfterFees,
       };
     } catch (error) {
       logger.error('Error calculating output amount:', error);

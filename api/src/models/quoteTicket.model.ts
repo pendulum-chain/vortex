@@ -21,7 +21,8 @@ export interface QuoteTicketAttributes {
 }
 
 export interface QuoteTicketMetadata {
-  outputAmountMoonbeamRaw: string;
+  onrampOutputAmountMoonbeamRaw: string;
+  onrampInputAmountUnits: string;
 }
 
 // Define the attributes that can be set during creation

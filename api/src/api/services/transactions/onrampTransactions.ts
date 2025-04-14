@@ -76,11 +76,11 @@ export async function prepareOnrampTransactions(
   }
 
   // For BRLA, fee is charged after minting, so we always work with the amount after anchor fees.
-  const inputAmountUnits = new Big(quote.inputAmount).sub(new Big(quote.fee));
+  const inputAmountUnits = new Big(quote.metadata.onrampInputAmountUnits)
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenDetails.decimals).toFixed(0, 0);
   
   // The output amount to be obtained on Moonbeam, differs from the amount to be obtained on destination evm chain.
-  const outputAmountRaw = (quote.metadata as QuoteTicketMetadata).outputAmountMoonbeamRaw;
+  const outputAmountRaw = (quote.metadata as QuoteTicketMetadata).onrampOutputAmountMoonbeamRaw;
   const outputAmount = multiplyByPowerOfTen(
     new Big(outputAmountRaw),
     -outputTokenDetails.decimals,
