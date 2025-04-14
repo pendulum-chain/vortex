@@ -194,6 +194,7 @@
           "sell": "Você está vendendo"
         },
         "offrampFee": "Taxa de saque",
+        "onrampFee": "Taxa de compra",
         "continueWithPartner": "Continuar com Parceiro",
         "continueOnPartnersPage": "Continuar na página do Parceiro",
         "processing": "Processando",

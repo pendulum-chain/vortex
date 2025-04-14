@@ -17,6 +17,7 @@ import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useNetwork } from '../../contexts/network';
 
 import { ExchangeRate } from '../ExchangeRate';
+import { FiatIcon } from '../FiatIcon';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
@@ -81,13 +82,20 @@ const FeeDetails = ({
     <section className="mt-6">
       <div className="flex justify-between mb-2">
         <p>
-          {t('components.dialogs.OfframpSummaryDialog.offrampFee')} ({`${fiatToken.offrampFeesBasisPoints / 100}%`}
+          {isOfframp
+            ? t('components.dialogs.OfframpSummaryDialog.offrampFee')
+            : t('components.dialogs.OfframpSummaryDialog.onrampFee')}
+          ({`${fiatToken.offrampFeesBasisPoints / 100}%`}
           {fiatToken.offrampFeesFixedComponent ? ` + ${fiatToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
         </p>
         <p className="flex items-center gap-2">
-          <NetworkIcon network={network} className="w-4 h-4" />
+          {isOfframp ? (
+            <NetworkIcon network={network} className="w-4 h-4" />
+          ) : (
+            <FiatIcon fiat={fiatToken} className="w-4 h-4" />
+          )}
           <strong>
-            {feesCost} {isOfframp ? fiatSymbol : (toToken as OnChainTokenDetails).assetSymbol}
+            {feesCost} {isOfframp ? (toToken as OnChainTokenDetails).assetSymbol : fiatSymbol}
           </strong>
         </p>
       </div>
