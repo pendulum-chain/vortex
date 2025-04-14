@@ -285,7 +285,7 @@ export const OfframpSummaryDialog: FC = () => {
         <>
           <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
         </>
-      ) : isSubmitted ? (
+      ) : !isOnramp && isSubmitted ? (
         <>
           <Spinner /> {t('components.dialogs.OfframpSummaryDialog.continueOnPartnersPage')}
         </>
@@ -294,8 +294,12 @@ export const OfframpSummaryDialog: FC = () => {
           {t('components.dialogs.OfframpSummaryDialog.continueWithPartner')}{' '}
           <ArrowTopRightOnSquareIcon className="w-4 h-4" />
         </>
+      ) : isSubmitted ? (
+        <>
+          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
+        </>
       ) : (
-        <>{t('components.dialogs.OfframpSummaryDialog.continue')}</>
+        <>{t('components.swapSubmitButton.confirmPayment')}</>
       )}
     </button>
   );
