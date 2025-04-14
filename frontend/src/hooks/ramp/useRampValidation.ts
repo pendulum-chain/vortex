@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import Big from 'big.js';
 import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from 'shared';
 
-import { useVortexAccount } from '../useVortexAccount';
 import { useOnchainTokenBalance } from '../useOnchainTokenBalance';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
@@ -18,12 +17,10 @@ import { config } from '../../config';
 export const useRampValidation = () => {
   const { inputAmount: inputAmountString, onChainToken, fiatToken } = useRampFormStore();
   const { quote, loading: quoteLoading } = useQuoteStore();
-  const { isDisconnected } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
 
   const inputAmount = useMemo(() => Big(inputAmountString || '0'), [inputAmountString]);
-
 
   // Initialization failure state
   const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
@@ -37,8 +34,6 @@ export const useRampValidation = () => {
    * Validates the current state and returns an error message if validation fails
    */
   const getCurrentErrorMessage = useCallback(() => {
-    if (isDisconnected) return 'Please connect your wallet';
-
     if (typeof userInputTokenBalance === 'string') {
       if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
         trackEvent({
@@ -86,7 +81,7 @@ export const useRampValidation = () => {
     if (quoteLoading) return 'Calculating quote...';
 
     return null;
-  }, [isDisconnected, userInputTokenBalance, inputAmount, toToken, quote, quoteLoading, fromToken, trackEvent]);
+  }, [userInputTokenBalance, inputAmount, toToken, quote, quoteLoading, fromToken, trackEvent]);
 
   /**
    * Sets initialization failed message

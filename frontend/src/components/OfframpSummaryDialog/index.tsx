@@ -218,7 +218,8 @@ export const OfframpSummaryDialog: FC = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { selectedNetwork } = useNetwork();
-  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible, setRampPaymentConfirmed } = useRampActions();
+  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible, setRampPaymentConfirmed } =
+    useRampActions();
   const offrampState = useRampState();
   const executionInput = useRampExecutionInput();
   const visible = useRampSummaryVisible();
@@ -259,7 +260,6 @@ export const OfframpSummaryDialog: FC = () => {
     setIsSubmitted(true);
 
     if (executionInput.quote.rampType === 'on') {
-      console.log('calling setramppaymentconfirmed');
       setRampPaymentConfirmed(true);
     } else {
       onRampConfirm();
