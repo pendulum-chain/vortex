@@ -1,5 +1,8 @@
 import {
+  AccountMeta,
+  addAdditionalTransactionsToMeta,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
+  encodeSubmittableExtrinsic,
   FiatToken,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
@@ -11,11 +14,9 @@ import {
   isOnChainToken,
   isStellarOutputTokenDetails,
   Networks,
-  AccountMeta,
-  encodeSubmittableExtrinsic,
-  addAdditionalTransactionsToMeta,
+  PaymentData,
+  UnsignedTx,
 } from 'shared';
-import { UnsignedTx, PaymentData } from 'shared';
 
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
@@ -30,6 +31,7 @@ import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
+import logger from '../../../config/logger';
 
 interface OfframpTransactionParams {
   quote: QuoteTicketAttributes;
