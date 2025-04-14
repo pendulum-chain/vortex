@@ -23,7 +23,6 @@ export const useAnchorWindowHandler = () => {
   const { selectedNetwork } = useNetwork();
   const { apiComponents: pendulumNode } = usePendulumNode();
   const { setRampStarted } = useRampActions();
-  const { address, chainId } = useVortexAccount();
 
   const { showToast, ToastMessage } = useToastMessage();
 

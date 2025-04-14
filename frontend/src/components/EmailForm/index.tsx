@@ -41,7 +41,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
   const FormButtonSection = () => {
     if (isSuccess) {
       return (
-        <div className="flex items-center justify-center mt-2 text-white btn-success btn">
+        <div className="flex items-center px-4 md:px-8 mt-2 py-2 bg-green-600 text-white font-medium rounded">
           {t('components.emailForm.success')}
         </div>
       );
@@ -49,7 +49,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
     if (isPending) {
       return (
-        <div className="flex items-center justify-center mt-2 btn-vortex-primary btn">
+        <div className="flex items-center px-4 md:px-8 mt-2 py-2 bg-blue-600 text-white font-medium rounded">
           {t('components.emailForm.loading')}
         </div>
       );
@@ -57,16 +57,16 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
     return (
       <>
-        <div className="flex items-center justify-center mt-2">
+        <div className="flex items-center px-4 md:px-8 mt-2">
           <div className="mr-3 grow">
             <TextInput type="email" placeholder="example@mail.com" register={register('email')} />
           </div>
-          <button className="px-5 btn-vortex-primary btn rounded-xl" type="submit">
+          <button className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition-colors" type="submit">
             {t('components.emailForm.submit')}
           </button>
         </div>
         {isError && (
-          <p className="mt-1 text-center text-red-600" id="request-error-message">
+          <p className="mt-2 px-4 md:px-8 text-red-600 text-sm" id="request-error-message">
             {t('components.emailForm.error')}
           </p>
         )}
@@ -76,9 +76,11 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
   return (
     <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? 'request-error-message' : undefined}>
-      <p className="font-bold text-center text-blue-700">{t('components.emailForm.title')}</p>
-      <p className="font-light text-center text-blue-700">{t('components.emailForm.description')}</p>
-      <p className="font-light text-center text-blue-700">{t('components.emailForm.noNewslettersNoSpam')}</p>
+      <div className="mb-4 px-4 md:px-8">
+        <p className="font-bold text-blue-700 mb-2">{t('components.emailForm.title')}</p>
+        <p className="font-light text-blue-700 leading-relaxed mb-1">{t('components.emailForm.description')}</p>
+        <p className="font-light text-blue-700 leading-relaxed text-sm">{t('components.emailForm.noNewslettersNoSpam')}</p>
+      </div>
       <FormButtonSection />
     </form>
   );

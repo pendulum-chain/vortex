@@ -20,6 +20,7 @@ export type RampPhase =
   | 'brlaTeleport'
   | 'brlaPayoutOnMoonbeam'
   | 'failed'
+  | 'timedOut'
   | 'complete';
 
 export type CleanupPhase =

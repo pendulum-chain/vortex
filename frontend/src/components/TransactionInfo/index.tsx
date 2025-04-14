@@ -6,7 +6,7 @@ export const TransactionInfo = ({ transactionId }: { transactionId: string }) =>
 
   return (
     <div className="flex items-center justify-center">
-      <p className="text-sm text-gray-400">Transaction ID: {transactionId}</p>
+      <p className="text-sm text-gray-600">{transactionId}</p>
       <button
         onClick={() => clipboard.copyToClipboard(transactionId)}
         type="button"
