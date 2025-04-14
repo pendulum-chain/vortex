@@ -184,6 +184,8 @@ export const useRegisterRamp = () => {
         moonbeamApiComponents.api,
       );
 
+      console.log("setting ramp state with signed transactions...");
+
       setRampRegistered(true);
       setRampState({
         quote: executionInput.quote,
