@@ -39,6 +39,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   const { t } = useTranslation();
   const rampState = useRampState();
   const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
+  const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
   const { setIsQuoteExpired } = useRampSummaryActions();
 
   useEffect(() => {
@@ -55,6 +56,8 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
       const expiresAt = executionInput.quote.expiresAt;
       targetTimestamp = new Date(expiresAt).getTime();
     }
+
+    setTargetTimestamp(targetTimestamp);
 
     if (targetTimestamp === null) {
       // If no valid timestamp, mark as expired immediately
@@ -142,13 +145,11 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
         direction={rampDirection}
       />
       <BRLOnrampDetails />
-      <div className="text-center text-gray-600 font-semibold my-4">
-        {rampState?.ramp?.createdAt && (
-          <>
-            {t('components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel')} <span>{formattedTime}</span>
-          </>
-        )}
-      </div>
+      {targetTimestamp !== null && (
+        <div className="text-center text-gray-600 font-semibold my-4">
+          {t('components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel')} <span>{formattedTime}</span>
+        </div>
+      )}
     </div>
   );
 };
