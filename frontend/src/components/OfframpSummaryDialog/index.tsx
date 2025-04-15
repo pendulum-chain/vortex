@@ -17,7 +17,6 @@ import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useNetwork } from '../../contexts/network';
 
 import { ExchangeRate } from '../ExchangeRate';
-import { FiatIcon } from '../FiatIcon';
 import { NetworkIcon } from '../NetworkIcon';
 import { Dialog } from '../Dialog';
 import { Spinner } from '../Spinner';
@@ -89,13 +88,9 @@ const FeeDetails = ({
           {fiatToken.offrampFeesFixedComponent ? ` + ${fiatToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
         </p>
         <p className="flex items-center gap-2">
-          {isOfframp ? (
-            <NetworkIcon network={network} className="w-4 h-4" />
-          ) : (
-            <FiatIcon fiat={fiatToken} className="w-4 h-4" />
-          )}
+          <NetworkIcon network={network} className="w-4 h-4" />
           <strong>
-            {feesCost} {isOfframp ? (toToken as OnChainTokenDetails).assetSymbol : fiatSymbol}
+            {feesCost} {(toToken as OnChainTokenDetails).assetSymbol}
           </strong>
         </p>
       </div>
@@ -251,6 +246,88 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   );
 };
 
+const useButtonContent = ({
+  isSubmitted,
+  toToken,
+  submitButtonDisabled,
+  isQuoteExpired,
+}: {
+  isSubmitted: boolean;
+  toToken: FiatTokenDetails;
+  submitButtonDisabled: boolean;
+  isQuoteExpired: boolean;
+}) => {
+  const rampState = useRampState();
+  const { t } = useTranslation();
+  const rampDirection = useRampDirection();
+  const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const isOfframp = rampDirection === RampDirection.OFFRAMP;
+  const isBRCodeReady = Boolean(rampState?.ramp?.brCode);
+
+  // BRL offramp has no redirect, it is the only with type moonbeam
+  const isAnchorWithoutRedirect = toToken.type === 'moonbeam';
+  const isAnchorWithRedirect = !isAnchorWithoutRedirect;
+
+  return useMemo(() => {
+    if (submitButtonDisabled) {
+      return {
+        text: t('components.swapSubmitButton.processing'),
+        icon: <Spinner />,
+      };
+    }
+
+    if (isQuoteExpired) {
+      return {
+        text: t('components.swapSubmitButton.quoteExpired'),
+        icon: null,
+      };
+    }
+
+    if (isOfframp && rampState !== undefined) {
+      return {
+        text: t('components.dialogs.OfframpSummaryDialog.processing'),
+        icon: <Spinner />,
+      };
+    }
+
+    if (isOnramp && isBRCodeReady) {
+      return {
+        text: t('components.swapSubmitButton.confirmPayment'),
+        icon: null,
+      };
+    }
+
+    if (isOfframp && isAnchorWithRedirect) {
+      if (isSubmitted) {
+        return {
+          text: t('components.dialogs.OfframpSummaryDialog.continueOnPartnersPage'),
+          icon: <Spinner />,
+        };
+      } else {
+        return {
+          text: t('components.dialogs.OfframpSummaryDialog.continueWithPartner'),
+          icon: <ArrowTopRightOnSquareIcon className="w-4 h-4" />,
+        };
+      }
+    }
+
+    return {
+      text: t('components.swapSubmitButton.processing'),
+      icon: <Spinner />,
+    };
+  }, [
+    submitButtonDisabled,
+    isQuoteExpired,
+    isOfframp,
+    rampState,
+    isOnramp,
+    isBRCodeReady,
+    isAnchorWithRedirect,
+    t,
+    isSubmitted,
+  ]);
+};
+
 export const OfframpSummaryDialog: FC = () => {
   const { t } = useTranslation();
 
@@ -266,13 +343,26 @@ export const OfframpSummaryDialog: FC = () => {
   const anchorUrl = useSep24StoreCachedAnchorUrl();
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.ONRAMP;
+  const isOfframp = rampDirection === RampDirection.OFFRAMP;
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
+
+  const isQuoteExpired = useMemo(() => {
+    if (!rampState?.ramp?.createdAt) {
+      return false;
+    }
+
+    const creationTime = new Date(rampState.ramp.createdAt).getTime();
+    const currentTime = Date.now();
+    const expirationTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    return currentTime - creationTime > expirationTime;
+  }, [rampState?.ramp?.createdAt]);
 
   const submitButtonDisabled = useMemo(() => {
     if (!executionInput) return true;
 
-    if (!isOnramp) {
+    if (isOfframp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === 'moonbeam') return true;
       // For onramps, we register immediately when opening this summary, so the ramp should be available.
@@ -281,17 +371,27 @@ export const OfframpSummaryDialog: FC = () => {
       if (rampState?.ramp?.createdAt && Date.now() - new Date(rampState?.ramp?.createdAt).getTime() > 5 * 60 * 1000) {
         return true;
       }
+
+      const isBRCodeReady = Boolean(isOnramp && rampState?.ramp?.brCode);
+      if (!isBRCodeReady) return true;
     }
 
     return isSubmitted;
-  }, [anchorUrl, executionInput, fiatToken, isOnramp, isSubmitted, rampState?.ramp]);
-
-  if (!visible) return null;
-  if (!executionInput) return null;
+  }, [anchorUrl, executionInput, fiatToken, isOfframp, isOnramp, isSubmitted, rampState?.ramp]);
 
   const toToken = isOnramp
     ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
     : getAnyFiatTokenDetails(fiatToken);
+
+  const buttonContent = useButtonContent({
+    isSubmitted,
+    toToken,
+    submitButtonDisabled,
+    isQuoteExpired,
+  });
+
+  if (!visible) return null;
+  if (!executionInput) return null;
 
   const onClose = () => {
     setIsSubmitted(false);
@@ -326,26 +426,9 @@ export const OfframpSummaryDialog: FC = () => {
       style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
       onClick={onSubmit}
     >
-      {rampState !== undefined ? (
-        <>
-          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
-        </>
-      ) : !isOnramp && isSubmitted ? (
-        <>
-          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.continueOnPartnersPage')}
-        </>
-      ) : !isOnramp && (toToken as FiatTokenDetails).type !== 'moonbeam' ? (
-        <>
-          {t('components.dialogs.OfframpSummaryDialog.continueWithPartner')}{' '}
-          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-        </>
-      ) : isSubmitted ? (
-        <>
-          <Spinner /> {t('components.dialogs.OfframpSummaryDialog.processing')}
-        </>
-      ) : (
-        <>{t('components.swapSubmitButton.confirmPayment')}</>
-      )}
+      {buttonContent.icon}
+      {buttonContent.icon && ' '}
+      {buttonContent.text}
     </button>
   );
 
