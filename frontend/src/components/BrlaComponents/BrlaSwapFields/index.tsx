@@ -55,9 +55,13 @@ export const BrlaSwapFields: FC = () => {
             />
           ))}
           <div className="mt-2">
-            {!isOnramp && (
-              <Trans i18nKey="components.brlaSwapField.disclaimer">
+            {isOnramp ? (
+              <Trans i18nKey="components.brlaSwapField.disclaimerOnramp">
                 CPF must belong to <b>you</b>.
+              </Trans>
+            ) : (
+              <Trans i18nKey="components.brlaSwapField.disclaimerOfframp">
+                CPF and Pix key need to belong to the <b>same person</b>.
               </Trans>
             )}
           </div>

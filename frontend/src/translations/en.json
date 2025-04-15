@@ -269,7 +269,8 @@
     },
     "brlaSwapField": {
       "placeholder": "Enter your {{label}}",
-      "disclaimer": "CPF and Pix key need to belong to the <1>same person</1>."
+      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
+      "disclaimerOnramp": "CPF must belong to <1>you</1>."
     },
     "swapSubmitButton": {
       "confirming": "Confirming",

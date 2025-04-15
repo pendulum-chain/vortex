@@ -268,7 +268,8 @@
     },
     "brlaSwapField": {
       "placeholder": "Digite seu {{label}}",
-      "disclaimer": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>."
+      "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
+      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>."
     },
     "swapSubmitButton": {
       "confirming": "Confirmando",
