@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, expect, it, mock, beforeAll, afterAll } from 'bun:test';
+import { describe, it, mock } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PhaseProcessor } from './phase-processor';
@@ -7,19 +7,8 @@ import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import { RampService } from '../ramp/ramp.service';
 import { BrlaApiService } from '../brla/brlaApiService';
-import {
-  AccountMeta,
-  Networks,
-  RampEndpoints,
-  EvmToken,
-  FiatToken,
-  signUnsignedTransactions,
-  EvmTransactionData,
-  getNetworkId,
-} from 'shared';
-import { v4 as uuidv4 } from 'uuid';
+import { AccountMeta, Networks, EvmToken, FiatToken, signUnsignedTransactions, EvmTransactionData } from 'shared';
 import { SubaccountData } from '../brla/types';
-import { APIError } from '../../errors/api-error';
 import { QuoteService } from '../ramp/quote.service';
 import { EphemeralAccount } from 'shared';
 import { Keyring } from '@polkadot/api';

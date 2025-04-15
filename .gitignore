@@ -31,7 +31,7 @@ dist-ssr
 .env.sentry-build-plugin
 
 # testing artifacts
-*/failedRampStateRecovery.json
-*/lastRampState.json
-*/lastRampStateOnramp.json
+**/failedRampStateRecovery.json
+**/lastRampState.json
+**/lastRampStateOnramp.json
 
