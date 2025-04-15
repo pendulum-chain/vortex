@@ -11,7 +11,7 @@ import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">
-    <CheckIcon className="w-10 text-pink-500" />
+    <CheckIcon className="w-10 text-blue-700" /> {/* Changed pink to blue */}
   </div>
 );
 
@@ -33,13 +33,20 @@ export const SuccessPage = () => {
 
   return (
     <main>
-      <Box className="flex flex-col items-center justify-center mx-auto mt-12 ">
-        <Checkmark />
-        <h1 className="mt-6 text-2xl font-bold text-center text-blue-700">{t('pages.success.title')}</h1>
-        <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <p className="text-center text-gray-400">{arrivalText}</p>
-        <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
-        <EmailForm transactionId={transactionId} transactionSuccess={true} />
+      {/* Removed items-center from Box for overall container */}
+      <Box className="flex flex-col justify-center mx-auto mt-12 ">
+        {/* Centering container for Checkmark */}
+        <div className="flex justify-center w-full">
+          <Checkmark />
+        </div>
+        {/* Wrapper div for left-aligned content with padding */}
+        <div className="w-full mt-6 px-4 md:px-8"> {/* Added padding to match EmailForm */}
+          <h1 className="mb-6 text-2xl font-bold text-left text-blue-700">{t('pages.success.title')}</h1> {/* Changed text-center to text-left */}
+          {/* Removed pink divider */}
+          <p className="text-left font-light text-blue-700 leading-relaxed mb-8">{arrivalText}</p> {/* Changed text-center to text-left, updated color/style */}
+          <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
+          <EmailForm transactionId={transactionId} transactionSuccess={true} />
+        </div>
         <button className="w-full mt-5 btn-vortex-primary btn rounded-xl" onClick={finishOfframping}>
           {t('pages.success.returnHome')}
         </button>
