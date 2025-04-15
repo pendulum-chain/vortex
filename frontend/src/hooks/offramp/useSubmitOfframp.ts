@@ -10,7 +10,7 @@ import { FiatToken, getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, get
 import { fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
-import { useRampActions } from '../../stores/offrampStore';
+import { useRampActions } from '../../stores/rampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';

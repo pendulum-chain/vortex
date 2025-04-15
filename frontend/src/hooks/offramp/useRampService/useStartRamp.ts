@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useRampStore } from '../../../stores/offrampStore';
+import { useRampStore } from '../../../stores/rampStore';
 import { RampService } from '../../../services/api';
 
 export const useStartRamp = () => {

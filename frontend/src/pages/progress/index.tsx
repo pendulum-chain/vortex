@@ -8,7 +8,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase } from 'shared';
 import { GotQuestions } from '../../sections';
-import { useRampActions, useRampState, useRampStore } from '../../stores/offrampStore';
+import { useRampActions, useRampState, useRampStore } from '../../stores/rampStore';
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
 import { config } from '../../config';

@@ -208,7 +208,8 @@
         "processing": "Processing",
         "continue": "Continue",
         "quote": "Quote",
-        "partner": "Partner"
+        "partner": "Partner",
+        "confirm": "Confirm"
       },
       "selectionModal": {
         "title": "Select a token",

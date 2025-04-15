@@ -3,7 +3,7 @@ import { RampSummaryDialog } from '../../components/RampSummaryDialog';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { Offramp } from '../../components/Ramp/Offramp';
 import { motion } from 'motion/react';
-import { useRampKycStarted } from '../../stores/offrampStore';
+import { useRampKycStarted } from '../../stores/rampStore';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirectionStore';
 import { RampDirection, RampToggle } from '../../components/RampToggle';

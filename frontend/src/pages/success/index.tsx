@@ -6,7 +6,7 @@ import { EmailForm } from '../../components/EmailForm';
 import { Rating } from '../../components/Rating';
 import { FiatToken } from 'shared';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
-import { useRampExecutionInput } from '../../stores/offrampStore';
+import { useRampExecutionInput } from '../../stores/rampStore';
 import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 
 const Checkmark = () => (

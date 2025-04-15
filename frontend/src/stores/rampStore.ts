@@ -30,6 +30,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
     rampExecutionInput: undefined,
     rampSummaryVisible: false,
     initializeFailedMessage: undefined,
+    canRegisterRamp: false,
     ...loadInitialState(),
   };
 
@@ -46,6 +47,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
       rampSigningPhase: state.rampSigningPhase,
       rampExecutionInput: state.rampExecutionInput,
       rampSummaryVisible: state.rampSummaryVisible,
+      canRegisterRamp: state.canRegisterRamp,
     };
     storageService.set(LocalStorageKeys.RAMPING_STATE, stateToSave);
   };
@@ -97,7 +99,10 @@ export const useRampStore = create<RampStore>()((set, get) => {
         set({ initializeFailedMessage: displayMessage });
         saveState();
       },
-
+      setCanRegisterRamp: (canRegister: boolean) => {
+        set({ canRegisterRamp: canRegister });
+        saveState();
+      },
       resetRampState: () => {
         clearRampingState();
 
@@ -112,10 +117,10 @@ export const useRampStore = create<RampStore>()((set, get) => {
           rampExecutionInput: undefined,
           rampSummaryVisible: false,
           initializeFailedMessage: undefined,
+          canRegisterRamp: false,
         });
         // No need to save state here as we just cleared it
       },
-
       clearInitializeFailedMessage: () => {
         set({ initializeFailedMessage: undefined });
         saveState();
@@ -134,6 +139,7 @@ export const useRampKycStarted = () => useRampStore((state) => state.rampKycStar
 export const useRampPaymentConfirmed = () => useRampStore((state) => state.rampPaymentConfirmed);
 export const useInitializeFailedMessage = () => useRampStore((state) => state.initializeFailedMessage);
 export const useRampSummaryVisible = () => useRampStore((state) => state.rampSummaryVisible);
+export const useCanRegisterRamp = () => useRampStore((state) => state.canRegisterRamp);
 export const clearInitializeFailedMessage = () => useRampStore.getState().actions.clearInitializeFailedMessage();
 
 export const useRampActions = () => useRampStore((state) => state.actions);

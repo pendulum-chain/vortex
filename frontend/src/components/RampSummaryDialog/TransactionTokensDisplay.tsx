@@ -12,10 +12,10 @@ import {
   Networks,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
-import { useRampState } from '../../stores/offrampStore';
+import { useRampState } from '../../stores/rampStore';
 import { RampDirection } from '../RampToggle';
 import { RampExecutionInput } from '../../types/phases';
-import { useRampSummaryStore } from '../../stores/rampSummary';
+import { useRampSummaryActions } from '../../stores/rampSummary';
 import { AssetDisplay } from './AssetDisplay';
 import { FeeDetails } from './FeeDetails';
 import { BRLOnrampDetails } from './BRLOnrampDetails';
@@ -39,7 +39,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   const { t } = useTranslation();
   const rampState = useRampState();
   const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
-  const { setIsQuoteExpired } = useRampSummaryStore();
+  const { setIsQuoteExpired } = useRampSummaryActions();
 
   useEffect(() => {
     let targetTimestamp: number | null = null;

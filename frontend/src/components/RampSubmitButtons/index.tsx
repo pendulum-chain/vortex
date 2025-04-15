@@ -2,7 +2,7 @@ import { FC, useCallback } from 'react';
 import Big from 'big.js';
 import { useEventsContext } from '../../contexts/events';
 import { useFeeComparisonStore } from '../../stores/feeComparison';
-import { useRampSummaryVisible } from '../../stores/offrampStore';
+import { useRampSummaryVisible } from '../../stores/rampStore';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp/useRampFormStore';

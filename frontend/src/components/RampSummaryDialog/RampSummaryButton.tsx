@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { FiatTokenDetails, getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, TokenType } from 'shared';
-import { useRampExecutionInput, useRampState } from '../../stores/offrampStore';
+import {
+  FiatToken,
+  FiatTokenDetails,
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  TokenType,
+} from 'shared';
+import { useCanRegisterRamp, useRampExecutionInput, useRampState } from '../../stores/rampStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
-import { useRampSummaryStore } from '../../stores/rampSummary';
-import { useRampActions } from '../../stores/offrampStore';
+import { useIsQuoteExpired, useRampSummaryStore } from '../../stores/rampSummary';
+import { useRampActions } from '../../stores/rampStore';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
@@ -23,17 +29,18 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
   const rampState = useRampState();
   const { t } = useTranslation();
   const rampDirection = useRampDirection();
-  const { isQuoteExpired } = useRampSummaryStore();
-
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
-  const isOfframp = rampDirection === RampDirection.OFFRAMP;
-  const isBRCodeReady = Boolean(rampState?.ramp?.brCode);
-
-  // BRL offramp has no redirect, it is the only with type moonbeam
-  const isAnchorWithoutRedirect = toToken.type === 'moonbeam';
-  const isAnchorWithRedirect = !isAnchorWithoutRedirect;
+  const isQuoteExpired = useIsQuoteExpired();
+  const canRegisterRamp = useCanRegisterRamp();
 
   return useMemo(() => {
+    const isOnramp = rampDirection === RampDirection.ONRAMP;
+    const isOfframp = rampDirection === RampDirection.OFFRAMP;
+    const isBRCodeReady = Boolean(rampState?.ramp?.brCode);
+
+    // BRL offramp has no redirect, it is the only with type moonbeam
+    const isAnchorWithoutRedirect = toToken.type === 'moonbeam';
+    const isAnchorWithRedirect = !isAnchorWithoutRedirect;
+
     if (isBRCodeReady && isQuoteExpired) {
       return {
         text: t('components.dialogs.RampSummaryDialog.quoteExpired'),
@@ -45,6 +52,13 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       return {
         text: t('components.swapSubmitButton.processing'),
         icon: <Spinner />,
+      };
+    }
+
+    if (isOfframp && isAnchorWithoutRedirect && !canRegisterRamp) {
+      return {
+        text: t('components.dialogs.RampSummaryDialog.confirm'),
+        icon: null,
       };
     }
 
@@ -80,17 +94,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       text: t('components.swapSubmitButton.processing'),
       icon: <Spinner />,
     };
-  }, [
-    submitButtonDisabled,
-    isQuoteExpired,
-    isOfframp,
-    rampState,
-    isOnramp,
-    isBRCodeReady,
-    isAnchorWithRedirect,
-    t,
-    isSubmitted,
-  ]);
+  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, isSubmitted, canRegisterRamp, toToken]);
 };
 
 export const RampSummaryButton = () => {
@@ -107,6 +111,7 @@ export const RampSummaryButton = () => {
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
   const executionInput = useRampExecutionInput();
+  const { setCanRegisterRamp } = useRampActions();
 
   const toToken = isOnramp
     ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
@@ -135,6 +140,11 @@ export const RampSummaryButton = () => {
 
   const onSubmit = () => {
     setIsSubmitted(true);
+
+    // For BRL offramps, set canRegisterRamp to true
+    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === 'off') {
+      setCanRegisterRamp(true);
+    }
 
     if (executionInput?.quote.rampType === 'on') {
       setRampPaymentConfirmed(true);

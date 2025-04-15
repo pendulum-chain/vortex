@@ -2,7 +2,7 @@ import { FC } from 'react';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
 import { Dialog } from '../Dialog';
-import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from '../../stores/offrampStore';
+import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from '../../stores/rampStore';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useNetwork } from '../../contexts/network';
