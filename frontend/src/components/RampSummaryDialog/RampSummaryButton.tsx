@@ -41,7 +41,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     const isAnchorWithoutRedirect = toToken.type === 'moonbeam';
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
-    if (isBRCodeReady && isQuoteExpired) {
+    if ((isOnramp && isBRCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
       return {
         text: t('components.dialogs.RampSummaryDialog.quoteExpired'),
         icon: null,
