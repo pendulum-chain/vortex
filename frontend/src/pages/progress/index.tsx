@@ -67,7 +67,7 @@ const useProgressUpdate = (
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   initial: 0,
   fundEphemeral: 20,
-  brlaTeleport: 30,
+  brlaTeleport: 90,
   moonbeamToPendulumXcm: 30,
   subsidizePreSwap: 24,
   nablaApprove: 24,
