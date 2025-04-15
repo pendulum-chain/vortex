@@ -50,7 +50,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
 
     if (isOfframp && rampState !== undefined) {
       return {
-        text: t('components.dialogs.OfframpSummaryDialog.processing'),
+        text: t('components.dialogs.RampSummaryDialog.processing'),
         icon: <Spinner />,
       };
     }
@@ -65,12 +65,12 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     if (isOfframp && isAnchorWithRedirect) {
       if (isSubmitted) {
         return {
-          text: t('components.dialogs.OfframpSummaryDialog.continueOnPartnersPage'),
+          text: t('components.dialogs.RampSummaryDialog.continueOnPartnersPage'),
           icon: <Spinner />,
         };
       } else {
         return {
-          text: t('components.dialogs.OfframpSummaryDialog.continueWithPartner'),
+          text: t('components.dialogs.RampSummaryDialog.continueWithPartner'),
           icon: <ArrowTopRightOnSquareIcon className="w-4 h-4" />,
         };
       }
