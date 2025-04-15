@@ -91,7 +91,7 @@ if (require.main === module) {
 
       process.exit(0);
     } catch (error) {
-      console.error("Error performing action:", error);
+      console.error('Error performing action:', error);
       process.exit(1);
     }
   })();

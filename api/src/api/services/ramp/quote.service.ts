@@ -164,7 +164,13 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string; outputAmountMoonbeamRaw: string, inputAmountAfterFees: string }> {
+  ): Promise<{
+    receiveAmount: string;
+    fees: string;
+    outputAmountBeforeFees: string;
+    outputAmountMoonbeamRaw: string;
+    inputAmountAfterFees: string;
+  }> {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);

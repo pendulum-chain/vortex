@@ -4,6 +4,7 @@ import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';
 import { BasePostProcessHandler } from './base-post-process-handler';
 import { StateMetadata } from '../meta-state-types';
+import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../../constants/constants';
 
 const NETWORK_PASSPHRASE = StellarNetworks.PUBLIC;
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -41,6 +42,10 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
    */
   public async process(state: RampState): Promise<[boolean, Error | null]> {
     try {
+      const expectedLedgerTimeMs = state.createdAt.getTime() + SEQUENCE_TIME_WINDOW_IN_SECONDS * 1.1 * 1000; // Add some safety margin in case ledger producton was slower.
+      if (expectedLedgerTimeMs > Date.now()) {
+        return [false, this.createErrorObject(`Stellar cleanup for ramp state ${state.id} cannot be processed yet.`)];
+      }
       const { txData: stellarCleanupTransactionXDR } = this.getPresignedTransaction(state, 'stellarCleanup');
 
       const stellarCleanupTransactionTransaction = new Transaction(
