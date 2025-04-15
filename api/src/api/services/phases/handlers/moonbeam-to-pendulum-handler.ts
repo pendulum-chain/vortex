@@ -16,6 +16,7 @@ import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } fro
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
 import splitReceiverABI from '../../../../../../mooncontracts/splitReceiverABI.json';
 import { waitUntilTrue } from '../../../helpers/functions';
+import logger from '../../../../config/logger';
 
 export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -76,7 +77,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
         await waitUntilTrue(isHashRegisteredInSplitReceiver);
       }
     } catch (e) {
-      console.log(e);
+      logger.error(e);
       throw new Error('MoonbeamToPendulumPhaseHandler: Failed to wait for hash registration in split receiver.');
     }
 

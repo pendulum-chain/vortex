@@ -4,7 +4,7 @@ import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
-import { useRampActions } from '../../stores/offrampStore';
+import { useRampActions } from '../../stores/rampStore';
 import { useEventsContext } from '../../contexts/events';
 import {
   createMoonbeamEphemeral,
@@ -141,7 +141,7 @@ export const useRampSubmission = () => {
     onRampConfirm,
     isExecutionPreparing: executionPreparing,
     finishOfframping: () => {
-      resetRampState()
+      resetRampState();
     },
     validateSubmissionData,
   };

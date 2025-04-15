@@ -1,71 +1,74 @@
+import { CronJob } from 'cron';
+import { CleanupPhase } from 'shared'; // <-- Import CleanupPhase
 import logger from '../../config/logger';
-import quoteService from '../services/ramp/quote.service';
 import { BaseRampService } from '../services/ramp/base.service';
 import RampState from '../../models/rampState.model';
-import { postProcessHandlers } from '../services/phases/post-process';
+import { postProcessHandlers, BasePostProcessHandler } from '../services/phases/post-process';
+
+interface HandlerError {
+  name: CleanupPhase; // <-- Use CleanupPhase type
+  error: string;
+}
 
 /**
- * Worker to clean up expired quotes
+ * Worker to clean up expired quotes and post-process completed ramps
  */
-export class CleanupWorker {
+class CleanupWorker {
+  private job: CronJob;
+
   private readonly rampService: BaseRampService;
 
-  private readonly intervalMs: number;
-
-  private interval: NodeJS.Timeout | null = null;
-
-  constructor(intervalMs = 60000) {
-    // Default to 1 minute
+  constructor(cronTime = '*/5 * * * *') {
     this.rampService = new BaseRampService();
-    this.intervalMs = intervalMs;
+
+    // Run immediately and then according to schedule
+    this.job = new CronJob(
+      cronTime,
+      this.cleanup.bind(this),
+      null, // onComplete
+      false, // start
+      undefined, // timeZone
+      null, // context
+      true, // runOnInit - Run immediately on start
+    );
   }
 
   /**
    * Start the cleanup worker
    */
   public start(): void {
-    if (this.interval) {
-      return;
-    }
-
     logger.info('Starting cleanup worker');
-
-    this.interval = setInterval(async () => {
-      try {
-        await this.cleanup();
-      } catch (error) {
-        logger.error('Error in cleanup worker:', error);
-      }
-    }, this.intervalMs);
+    this.job.start();
   }
 
   /**
    * Stop the cleanup worker
    */
   public stop(): void {
-    if (!this.interval) {
-      return;
-    }
-
     logger.info('Stopping cleanup worker');
-
-    clearInterval(this.interval);
-    this.interval = null;
+    this.job.stop();
   }
 
   /**
    * Run the cleanup process
    */
+  // eslint-disable-next-line class-methods-use-this
   private async cleanup(): Promise<void> {
-    // Clean up expired quotes
-    const expiredQuotesCount = await this.rampService.cleanupExpiredQuotes();
-    if (expiredQuotesCount > 0) {
-      logger.info(`Cleaned up ${expiredQuotesCount} expired quotes`);
+    logger.info('Running cleanup worker cycle');
+    try {
+      // Clean up expired quotes
+      const expiredQuotesCount = await this.rampService.cleanupExpiredQuotes();
+      if (expiredQuotesCount > 0) {
+        logger.info(`Cleaned up ${expiredQuotesCount} expired quotes`);
+      }
+
+      // Post-process completed RampStates
+      await this.postProcessCompletedStates();
+
+      logger.info('Cleanup worker cycle completed');
+    } catch (error) {
+      logger.error('Error during cleanup worker cycle:', error);
     }
-
-    // Post-process completed RampStates
-    await this.postProcessCompletedStates();
-
     // TODO should we remove expired quotes from the database eventually? Maybe after 1 day or so?
   }
 
@@ -86,6 +89,7 @@ export class CleanupWorker {
       });
 
       if (states.length === 0) {
+        logger.info('No completed RampStates found needing post-processing.');
         return;
       }
 
@@ -94,21 +98,31 @@ export class CleanupWorker {
       const processPromises = states.map(async (state) => {
         try {
           await this.processCleanup(state);
+          return { status: 'fulfilled', stateId: state.id };
         } catch (error) {
-          logger.error(`Error post-processing state ${state.id}:`, error);
+          logger.error(`Error processing cleanup for state ${state.id}:`, error);
+          // Don't update the state here, processCleanup handles its own updates
+          return { status: 'rejected', stateId: state.id, reason: error };
         }
       });
 
-      await Promise.all(processPromises);
+      // Use allSettled to allow individual state processing to fail without stopping others
+      const results = await Promise.allSettled(processPromises);
+      const successful = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.length - successful;
+      logger.info(
+        `Post-processing attempt completed for ${states.length} states. Successful: ${successful}, Failed: ${failed}`,
+      );
     } catch (error) {
-      logger.error('Error in postProcessCompletedStates:', error);
+      logger.error('Error fetching states in postProcessCompletedStates:', error);
     }
   }
 
   /**
-   * Process a state with appropriate cleanup handlers
+   * Process a single state with appropriate cleanup handlers
    * @param state The state to process
    */
+  // eslint-disable-next-line class-methods-use-this
   private async processCleanup(state: RampState): Promise<void> {
     // Identify which handlers should process this state
     const applicableHandlers = postProcessHandlers.filter((handler) => handler.shouldProcess(state));
@@ -181,4 +195,4 @@ export class CleanupWorker {
   }
 }
 
-export default new CleanupWorker();
+export default CleanupWorker;

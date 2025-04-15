@@ -1,9 +1,9 @@
 import { SigningBox } from '../../components/SigningBox';
-import { OfframpSummaryDialog } from '../../components/OfframpSummaryDialog';
+import { RampSummaryDialog } from '../../components/RampSummaryDialog';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { Offramp } from '../../components/Ramp/Offramp';
 import { motion } from 'motion/react';
-import { useRampKycStarted } from '../../stores/offrampStore';
+import { useRampKycStarted } from '../../stores/rampStore';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirectionStore';
 import { RampDirection, RampToggle } from '../../components/RampToggle';
@@ -18,7 +18,7 @@ export const RampForm = () => {
   return (
     <main>
       <PoolSelectorModal />
-      <OfframpSummaryDialog />
+      <RampSummaryDialog />
       <SigningBox />
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
@@ -28,8 +28,7 @@ export const RampForm = () => {
       >
         <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
 
-        {/* {offrampKycStarted ? <PIXKYCForm /> : <Offramp />} */}
-        {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
+        {offrampKycStarted ? <PIXKYCForm /> : activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
 
         <div className="mb-16" />
         <PoweredBy />

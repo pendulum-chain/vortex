@@ -25,4 +25,5 @@ export interface StateMetadata {
   destinationAddress: string;
   receiverTaxId: string;
   moonbeamEphemeralAddress: string;
+  pendulumToAssethubXcmHash: string;
 }

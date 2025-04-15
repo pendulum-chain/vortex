@@ -4,6 +4,7 @@ import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
 import { ApiManager } from '../../pendulum/apiManager';
+import logger from '../../../../config/logger';
 
 export class NablaApprovePhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -30,7 +31,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
       const result = await submitExtrinsic(approvalExtrinsic);
 
       if (result.status.type === 'error') {
-        console.log(`Could not approve token: ${result.status.error.toString()}`);
+        logger.error(`Could not approve token: ${result.status.error.toString()}`);
         throw new Error('Could not approve token');
       }
 
@@ -45,7 +46,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
       } else {
         errorMessage = 'Something went wrong';
       }
-      console.log(`Could not approve the required amount of token: ${errorMessage}`);
+      logger.error(`Could not approve the required amount of token: ${errorMessage}`);
 
       throw e;
     }

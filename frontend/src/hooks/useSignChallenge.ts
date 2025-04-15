@@ -5,7 +5,7 @@ import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../constants/constants';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { storageKeys } from '../constants/localStorage';
 import { useVortexAccount } from './useVortexAccount';
-import { useRampActions } from '../stores/offrampStore';
+import { useRampActions } from '../stores/rampStore';
 import { useEffect } from 'react';
 
 export interface SiweSignatureData {

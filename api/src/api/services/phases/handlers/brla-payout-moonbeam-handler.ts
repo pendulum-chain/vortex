@@ -6,6 +6,7 @@ import { StateMetadata } from '../meta-state-types';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { BrlaApiService } from '../../brla/brlaApiService';
 import { checkMoonbeamBalancePeriodically } from '../../moonbeam/balance';
+import logger from '../../../../config/logger';
 
 export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -49,7 +50,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         if (balanceCheckError.message === 'Balance did not meet the limit within the specified time') {
           throw new Error(`BrlaPayoutOnMoonbeamPhaseHandler: balanceCheckError ${balanceCheckError.message}`);
         } else {
-          console.log('Error checking Moonbeam balance:', balanceCheckError);
+          logger.error('Error checking Moonbeam balance:', balanceCheckError);
           throw new Error(`Error checking Moonbeam balance`);
         }
       }

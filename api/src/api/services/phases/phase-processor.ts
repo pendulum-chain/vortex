@@ -78,10 +78,10 @@ export class PhaseProcessor {
   private isLockExpired(state: RampState): boolean {
     const lockDuration = 15 * 60 * 1000; // 15 minutes
     const now = new Date();
-    const lockTime = new Date(state.processingLock.lockedAt || 0);
-    if (!lockTime) {
-      return true; // No lock time means it's not locked
+    if (!state.processingLock?.lockedAt) {
+      return true; // No lock time means it's not locked or has expired
     }
+    const lockTime = new Date(state.processingLock.lockedAt);
     return now.getTime() - lockTime.getTime() > lockDuration;
   }
 

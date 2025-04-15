@@ -1,4 +1,4 @@
-import { useRampExecutionInput, useRampStore } from '../../../stores/offrampStore';
+import { useRampExecutionInput, useRampStore } from '../../../stores/rampStore';
 import { useVortexAccount } from '../../useVortexAccount';
 import { RampService } from '../../../services/api';
 import { AccountMeta, FiatToken, getAddressForFormat, Networks, signUnsignedTransactions } from 'shared';
@@ -63,7 +63,8 @@ export const useRegisterRamp = () => {
     rampRegistered,
     rampState,
     rampStarted,
-    actions: { setRampRegistered, setRampState, setRampSigningPhase },
+    canRegisterRamp,
+    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp },
   } = useRampStore();
 
   const { address } = useVortexAccount();
@@ -77,11 +78,11 @@ export const useRegisterRamp = () => {
   const prepareOfframpSubmission = useSubmitOfframp();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
 
-  // This flag is used to track if the user signaled to start the ramp process
-  const [canRegisterRamp, setCanRegisterRamp] = useState(false);
   // TODO if user declined signing, do something
   const [userDeclinedSigning, setUserDeclinedSigning] = useState(false);
 
+  // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
+  // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
   const registerRamp = async (executionInput: RampExecutionInput) => {
     prepareOfframpSubmission(executionInput);
 
@@ -92,8 +93,13 @@ export const useRegisterRamp = () => {
       await handleOnAnchorWindowOpen();
     }
 
-    // For other ramps, we can continue registering right away
-    setCanRegisterRamp(true);
+    if (executionInput.quote.rampType === 'off' && executionInput.fiatToken === FiatToken.BRL) {
+      // Waiting for user input (the ramp summary dialog should show the 'Confirm' button and once clicked,
+      // We setCanRegisterRamp to true inside of the RampSummaryButton
+    } else {
+      // For other ramps, we can continue registering right away
+      setCanRegisterRamp(true);
+    }
   };
 
   const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
@@ -111,6 +117,10 @@ export const useRegisterRamp = () => {
     const { processRef } = lockResult;
 
     const registerRampProcess = async () => {
+      if (!canRegisterRamp) {
+        throw new Error('Cannot proceed with ramp registration, canRegisterRamp is false');
+      }
+
       // Verify we still own the lock before proceeding
       if (!verifyLock(processRef)) {
         return;

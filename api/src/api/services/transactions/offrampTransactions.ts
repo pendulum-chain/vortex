@@ -1,5 +1,8 @@
 import {
+  AccountMeta,
+  addAdditionalTransactionsToMeta,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
+  encodeSubmittableExtrinsic,
   FiatToken,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
@@ -11,11 +14,9 @@ import {
   isOnChainToken,
   isStellarOutputTokenDetails,
   Networks,
-  AccountMeta,
-  encodeSubmittableExtrinsic,
-  addAdditionalTransactionsToMeta,
+  PaymentData,
+  UnsignedTx,
 } from 'shared';
-import { UnsignedTx, PaymentData } from 'shared';
 
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
@@ -30,6 +31,7 @@ import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
+import logger from '../../../config/logger';
 
 interface OfframpTransactionParams {
   quote: QuoteTicketAttributes;
@@ -130,7 +132,6 @@ export async function prepareOfframpTransactions({
         pendulumAddressDestination: pendulumEphemeralEntry.address,
         fromAddress: userAddress,
       });
-    console.log('squid txs done');
     unsignedTxs.push({
       txData: encodeEvmTransactionData(approveData) as any,
       phase: 'squidrouterApprove',
@@ -162,7 +163,7 @@ export async function prepareOfframpTransactions({
       'usdc',
       inputAmountRaw,
     );
-    console.log('assethub to pendulum txs done');
+    logger.info('assethub to pendulum txs done');
     unsignedTxs.push({
       txData: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
       phase: 'assethubToPendulum',
@@ -174,7 +175,7 @@ export async function prepareOfframpTransactions({
 
   // Create unsigned transactions for each ephemeral account
   for (const account of signingAccounts) {
-    console.log(`Processing account ${account.address} on network ${account.network}`);
+    logger.info(`Processing account ${account.address} on network ${account.network}`);
     const accountNetworkId = getNetworkId(account.network);
 
     if (!isOnChainToken(quote.inputCurrency)) {
@@ -223,7 +224,6 @@ export async function prepareOfframpTransactions({
         nonce: 1,
         signer: account.address,
       });
-      console.log('nabla txs done');
       stateMeta = {
         ...stateMeta,
         nablaSoftMinimumOutputRaw,
@@ -234,7 +234,6 @@ export async function prepareOfframpTransactions({
         inputTokenPendulumDetails.pendulumCurrencyId,
         outputTokenPendulumDetails.pendulumCurrencyId,
       );
-      console.log('pendulum cleanup done');
       unsignedTxs.push({
         txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
         phase: 'pendulumCleanup',
@@ -255,7 +254,6 @@ export async function prepareOfframpTransactions({
           outputAmountBeforeFeesRaw,
           outputTokenDetails.pendulumCurrencyId,
         );
-        console.log('pendulum to moonbeam txs done');
         unsignedTxs.push({
           txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
           phase: 'pendulumToMoonbeam',

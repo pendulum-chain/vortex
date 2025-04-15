@@ -132,7 +132,7 @@ export const useQuoteStore = create<QuoteState>((set) => ({
     } catch (error) {
       console.error('Error fetching quote:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to get quote';
-      set({ error: errorMessage, loading: false });
+      set({ error: errorMessage, loading: false, quote: undefined, outputAmount: undefined });
     }
   },
 

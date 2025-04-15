@@ -8,7 +8,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase } from 'shared';
 import { GotQuestions } from '../../sections';
-import { useRampActions, useRampState, useRampStore } from '../../stores/offrampStore';
+import { useRampActions, useRampState, useRampStore } from '../../stores/rampStore';
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
 import { config } from '../../config';
@@ -67,7 +67,7 @@ const useProgressUpdate = (
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   initial: 0,
   fundEphemeral: 20,
-  brlaTeleport: 30,
+  brlaTeleport: 90,
   moonbeamToPendulumXcm: 30,
   subsidizePreSwap: 24,
   nablaApprove: 24,

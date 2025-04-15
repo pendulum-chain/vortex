@@ -13,6 +13,7 @@ import { fundEphemeralAccount, getFundingData } from '../services/pendulum/pendu
 import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../services/pendulum/helpers';
 import { SlackNotifier } from '../services/slack.service';
 import { ApiManager } from '../services/pendulum/apiManager';
+import logger from '../../config/logger';
 
 // DEPRECATED
 export const fundEphemeralAccountController = async (
@@ -60,7 +61,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
   // Wait for all required token balances check.
   await Promise.all(
     Object.entries(TOKEN_CONFIG).map(async ([token, tokenConfig]: [string, StellarTokenConfig | XCMTokenConfig]) => {
-      console.log(`Checking token ${token} balance...`);
+      logger.info(`Checking token ${token} balance...`);
       if (!tokenConfig.pendulumCurrencyId) {
         throw new Error(`Token ${token} does not have a currency id.`);
       }
@@ -80,7 +81,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
 
       if (remainingMaxSubsidiesAvailable.lt(SUBSIDY_MINIMUM_RATIO_FUND_UNITS)) {
         isTokensSufficient = false;
-        console.log(`Token ${token} balance is insufficient.`);
+        logger.info(`Token ${token} balance is insufficient.`);
 
         const tokenDecimals = 'decimals' in tokenConfig ? tokenConfig.decimals : ChainDecimals;
         slackNotifier.sendMessage({

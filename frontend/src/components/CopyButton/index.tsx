@@ -1,3 +1,5 @@
+import { useClipboard } from '../../hooks/useClipboard';
+
 interface CopyButtonProps {
   text: string;
   className?: string;
@@ -5,8 +7,13 @@ interface CopyButtonProps {
   onClick?: () => void;
 }
 
-export const CopyButton = ({ text, className, onClick }: CopyButtonProps) => (
-  <button className={`break-all btn p-1 m-0 rounded ${className || ''}`} type="button" onClick={onClick}>
-    {text}
-  </button>
-);
+export const CopyButton = (props: CopyButtonProps) => {
+  const clipboard = useClipboard();
+  const onClick = props.onClick || (() => clipboard.copyToClipboard(props.text));
+
+  return (
+    <button className={`break-all btn p-1 m-0 rounded ${props.className || ''}`} type="button" onClick={onClick}>
+      {props.text}
+    </button>
+  );
+};

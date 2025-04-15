@@ -2,7 +2,7 @@ import { createContext, ReactNode, useContext, useState, useEffect, useCallback 
 import { useAccount, useSwitchChain } from 'wagmi';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
-import { useRampActions } from '../stores/offrampStore';
+import { useRampActions } from '../stores/rampStore';
 import { getNetworkId, isNetworkEVM, Networks } from 'shared';
 import { useSep24Actions } from '../stores/sep24Store';
 

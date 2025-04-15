@@ -1,5 +1,7 @@
 import {
+  AccountMeta,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
+  encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
@@ -12,8 +14,6 @@ import {
   isOnChainTokenDetails,
   Networks,
   UnsignedTx,
-  AccountMeta,
-  encodeSubmittableExtrinsic,
 } from 'shared';
 import Big from 'big.js';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
@@ -23,7 +23,7 @@ import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
-import { createNablaTransactionsForOnramp, createNablaTransactionsForQuote } from './nabla';
+import { createNablaTransactionsForOnramp } from './nabla';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
 import { StateMetadata } from '../phases/meta-state-types';
@@ -76,15 +76,12 @@ export async function prepareOnrampTransactions(
   }
 
   // For BRLA, fee is charged after minting, so we always work with the amount after anchor fees.
-  const inputAmountUnits = new Big(quote.metadata.onrampInputAmountUnits)
+  const inputAmountUnits = new Big(quote.metadata.onrampInputAmountUnits);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenDetails.decimals).toFixed(0, 0);
-  
+
   // The output amount to be obtained on Moonbeam, differs from the amount to be obtained on destination evm chain.
   const outputAmountRaw = (quote.metadata as QuoteTicketMetadata).onrampOutputAmountMoonbeamRaw;
-  const outputAmount = multiplyByPowerOfTen(
-    new Big(outputAmountRaw),
-    -outputTokenDetails.decimals,
-  );
+  const outputAmount = multiplyByPowerOfTen(new Big(outputAmountRaw), -outputTokenDetails.decimals);
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);

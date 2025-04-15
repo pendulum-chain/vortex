@@ -56,8 +56,14 @@
           "noApi": "No API found."
         },
         "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
-        "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
-        "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
+        "moreThanMaximumWithdrawal": {
+          "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
+          "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
+        },
+        "lessThanMinimumWithdrawal": {
+          "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
+          "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
+        },
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount."
       },
       "developedBy": "Developed by"
@@ -181,13 +187,14 @@
       "placeholder": "Search"
     },
     "dialogs": {
-      "OfframpSummaryDialog": {
+      "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "title": "Pay with Pix",
           "description": "Continue in your bank's app",
           "qrCode": "Select Pix in your bank's app and scan the QR code below.",
           "copyCode": "Or copy the Pix code below, select Pix in your bank's app and paste the code provided.",
-          "pixCode": "Pix code"
+          "pixCode": "Pix code",
+          "timerLabel": "Quote expires in:"
         },
         "headerText": {
           "buy": "You're buying",
@@ -197,10 +204,12 @@
         "onrampFee": "Onramp fee",
         "continueWithPartner": "Continue with Partner",
         "continueOnPartnersPage": "Continue on Partner's page",
+        "quoteExpired": "Quote expired. Please close the dialog and try again.",
         "processing": "Processing",
         "continue": "Continue",
         "quote": "Quote",
-        "partner": "Partner"
+        "partner": "Partner",
+        "confirm": "Confirm"
       },
       "selectionModal": {
         "title": "Select a token",
@@ -253,7 +262,9 @@
         "pixId": {
           "required": "PIX key is required when transferring BRL",
           "format": "PIX key does not match any of the valid formats"
-        }
+        },
+        "calculatingQuote": "Calculating quote...",
+        "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub."
       }
     },
     "benefitsList": {
@@ -262,7 +273,8 @@
     },
     "brlaSwapField": {
       "placeholder": "Enter your {{label}}",
-      "disclaimer": "CPF and Pix key need to belong to the <1>same person</1>."
+      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
+      "disclaimerOnramp": "CPF must belong to <1>you</1>."
     },
     "swapSubmitButton": {
       "confirming": "Confirming",

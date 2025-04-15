@@ -56,8 +56,14 @@
           "noApi": "Nenhuma API encontrada."
         },
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
-        "moreThanMaximumWithdrawal": "O valor máximo de saque é {{maxAmountUnits}} {{assetSymbol}}.",
-        "lessThanMinimumWithdrawal": "O valor mínimo de saque é {{minAmountUnits}} {{assetSymbol}}.",
+        "moreThanMaximumWithdrawal": {
+          "sell": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
+          "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
+        },
+        "lessThanMinimumWithdrawal": {
+          "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
+          "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
+        },
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor."
       },
       "developedBy": "Desenvolvido por"
@@ -181,13 +187,14 @@
       "placeholder": "Pesquisar"
     },
     "dialogs": {
-      "OfframpSummaryDialog": {
+      "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "title": "Pagar com PIX",
           "description": "Continue no app do seu banco",
           "qrCode": "Selecione PIX no app do seu banco e escaneie o QR code abaixo.",
           "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
-          "pixCode": "Código PIX"
+          "pixCode": "Código PIX",
+          "timerLabel": "Cotação expira em:"
         },
         "headerText": {
           "buy": "Você está comprando",
@@ -197,10 +204,12 @@
         "onrampFee": "Taxa de compra",
         "continueWithPartner": "Continuar com Parceiro",
         "continueOnPartnersPage": "Continuar na página do Parceiro",
+        "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
         "processing": "Processando",
         "continue": "Continuar",
         "quote": "Cotação",
-        "partner": "Parceiro"
+        "partner": "Parceiro",
+        "confirm": "Confirmar"
       },
       "selectionModal": {
         "title": "Selecione um token",
@@ -252,7 +261,9 @@
         "pixId": {
           "required": "Chave PIX é obrigatória para transferências em BRL",
           "format": "A chave PIX não corresponde a nenhum dos formatos válidos"
-        }
+        },
+        "calculatingQuote": "Calculando cotação...",
+        "assetHubNotSupported": "Por favor, selecione uma rede diferente. A compra não está disponível no momento no AssetHub."
       }
     },
     "benefitsList": {
@@ -261,7 +272,8 @@
     },
     "brlaSwapField": {
       "placeholder": "Digite seu {{label}}",
-      "disclaimer": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>."
+      "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
+      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>."
     },
     "swapSubmitButton": {
       "confirming": "Confirmando",

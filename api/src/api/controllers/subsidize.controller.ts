@@ -6,6 +6,7 @@ import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
 import { SubsidizeEndpoints } from 'shared/src/endpoints/subsidize.endpoints';
 import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { ApiManager } from '../services/pendulum/apiManager';
+import logger from '../../config/logger';
 
 export const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {
@@ -39,7 +40,7 @@ export const subsidizePreSwap = async (
 ): Promise<void> => {
   try {
     const { address, amountRaw, tokenToSubsidize } = req.body;
-    console.log('Subsidize pre swap', address, amountRaw, tokenToSubsidize);
+    logger.info('Subsidize pre swap', address, amountRaw, tokenToSubsidize);
 
     const config = getPendulumCurrencyConfig(tokenToSubsidize);
 
@@ -72,7 +73,7 @@ export const subsidizePostSwap = async (
 ): Promise<void> => {
   try {
     const { address, amountRaw, token } = req.body;
-    console.log('Subsidize post swap', address, amountRaw, token);
+    logger.info('Subsidize post swap', address, amountRaw, token);
 
     const config = getPendulumCurrencyConfig(token);
 

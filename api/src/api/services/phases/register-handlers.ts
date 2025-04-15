@@ -15,6 +15,7 @@ import moonbeamToPendulumXcmHandler from './handlers/moonbeam-to-pendulum-xcm-ha
 import fundEphemeralHandler from './handlers/fund-ephemeral-handler';
 import brlaTeleportHandler from './handlers/brla-teleport-handler';
 import completePhaseHandler from './handlers/complete-phase-handler';
+import pendulumToAssethubPhaseHandler from './handlers/pendulum-to-assethub-phase-handler';
 /**
  * Register all phase handlers
  */
@@ -37,6 +38,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
   phaseRegistry.registerHandler(brlaTeleportHandler);
+  phaseRegistry.registerHandler(pendulumToAssethubPhaseHandler);
 
   logger.info('Phase handlers registered');
 }

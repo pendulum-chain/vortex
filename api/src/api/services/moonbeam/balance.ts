@@ -10,6 +10,7 @@ import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { privateKeyToAccount } from 'viem/accounts';
 import { createMoonbeamClientsAndConfig } from './createServices';
+import logger from '../../../config/logger';
 
 export function checkMoonbeamBalancePeriodically(
   tokenAddress: string,
@@ -34,7 +35,7 @@ export function checkMoonbeamBalancePeriodically(
           args: [brlaEvmAddress],
         })) as string;
 
-        console.log(`Moonbeam balance check: ${result.toString()} / ${amountDesiredRaw.toString()}`);
+        logger.info(`Moonbeam balance check: ${result.toString()} / ${amountDesiredRaw.toString()}`);
         const someBalanceBig = new Big(result.toString());
         const amountDesiredUnitsBig = new Big(amountDesiredRaw);
 
