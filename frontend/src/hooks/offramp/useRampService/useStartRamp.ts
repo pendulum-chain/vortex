@@ -48,6 +48,7 @@ export const useStartRamp = () => {
       })
       .catch((err) => {
         console.error('Error starting ramp:', err);
+        // TODO this can fail if the ramp 'expired'. We should handle this case and show a message to the user
       });
   }, [rampPaymentConfirmed, rampStarted, rampState, setRampStarted]);
 };

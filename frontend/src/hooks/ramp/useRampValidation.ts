@@ -4,6 +4,7 @@ import {
   FiatTokenDetails,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
+  Networks,
   OnChainTokenDetails,
   QuoteEndpoints,
 } from 'shared';
@@ -180,13 +181,16 @@ export const useRampValidation = () => {
     }
 
     if (validationError) return validationError;
-    if (quoteLoading) return 'Calculating quote...';
+    if (quoteLoading) return t('components.swap.validation.calculatingQuote')
+    if (isOnramp && selectedNetwork === Networks.AssetHub)
+      return t('components.swap.validation.assetHubNotSupported');
 
     return null;
   }, [
     isDisconnected,
     isOnramp,
     quoteLoading,
+    selectedNetwork,
     t,
     inputAmount,
     fromToken,

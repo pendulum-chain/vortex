@@ -164,43 +164,58 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-  ): Promise<{ receiveAmount: string; fees: string; outputAmountBeforeFees: string; outputAmountMoonbeamRaw: string, inputAmountAfterFees: string }> {
+  ): Promise<{
+    receiveAmount: string;
+    fees: string;
+    outputAmountBeforeFees: string;
+    outputAmountMoonbeamRaw: string;
+    inputAmountAfterFees: string;
+  }> {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
 
-    try {
-      const fromNetwork = getNetworkFromDestination(from);
-      const toNetwork = getNetworkFromDestination(to);
-      if (rampType === 'on' && !toNetwork) {
+    const fromNetwork = getNetworkFromDestination(from);
+    const toNetwork = getNetworkFromDestination(to);
+    if (rampType === 'on' && !toNetwork) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Invalid toNetwork for onramp.',
+      });
+    }
+    if (rampType === 'off' && !fromNetwork) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Invalid fromNetwork for offramp.',
+      });
+    }
+    const outTokenDetails = toNetwork ? getOnChainTokenDetails(toNetwork, outputCurrency as OnChainToken) : undefined;
+    if (rampType === 'on') {
+      if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
-          message: 'Invalid toNetwork for onramp.',
+          message: 'Invalid token details for onramp',
         });
       }
-      if (rampType === 'off' && !fromNetwork) {
-        throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Invalid fromNetwork for offramp.',
-        });
-      }
+    }
 
+    if (Big(inputAmount).lte(0)) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Invalid input amount',
+      });
+    }
+
+    try {
       const inputTokenPendulumDetails =
         rampType === 'on' ? getPendulumDetails(inputCurrency) : getPendulumDetails(inputCurrency, fromNetwork);
       const outputTokenPendulumDetails =
         rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
 
-      if (Big(inputAmount).lte(0)) {
-        throw new APIError({
-          status: httpStatus.BAD_REQUEST,
-          message: 'Invalid input amount',
-        });
-      }
-
       const inputAmountAfterFees =
         rampType === 'on' ? calculateTotalReceiveOnramp(new Big(inputAmount), inputCurrency) : inputAmount;
 
-      let amountOut = await getTokenOutAmount({
+      const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
         fromAmountString: inputAmountAfterFees,
         inputTokenDetails: inputTokenPendulumDetails,
@@ -210,35 +225,27 @@ export class QuoteService extends BaseRampService {
       // if onramp, adjust for axlUSDC price difference.
       const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.rawBalance.toFixed(); // Store the value before the adjustment.
       if (rampType === 'on') {
-        const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
-        if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
-          throw new APIError({
-            status: httpStatus.BAD_REQUEST,
-            message: 'Invalid token details for onramp',
-          });
-        }
-
         const routeParams = createOnrampRouteParams(
           '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
           amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
-          outTokenDetails,
+          outTokenDetails!,
           getNetworkFromDestination(to)!,
           '0x30a300612ab372cc73e53ffe87fb73d62ed68da3',
         );
 
         const routeResult = await getRoute(routeParams);
         const { route } = routeResult.data;
-        const toAmountMin = route.estimate.toAmountMin;
+        const { toAmountMin } = route.estimate;
 
         amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
-          outTokenDetails.pendulumDecimals,
+          outTokenDetails!.pendulumDecimals,
           BigInt(toAmountMin),
         );
-        (amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0)),
-          (amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
-            amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountAfterFees)),
-            4,
-          ));
+        amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
+        amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
+          amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountAfterFees)),
+          4,
+        );
       }
 
       const outputAmountAfterFees =

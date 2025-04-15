@@ -82,6 +82,8 @@ export const useRegisterRamp = () => {
   // TODO if user declined signing, do something
   const [userDeclinedSigning, setUserDeclinedSigning] = useState(false);
 
+  // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
+  // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
   const registerRamp = async (executionInput: RampExecutionInput) => {
     prepareOfframpSubmission(executionInput);
 
@@ -90,13 +92,16 @@ export const useRegisterRamp = () => {
     if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL) {
       console.log('Registering ramp for Stellar offramps');
       await handleOnAnchorWindowOpen();
+    } else if (executionInput.quote.rampType === 'off' && executionInput.fiatToken === FiatToken.BRL) {
+      // TODO Implement waiting for user input (the ramp summary dialog should show the 'Confirm' button and once clicked,
+      // setCanRegisterRamp to true
     }
 
     // For other ramps, we can continue registering right away
     setCanRegisterRamp(true);
   };
 
-  console.log("canRegisterRamp", canRegisterRamp)
+  console.log('canRegisterRamp', canRegisterRamp);
 
   const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
 
@@ -107,45 +112,45 @@ export const useRegisterRamp = () => {
     // Check if we can proceed with the registration process
     const lockResult = checkLock();
     if (!lockResult.canProceed) {
-      console.log("Cannot proceed with ramp registration, lock already exists");
+      console.log('Cannot proceed with ramp registration, lock already exists');
       return;
     }
 
     const { processRef } = lockResult;
-    console.log("processRef", processRef);
+    console.log('processRef', processRef);
 
     const registerRampProcess = async () => {
       // Verify we still own the lock before proceeding
       if (!verifyLock(processRef)) {
-        console.log("In registerRampProcess, lock is not valid anymore for processRef", processRef);
+        console.log('In registerRampProcess, lock is not valid anymore for processRef', processRef);
         return;
       }
 
-      console.log("after verifyLock check")
+      console.log('after verifyLock check');
 
       if (!executionInput) {
         throw new Error('Missing execution input');
       }
 
-      console.log("after executionInput check")
+      console.log('after executionInput check');
 
       if (!chainId) {
         throw new Error('Missing chainId');
       }
 
-      console.log("after chainId check")
+      console.log('after chainId check');
 
       if (!pendulumApiComponents?.api) {
         throw new Error('Missing pendulumApiComponents');
       }
 
-      console.log("after pendulumApiComponents check")
+      console.log('after pendulumApiComponents check');
 
       if (!moonbeamApiComponents?.api) {
         throw new Error('Missing moonbeamApiComponents');
       }
 
-      console.log("after checks")
+      console.log('after checks');
 
       const quoteId = executionInput.quote.id;
       const signingAccounts: AccountMeta[] = [
@@ -199,9 +204,9 @@ export const useRegisterRamp = () => {
         moonbeamApiComponents.api,
       );
 
-      console.log("setRampRegistered(true)")
+      console.log('setRampRegistered(true)');
       setRampRegistered(true);
-      console.log("setRampState to ", {
+      console.log('setRampState to ', {
         quote: executionInput.quote,
         ramp: rampProcess,
         signedTransactions,
@@ -211,7 +216,7 @@ export const useRegisterRamp = () => {
           squidRouterSwapHash: undefined,
           assetHubToPendulumHash: undefined,
         },
-      })
+      });
 
       setRampState({
         quote: executionInput.quote,
@@ -269,6 +274,15 @@ export const useRegisterRamp = () => {
       !rampStarted && // Ramp hasn't been started yet
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
+
+    console.log(
+      'shouldRequestSignatures',
+      shouldRequestSignatures,
+      'rampStarted',
+      rampStarted,
+      'requiredMetaIsEmpty',
+      requiredMetaIsEmpty,
+    );
 
     if (!rampState || rampState?.ramp?.type === 'on' || !shouldRequestSignatures || userDeclinedSigning) {
       return; // Exit early if conditions aren't met

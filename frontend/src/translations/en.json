@@ -261,7 +261,9 @@
         "pixId": {
           "required": "PIX key is required when transferring BRL",
           "format": "PIX key does not match any of the valid formats"
-        }
+        },
+        "calculatingQuote": "Calculating quote...",
+        "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub."
       }
     },
     "benefitsList": {
