@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { QRCodeSVG } from 'qrcode.react';
 import { CopyButton } from '../CopyButton';
+import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 
 interface AssetDisplayProps {
   amount: string;
@@ -268,6 +269,8 @@ export const OfframpSummaryDialog: FC = () => {
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
 
+  const { quote, fetchQuote } = useQuoteStore();
+
   const submitButtonDisabled = useMemo(() => {
     if (!executionInput) return true;
 
@@ -294,6 +297,14 @@ export const OfframpSummaryDialog: FC = () => {
 
   const onClose = () => {
     resetRampState();
+    // Make sure a new quote is fetched immediately. The previous one was consumed when this dialog was opened
+    fetchQuote({
+      rampType: isOnramp ? 'on' : 'off',
+      inputAmount: Big(quote?.inputAmount || '0'),
+      onChainToken,
+      fiatToken,
+      selectedNetwork,
+    });
   };
 
   const onSubmit = () => {
