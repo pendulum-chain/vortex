@@ -59,7 +59,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, 'nablaApprove');
     } catch (e) {
       console.error('Error in subsidizePreSwap:', e);
-      throw new Error('SubsidizePreSwapPhaseHandler: Failed to subsidize post swap.');
+      throw new Error('SubsidizePreSwapPhaseHandler: Failed to subsidize pre swap.');
     }
   }
 }
