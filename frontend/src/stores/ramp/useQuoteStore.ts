@@ -98,6 +98,7 @@ export const useQuoteStore = create<QuoteState>((set) => ({
   error: null,
   outputAmount: undefined,
   exchangeRate: 0,
+  quoteFetchedAt: null, // Initialize timestamp
 
   fetchQuote: async (params: QuoteParams) => {
     const { inputAmount } = params;

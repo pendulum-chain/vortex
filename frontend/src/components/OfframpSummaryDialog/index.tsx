@@ -33,6 +33,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { CopyButton } from '../CopyButton';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 
+// Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
+const ONRAMP_EXPIRY_MINUTES = 5;
+
 interface AssetDisplayProps {
   amount: string;
   symbol: string;
@@ -124,38 +127,9 @@ const BRLOnrampDetails = () => {
   const rampDirection = useRampDirection();
   const { t } = useTranslation();
   const rampState = useRampState();
-  const [timeLeft, setTimeLeft] = useState({ minutes: 5, seconds: 0 });
-
-  useEffect(() => {
-    if (!rampState?.ramp?.createdAt) return;
-
-    const createdAtTimestamp = new Date(rampState.ramp.createdAt).getTime();
-    const targetTimestamp = createdAtTimestamp + 5 * 60 * 1000; // 5 minutes in milliseconds
-
-    const intervalId = setInterval(() => {
-      const now = Date.now();
-      const diff = targetTimestamp - now;
-
-      if (diff <= 0) {
-        setTimeLeft({ minutes: 0, seconds: 0 });
-        clearInterval(intervalId);
-        // Optionally: Add logic here to handle timer expiration, e.g., close dialog, show message
-        return;
-      }
-
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-      setTimeLeft({ minutes, seconds });
-    }, 1000);
-
-    // Cleanup interval on component unmount or when dependencies change
-    return () => clearInterval(intervalId);
-  }, [rampState?.ramp?.createdAt]);
 
   if (rampDirection !== RampDirection.ONRAMP) return null;
   if (!rampState?.ramp?.brCode) return null;
-
-  const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? '0' : ''}${timeLeft.seconds}`;
 
   return (
     <section>
@@ -172,9 +146,6 @@ const BRLOnrampDetails = () => {
       </div>
       <p className="text-center">{t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.copyCode')}</p>
       <CopyButton text={rampState.ramp?.brCode} className="w-full mt-4 py-10" />
-      <div className="text-center text-gray-600 font-semibold my-4">
-        {t('components.dialogs.OfframpSummaryDialog.BRLOnrampDetails.timerLabel')} {formattedTime}
-      </div>
     </section>
   );
 };
@@ -184,6 +155,7 @@ interface TransactionTokensDisplayProps {
   isOnramp: boolean;
   selectedNetwork: Networks;
   rampDirection: RampDirection;
+  onExpiryChange: (isExpired: boolean) => void;
 }
 
 const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
@@ -191,7 +163,66 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   isOnramp,
   selectedNetwork,
   rampDirection,
+  onExpiryChange,
 }) => {
+  const { t } = useTranslation();
+  const rampState = useRampState(); // Use rampState hook
+  const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 }); // Initialize differently
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    let targetTimestamp: number | null = null;
+
+    if (isOnramp) {
+      // Onramp: Use ramp creation time + expiry duration
+      const createdAt = rampState?.ramp?.createdAt;
+      if (createdAt) {
+        targetTimestamp = new Date(createdAt).getTime() + ONRAMP_EXPIRY_MINUTES * 60 * 1000;
+      }
+    } else {
+      // Offramp: Use quote expiry time directly
+      const expiresAt = executionInput.quote.expiresAt;
+      targetTimestamp = new Date(expiresAt).getTime();
+    }
+
+    if (targetTimestamp === null) {
+      // If no valid timestamp, mark as expired immediately
+      setTimeLeft({ minutes: 0, seconds: 0 });
+      setIsExpired(true);
+      onExpiryChange(true);
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const now = Date.now();
+      const diff = targetTimestamp - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ minutes: 0, seconds: 0 });
+        setIsExpired(true);
+        onExpiryChange(true); // Notify parent component
+        clearInterval(intervalId);
+        return;
+      }
+
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+      setTimeLeft({ minutes, seconds });
+      setIsExpired(false);
+      onExpiryChange(false);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [
+    isOnramp,
+    rampState?.ramp?.createdAt,
+    rampState?.quote.expiresAt,
+    onExpiryChange,
+    executionInput.quote.expiresAt,
+  ]);
+
+  const formattedTime = `${timeLeft.minutes}:${timeLeft.seconds < 10 ? '0' : ''}${timeLeft.seconds}`;
+
   const fromToken = isOnramp
     ? getAnyFiatTokenDetails(executionInput.fiatToken)
     : getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken);
@@ -248,6 +279,7 @@ const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
         direction={rampDirection}
       />
       <BRLOnrampDetails />
+      <div className="text-center text-gray-600 font-semibold my-4">Quote expires in: {formattedTime}</div>
     </div>
   );
 };
@@ -256,6 +288,7 @@ export const OfframpSummaryDialog: FC = () => {
   const { t } = useTranslation();
 
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isQuoteExpired, setIsQuoteExpired] = useState(false); // State for quote expiry
 
   const { selectedNetwork } = useNetwork();
   const { resetRampState, setRampPaymentConfirmed } = useRampActions();
@@ -271,22 +304,22 @@ export const OfframpSummaryDialog: FC = () => {
 
   const { quote, fetchQuote } = useQuoteStore();
 
+  // Handler for quote expiry changes
+  const handleExpiryChange = (expired: boolean) => {
+    setIsQuoteExpired(expired);
+  };
+
   const submitButtonDisabled = useMemo(() => {
     if (!executionInput) return true;
+    if (isQuoteExpired) return true; // Disable if quote is expired
 
     if (!isOnramp) {
       if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === 'moonbeam') return true;
-      // For onramps, we register immediately when opening this summary, so the ramp should be available.
-      if (!rampState?.ramp === undefined) return true;
-      // Check if ramp is already expired
-      if (rampState?.ramp?.createdAt && Date.now() - new Date(rampState?.ramp?.createdAt).getTime() > 5 * 60 * 1000) {
-        return true;
-      }
     }
 
     return isSubmitted;
-  }, [anchorUrl, executionInput, fiatToken, isOnramp, isSubmitted, rampState?.ramp]);
+  }, [anchorUrl, executionInput, fiatToken, isOnramp, isSubmitted, isQuoteExpired]);
 
   if (!visible) return null;
   if (!executionInput) return null;
@@ -361,6 +394,7 @@ export const OfframpSummaryDialog: FC = () => {
       isOnramp={isOnramp}
       selectedNetwork={selectedNetwork}
       rampDirection={rampDirection}
+      onExpiryChange={handleExpiryChange} // Pass handler down
     />
   );
 
