@@ -191,7 +191,7 @@ export class QuoteService extends BaseRampService {
     }
     const outTokenDetails = toNetwork ? getOnChainTokenDetails(toNetwork, outputCurrency as OnChainToken) : undefined;
     if (rampType === 'on') {
-      if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
+      if (!outTokenDetails) {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
           message: 'Invalid token details for onramp',

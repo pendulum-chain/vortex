@@ -182,8 +182,6 @@ export const useRampValidation = () => {
 
     if (validationError) return validationError;
     if (quoteLoading) return t('components.swap.validation.calculatingQuote')
-    if (isOnramp && selectedNetwork === Networks.AssetHub)
-      return t('components.swap.validation.assetHubNotSupported');
 
     return null;
   }, [
