@@ -224,9 +224,6 @@ export class QuoteService extends BaseRampService {
 
       // if onramp, adjust for axlUSDC price difference.
       const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.rawBalance.toFixed(); // Store the value before the adjustment.
-<<<<<<< Updated upstream
-      if (rampType === 'on') {
-=======
       if (rampType === 'on' && to !== 'assethub') {
         const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
         if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
@@ -236,7 +233,6 @@ export class QuoteService extends BaseRampService {
           });
         }
 
->>>>>>> Stashed changes
         const routeParams = createOnrampRouteParams(
           '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
           amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
