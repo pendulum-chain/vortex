@@ -95,9 +95,7 @@ export class BrlaService {
    * @param request The pay-in request
    * @returns Empty response with 200 status
    */
-  static async triggerPayIn(
-    request: BrlaEndpoints.TriggerPayInRequest,
-  ): Promise<BrlaEndpoints.TriggerPayInResponse> {
+  static async triggerPayIn(request: BrlaEndpoints.TriggerPayInRequest): Promise<BrlaEndpoints.TriggerPayInResponse> {
     return apiRequest<BrlaEndpoints.TriggerPayInResponse>('post', `${this.BASE_PATH}/triggerPayIn`, request);
   }
 }

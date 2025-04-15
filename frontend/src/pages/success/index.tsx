@@ -40,10 +40,14 @@ export const SuccessPage = () => {
           <Checkmark />
         </div>
         {/* Wrapper div for left-aligned content with padding */}
-        <div className="w-full mt-6 px-4 md:px-8"> {/* Added padding to match EmailForm */}
-          <h1 className="mb-6 text-2xl font-bold text-left text-blue-700">{t('pages.success.title')}</h1> {/* Changed text-center to text-left */}
+        <div className="w-full mt-6 px-4 md:px-8">
+          {' '}
+          {/* Added padding to match EmailForm */}
+          <h1 className="mb-6 text-2xl font-bold text-left text-blue-700">{t('pages.success.title')}</h1>{' '}
+          {/* Changed text-center to text-left */}
           {/* Removed pink divider */}
-          <p className="text-left font-light text-blue-700 leading-relaxed mb-8">{arrivalText}</p> {/* Changed text-center to text-left, updated color/style */}
+          <p className="text-left font-light text-blue-700 leading-relaxed mb-8">{arrivalText}</p>{' '}
+          {/* Changed text-center to text-left, updated color/style */}
           <div className="h-0.5 m-auto w-1/5 bg-pink-500 mt-8 mb-5" />
           <EmailForm transactionId={transactionId} transactionSuccess={true} />
         </div>

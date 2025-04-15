@@ -63,7 +63,7 @@ export function FeeProviderRow({
     if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
 
     // FIXME - this is a hack until we implement fetching prices for onramp providers
-    if (isOnramp) return undefined
+    if (isOnramp) return undefined;
 
     return providerPriceRaw && providerPriceRaw.gte(0) ? providerPriceRaw : undefined;
   }, [provider.name, vortexPrice, isOnramp, providerPriceRaw]);
