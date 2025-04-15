@@ -41,8 +41,8 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
       <div className="flex justify-between mb-2">
         <p>
           {isOfframp
-            ? t('components.dialogs.OfframpSummaryDialog.offrampFee')
-            : t('components.dialogs.OfframpSummaryDialog.onrampFee')}{' '}
+            ? t('components.dialogs.RampSummaryDialog.offrampFee')
+            : t('components.dialogs.RampSummaryDialog.onrampFee')}{' '}
           ({`${fiatToken.offrampFeesBasisPoints / 100}%`}
           {fiatToken.offrampFeesFixedComponent ? ` + ${fiatToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
         </p>
@@ -54,7 +54,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         </p>
       </div>
       <div className="flex justify-between mb-2">
-        <p>{t('components.dialogs.OfframpSummaryDialog.quote')}</p>
+        <p>{t('components.dialogs.RampSummaryDialog.quote')}</p>
         <p>
           <ExchangeRate
             inputToken={isOfframp ? fromToken : toToken}
@@ -64,7 +64,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         </p>
       </div>
       <div className="flex justify-between">
-        <p>{t('components.dialogs.OfframpSummaryDialog.partner')}</p>
+        <p>{t('components.dialogs.RampSummaryDialog.partner')}</p>
         <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           {partnerUrl}
         </a>
