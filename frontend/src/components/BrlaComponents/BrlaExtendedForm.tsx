@@ -1,4 +1,3 @@
-import { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
@@ -8,11 +7,7 @@ import { VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 import { KYCForm } from './KYCForm';
 
-interface PIXKYCFormProps {
-  feeComparisonRef: RefObject<HTMLDivElement | null>;
-}
-
-export const PIXKYCForm = ({ feeComparisonRef }: PIXKYCFormProps) => {
+export const PIXKYCForm = () => {
   const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, isSubmitted } = useKYCProcess();
 
   const { kycForm } = useKYCForm();
@@ -96,12 +91,7 @@ export const PIXKYCForm = ({ feeComparisonRef }: PIXKYCFormProps) => {
   return (
     <div className="relative">
       {!isSubmitted ? (
-        <KYCForm
-          fields={PIXKYCFORM_FIELDS}
-          form={kycForm}
-          onSubmit={handleFormSubmit}
-          onBackClick={handleBackClick}
-        />
+        <KYCForm fields={PIXKYCFORM_FIELDS} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick} />
       ) : (
         <VerificationStatus status={verificationStatus} message={statusMessage} />
       )}
