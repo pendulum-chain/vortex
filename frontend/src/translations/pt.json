@@ -187,7 +187,7 @@
       "placeholder": "Pesquisar"
     },
     "dialogs": {
-      "OfframpSummaryDialog": {
+      "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "title": "Pagar com PIX",
           "description": "Continue no app do seu banco",
