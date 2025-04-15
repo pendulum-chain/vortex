@@ -257,8 +257,7 @@ export const OfframpSummaryDialog: FC = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const { selectedNetwork } = useNetwork();
-  const { setRampExecutionInput, setRampInitiating, setRampStarted, setRampSummaryVisible, setRampPaymentConfirmed } =
-    useRampActions();
+  const { resetRampState, setRampPaymentConfirmed } = useRampActions();
   const rampState = useRampState();
   const executionInput = useRampExecutionInput();
   const visible = useRampSummaryVisible();
@@ -294,11 +293,7 @@ export const OfframpSummaryDialog: FC = () => {
     : getAnyFiatTokenDetails(fiatToken);
 
   const onClose = () => {
-    setIsSubmitted(false);
-    setRampExecutionInput(undefined);
-    setRampStarted(false);
-    setRampInitiating(false);
-    setRampSummaryVisible(false);
+    resetRampState();
   };
 
   const onSubmit = () => {
