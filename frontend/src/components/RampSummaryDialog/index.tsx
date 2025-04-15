@@ -38,8 +38,8 @@ export const RampSummaryDialog: FC = () => {
   };
 
   const headerText = isOnramp
-    ? t('components.dialogs.OfframpSummaryDialog.headerText.buy')
-    : t('components.dialogs.OfframpSummaryDialog.headerText.sell');
+    ? t('components.dialogs.RampSummaryDialog.headerText.buy')
+    : t('components.dialogs.RampSummaryDialog.headerText.sell');
 
   const actions = <RampSummaryButton />;
   const content = (

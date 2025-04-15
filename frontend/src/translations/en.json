@@ -187,7 +187,7 @@
       "placeholder": "Search"
     },
     "dialogs": {
-      "OfframpSummaryDialog": {
+      "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "title": "Pay with Pix",
           "description": "Continue in your bank's app",
