@@ -142,7 +142,9 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
         direction={rampDirection}
       />
       <BRLOnrampDetails />
-      <div className="text-center text-gray-600 font-semibold my-4">Quote expires in: {formattedTime}</div>
+      <div className="text-center text-gray-600 font-semibold my-4">
+        {t('components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel')} {formattedTime}
+      </div>
     </div>
   );
 };
