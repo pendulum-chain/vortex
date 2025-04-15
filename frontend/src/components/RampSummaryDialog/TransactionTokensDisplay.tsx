@@ -143,7 +143,11 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
       />
       <BRLOnrampDetails />
       <div className="text-center text-gray-600 font-semibold my-4">
-        {t('components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel')} {formattedTime}
+        {rampState?.ramp?.createdAt && (
+          <>
+            {t('components.dialogs.RampSummaryDialog.BRLOnrampDetails.timerLabel')} <span>{formattedTime}</span>
+          </>
+        )}
       </div>
     </div>
   );
