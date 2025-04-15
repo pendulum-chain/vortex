@@ -1,4 +1,4 @@
-import {DestinationType, Networks} from '../index';
+import { DestinationType, Networks } from '../index';
 
 export type RampPhase =
   | 'initial'
@@ -24,11 +24,7 @@ export type RampPhase =
   | 'timedOut'
   | 'complete';
 
-export type CleanupPhase =
-  | 'moonbeamCleanup'
-  | 'pendulumCleanup'
-  | 'stellarCleanup';
-
+export type CleanupPhase = 'moonbeamCleanup' | 'pendulumCleanup' | 'stellarCleanup';
 
 export interface AccountMeta {
   address: string;
@@ -83,7 +79,7 @@ export namespace RampEndpoints {
     additionalData?: {
       walletAddress?: string; // Wallet address initiating the offramp.
       destinationAddress?: string; // Destination address, used for onramp.
-      paymentData?: PaymentData
+      paymentData?: PaymentData;
       pixDestination?: string;
       receiverTaxId?: string;
       taxId?: string;

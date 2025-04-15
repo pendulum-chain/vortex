@@ -24,4 +24,4 @@ export * from './utils/typeGuards';
 export * from './utils/helpers';
 
 // TokenConfig
-export * from "./tokenConfig";
+export * from './tokenConfig';
