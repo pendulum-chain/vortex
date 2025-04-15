@@ -38,7 +38,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
 }) => {
   const { t } = useTranslation();
   const rampState = useRampState();
-  const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
   const { setIsQuoteExpired } = useRampSummaryStore();
 
   useEffect(() => {

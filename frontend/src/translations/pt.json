@@ -204,7 +204,7 @@
         "onrampFee": "Taxa de compra",
         "continueWithPartner": "Continuar com Parceiro",
         "continueOnPartnersPage": "Continuar na página do Parceiro",
-        "quoteExpired": "Cotação expirada",
+        "quoteExpired": "Cotação expirada. Feche o diálogo e tente novamente.",
         "processing": "Processando",
         "continue": "Continuar",
         "quote": "Cotação",

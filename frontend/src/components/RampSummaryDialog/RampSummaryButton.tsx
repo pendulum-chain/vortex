@@ -34,17 +34,17 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
   const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
   return useMemo(() => {
+    if (isBRCodeReady && isQuoteExpired) {
+      return {
+        text: t('components.dialogs.RampSummaryDialog.quoteExpired'),
+        icon: null,
+      };
+    }
+
     if (submitButtonDisabled) {
       return {
         text: t('components.swapSubmitButton.processing'),
         icon: <Spinner />,
-      };
-    }
-
-    if (isQuoteExpired) {
-      return {
-        text: t('components.swapSubmitButton.quoteExpired'),
-        icon: null,
       };
     }
 
