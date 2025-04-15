@@ -1,9 +1,9 @@
-import { createWalletClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { Keyring } from "@polkadot/api";
-import { Transaction, Keypair, Networks as StellarNetworks } from "stellar-sdk";
-import { ApiPromise } from "@polkadot/api";
-import { moonbeam } from "viem/chains";
+import {createWalletClient, http} from "viem";
+import {privateKeyToAccount} from "viem/accounts";
+import {Keyring} from "@polkadot/api";
+import {Transaction, Keypair, Networks as StellarNetworks} from "stellar-sdk";
+import {ApiPromise} from "@polkadot/api";
+import {moonbeam} from "viem/chains";
 import {
   isEvmTransactionData,
   PresignedTx,
@@ -11,8 +11,9 @@ import {
   EphemeralAccount,
   decodeSubmittableExtrinsic,
 } from "../index";
-import { u8aToHex } from "@polkadot/util";
-import { hdEthereum, mnemonicToLegacySeed } from "@polkadot/util-crypto";
+import {u8aToHex} from "@polkadot/util";
+import {hdEthereum, mnemonicToLegacySeed} from "@polkadot/util-crypto";
+import {cryptoWaitReady} from '@polkadot/util-crypto';
 
 // Number of transactions to pre-sign for each transaction
 const NUMBER_OF_PRESIGNED_TXS = 3;
@@ -24,9 +25,9 @@ export function addAdditionalTransactionsToMeta(
   if (multiSignedTxs.length <= 1) {
     return primaryTx;
   }
-  
+
   const additionalTxs: Record<string, PresignedTx> = {};
-  
+
   for (let i = 1; i < multiSignedTxs.length; i++) {
     const additionalTx = multiSignedTxs[i];
     const nonceOffset = i;
@@ -34,16 +35,16 @@ export function addAdditionalTransactionsToMeta(
     const txName = `${primaryTx.phase}${nonceOffset}`;
     additionalTxs[txName] = additionalTx;
   }
-  
+
   return {
     ...primaryTx,
-    meta: { ...primaryTx.meta, additionalTxs }
+    meta: {...primaryTx.meta, additionalTxs}
   };
 }
 
 /**
  * Signs multiple Stellar transactions with increasing sequence numbers
- * 
+ *
  * @param tx - The original backend-signed transaction. Can contain meta field with multiple-nonce transactions.
  * @param keypair - The Stellar keypair to sign with
  * @param networkPassphrase - The Stellar network passphrase
@@ -58,12 +59,12 @@ async function signMultipleStellarTransactions(
 
   const transaction = new Transaction(tx.txData as string, networkPassphrase);
   transaction.sign(keypair);
-    
+
   const primarySignedTxData = transaction
     .toEnvelope()
     .toXDR()
     .toString("base64");
-    
+
   const signedTx: PresignedTx = {
     ...tx,
     txData: primarySignedTxData
@@ -84,14 +85,15 @@ async function signMultipleStellarTransactions(
       .toString("base64");
     signedTx.meta.additionalTxs[key].txData = extraTransactionSigned;
 
-  };
-  
+  }
+  ;
+
   return signedTx;
 }
 
 /**
  * Signs multiple Substrate (Pendulum) transactions with increasing nonces
- * 
+ *
  * @param tx - The original unsigned transaction
  * @param keypair - The keypair to sign with
  * @param api - The Polkadot API instance
@@ -105,29 +107,29 @@ async function signMultipleSubstrateTransactions(
   startingNonce: number
 ): Promise<PresignedTx[]> {
   const signedTxs: PresignedTx[] = [];
-  
+
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
     const currentNonce = startingNonce + i;
     const extrinsic = decodeSubmittableExtrinsic(tx.txData as string, api);
-    
-    await extrinsic.signAsync(keypair, { nonce: currentNonce, era: 0 });
-    
+
+    await extrinsic.signAsync(keypair, {nonce: currentNonce, era: 0});
+
     const signedTxData = extrinsic.toHex();
-    const signedTx: PresignedTx = { 
+    const signedTx: PresignedTx = {
       ...tx,
       nonce: currentNonce,
       txData: signedTxData
     };
-    
+
     signedTxs.push(signedTx);
   }
-  
+
   return signedTxs;
 }
 
 /**
  * Signs multiple EVM (Moonbeam) transactions with increasing nonces
- * 
+ *
  * @param tx - The original unsigned transaction
  * @param walletClient - The viem wallet client
  * @param startingNonce - The starting nonce value
@@ -139,16 +141,16 @@ async function signMultipleEvmTransactions(
   startingNonce: number
 ): Promise<PresignedTx[]> {
   const signedTxs: PresignedTx[] = [];
-  
+
   if (!isEvmTransactionData(tx.txData)) {
     throw new Error("Invalid EVM transaction data format");
   }
 
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS; i++) {
     const currentNonce = startingNonce + i;
-    
+
     // Ensure the transaction data is in the correct format
-    const txData = { 
+    const txData = {
       to: tx.txData.to,
       data: tx.txData.data,
       value: BigInt(tx.txData.value),
@@ -157,18 +159,18 @@ async function signMultipleEvmTransactions(
       maxFeePerGas: tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 5n : BigInt(187500000000),
       maxPriorityFeePerGas: tx.txData.maxPriorityFeePerGas ? BigInt(tx.txData.maxPriorityFeePerGas) * 5n : BigInt(187500000000),
     };
-    
+
     const signedTxData = await walletClient.signTransaction(txData);
-    
+
     const signedTx: PresignedTx = {
       ...tx,
       nonce: currentNonce,
       txData: signedTxData
     };
-    
+
     signedTxs.push(signedTx);
   }
-  
+
   return signedTxs;
 }
 
@@ -219,6 +221,9 @@ export async function signUnsignedTransactions(
   pendulumApi: ApiPromise,
   moonbeamApi: ApiPromise,
 ): Promise<PresignedTx[]> {
+  // Wait for initialization of crypto libraries
+  await cryptoWaitReady();
+
   const signedTxs: PresignedTx[] = [];
 
   try {
@@ -260,7 +265,7 @@ export async function signUnsignedTransactions(
         throw new Error("Invalid Pendulum transaction data format");
       }
 
-      const keyring = new Keyring({ type: "sr25519" });
+      const keyring = new Keyring({type: "sr25519"});
       const keypair = keyring.addFromUri(ephemerals.pendulumEphemeral.secret);
 
       const multiSignedTxs = await signMultipleSubstrateTransactions(
@@ -269,11 +274,11 @@ export async function signUnsignedTransactions(
         pendulumApi,
         tx.nonce
       );
-      
+
       const primaryTx = multiSignedTxs[0];
-    
+
       const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
-      
+
       signedTxs.push(txWithMeta);
     }
 
@@ -282,16 +287,16 @@ export async function signUnsignedTransactions(
       if (!ephemerals.moonbeamEphemeral) {
         throw new Error("Missing EVM ephemeral account");
       }
-      
+
       const ethDerPath = `m/44'/60'/${0}'/${0}/${0}`;
-      
+
       if (isEvmTransactionData(tx.txData)) {
         const privateKey = u8aToHex(
           hdEthereum(mnemonicToLegacySeed(ephemerals.moonbeamEphemeral.secret, '', false, 64), ethDerPath)
             .secretKey
         );
         const evmAccount = privateKeyToAccount(privateKey);
-  
+
         const walletClient = createWalletClient({
           account: evmAccount,
           chain: moonbeam,
@@ -303,27 +308,27 @@ export async function signUnsignedTransactions(
           walletClient,
           tx.nonce
         );
-        
+
         const primaryTx = multiSignedTxs[0];
-      
+
         const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
-        
+
         signedTxs.push(txWithMeta);
       } else {
-        const keyring = new Keyring({ type: 'ethereum' });
+        const keyring = new Keyring({type: 'ethereum'});
         const keypair = keyring.addFromUri(`${ephemerals.moonbeamEphemeral.secret}/${ethDerPath}`);
-        
+
         const multiSignedTxs = await signMultipleSubstrateTransactions(
           tx,
           keypair,
           moonbeamApi,
           tx.nonce
         );
-        
+
         const primaryTx = multiSignedTxs[0];
-        
+
         const txWithMeta = addAdditionalTransactionsToMeta(primaryTx, multiSignedTxs);
-        
+
         signedTxs.push(txWithMeta);
       }
     }
