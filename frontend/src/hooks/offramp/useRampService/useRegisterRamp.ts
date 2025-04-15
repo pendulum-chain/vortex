@@ -96,6 +96,8 @@ export const useRegisterRamp = () => {
     setCanRegisterRamp(true);
   };
 
+  console.log("canRegisterRamp", canRegisterRamp)
+
   const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
 
   // @TODO: maybe change to useCallback
@@ -105,32 +107,45 @@ export const useRegisterRamp = () => {
     // Check if we can proceed with the registration process
     const lockResult = checkLock();
     if (!lockResult.canProceed) {
+      console.log("Cannot proceed with ramp registration, lock already exists");
       return;
     }
 
     const { processRef } = lockResult;
+    console.log("processRef", processRef);
 
     const registerRampProcess = async () => {
       // Verify we still own the lock before proceeding
       if (!verifyLock(processRef)) {
+        console.log("In registerRampProcess, lock is not valid anymore for processRef", processRef);
         return;
       }
+
+      console.log("after verifyLock check")
 
       if (!executionInput) {
         throw new Error('Missing execution input');
       }
 
+      console.log("after executionInput check")
+
       if (!chainId) {
         throw new Error('Missing chainId');
       }
+
+      console.log("after chainId check")
 
       if (!pendulumApiComponents?.api) {
         throw new Error('Missing pendulumApiComponents');
       }
 
+      console.log("after pendulumApiComponents check")
+
       if (!moonbeamApiComponents?.api) {
         throw new Error('Missing moonbeamApiComponents');
       }
+
+      console.log("after checks")
 
       const quoteId = executionInput.quote.id;
       const signingAccounts: AccountMeta[] = [
