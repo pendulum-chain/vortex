@@ -29,3 +29,9 @@ dist-ssr
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# testing artifacts
+**/failedRampStateRecovery.json
+**/lastRampState.json
+**/lastRampStateOnramp.json
+

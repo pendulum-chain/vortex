@@ -55,3 +55,12 @@ matter what URL the browser requests.
 If you encounter issues with the IDE not detecting the type overwrites of the `@pendulum-chain/types` package properly,
 make sure that all the `@polkadot/xxx` packages match the same version used in the types package. It is also important
 to make sure that peer dependencies have the same version as this might also cause issues.
+
+## Troubleshooting
+
+### 'Shared' directory
+
+If you have troubles with setting up the links between the signer-service and the shared directory, try the following:
+- Run `yarn build` in the `shared` directory
+- Run `bun link` in the `shared` directory
+- Run `bun link shared` in the `signer-service` directory

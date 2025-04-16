@@ -2,7 +2,6 @@ name: ci
 on:
   pull_request:
     branches: [main, staging]
-    
   workflow_dispatch:
 
 jobs:
@@ -17,6 +16,9 @@ jobs:
         node-version: [18]
     env:
       CI: true
+    defaults:
+      run:
+        working-directory: ./frontend
 
     steps:
       - name: 🛒 Checkout code
@@ -38,23 +40,24 @@ jobs:
         id: yarn-cache
         with:
           path: |
-            **/.cache/Cypress
-            **/cypress/cache
-            **/node_modules
+            frontend/.cache/Cypress
+            frontend/cypress/cache
+            frontend/node_modules
             ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-frontend-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn
+            ${{ runner.os }}-frontend-yarn
 
       - name: 🧩 Install dependencies
         if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds
 
-      - name: 📋 Yarn Lock Changes
-        uses: Simek/yarn-lock-changes@main 
-        with:
-          updateComment: 'true'
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install 'shared' directory
+        run: |
+          cd ../shared
+          yarn install 
+          yarn build
+          cd ../frontend
 
       - name: ✏️ Lint
         run: yarn lint:ts
