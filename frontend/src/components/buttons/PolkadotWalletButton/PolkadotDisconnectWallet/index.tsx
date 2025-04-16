@@ -7,18 +7,18 @@ import accountBalanceWalletIconPink from '../../../../assets/account-balance-wal
 import { trimAddress } from '../../../../helpers/addressFormatter';
 import { CopyablePublicKey } from '../../../PublicKey/CopyablePublicKey';
 import { usePolkadotWalletState } from '../../../../contexts/polkadotWallet';
+import { useAssetHubNode } from '../../../../contexts/polkadotNode';
+import { getAddressForFormat } from 'shared';
+
 interface WalletButtonProps {
-  wallet?: Wallet;
-  balance?: string;
-  tokenSymbol?: string;
-  walletAccount?: WalletAccount;
+  address: string;
 }
 
-const WalletButton = ({ walletAccount }: WalletButtonProps) => (
+const WalletButton = ({ address }: WalletButtonProps) => (
   <button type="button" className="btn-vortex-secondary btn rounded-3xl group">
     <img src={accountBalanceWalletIcon} className="block group-hover:hidden" alt="wallet account button" />
     <img src={accountBalanceWalletIconPink} className="hidden group-hover:block" alt="wallet account button hovered" />
-    <p className="hidden font-thin md:block ">{walletAccount ? trimAddress(walletAccount.address) : ''}</p>
+    <p className="hidden font-thin md:block ">{trimAddress(address)}</p>
   </button>
 );
 
@@ -51,16 +51,20 @@ const WalletDropdownMenu = ({ walletAccount, address, removeWalletAccount }: Wal
 
 export const DisconnectModal = () => {
   const { walletAccount, removeWalletAccount } = usePolkadotWalletState();
-  const { wallet, address } = walletAccount || {};
+  const { apiComponents } = useAssetHubNode();
+  const { address } = walletAccount || {};
 
   if (!address) return <></>;
+
+  const ss58Format = apiComponents ? apiComponents.ss58Format : 42;
+  const addressForNetwork = getAddressForFormat(address, ss58Format);
 
   return (
     <div className="dropdown dropdown-bottom" role="listbox">
       <label tabIndex={0}>
-        <WalletButton wallet={wallet} balance={'0'} tokenSymbol={'$'} walletAccount={walletAccount} />
+        <WalletButton address={addressForNetwork} />
       </label>
-      <WalletDropdownMenu walletAccount={walletAccount} address={address} removeWalletAccount={removeWalletAccount} />
+      <WalletDropdownMenu walletAccount={walletAccount} address={addressForNetwork} removeWalletAccount={removeWalletAccount} />
     </div>
   );
 };
