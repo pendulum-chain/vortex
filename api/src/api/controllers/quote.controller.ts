@@ -4,6 +4,8 @@ import { QuoteEndpoints } from 'shared/src/endpoints/quote.endpoints';
 import quoteService from '../services/ramp/quote.service';
 import { APIError } from '../errors/api-error';
 import logger from '../../config/logger';
+import { ASSETHUB_XCM_FEE_USDC_UNITS } from '../../constants/constants';
+import Big from 'big.js';
 
 /**
  * Create a new quote
@@ -42,6 +44,11 @@ export const createQuote = async (
       inputCurrency,
       outputCurrency,
     });
+
+    // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.
+    if (rampType === 'on' && to === 'assethub') {
+      quote.outputAmount = new Big(quote.outputAmount).sub(ASSETHUB_XCM_FEE_USDC_UNITS).toFixed();
+    }
 
     res.status(httpStatus.CREATED).json(quote);
   } catch (error) {
