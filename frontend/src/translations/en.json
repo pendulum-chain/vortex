@@ -215,6 +215,7 @@
         "continue": "Continue",
         "quote": "Quote",
         "partner": "Partner",
+        "destination": "Destination Account",
         "confirm": "Confirm"
       },
       "selectionModal": {
