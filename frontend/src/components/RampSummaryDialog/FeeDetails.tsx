@@ -15,6 +15,7 @@ interface FeeDetailsProps {
   toToken: OnChainTokenDetails | FiatTokenDetails;
   partnerUrl: string;
   direction: RampDirection;
+  destinationAddress?: string;
 }
 
 export const FeeDetails: FC<FeeDetailsProps> = ({
@@ -26,6 +27,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   exchangeRate,
   partnerUrl,
   direction,
+  destinationAddress,
 }) => {
   const { t } = useTranslation();
 
@@ -63,6 +65,12 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
           />
         </p>
       </div>
+      {destinationAddress && (
+        <div className="flex justify-between mb-2">
+          <p>{t('components.dialogs.RampSummaryDialog.destination')}</p>
+          {destinationAddress}
+        </div>
+      )}
       <div className="flex justify-between">
         <p>{t('components.dialogs.RampSummaryDialog.partner')}</p>
         <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
