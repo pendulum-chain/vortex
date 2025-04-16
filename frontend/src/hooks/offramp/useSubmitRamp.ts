@@ -16,7 +16,7 @@ import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
 import { useToastMessage } from '../../helpers/notifications';
 
-export const useSubmitOfframp = () => {
+export const useSubmitRamp = () => {
   const { t } = useTranslation();
   const { showToast, ToastMessage } = useToastMessage();
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -86,8 +86,7 @@ export const useSubmitOfframp = () => {
                 console.log("User doesn't exist yet.");
                 setRampKycStarted(true);
                 return;
-              }
-              if ((await response.text()).includes('KYC invalid')) {
+              } else if ((await response.text()).includes('KYC invalid')) {
                 setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
                 setRampStarted(false);
                 setRampInitiating(false);
@@ -95,13 +94,14 @@ export const useSubmitOfframp = () => {
                 return;
               }
               throw new Error('Error while fetching BRLA user');
-            }
-            const { evmAddress: brlaEvmAddress } = await response.json();
-            // append EVM address to execution input
-            const updatedBrlaOfframpExecution = { ...executionInput, brlaEvmAddress };
-            setRampExecutionInput(updatedBrlaOfframpExecution);
+            } else {
+              const { evmAddress: brlaEvmAddress } = await response.json();
+              // append EVM address to execution input
+              const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
+              setRampExecutionInput(updatedBrlaRampExecution);
 
-            setRampSummaryVisible(true);
+              setRampSummaryVisible(true);
+            }
           } else {
             const stellarEphemeralSecret = executionInput.ephemerals.stellarEphemeral.secret;
             const outputToken = getTokenDetailsSpacewalk(executionInput.fiatToken);

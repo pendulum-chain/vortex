@@ -9,7 +9,6 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isStellarOutputTokenDetails,
-  Networks,
   OnChainTokenDetails,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
@@ -20,6 +19,7 @@ import { useRampSummaryActions } from '../../stores/rampSummary';
 import { AssetDisplay } from './AssetDisplay';
 import { FeeDetails } from './FeeDetails';
 import { BRLOnrampDetails } from './BRLOnrampDetails';
+import { useNetwork } from '../../contexts/network';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
 import { trimAddress } from '../../helpers/addressFormatter';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
@@ -30,18 +30,18 @@ const ONRAMP_EXPIRY_MINUTES = 5;
 interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
   isOnramp: boolean;
-  selectedNetwork: Networks;
   rampDirection: RampDirection;
 }
 
 export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   executionInput,
   isOnramp,
-  selectedNetwork,
   rampDirection,
 }) => {
   const { t } = useTranslation();
   const rampState = useRampState();
+
+  const { selectedNetwork } = useNetwork();
   const { apiComponents } = useAssetHubNode();
   const { address, chainId } = useVortexAccount();
 

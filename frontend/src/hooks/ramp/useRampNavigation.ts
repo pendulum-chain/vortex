@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { ReactNode } from 'react';
-import { useRampState, useRampKycStarted, useRampStarted } from '../../stores/rampStore';
+import { useRampState, useRampStarted } from '../../stores/rampStore';
 
 export const useRampNavigation = (
   successComponent: ReactNode,
@@ -10,7 +10,6 @@ export const useRampNavigation = (
 ) => {
   const rampState = useRampState();
   const rampStarted = useRampStarted();
-  const offrampKycStarted = useRampKycStarted();
 
   const getCurrentComponent = useCallback(() => {
     if (rampState?.ramp?.currentPhase === 'complete') {
@@ -30,18 +29,9 @@ export const useRampNavigation = (
     return formComponent;
   }, [rampState, formComponent, successComponent, failureComponent, rampStarted, progressComponent]);
 
-  const shouldShowKycForm = useCallback(() => {
-    return offrampKycStarted;
-  }, [offrampKycStarted]);
-
-  const getTransactionId = useCallback(() => {
-    return rampState?.ramp?.id;
-  }, [rampState]);
-
   return {
     getCurrentComponent,
-    shouldShowKycForm,
-    transactionId: getTransactionId(),
+    transactionId: rampState?.ramp?.id,
     currentPhase: rampState?.ramp?.currentPhase,
   };
 };
