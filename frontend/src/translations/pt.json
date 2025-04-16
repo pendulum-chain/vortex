@@ -33,7 +33,7 @@
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
-      "squidrouterApprove": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
+      "squidrouterSwap": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
       "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "brlaTeleport": "Transferindo ativos recém-criados para Moonbeam"
     },
