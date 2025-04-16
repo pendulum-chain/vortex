@@ -1,14 +1,15 @@
-import { FC, useState, useEffect } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import {
-  getOnChainTokenDetailsOrDefault,
-  getAnyFiatTokenDetails,
-  OnChainTokenDetails,
   BaseFiatTokenDetails,
-  isStellarOutputTokenDetails,
   FiatTokenDetails,
+  getAddressForFormat,
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  isStellarOutputTokenDetails,
+  OnChainTokenDetails,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useRampState } from '../../stores/rampStore';
@@ -19,6 +20,9 @@ import { AssetDisplay } from './AssetDisplay';
 import { FeeDetails } from './FeeDetails';
 import { BRLOnrampDetails } from './BRLOnrampDetails';
 import { useNetwork } from '../../contexts/network';
+import { useAssetHubNode } from '../../contexts/polkadotNode';
+import { trimAddress } from '../../helpers/addressFormatter';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
 
 // Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
 const ONRAMP_EXPIRY_MINUTES = 5;
@@ -38,6 +42,9 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   const rampState = useRampState();
 
   const { selectedNetwork } = useNetwork();
+  const { apiComponents } = useAssetHubNode();
+  const { address, chainId } = useVortexAccount();
+
   const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
   const { setIsQuoteExpired } = useRampSummaryActions();
@@ -113,6 +120,12 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
     ? (fromToken as BaseFiatTokenDetails).fiat.symbol
     : (toToken as BaseFiatTokenDetails).fiat.symbol;
 
+  const destinationAddress = isOnramp
+    ? chainId && chainId > 0
+      ? trimAddress(address || '')
+      : trimAddress(getAddressForFormat(address || '', apiComponents ? apiComponents.ss58Format : 42))
+    : undefined;
+
   return (
     <div className="flex flex-col justify-center">
       <AssetDisplay
@@ -143,6 +156,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
         network={selectedNetwork}
         feesCost={executionInput.quote.fee}
         direction={rampDirection}
+        destinationAddress={destinationAddress}
       />
       <BRLOnrampDetails />
       {targetTimestamp !== null && (
