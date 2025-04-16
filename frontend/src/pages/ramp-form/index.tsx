@@ -20,19 +20,23 @@ export const RampForm = () => {
       <PoolSelectorModal />
       <RampSummaryDialog />
       <SigningBox />
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
-      >
-        <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
+      {offrampKycStarted ? (
+        <PIXKYCForm />
+      ) : (
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
+        >
+          <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
 
-        {offrampKycStarted ? <PIXKYCForm /> : activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
+          {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
 
-        <div className="mb-16" />
-        <PoweredBy />
-      </motion.div>
+          <div className="mb-16" />
+          <PoweredBy />
+        </motion.div>
+      )}
     </main>
   );
 };

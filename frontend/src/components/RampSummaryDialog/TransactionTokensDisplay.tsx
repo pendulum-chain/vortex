@@ -9,7 +9,6 @@ import {
   BaseFiatTokenDetails,
   isStellarOutputTokenDetails,
   FiatTokenDetails,
-  Networks,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useRampState } from '../../stores/rampStore';
@@ -19,6 +18,7 @@ import { useRampSummaryActions } from '../../stores/rampSummary';
 import { AssetDisplay } from './AssetDisplay';
 import { FeeDetails } from './FeeDetails';
 import { BRLOnrampDetails } from './BRLOnrampDetails';
+import { useNetwork } from '../../contexts/network';
 
 // Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
 const ONRAMP_EXPIRY_MINUTES = 5;
@@ -26,18 +26,18 @@ const ONRAMP_EXPIRY_MINUTES = 5;
 interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
   isOnramp: boolean;
-  selectedNetwork: Networks;
   rampDirection: RampDirection;
 }
 
 export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   executionInput,
   isOnramp,
-  selectedNetwork,
   rampDirection,
 }) => {
   const { t } = useTranslation();
   const rampState = useRampState();
+
+  const { selectedNetwork } = useNetwork();
   const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
   const { setIsQuoteExpired } = useRampSummaryActions();
