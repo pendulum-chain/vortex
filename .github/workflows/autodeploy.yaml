@@ -3,7 +3,7 @@ run-name: Gitlab Pipeline Executor
 on:
   push:
     branches:
-      - backend-migration-with-cline
+      - staging
 jobs:
   Execute-Gitlab-Pipeline:
     runs-on: ubuntu-latest
