@@ -38,13 +38,19 @@
       "brlaTeleport": "Transferring newly minted assets to Moonbeam"
     },
     "success": {
-      "title": "All set! The withdrawal has been sent to your bank.",
+      "title": {
+        "buy": "All set! Your tokens are on their way.",
+        "sell": "All set! The withdrawal has been sent to your bank."
+      },
       "returnHome": "Return Home",
       "arrivalText": {
-        "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
-        "ARS": "Your funds will arrive in your bank account in a few minutes.",
-        "BRL": "Your funds were sent via PIX and are now in your bank account.",
-        "default": "Your funds will arrive in your bank account soon."
+        "buy": "The tokens will arrive in your wallet in a few minutes.",
+        "sell": {
+          "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
+          "ARS": "Your funds will arrive in your bank account in a few minutes.",
+          "BRL": "Your funds were sent via PIX and are now in your bank account.",
+          "default": "Your funds will arrive in your bank account soon."
+        }
       }
     },
     "swap": {
