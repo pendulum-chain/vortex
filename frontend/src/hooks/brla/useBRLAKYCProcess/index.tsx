@@ -60,6 +60,7 @@ export function useKYCProcess() {
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
+  const { setRampSummaryVisible } = useRampActions();
   const taxId = useTaxId();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -95,9 +96,10 @@ export function useKYCProcess() {
     ],
   );
 
-  // const proceedWithOfframp = useOfframpSubmission(handleError);
-  // FIXME
-  const proceedWithOfframp = useCallback(() => undefined, []);
+  const proceedWithRamp = useCallback(() => {
+    setRampKycStarted(false);
+    setRampSummaryVisible(true);
+  }, [setRampSummaryVisible, setRampKycStarted]);
 
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {
@@ -117,7 +119,7 @@ export function useKYCProcess() {
       };
 
       try {
-        console.log('Calling createSubaccount ');
+        console.log('Calling createSubaccount');
         await createSubaccount({
           ...formData,
           cpf: taxId,
@@ -147,7 +149,7 @@ export function useKYCProcess() {
           await delay(SUCCESS_DISPLAY_DURATION_MS);
           setIsSubmitted(false);
           setRampKycStarted(false);
-          proceedWithOfframp();
+          proceedWithRamp();
         },
         [KycStatus.REJECTED]: async () => {
           updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.REJECTED);
@@ -172,7 +174,7 @@ export function useKYCProcess() {
   }, [
     kycResponse,
     handleBackClick,
-    proceedWithOfframp,
+    proceedWithRamp,
     updateStatus,
     resetToDefault,
     setRampKycStarted,

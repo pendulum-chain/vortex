@@ -43,12 +43,7 @@ export const RampSummaryDialog: FC = () => {
 
   const actions = <RampSummaryButton />;
   const content = (
-    <TransactionTokensDisplay
-      executionInput={executionInput}
-      isOnramp={isOnramp}
-      selectedNetwork={selectedNetwork}
-      rampDirection={rampDirection}
-    />
+    <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampDirection} />
   );
 
   return <Dialog content={content} visible={visible} actions={actions} headerText={headerText} onClose={onClose} />;

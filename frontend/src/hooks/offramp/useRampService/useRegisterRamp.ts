@@ -11,7 +11,7 @@ import {
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { RampExecutionInput } from '../../../types/phases';
 import { useAnchorWindowHandler } from '../useSEP24/useAnchorWindowHandler';
-import { useSubmitOfframp } from '../useSubmitOfframp';
+import { useSubmitRamp } from '../useSubmitRamp';
 
 const REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey';
 const START_KEY_LOCAL_STORAGE = 'rampStartKey';
@@ -64,6 +64,7 @@ export const useRegisterRamp = () => {
     rampState,
     rampStarted,
     canRegisterRamp,
+    rampKycStarted,
     actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp },
   } = useRampStore();
 
@@ -75,7 +76,7 @@ export const useRegisterRamp = () => {
   const { walletAccount: substrateWalletAccount } = usePolkadotWalletState();
 
   const executionInput = useRampExecutionInput();
-  const prepareOfframpSubmission = useSubmitOfframp();
+  const prepareRampSubmission = useSubmitRamp();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
 
   // TODO if user declined signing, do something
@@ -84,7 +85,7 @@ export const useRegisterRamp = () => {
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
   const registerRamp = async (executionInput: RampExecutionInput) => {
-    prepareOfframpSubmission(executionInput);
+    prepareRampSubmission(executionInput);
 
     // For Stellar offramps, we need to prepare something in advance
     // Calling this function will result in eventually having the necessary prerequisites set
@@ -117,6 +118,10 @@ export const useRegisterRamp = () => {
     const { processRef } = lockResult;
 
     const registerRampProcess = async () => {
+      if (rampKycStarted) {
+        throw new Error('KYC is not valid yet');
+      }
+
       if (!canRegisterRamp) {
         throw new Error('Cannot proceed with ramp registration, canRegisterRamp is false');
       }
@@ -220,6 +225,7 @@ export const useRegisterRamp = () => {
       });
   }, [
     address,
+
     canRegisterRamp,
     chainId,
     checkLock,
@@ -230,6 +236,7 @@ export const useRegisterRamp = () => {
     setRampRegistered,
     setRampState,
     verifyLock,
+    rampKycStarted,
   ]);
 
   // Create a process lock for the signing process

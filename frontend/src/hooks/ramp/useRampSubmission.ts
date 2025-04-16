@@ -35,7 +35,7 @@ export const useRampSubmission = () => {
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const rampDirection = useRampDirection();
-  const { setRampExecutionInput, setRampSummaryVisible, setRampInitiating, resetRampState } = useRampActions();
+  const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
   const { registerRamp } = useRegisterRamp();
   useStartRamp(); // This will automatically start the ramp process when the conditions are met
 
@@ -118,7 +118,6 @@ export const useRampSubmission = () => {
     try {
       const executionInput = prepareExecutionInput();
       setRampExecutionInput(executionInput);
-      setRampSummaryVisible(true);
 
       await registerRamp(executionInput);
       trackTransaction();
@@ -131,7 +130,6 @@ export const useRampSubmission = () => {
     executionPreparing,
     prepareExecutionInput,
     setRampExecutionInput,
-    setRampSummaryVisible,
     trackTransaction,
     registerRamp,
     handleSubmissionError,

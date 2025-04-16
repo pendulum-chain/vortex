@@ -9,7 +9,6 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isStellarOutputTokenDetails,
-  Networks,
   OnChainTokenDetails,
 } from 'shared';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
@@ -23,6 +22,7 @@ import { BRLOnrampDetails } from './BRLOnrampDetails';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
 import { trimAddress } from '../../helpers/addressFormatter';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useNetwork } from '../../contexts/network';
 
 // Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
 const ONRAMP_EXPIRY_MINUTES = 5;
@@ -30,20 +30,19 @@ const ONRAMP_EXPIRY_MINUTES = 5;
 interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
   isOnramp: boolean;
-  selectedNetwork: Networks;
   rampDirection: RampDirection;
 }
 
 export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   executionInput,
   isOnramp,
-  selectedNetwork,
   rampDirection,
 }) => {
   const { t } = useTranslation();
   const rampState = useRampState();
   const { apiComponents } = useAssetHubNode();
   const { address, chainId } = useVortexAccount();
+  const { selectedNetwork } = useNetwork();
 
   const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
