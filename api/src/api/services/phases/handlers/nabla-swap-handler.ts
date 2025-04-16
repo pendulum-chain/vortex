@@ -9,6 +9,7 @@ import { ApiManager } from '../../pendulum/apiManager';
 import { routerAbi } from '../../../../contracts/Router';
 import { defaultReadLimits } from '../../../helpers/contracts';
 import { StateMetadata } from '../meta-state-types';
+import logger from '../../../../config/logger';
 
 export class NablaSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -41,7 +42,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     try {
       const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, 'nablaSwap');
 
-      console.log('before RESPONSE prepareNablaSwapTransaction');
+      logger.info('before RESPONSE prepareNablaSwapTransaction');
       // get an up to date quote for the AMM
       const response = await readMessage({
         abi: new Abi(routerAbi),
@@ -64,7 +65,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
       const ouputAmountQuoteRaw = Big(response.value[0].toString());
       if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
-        console.log(
+        logger.info(
           `The estimated output amount is too low to swap. Expected: ${nablaSoftMinimumOutputRaw}, got: ${ouputAmountQuoteRaw}`,
         );
         throw new Error("Won't execute the swap now. The estimated output amount is too low.");
@@ -74,7 +75,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const result = await submitExtrinsic(swapExtrinsic);
 
       if (result.status.type === 'error') {
-        console.log(`Could not swap token: ${result.status.error.toString()}`);
+        logger.error(`Could not swap token: ${result.status.error.toString()}`);
         throw new Error('Could not swap token');
       }
     } catch (e) {

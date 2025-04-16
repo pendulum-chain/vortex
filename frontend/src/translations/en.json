@@ -33,18 +33,24 @@
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
-      "squidrouterApprove": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
+      "squidrouterSwap": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
       "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "brlaTeleport": "Transferring newly minted assets to Moonbeam"
     },
     "success": {
-      "title": "All set! The withdrawal has been sent to your bank.",
+      "title": {
+        "buy": "All set! Your tokens are on their way.",
+        "sell": "All set! The withdrawal has been sent to your bank."
+      },
       "returnHome": "Return Home",
       "arrivalText": {
-        "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
-        "ARS": "Your funds will arrive in your bank account in a few minutes.",
-        "BRL": "Your funds were sent via PIX and are now in your bank account.",
-        "default": "Your funds will arrive in your bank account soon."
+        "buy": "The tokens will arrive in your wallet in a few minutes.",
+        "sell": {
+          "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
+          "ARS": "Your funds will arrive in your bank account in a few minutes.",
+          "BRL": "Your funds were sent via PIX and are now in your bank account.",
+          "default": "Your funds will arrive in your bank account soon."
+        }
       }
     },
     "swap": {
@@ -56,8 +62,14 @@
           "noApi": "No API found."
         },
         "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
-        "moreThanMaximumWithdrawal": "Maximum withdrawal amount is {{maxAmountUnits}} {{assetSymbol}}.",
-        "lessThanMinimumWithdrawal": "Minimum withdrawal amount is {{minAmountUnits}} {{assetSymbol}}.",
+        "moreThanMaximumWithdrawal": {
+          "buy": "Maximum buy amount is {{maxAmountUnits}} {{assetSymbol}}.",
+          "sell": "Maximum sell amount is {{maxAmountUnits}} {{assetSymbol}}."
+        },
+        "lessThanMinimumWithdrawal": {
+          "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
+          "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
+        },
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount."
       },
       "developedBy": "Developed by"
@@ -181,13 +193,14 @@
       "placeholder": "Search"
     },
     "dialogs": {
-      "OfframpSummaryDialog": {
+      "RampSummaryDialog": {
         "BRLOnrampDetails": {
           "title": "Pay with Pix",
           "description": "Continue in your bank's app",
           "qrCode": "Select Pix in your bank's app and scan the QR code below.",
           "copyCode": "Or copy the Pix code below, select Pix in your bank's app and paste the code provided.",
-          "pixCode": "Pix code"
+          "pixCode": "Pix code",
+          "timerLabel": "Quote expires in:"
         },
         "headerText": {
           "buy": "You're buying",
@@ -197,10 +210,12 @@
         "onrampFee": "Onramp fee",
         "continueWithPartner": "Continue with Partner",
         "continueOnPartnersPage": "Continue on Partner's page",
+        "quoteExpired": "Quote expired. Please close the dialog and try again.",
         "processing": "Processing",
         "continue": "Continue",
         "quote": "Quote",
-        "partner": "Partner"
+        "partner": "Partner",
+        "confirm": "Confirm"
       },
       "selectionModal": {
         "title": "Select a token",
@@ -253,7 +268,9 @@
         "pixId": {
           "required": "PIX key is required when transferring BRL",
           "format": "PIX key does not match any of the valid formats"
-        }
+        },
+        "calculatingQuote": "Calculating quote...",
+        "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub."
       }
     },
     "benefitsList": {
@@ -262,7 +279,8 @@
     },
     "brlaSwapField": {
       "placeholder": "Enter your {{label}}",
-      "disclaimer": "CPF and Pix key need to belong to the <1>same person</1>."
+      "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
+      "disclaimerOnramp": "CPF must belong to <1>you</1>."
     },
     "swapSubmitButton": {
       "confirming": "Confirming",

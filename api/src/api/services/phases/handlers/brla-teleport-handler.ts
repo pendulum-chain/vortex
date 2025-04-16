@@ -7,6 +7,7 @@ import { BasePhaseHandler } from '../base-phase-handler';
 import { BrlaApiService } from '../../brla/brlaApiService';
 import { checkMoonbeamBalancePeriodically } from '../../moonbeam/balance';
 import { BrlaTeleportService } from '../../brla/brlaTeleportService';
+import logger from '../../../../config/logger';
 
 export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -30,7 +31,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       if (!subaccount) {
         throw new Error('Subaccount not found');
       }
-      console.log('Requesting teleport:', subaccount.id, inputAmountBrla, moonbeamEphemeralAddress);
+      logger.info('Requesting teleport:', subaccount.id, inputAmountBrla, moonbeamEphemeralAddress);
       const teleportService = BrlaTeleportService.getInstance();
       await teleportService.requestTeleport(
         subaccount.id,
@@ -62,7 +63,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         if (balanceCheckError.message === 'Balance did not meet the limit within the specified time') {
           throw new Error(`BrlaTeleportPhaseHandler: balanceCheckError ${balanceCheckError.message}`);
         } else {
-          console.log('Error checking Moonbeam balance:', balanceCheckError);
+          logger.error('Error checking Moonbeam balance:', balanceCheckError);
           throw new Error(`BrlaTeleportPhaseHandler: Error checking Moonbeam balance`);
         }
       }

@@ -2,7 +2,7 @@ import { FC, useCallback } from 'react';
 import Big from 'big.js';
 import { useEventsContext } from '../../contexts/events';
 import { useFeeComparisonStore } from '../../stores/feeComparison';
-import { useRampSummaryVisible } from '../../stores/offrampStore';
+import { useRampSummaryVisible } from '../../stores/rampStore';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp/useRampFormStore';
@@ -20,7 +20,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
-  const isOfframpSummaryDialogVisible = useRampSummaryVisible();
+  const isRampSummaryDialogVisible = useRampSummaryVisible();
   const inputAmount = useInputAmount();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
@@ -45,14 +45,14 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   );
 
   const getButtonState = (): string => {
-    if (isOfframpSummaryDialogVisible) {
+    if (isRampSummaryDialogVisible) {
       return t('components.swapSubmitButton.processing');
     }
     return t('components.swapSubmitButton.confirm');
   };
 
   const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
-  const isSubmitButtonPending = isOfframpSummaryDialogVisible;
+  const isSubmitButtonPending = isRampSummaryDialogVisible;
 
   return (
     <div className="flex gap-3 mt-5">

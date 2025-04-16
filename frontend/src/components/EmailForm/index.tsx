@@ -25,7 +25,7 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
   } = useMutation({
     mutationFn: async (data: { email: string; transactionId: string }) => {
       return EmailService.storeEmail(data.email, data.transactionId);
-    }
+    },
   });
 
   const onSubmit = handleSubmit((data) => {
@@ -57,11 +57,14 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
     return (
       <>
-        <div className="flex items-center px-4 md:px-8 mt-2">
+        <div className="flex items-center mt-2">
           <div className="mr-3 grow">
             <TextInput type="email" placeholder="example@mail.com" register={register('email')} />
           </div>
-          <button className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition-colors" type="submit">
+          <button
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition-colors"
+            type="submit"
+          >
             {t('components.emailForm.submit')}
           </button>
         </div>
@@ -76,10 +79,15 @@ export const EmailForm = ({ transactionId, transactionSuccess }: EmailFormProps)
 
   return (
     <form className="w-full" onSubmit={onSubmit} aria-errormessage={isError ? 'request-error-message' : undefined}>
-      <div className="mb-4 px-4 md:px-8">
-        <p className="font-bold text-blue-700 mb-2">{t('components.emailForm.title')}</p>
-        <p className="font-light text-blue-700 leading-relaxed mb-1">{t('components.emailForm.description')}</p>
-        <p className="font-light text-blue-700 leading-relaxed text-sm">{t('components.emailForm.noNewslettersNoSpam')}</p>
+      <div className="mb-4">
+        <p className="font-bold text-gray-700 mb-2">{t('components.emailForm.title')}</p>{' '}
+        {/* Changed text-blue-700 to text-gray-700 */}
+        <p className="font-light text-gray-700 leading-relaxed mb-1">{t('components.emailForm.description')}</p>{' '}
+        {/* Changed text-blue-700 to text-gray-700 */}
+        <p className="font-light text-gray-700 leading-relaxed text-sm">
+          {t('components.emailForm.noNewslettersNoSpam')}
+        </p>{' '}
+        {/* Changed text-blue-700 to text-gray-700 */}
       </div>
       <FormButtonSection />
     </form>

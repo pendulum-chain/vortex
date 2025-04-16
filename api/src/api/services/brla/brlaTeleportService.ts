@@ -1,6 +1,7 @@
 import { BrlaApiService } from './brlaApiService';
 import { FastQuoteQueryParams, BrlaSupportedChain, OnchainLog, SmartContractOperationType } from './types';
 import { verifyReferenceLabel } from './helpers';
+import logger from '../../../config/logger';
 
 // This service is used to request and keep tracks of teleports (transfers) from BRLA's
 // controlled accounts.
@@ -60,7 +61,7 @@ export class BrlaTeleportService {
       status: 'claimed',
       receiverAddress,
     };
-    console.log('Requesting teleport:', teleport);
+    logger.info('Requesting teleport:', teleport);
     this.teleports.set(subaccountId, teleport);
     this.maybeStartPeriodicChecks();
   }
@@ -77,7 +78,7 @@ export class BrlaTeleportService {
       throw new Error('Teleport not in arrived state.');
     }
 
-    console.log('Starting teleport:', teleport);
+    logger.info('Starting teleport:', teleport);
     const fastQuoteParams: FastQuoteQueryParams = {
       subaccountId: teleport.subaccountId,
       operation: 'swap',
@@ -101,7 +102,7 @@ export class BrlaTeleportService {
 
       this.maybeStartPeriodicChecks();
     } catch (e) {
-      console.log('Error starting teleport:', e);
+      logger.error('Error starting teleport:', e);
       this.teleports.set(subaccountId, { ...teleport, status: 'failed' });
     }
   }
@@ -141,7 +142,7 @@ export class BrlaTeleportService {
 
         if (lastContractOp.operationName === SmartContractOperationType.MINT && lastContractOp.executed === true) {
           this.completedTeleports.set(subaccountId, { ...teleport, status: 'completed' });
-          console.log('Teleport completed:', teleport);
+          logger.info('Teleport completed:', teleport);
           this.teleports.delete(subaccountId);
         }
       }

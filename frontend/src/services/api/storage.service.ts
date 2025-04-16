@@ -12,9 +12,7 @@ export class StorageService {
    * @param request The storage request data
    * @returns Success message
    */
-  static async storeData(
-    request: StorageEndpoints.StoreDataRequest,
-  ): Promise<StorageEndpoints.StoreDataResponse> {
+  static async storeData(request: StorageEndpoints.StoreDataRequest): Promise<StorageEndpoints.StoreDataResponse> {
     return apiRequest<StorageEndpoints.StoreDataResponse>('post', `${this.BASE_PATH}/create`, request);
   }
 

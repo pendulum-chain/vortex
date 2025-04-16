@@ -8,66 +8,16 @@ import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { isNetworkEVM, RampPhase } from 'shared';
 import { GotQuestions } from '../../sections';
-import { useRampActions, useRampState, useRampStore } from '../../stores/offrampStore';
+import { useRampActions, useRampState, useRampStore } from '../../stores/rampStore';
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
 import { config } from '../../config';
-
-const useProgressUpdate = (
-  currentPhase: RampPhase,
-  currentPhaseIndex: number,
-  rampPhaseRecords: Record<RampPhase, number>,
-  displayedPercentage: number,
-  setDisplayedPercentage: (value: (prev: number) => number) => void,
-  setShowCheckmark: (value: boolean) => void,
-) => {
-  const phaseStartTime = useRef(Date.now());
-  const phaseStartPercentage = useRef(displayedPercentage);
-  const numberOfPhases = Object.keys(rampPhaseRecords).length;
-
-  useEffect(() => {
-    const targetPercentage = Math.round((100 / numberOfPhases) * (currentPhaseIndex + 1));
-    const duration = rampPhaseRecords[currentPhase] * 1000;
-
-    phaseStartTime.current = Date.now();
-    phaseStartPercentage.current = displayedPercentage;
-
-    const progressUpdateInterval = setInterval(() => {
-      const elapsedTime = Date.now() - phaseStartTime.current;
-      const timeRatio = Math.min(1, elapsedTime / duration);
-
-      const newPercentage = Math.round(
-        phaseStartPercentage.current + (targetPercentage - phaseStartPercentage.current) * timeRatio,
-      );
-
-      setDisplayedPercentage(() => {
-        if (timeRatio === 1) {
-          clearInterval(progressUpdateInterval);
-          if (currentPhaseIndex === numberOfPhases - 1) {
-            setShowCheckmark(true);
-          }
-        }
-        return newPercentage;
-      });
-    }, 100);
-
-    return () => clearInterval(progressUpdateInterval);
-  }, [
-    currentPhase,
-    currentPhaseIndex,
-    displayedPercentage,
-    numberOfPhases,
-    rampPhaseRecords,
-    setDisplayedPercentage,
-    setShowCheckmark,
-  ]);
-};
 
 // The order of the phases is important for the progress bar.
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   initial: 0,
   fundEphemeral: 20,
-  brlaTeleport: 30,
+  brlaTeleport: 90,
   moonbeamToPendulumXcm: 30,
   subsidizePreSwap: 24,
   nablaApprove: 24,
@@ -117,6 +67,60 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   pendulumToMoonbeam: 40,
   brlaPayoutOnMoonbeam: 120,
   stellarCreateAccount: 10,
+};
+
+// This constant is used to denote how many of the phases are relevant for the progress bar.
+// Not all phases are relevant for the progress bar, so we need to exclude some.
+const RELEVANT_PHASES_COUNT = 12;
+
+const useProgressUpdate = (
+  currentPhase: RampPhase,
+  currentPhaseIndex: number,
+  rampPhaseRecords: Record<RampPhase, number>,
+  displayedPercentage: number,
+  setDisplayedPercentage: (value: (prev: number) => number) => void,
+  setShowCheckmark: (value: boolean) => void,
+) => {
+  const phaseStartTime = useRef(Date.now());
+  const phaseStartPercentage = useRef(displayedPercentage);
+  const numberOfPhases = RELEVANT_PHASES_COUNT;
+
+  useEffect(() => {
+    const targetPercentage = Math.round((100 / numberOfPhases) * (currentPhaseIndex + 1));
+    const duration = rampPhaseRecords[currentPhase] * 1000;
+
+    phaseStartTime.current = Date.now();
+    phaseStartPercentage.current = displayedPercentage;
+
+    const progressUpdateInterval = setInterval(() => {
+      const elapsedTime = Date.now() - phaseStartTime.current;
+      const timeRatio = Math.min(1, elapsedTime / duration);
+
+      const newPercentage = Math.round(
+        phaseStartPercentage.current + (targetPercentage - phaseStartPercentage.current) * timeRatio,
+      );
+
+      setDisplayedPercentage(() => {
+        if (timeRatio === 1) {
+          clearInterval(progressUpdateInterval);
+          if (currentPhaseIndex === numberOfPhases - 1) {
+            setShowCheckmark(true);
+          }
+        }
+        return newPercentage;
+      });
+    }, 100);
+
+    return () => clearInterval(progressUpdateInterval);
+  }, [
+    currentPhase,
+    currentPhaseIndex,
+    displayedPercentage,
+    numberOfPhases,
+    rampPhaseRecords,
+    setDisplayedPercentage,
+    setShowCheckmark,
+  ]);
 };
 
 const CIRCLE_RADIUS = 80;

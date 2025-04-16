@@ -24,8 +24,6 @@ export function hexToString(hexString: string) {
   return asBuffer.toString('utf8');
 }
 
-
-
 export function getAddressForFormat(address: string, ss58Format: number | string) {
   if (typeof ss58Format === 'string') {
     ss58Format = parseInt(ss58Format, 10);
@@ -36,11 +34,13 @@ export function getAddressForFormat(address: string, ss58Format: number | string
   return encodedAddress;
 }
 
-
 export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
   return extrinsic.toHex();
 }
 
-export function decodeSubmittableExtrinsic(encodedExtrinsic: string, api: ApiPromise): SubmittableExtrinsic<"promise", ISubmittableResult> {
+export function decodeSubmittableExtrinsic(
+  encodedExtrinsic: string,
+  api: ApiPromise,
+): SubmittableExtrinsic<'promise', ISubmittableResult> {
   return api.tx(encodedExtrinsic);
 }

@@ -12,6 +12,7 @@ import {
   defaultWriteLimits,
   parseContractBalanceResponse,
 } from '../../../helpers/contracts';
+import logger from '../../../../config/logger';
 
 export interface PrepareNablaApproveParams {
   inputTokenDetails: PendulumDetails;
@@ -37,7 +38,7 @@ async function createApproveExtrinsic({
   contractAbi,
   callerAddress,
 }: CreateApproveExtrinsicOptions) {
-  console.log('write', `call approve ${token} for ${spender} with amount ${amount} `);
+  logger.info('write', `call approve ${token} for ${spender} with amount ${amount} `);
 
   const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
     abi: contractAbi,
@@ -82,7 +83,7 @@ export async function prepareNablaApproveTransaction({
 
   if (response.type !== 'success') {
     const message = 'Could not load token allowance';
-    console.log(message);
+    logger.info(message);
     throw new Error(message);
   }
 
@@ -91,7 +92,7 @@ export async function prepareNablaApproveTransaction({
   // maybe do allowance
   if (currentAllowance === undefined || currentAllowance.rawBalance.lt(Big(amountRaw))) {
     try {
-      console.log(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol}`);
+      logger.info(`Preparing transaction to approve tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol}`);
       return createApproveExtrinsic({
         api,
         amount: amountRaw,
@@ -101,7 +102,7 @@ export async function prepareNablaApproveTransaction({
         callerAddress: pendulumEphemeralAddress,
       });
     } catch (e) {
-      console.log(`Could not approve token: ${e}`);
+      logger.info(`Could not approve token: ${e}`);
       return Promise.reject('Could not approve token');
     }
   }

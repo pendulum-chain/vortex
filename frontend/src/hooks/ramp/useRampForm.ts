@@ -55,7 +55,7 @@ export const useRampForm = (): {
       }
       return token;
     },
-    [direction]
+    [direction],
   );
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export const useRampForm = (): {
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
       if (name === 'inputAmount' && values.inputAmount !== undefined) {
-        setInputAmount(values.inputAmount || '0' );
+        setInputAmount(values.inputAmount || '0');
       } else if (name === 'taxId' && values.taxId !== undefined) {
         setTaxId(values.taxId);
       } else if (name === 'pixId' && values.pixId !== undefined) {

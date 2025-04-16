@@ -13,10 +13,7 @@ export class RatingService {
    * @param walletAddress The user's wallet address
    * @returns Success message
    */
-  static async storeRating(
-    rating: number,
-    walletAddress: string,
-  ): Promise<RatingEndpoints.StoreRatingResponse> {
+  static async storeRating(rating: number, walletAddress: string): Promise<RatingEndpoints.StoreRatingResponse> {
     const request: RatingEndpoints.StoreRatingRequest = {
       timestamp: new Date().toISOString(),
       rating,

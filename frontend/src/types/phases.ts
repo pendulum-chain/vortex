@@ -42,6 +42,7 @@ export interface RampZustand {
   rampPaymentConfirmed: boolean;
   initializeFailedMessage: string | undefined;
   rampSummaryVisible: boolean;
+  canRegisterRamp: boolean;
 }
 
 export interface RampActions {
@@ -57,4 +58,5 @@ export interface RampActions {
   setRampSummaryVisible: (visible: boolean) => void;
   clearInitializeFailedMessage: () => void;
   resetRampState: () => void;
+  setCanRegisterRamp: (canRegister: boolean) => void;
 }

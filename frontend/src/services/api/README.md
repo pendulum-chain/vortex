@@ -1,6 +1,7 @@
 # API Services
 
-This directory contains type-safe service classes for interacting with the backend API endpoints. Each service corresponds to a specific domain of the API and provides methods for making requests to the endpoints.
+This directory contains type-safe service classes for interacting with the backend API endpoints. Each service
+corresponds to a specific domain of the API and provides methods for making requests to the endpoints.
 
 ## Structure
 
@@ -39,11 +40,13 @@ const getUserInfo = async (taxId: string) => {
 
 ## Type Safety
 
-All services use TypeScript interfaces from the `shared` module to ensure type safety between the frontend and backend. The request and response types are defined in the `shared/src/endpoints` directory.
+All services use TypeScript interfaces from the `shared` module to ensure type safety between the frontend and backend.
+The request and response types are defined in the `shared/src/endpoints` directory.
 
 ## Error Handling
 
-The base API client includes error handling that formats error messages from the backend. You can also use the `handleApiError` function for custom error handling:
+The base API client includes error handling that formats error messages from the backend. You can also use the
+`handleApiError` function for custom error handling:
 
 ```typescript
 import { handleApiError } from 'services/api';
@@ -58,9 +61,11 @@ try {
 
 ## Migrating from Legacy Code
 
-The legacy API functions in `services/backend.ts` are now deprecated and will be removed in a future release. Use the new service classes instead.
+The legacy API functions in `services/backend.ts` are now deprecated and will be removed in a future release. Use the
+new service classes instead.
 
 Legacy code:
+
 ```typescript
 import { requestRampQuote } from 'services/backend';
 
@@ -75,14 +80,9 @@ const quote = await requestRampQuote({
 ```
 
 New code:
+
 ```typescript
 import { QuoteService } from 'services/api';
 
-const quote = await QuoteService.createQuote(
-  'on',
-  'fiat',
-  'blockchain',
-  '100',
-  'brl',
-  'usdc'
-);
+const quote = await QuoteService.createQuote('on', 'fiat', 'blockchain', '100', 'brl', 'usdc');
+```

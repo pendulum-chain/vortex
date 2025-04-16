@@ -4,9 +4,9 @@ export namespace PriceEndpoints {
   export const VALID_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
   export const VALID_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
 
-  export type Provider = typeof VALID_PROVIDERS[number];
-  export type CryptoCurrency = typeof VALID_CRYPTO_CURRENCIES[number];
-  export type FiatCurrency = typeof VALID_FIAT_CURRENCIES[number];
+  export type Provider = (typeof VALID_PROVIDERS)[number];
+  export type CryptoCurrency = (typeof VALID_CRYPTO_CURRENCIES)[number];
+  export type FiatCurrency = (typeof VALID_FIAT_CURRENCIES)[number];
 
   // Validation functions
   export const isValidProvider = (value: unknown): value is Provider =>

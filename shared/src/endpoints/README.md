@@ -1,10 +1,12 @@
 # API Endpoint Type Declarations
 
-This directory contains TypeScript type declarations for the API endpoints in the Pendulum Pay backend. These types are shared between the frontend and backend to ensure type safety and consistency.
+This directory contains TypeScript type declarations for the API endpoints in the Pendulum Pay backend. These types are
+shared between the frontend and backend to ensure type safety and consistency.
 
 ## Structure
 
-Each file in this directory corresponds to a specific domain of the API and contains type declarations for the request and response objects of the endpoints in that domain:
+Each file in this directory corresponds to a specific domain of the API and contains type declarations for the request
+and response objects of the endpoints in that domain:
 
 - `brla.endpoints.ts`: BRLA-related endpoints
 - `email.endpoints.ts`: Email storage endpoints
@@ -23,7 +25,8 @@ Each file in this directory corresponds to a specific domain of the API and cont
 
 ### Backend
 
-In the backend, you can use these types to ensure that your controllers and services are handling the correct request and response types:
+In the backend, you can use these types to ensure that your controllers and services are handling the correct request
+and response types:
 
 ```typescript
 import { Request, Response } from 'express';
@@ -31,7 +34,7 @@ import { BrlaEndpoints } from 'shared';
 
 export const getBrlaUser = async (
   req: Request<{}, {}, {}, BrlaEndpoints.GetUserRequest>,
-  res: Response<BrlaEndpoints.GetUserResponse>
+  res: Response<BrlaEndpoints.GetUserResponse>,
 ): Promise<void> => {
   // Implementation
 };
@@ -39,7 +42,8 @@ export const getBrlaUser = async (
 
 ### Frontend
 
-In the frontend, you can use these types to ensure that your API calls are sending the correct request data and handling the response data correctly:
+In the frontend, you can use these types to ensure that your API calls are sending the correct request data and handling
+the response data correctly:
 
 ```typescript
 import { BrlaEndpoints } from 'shared';
@@ -56,7 +60,8 @@ export class BrlaService {
 
 ## Type Declarations
 
-Each endpoint has its own request and response type declarations. For example, the BRLA endpoints have the following types:
+Each endpoint has its own request and response type declarations. For example, the BRLA endpoints have the following
+types:
 
 ```typescript
 export namespace BrlaEndpoints {

@@ -1,5 +1,6 @@
 import { Horizon } from 'stellar-sdk';
 import { HORIZON_URL } from '../../../constants/constants';
+import logger from '../../../config/logger';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 
@@ -24,7 +25,7 @@ export async function loadAccountWithRetry(
         // The account does not exist
         return null;
       }
-      console.log(`Attempt ${i + 1} to load account ${ephemeralAccountId} failed: ${err}`);
+      logger.info(`Attempt ${i + 1} to load account ${ephemeralAccountId} failed: ${err}`);
       lastError = err;
     }
   }

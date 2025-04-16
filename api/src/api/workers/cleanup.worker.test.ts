@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-unresolved
 import { describe, expect, it, mock, beforeEach } from 'bun:test';
-import { CleanupWorker } from './cleanup.worker';
+import CleanupWorker from './cleanup.worker';
 import RampState from '../../models/rampState.model';
 
 mock.module('../../config/logger', () => ({

@@ -2,6 +2,7 @@ import { Horizon } from 'stellar-sdk';
 import Big from 'big.js';
 
 import { HORIZON_URL } from '../../../constants/constants';
+import logger from '../../../config/logger';
 
 export function checkBalancePeriodically(
   stellarTargetAccountId: string,
@@ -15,7 +16,7 @@ export function checkBalancePeriodically(
     const intervalId = setInterval(async () => {
       try {
         const someBalanceUnits = await getStellarBalanceUnits(stellarTargetAccountId, stellarAssetCode);
-        console.log(`Balance check: ${someBalanceUnits.toString()} / ${amountDesiredUnitsBig.toString()}`);
+        logger.info(`Balance check: ${someBalanceUnits.toString()} / ${amountDesiredUnitsBig.toString()}`);
 
         if (someBalanceUnits.gte(amountDesiredUnitsBig)) {
           clearInterval(intervalId);
@@ -51,7 +52,7 @@ const getStellarBalanceUnits = async (publicKey: string, assetCode: string): Pro
 
     return new Big(balanceUnits);
   } catch (error) {
-    console.log(error);
+    logger.error(error);
     throw new Error('Error Reading Stellar Balance');
   }
 };

@@ -7,7 +7,7 @@ import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 import { RampSigningPhase } from '../../types/phases';
-import { useRampSigningPhase } from '../../stores/offrampStore';
+import { useRampSigningPhase } from '../../stores/rampStore';
 import { useTranslation } from 'react-i18next';
 
 type ProgressConfig = {

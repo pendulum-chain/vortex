@@ -7,6 +7,7 @@ import { StateMetadata } from '../meta-state-types';
 import { ApiManager } from '../../pendulum/apiManager';
 import { waitUntilTrue } from '../../../helpers/functions';
 import { submitMoonbeamXcm, submitXcm } from '../../xcm/send';
+import logger from '../../../../config/logger';
 
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -55,7 +56,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      console.log('waiting for token to arrive on pendulum...');
+      logger.info('waiting for token to arrive on pendulum...');
       await waitUntilTrue(didInputTokenArrivedOnPendulum, 5000);
     } catch (e) {
       console.error('Error while waiting for transaction receipt:', e);

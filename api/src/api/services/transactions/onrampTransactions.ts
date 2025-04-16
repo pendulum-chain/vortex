@@ -1,5 +1,7 @@
 import {
+  AccountMeta,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
+  encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
@@ -12,8 +14,6 @@ import {
   isOnChainTokenDetails,
   Networks,
   UnsignedTx,
-  AccountMeta,
-  encodeSubmittableExtrinsic,
 } from 'shared';
 import Big from 'big.js';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
@@ -23,7 +23,7 @@ import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
-import { createNablaTransactionsForOnramp, createNablaTransactionsForQuote } from './nabla';
+import { createNablaTransactionsForOnramp } from './nabla';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
 import { StateMetadata } from '../phases/meta-state-types';

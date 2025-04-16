@@ -1,5 +1,6 @@
 import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
 import { BrlaApiService } from './brlaApiService';
+import logger from '../../../config/logger';
 
 type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT' | 'KYC';
 
@@ -97,7 +98,7 @@ export class EventPoller {
     // async acknowledge events
     if (eventsToAcknowledge.length > 0) {
       this.brlaApiService.acknowledgeEvents(eventsToAcknowledge.flatMap((event) => event.id)).catch((error) => {
-        console.log('Poll: Error while acknowledging events: ', error);
+        logger.error('Poll: Error while acknowledging events: ', error);
       });
     }
   }

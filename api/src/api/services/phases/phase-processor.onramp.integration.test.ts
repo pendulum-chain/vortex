@@ -23,13 +23,13 @@ const TAX_ID = process.env.TAX_ID;
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 // This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
-const EVM_DESTINATION_ADDRESS = '0x7ba99e99bc669b3508aff9cc0a898e869459f877'; // Controlled by us, so funds can arrive here during tests.
+const EVM_DESTINATION_ADDRESS = '12mkWe8Lfsk4Qx6EEocvRDpzmA6SQQHBA4Fq3b9T9cyPr7Td'; // Controlled by us, so funds can arrive here during tests.
 
 const TEST_INPUT_AMOUNT = '1';
 const TEST_INPUT_CURRENCY = FiatToken.BRL;
 const TEST_OUTPUT_CURRENCY = EvmToken.USDC;
 
-const QUOTE_TO = 'polygon';
+const QUOTE_TO = 'assethub';
 const QUOTE_FROM = 'pix';
 
 const filePath = path.join(__dirname, 'lastRampStateOnramp.json');
@@ -210,13 +210,13 @@ describe('Onramp PhaseProcessor Integration Test', () => {
 
       // END - MIMIC THE UI
 
-      // const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+      const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
-      // const finalRampState = await waitForCompleteRamp(registeredRamp.id);
+      const finalRampState = await waitForCompleteRamp(registeredRamp.id);
 
-      // // Some sanity checks.
-      // expect(finalRampState.currentPhase).toBe('complete');
-      // expect(finalRampState.phaseHistory.length).toBeGreaterThan(1);
+      // Some sanity checks.
+      expect(finalRampState.currentPhase).toBe('complete');
+      expect(finalRampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
       console.error('Error during test execution:', error);
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));

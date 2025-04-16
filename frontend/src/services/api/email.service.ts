@@ -13,10 +13,7 @@ export class EmailService {
    * @param transactionId The transaction ID
    * @returns Success message
    */
-  static async storeEmail(
-    email: string,
-    transactionId: string,
-  ): Promise<EmailEndpoints.StoreEmailResponse> {
+  static async storeEmail(email: string, transactionId: string): Promise<EmailEndpoints.StoreEmailResponse> {
     const request: EmailEndpoints.StoreEmailRequest = {
       timestamp: new Date().toISOString(),
       email,

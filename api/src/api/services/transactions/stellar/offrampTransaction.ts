@@ -2,6 +2,7 @@ import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, Transactio
 import { FUNDING_SECRET, STELLAR_BASE_FEE, SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../../constants/constants';
 import { StellarTokenDetails, PaymentData, HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from 'shared';
 import Big from 'big.js';
+import logger from '../../../../config/logger';
 
 // Define HorizonServer type
 type HorizonServer = Horizon.Server;
@@ -36,7 +37,7 @@ export async function buildPaymentAndMergeTx({
   const NUMBER_OF_PRESIGNED_TXS = 3;
 
   if (!FUNDING_SECRET) {
-    console.log('Secret not defined');
+    logger.error('Stellar funding secret not defined');
     throw new Error('Stellar funding secret not defined');
   }
 

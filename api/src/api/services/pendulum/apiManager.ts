@@ -2,6 +2,7 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import { SubmittableExtrinsic } from '@polkadot/api/types';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { KeyringPair } from '@polkadot/keyring/types';
+import logger from '../../../config/logger';
 
 export type SubstrateApiNetwork = 'assethub' | 'pendulum' | 'moonbeam';
 
@@ -94,10 +95,10 @@ export class ApiManager {
 
   public async populateApi(networkName: SubstrateApiNetwork): Promise<API> {
     const network = this.getNetworkConfig(networkName);
-    console.log(`Connecting to node ${network.wsUrl}...`);
+    logger.info(`Connecting to node ${network.wsUrl}...`);
     const newApi = await this.connectApi(networkName);
     this.apiInstances.set(networkName, newApi);
-    console.log(`Connected to node ${network.wsUrl}`);
+    logger.info(`Connected to node ${network.wsUrl}`);
 
     if (!newApi.api.isConnected) await newApi.api.connect();
     await newApi.api.isReady;
@@ -123,7 +124,7 @@ export class ApiManager {
     const previousSpecVersion = this.previousSpecVersions.get(networkName) ?? 0;
 
     if (currentSpecVersion !== previousSpecVersion) {
-      console.log(`Spec version changed for ${networkName}, refreshing the api...`);
+      logger.info(`Spec version changed for ${networkName}, refreshing the api...`);
       return await this.populateApi(networkName);
     }
 
@@ -158,7 +159,7 @@ export class ApiManager {
           return nonceRpc;
         }
 
-        console.log(
+        logger.info(
           `Nonce mismatch detected on ${networkName}. RPC: ${nonceRpc}, ApiManager: ${lastUsedNonce}, sending transaction with nonce ${
             lastUsedNonce + 1
           }`,
@@ -184,12 +185,12 @@ export class ApiManager {
 
     try {
       const nonce = await this.getNonce(senderKeypair, networkName);
-      console.log(`Sending transaction on ${networkName} with nonce ${nonce}`);
+      logger.info(`Sending transaction on ${networkName} with nonce ${nonce}`);
       return call.signAndSend(senderKeypair, { nonce });
     } catch (initialError: any) {
       // Only retry if the error is regarding bad signature error
       if (initialError.name === 'RpcError' && initialError.message.includes('Transaction has a bad signature')) {
-        console.log(
+        logger.info(
           `Bad signature error encountered while sending transaction on ${networkName}, attempting to refresh the api...`,
         );
 

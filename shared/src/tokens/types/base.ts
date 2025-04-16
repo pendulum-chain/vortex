@@ -18,7 +18,7 @@ export enum AssetHubToken {
 }
 
 export type OnChainToken = EvmToken | AssetHubToken;
-export type NablaToken = OnChainToken
+export type NablaToken = OnChainToken;
 
 // Combines fiat currencies with tokens in one type
 export type RampCurrency = FiatToken | OnChainToken;

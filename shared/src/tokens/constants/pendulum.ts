@@ -11,7 +11,9 @@ export const PENDULUM_USDC_AXL: PendulumDetails = {
   pendulumDecimals: 6,
 };
 
-export const PENDULUM_USDC_ASSETHUB: PendulumDetails & { foreignAssetId: number } = {
+export const PENDULUM_USDC_ASSETHUB: PendulumDetails & {
+  foreignAssetId: number;
+} = {
   pendulumErc20WrapperAddress: '6dAegKXwGWEXkfhNbeqeKothqhe6G81McRxG8zvaDYrpdVHF',
   pendulumCurrencyId: { XCM: 2 },
   foreignAssetId: 1337, // USDC on AssetHub
