@@ -52,7 +52,7 @@ const getStellarBalanceUnits = async (publicKey: string, assetCode: string): Pro
 
     return new Big(balanceUnits);
   } catch (error) {
-    logger.error(error)
+    logger.error(error);
     throw new Error('Error Reading Stellar Balance');
   }
 };

@@ -5,10 +5,8 @@
     "moduleResolution": "Node",
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "shared": ["../shared/src"],
+      "shared": ["../shared/src"]
     }
   },
-  "include": [
-    "frontend/vite.config.ts"
-  ]
+  "include": ["frontend/vite.config.ts"]
 }

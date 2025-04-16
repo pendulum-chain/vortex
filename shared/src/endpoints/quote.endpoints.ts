@@ -1,4 +1,4 @@
-import {DestinationType, RampCurrency} from '../index';
+import { DestinationType, RampCurrency } from '../index';
 
 export namespace QuoteEndpoints {
   // POST /quotes

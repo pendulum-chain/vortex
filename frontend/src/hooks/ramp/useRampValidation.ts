@@ -181,7 +181,7 @@ export const useRampValidation = () => {
     }
 
     if (validationError) return validationError;
-    if (quoteLoading) return t('components.swap.validation.calculatingQuote')
+    if (quoteLoading) return t('components.swap.validation.calculatingQuote');
 
     return null;
   }, [

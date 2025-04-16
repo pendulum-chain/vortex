@@ -1,5 +1,14 @@
-
-import { FiatToken, getAnyFiatTokenDetails, getNetworkDisplayName, getNetworkFromDestination, getOnChainTokenDetailsOrDefault, isNetworkEVM, Networks, OnChainToken, RampPhase } from 'shared';
+import {
+  FiatToken,
+  getAnyFiatTokenDetails,
+  getNetworkDisplayName,
+  getNetworkFromDestination,
+  getOnChainTokenDetailsOrDefault,
+  isNetworkEVM,
+  Networks,
+  OnChainToken,
+  RampPhase,
+} from 'shared';
 import { RampState } from '../../types/phases';
 import { TFunction } from 'i18next';
 

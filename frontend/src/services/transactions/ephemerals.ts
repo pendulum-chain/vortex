@@ -12,7 +12,7 @@ export function createMoonbeamEphemeral(): EphemeralAccount {
 
   return {
     secret: seedPhrase,
-    address: ephemeralAccountKeypair.address
+    address: ephemeralAccountKeypair.address,
   };
 }
 
@@ -31,4 +31,3 @@ export function createStellarEphemeral(): EphemeralAccount {
 
   return { secret: ephemeralKeys.secret(), address };
 }
-

@@ -2,7 +2,7 @@
  * Type guards for token configuration
  */
 
-import {AssetHubToken, FiatToken, OnChainToken, TokenType} from '../types/base';
+import { AssetHubToken, FiatToken, OnChainToken, TokenType } from '../types/base';
 import { EvmToken, EvmTokenDetails } from '../types/evm';
 import { AssetHubTokenDetails } from '../types/assethub';
 import { StellarTokenDetails } from '../types/stellar';
@@ -12,7 +12,9 @@ export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | StellarToken
 export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
 export type FiatTokenDetails = StellarTokenDetails | MoonbeamTokenDetails;
 
-export type OnChainTokenDetailsWithBalance = OnChainTokenDetails & { balance: string };
+export type OnChainTokenDetailsWithBalance = OnChainTokenDetails & {
+  balance: string;
+};
 
 /**
  * Type guard for EVM tokens
