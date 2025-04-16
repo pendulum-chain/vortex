@@ -21,11 +21,12 @@ const transformNumber = (value: unknown, originalValue: unknown) => {
 };
 
 const cpfRegex = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
+const cnpjRegex = /^[0-9]{14}$/;
 
 // Regex adopted from here https://developers.international.pagseguro.com/reference/pix-key-validation-and-regex-1
 const pixKeyRegex = [
   cpfRegex,
-  /^[0-9]{14}$/, // CNPJ
+  cnpjRegex,
   /^\+[1-9][0-9]\d{1,14}$/, // Phone
   /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, // Email
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, // Random
