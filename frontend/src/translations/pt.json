@@ -77,7 +77,7 @@
   },
   "sections": {
     "whyVortex": {
-      "title": "Venda criptomoedas com segurança",
+      "title": "Compre e Venda criptomoedas com segurança",
       "description": "A Vortex é uma plataforma de troca não custodial, permitindo que você negocie diversas criptomoedas com facilidade.",
       "features": {
         "lowFees": {
@@ -86,7 +86,7 @@
         },
         "easyToUse": {
           "title": "Simples de usar",
-          "description": "Venda suas criptomoedas facilmente sem a necessidade de uma exchange centralizada."
+          "description": "Compre e Venda suas criptomoedas facilmente sem a necessidade de uma exchange centralizada."
         },
         "securityFirst": {
           "title": "Priorizamos sua segurança acima de tudo",
@@ -114,7 +114,7 @@
       }
     },
     "pitch": {
-      "title": "Venda <1>Stablecoins</1> e receba <br class='hidden sm:block' /> o dinheiro diretamente na sua Conta Bancária",
+      "title": "Compre e Venda <1>Stablecoins</1> - <br class='hidden sm:block' /> diretamente com sua conta bancária",
       "description": "Complete tudo em uma única etapa simples. Com nossos parceiros locais confiáveis, <br class='hidden sm:block' /> desfrute de transações rápidas, seguras e as melhores taxas do mercado."
     },
     "howToSell": {
