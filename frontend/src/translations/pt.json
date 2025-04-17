@@ -280,7 +280,9 @@
     "brlaSwapField": {
       "placeholder": "Digite seu {{label}}",
       "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
-      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>."
+      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
+      "cpfOrCnpj": "CPF o CNPJ",
+      "pixKey": "Chave Pix"
     },
     "swapSubmitButton": {
       "confirming": "Confirmando",
@@ -383,7 +385,8 @@
       "default": "Algo deu errado"
     },
     "useSubmitOfframp": {
-      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."
+      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte.",
+      "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial."
     }
   },
   "toasts": {
