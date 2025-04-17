@@ -15,6 +15,7 @@ import { useSep24Actions } from '../../stores/sep24Store';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
 import { useToastMessage } from '../../helpers/notifications';
+import { isValidCnpj, isValidCpf } from '../../components/Nabla/schema';
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();
@@ -82,10 +83,18 @@ export const useSubmitRamp = () => {
             if (!response.ok) {
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
-              if (response.status === 404) {
+              if (response.status === 404 && !isValidCnpj(taxId) && isValidCpf(taxId)) {
                 console.log("User doesn't exist yet.");
                 setRampKycStarted(true);
                 return;
+              } else if (response.status === 404 && isValidCnpj(taxId)){
+                console.log("CNPJ User doesn't exist yet.");
+                setInitializeFailedMessage("Please contact support to create your business account");
+                setRampStarted(false);
+                setRampInitiating(false);
+                cleanupSEP24();
+                return;
+
               } else if ((await response.text()).includes('KYC invalid')) {
                 setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
                 setRampStarted(false);

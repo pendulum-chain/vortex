@@ -21,7 +21,15 @@ const transformNumber = (value: unknown, originalValue: unknown) => {
 };
 
 const cpfRegex = /^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/;
-const cnpjRegex = /^[0-9]{14}$/;
+const cnpjRegex = /^(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})$/;
+
+export function isValidCnpj(cnpj: string): boolean {
+  return cnpjRegex.test(cnpj);
+}
+
+export function isValidCpf(cpf: string): boolean {
+  return cpfRegex.test(cpf);
+}
 
 // Regex adopted from here https://developers.international.pagseguro.com/reference/pix-key-validation-and-regex-1
 const pixKeyRegex = [
