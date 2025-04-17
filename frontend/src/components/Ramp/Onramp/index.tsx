@@ -48,7 +48,6 @@ export const Onramp = () => {
   const initializeFailedMessage = useInitializeFailedMessage()
   const validateTerms = useValidateTerms();
   const { onRampConfirm } = useRampSubmission();
-  console.log("initializeFailedMessage", initializeFailedMessage);
 
   const [fromAmountFieldTouched, setFromAmountFieldTouched] = useState(false);
 
