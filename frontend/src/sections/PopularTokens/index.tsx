@@ -13,6 +13,9 @@ const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDC', assetIcon: 'usdc' },
   { name: 'USDC.e', assetIcon: 'usdc' },
   { name: 'USDT', assetIcon: 'usdt' },
+  { name: 'BRLA', assetIcon: 'brl' },
+  { name: 'ARS', assetIcon: 'ars' },
+  { name: 'EURC', assetIcon: 'eurc' },
 ];
 
 const networks = Object.values(Networks).filter(
