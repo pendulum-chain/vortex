@@ -262,12 +262,22 @@
       "compareFees": "Comparar taxas",
       "validation": {
         "taxId": {
-          "required": "CPF é obrigatório para transferências em BRL",
-          "format": "CPF inválido"
+          "required": "CPF o CNPJ é obrigatório para transferências em BRL",
+          "format": "CPF o CNPJ inválido"
         },
         "pixId": {
           "required": "Chave PIX é obrigatória para transferências em BRL",
           "format": "A chave PIX não corresponde a nenhum dos formatos válidos"
+        },
+        "inputAmount": {
+          "required": "Valor é obrigatório",
+          "format": "Formato de valor inválido"
+        },
+        "onChainToken": {
+          "required": "Token é obrigatório"
+        },
+        "fiatToken": {
+          "required": "Token fiat é obrigatório"
         },
         "calculatingQuote": "Calculando cotação...",
         "assetHubNotSupported": "Por favor, selecione uma rede diferente. A compra não está disponível no momento no AssetHub."
@@ -280,7 +290,9 @@
     "brlaSwapField": {
       "placeholder": "Digite seu {{label}}",
       "disclaimerOfframp": "CPF e chave Pix precisam pertencer à <1>mesma pessoa</1>.",
-      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>."
+      "disclaimerOnramp": "CPF deve pertencer a <1>você</1>.",
+      "cpfOrCnpj": "CPF o CNPJ",
+      "pixKey": "Chave Pix"
     },
     "swapSubmitButton": {
       "confirming": "Confirmando",
@@ -302,8 +314,8 @@
       "transactionId": "ID da transação"
     },
     "brlaKYCForm": {
-      "title": "Detalhes KYC",
-      "description": "A verificação KYC é necessária para completar sua transação. As informações fornecidas são processadas com segurança pelo nosso parceiro local ",
+      "title": "Verificação Rápida",
+      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
       "buttons": {
         "back": "Voltar",
         "finish": "Finalizar",
@@ -383,7 +395,8 @@
       "default": "Algo deu errado"
     },
     "useSubmitOfframp": {
-      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte."
+      "kycInvalid": "Seu nível de KYC é inválido. Por favor, entre em contato com o suporte.",
+      "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial."
     }
   },
   "toasts": {

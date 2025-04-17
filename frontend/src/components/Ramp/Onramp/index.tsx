@@ -23,6 +23,7 @@ import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/r
 import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
+import { useInitializeFailedMessage } from '../../../stores/rampStore';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -43,7 +44,8 @@ export const Onramp = () => {
     form.setValue('outputAmount', toAmount?.toString() || '0');
   }, [toAmount, form]);
 
-  const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
+  const { getCurrentErrorMessage } = useRampValidation();
+  const initializeFailedMessage = useInitializeFailedMessage()
   const validateTerms = useValidateTerms();
   const { onRampConfirm } = useRampSubmission();
 

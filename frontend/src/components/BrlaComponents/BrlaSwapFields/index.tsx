@@ -16,11 +16,11 @@ const containerAnimation: MotionProps = {
 };
 
 const OFFRAMP_FIELDS = [
-  { id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 },
-  { id: StandardBrlaFieldOptions.PIX_ID, label: 'PIX', index: 1 },
+  { id: StandardBrlaFieldOptions.TAX_ID, label: 'cpfOrCnpj', index: 0 },
+  { id: StandardBrlaFieldOptions.PIX_ID, label: 'pixKey', index: 1 },
 ];
 
-const ONRAMP_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: 'CPF', index: 0 }];
+const ONRAMP_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: 'cpfOrCnpj', index: 0 }];
 
 /**
  * BrlaSwapFields component
@@ -49,9 +49,11 @@ export const BrlaSwapFields: FC = () => {
               className="mt-2"
               key={field.id}
               id={field.id}
-              label={field.label}
+              label={t(`components.brlaSwapField.${field.label}`)}
               index={field.index}
-              placeholder={t(`components.brlaSwapField.placeholder`, { label: field.label })}
+              placeholder={t(`components.brlaSwapField.placeholder`, {
+                label: t(`components.brlaSwapField.${field.label}`),
+              })}
             />
           ))}
           <div className="mt-2">

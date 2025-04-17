@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 
 import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
@@ -32,14 +32,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px]"
         onSubmit={handleSubmit(onSubmit)}
       >
-        <h1 className="mt-2 mb-2 text-3xl font-bold text-center text-blue-700">{t('components.brlaKYCForm.title')}</h1>
-        <div className="text-primary-500 text-center mb-6">
-          {t('components.brlaKYCForm.description')}
-          <a className="underline" target="_blank" rel="noreferrer" href="https://www.brla.digital">
-            BRLA
-          </a>
-          .
-        </div>
+        <h1 className="mt-2 mb-4 text-3xl font-bold text-center text-blue-700">{t('components.brlaKYCForm.title')}</h1>
         <div className="grid grid-cols-2 gap-4">
           {fields.map((field) => (
             <BrlaField
@@ -57,7 +50,20 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
             />
           ))}
         </div>
-
+        <div className="text-primary-500 text-center mt-4">
+          <Trans
+            i18nKey="components.brlaKYCForm.description"
+            components={{
+              a: <a className="underline" target="_blank" rel="noreferrer" href="https://www.brla.digital" />,
+            }}
+          >
+            Complete these quick identity checks (typically 90 seconds). Data is processed securely by{' '}
+            <a className="underline" target="_blank" rel="noreferrer" href="https://www.brla.digital">
+              BRLA
+            </a>{' '}
+            using bank-grade encryption for transaction security.
+          </Trans>
+        </div>
         <div className="grid gap-3 mt-8 mb-8">
           <div className="flex gap-3">
             <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick}>

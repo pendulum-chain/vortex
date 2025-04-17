@@ -263,12 +263,22 @@
       "compareFees": "Compare fees",
       "validation": {
         "taxId": {
-          "required": "CPF is required when transferring BRL",
-          "format": "Invalid CPF"
+          "required": "CPF or CNPJ is required when transferring BRL",
+          "format": "Invalid CPF or CNPJ format"
         },
         "pixId": {
           "required": "PIX key is required when transferring BRL",
           "format": "PIX key does not match any of the valid formats"
+        },
+        "inputAmount": {
+          "required": "Amount is required",
+          "format": "Invalid amount format"
+        },
+        "onChainToken": {
+          "required": "Token is required"
+        },
+        "fiatToken": {
+          "required": "Fiat token is required"
         },
         "calculatingQuote": "Calculating quote...",
         "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub."
@@ -281,7 +291,9 @@
     "brlaSwapField": {
       "placeholder": "Enter your {{label}}",
       "disclaimerOfframp": "CPF and Pix key need to belong to the <1>same person</1>.",
-      "disclaimerOnramp": "CPF must belong to <1>you</1>."
+      "disclaimerOnramp": "CPF must belong to <1>you</1>.",
+      "cpfOrCnpj": "CPF or CNPJ",
+      "pixKey": "Pix key"
     },
     "swapSubmitButton": {
       "confirming": "Confirming",
@@ -303,8 +315,8 @@
       "transactionId": "Transaction ID"
     },
     "brlaKYCForm": {
-      "title": "KYC Details",
-      "description": "KYC verification is required to complete your transaction. The information you provide is processed securely by our local partner ",
+      "title": "Fast-Track Verification",
+      "description": "Complete these quick identity checks (typically 90 seconds). Data is processed securely by <a>BRLA</a> using bank-grade encryption for transaction security.",
       "buttons": {
         "back": "Back",
         "finish": "Finish",
@@ -384,7 +396,8 @@
       "default": "Something went wrong"
     },
     "useSubmitOfframp": {
-      "kycInvalid": "Your KYC level is invalid. Please contact support."
+      "kycInvalid": "Your KYC level is invalid. Please contact support.",
+      "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user."
     }
   },
   "toasts": {
