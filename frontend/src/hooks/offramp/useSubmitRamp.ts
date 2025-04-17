@@ -6,7 +6,13 @@ import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
 import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
-import { FiatToken, getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, getTokenDetailsSpacewalk } from 'shared';
+import {
+  BrlaEndpoints,
+  FiatToken,
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+  getTokenDetailsSpacewalk,
+} from 'shared';
 import { fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
@@ -15,6 +21,8 @@ import { useSep24Actions } from '../../stores/sep24Store';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
 import { useToastMessage } from '../../helpers/notifications';
+import { isValidCnpj, isValidCpf } from '../ramp/schema';
+import { BrlaService } from '../../services/api';
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();
@@ -78,15 +86,31 @@ export const useSubmitRamp = () => {
               return;
             }
 
-            const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getUser?taxId=${taxId}`);
-            if (!response.ok) {
+            try {
+              const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
+
+              // append EVM address to execution input
+              const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
+              setRampExecutionInput(updatedBrlaRampExecution);
+
+              setRampSummaryVisible(true);
+            } catch (err) {
+              const errorResponse = err as BrlaEndpoints.BrlaErrorResponse;
+
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
-              if (response.status === 404) {
+              if (isValidCpf(taxId)) {
                 console.log("User doesn't exist yet.");
                 setRampKycStarted(true);
                 return;
-              } else if ((await response.text()).includes('KYC invalid')) {
+              } else if (isValidCnpj(taxId)) {
+                console.log("CNPJ User doesn't exist yet.");
+                setInitializeFailedMessage(t('hooks.useSubmitOfframp.cnpjUserDoesntExist'));
+                setRampStarted(false);
+                setRampInitiating(false);
+                cleanupSEP24();
+                return;
+              } else if (errorResponse.error.includes('KYC invalid')) {
                 setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
                 setRampStarted(false);
                 setRampInitiating(false);
@@ -94,13 +118,6 @@ export const useSubmitRamp = () => {
                 return;
               }
               throw new Error('Error while fetching BRLA user');
-            } else {
-              const { evmAddress: brlaEvmAddress } = await response.json();
-              // append EVM address to execution input
-              const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
-              setRampExecutionInput(updatedBrlaRampExecution);
-
-              setRampSummaryVisible(true);
             }
           } else {
             const stellarEphemeralSecret = executionInput.ephemerals.stellarEphemeral.secret;

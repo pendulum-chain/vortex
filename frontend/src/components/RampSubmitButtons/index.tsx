@@ -2,7 +2,7 @@ import { FC, useCallback } from 'react';
 import Big from 'big.js';
 import { useEventsContext } from '../../contexts/events';
 import { useFeeComparisonStore } from '../../stores/feeComparison';
-import { useRampSummaryVisible } from '../../stores/rampStore';
+import { useInitializeFailedMessage, useRampSummaryVisible } from '../../stores/rampStore';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp/useRampFormStore';
@@ -19,7 +19,8 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
 
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
-  const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
+  const { getCurrentErrorMessage } = useRampValidation();
+  const initializeFailedMessage = useInitializeFailedMessage();
   const isRampSummaryDialogVisible = useRampSummaryVisible();
   const inputAmount = useInputAmount();
   const fiatToken = useFiatToken();

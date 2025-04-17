@@ -1,8 +1,9 @@
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { useEffect, useCallback } from 'react';
 import { FiatToken } from 'shared';
+import { yupResolver } from '@hookform/resolvers/yup';
 
-import { RampFormValues } from '../../components/Nabla/schema';
+import { RampFormValues, useSchema } from './schema';
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
   useFiatToken,
@@ -27,9 +28,14 @@ export const useRampForm = (): {
   form: UseFormReturn<RampFormValues>;
   reset: () => void;
 } => {
+  const formSchema = useSchema();
+
   const form = useForm<RampFormValues>({
+    resolver: yupResolver(formSchema),
     defaultValues: DEFAULT_RAMP_FORM_VALUES,
   });
+
+  console.log('form', form.formState.errors);
 
   const taxId = useTaxId();
   const pixId = usePixId();

@@ -1,10 +1,24 @@
-import { createContext, ReactNode, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, ReactNode, useContext, useState, useCallback } from 'react';
 import { useAccount, useSwitchChain } from 'wagmi';
 import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 import { useRampActions } from '../stores/rampStore';
 import { getNetworkId, isNetworkEVM, Networks } from 'shared';
 import { useSep24Actions } from '../stores/sep24Store';
+
+const getParamsNetwork = () => {
+  const params = new URLSearchParams(window.location.search);
+  const networkParam = params.get('network')?.toLowerCase();
+
+  if (networkParam) {
+    const matchedNetwork = Object.values(Networks).find((network) => network.toLowerCase() === networkParam);
+
+    if (matchedNetwork) {
+      return matchedNetwork;
+    }
+  }
+  return null;
+};
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
@@ -34,7 +48,9 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   // We do this to ensure that the local storage value is always in lowercase. Previously the first letter was uppercase
   const selectedNetworkLocalStorage = selectedNetworkLocalStorageState.toLowerCase() as Networks;
 
-  const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(selectedNetworkLocalStorage);
+  const paramsNetwork = getParamsNetwork();
+
+  const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(paramsNetwork || selectedNetworkLocalStorage);
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
 
   const { resetRampState } = useRampActions();
@@ -62,19 +78,6 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
     },
     [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetRampState, cleanupSep24Variables],
   );
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const networkParam = params.get('network')?.toLowerCase();
-
-    if (networkParam) {
-      const matchedNetwork = Object.values(Networks).find((network) => network.toLowerCase() === networkParam);
-
-      if (matchedNetwork) {
-        setSelectedNetwork(matchedNetwork);
-      }
-    }
-  }, [setSelectedNetwork]);
 
   return (
     <NetworkContext
