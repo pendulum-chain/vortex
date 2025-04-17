@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { RampFormValues } from '../components/Nabla/schema';
 import { FiatToken } from 'shared';
+import { RampFormValues } from './ramp/schema';
 
 interface UseRampUrlParamsProps {
   form: UseFormReturn<RampFormValues, unknown, undefined>;

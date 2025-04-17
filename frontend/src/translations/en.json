@@ -263,8 +263,8 @@
       "compareFees": "Compare fees",
       "validation": {
         "taxId": {
-          "required": "CPF is required when transferring BRL",
-          "format": "Invalid CPF"
+          "required": "CPF or CNPJ is required when transferring BRL",
+          "format": "Invalid CPF or CNPJ format"
         },
         "pixId": {
           "required": "PIX key is required when transferring BRL",

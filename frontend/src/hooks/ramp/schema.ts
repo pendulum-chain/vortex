@@ -8,8 +8,8 @@ export type RampFormValues = {
   outputAmount?: string;
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
-  slippage: number | undefined;
-  deadline: number;
+  slippage?: number;
+  deadline?: number;
   taxId?: string;
   pixId?: string;
 };
@@ -35,18 +35,20 @@ export function isValidCpf(cpf: string): boolean {
 const pixKeyRegex = [
   cpfRegex,
   /^\+[1-9][0-9]\d{1,14}$/, // Phone
-  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, // Email
+  /^(([^<>()[\]\\.,;:\s@"]+(.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, // Email
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, // Random
 ];
 
-export const useSchema = () => {
-  const { t } = useTranslation();
-
+export const createRampFormSchema = (t: (key: string) => string) => {
   return Yup.object<RampFormValues>().shape({
-    slippage: Yup.number().nullable().transform(transformNumber),
-    deadline: Yup.number().nullable().transform(transformNumber),
-    taxId: Yup.string().when('to', {
-      is: 'brl',
+    inputAmount: Yup.string().required(t('components.swap.validation.inputAmount.required')),
+    outputAmount: Yup.string().optional(),
+    onChainToken: Yup.mixed<OnChainToken>().required(t('components.swap.validation.onChainToken.required')),
+    fiatToken: Yup.mixed<FiatToken>().required(t('components.swap.validation.fiatToken.required')),
+    slippage: Yup.number().transform(transformNumber),
+    deadline: Yup.number().transform(transformNumber),
+    taxId: Yup.string().when('fiatToken', {
+      is: (value: FiatToken) => value === FiatToken.BRL,
       then: (schema) =>
         schema
           .required(t('components.swap.validation.taxId.required'))
@@ -56,8 +58,8 @@ export const useSchema = () => {
           }),
       otherwise: (schema) => schema.optional(),
     }),
-    pixId: Yup.string().when('to', {
-      is: 'brl',
+    pixId: Yup.string().when('fiatToken', {
+      is: (value: FiatToken) => value === FiatToken.BRL,
       then: (schema) =>
         schema
           .required(t('components.swap.validation.pixId.required'))
@@ -68,4 +70,9 @@ export const useSchema = () => {
       otherwise: (schema) => schema.optional(),
     }),
   });
+};
+
+export const useSchema = () => {
+  const { t } = useTranslation();
+  return createRampFormSchema(t);
 };

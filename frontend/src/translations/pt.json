@@ -262,8 +262,8 @@
       "compareFees": "Comparar taxas",
       "validation": {
         "taxId": {
-          "required": "CPF é obrigatório para transferências em BRL",
-          "format": "CPF inválido"
+          "required": "CPF o CNPJ é obrigatório para transferências em BRL",
+          "format": "CPF o CNPJ inválido"
         },
         "pixId": {
           "required": "Chave PIX é obrigatória para transferências em BRL",

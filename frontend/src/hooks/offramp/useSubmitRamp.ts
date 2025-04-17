@@ -15,7 +15,7 @@ import { useSep24Actions } from '../../stores/sep24Store';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
 import { useToastMessage } from '../../helpers/notifications';
-import { isValidCnpj, isValidCpf } from '../../components/Nabla/schema';
+import { isValidCnpj, isValidCpf } from '../ramp/schema';
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();
