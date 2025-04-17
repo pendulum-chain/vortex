@@ -314,8 +314,8 @@
       "transactionId": "ID da transação"
     },
     "brlaKYCForm": {
-      "title": "Detalhes KYC",
-      "description": "A verificação KYC é necessária para completar sua transação. As informações fornecidas são processadas com segurança pelo nosso parceiro local ",
+      "title": "Verificação Rápida",
+      "description": "Complete estas verificações rápidas de identidade (normalmente 90 segundos). Os dados são processados com segurança pela <a>BRLA</a> usando criptografia de nível bancário para segurança da transação.",
       "buttons": {
         "back": "Voltar",
         "finish": "Finalizar",
