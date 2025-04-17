@@ -2,6 +2,8 @@ import * as Yup from 'yup';
 import { useTranslation } from 'react-i18next';
 
 import { OnChainToken, FiatToken } from 'shared';
+import { RampDirection } from '../../components/RampToggle';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 
 export type RampFormValues = {
   inputAmount: string;
@@ -39,7 +41,7 @@ const pixKeyRegex = [
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/, // Random
 ];
 
-export const createRampFormSchema = (t: (key: string) => string) => {
+export const createRampFormSchema = (t: (key: string) => string, rampDirection: RampDirection) => {
   return Yup.object<RampFormValues>().shape({
     inputAmount: Yup.string().required(t('components.swap.validation.inputAmount.required')),
     outputAmount: Yup.string().optional(),
@@ -59,7 +61,7 @@ export const createRampFormSchema = (t: (key: string) => string) => {
       otherwise: (schema) => schema.optional(),
     }),
     pixId: Yup.string().when('fiatToken', {
-      is: (value: FiatToken) => value === FiatToken.BRL,
+      is: (value: FiatToken) => value === FiatToken.BRL && rampDirection === RampDirection.OFFRAMP,
       then: (schema) =>
         schema
           .required(t('components.swap.validation.pixId.required'))
@@ -74,5 +76,7 @@ export const createRampFormSchema = (t: (key: string) => string) => {
 
 export const useSchema = () => {
   const { t } = useTranslation();
-  return createRampFormSchema(t);
+  const rampDirection = useRampDirection();
+
+  return createRampFormSchema(t, rampDirection);
 };

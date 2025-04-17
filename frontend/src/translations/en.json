@@ -270,6 +270,16 @@
           "required": "PIX key is required when transferring BRL",
           "format": "PIX key does not match any of the valid formats"
         },
+        "inputAmount": {
+          "required": "Amount is required",
+          "format": "Invalid amount format"
+        },
+        "onChainToken": {
+          "required": "Token is required"
+        },
+        "fiatToken": {
+          "required": "Fiat token is required"
+        },
         "calculatingQuote": "Calculating quote...",
         "assetHubNotSupported": "Please select a different network. Buy is currently not available on AssetHub."
       }
@@ -387,7 +397,7 @@
     },
     "useSubmitOfframp": {
       "kycInvalid": "Your KYC level is invalid. Please contact support.",
-      "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get started as a business user."
+      "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user."
     }
   },
   "toasts": {

@@ -113,6 +113,7 @@ export const useRampSubmission = () => {
   );
 
   const onRampConfirm = useCallback(async () => {
+    console.log("in onrampconfirm")
     if (executionPreparing) return;
     setExecutionPreparing(true);
     try {

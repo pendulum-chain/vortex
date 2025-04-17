@@ -269,6 +269,16 @@
           "required": "Chave PIX é obrigatória para transferências em BRL",
           "format": "A chave PIX não corresponde a nenhum dos formatos válidos"
         },
+        "inputAmount": {
+          "required": "Valor é obrigatório",
+          "format": "Formato de valor inválido"
+        },
+        "onChainToken": {
+          "required": "Token é obrigatório"
+        },
+        "fiatToken": {
+          "required": "Token fiat é obrigatório"
+        },
         "calculatingQuote": "Calculando cotação...",
         "assetHubNotSupported": "Por favor, selecione uma rede diferente. A compra não está disponível no momento no AssetHub."
       }
