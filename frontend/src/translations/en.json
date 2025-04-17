@@ -77,7 +77,7 @@
   },
   "sections": {
     "whyVortex": {
-      "title": "Sell Crypto the secure Way",
+      "title": "Buy & Sell Crypto the secure Way",
       "description": "Vortex is a non-custodial exchange that allows you to swap between different cryptocurrencies. It is built on top of the Stellar blockchain and uses the Stellar SDK to interact with the Stellar network.",
       "features": {
         "lowFees": {
@@ -86,7 +86,7 @@
         },
         "easyToUse": {
           "title": "Easy to Use",
-          "description": "Sell your crypto easily without the need for a centralized exchange."
+          "description": "Buy & Sell your crypto easily without the need for a centralized exchange."
         },
         "securityFirst": {
           "title": "Security First, Always",
@@ -114,7 +114,7 @@
       }
     },
     "pitch": {
-      "title": "Sell <1>Stablecoins</1> and receive <br class='hidden sm:block' /> the money directly in your Bank Account",
+      "title": "Buy & Sell <1>Stablecoins</1> and receive <br class='hidden sm:block' /> the money directly in your Bank Account",
       "description": "Complete everything in one simple step. With our trusted local partners, <br class='hidden sm:block' /> enjoy fast, secure transactions and the best rates in the market."
     },
     "howToSell": {
