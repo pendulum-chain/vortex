@@ -144,7 +144,6 @@ export const useRampValidation = () => {
   const { isDisconnected } = useVortexAccount();
 
   const inputAmount = useMemo(() => Big(inputAmountString || '0'), [inputAmountString]);
-  const [initializeFailedMessage, setInitializeFailedMessage] = useState<string | null>(null);
 
   const fromToken = isOnramp
     ? getAnyFiatTokenDetails(fiatToken)
@@ -198,17 +197,8 @@ export const useRampValidation = () => {
     userInputTokenBalance?.balance,
   ]);
 
-  const setInitializeFailed = useCallback((message?: string | null) => {
-    setInitializeFailedMessage(
-      message ??
-        "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
-    );
-  }, []);
-
   return {
     getCurrentErrorMessage,
-    initializeFailedMessage,
-    setInitializeFailed,
     isValid: !getCurrentErrorMessage(),
   };
 };

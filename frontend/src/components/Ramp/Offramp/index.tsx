@@ -24,6 +24,7 @@ import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
 import { useTranslation } from 'react-i18next';
+import { useInitializeFailedMessage } from '../../../stores/rampStore';
 
 export const Offramp = () => {
   const { t } = useTranslation();
@@ -42,7 +43,8 @@ export const Offramp = () => {
     form.setValue('outputAmount', toAmount?.toString() || '0');
   }, [toAmount, form]);
 
-  const { getCurrentErrorMessage, initializeFailedMessage } = useRampValidation();
+  const { getCurrentErrorMessage } = useRampValidation();
+  const initializeFailedMessage = useInitializeFailedMessage()
   const { onRampConfirm } = useRampSubmission();
   const validateTerms = useValidateTerms();
 
