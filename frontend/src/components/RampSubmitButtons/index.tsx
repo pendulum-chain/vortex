@@ -9,6 +9,7 @@ import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
 import { useTranslation } from 'react-i18next';
+import { useWidgetMode } from '../../hooks/useWidgetMode';
 
 interface RampSubmitButtonsProps {
   toAmount?: Big;
@@ -26,6 +27,7 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const rampDirection = useRampDirection();
+  const isWidgetMode = useWidgetMode();
 
   const handleCompareFeesClick = useCallback(
     (e: React.MouseEvent) => {
@@ -57,13 +59,15 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
 
   return (
     <div className="flex gap-3 mt-5">
-      <button
-        className="btn-vortex-primary-inverse btn"
-        style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-        onClick={handleCompareFeesClick}
-      >
-        {t('components.swap.compareFees')}
-      </button>
+      {!isWidgetMode && (
+        <button
+          className="btn-vortex-primary-inverse btn"
+          style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
+          onClick={handleCompareFeesClick}
+        >
+          {t('components.swap.compareFees')}
+        </button>
+      )}
       <SwapSubmitButton text={getButtonState()} disabled={isSubmitButtonDisabled} pending={isSubmitButtonPending} />
     </div>
   );

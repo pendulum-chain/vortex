@@ -8,6 +8,7 @@ import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
 import { NetworkSelector } from '../NetworkSelector';
 import { useNetwork } from '../../contexts/network';
 import { useTranslation } from 'react-i18next';
+import { useWidgetMode } from '../../hooks/useWidgetMode';
 
 interface MobileMenuProps {
   onClick: () => void;
@@ -115,6 +116,7 @@ const Links = () => {
 export const Navbar = () => {
   const [showMenu, setShowMenu] = useState(false);
   const { networkSelectorDisabled } = useNetwork();
+  const isWidgetMode = useWidgetMode();
 
   return (
     <>
@@ -130,18 +132,20 @@ export const Navbar = () => {
         }}
       >
         <div className="flex">
-          <nav className="hidden m-auto lg:block">
-            <Links />
-          </nav>
+          {!isWidgetMode && (
+            <nav className="hidden m-auto lg:block">
+              <Links />
+            </nav>
+          )}
         </div>
         <div className="flex items-center">
           <NetworkSelector disabled={networkSelectorDisabled} />
           <ConnectWalletButton />
-          <MobileMenu onClick={() => setShowMenu((state) => !state)} open={showMenu} />
+          {!isWidgetMode && <MobileMenu onClick={() => setShowMenu((state) => !state)} open={showMenu} />}
         </div>
       </motion.header>
       <AnimatePresence mode="wait">
-        {showMenu && <MobileMenuList closeMenu={() => setShowMenu(false)} />}
+        {showMenu && !isWidgetMode && <MobileMenuList closeMenu={() => setShowMenu(false)} />}
       </AnimatePresence>
     </>
   );
