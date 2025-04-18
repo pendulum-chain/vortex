@@ -19,7 +19,7 @@ import { RampTerms } from '../../RampTerms';
 import { useValidateTerms } from '../../../stores/termsStore';
 import { useRampModalActions } from '../../../stores/rampModalStore';
 import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
-import { useRampUrlParams } from '../../../hooks/useRampUrlParams';
+import { useSetRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
@@ -44,7 +44,7 @@ export const Offramp = () => {
   }, [toAmount, form]);
 
   const { getCurrentErrorMessage } = useRampValidation();
-  const initializeFailedMessage = useInitializeFailedMessage()
+  const initializeFailedMessage = useInitializeFailedMessage();
   const { onRampConfirm } = useRampSubmission();
   const validateTerms = useValidateTerms();
 
@@ -58,7 +58,7 @@ export const Offramp = () => {
   const fromToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
   const toToken = getAnyFiatTokenDetails(fiatToken);
 
-  useRampUrlParams({ form });
+  useSetRampUrlParams();
 
   useEffect(() => {
     if (!fromAmountFieldTouched || debouncedInputAmount !== inputAmount) return;

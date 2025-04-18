@@ -35,8 +35,6 @@ export const useRampForm = (): {
     defaultValues: DEFAULT_RAMP_FORM_VALUES,
   });
 
-  console.log('form', form.formState.errors);
-
   const taxId = useTaxId();
   const pixId = usePixId();
   const inputAmount = useInputAmount();
