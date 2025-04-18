@@ -1,24 +1,22 @@
-import { useEffect, useMemo, useCallback } from 'react';
-import { UseFormReturn } from 'react-hook-form';
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
-import { RampFormValues } from './ramp/schema';
-import { useRampDirectionToggle } from '../stores/rampDirectionStore';
+import { useEffect, useMemo, useRef } from 'react';
 import { RampDirection } from '../components/RampToggle';
+import { Networks, AssetHubToken, EvmToken, FiatToken, OnChainToken } from 'shared';
+import { useRampDirectionToggle } from '../stores/rampDirectionStore';
 import { useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
-import { useNetwork } from '../contexts/network';
-import { useRampDirection } from '../stores/rampDirectionStore';
 
-interface UseRampUrlParamsProps {
-  form: UseFormReturn<RampFormValues, unknown, undefined>;
+interface RampUrlParams {
+  ramp: RampDirection;
+  network?: Networks;
+  to?: string;
+  from?: string;
+  fromAmount?: string;
 }
 
-const defaultFiatTokenAmounts: Record<FiatToken, number> = { eurc: 20, ars: 20, brl: 5 };
+function findFiatToken(fiatToken?: string): FiatToken | undefined {
+  if (!fiatToken) {
+    return undefined;
+  }
 
-const useUrlSearchParams = () => {
-  return useMemo(() => new URLSearchParams(window.location.search), []);
-};
-
-const findFiatToken = (fiatToken: string): FiatToken | undefined => {
   const fiatTokenEntries = Object.entries(FiatToken);
   const matchedFiatToken = fiatTokenEntries.find(([_, token]) => token.toLowerCase() === fiatToken);
 
@@ -29,9 +27,13 @@ const findFiatToken = (fiatToken: string): FiatToken | undefined => {
   const [_, tokenValue] = matchedFiatToken;
 
   return tokenValue as FiatToken;
-};
+}
 
-const findOnChainToken = (tokenStr: string, networkType: Networks | string): OnChainToken | undefined => {
+function findOnChainToken(tokenStr?: string, networkType?: Networks | string): OnChainToken | undefined {
+  if (!tokenStr || !networkType) {
+    return undefined;
+  }
+
   const isAssetHub = networkType === Networks.AssetHub;
 
   if (isAssetHub) {
@@ -55,89 +57,68 @@ const findOnChainToken = (tokenStr: string, networkType: Networks | string): OnC
     const [_, tokenValue] = matchedToken;
     return tokenValue as OnChainToken;
   }
+}
+
+function getNetworkFromParam(param?: string): Networks | undefined {
+  if (param) {
+    const matchedNetwork = Object.values(Networks).find((network) => network.toLowerCase() === param);
+    return matchedNetwork;
+  }
+  return undefined;
+}
+
+export const useRampUrlParams = (): RampUrlParams => {
+  const params = useMemo(() => new URLSearchParams(window.location.search), []);
+
+  const urlParams = useMemo(() => {
+    const rampParam = params.get('ramp')?.toLowerCase();
+    const networkParam = params.get('network')?.toLowerCase();
+    const toTokenParam = params.get('to')?.toLowerCase();
+    const fromTokenParam = params.get('from')?.toLowerCase();
+    const inputAmountParam = params.get('fromAmount');
+
+    const ramp = rampParam === 'buy' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
+
+    return {
+      ramp,
+      network: getNetworkFromParam(networkParam),
+      to: ramp === RampDirection.OFFRAMP ? findFiatToken(toTokenParam) : findOnChainToken(toTokenParam, networkParam),
+      from:
+        ramp === RampDirection.OFFRAMP ? findOnChainToken(fromTokenParam, networkParam) : findFiatToken(fromTokenParam),
+      fromAmount: inputAmountParam || undefined,
+    };
+  }, [params]);
+
+  return urlParams;
 };
 
-export const useRampUrlParams = ({ form }: UseRampUrlParamsProps) => {
-  const toggleDirection = useRampDirectionToggle();
-  const { setFiatToken, setOnChainToken } = useRampFormStoreActions();
-  const { selectedNetwork } = useNetwork();
-  const rampDirection = useRampDirection();
-  const params = useUrlSearchParams();
+export const useSetRampUrlParams = () => {
+  const { ramp, to, from, fromAmount } = useRampUrlParams();
+
+  const onToggle = useRampDirectionToggle();
+
+  const { setFiatToken, setOnChainToken, setInputAmount } = useRampFormStoreActions();
+
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    const rampParam = params.get('ramp')?.toLowerCase();
+    if (hasInitialized.current) return;
 
-    if (rampParam === 'buy') {
-      toggleDirection(RampDirection.ONRAMP);
-    } else {
-      toggleDirection(RampDirection.OFFRAMP);
+    onToggle(ramp);
+
+    if (to) {
+      ramp === RampDirection.OFFRAMP ? setFiatToken(to as FiatToken) : setOnChainToken(to as OnChainToken);
     }
-  }, [params, toggleDirection]);
 
-  const setFiatTokenFromUrl = useCallback(
-    (fiatToken: string) => {
-      const tokenValue = findFiatToken(fiatToken);
-
-      if (tokenValue) {
-        setFiatToken(tokenValue);
-        form.setValue('fiatToken', tokenValue);
-      }
-    },
-    [form, setFiatToken],
-  );
-
-  const setOnChainTokenFromUrl = useCallback(
-    (tokenStr: string, networkType: Networks | string) => {
-      const tokenValue = findOnChainToken(tokenStr, networkType);
-
-      if (tokenValue) {
-        setOnChainToken(tokenValue);
-        form.setValue('onChainToken', tokenValue);
-      }
-    },
-    [form, setOnChainToken],
-  );
-
-  useEffect(() => {
-    const toTokenParam = params.get('to')?.toLowerCase();
-    const rampParam = params.get('ramp')?.toLowerCase() || rampDirection;
-    const networkParam = params.get('network')?.toLowerCase() || selectedNetwork;
-
-    if (!toTokenParam) return;
-
-    if (rampParam === 'buy') {
-      setOnChainTokenFromUrl(toTokenParam, networkParam);
-    } else {
-      setFiatTokenFromUrl(toTokenParam);
+    if (from) {
+      ramp === RampDirection.OFFRAMP ? setOnChainToken(from as OnChainToken) : setFiatToken(from as FiatToken);
     }
-  }, [params, rampDirection, selectedNetwork, setFiatTokenFromUrl, setOnChainTokenFromUrl]);
 
-  useEffect(() => {
-    const fromTokenParam = params.get('from')?.toLowerCase();
-    const rampParam = params.get('ramp')?.toLowerCase() || rampDirection;
-    const networkParam = params.get('network')?.toLowerCase() || selectedNetwork;
-
-    if (!fromTokenParam) return;
-
-    if (rampParam === 'buy') {
-      setFiatTokenFromUrl(fromTokenParam);
-    } else {
-      setOnChainTokenFromUrl(fromTokenParam, networkParam);
+    if (fromAmount) {
+      setInputAmount(fromAmount);
     }
-  }, [params, rampDirection, selectedNetwork, setFiatTokenFromUrl, setOnChainTokenFromUrl]);
 
-  useEffect(() => {
-    const inputAmountParam = params.get('fromAmount');
-    const fiatToken = form.getValues('fiatToken');
-
-    if (inputAmountParam) {
-      const parsedAmount = Number(inputAmountParam);
-      if (Number.isFinite(parsedAmount) && !isNaN(parsedAmount) && parsedAmount >= 0) {
-        form.setValue('inputAmount', parsedAmount.toFixed(2));
-      }
-    } else if (fiatToken) {
-      const defaultAmount = defaultFiatTokenAmounts[fiatToken as FiatToken];
-      form.setValue('inputAmount', defaultAmount.toFixed(2));
-    }
-  }, [params, form]);
+    hasInitialized.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array means run once on mount
 };
