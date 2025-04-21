@@ -200,13 +200,18 @@ export const enum SmartContractOperationType {
   BURN = 'BURN',
 }
 
-export const enum KYCDocType {
+export enum KYCDocType {
   RG = 'RG',
   CNH = 'CNH',
 }
 
+export function isValidKYCDocType(value: string ): value is KYCDocType {
+  return Object.values(KYCDocType).includes(value as unknown as KYCDocType);
+}
+
 export interface KycLevel2Payload {
   documentType: KYCDocType;
+  subaccountId: string;
 }
 
 export interface KycLevel2Response {

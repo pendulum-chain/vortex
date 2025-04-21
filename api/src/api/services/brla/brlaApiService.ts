@@ -183,8 +183,8 @@ export class BrlaApiService {
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, 'GET', query)).onchainLogs;
   }
 
-  public async kyc2(documentType: KYCDocType): Promise<KycLevel2Response> {
-    return await this.sendRequest(Endpoint.KycLevel2, 'POST', undefined, { documentType });
+  public async startKYC2(subaccountId: string, documentType: KYCDocType): Promise<KycLevel2Response> {
+    return await this.sendRequest(Endpoint.KycLevel2, 'POST', undefined, { documentType, subaccountId });
   }
 
   public async retryKYC(

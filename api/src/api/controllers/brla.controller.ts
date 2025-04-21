@@ -3,9 +3,8 @@ import { validateMaskedNumber } from 'shared';
 import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
-import { BrlaTeleportService } from '../services/brla/brlaTeleportService';
 import { generateReferenceLabel } from '../services/brla/helpers';
-import logger from '../../config/logger';
+import { isValidKYCDocType, KYCDocType } from '../services/brla/types';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -321,6 +320,58 @@ export const validatePixKey = async (
     await brlaApiService.validatePixKey(pixKey);
 
     res.status(200).json({ valid: true });
+  } catch (error) {
+    handleApiError(error, res, 'triggerOnramp');
+  }
+};
+
+
+/**
+ * Creates a request for KYC level 2
+ *
+ * Existing KYC level 1 user can request KYC level 2.
+ * This endpoint will create a temporary token for this subaccount, that can be used to 
+ * upload the documents from the frontend/mobile-specific url.
+ * 
+ * Internally we query the BRLA API to create the KYC level 2 request, and store the 
+ * url's in our database entry along with the token.
+ *
+ * @returns Returns the unique token, and the mobile version to upload documents.
+ *
+ * @throws 400 - User does not exist, or is not yet KYC level 1 verified.
+ * @throws 500 - For any server-side errors during processing.
+ */
+export const startKYC2 = async (
+  req: Request<unknown, unknown, BrlaEndpoints.StartKYC2Request>,
+  res: Response<BrlaEndpoints.ValidatePixKeyResponse | BrlaEndpoints.BrlaErrorResponse>,
+): Promise<void> => {
+  try {
+    const { taxId, documentType } = req.body;
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      res.status(404).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    if (subaccount.kyc.level < 1) {
+      res.status(400).json({ error: 'KYC invalid. User must have a valid KYC level 1 status' });
+      return;
+    }
+    
+    if (!isValidKYCDocType(documentType)) {
+      res.status(400).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
+      return;
+    }
+
+    await brlaApiService.startKYC2(subaccount.id, documentType);
+
+    //TODO ensure process has not yet started (no entry).
+    // Create kycToken, save entry in db, and return the token
+
+    res.status(200).json({ valid: true });
+
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }

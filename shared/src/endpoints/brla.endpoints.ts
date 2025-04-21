@@ -96,4 +96,19 @@ export namespace BrlaEndpoints {
     error: string;
     details?: string;
   }
+
+  export const enum KYCDocType {
+    RG = 'RG',
+    CNH = 'CNH',
+  }
+
+  // POST /brla/startKYC2
+  export interface StartKYC2Request {
+    documentType: KYCDocType,
+    taxId: string,
+  }
+
+  export interface StartKYC2Response {
+    kycToken: string,
+  }
 }
