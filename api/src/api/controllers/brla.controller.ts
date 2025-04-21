@@ -5,6 +5,7 @@ import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
 import { generateReferenceLabel } from '../services/brla/helpers';
 import { isValidKYCDocType, KYCDocType } from '../services/brla/types';
+import kycService from '../services/kyc/kyc.service';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -343,7 +344,7 @@ export const validatePixKey = async (
  */
 export const startKYC2 = async (
   req: Request<unknown, unknown, BrlaEndpoints.StartKYC2Request>,
-  res: Response<BrlaEndpoints.ValidatePixKeyResponse | BrlaEndpoints.BrlaErrorResponse>,
+  res: Response<BrlaEndpoints.StartKYC2Response | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId, documentType } = req.body;
@@ -365,12 +366,9 @@ export const startKYC2 = async (
       return;
     }
 
-    await brlaApiService.startKYC2(subaccount.id, documentType);
+    const kycToken = await kycService.requestKycLevel2(subaccount.id, documentType);
 
-    //TODO ensure process has not yet started (no entry).
-    // Create kycToken, save entry in db, and return the token
-
-    res.status(200).json({ valid: true });
+    res.status(200).json({ kycToken });
 
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');

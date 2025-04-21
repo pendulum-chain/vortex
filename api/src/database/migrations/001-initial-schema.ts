@@ -210,10 +210,10 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       defaultValue: [],
       field: 'error_logs',
     },
-    onRamp: {
-      type: DataTypes.BOOLEAN,
+    uploadData: {
+      type: DataTypes.JSONB,
       allowNull: false,
-      field: 'on_ramp',
+      field: 'upload_data',
     },
     createdAt: {
       type: DataTypes.DATE,

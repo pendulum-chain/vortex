@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { KYCDocType } from '../api/services/brla/types';
+import { KYCDocType, KycLevel2Response } from '../api/services/brla/types';
 import sequelize from '../config/database';
 
 export enum KycLevel2Status {
@@ -16,13 +16,13 @@ export interface KycLevel2Attributes {
   subaccountId: string;
   documentType: KYCDocType;
   status: KycLevel2Status;
-  errorLogs: any[]; 
-  onRamp: boolean;
+  errorLogs: any[];
+  uploadData: KycLevel2Response;
   createdAt: Date;
   updatedAt: Date;
 }
 
-type KycLevel2CreationAttributes = Optional<KycLevel2Attributes, 'id' | 'errorLogs' | 'createdAt' | 'updatedAt'>;
+type KycLevel2CreationAttributes = Optional<KycLevel2Attributes, 'id' | 'errorLogs' | 'uploadData' | 'createdAt' | 'updatedAt'>;
 
 class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> implements KycLevel2Attributes {
   declare id: string; // Doubles as token. TODO: is that safe?
@@ -30,7 +30,7 @@ class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> 
   declare documentType: KYCDocType;
   declare status: KycLevel2Status;
   declare errorLogs: any[];
-  declare onRamp: boolean;
+  declare uploadData: KycLevel2Response;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -64,10 +64,10 @@ KycLevel2.init(
       defaultValue: [],
       field: 'error_logs',
     },
-    onRamp: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      field: 'on_ramp',
+    uploadData: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: 'upload_data',
     },
     createdAt: {
       type: DataTypes.DATE,
