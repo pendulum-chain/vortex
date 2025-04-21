@@ -65,6 +65,29 @@ export class KycService {
     }
   }
 
+  protected async updateKycLevel2Status(
+    id: string,
+    status: KycLevel2Status,
+    errorLog?: any,
+  ): Promise<[number, KycLevel2[]]> {
+    const kycLevel2 = await this.getKycLevel2ById(id);
+    if (!kycLevel2) {
+      throw new Error(`KYC Level 2 entry with id ${id} not found`);
+    }
+
+    const updateData: any = { status };
+
+    if (errorLog) {
+      const errorLogs = [...kycLevel2.errorLogs, { ...errorLog, timestamp: new Date() }];
+      updateData.errorLogs = errorLogs;
+    }
+
+    return KycLevel2.update(updateData, {
+      where: { id },
+      returning: true,
+    });
+  }
+
 
   public async requestKycLevel2(
     subaccountId: string, 
@@ -108,29 +131,6 @@ export class KycService {
     }
   }
 
-  public async updateKycLevel2Status(
-    id: string,
-    status: KycLevel2Status,
-    errorLog?: any,
-  ): Promise<[number, KycLevel2[]]> {
-    const kycLevel2 = await this.getKycLevel2ById(id);
-    if (!kycLevel2) {
-      throw new Error(`KYC Level 2 entry with id ${id} not found`);
-    }
-
-    const updateData: any = { status };
-
-    if (errorLog) {
-      const errorLogs = [...kycLevel2.errorLogs, { ...errorLog, timestamp: new Date() }];
-      updateData.errorLogs = errorLogs;
-    }
-
-    return KycLevel2.update(updateData, {
-      where: { id },
-      returning: true,
-    });
-  }
-
 
   public async hasCompletedKycLevel2(subaccountId: string): Promise<boolean> {
     const kycLevel2 = (await this.getLatestKycLevel2BySubaccount(subaccountId)) as KycLevel2 | null;
@@ -140,6 +140,25 @@ export class KycService {
     }
 
     return kycLevel2.status === KycLevel2Status.ACCEPTED;
+  }
+
+  public async uploadKyc2Data(kycToken: string, selfieBuffer: Buffer, rgFrontBuffer: Buffer, rgBackBuffer: Buffer, cnhBuffer: Buffer): Promise<void> {
+    try {
+      const kycEntry = await this.getKycLevel2ById(kycToken);
+
+      if (!kycEntry) {
+        throw new Error(`KYC Level 2 entry with id ${kycToken} not found`);
+      }
+      console.log("selfie....", selfieBuffer);
+      const selfieUrl = kycEntry.uploadData.selfieUploadUrl;
+      // TODO and so on.... then upload.
+      console.log('entry', kycEntry.uploadData);
+
+      return;
+    } catch (error) {
+      logger.error('Failed to upload KYC Level 2 data:', error);
+      throw error;
+    }
   }
 }
 

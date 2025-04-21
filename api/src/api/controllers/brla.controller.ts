@@ -322,7 +322,7 @@ export const validatePixKey = async (
 
     res.status(200).json({ valid: true });
   } catch (error) {
-    handleApiError(error, res, 'triggerOnramp');
+    handleApiError(error, res, 'validatePixKey');
   }
 };
 
@@ -371,6 +371,46 @@ export const startKYC2 = async (
     res.status(200).json({ kycToken });
 
   } catch (error) {
-    handleApiError(error, res, 'triggerOnramp');
+    handleApiError(error, res, 'startKYC2');
   }
 };
+
+
+/**
+ * Sends documents for KYC level 2.
+ *
+ * After the user has initiated the kyc level 2 process, it must send the raw data into this endpoint
+ * which validate it and send it to BRLA for verification.
+ *
+ * @returns Returns 200 if the documents were received successfully. 
+ *
+ * @throws 400 - There is no kyc level 2 process started for this user.
+ * @throws 500 - For any server-side errors during processing.
+ */
+export const uploadKYCData = async (
+  req: Request<unknown, unknown, BrlaEndpoints.UploadKYCDataRequest>,
+  res: Response< {} | BrlaEndpoints.BrlaErrorResponse>,
+): Promise<void> => {
+  try {
+
+    const { kycToken } = req.body;
+    const files = req.files as Record<string, Express.Multer.File[]>;
+
+    const selfieBuffer = files.selfie?.[0].buffer;
+    const rgFrontBuffer = files.RGFront?.[0].buffer;
+    const rgBackBuffer = files.RGBack?.[0].buffer;
+    const cnhBuffer = files.CNH?.[0].buffer;
+
+    console.log('content-type:', req.headers['content-type']);
+console.log('req.body:', req.body);
+console.log('req.files:', req.files);
+
+    await kycService.uploadKyc2Data(kycToken, selfieBuffer, rgFrontBuffer, rgBackBuffer, cnhBuffer);
+    res.status(200).json({});
+
+  } catch (error) {
+    handleApiError(error, res, 'uploadKYCData');
+  }
+};
+
+

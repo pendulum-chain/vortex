@@ -111,4 +111,16 @@ export namespace BrlaEndpoints {
   export interface StartKYC2Response {
     kycToken: string,
   }
+
+  // PATCH /brla/uploadKYCData
+  export interface UploadKYCDataRequest {
+    kycToken: string;
+  }
+
+  export interface KYCDataUploadFileFileds {
+    selfie: string;
+    RGFront: string;
+    RGBack: string;
+    CNH: string;
+  }
 }

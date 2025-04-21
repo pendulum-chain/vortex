@@ -6,6 +6,7 @@ import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
 import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
+import multer, { FileFilterCallback } from 'multer';
 
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 
@@ -391,3 +392,31 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
 
   next();
 };
+
+
+// Multer instance
+const storage = multer.memoryStorage();
+
+
+
+const upload = multer({ storage }).fields([
+  { name: 'selfie',  maxCount: 1 },
+  { name: 'RGFront',  maxCount: 1 },
+  { name: 'RGBack',   maxCount: 1 },
+  { name: 'CNH',      maxCount: 1 },
+]);
+
+// Wrapper to fetch and validate the files from the request
+export const validateKYC2Upload: RequestHandler = (req, res, next) => {
+  upload(req, res, (err) => {
+    
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ error: err.message });
+    } else if (err) {
+      return res.status(415).json({ error: err.message });
+    }
+
+    next();
+  });
+}
+

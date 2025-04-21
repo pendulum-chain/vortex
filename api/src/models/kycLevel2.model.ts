@@ -66,7 +66,7 @@ KycLevel2.init(
     },
     uploadData: {
       type: DataTypes.JSONB,
-      allowNull: true,
+      allowNull: false,
       field: 'upload_data',
     },
     createdAt: {
