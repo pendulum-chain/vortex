@@ -90,12 +90,4 @@ export class BrlaService {
     return apiRequest<BrlaEndpoints.CreateSubaccountResponse>('post', `${this.BASE_PATH}/createSubaccount`, request);
   }
 
-  /**
-   * Trigger a pay-in operation
-   * @param request The pay-in request
-   * @returns Empty response with 200 status
-   */
-  static async triggerPayIn(request: BrlaEndpoints.TriggerPayInRequest): Promise<BrlaEndpoints.TriggerPayInResponse> {
-    return apiRequest<BrlaEndpoints.TriggerPayInResponse>('post', `${this.BASE_PATH}/triggerPayIn`, request);
-  }
 }

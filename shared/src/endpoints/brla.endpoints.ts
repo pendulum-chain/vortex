@@ -92,17 +92,6 @@ export namespace BrlaEndpoints {
     subaccountId: string;
   }
 
-  // POST /brla/triggerPayIn
-  export interface TriggerPayInRequest {
-    taxId: string;
-    amount: number;
-    receiverAddress: string;
-  }
-
-  export interface TriggerPayInResponse {
-    // Empty response with 200 status
-  }
-
   export interface BrlaErrorResponse {
     error: string;
     details?: string;

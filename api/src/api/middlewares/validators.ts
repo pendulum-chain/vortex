@@ -369,29 +369,6 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateTriggerPayIn: RequestHandler = (req, res, next) => {
-  const { taxId, receiverAddress, amount } = req.body;
-
-  if (!taxId) {
-    res.status(400).json({ error: 'Missing taxId parameter' });
-    return;
-  }
-
-  if (!amount || isNaN(Number(amount))) {
-    res.status(400).json({ error: 'Missing or invalid amount parameter' });
-    return;
-  }
-
-  if (!receiverAddress || !receiverAddress.startsWith('0x')) {
-    res.status(400).json({
-      error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
-    });
-    return;
-  }
-
-  next();
-};
-
 export const validateGetPayInCode: RequestHandler = (req, res, next) => {
   const { taxId, receiverAddress, amount } = req.query as PayInCodeQuery;
 

@@ -284,7 +284,7 @@ export const getPayInCode = async (
     const brCode = await brlaApiService.generateBrCode({
       subaccountId: subaccount.id,
       amount: String(amount),
-      referenceLabel: generateReferenceLabel(receiverAddress),
+      referenceLabel: generateReferenceLabel(receiverAddress as `0x${string}`),
     });
 
     res.status(200).json(brCode);
@@ -321,42 +321,6 @@ export const validatePixKey = async (
     await brlaApiService.validatePixKey(pixKey);
 
     res.status(200).json({ valid: true });
-  } catch (error) {
-    handleApiError(error, res, 'triggerOnramp');
-  }
-};
-
-// DEPRECATED
-/**
- * Trigger an onramp operation
- *
- * Given the confirmation of payment from the user, it triggers an onramp operation.
- * This will start the process to teleport the funds to the corresponding Moonbeam address,
- * once the pix payment has arrived, and the reference and amount matches.
- *
- * @returns void?.
- *
- * @throws 400 - If taxId is invalid. No Pay In could have been generated.
- * @throws 500 - For any server-side errors during processing
- */
-export const triggerPayIn = async (
-  req: Request<unknown, unknown, BrlaEndpoints.TriggerPayInRequest>,
-  res: Response<BrlaEndpoints.TriggerPayInResponse>,
-): Promise<void> => {
-  try {
-    const { taxId, amount, receiverAddress } = req.body;
-
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
-      res.status(400).json({ error: 'taxId invalid' });
-      return;
-    }
-    logger.info('Requesting teleport:', subaccount.id, amount, receiverAddress);
-    const teleportService = BrlaTeleportService.getInstance();
-    await teleportService.requestTeleport(subaccount.id, Number(amount), receiverAddress);
-
-    res.status(200);
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }

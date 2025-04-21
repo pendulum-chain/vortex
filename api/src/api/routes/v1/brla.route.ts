@@ -3,7 +3,6 @@ import * as brlaController from '../../controllers/brla.controller';
 import {
   validateBrlaTriggerOfframpInput,
   validataSubaccountCreation,
-  validateTriggerPayIn,
   validateGetPayInCode,
 } from '../../middlewares/validators';
 
@@ -22,7 +21,5 @@ router.route('/payIn').get(validateGetPayInCode, brlaController.getPayInCode);
 router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaController.triggerBrlaOfframp);
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
-
-router.route('/triggerPayIn').post(validateTriggerPayIn, brlaController.triggerPayIn);
 
 export default router;
