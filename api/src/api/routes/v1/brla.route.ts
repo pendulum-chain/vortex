@@ -22,4 +22,6 @@ router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaContro
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
 
+router.route('/requestKyc2').post(brlaController.startKYC2);
+
 export default router;

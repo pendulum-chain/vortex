@@ -211,7 +211,6 @@ export function isValidKYCDocType(value: string ): value is KYCDocType {
 
 export interface KycLevel2Payload {
   documentType: KYCDocType;
-  subaccountId: string;
 }
 
 export interface KycLevel2Response {
