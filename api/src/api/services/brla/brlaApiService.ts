@@ -10,6 +10,9 @@ import {
   FastQuoteResponse,
   SwapPayload,
   OnchainLog,
+  KYCDocType,
+  KycLevel2Response,
+  KycRetryPayload,
 } from './types';
 import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
@@ -178,5 +181,17 @@ export class BrlaApiService {
   public async getOnChainHistoryOut(userId: string): Promise<OnchainLog[]> {
     const query = `subaccountId=${encodeURIComponent(userId)}`;
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, 'GET', query)).onchainLogs;
+  }
+
+  public async kyc2(documentType: KYCDocType): Promise<KycLevel2Response> {
+    return await this.sendRequest(Endpoint.KycLevel2, 'POST', undefined, { documentType });
+  }
+
+  public async retryKYC(
+    subaccountId: string,
+    retryKycPayload: KycRetryPayload,
+  ): Promise<any> {
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(Endpoint.KycRetry, 'POST', query, retryKycPayload);
   }
 }
