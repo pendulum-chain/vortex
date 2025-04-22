@@ -5,20 +5,7 @@ import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 import { useRampActions } from '../stores/rampStore';
 import { getNetworkId, isNetworkEVM, Networks } from 'shared';
 import { useSep24Actions } from '../stores/sep24Store';
-
-const getParamsNetwork = () => {
-  const params = new URLSearchParams(window.location.search);
-  const networkParam = params.get('network')?.toLowerCase();
-
-  if (networkParam) {
-    const matchedNetwork = Object.values(Networks).find((network) => network.toLowerCase() === networkParam);
-
-    if (matchedNetwork) {
-      return matchedNetwork;
-    }
-  }
-  return null;
-};
+import { useRampUrlParams } from '../hooks/useRampUrlParams';
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
@@ -43,14 +30,15 @@ interface NetworkProviderProps {
 export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { state: selectedNetworkLocalStorageState, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
     key: LocalStorageKeys.SELECTED_NETWORK,
-    defaultValue: Networks.AssetHub,
+    defaultValue: Networks.Polygon,
   });
+
+  const { network } = useRampUrlParams();
+
   // We do this to ensure that the local storage value is always in lowercase. Previously the first letter was uppercase
   const selectedNetworkLocalStorage = selectedNetworkLocalStorageState.toLowerCase() as Networks;
 
-  const paramsNetwork = getParamsNetwork();
-
-  const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(paramsNetwork || selectedNetworkLocalStorage);
+  const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(network || selectedNetworkLocalStorage);
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
 
   const { resetRampState } = useRampActions();
