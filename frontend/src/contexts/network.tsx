@@ -30,7 +30,7 @@ interface NetworkProviderProps {
 export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { state: selectedNetworkLocalStorageState, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
     key: LocalStorageKeys.SELECTED_NETWORK,
-    defaultValue: Networks.AssetHub,
+    defaultValue: Networks.Polygon,
   });
 
   const { network } = useRampUrlParams();
