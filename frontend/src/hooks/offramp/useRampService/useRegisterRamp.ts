@@ -103,7 +103,15 @@ export const useRegisterRamp = () => {
     }
   };
 
+  // Create a process lock for the registration process
   const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
+
+  // Create a process lock for the signing process
+  const {
+    checkLock: checkSigningLock,
+    verifyLock: verifySigningLock,
+    releaseLock: releaseSigningLock,
+  } = useProcessLock(START_KEY_LOCAL_STORAGE);
 
   // @TODO: maybe change to useCallback
   useEffect(() => {
@@ -115,7 +123,7 @@ export const useRegisterRamp = () => {
       // Alternatively release locks if process was cancelled
       // This will NOT clean the localStorage right after the process is cancelled
       // but rather on the first checkLock() call after confirmation.
-      if (!rampStarted){
+      if (!rampStarted) {
         releaseSigningLock();
         releaseLock();
       }
@@ -206,8 +214,6 @@ export const useRegisterRamp = () => {
         moonbeamApiComponents.api,
       );
 
-      console.log('setting ramp state with signed transactions...');
-
       setRampRegistered(true);
       setRampState({
         quote: executionInput.quote,
@@ -232,7 +238,6 @@ export const useRegisterRamp = () => {
       });
   }, [
     address,
-
     canRegisterRamp,
     chainId,
     checkLock,
@@ -244,14 +249,9 @@ export const useRegisterRamp = () => {
     setRampState,
     verifyLock,
     rampKycStarted,
+    rampStarted,
+    releaseSigningLock,
   ]);
-
-  // Create a process lock for the signing process
-  const {
-    checkLock: checkSigningLock,
-    verifyLock: verifySigningLock,
-    releaseLock: releaseSigningLock,
-  } = useProcessLock(START_KEY_LOCAL_STORAGE);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
   // This is only relevant for offramps. @TODO: Extract this to a separate hook for offramp
