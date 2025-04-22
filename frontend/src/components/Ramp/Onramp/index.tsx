@@ -59,8 +59,6 @@ export const Onramp = () => {
   const fromToken = getAnyFiatTokenDetails(fiatToken);
   const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
 
-  useSetRampUrlParams();
-
   useEffect(() => {
     if (!fromAmountFieldTouched || debouncedInputAmount !== inputAmount) return;
 
