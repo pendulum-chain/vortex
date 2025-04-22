@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { RampDirection } from '../components/RampToggle';
-import { Networks, AssetHubToken, EvmToken, FiatToken, OnChainToken } from 'shared';
+import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
 import { useRampDirectionToggle } from '../stores/rampDirectionStore';
 import { useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
+import { useNetwork } from '../contexts/network';
 
 interface RampUrlParams {
   ramp: RampDirection;
@@ -11,6 +12,8 @@ interface RampUrlParams {
   from?: string;
   fromAmount?: string;
 }
+
+const defaultFiatTokenAmounts: Record<FiatToken, string> = { eurc: '20', ars: '20', brl: '5' };
 
 function findFiatToken(fiatToken?: string): FiatToken | undefined {
   if (!fiatToken) {
@@ -69,6 +72,7 @@ function getNetworkFromParam(param?: string): Networks | undefined {
 
 export const useRampUrlParams = (): RampUrlParams => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const { selectedNetwork } = useNetwork();
 
   const urlParams = useMemo(() => {
     const rampParam = params.get('ramp')?.toLowerCase();
@@ -79,15 +83,28 @@ export const useRampUrlParams = (): RampUrlParams => {
 
     const ramp = rampParam === 'buy' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
 
+    const from =
+      ramp === RampDirection.OFFRAMP
+        ? findOnChainToken(fromTokenParam, networkParam || selectedNetwork)
+        : findFiatToken(fromTokenParam);
+    const to =
+      ramp === RampDirection.OFFRAMP
+        ? findFiatToken(toTokenParam)
+        : findOnChainToken(toTokenParam, networkParam || selectedNetwork);
+
+    const fromAmount =
+      ramp === RampDirection.OFFRAMP
+        ? defaultFiatTokenAmounts[to as FiatToken]
+        : defaultFiatTokenAmounts[from as FiatToken];
+
     return {
       ramp,
       network: getNetworkFromParam(networkParam),
-      to: ramp === RampDirection.OFFRAMP ? findFiatToken(toTokenParam) : findOnChainToken(toTokenParam, networkParam),
-      from:
-        ramp === RampDirection.OFFRAMP ? findOnChainToken(fromTokenParam, networkParam) : findFiatToken(fromTokenParam),
-      fromAmount: inputAmountParam || undefined,
+      from,
+      to,
+      fromAmount: inputAmountParam || fromAmount || undefined,
     };
-  }, [params]);
+  }, [params, selectedNetwork]);
 
   return urlParams;
 };

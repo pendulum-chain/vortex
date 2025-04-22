@@ -187,7 +187,6 @@ export const useRampValidation = () => {
     isDisconnected,
     isOnramp,
     quoteLoading,
-    selectedNetwork,
     t,
     inputAmount,
     fromToken,
