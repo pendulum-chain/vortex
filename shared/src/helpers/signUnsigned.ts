@@ -58,8 +58,6 @@ async function signMultipleStellarTransactions(
   };
   // iterate objects of array meta
   for (const key in signedTx.meta.additionalTxs) {
-    console.log(`key: ${key}`);
-    console.log(`value: ${signedTx.meta[key]}`);
     if (!key.includes(tx.phase)) continue;
 
     const extraTransactionUnsigned = signedTx.meta.additionalTxs[key].txData;

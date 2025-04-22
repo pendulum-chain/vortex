@@ -9,11 +9,14 @@ import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirec
 import { RampDirection, RampToggle } from '../../components/RampToggle';
 import { PoweredBy } from '../../components/PoweredBy';
 import { Onramp } from '../../components/Ramp/Onramp';
+import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
   const offrampKycStarted = useRampKycStarted();
+
+  useSetRampUrlParams();
 
   return (
     <main>
