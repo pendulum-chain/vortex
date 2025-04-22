@@ -21,7 +21,7 @@ interface RampFormActions {
 }
 
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
-  inputAmount: undefined,
+  inputAmount: '20',
   onChainToken: EvmToken.USDC,
   fiatToken: FiatToken.EURC,
   taxId: undefined,
