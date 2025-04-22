@@ -3,8 +3,8 @@
  */
 export function validateMaskedNumber(maskedCpf: string, fullCpf: string): boolean {
 
-  maskedCpf = maskedCpf.replace(/[-.]/g, '');
-  fullCpf = fullCpf.replace(/[-.]/g, '');
+  maskedCpf = maskedCpf.replace(/[-./]/g, '');
+  fullCpf = fullCpf.replace(/[-./]/g, '');
 
   if (!maskedCpf || !fullCpf) return false;
 
