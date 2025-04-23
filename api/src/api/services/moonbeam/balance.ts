@@ -10,19 +10,20 @@ import { createMoonbeamClientsAndConfig } from './createServices';
 import logger from '../../../config/logger';
 import { Networks } from 'shared';
 
-export function checkMoonbeamBalancePeriodically(
+export function checkEvmBalancePeriodically(
   tokenAddress: string,
   brlaEvmAddress: string,
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
+  chain: any
 ) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const intervalId = setInterval(async () => {
       try {
         const publicClient = createPublicClient({
-          chain: moonbeam,
+          chain,
           transport: http(),
         });
 
