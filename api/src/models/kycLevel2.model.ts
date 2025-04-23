@@ -3,9 +3,8 @@ import { KYCDocType, KycLevel2Response } from '../api/services/brla/types';
 import sequelize from '../config/database';
 
 export enum KycLevel2Status {
-  REQUESTED = 'Requested',
-  DATA_COLLECTED = 'DataCollected',
-  BRLA_VALIDATING = 'BrlaValidating',
+  REQUESTED = 'Requested', // Requested by the user
+  BRLA_VALIDATING = 'BrlaValidating', // Data collected from the user and sent to brla for validation
   REJECTED = 'Rejected',
   ACCEPTED = 'Accepted',
   CANCELLED = 'Cancelled',
@@ -17,7 +16,7 @@ export interface KycLevel2Attributes {
   documentType: KYCDocType;
   status: KycLevel2Status;
   errorLogs: any[];
-  uploadData: KycLevel2Response;
+  uploadData: KycLevel2Response | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,7 +29,7 @@ class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> 
   declare documentType: KYCDocType;
   declare status: KycLevel2Status;
   declare errorLogs: any[];
-  declare uploadData: KycLevel2Response;
+  declare uploadData: KycLevel2Response | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -66,7 +65,7 @@ KycLevel2.init(
     },
     uploadData: {
       type: DataTypes.JSONB,
-      allowNull: false,
+      allowNull: true,
       field: 'upload_data',
     },
     createdAt: {

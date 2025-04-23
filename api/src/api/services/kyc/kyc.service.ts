@@ -6,6 +6,11 @@ import sequelize from '../../../config/database';
 import { KYCDocType, KycLevel2Response } from '../brla/types';
 import { BrlaApiService } from '../brla/brlaApiService';
 
+export interface KycDocumentFile {
+  buffer: Buffer;
+  mimetype: string;
+}
+
 export class KycService {
   private brlaApiService: BrlaApiService;
 
@@ -18,7 +23,7 @@ export class KycService {
       subaccountId: string;
       documentType: KYCDocType;
       status?: KycLevel2Status;
-      uploadData: KycLevel2Response;
+      uploadData?: KycLevel2Response;
     },
     transaction?: Transaction,
   ): Promise<KycLevel2> {
@@ -65,9 +70,10 @@ export class KycService {
     }
   }
 
-  protected async updateKycLevel2Status(
+  protected async updateKycLevel2(
     id: string,
     status: KycLevel2Status,
+    uploadData?: KycLevel2Response, 
     errorLog?: any,
   ): Promise<[number, KycLevel2[]]> {
     const kycLevel2 = await this.getKycLevel2ById(id);
@@ -75,7 +81,7 @@ export class KycService {
       throw new Error(`KYC Level 2 entry with id ${id} not found`);
     }
 
-    const updateData: any = { status };
+    const updateData: any = { status, uploadData };
 
     if (errorLog) {
       const errorLogs = [...kycLevel2.errorLogs, { ...errorLog, timestamp: new Date() }];
@@ -97,7 +103,7 @@ export class KycService {
       // Ensure no existing KYC Level 2 process is in progress for the subaccount, or the user is already level 2.
       const existingKycLevel2 = await this.getLatestKycLevel2BySubaccount(subaccountId);
 
-      if (existingKycLevel2 && ( existingKycLevel2.status === KycLevel2Status.BRLA_VALIDATING || existingKycLevel2.status === KycLevel2Status.DATA_COLLECTED || existingKycLevel2.status === KycLevel2Status.REQUESTED )) {
+      if (existingKycLevel2 && ( existingKycLevel2.status === KycLevel2Status.BRLA_VALIDATING || existingKycLevel2.status === KycLevel2Status.REQUESTED )) {
         throw new Error(`KYC Level 2 process already in progress for subaccount ${subaccountId}`);
       }
 
@@ -105,8 +111,6 @@ export class KycService {
         throw new Error(`Subaccount ${subaccountId} is already KYC Level 2 verified`);
       }
 
-      // Start KYC Level 2 process with BRLA API, create the entity.
-      const kycResponse = await this.brlaApiService.startKYC2(subaccountId, documentType);
 
       return this.withTransaction(async (transaction) => {
         const kycLevel2 = await this.createKycLevel2(
@@ -114,7 +118,7 @@ export class KycService {
             subaccountId,
             documentType,
             status: KycLevel2Status.REQUESTED,
-            uploadData: kycResponse,
+            uploadData: undefined,
           },
           transaction,
         );
@@ -142,33 +146,94 @@ export class KycService {
     return kycLevel2.status === KycLevel2Status.ACCEPTED;
   }
 
-  public async uploadKyc2Data(kycToken: string, selfie: any, rgFrontBuffer: any, rgBackBuffer: any, cnhBuffer: any): Promise<void> {
+  public async uploadKyc2Data(
+    kycToken: string, 
+    selfie: KycDocumentFile, 
+    rgFront: KycDocumentFile, 
+    rgBack: KycDocumentFile, 
+    cnh: KycDocumentFile
+  ): Promise<void> {
     try {
       const kycEntry = await this.getKycLevel2ById(kycToken);
 
       if (!kycEntry) {
         throw new Error(`KYC Level 2 entry with id ${kycToken} not found`);
       }
-      console.log("selfie....", selfie);
-      const selfieUrl = kycEntry.uploadData.selfieUploadUrl;
-      // TODO and so on.... then upload.
-      console.log('entry', kycEntry.uploadData);
 
-      // TODO url expires in 60 seconds apparently. We must only fetch the url's from brla when we actually have the images and they 
-      // are partially validated.
-      const res = await fetch(kycEntry.uploadData.selfieUploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': selfie.mimetype,
-          'Content-Length': String(selfie.buffer.length),
-        },
-        body: selfie.buffer,
-      })
 
-    if (!res.ok) {
-      const errText = await res.text()
-      throw new Error(`Upload failed: ${res.status} ${res.statusText} — ${errText}`)
-    }
+      const kycResponse = await this.brlaApiService.startKYC2(kycEntry.subaccountId, kycEntry.documentType);
+
+      const selfieUrl = kycResponse.selfieUploadUrl;
+      const rgFrontUploadUrl = kycResponse.RGFrontUploadUrl;
+      const rgBackUploadUrl = kycResponse.RGBackUploadUrl;
+      const cnhUploadUrl = kycResponse.CNHUploadUrl;
+      
+
+      const uploads = [];
+      
+
+      uploads.push(
+        fetch(selfieUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': selfie.mimetype,
+            'Content-Length': String(selfie.buffer.length),
+          },
+          body: selfie.buffer,
+        })
+      );
+      
+      if (kycEntry.documentType === KYCDocType.RG) {
+        uploads.push(
+          fetch(rgFrontUploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': rgFront.mimetype,
+              'Content-Length': String(rgFront.buffer.length),
+            },
+            body: rgFront.buffer,
+          })
+        );
+        
+        uploads.push(
+          fetch(rgBackUploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': rgBack.mimetype,
+              'Content-Length': String(rgBack.buffer.length),
+            },
+            body: rgBack.buffer,
+          })
+        );
+      }
+      
+      if (kycEntry.documentType === KYCDocType.CNH) {
+        uploads.push(
+          fetch(cnhUploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': cnh.mimetype,
+              'Content-Length': String(cnh.buffer.length),
+            },
+            body: cnh.buffer,
+          })
+        );
+      }
+      
+      const results = await Promise.all(uploads);
+      
+      for (const res of results) {
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Upload failed: ${res.status} ${res.statusText} — ${errText}`);
+        }
+      }
+
+      await this.updateKycLevel2(
+        kycEntry.id,
+        KycLevel2Status.BRLA_VALIDATING,
+        kycResponse
+      );
 
       return;
     } catch (error) {

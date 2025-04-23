@@ -6,6 +6,8 @@ import { eventPoller } from '../..';
 import { generateReferenceLabel } from '../services/brla/helpers';
 import { isValidKYCDocType, KYCDocType } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
+import { EvmAddress } from '../services/brla/brlaTeleportService';
+import { PayInCodeQuery } from '../middlewares/validators';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number) {
@@ -256,11 +258,11 @@ export const fetchSubaccountKycStatus = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const getPayInCode = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetPayInCodeRequest>,
+  req: Request<unknown, unknown, unknown, PayInCodeQuery>,
   res: Response<BrlaEndpoints.GetPayInCodeResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
-    const { taxId, amount, receiverAddress } = req.query;
+    const { taxId, amount, receiverAddress } = req.query as PayInCodeQuery;
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
@@ -284,7 +286,7 @@ export const getPayInCode = async (
     const brCode = await brlaApiService.generateBrCode({
       subaccountId: subaccount.id,
       amount: String(amount),
-      referenceLabel: generateReferenceLabel(receiverAddress as `0x${string}`),
+      referenceLabel: generateReferenceLabel(receiverAddress),
     });
 
     res.status(200).json(brCode);
@@ -334,8 +336,6 @@ export const validatePixKey = async (
  * This endpoint will create a temporary token for this subaccount, that can be used to 
  * upload the documents from the frontend/mobile-specific url.
  * 
- * Internally we query the BRLA API to create the KYC level 2 request, and store the 
- * url's in our database entry along with the token.
  *
  * @returns Returns the unique token, and the mobile version to upload documents.
  *
@@ -392,15 +392,21 @@ export const uploadKYCData = async (
   res: Response< {} | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
-
     const { kycToken } = req.body;
     const files = req.files as Record<string, Express.Multer.File[]>;
 
+    // Supported file types are png, jpg and pdf
+    // Validated in validateKYC2Upload middleware
 
-
-    await kycService.uploadKyc2Data(kycToken, files.selfie?.[0], files.RGFront?.[0], files.RGBack?.[0], files.CNH?.[0]);
+    await kycService.uploadKyc2Data(
+      kycToken, 
+      { buffer: files.selfie[0].buffer, mimetype: files.selfie[0].mimetype },
+      { buffer: files.RGFront[0].buffer, mimetype: files.RGFront[0].mimetype },
+      { buffer: files.RGBack[0].buffer, mimetype: files.RGBack[0].mimetype },
+      { buffer: files.CNH[0].buffer, mimetype: files.CNH[0].mimetype }
+    );
+    
     res.status(200).json({});
-
   } catch (error) {
     handleApiError(error, res, 'uploadKYCData');
   }

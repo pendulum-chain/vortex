@@ -398,25 +398,55 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
 const storage = multer.memoryStorage();
 
 
+const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: FileFilterCallback) => {
 
-const upload = multer({ storage }).fields([
+  const supportedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
+  
+  if (supportedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Unsupported file type: ${file.mimetype}. Supported types are: png, jpg, and pdf`));
+  }
+};
+
+// 10MB file size limit
+const MAX_FILE_SIZE = 10 * 1024 * 1024; 
+
+const upload = multer({ 
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: MAX_FILE_SIZE
+  }
+}).fields([
   { name: 'selfie',  maxCount: 1 },
-  { name: 'RGFront',  maxCount: 1 },
-  { name: 'RGBack',   maxCount: 1 },
-  { name: 'CNH',      maxCount: 1 },
+  { name: 'RGFront', maxCount: 1 },
+  { name: 'RGBack',  maxCount: 1 },
+  { name: 'CNH',     maxCount: 1 },
 ]);
 
 // Wrapper to fetch and validate the files from the request
 export const validateKYC2Upload: RequestHandler = (req, res, next) => {
   upload(req, res, (err) => {
-    
     if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB` });
+      }
       return res.status(400).json({ error: err.message });
     } else if (err) {
       return res.status(415).json({ error: err.message });
     }
 
+    const files = req.files as Record<string, Express.Multer.File[]>;
+    const requiredFiles = ['selfie', 'RGFront', 'RGBack', 'CNH'];
+    const missingFiles = requiredFiles.filter(file => !files[file] || files[file].length === 0);
+
+    if (missingFiles.length > 0) {
+      return res.status(400).json({ 
+        error: `Missing required files: ${missingFiles.join(', ')}` 
+      });
+    }
+
     next();
   });
 }
-
