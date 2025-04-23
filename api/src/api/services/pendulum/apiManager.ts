@@ -179,14 +179,28 @@ export class ApiManager {
     createCall: (api: ApiPromise) => SubmittableExtrinsic<'promise', ISubmittableResult>,
     senderKeypair: KeyringPair,
     networkName: SubstrateApiNetwork,
-  ): Promise<any> {
+  ): Promise<{hash: string}> {
     const apiInstance = await this.getApi(networkName);
     const call = createCall(apiInstance.api);
 
     try {
       const nonce = await this.getNonce(senderKeypair, networkName);
       logger.info(`Sending transaction on ${networkName} with nonce ${nonce}`);
-      return call.signAndSend(senderKeypair, { nonce });
+
+      return new Promise((resolve, reject) => {
+        call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
+          const { status, events, dispatchError } = submissionResult;
+          if (status.isFinalized) {
+            const hash = status.asFinalized.toString();
+            
+            if (dispatchError) {
+              reject(new Error(`Transaction failed: ${dispatchError}`));
+            } else {
+              resolve({hash});
+            }
+          } 
+        });
+      });
     } catch (initialError: any) {
       // Only retry if the error is regarding bad signature error
       if (initialError.name === 'RpcError' && initialError.message.includes('Transaction has a bad signature')) {
@@ -197,7 +211,20 @@ export class ApiManager {
         try {
           await this.populateApi(networkName);
           const nonce = await this.getNonce(senderKeypair, networkName);
-          return call.signAndSend(senderKeypair, { nonce });
+          return new Promise((resolve, reject) => {
+            call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
+              const { status, events, dispatchError } = submissionResult;
+              if (status.isFinalized) {
+                const hash = status.asFinalized.toString();
+
+                if (dispatchError) {
+                  reject(new Error(`Transaction failed: ${dispatchError}`));
+                } else {
+                  resolve({hash});
+                }
+              } 
+            });
+          });
         } catch (retryError) {
           throw retryError;
         }
