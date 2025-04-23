@@ -190,15 +190,19 @@ export class ApiManager {
       return new Promise((resolve, reject) => {
         call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
           const { status, events, dispatchError } = submissionResult;
-          if (status.isFinalized) {
+
+          if (dispatchError) {
+            reject(new Error(`Transaction failed: ${dispatchError}`));
+          }
+
+          if (submissionResult.isError){
+            reject(new Error(`Transaction was not included: ${submissionResult.dispatchError}`));
+          }
+
+          if (submissionResult.isFinalized){
             const hash = status.asFinalized.toString();
-            
-            if (dispatchError) {
-              reject(new Error(`Transaction failed: ${dispatchError}`));
-            } else {
-              resolve({hash});
-            }
-          } 
+            resolve({hash})
+          }
         });
       });
     } catch (initialError: any) {
@@ -214,15 +218,19 @@ export class ApiManager {
           return new Promise((resolve, reject) => {
             call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
               const { status, events, dispatchError } = submissionResult;
-              if (status.isFinalized) {
-                const hash = status.asFinalized.toString();
 
-                if (dispatchError) {
-                  reject(new Error(`Transaction failed: ${dispatchError}`));
-                } else {
-                  resolve({hash});
-                }
-              } 
+              if (dispatchError) {
+                reject(new Error(`Transaction failed: ${dispatchError}`));
+              }
+
+              if (submissionResult.isError){
+                reject(new Error(`Transaction was not included: ${submissionResult.dispatchError}`));
+              }
+
+              if (submissionResult.isFinalized){
+                const hash = status.asFinalized.toString();
+                resolve({hash})
+              }
             });
           });
         } catch (retryError) {
