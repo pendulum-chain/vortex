@@ -142,17 +142,33 @@ export class KycService {
     return kycLevel2.status === KycLevel2Status.ACCEPTED;
   }
 
-  public async uploadKyc2Data(kycToken: string, selfieBuffer: Buffer, rgFrontBuffer: Buffer, rgBackBuffer: Buffer, cnhBuffer: Buffer): Promise<void> {
+  public async uploadKyc2Data(kycToken: string, selfie: any, rgFrontBuffer: any, rgBackBuffer: any, cnhBuffer: any): Promise<void> {
     try {
       const kycEntry = await this.getKycLevel2ById(kycToken);
 
       if (!kycEntry) {
         throw new Error(`KYC Level 2 entry with id ${kycToken} not found`);
       }
-      console.log("selfie....", selfieBuffer);
+      console.log("selfie....", selfie);
       const selfieUrl = kycEntry.uploadData.selfieUploadUrl;
       // TODO and so on.... then upload.
       console.log('entry', kycEntry.uploadData);
+
+      // TODO url expires in 60 seconds apparently. We must only fetch the url's from brla when we actually have the images and they 
+      // are partially validated.
+      const res = await fetch(kycEntry.uploadData.selfieUploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': selfie.mimetype,
+          'Content-Length': String(selfie.buffer.length),
+        },
+        body: selfie.buffer,
+      })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`Upload failed: ${res.status} ${res.statusText} — ${errText}`)
+    }
 
       return;
     } catch (error) {

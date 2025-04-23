@@ -396,21 +396,12 @@ export const uploadKYCData = async (
     const { kycToken } = req.body;
     const files = req.files as Record<string, Express.Multer.File[]>;
 
-    const selfieBuffer = files.selfie?.[0].buffer;
-    const rgFrontBuffer = files.RGFront?.[0].buffer;
-    const rgBackBuffer = files.RGBack?.[0].buffer;
-    const cnhBuffer = files.CNH?.[0].buffer;
 
-    console.log('content-type:', req.headers['content-type']);
-console.log('req.body:', req.body);
-console.log('req.files:', req.files);
 
-    await kycService.uploadKyc2Data(kycToken, selfieBuffer, rgFrontBuffer, rgBackBuffer, cnhBuffer);
+    await kycService.uploadKyc2Data(kycToken, files.selfie?.[0], files.RGFront?.[0], files.RGBack?.[0], files.CNH?.[0]);
     res.status(200).json({});
 
   } catch (error) {
     handleApiError(error, res, 'uploadKYCData');
   }
 };
-
-
