@@ -12,6 +12,8 @@ export enum LocalStorageKeys {
   FIRED_INITIALIZATION_EVENTS = 'FIRED_INITIALIZATION_EVENTS',
   TERMS_AND_CONDITIONS = 'TERMS_AND_CONDITIONS',
   RAMPING_STATE = 'RAMPING_STATE',
+  REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey',
+  START_KEY_LOCAL_STORAGE = 'rampStartKey',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

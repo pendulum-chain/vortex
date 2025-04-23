@@ -1,4 +1,4 @@
-import { FiatToken, RampPhase } from 'shared';
+import { FiatToken, getNetworkFromDestination, Networks, RampPhase } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import { API, ApiManager } from '../../pendulum/apiManager';
@@ -54,7 +54,14 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       if (state.type === 'on' && !isMoonbeamFunded) {
         logger.info('Funding moonbeam ephemeral...');
-        await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
+        
+        const destinationNetwork = getNetworkFromDestination(state.to); 
+        // For onramp case, "to" is always a network.
+        if (!destinationNetwork) {
+          throw new Error('FundEphemeralPhaseHandler: Invalid destination network.');
+        }
+
+        await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress, destinationNetwork);
       }
     } catch (e) {
       console.error('Error in FundEphemeralPhaseHandler:', e);
