@@ -10,6 +10,7 @@ import {
   getOnChainTokenDetails,
   OnChainToken,
   isEvmTokenDetails,
+  Networks,
 } from 'shared';
 import { BaseRampService } from './base.service';
 import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
@@ -20,7 +21,8 @@ import { ApiManager } from '../pendulum/apiManager';
 import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-
+import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM } from '../../../constants/constants';
+import { multiplyByPowerOfTen } from '../../services/pendulum/helpers';
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format
@@ -244,6 +246,17 @@ export class QuoteService extends BaseRampService {
         const routeResult = await getRoute(routeParams);
         const { route } = routeResult.data;
         const { toAmountMin } = route.estimate;
+
+        // Check against our moonbeam funding amounts.
+        const squidrouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
+        const fundingAmountUnits = getNetworkFromDestination(to) === Networks.Ethereum ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM) : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+        // Leave 2 glmr for other operations of the ephemeral.
+        if (squidrouterSwapValue.gte(fundingAmountUnits.minus(2))) {
+          throw new APIError({
+            status: httpStatus.SERVICE_UNAVAILABLE,
+            message: 'Cannot service this route at the moment. Please try again later.',
+          });
+        }
 
         amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
           outTokenDetails!.pendulumDecimals,

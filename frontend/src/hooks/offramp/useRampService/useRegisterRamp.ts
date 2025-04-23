@@ -120,13 +120,6 @@ export const useRegisterRamp = () => {
     // Check if we can proceed with the registration process
     const lockResult = checkLock();
     if (!lockResult.canProceed) {
-      // Alternatively release locks if process was cancelled
-      // This will NOT clean the localStorage right after the process is cancelled
-      // but rather on the first checkLock() call after confirmation.
-      if (!rampStarted) {
-        releaseSigningLock();
-        releaseLock();
-      }
       return;
     }
 

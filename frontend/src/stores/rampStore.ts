@@ -9,6 +9,8 @@ interface RampStore extends RampZustand {
 
 const clearRampingState = () => {
   storageService.remove(LocalStorageKeys.RAMPING_STATE);
+  storageService.remove(LocalStorageKeys.REGISTER_KEY_LOCAL_STORAGE);
+  storageService.remove(LocalStorageKeys.START_KEY_LOCAL_STORAGE);
 };
 
 // Load initial state from localStorage

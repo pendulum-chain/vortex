@@ -1,16 +1,14 @@
 import { createPublicClient, http } from 'viem';
-import { moonbeam, polygon } from 'viem/chains';
+import { moonbeam } from 'viem/chains';
 import erc20ABI from '../../../contracts/ERC20';
 import Big from 'big.js';
 import { ApiManager } from '../pendulum/apiManager';
-import { getFundingData } from '../pendulum/pendulum.service';
-import { KeyringPair } from '@polkadot/keyring/types';
-import { Keyring } from '@polkadot/api';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../constants/constants';
+import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM, MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { privateKeyToAccount } from 'viem/accounts';
 import { createMoonbeamClientsAndConfig } from './createServices';
 import logger from '../../../config/logger';
+import { Networks } from 'shared';
 
 export function checkMoonbeamBalancePeriodically(
   tokenAddress: string,
@@ -54,11 +52,13 @@ export function checkMoonbeamBalancePeriodically(
   });
 }
 
-export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => {
+export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string, destinationNetwork: Networks) => {
   try {
     const apiManager = ApiManager.getInstance();
     const apiData = await apiManager.getApi('moonbeam');
-    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals);
+
+    const largeFunding = destinationNetwork === Networks.Ethereum;
+    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals, largeFunding);
 
     const txHash = await walletClient.sendTransaction({
       to: ephemeralAddress as `0x${string}`,
@@ -75,12 +75,12 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
   }
 };
 
-export function getMoonbeamFundingData(decimals: number): {
+export function getMoonbeamFundingData(decimals: number, largeFunding: boolean = false): {
   fundingAmountRaw: string;
   walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>['walletClient'];
   publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>['publicClient'];
 } {
-  const fundingAmountUnits = Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+  const fundingAmountUnits = largeFunding ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM) : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
   const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
