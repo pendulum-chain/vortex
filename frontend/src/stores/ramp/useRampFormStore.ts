@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EvmToken, FiatToken, OnChainToken } from 'shared';
+import { EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
 
 interface RampFormState {
   inputAmount?: string;
@@ -20,9 +20,11 @@ interface RampFormActions {
   };
 }
 
+const storedNetwork = localStorage.getItem('SELECTED_NETWORK')
+
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   inputAmount: '20',
-  onChainToken: EvmToken.USDT,
+  onChainToken: storedNetwork !== null && storedNetwork === Networks.AssetHub ? EvmToken.USDC : EvmToken.USDT,
   fiatToken: FiatToken.EURC,
   taxId: undefined,
   pixId: undefined,
