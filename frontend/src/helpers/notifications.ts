@@ -3,6 +3,7 @@ import { ToastOptions, toast } from 'react-toastify';
 
 export enum ToastMessage {
   AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
+  RAMP_LIMIT_EXCEEDED = 'RAMP_LIMIT_EXCEEDED',
   KYC_COMPLETED = 'KYC_COMPLETED',
   KYC_VERIFICATION_FAILED = 'KYC_VERIFICATION_FAILED',
   SIGNING_FAILED = 'SIGNING_FAILED',
@@ -53,6 +54,13 @@ const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey:
       type: 'error',
     },
     translationKey: 'toasts.nodeConnectionError',
+  },
+  [ToastMessage.RAMP_LIMIT_EXCEEDED]: {
+    options: {
+      toastId: ToastMessage.RAMP_LIMIT_EXCEEDED,
+      type: 'error',
+    },
+    translationKey: 'toasts.rampLimitExceeded',
   },
   [ToastMessage.ERROR]: {
     options: {
