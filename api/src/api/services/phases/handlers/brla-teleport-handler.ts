@@ -60,6 +60,10 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         maxWaitingTimeMs,
         moonbeam
       );
+
+      // Add delay to ensure the transaction is settled
+      await new Promise((resolve) => setTimeout(resolve, 12000)); // 12 seconds, 2 moonbeam blocks.
+      
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {
         if (balanceCheckError.message === 'Balance did not meet the limit within the specified time') {

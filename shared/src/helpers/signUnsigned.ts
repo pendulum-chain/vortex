@@ -10,7 +10,7 @@ import { hdEthereum, mnemonicToLegacySeed } from '@polkadot/util-crypto';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 
 // Number of transactions to pre-sign for each transaction
-const NUMBER_OF_PRESIGNED_TXS = 3;
+const NUMBER_OF_PRESIGNED_TXS = 5;
 
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
