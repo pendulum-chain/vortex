@@ -407,6 +407,7 @@
     "signingFailed": "Signing failed. Please try again.",
     "walletAlreadyOpen": "Wallet already open pending connection. Please try again.",
     "nodeConnectionError": "Error while connecting to the node. Refresh the page to re-connect.",
-    "genericError": "An error occurred. Please try again."
+    "genericError": "An error occurred. Please try again.",
+    "rampLimitExceeded": "This amount exceeds the remaining limit of {{remaining}} BRL for your account."
   }
 }

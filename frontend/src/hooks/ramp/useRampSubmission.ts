@@ -15,6 +15,7 @@ import { useRegisterRamp } from '../offramp/useRampService/useRegisterRamp';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { useStartRamp } from '../offramp/useRampService/useStartRamp';
+import { usePreRampCheck } from '../../services/initialChecks';
 
 interface SubmissionError extends Error {
   code?: string;
@@ -37,6 +38,7 @@ export const useRampSubmission = () => {
   const rampDirection = useRampDirection();
   const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
   const { registerRamp } = useRegisterRamp();
+  const preRampCheck = usePreRampCheck();
   useStartRamp(); // This will automatically start the ramp process when the conditions are met
 
   // @TODO: implement Error boundary
@@ -115,8 +117,10 @@ export const useRampSubmission = () => {
   const onRampConfirm = useCallback(async () => {
     if (executionPreparing) return;
     setExecutionPreparing(true);
+
     try {
       const executionInput = prepareExecutionInput();
+      await preRampCheck(executionInput);
       setRampExecutionInput(executionInput);
 
       await registerRamp(executionInput);
@@ -129,9 +133,10 @@ export const useRampSubmission = () => {
   }, [
     executionPreparing,
     prepareExecutionInput,
+    preRampCheck,
     setRampExecutionInput,
-    trackTransaction,
     registerRamp,
+    trackTransaction,
     handleSubmissionError,
   ]);
 
