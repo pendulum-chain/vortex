@@ -51,6 +51,15 @@ export namespace BrlaEndpoints {
     [key: string]: any; // Additional fields from BRLA API
   }
 
+  export interface GetUserRemainingLimitRequest {
+    taxId: string;
+  }
+
+  export interface GetUserRemainingLimitResponse {
+    remainingLimitOnramp: number;
+    remainingLimitOfframp: number;
+  }
+
   // POST /brla/triggerOfframp
   export interface TriggerOfframpRequest {
     taxId: string;
