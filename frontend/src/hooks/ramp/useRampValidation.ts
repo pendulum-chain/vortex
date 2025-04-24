@@ -34,20 +34,7 @@ function validateOnramp(
     trackEvent: (event: TrackableEvent) => void;
   },
 ): string | null {
-  const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
   const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
-
-  if (inputAmount && maxAmountUnits.lt(inputAmount)) {
-    trackEvent({
-      event: 'form_error',
-      error_message: 'more_than_maximum_withdrawal',
-      input_amount: inputAmount ? inputAmount.toString() : '0',
-    });
-    return t('pages.swap.error.moreThanMaximumWithdrawal.buy', {
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
-      assetSymbol: fromToken.fiat.symbol,
-    });
-  }
 
   if (inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount)) {
     trackEvent({
