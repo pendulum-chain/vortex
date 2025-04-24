@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { RampDirection } from '../components/RampToggle';
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
-import { useRampDirectionToggle } from '../stores/rampDirectionStore';
+import { useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
 import { useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
 import { useNetwork } from '../contexts/network';
 
@@ -73,6 +73,7 @@ function getNetworkFromParam(param?: string): Networks | undefined {
 export const useRampUrlParams = (): RampUrlParams => {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const { selectedNetwork } = useNetwork();
+  const rampDirection = useRampDirection();
 
   const urlParams = useMemo(() => {
     const rampParam = params.get('ramp')?.toLowerCase();
@@ -81,7 +82,8 @@ export const useRampUrlParams = (): RampUrlParams => {
     const fromTokenParam = params.get('from')?.toLowerCase();
     const inputAmountParam = params.get('fromAmount');
 
-    const ramp = rampParam === 'buy' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
+    const ramp =
+      rampParam === undefined ? rampDirection : rampParam === 'buy' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
 
     const from =
       ramp === RampDirection.OFFRAMP
@@ -104,7 +106,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       to,
       fromAmount: inputAmountParam || fromAmount || undefined,
     };
-  }, [params, selectedNetwork]);
+  }, [params, rampDirection, selectedNetwork]);
 
   return urlParams;
 };
