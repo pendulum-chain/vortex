@@ -4,7 +4,7 @@ import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
 import { generateReferenceLabel } from '../services/brla/helpers';
-import { isValidKYCDocType, KYCDocType } from '../services/brla/types';
+import { isValidKYCDocType, KYCDocType, KycLevel2Response } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 import { PayInCodeQuery } from '../middlewares/validators';
@@ -333,24 +333,24 @@ export const validatePixKey = async (
  * Creates a request for KYC level 2
  *
  * Existing KYC level 1 user can request KYC level 2.
- * This endpoint will create a temporary token for this subaccount, that can be used to 
- * upload the documents from the frontend/mobile-specific url.
- * 
+ * This endpoint call brla and fetch the upload URLs for the documents.
  *
- * @returns Returns the unique token, and the mobile version to upload documents.
+ * @returns Returns 200 if the documents were received successfully, and the corresponding URLs. 
  *
  * @throws 400 - User does not exist, or is not yet KYC level 1 verified.
  * @throws 500 - For any server-side errors during processing.
  */
 export const startKYC2 = async (
   req: Request<unknown, unknown, BrlaEndpoints.StartKYC2Request>,
-  res: Response<BrlaEndpoints.StartKYC2Response | BrlaEndpoints.BrlaErrorResponse>,
+  res: Response< KycLevel2Response | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
+
     const { taxId, documentType } = req.body;
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
+
     if (!subaccount) {
       res.status(404).json({ error: 'Subaccount not found' });
       return;
@@ -366,48 +366,57 @@ export const startKYC2 = async (
       return;
     }
 
-    const kycToken = await kycService.requestKycLevel2(subaccount.id, documentType);
-
-    res.status(200).json({ kycToken });
-
+    const kycLevel2Response =  await kycService.requestKycLevel2(subaccount.id, documentType);
+    
+    res.status(200).json(kycLevel2Response);
   } catch (error) {
     handleApiError(error, res, 'startKYC2');
   }
 };
 
 
+
 /**
- * Sends documents for KYC level 2.
+ * TODO analysis, can this be replaced with getKycStatus also for level 2?
+ * Analogous to the getKycStatus endpoint, but for KYC level 2.
  *
- * After the user has initiated the kyc level 2 process, it must send the raw data into this endpoint
- * which validate it and send it to BRLA for verification.
+ * Get the status of the KYC level 2 process for a user given taxId.
+ * Useful during the validation period, after image upload.
  *
- * @returns Returns 200 if the documents were received successfully. 
+ * @returns Returns status of the validation.
  *
- * @throws 400 - There is no kyc level 2 process started for this user.
+ * @throws 400 - User does not exist, or has not started a kyc 2 verification process.
  * @throws 500 - For any server-side errors during processing.
  */
-export const uploadKYCData = async (
-  req: Request<unknown, unknown, BrlaEndpoints.UploadKYCDataRequest>,
-  res: Response< {} | BrlaEndpoints.BrlaErrorResponse>,
+export const fetchSubaccountKycLevel2Status = async (
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetKycStatusRequest>,
+  res: Response<BrlaEndpoints.GetKycStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
-    const { kycToken } = req.body;
-    const files = req.files as Record<string, Express.Multer.File[]>;
+    const { taxId } = req.query;
 
-    // Supported file types are png, jpg and pdf
-    // Validated in validateKYC2Upload middleware
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId' });
+      return;
+    }
 
-    await kycService.uploadKyc2Data(
-      kycToken, 
-      { buffer: files.selfie[0].buffer, mimetype: files.selfie[0].mimetype },
-      { buffer: files.RGFront[0].buffer, mimetype: files.RGFront[0].mimetype },
-      { buffer: files.RGBack[0].buffer, mimetype: files.RGBack[0].mimetype },
-      { buffer: files.CNH[0].buffer, mimetype: files.CNH[0].mimetype }
-    );
-    
-    res.status(200).json({});
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (!subaccount) {
+      res.status(400).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id);
+
+    // TODO we don't know how this looks like, the status response from BRL
+
+
+    res.status(200).json({
+      type: 'KYC2', // lastEventCached.subscription,
+      status: 'VALIDATING',
+    });
   } catch (error) {
-    handleApiError(error, res, 'uploadKYCData');
+    handleApiError(error, res, 'fetchSubaccountKycStatus');
   }
 };

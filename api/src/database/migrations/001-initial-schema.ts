@@ -212,7 +212,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     uploadData: {
       type: DataTypes.JSONB,
-      allowNull: true,
+      allowNull: false,
       field: 'upload_data',
     },
     createdAt: {

@@ -98,12 +98,13 @@ export class KycService {
   public async requestKycLevel2(
     subaccountId: string, 
     documentType: KYCDocType, 
-  ): Promise<string> {
+  ): Promise<KycLevel2Response> {
     try {
       // Ensure no existing KYC Level 2 process is in progress for the subaccount, or the user is already level 2.
       const existingKycLevel2 = await this.getLatestKycLevel2BySubaccount(subaccountId);
 
-      if (existingKycLevel2 && ( existingKycLevel2.status === KycLevel2Status.BRLA_VALIDATING || existingKycLevel2.status === KycLevel2Status.REQUESTED )) {
+      // TODO what if the process gets delayed and the urls invalid? this will lead to deadlock.
+      if (existingKycLevel2 &&  existingKycLevel2.status === KycLevel2Status.REQUESTED) {
         throw new Error(`KYC Level 2 process already in progress for subaccount ${subaccountId}`);
       }
 
@@ -111,6 +112,7 @@ export class KycService {
         throw new Error(`Subaccount ${subaccountId} is already KYC Level 2 verified`);
       }
 
+      const kycResponse = await this.brlaApiService.startKYC2(subaccountId, documentType);
 
       return this.withTransaction(async (transaction) => {
         const kycLevel2 = await this.createKycLevel2(
@@ -118,7 +120,7 @@ export class KycService {
             subaccountId,
             documentType,
             status: KycLevel2Status.REQUESTED,
-            uploadData: undefined,
+            uploadData: kycResponse,
           },
           transaction,
         );
@@ -127,7 +129,7 @@ export class KycService {
           kycLevel2Id: kycLevel2.id,
         });
 
-        return kycLevel2.id;
+        return kycLevel2.uploadData;
       });
     } catch (error) {
       logger.error('Failed to request KYC Level 2 verification:', error);
@@ -146,101 +148,6 @@ export class KycService {
     return kycLevel2.status === KycLevel2Status.ACCEPTED;
   }
 
-  public async uploadKyc2Data(
-    kycToken: string, 
-    selfie: KycDocumentFile, 
-    rgFront: KycDocumentFile, 
-    rgBack: KycDocumentFile, 
-    cnh: KycDocumentFile
-  ): Promise<void> {
-    try {
-      const kycEntry = await this.getKycLevel2ById(kycToken);
-
-      if (!kycEntry) {
-        throw new Error(`KYC Level 2 entry with id ${kycToken} not found`);
-      }
-
-
-      const kycResponse = await this.brlaApiService.startKYC2(kycEntry.subaccountId, kycEntry.documentType);
-
-      const selfieUrl = kycResponse.selfieUploadUrl;
-      const rgFrontUploadUrl = kycResponse.RGFrontUploadUrl;
-      const rgBackUploadUrl = kycResponse.RGBackUploadUrl;
-      const cnhUploadUrl = kycResponse.CNHUploadUrl;
-      
-
-      const uploads = [];
-      
-
-      uploads.push(
-        fetch(selfieUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': selfie.mimetype,
-            'Content-Length': String(selfie.buffer.length),
-          },
-          body: selfie.buffer,
-        })
-      );
-      
-      if (kycEntry.documentType === KYCDocType.RG) {
-        uploads.push(
-          fetch(rgFrontUploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': rgFront.mimetype,
-              'Content-Length': String(rgFront.buffer.length),
-            },
-            body: rgFront.buffer,
-          })
-        );
-        
-        uploads.push(
-          fetch(rgBackUploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': rgBack.mimetype,
-              'Content-Length': String(rgBack.buffer.length),
-            },
-            body: rgBack.buffer,
-          })
-        );
-      }
-      
-      if (kycEntry.documentType === KYCDocType.CNH) {
-        uploads.push(
-          fetch(cnhUploadUrl, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': cnh.mimetype,
-              'Content-Length': String(cnh.buffer.length),
-            },
-            body: cnh.buffer,
-          })
-        );
-      }
-      
-      const results = await Promise.all(uploads);
-      
-      for (const res of results) {
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`Upload failed: ${res.status} ${res.statusText} — ${errText}`);
-        }
-      }
-
-      await this.updateKycLevel2(
-        kycEntry.id,
-        KycLevel2Status.BRLA_VALIDATING,
-        kycResponse
-      );
-
-      return;
-    } catch (error) {
-      logger.error('Failed to upload KYC Level 2 data:', error);
-      throw error;
-    }
-  }
 }
 
 export default new KycService();

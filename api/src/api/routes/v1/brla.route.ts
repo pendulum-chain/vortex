@@ -3,8 +3,7 @@ import * as brlaController from '../../controllers/brla.controller';
 import {
   validateBrlaTriggerOfframpInput,
   validataSubaccountCreation,
-  validateGetPayInCode,
-  validateKYC2Upload,
+  validateGetPayInCode
 } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
@@ -23,9 +22,9 @@ router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaContro
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
 
-router.route('/uploadKYCData').put(validateKYC2Upload, brlaController.uploadKYCData);
+router.route('/startKYC2').put(brlaController.startKYC2);
 
-router.route('/startKYC2').post(brlaController.startKYC2);
+router.route('/getKYCLevel2Status').get(brlaController.fetchSubaccountKycLevel2Status);
 
 
 export default router;
