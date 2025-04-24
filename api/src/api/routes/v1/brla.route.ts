@@ -22,9 +22,7 @@ router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaContro
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
 
-router.route('/startKYC2').put(brlaController.startKYC2);
-
-router.route('/getKYCLevel2Status').get(brlaController.fetchSubaccountKycLevel2Status);
+router.route('/startKYC2').post(brlaController.startKYC2);
 
 
 export default router;

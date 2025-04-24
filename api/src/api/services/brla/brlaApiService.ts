@@ -133,8 +133,11 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.Subaccounts, 'POST', undefined, registerSubaccountPayload);
   }
 
-  public async getAllEventsByUser(userId: string): Promise<Event[] | undefined> {
-    const query = `subaccountId=${encodeURIComponent(userId)}`;
+  public async getAllEventsByUser(userId: string, subscription: string | null = null): Promise<Event[] | undefined> {
+    let query = `subaccountId=${encodeURIComponent(userId)}`;
+    if (subscription) {
+      query += `&subscription=${encodeURIComponent(subscription)}`;
+    }
     const response = await this.sendRequest(Endpoint.WebhookEvents, 'GET', query);
     return response.events;
   }

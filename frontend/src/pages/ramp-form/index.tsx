@@ -9,6 +9,8 @@ import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirec
 import { RampDirection, RampToggle } from '../../components/RampToggle';
 import { PoweredBy } from '../../components/PoweredBy';
 import { Onramp } from '../../components/Ramp/Onramp';
+import { DocumentUpload } from '../../components/BrlaComponents/KYCLevel2Form/';
+import { KYCDocType } from '../../services/api';
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
@@ -17,7 +19,8 @@ export const RampForm = () => {
 
   return (
     <main>
-      <PoolSelectorModal />
+      <DocumentUpload { ...{ taxId: "63542300640", documentType: KYCDocType.RG, onBackClick: ()=>{}}  } />
+      {/* <PoolSelectorModal />
       <RampSummaryDialog />
       <SigningBox />
       {offrampKycStarted ? (
@@ -36,7 +39,7 @@ export const RampForm = () => {
           <div className="mb-16" />
           <PoweredBy />
         </motion.div>
-      )}
+      )} */}
     </main>
   );
 };

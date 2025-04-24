@@ -227,17 +227,18 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id);
+    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id, 'KYC');
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
-      res.status(200).json({ type: 'KYC', status: 'PENDING' });
+      res.status(500).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
       return;
     }
 
     res.status(200).json({
       type: lastEventCached.subscription,
       status: lastEventCached.data.kycStatus,
+      level: lastEventCached.data.level,
     });
   } catch (error) {
     handleApiError(error, res, 'fetchSubaccountKycStatus');
@@ -342,7 +343,7 @@ export const validatePixKey = async (
  */
 export const startKYC2 = async (
   req: Request<unknown, unknown, BrlaEndpoints.StartKYC2Request>,
-  res: Response< KycLevel2Response | BrlaEndpoints.BrlaErrorResponse>,
+  res: Response< BrlaEndpoints.StartKYC2Response | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
 
@@ -368,55 +369,9 @@ export const startKYC2 = async (
 
     const kycLevel2Response =  await kycService.requestKycLevel2(subaccount.id, documentType);
     
-    res.status(200).json(kycLevel2Response);
+    res.status(200).json({uploadUrls: kycLevel2Response});
   } catch (error) {
     handleApiError(error, res, 'startKYC2');
   }
 };
 
-
-
-/**
- * TODO analysis, can this be replaced with getKycStatus also for level 2?
- * Analogous to the getKycStatus endpoint, but for KYC level 2.
- *
- * Get the status of the KYC level 2 process for a user given taxId.
- * Useful during the validation period, after image upload.
- *
- * @returns Returns status of the validation.
- *
- * @throws 400 - User does not exist, or has not started a kyc 2 verification process.
- * @throws 500 - For any server-side errors during processing.
- */
-export const fetchSubaccountKycLevel2Status = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetKycStatusRequest>,
-  res: Response<BrlaEndpoints.GetKycStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
-): Promise<void> => {
-  try {
-    const { taxId } = req.query;
-
-    if (!taxId) {
-      res.status(400).json({ error: 'Missing taxId' });
-      return;
-    }
-
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
-      res.status(400).json({ error: 'Subaccount not found' });
-      return;
-    }
-
-    const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id);
-
-    // TODO we don't know how this looks like, the status response from BRL
-
-
-    res.status(200).json({
-      type: 'KYC2', // lastEventCached.subscription,
-      status: 'VALIDATING',
-    });
-  } catch (error) {
-    handleApiError(error, res, 'fetchSubaccountKycStatus');
-  }
-};

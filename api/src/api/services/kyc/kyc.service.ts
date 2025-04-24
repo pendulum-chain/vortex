@@ -6,11 +6,6 @@ import sequelize from '../../../config/database';
 import { KYCDocType, KycLevel2Response } from '../brla/types';
 import { BrlaApiService } from '../brla/brlaApiService';
 
-export interface KycDocumentFile {
-  buffer: Buffer;
-  mimetype: string;
-}
-
 export class KycService {
   private brlaApiService: BrlaApiService;
 
@@ -104,9 +99,9 @@ export class KycService {
       const existingKycLevel2 = await this.getLatestKycLevel2BySubaccount(subaccountId);
 
       // TODO what if the process gets delayed and the urls invalid? this will lead to deadlock.
-      if (existingKycLevel2 &&  existingKycLevel2.status === KycLevel2Status.REQUESTED) {
-        throw new Error(`KYC Level 2 process already in progress for subaccount ${subaccountId}`);
-      }
+      // if (existingKycLevel2 &&  existingKycLevel2.status === KycLevel2Status.REQUESTED) {
+      //   throw new Error(`KYC Level 2 process already in progress for subaccount ${subaccountId}`);
+      // }
 
       if (existingKycLevel2 && existingKycLevel2.status === KycLevel2Status.ACCEPTED) {
         throw new Error(`Subaccount ${subaccountId} is already KYC Level 2 verified`);

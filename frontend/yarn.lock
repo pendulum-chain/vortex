@@ -7564,6 +7564,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"heroicons@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "heroicons@npm:2.2.0"
+  checksum: 10/f32d54d3bc23e6fcfc7c808e6609a8252e4a2b37d454e1bff244d6072e7982461c5ecb84c701098501969563f54de6e0d824e4ae1f64880a94c2e1076b04af86
+  languageName: node
+  linkType: hard
+
 "hey-listen@npm:^1.0.8":
   version: 1.0.8
   resolution: "hey-listen@npm:1.0.8"
@@ -12019,6 +12026,7 @@ __metadata:
     eslint: "npm:^8.34.0"
     eslint-plugin-react: "npm:^7.32.2"
     eslint-plugin-react-hooks: "npm:^4.6.0"
+    heroicons: "npm:^2.2.0"
     husky: "npm:>=6"
     i18next: "npm:^24.2.3"
     lint-staged: "npm:>=10"

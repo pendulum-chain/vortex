@@ -28,6 +28,7 @@ export namespace BrlaEndpoints {
   export interface GetKycStatusResponse {
     type: string;
     status: string;
+    level: number
   }
 
   // GET /brla/validatePixKey?pixKey=:pixKey
@@ -97,7 +98,7 @@ export namespace BrlaEndpoints {
     details?: string;
   }
 
-  export const enum KYCDocType {
+  export enum KYCDocType {
     RG = 'RG',
     CNH = 'CNH',
   }
@@ -109,18 +110,13 @@ export namespace BrlaEndpoints {
   }
 
   export interface StartKYC2Response {
-    kycToken: string,
-  }
-
-  // PATCH /brla/uploadKYCData
-  export interface UploadKYCDataRequest {
-    kycToken: string;
+    uploadUrls: KYCDataUploadFileFileds
   }
 
   export interface KYCDataUploadFileFileds {
-    selfie: string;
-    RGFront: string;
-    RGBack: string;
-    CNH: string;
+    selfieUploadUrl: string;
+    RGFrontUploadUrl: string;
+    RGBackUploadUrl: string;
+    CNHUploadUrl: string;
   }
 }

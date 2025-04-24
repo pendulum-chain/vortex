@@ -11,6 +11,8 @@ import { useToastMessage } from '../../../helpers/notifications';
 
 export interface BrlaKycStatus {
   status: string;
+  level: number;
+  type: string;
 }
 
 const ERROR_DISPLAY_DURATION_MS = 3000;
@@ -33,7 +35,7 @@ const useStatusMessages = () => {
   };
 };
 
-const useVerificationStatusUI = () => {
+export const useVerificationStatusUI = () => {
   const { STATUS_MESSAGES } = useStatusMessages();
   type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
 

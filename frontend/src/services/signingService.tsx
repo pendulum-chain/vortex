@@ -41,6 +41,7 @@ interface BrlaOfframpStatus {
 interface BrlaKycStatus {
   type: BrlaKycState;
   status: KycStatusType;
+  level: number;
 }
 
 type TaxIdType = 'CPF' | 'CNPJ';
