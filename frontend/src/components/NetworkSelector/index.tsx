@@ -1,11 +1,11 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { useState, useRef, useEffect, RefObject } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-
-import { Networks, getNetworkDisplayName, getNetworkId } from 'shared';
+import { RefObject, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { EvmToken, getNetworkDisplayName, getNetworkId, getOnChainTokenDetails, Networks } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { NetworkIcon } from '../NetworkIcon';
 import { cn } from '../../helpers/cn';
+import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 
 interface NetworkButtonProps {
   selectedNetwork: Networks;
@@ -92,6 +92,10 @@ function useClickOutside(ref: RefObject<HTMLElement | null>, callback: () => voi
 
 export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
+  const {
+    onChainToken,
+    actions: { setOnChainToken },
+  } = useRampFormStore();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -100,6 +104,13 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
   const handleNetworkSelect = (network: Networks) => {
     setSelectedNetwork(network, true);
     setIsOpen(false);
+
+    // Check if the tokens are currently available on the selected network
+    const onChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
+    if (!onChainTokenDetails) {
+      // USDC is supported on all networks
+      setOnChainToken(EvmToken.USDC);
+    }
   };
 
   const wrapperProps = disabled

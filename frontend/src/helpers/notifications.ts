@@ -10,6 +10,7 @@ export enum ToastMessage {
   POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = 'POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION',
   ERROR = 'ERROR',
   NODE_CONNECTION_ERROR = 'NODE_CONNECTION_ERROR',
+  SIGNING_REJECTED = 'SIGNING_REJECTED',
 }
 
 const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey: string }> = {
@@ -67,6 +68,13 @@ const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey:
       type: 'error',
     },
     translationKey: 'toasts.genericError',
+  },
+  [ToastMessage.SIGNING_REJECTED]: {
+    options: {
+      toastId: ToastMessage.SIGNING_REJECTED,
+      type: 'warning',
+    },
+    translationKey: 'toasts.signingRejected',
   },
 };
 
