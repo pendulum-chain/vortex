@@ -153,12 +153,24 @@ export const RampSummaryButton = () => {
     const isBRCodeReady = Boolean(isOnramp && rampState?.ramp?.brCode);
     if (isOnramp && !isBRCodeReady) return true;
 
-    console.log("RampSummaryButton: submitButtonDisabled", isSubmitted, isBRCodeReady, isOnramp, rampState?.ramp?.brCode, isSubmitted, anchorUrl, fiatToken);
+    if (signingRejected) {
+      return false;
+    }
 
     return isSubmitted;
-  }, [executionInput, isQuoteExpired, isOfframp, isOnramp, rampState?.ramp?.brCode, isSubmitted, anchorUrl, fiatToken]);
+  }, [
+    executionInput,
+    isQuoteExpired,
+    isOfframp,
+    isOnramp,
+    rampState?.ramp?.brCode,
+    isSubmitted,
+    anchorUrl,
+    fiatToken,
+    signingRejected,
+  ]);
 
-  console.log("RampSummaryButton: submitButtonDisabled", submitButtonDisabled);
+  console.log('RampSummaryButton: submitButtonDisabled', submitButtonDisabled);
 
   const buttonContent = useButtonContent({
     isSubmitted,
