@@ -68,6 +68,8 @@ export function useKYCProcess() {
   const [cpf, setCpf] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
+
+  // TODO why does this stop after the first ACCEPTED (kyc level 1) response?
   const { data: kycResponse, error } = useKycStatusQuery(cpf);
   const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
