@@ -1,33 +1,75 @@
+import React from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 
 import { KycStatus } from '../../../services/signingService';
 import { Spinner } from '../../Spinner';
+import { useRampKycLevel2Started } from '../../../stores/rampStore';
 
 interface VerificationStatusProps {
   status: KycStatus;
   message: string;
+  onProceedRamp?: () => void;
+  onProceedLevel2?: () => void;
 }
 
-export const VerificationStatus = ({ status, message }: VerificationStatusProps) => (
-  <motion.div
-    className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg justify-center items-center shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col"
-    initial={{ scale: 0.9, opacity: 0 }}
-    animate={{ scale: 1, opacity: 1 }}
-    transition={{ duration: 0.3 }}
-  >
-    {status === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
-    {status === KycStatus.APPROVED && <SuccessIcon />}
-    {status === KycStatus.REJECTED && <ErrorIcon />}
-    <motion.p
-      className="mt-4 text-lg font-bold"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.3, duration: 0.5 }}
+export const VerificationStatus: React.FC<VerificationStatusProps> = ({
+  status,
+  message,
+  onProceedRamp,
+  onProceedLevel2,
+}) => {
+  const { t } = useTranslation();
+  const offrampKycLevel2Started = useRampKycLevel2Started();
+
+  // TODO need to adjust the APPROVED icon to render conditional also to level and kind of offramp
+  return (
+    <motion.div
+      className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center"
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3 }}
     >
-      {message}
-    </motion.p>
-  </motion.div>
-);
+
+      
+      {status === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
+      {status === KycStatus.APPROVED && <SuccessIcon />}
+      {status === KycStatus.REJECTED && <ErrorIcon />}
+
+      <motion.p
+        className="mt-4 text-lg font-bold text-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+      >
+        {message}
+      </motion.p>
+
+      {status === KycStatus.APPROVED && !offrampKycLevel2Started && (onProceedRamp || onProceedLevel2) && (
+        <div className="mt-auto w-full px-4 pb-4 flex gap-3">
+          {onProceedRamp && (
+            <button
+              type="button"
+              className="btn-vortex-primary btn flex-1 max-w-[50%] px-4 py-2"
+              onClick={onProceedRamp}
+            >
+              {t('components.brlaKYCForm.buttons.proceedRamp')}
+            </button>
+          )}
+          {onProceedLevel2 && (
+            <button
+              type="button"
+              className="btn-vortex-secondary btn flex-1 max-w-[50%] px-4 py-2"
+              onClick={onProceedLevel2}
+            >
+              {t('components.brlaKYCForm.buttons.proceedKYCLevel2')}
+            </button>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 const SuccessIcon = () => (
   <motion.svg

@@ -320,7 +320,9 @@
       "buttons": {
         "back": "Back",
         "finish": "Finish",
-        "compareFees": "Compare Fees"
+        "compareFees": "Compare Fees",
+        "proceedRamp": "Proceed to Ramp",
+        "proceedKYCLevel2" : "Proceed to KYC Level 2"
       }
     },
     "brlaExtendedForm": {

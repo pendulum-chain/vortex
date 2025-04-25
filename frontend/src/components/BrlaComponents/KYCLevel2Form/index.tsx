@@ -11,13 +11,17 @@ import { BrlaService } from '../../../services/api';
 import { KYCDocType, KYCDataUploadFileFileds } from '../../../services/api';
 import { useVerificationStatusUI } from '../../../hooks/brla/useBRLAKYCProcess';
 import { useKycStatusQuery } from '../../../hooks/brla/useKYCStatusQuery';
+import { useTaxId } from '../../../stores/ramp/useRampFormStore';
+import { useTranslation } from 'react-i18next';
+import { useRampActions } from '../../../stores/rampStore';
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];
 
+
+
 interface DocumentUploadProps {
-  taxId: string;
-  documentType: KYCDocType;
+  onSubmitHandler: () => void;
   onBackClick: () => void;
 }
 
@@ -40,13 +44,34 @@ async function uploadFileAsBuffer(file: File, url: string) {
   }
 }
 
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+const useStatusMessages = () => {
+  const { t } = useTranslation();
+
+  const STATUS_MESSAGES = {
+    PENDING: t('components.brlaExtendedForm.verificationStatus.pending'),
+    SUCCESS: t('components.brlaExtendedForm.verificationStatus.success'),
+    REJECTED: t('components.brlaExtendedForm.verificationStatus.rejected'),
+    ERROR: t('components.brlaExtendedForm.verificationStatus.error'),
+  };
+
+  return {
+    STATUS_MESSAGES,
+  };
+};
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
-  taxId,
-  documentType,
+  onSubmitHandler,
   onBackClick,
 }) => {
+  const taxId = useTaxId();
+  // taxId has to be defined befor rendering this component.
+  if (!taxId) {
+    console.error('Tax ID is not available');
+    return null;
+  }
+
   const [selfie, setSelfie] = useState<File | null>(null);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -57,19 +82,12 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string>('');
 
-  const { data: kycResponse, error: kycStatusFetchError } = useKycStatusQuery(taxId);
+  const { data: kycResponse, error: kycStatusFetchError } = useKycStatusQuery(taxId); 
   const { verificationStatus, updateStatus } = useVerificationStatusUI();
+  const { setRampKycStarted} = useRampActions();
 
-  useEffect(() => {
-    if (kycResponse) {
-      console.log('KYC response:', kycResponse);
-    }
-  }
-  , [kycResponse, updateStatus]);
-
+  const { STATUS_MESSAGES } = useStatusMessages();
 
 
   const validateAndSetFile = (
@@ -118,7 +136,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     try {
       const response = await BrlaService.startKYC2({
         taxId,
-        documentType,
+        documentType: KYCDocType.RG,// TODO a selector on this component will probably be enough
       });
       console.log('KYC2 response:', response.uploadUrls);
 
@@ -128,7 +146,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         uploadFileAsBuffer(back!, response.uploadUrls.RGBackUploadUrl),
       ]);
 
-      setIsSubmitted(true);
+      onSubmitHandler();
     } catch {
       setError('Upload failed. Please try again.');
     } finally {
@@ -136,9 +154,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     }
   };
 
-  if (isSubmitted) {
-    return <VerificationStatus status={verificationStatus} message={statusMessage} />;
-  }
 
   const renderField = (
     label: string,

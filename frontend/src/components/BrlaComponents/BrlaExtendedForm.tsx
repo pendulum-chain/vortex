@@ -6,13 +6,30 @@ import { useKYCForm } from '../../hooks/brla/useKYCForm';
 import { VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 import { KYCForm } from './KYCForm';
+import { useRampActions, useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
+import { useCallback } from 'react';
+import { DocumentUpload } from './KYCLevel2Form';
 
 export const PIXKYCForm = () => {
-  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, isSubmitted } = useKYCProcess();
-
+  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, proceedWithRamp, isSubmitted } = useKYCProcess();
+  const { setRampKycStarted, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
+  const offrampKycLevel2Started = useRampKycLevel2Started();
+  const offrampKycStarted = useRampKycStarted();
   const { kycForm } = useKYCForm();
 
   const { t } = useTranslation();
+
+  const proceedWithKYCLevel2 = useCallback(() => {
+    console.log('proceedWithKYCLevel2');
+    setIsSubmitted(false);
+    setRampKycLevel2Started(true);
+    setRampKycStarted(false);
+  }, [setRampKycLevel2Started, setRampKycStarted]);
+  
+  const handleDocumentSubmit = useCallback(() => {
+    setIsSubmitted(true);
+  }, [setRampKycLevel2Started, setRampSummaryVisible]);
+
 
   const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
     {
@@ -90,10 +107,24 @@ export const PIXKYCForm = () => {
 
   return (
     <div className="relative">
-      {!isSubmitted ? (
-        <KYCForm fields={PIXKYCFORM_FIELDS} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick} />
+
+      {!isSubmitted ? 
+      (
+        <>
+          { offrampKycLevel2Started ? 
+            (<DocumentUpload  onBackClick={()=>{}} onSubmitHandler={handleDocumentSubmit}  />)
+            : null
+          }
+          { offrampKycStarted ? 
+            <KYCForm fields={PIXKYCFORM_FIELDS} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick}  />
+            : null
+          }
+        </>
+        
       ) : (
-        <VerificationStatus status={verificationStatus} message={statusMessage} />
+        <>
+        <VerificationStatus status={verificationStatus} message={statusMessage} onProceedLevel2={proceedWithKYCLevel2} onProceedRamp={proceedWithRamp} />
+      </>
       )}
     </div>
   );

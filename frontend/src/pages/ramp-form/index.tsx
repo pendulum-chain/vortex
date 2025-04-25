@@ -3,7 +3,7 @@ import { RampSummaryDialog } from '../../components/RampSummaryDialog';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { Offramp } from '../../components/Ramp/Offramp';
 import { motion } from 'motion/react';
-import { useRampKycStarted } from '../../stores/rampStore';
+import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirectionStore';
 import { RampDirection, RampToggle } from '../../components/RampToggle';
@@ -16,14 +16,14 @@ export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
   const offrampKycStarted = useRampKycStarted();
+  const offrampKycLevel2Started = useRampKycLevel2Started();
 
   return (
     <main>
-      <DocumentUpload { ...{ taxId: "63542300640", documentType: KYCDocType.RG, onBackClick: ()=>{}}  } />
-      {/* <PoolSelectorModal />
+      <PoolSelectorModal />
       <RampSummaryDialog />
       <SigningBox />
-      {offrampKycStarted ? (
+      {(offrampKycStarted || offrampKycLevel2Started) ? (
         <PIXKYCForm />
       ) : (
         <motion.div
@@ -39,7 +39,7 @@ export const RampForm = () => {
           <div className="mb-16" />
           <PoweredBy />
         </motion.div>
-      )} */}
+      )}
     </main>
   );
 };

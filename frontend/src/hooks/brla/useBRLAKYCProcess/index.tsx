@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useRampActions } from '../../../stores/rampStore';
+import { useRampActions, useRampKycLevel2Started, useRampKycStarted } from '../../../stores/rampStore';
 import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
@@ -62,7 +62,6 @@ export function useKYCProcess() {
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
-  const { setRampSummaryVisible } = useRampActions();
   const taxId = useTaxId();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -70,12 +69,22 @@ export function useKYCProcess() {
 
   const queryClient = useQueryClient();
   const { data: kycResponse, error } = useKycStatusQuery(cpf);
-  const { setRampKycStarted, resetRampState } = useRampActions();
+  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
+  const offrampKycLevel2Started = useRampKycLevel2Started();
+  const offrampKycStarted = useRampKycStarted();
 
   const handleBackClick = useCallback(() => {
+    setRampKycLevel2Started(false);
     setRampKycStarted(false);
     resetRampState();
   }, [setRampKycStarted, resetRampState]);
+
+  const proceedWithRamp = useCallback(() => {
+    setIsSubmitted(false);
+    setRampKycStarted(false);
+    setRampKycLevel2Started(false);
+    setRampSummaryVisible(true);
+  }, [setRampSummaryVisible, setRampKycStarted]);
 
   const handleError = useCallback(
     (errorMessage?: string) => {
@@ -98,10 +107,6 @@ export function useKYCProcess() {
     ],
   );
 
-  const proceedWithRamp = useCallback(() => {
-    setRampKycStarted(false);
-    setRampSummaryVisible(true);
-  }, [setRampSummaryVisible, setRampKycStarted]);
 
   const handleFormSubmit = useCallback(
     async (formData: KYCFormData) => {
@@ -139,8 +144,11 @@ export function useKYCProcess() {
     [handleError, queryClient, resetToDefault, taxId],
   );
 
+  // Handler for KYC level 1
   useEffect(() => {
     if (!kycResponse) return;
+    if (kycResponse.level !== 1) return;
+    if (offrampKycLevel2Started) return;
 
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
@@ -149,15 +157,10 @@ export function useKYCProcess() {
         [KycStatus.APPROVED]: async () => {
           updateStatus(KycStatus.APPROVED, STATUS_MESSAGES.SUCCESS);
           await delay(SUCCESS_DISPLAY_DURATION_MS);
-          setIsSubmitted(false);
-          setRampKycStarted(false);
-          proceedWithRamp();
         },
         [KycStatus.REJECTED]: async () => {
           updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.REJECTED);
           await delay(ERROR_DISPLAY_DURATION_MS);
-          setIsSubmitted(false);
-          setRampKycStarted(false);
           resetToDefault();
           handleBackClick();
         },
@@ -176,13 +179,55 @@ export function useKYCProcess() {
   }, [
     kycResponse,
     handleBackClick,
-    proceedWithRamp,
     updateStatus,
     resetToDefault,
     setRampKycStarted,
     STATUS_MESSAGES.SUCCESS,
     STATUS_MESSAGES.REJECTED,
   ]);
+
+  // Handler for KYC level 2
+  useEffect(() => {
+      console.log('KYC Response form doc upload:', kycResponse);
+      if (!kycResponse) return;
+      if (kycResponse.level !== 2) return;
+  
+      const handleStatus = async (status: string) => {
+        const mappedStatus = status as KycStatus;
+  
+        const statusHandlers: Record<KycStatus, () => Promise<void>> = {
+          [KycStatus.APPROVED]: async () => {
+            updateStatus(KycStatus.APPROVED, STATUS_MESSAGES.SUCCESS);
+            await delay(3000);
+            proceedWithRamp();
+          },
+          [KycStatus.REJECTED]: async () => {
+            updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.REJECTED);
+            await delay(3000);
+            setRampKycLevel2Started(false);
+            handleBackClick();
+          },
+          [KycStatus.PENDING]: async () => undefined,
+        };
+  
+        const handler = statusHandlers[mappedStatus];
+        if (handler) {
+          await handler();
+        }
+      };
+  
+      if (kycResponse.status) {
+        handleStatus(kycResponse.status);
+      }
+    }, [
+      kycResponse,
+      handleBackClick,
+      updateStatus,
+      setRampKycStarted,
+      STATUS_MESSAGES.SUCCESS,
+      STATUS_MESSAGES.REJECTED,
+    ]);
+  
 
   useEffect(() => {
     if (error) {
@@ -195,6 +240,8 @@ export function useKYCProcess() {
     statusMessage,
     handleFormSubmit,
     handleBackClick,
+    setIsSubmitted,
+    proceedWithRamp,
     isSubmitted,
   };
 }
