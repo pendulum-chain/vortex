@@ -7,7 +7,7 @@ import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { Spinner } from '../Spinner';
 import { RampSigningPhase } from '../../types/phases';
-import { useRampSigningPhase } from '../../stores/rampStore';
+import { useRampSigningPhase, useSigningRejected } from '../../stores/rampStore';
 import { useTranslation } from 'react-i18next';
 
 type ProgressConfig = {
@@ -52,6 +52,7 @@ export const SigningBox = () => {
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
   const { confirmations } = useSafeWalletSignatureStore();
+  const signingRejected = useSigningRejected()
 
   const [progress, setProgress] = useState(0);
   const [signatureState, setSignatureState] = useState({ max: 0, current: 0 });
@@ -76,7 +77,7 @@ export const SigningBox = () => {
 
   return (
     <AnimatePresence mode="wait">
-      {!isValidStep(step, isEVM) || shouldExit ? null : (
+      {!isValidStep(step, isEVM) || shouldExit || signingRejected ? null : (
         <motion.section
           className="z-50 toast toast-end"
           initial={{ y: 150 }}
