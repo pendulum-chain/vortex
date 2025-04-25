@@ -34,7 +34,7 @@ export async function buildPaymentAndMergeTx({
 }> {
   const baseFee = STELLAR_BASE_FEE;
   const maxTime = Date.now() + 1000 * 60 * 10;
-  const NUMBER_OF_PRESIGNED_TXS = 3;
+  const NUMBER_OF_PRESIGNED_TXS = 5;
 
   if (!FUNDING_SECRET) {
     logger.error('Stellar funding secret not defined');

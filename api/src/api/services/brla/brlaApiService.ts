@@ -9,7 +9,7 @@ import {
   FastQuoteQueryParams,
   FastQuoteResponse,
   SwapPayload,
-  OnchainLog,
+  OnchainLog, UsedLimitData,
 } from './types';
 import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
@@ -119,6 +119,11 @@ export class BrlaApiService {
     const query = `taxId=${encodeURIComponent(taxId)}`;
     const response = await this.sendRequest(Endpoint.Subaccounts, 'GET', query);
     return response.subaccounts[0];
+  }
+
+  public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest('/used-limit', 'GET', query);
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {

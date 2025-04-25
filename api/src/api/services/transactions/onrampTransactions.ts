@@ -117,13 +117,14 @@ export async function prepareOnrampTransactions(
         signer: account.address,
       });
 
-      // TODO why do we need several? First transfer_all either has no effect or does not transfer... all.
       const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
+      // For assethub, we skip the 2 squidrouter transactions, so nonce is 2 lower.
+      const moonbeamCleanupStartingNonce = toNetworkId === getNetworkId(Networks.AssetHub) ? moonbeamEphemeralStartingNonce + 2 : moonbeamEphemeralStartingNonce + 4;
       unsignedTxs.push({
         txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup',
         network: account.network,
-        nonce: 4,
+        nonce: moonbeamCleanupStartingNonce,
         signer: account.address,
       });
 

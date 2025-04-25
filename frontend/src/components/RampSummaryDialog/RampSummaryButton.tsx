@@ -8,11 +8,16 @@ import {
   getOnChainTokenDetailsOrDefault,
   TokenType,
 } from 'shared';
-import { useCanRegisterRamp, useRampExecutionInput, useRampState } from '../../stores/rampStore';
+import {
+  useCanRegisterRamp,
+  useRampActions,
+  useRampExecutionInput,
+  useRampState,
+  useSigningRejected,
+} from '../../stores/rampStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
 import { useIsQuoteExpired, useRampSummaryStore } from '../../stores/rampSummary';
-import { useRampActions } from '../../stores/rampStore';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
@@ -31,6 +36,7 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
   const rampDirection = useRampDirection();
   const isQuoteExpired = useIsQuoteExpired();
   const canRegisterRamp = useCanRegisterRamp();
+  const signingRejected = useSigningRejected();
 
   return useMemo(() => {
     const isOnramp = rampDirection === RampDirection.ONRAMP;
@@ -44,6 +50,14 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
     if ((isOnramp && isBRCodeReady && isQuoteExpired) || (isOfframp && isQuoteExpired)) {
       return {
         text: t('components.dialogs.RampSummaryDialog.quoteExpired'),
+        icon: null,
+      };
+    }
+
+    // Add check for signing rejection
+    if (signingRejected) {
+      return {
+        text: t('components.dialogs.RampSummaryDialog.tryAgain'),
         icon: null,
       };
     }
@@ -94,13 +108,24 @@ export const useButtonContent = ({ isSubmitted, toToken, submitButtonDisabled }:
       text: t('components.swapSubmitButton.processing'),
       icon: <Spinner />,
     };
-  }, [submitButtonDisabled, isQuoteExpired, rampDirection, rampState, t, isSubmitted, canRegisterRamp, toToken]);
+  }, [
+    submitButtonDisabled,
+    isQuoteExpired,
+    rampDirection,
+    rampState,
+    t,
+    isSubmitted,
+    canRegisterRamp,
+    toToken,
+    signingRejected,
+  ]);
 };
 
 export const RampSummaryButton = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const { setRampPaymentConfirmed } = useRampActions();
+  const { setRampPaymentConfirmed, setCanRegisterRamp, setSigningRejected } = useRampActions();
   const rampState = useRampState();
+  const signingRejected = useSigningRejected();
   const { onRampConfirm } = useRampSubmission();
   const anchorUrl = useSep24StoreCachedAnchorUrl();
   const rampDirection = useRampDirection();
@@ -111,7 +136,6 @@ export const RampSummaryButton = () => {
   const onChainToken = useOnChainToken();
   const { selectedNetwork } = useNetwork();
   const executionInput = useRampExecutionInput();
-  const { setCanRegisterRamp } = useRampActions();
 
   const toToken = isOnramp
     ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
@@ -129,8 +153,22 @@ export const RampSummaryButton = () => {
     const isBRCodeReady = Boolean(isOnramp && rampState?.ramp?.brCode);
     if (isOnramp && !isBRCodeReady) return true;
 
+    if (signingRejected) {
+      return false;
+    }
+
     return isSubmitted;
-  }, [executionInput, isQuoteExpired, isOfframp, isOnramp, rampState?.ramp?.brCode, isSubmitted, anchorUrl, fiatToken]);
+  }, [
+    executionInput,
+    isQuoteExpired,
+    isOfframp,
+    isOnramp,
+    rampState?.ramp?.brCode,
+    isSubmitted,
+    anchorUrl,
+    fiatToken,
+    signingRejected,
+  ]);
 
   const buttonContent = useButtonContent({
     isSubmitted,
@@ -140,6 +178,10 @@ export const RampSummaryButton = () => {
 
   const onSubmit = () => {
     setIsSubmitted(true);
+
+    if (signingRejected) {
+      setSigningRejected(false);
+    }
 
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === 'off') {

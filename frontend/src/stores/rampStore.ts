@@ -33,6 +33,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
     rampSummaryVisible: false,
     initializeFailedMessage: undefined,
     canRegisterRamp: false,
+    signingRejected: false,
     ...loadInitialState(),
   };
 
@@ -50,6 +51,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
       rampExecutionInput: state.rampExecutionInput,
       rampSummaryVisible: state.rampSummaryVisible,
       canRegisterRamp: state.canRegisterRamp,
+      signingRejected: state.signingRejected,
     };
     storageService.set(LocalStorageKeys.RAMPING_STATE, stateToSave);
   };
@@ -105,6 +107,10 @@ export const useRampStore = create<RampStore>()((set, get) => {
         set({ canRegisterRamp: canRegister });
         saveState();
       },
+      setSigningRejected: (rejected) => {
+        set({ signingRejected: rejected });
+        saveState();
+      },
       resetRampState: () => {
         clearRampingState();
 
@@ -120,6 +126,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
           rampSummaryVisible: false,
           initializeFailedMessage: undefined,
           canRegisterRamp: false,
+          signingRejected: false, // Reset new state
         });
         // No need to save state here as we just cleared it
       },
@@ -143,5 +150,6 @@ export const useInitializeFailedMessage = () => useRampStore((state) => state.in
 export const useRampSummaryVisible = () => useRampStore((state) => state.rampSummaryVisible);
 export const useCanRegisterRamp = () => useRampStore((state) => state.canRegisterRamp);
 export const clearInitializeFailedMessage = () => useRampStore.getState().actions.clearInitializeFailedMessage();
+export const useSigningRejected = () => useRampStore((state) => state.signingRejected);
 
 export const useRampActions = () => useRampStore((state) => state.actions);

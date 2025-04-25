@@ -90,6 +90,51 @@ export const getBrlaUser = async (
   }
 };
 
+export const getBrlaUserRemainingLimit = async (
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetUserRemainingLimitRequest>,
+  res: Response<BrlaEndpoints.GetUserRemainingLimitResponse | BrlaEndpoints.BrlaErrorResponse>,
+): Promise<void> => {
+  try {
+    const { taxId } = req.query;
+
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing taxId query parameter' });
+      return;
+    }
+
+    const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+
+    if (!subaccount) {
+      res.status(404).json({ error: 'Subaccount not found' });
+      return;
+    }
+
+    const totalLimit = subaccount.kyc.limits;
+    const usedLimit = await brlaApiService.getSubaccountUsedLimit(subaccount.id);
+    if (!usedLimit) {
+      res.status(404).json({ error: 'Limits not found' });
+      return;
+    }
+
+    // BRLA is using cents, so we need to divide by 100
+    const remainingLimitOfframp = (totalLimit.limitBRLAOutOwnAccount - usedLimit.limitBRLAOutOwnAccount) / 100;
+    // TODO it's not 100% clear if this is the right limit to use for onramp
+    const remainingLimitOnramp = (totalLimit.limitMint - usedLimit.limitMint) / 100;
+
+    // Calculate the remaining limits
+    const remainingLimits = {
+      remainingLimitOfframp: remainingLimitOfframp < 0 ? 0 : remainingLimitOfframp,
+      remainingLimitOnramp: remainingLimitOnramp < 0 ? 0 : remainingLimitOnramp,
+    };
+
+    res.json(remainingLimits);
+    return;
+  } catch (error) {
+    handleApiError(error, res, 'getBrlaUserRemainingLimit');
+  }
+};
+
 export const triggerBrlaOfframp = async (
   req: Request<unknown, unknown, BrlaEndpoints.TriggerOfframpRequest>,
   res: Response<BrlaEndpoints.TriggerOfframpResponse | BrlaEndpoints.BrlaErrorResponse>,

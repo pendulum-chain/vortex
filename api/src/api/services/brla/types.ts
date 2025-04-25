@@ -54,6 +54,15 @@ export interface RegisterSubaccountPayload {
   cnpj?: string;
 }
 
+export interface UsedLimitData {
+  limitMint: number;
+  limitBurn: number;
+  limitSwapBuy: number;
+  limitSwapSell: number;
+  limitBRLAOutOwnAccount: number;
+  limitBRLAOutThirdParty: number;
+}
+
 export interface OfframpPayload {
   pixKey: string;
   amount: number;
@@ -71,6 +80,7 @@ export interface PixKeyData {
   taxId: string;
   bankName: string;
 }
+
 // Interface response from /pay-in/pix/history
 export interface DepositLog {
   chain: string;
