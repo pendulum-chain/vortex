@@ -170,8 +170,6 @@ export const RampSummaryButton = () => {
     signingRejected,
   ]);
 
-  console.log('RampSummaryButton: submitButtonDisabled', submitButtonDisabled);
-
   const buttonContent = useButtonContent({
     isSubmitted,
     toToken: toToken as FiatTokenDetails,

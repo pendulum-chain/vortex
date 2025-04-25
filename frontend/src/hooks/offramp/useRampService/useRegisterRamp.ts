@@ -115,8 +115,6 @@ export const useRegisterRamp = () => {
 
   // @TODO: maybe change to useCallback
   useEffect(() => {
-    console.log(`Starting ramp registry process at ${new Date().toISOString()}`);
-
     // Check if we can proceed with the registration process
     const lockResult = checkLock();
     if (!lockResult.canProceed) {
@@ -249,6 +247,7 @@ export const useRegisterRamp = () => {
     rampStarted,
     releaseSigningLock,
     setSigningRejected,
+    signingRejected,
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
