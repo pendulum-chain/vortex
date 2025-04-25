@@ -255,7 +255,7 @@
       "buyButton": "Comprar",
       "sellButton": "Vender",
       "firstInputLabel": {
-        "buy": "Você compra",
+        "buy": "Você paga",
         "sell": "Você vende"
       },
       "secondInputLabel": "Você recebe",
