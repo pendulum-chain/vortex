@@ -14,6 +14,7 @@ export const cacheKeys = {
   sharesTargetWorth: 'sharesTargetWorth',
   tokenPrice: 'tokenPrice',
   nablaInstance: 'nablaInstance',
+  allPrices: 'allPrices',
 };
 
 type QueryOptions = Partial<
