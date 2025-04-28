@@ -1,6 +1,12 @@
 import crypto from 'node:crypto';
 import { config } from '../../../config/vars';
 import { removeEmptyKeys, sortObject } from './helpers';
+import {
+  InvalidAmountError,
+  InvalidParameterError,
+  ProviderInternalError,
+  UnsupportedPairError,
+} from '../../errors/providerErrors';
 
 const { priceProviders } = config;
 
@@ -101,16 +107,68 @@ async function priceQuery(
     body: sortedBody,
   } as const;
 
-  const response = await fetch(requestUrl, request);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetch(requestUrl, request);
+  } catch (fetchError) {
+    console.error('AlchemyPay fetch error:', fetchError);
+    throw new ProviderInternalError(`Network error fetching price from AlchemyPay: ${(fetchError as Error).message}`);
   }
 
-  const body = (await response.json()) as AlchemyPayResponse;
-  if (!body.success) {
-    throw new Error(
-      `Could not get price for ${crypto} to ${fiat} from AlchemyPay: ${body.returnMsg}` || 'Unknown error',
+  let body: AlchemyPayResponse;
+  try {
+    body = (await response.json()) as AlchemyPayResponse;
+  } catch (jsonError) {
+    console.error('AlchemyPay JSON parse error:', jsonError);
+    // If we can't parse the JSON, it's likely an unexpected response format or server issue
+    throw new ProviderInternalError(
+      `Failed to parse response from AlchemyPay (Status: ${response.status}): ${response.statusText}`,
     );
+  }
+
+  if (!response.ok) {
+    // Handle HTTP errors (4xx, 5xx)
+    const errorMessage = body?.returnMsg || `HTTP error ${response.status}: ${response.statusText}`;
+    console.error(`AlchemyPay API Error (${response.status}): ${errorMessage}`);
+    if (response.status >= 500) {
+      throw new ProviderInternalError(`AlchemyPay server error: ${errorMessage}`);
+    } else if (response.status >= 400) {
+      // Try to map 4xx errors based on message
+      if (errorMessage.toLowerCase().includes('minimum') || errorMessage.toLowerCase().includes('maximum')) {
+        throw new InvalidAmountError(`AlchemyPay: ${errorMessage}`);
+      }
+      if (errorMessage.toLowerCase().includes('unsupported') || errorMessage.toLowerCase().includes('invalid currency')) {
+        throw new UnsupportedPairError(`AlchemyPay: ${errorMessage}`);
+      }
+      // Default 4xx to InvalidParameterError
+      throw new InvalidParameterError(`AlchemyPay API error: ${errorMessage}`);
+    } else {
+      // Other non-2xx errors
+      throw new ProviderInternalError(`Unexpected HTTP status ${response.status} from AlchemyPay: ${errorMessage}`);
+    }
+  }
+
+  // Handle cases where response is ok (2xx) but success flag is false
+  if (!body.success) {
+    const errorMessage = body.returnMsg || 'AlchemyPay API returned success=false with no message';
+    console.error(`AlchemyPay API Logic Error: ${errorMessage}`);
+    // Analyze returnMsg for specific errors
+    if (errorMessage.toLowerCase().includes('minimum') || errorMessage.toLowerCase().includes('maximum')) {
+      throw new InvalidAmountError(`AlchemyPay: ${errorMessage}`);
+    }
+    if (errorMessage.toLowerCase().includes('unsupported') || errorMessage.toLowerCase().includes('invalid currency')) {
+      throw new UnsupportedPairError(`AlchemyPay: ${errorMessage}`);
+    }
+    if (errorMessage.toLowerCase().includes('invalid parameter')) {
+      throw new InvalidParameterError(`AlchemyPay: ${errorMessage}`);
+    }
+    // Default success=false to ProviderInternalError as it indicates a failure on their side
+    throw new ProviderInternalError(`AlchemyPay API logic error: ${errorMessage}`);
+  }
+
+  // Ensure data exists if success is true
+  if (!body.data) {
+     throw new ProviderInternalError('AlchemyPay API returned success=true but no data field');
   }
 
   const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;

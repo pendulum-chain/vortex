@@ -1,4 +1,10 @@
 import { config } from '../../config/vars';
+import {
+  InvalidAmountError,
+  InvalidParameterError,
+  ProviderInternalError,
+  UnsupportedPairError,
+} from '../errors/providerErrors';
 
 const { priceProviders } = config;
 
@@ -43,19 +49,72 @@ async function priceQuery(
   const paramsString = params.toString();
   const url = `${requestUrl}?${paramsString}`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    const body = (await response.json()) as MoonpayResponse;
-    if (body.type === 'NotFoundError') {
-      throw new Error('Token not supported');
-    }
-    throw new Error(`Could not get quote for ${currencyCode} to ${quoteCurrencyCode} from Moonpay: ${body.message}`);
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (fetchError) {
+    console.error('Moonpay fetch error:', fetchError);
+    throw new ProviderInternalError(`Network error fetching price from Moonpay: ${(fetchError as Error).message}`);
   }
-  const body = (await response.json()) as MoonpayResponse;
+
+  let body: MoonpayResponse;
+  try {
+    // We need the body content even for errors
+    body = (await response.json()) as MoonpayResponse;
+  } catch (jsonError) {
+    console.error('Moonpay JSON parse error:', jsonError);
+    // If we can't parse the JSON, it's likely an unexpected response format or server issue
+    throw new ProviderInternalError(
+      `Failed to parse response from Moonpay (Status: ${response.status}): ${response.statusText}`,
+    );
+  }
+
+  if (!response.ok) {
+    const errorMessage = body?.message || `HTTP error ${response.status}: ${response.statusText}`;
+    const errorType = body?.type;
+    console.error(`Moonpay API Error (${response.status}): Type: ${errorType}, Message: ${errorMessage}`);
+
+    if (errorType === 'NotFoundError' || errorMessage.toLowerCase().includes('unsupported')) {
+      throw new UnsupportedPairError(`Moonpay: ${errorMessage}`);
+    }
+    if (
+      errorMessage.toLowerCase().includes('minimum') ||
+      errorMessage.toLowerCase().includes('maximum') ||
+      errorMessage.toLowerCase().includes('limit')
+    ) {
+      throw new InvalidAmountError(`Moonpay: ${errorMessage}`);
+    }
+    if (errorType === 'BadRequestError' || response.status === 400) {
+      throw new InvalidParameterError(`Moonpay: ${errorMessage}`);
+    }
+    if (response.status >= 500) {
+      throw new ProviderInternalError(`Moonpay server error: ${errorMessage}`);
+    }
+    // Default to InvalidParameterError for other 4xx or unexpected errors
+    throw new InvalidParameterError(`Moonpay API error: ${errorMessage}`);
+  }
+
+  // Check if essential data is present in the successful response
+  if (
+    body.baseCurrencyAmount === undefined ||
+    body.baseCurrencyPrice === undefined ||
+    body.quoteCurrencyAmount === undefined ||
+    body.feeAmount === undefined
+  ) {
+    throw new ProviderInternalError('Moonpay response missing essential data fields');
+  }
+
   const { baseCurrencyAmount: receivedBaseCurrencyAmount, baseCurrencyPrice, quoteCurrencyAmount, feeAmount } = body;
 
+  // This check might indicate an issue on Moonpay's side or our request logic
   if (Number(baseCurrencyAmount) !== receivedBaseCurrencyAmount) {
-    throw new Error('Received baseCurrencyAmount does not match the requested baseCurrencyAmount');
+    console.warn(
+      `Moonpay Warning: Requested base amount ${baseCurrencyAmount} differs from received ${receivedBaseCurrencyAmount}`,
+    );
+    // Decide if this should be a hard error or just a warning. Throwing for now.
+    throw new ProviderInternalError(
+      `Moonpay response discrepancy: Requested base amount ${baseCurrencyAmount}, received ${receivedBaseCurrencyAmount}`,
+    );
   }
 
   return {

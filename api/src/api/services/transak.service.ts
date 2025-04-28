@@ -1,4 +1,10 @@
 import { config } from '../../config/vars';
+import {
+  InvalidAmountError,
+  InvalidParameterError,
+  ProviderInternalError,
+  UnsupportedPairError,
+} from '../errors/providerErrors';
 
 const { priceProviders } = config;
 
@@ -56,20 +62,73 @@ async function priceQuery(
 
   const url = `${requestUrl}?${params.toString()}`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    const body = (await response.json()) as TransakPriceResponse;
-    if (body.error?.message === 'Invalid fiat currency') {
-      throw new Error('Token not supported');
-    }
-    throw new Error(
-      `Could not get price for ${cryptoCurrency} to ${fiatCurrency} from Transak: ${body.error?.message}`,
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (fetchError) {
+    console.error('Transak fetch error:', fetchError);
+    throw new ProviderInternalError(`Network error fetching price from Transak: ${(fetchError as Error).message}`);
+  }
+
+  let body: TransakPriceResponse;
+  try {
+    // We need the body content even for errors
+    body = (await response.json()) as TransakPriceResponse;
+  } catch (jsonError) {
+    console.error('Transak JSON parse error:', jsonError);
+    // If we can't parse the JSON, it's likely an unexpected response format or server issue
+    throw new ProviderInternalError(
+      `Failed to parse response from Transak (Status: ${response.status}): ${response.statusText}`,
     );
+  }
+
+  if (!response.ok || body.error) {
+    const errorMessage = body?.error?.message || `HTTP error ${response.status}: ${response.statusText}`;
+    console.error(`Transak API Error (${response.status}): ${errorMessage}`);
+
+    // Analyze error message for specific types
+    const lowerErrorMessage = errorMessage.toLowerCase();
+    if (
+      lowerErrorMessage.includes('invalid fiat currency') ||
+      lowerErrorMessage.includes('unsupported') ||
+      lowerErrorMessage.includes('not available') ||
+      lowerErrorMessage.includes('invalid crypto currency') || // Treat invalid crypto as unsupported pair
+      lowerErrorMessage.includes('invalid network') // Treat invalid network as unsupported pair
+    ) {
+      throw new UnsupportedPairError(`Transak: ${errorMessage}`);
+    }
+    if (
+      lowerErrorMessage.includes('minimum') ||
+      lowerErrorMessage.includes('maximum') ||
+      lowerErrorMessage.includes('limit') ||
+      lowerErrorMessage.includes('exceeds')
+    ) {
+      throw new InvalidAmountError(`Transak: ${errorMessage}`);
+    }
+    if (response.status === 400 || lowerErrorMessage.includes('invalid parameter')) {
+      throw new InvalidParameterError(`Transak: ${errorMessage}`);
+    }
+    if (response.status >= 500) {
+      throw new ProviderInternalError(`Transak server error: ${errorMessage}`);
+    }
+    // Default to InvalidParameterError for other 4xx or unexpected errors
+    throw new InvalidParameterError(`Transak API error: ${errorMessage}`);
+  }
+
+  // Check if essential data is present in the successful response
+  if (
+    !body.response ||
+    body.response.conversionPrice === undefined ||
+    body.response.cryptoAmount === undefined ||
+    body.response.fiatAmount === undefined ||
+    body.response.totalFee === undefined
+  ) {
+    throw new ProviderInternalError('Transak response missing essential data fields');
   }
 
   const {
     response: { conversionPrice, cryptoAmount: resultCryptoAmount, fiatAmount, totalFee },
-  } = (await response.json()) as TransakPriceResponse;
+  } = body; // Already parsed above
 
   return {
     cryptoPrice: conversionPrice,
