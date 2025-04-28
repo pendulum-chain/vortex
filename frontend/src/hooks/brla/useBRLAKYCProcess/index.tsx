@@ -8,6 +8,7 @@ import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
 import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 import { useToastMessage } from '../../../helpers/notifications';
+import { isValidCnpj } from '../../ramp/schema';
 
 export interface BrlaKycStatus {
   status: string;
@@ -39,11 +40,11 @@ export const useVerificationStatusUI = () => {
   const { STATUS_MESSAGES } = useStatusMessages();
   type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
 
-  const [verificationStatus, setVerificationStatus] = useState<KycStatus>(KycStatus.PENDING);
+  const [verificationStatus, setVerificationStatus] = useState<{status: KycStatus, level: number}>({status: KycStatus.PENDING, level: 1});
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
 
-  const updateStatus = useCallback((status: KycStatus, message: StatusMessageType) => {
-    setVerificationStatus(status);
+  const updateStatus = useCallback((status: KycStatus, level: number, message: StatusMessageType) => {
+    setVerificationStatus({status, level});
     setStatusMessage(message);
   }, []);
 
@@ -52,7 +53,7 @@ export const useVerificationStatusUI = () => {
     statusMessage,
     updateStatus,
     resetToDefault: useCallback(() => {
-      setVerificationStatus(KycStatus.PENDING);
+      setVerificationStatus({status: KycStatus.PENDING, level: 1});
       setStatusMessage(STATUS_MESSAGES.PENDING);
     }, [STATUS_MESSAGES.PENDING]),
   };
@@ -73,9 +74,9 @@ export function useKYCProcess() {
   const { data: kycResponse, error } = useKycStatusQuery(cpf);
   const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
-  const offrampKycStarted = useRampKycStarted();
 
   const handleBackClick = useCallback(() => {
+    console.log('Back button clicked');
     setRampKycLevel2Started(false);
     setRampKycStarted(false);
     resetRampState();
@@ -88,10 +89,16 @@ export function useKYCProcess() {
     setRampSummaryVisible(true);
   }, [setRampSummaryVisible, setRampKycStarted]);
 
+  const proceedWithKYCLevel2 = useCallback(() => {
+    setIsSubmitted(false);
+    setRampKycLevel2Started(true);
+    setRampKycStarted(false);
+  }, [setRampKycLevel2Started, setRampKycStarted]);
+
   const handleError = useCallback(
     (errorMessage?: string) => {
       console.error(errorMessage || 'KYC process error');
-      updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.ERROR);
+      updateStatus(KycStatus.REJECTED, 1, STATUS_MESSAGES.ERROR);
       showToast(ToastMessage.KYC_VERIFICATION_FAILED, errorMessage);
 
       return delay(ERROR_DISPLAY_DURATION_MS).then(() => {
@@ -150,18 +157,29 @@ export function useKYCProcess() {
   useEffect(() => {
     if (!kycResponse) return;
     if (kycResponse.level !== 1) return;
-    if (offrampKycLevel2Started) return;
+    if (offrampKycLevel2Started) return; // Ignore this effect if level 2 is already started.
+
+    if (!taxId) {
+      throw new Error('useKYCProcess: CPF must be defined at this point');
+    }
 
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
 
       const statusHandlers: Record<KycStatus, () => Promise<void>> = {
         [KycStatus.APPROVED]: async () => {
-          updateStatus(KycStatus.APPROVED, STATUS_MESSAGES.SUCCESS);
+          updateStatus(KycStatus.APPROVED, 1, STATUS_MESSAGES.SUCCESS);
           await delay(SUCCESS_DISPLAY_DURATION_MS);
+
+          // Only if this is a CNPJ type user, do we move to level 2.
+          if (!isValidCnpj(taxId)){
+            return proceedWithKYCLevel2();
+          }
+          resetToDefault();
+          proceedWithRamp();
         },
         [KycStatus.REJECTED]: async () => {
-          updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.REJECTED);
+          updateStatus(KycStatus.REJECTED, 1, STATUS_MESSAGES.REJECTED);
           await delay(ERROR_DISPLAY_DURATION_MS);
           resetToDefault();
           handleBackClick();
@@ -199,12 +217,12 @@ export function useKYCProcess() {
   
         const statusHandlers: Record<KycStatus, () => Promise<void>> = {
           [KycStatus.APPROVED]: async () => {
-            updateStatus(KycStatus.APPROVED, STATUS_MESSAGES.SUCCESS);
+            updateStatus(KycStatus.APPROVED, 2, STATUS_MESSAGES.SUCCESS);
             await delay(3000);
             proceedWithRamp();
           },
           [KycStatus.REJECTED]: async () => {
-            updateStatus(KycStatus.REJECTED, STATUS_MESSAGES.REJECTED);
+            updateStatus(KycStatus.REJECTED, 2, STATUS_MESSAGES.REJECTED);
             await delay(3000);
             setRampKycLevel2Started(false);
             handleBackClick();
@@ -243,7 +261,6 @@ export function useKYCProcess() {
     handleFormSubmit,
     handleBackClick,
     setIsSubmitted,
-    proceedWithRamp,
     isSubmitted,
   };
 }

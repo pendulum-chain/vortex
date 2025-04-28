@@ -379,6 +379,16 @@
           "required": "Birthdate is required",
           "future": "Birthdate cannot be in the future",
           "tooOld": "Invalid birthdate"
+        },
+        "companyName": {
+          "required": "Company name is required",
+          "minLength": "Company name must be at least 3 characters",
+          "format": "Company name can only contain letters and spaces"
+        },
+        "startDate": {
+          "required": "Company start date is required",
+          "future": "Company start date cannot be in the future",
+          "tooOld": "Invalid company start date"
         }
       }
     },

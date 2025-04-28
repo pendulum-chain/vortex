@@ -376,6 +376,16 @@
           "required": "Data de nascimento é obrigatória",
           "future": "Data de nascimento não pode ser no futuro",
           "tooOld": "Data de nascimento inválida"
+        },
+        "companyName": {
+          "required": "Nome da empresa é obrigatório",
+          "minLength": "Nome da empresa deve ter pelo menos 3 caracteres",
+          "format": "Nome da empresa só pode conter letras e espaços"
+        },
+        "startDate": {
+          "required": "Data de início é obrigatória",
+          "future": "Data de início não pode ser no futuro",
+          "tooOld": "Data de início inválida"
         }
       }
     },

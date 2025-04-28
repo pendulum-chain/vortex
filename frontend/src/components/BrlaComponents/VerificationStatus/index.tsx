@@ -1,28 +1,25 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { useTranslation } from 'react-i18next';
 
 import { KycStatus } from '../../../services/signingService';
 import { Spinner } from '../../Spinner';
-import { useRampKycLevel2Started } from '../../../stores/rampStore';
 
 interface VerificationStatusProps {
-  status: KycStatus;
+  status: { status: KycStatus; level: number };
   message: string;
-  onProceedRamp?: () => void;
-  onProceedLevel2?: () => void;
+  isLevel2: boolean;
 }
 
 export const VerificationStatus: React.FC<VerificationStatusProps> = ({
   status,
   message,
-  onProceedRamp,
-  onProceedLevel2,
+  isLevel2,
 }) => {
-  const { t } = useTranslation();
-  const offrampKycLevel2Started = useRampKycLevel2Started();
+  const { status: kycStatus, level } = status;
 
-  // TODO need to adjust the APPROVED icon to render conditional also to level and kind of offramp
+  const showSuccess =
+    kycStatus === KycStatus.APPROVED && (level === 1 || (level === 2 && isLevel2));
+
   return (
     <motion.div
       className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center"
@@ -30,11 +27,11 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
+      {kycStatus === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
 
-      
-      {status === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
-      {status === KycStatus.APPROVED && <SuccessIcon />}
-      {status === KycStatus.REJECTED && <ErrorIcon />}
+      {showSuccess && <SuccessIcon />}
+
+      {kycStatus === KycStatus.REJECTED && <ErrorIcon />}
 
       <motion.p
         className="mt-4 text-lg font-bold text-center"
@@ -44,29 +41,6 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
       >
         {message}
       </motion.p>
-
-      {status === KycStatus.APPROVED && !offrampKycLevel2Started && (onProceedRamp || onProceedLevel2) && (
-        <div className="mt-auto w-full px-4 pb-4 flex gap-3">
-          {onProceedRamp && (
-            <button
-              type="button"
-              className="btn-vortex-primary btn flex-1 max-w-[50%] px-4 py-2"
-              onClick={onProceedRamp}
-            >
-              {t('components.brlaKYCForm.buttons.proceedRamp')}
-            </button>
-          )}
-          {onProceedLevel2 && (
-            <button
-              type="button"
-              className="btn-vortex-secondary btn flex-1 max-w-[50%] px-4 py-2"
-              onClick={onProceedLevel2}
-            >
-              {t('components.brlaKYCForm.buttons.proceedKYCLevel2')}
-            </button>
-          )}
-        </div>
-      )}
     </motion.div>
   );
 };

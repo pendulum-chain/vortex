@@ -9,29 +9,27 @@ import { KYCForm } from './KYCForm';
 import { useRampActions, useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
 import { useCallback } from 'react';
 import { DocumentUpload } from './KYCLevel2Form';
+import { useTaxId } from '../../stores/ramp/useRampFormStore';
+import { isValidCnpj } from '../../hooks/ramp/schema';
 
 export const PIXKYCForm = () => {
-  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, proceedWithRamp, isSubmitted } = useKYCProcess();
-  const { setRampKycStarted, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
+  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, isSubmitted } = useKYCProcess();
+  const { setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
   const offrampKycStarted = useRampKycStarted();
   const { kycForm } = useKYCForm();
 
   const { t } = useTranslation();
 
-  const proceedWithKYCLevel2 = useCallback(() => {
-    console.log('proceedWithKYCLevel2');
-    setIsSubmitted(false);
-    setRampKycLevel2Started(true);
-    setRampKycStarted(false);
-  }, [setRampKycLevel2Started, setRampKycStarted]);
+  const taxId = useTaxId();
+
   
   const handleDocumentSubmit = useCallback(() => {
     setIsSubmitted(true);
   }, [setRampKycLevel2Started, setRampSummaryVisible]);
 
 
-  const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
+  let pixformFields: BrlaFieldProps[] = [
     {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
       label: t('components.brlaExtendedForm.form.fullName'),
@@ -105,6 +103,28 @@ export const PIXKYCForm = () => {
     },
   ];
 
+  if (!taxId) {
+    return null;
+  }
+
+  if (isValidCnpj(taxId)) {
+    pixformFields.push({
+      id: ExtendedBrlaFieldOptions.COMPANY_NAME,
+      label: t('components.brlaExtendedForm.form.companyName'),
+      type: 'text',
+      placeholder: t('components.brlaExtendedForm.form.companyName'),
+      required: true,
+      index: 9,
+    });
+    pixformFields.push({
+      id: ExtendedBrlaFieldOptions.START_DATE,
+      label: t('components.brlaExtendedForm.form.startDate'),
+      type: 'date',
+      required: true,
+      index: 10,
+    });
+  }
+
   return (
     <div className="relative">
 
@@ -112,7 +132,7 @@ export const PIXKYCForm = () => {
       (
         <>
           { offrampKycLevel2Started ? 
-            (<DocumentUpload  onBackClick={()=>{}} onSubmitHandler={handleDocumentSubmit}  />)
+            (<DocumentUpload  onSubmitHandler={handleDocumentSubmit} onBackClick={handleBackClick} />)
             : null
           }
           { offrampKycStarted ? 
@@ -120,10 +140,9 @@ export const PIXKYCForm = () => {
             : null
           }
         </>
-        
       ) : (
         <>
-        <VerificationStatus status={verificationStatus} message={statusMessage} onProceedLevel2={proceedWithKYCLevel2} onProceedRamp={proceedWithRamp} />
+        <VerificationStatus status={verificationStatus} message={statusMessage} isLevel2={offrampKycLevel2Started}/>
       </>
       )}
     </div>
