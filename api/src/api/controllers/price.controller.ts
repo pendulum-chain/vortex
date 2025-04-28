@@ -12,9 +12,25 @@ import {
   InvalidAmountError,
   InvalidParameterError,
   ProviderInternalError,
-  ProviderApiError, // Import base class for broader catch if needed
+  ProviderApiError, // This is the base class for provider-specific API errors
   UnsupportedPairError,
+  // ProviderError was incorrectly imported, ProviderApiError is the base
 } from '../errors/providerErrors';
+import { APIError } from '../errors/api-error'; // Corrected name: APIError
+
+// Define the expected response structure for the bundled endpoint
+type BundledPriceResult = {
+  status: 'fulfilled';
+  value: AnyPrice;
+} | {
+  status: 'rejected';
+  reason: { message: string; status?: number };
+};
+
+type AllPricesResponse = {
+  // Use mapped type to ensure all providers are potentially included
+  [K in PriceEndpoints.Provider]?: BundledPriceResult;
+};
 
 type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
 
@@ -112,4 +128,103 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
       res.status(500).json({ error: 'An internal server error occurred while fetching the price.' });
     }
   }
+};
+
+// Controller for the bundled price endpoint
+export const getAllPricesBundled: RequestHandler<
+  Record<string, never>,
+  AllPricesResponse | { error: string }, // Allow error response type
+  Record<string, never>,
+  PriceQuery
+> = async (req, res) => {
+  const { fromCrypto, toFiat, amount, network } = req.query;
+
+  // Input validation is handled by the middleware, but we need to ensure
+  // the parameters are correctly typed for the service calls
+  if (!fromCrypto || typeof fromCrypto !== 'string') {
+    res.status(400).json({ error: 'Invalid fromCrypto parameter' });
+    return;
+  }
+
+  if (!toFiat || typeof toFiat !== 'string') {
+    res.status(400).json({ error: 'Invalid toFiat parameter' });
+    return;
+  }
+
+  if (!amount || typeof amount !== 'string') {
+    res.status(400).json({ error: 'Invalid amount parameter' });
+    return;
+  }
+
+  const crypto = fromCrypto.toLowerCase() as PriceEndpoints.CryptoCurrency;
+  const fiat = toFiat.toLowerCase() as PriceEndpoints.FiatCurrency;
+  const networkParam = network && typeof network === 'string' ? network : undefined;
+
+  // Define the list of providers to query
+  const providersToQuery: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
+
+  // Create an array of promises, one for each provider
+  const pricePromises = providersToQuery.map(async (provider) => {
+    try {
+      const price = await getPriceFromProvider(provider, crypto, fiat, amount, networkParam);
+      // Return a consistent structure including the provider for easier mapping later
+      return { provider, status: 'fulfilled', value: price } as const;
+    } catch (err) {
+      // Catch errors here and return a rejected structure with the error
+      return { provider, status: 'rejected', reason: err } as const;
+    }
+  });
+
+  // Use Promise.allSettled to wait for all promises, regardless of success/failure
+  const results = await Promise.allSettled(pricePromises);
+
+  const response: AllPricesResponse = {};
+
+  results.forEach((result) => {
+    // Promise.allSettled itself always fulfills. We need to check the status of our *inner* promise result.
+    if (result.status === 'fulfilled') {
+      const { provider, status, value, reason } = result.value;
+
+      if (status === 'fulfilled') {
+        response[provider] = { status: 'fulfilled', value };
+      } else {
+        // Handle errors caught within our mapped promise
+        let errorStatus = 500; // Default internal server error
+        let errorMessage = 'An unexpected error occurred with this provider.';
+
+        if (reason instanceof ProviderApiError) {
+          // Determine status code based on error type
+          if (reason instanceof ProviderInternalError) {
+            errorStatus = 502; // Bad Gateway for provider internal errors
+          } else if (reason instanceof UnsupportedPairError ||
+                     reason instanceof InvalidAmountError ||
+                     reason instanceof InvalidParameterError) {
+            errorStatus = 400; // Bad Request for validation/input errors
+          }
+          errorMessage = reason.message;
+        } else if (reason instanceof Error) {
+          // Generic JS Error
+          errorMessage = reason.message;
+          console.error(`Non-provider error for ${provider}:`, reason); // Log unexpected errors
+        } else {
+          // Unknown error type
+          console.error(`Unknown error type for ${provider}:`, reason);
+        }
+
+        response[provider] = {
+          status: 'rejected',
+          reason: { message: errorMessage, status: errorStatus },
+        };
+      }
+    } else {
+      // This case indicates an issue with the Promise.allSettled structure itself or the mapping,
+      // as our inner promises are designed to catch their errors.
+      // Log this unexpected scenario for debugging.
+      console.error('Unexpected Promise.allSettled rejection:', result.reason);
+      // For now, we won't add an entry for this provider if the outer promise rejects.
+    }
+  });
+
+  // Always return 200 OK with the aggregated response, even if some providers failed
+  res.status(200).json(response);
 };
