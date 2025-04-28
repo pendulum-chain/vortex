@@ -3,12 +3,14 @@ import { ToastOptions, toast } from 'react-toastify';
 
 export enum ToastMessage {
   AMOUNT_MISMATCH = 'AMOUNT_MISMATCH',
+  RAMP_LIMIT_EXCEEDED = 'RAMP_LIMIT_EXCEEDED',
   KYC_COMPLETED = 'KYC_COMPLETED',
   KYC_VERIFICATION_FAILED = 'KYC_VERIFICATION_FAILED',
   SIGNING_FAILED = 'SIGNING_FAILED',
   POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION = 'POLKADOT_WALLET_ALREADY_OPEN_PENDING_CONNECTION',
   ERROR = 'ERROR',
   NODE_CONNECTION_ERROR = 'NODE_CONNECTION_ERROR',
+  SIGNING_REJECTED = 'SIGNING_REJECTED',
 }
 
 const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey: string }> = {
@@ -54,11 +56,25 @@ const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey:
     },
     translationKey: 'toasts.nodeConnectionError',
   },
+  [ToastMessage.RAMP_LIMIT_EXCEEDED]: {
+    options: {
+      toastId: ToastMessage.RAMP_LIMIT_EXCEEDED,
+      type: 'error',
+    },
+    translationKey: 'toasts.rampLimitExceeded',
+  },
   [ToastMessage.ERROR]: {
     options: {
       type: 'error',
     },
     translationKey: 'toasts.genericError',
+  },
+  [ToastMessage.SIGNING_REJECTED]: {
+    options: {
+      toastId: ToastMessage.SIGNING_REJECTED,
+      type: 'warning',
+    },
+    translationKey: 'toasts.signingRejected',
   },
 };
 

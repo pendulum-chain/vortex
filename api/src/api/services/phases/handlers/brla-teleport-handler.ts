@@ -5,9 +5,10 @@ import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { BrlaApiService } from '../../brla/brlaApiService';
-import { checkMoonbeamBalancePeriodically } from '../../moonbeam/balance';
+import { checkEvmBalancePeriodically } from '../../moonbeam/balance';
 import { BrlaTeleportService } from '../../brla/brlaTeleportService';
 import logger from '../../../../config/logger';
+import { moonbeam } from 'viem/chains';
 
 export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -51,13 +52,18 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
 
       const tokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
 
-      await checkMoonbeamBalancePeriodically(
+      await checkEvmBalancePeriodically(
         tokenDetails.moonbeamErc20Address,
         moonbeamEphemeralAddress,
         inputAmountBeforeSwapRaw, // TODO verify this is okay, regarding decimals.
         pollingTimeMs,
         maxWaitingTimeMs,
+        moonbeam
       );
+
+      // Add delay to ensure the transaction is settled
+      await new Promise((resolve) => setTimeout(resolve, 12000)); // 12 seconds, 2 moonbeam blocks.
+      
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {
         if (balanceCheckError.message === 'Balance did not meet the limit within the specified time') {

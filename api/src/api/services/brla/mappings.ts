@@ -10,6 +10,7 @@ import {
   KycLevel2Payload,
   KycLevel2Response,
   KycRetryPayload,
+  UsedLimitData,
 } from './types';
 import { Event } from './webhooks';
 
@@ -17,6 +18,7 @@ export enum Endpoint {
   Subaccounts = '/subaccounts',
   PayOut = '/pay-out',
   BrCode = '/pay-in/br-code',
+  UsedLimit = '/used-limit',
   WebhookEvents = '/webhooks/events',
   PixInfo = '/pay-out/pix-info',
   PixHistory = '/pay-in/pix/history',
@@ -50,6 +52,20 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.UsedLimit]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: UsedLimitData;
     };
     PATCH: {
       body: undefined;

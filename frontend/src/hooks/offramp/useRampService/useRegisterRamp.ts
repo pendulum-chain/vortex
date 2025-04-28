@@ -1,9 +1,9 @@
-import { useRampExecutionInput, useRampStore } from '../../../stores/rampStore';
+import { useRampExecutionInput, useRampStore, useSigningRejected } from '../../../stores/rampStore'; // Import useSigningRejected
 import { useVortexAccount } from '../../useVortexAccount';
 import { RampService } from '../../../services/api';
 import { AccountMeta, FiatToken, getAddressForFormat, Networks, signUnsignedTransactions } from 'shared';
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   signAndSubmitEvmTransaction,
   signAndSubmitSubstrateTransaction,
@@ -12,6 +12,7 @@ import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { RampExecutionInput } from '../../../types/phases';
 import { useAnchorWindowHandler } from '../useSEP24/useAnchorWindowHandler';
 import { useSubmitRamp } from '../useSubmitRamp';
+import { useToastMessage } from '../../../helpers/notifications';
 
 const REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey';
 const START_KEY_LOCAL_STORAGE = 'rampStartKey';
@@ -65,8 +66,9 @@ export const useRegisterRamp = () => {
     rampStarted,
     canRegisterRamp,
     rampKycStarted,
-    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp },
+    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected },
   } = useRampStore();
+  const { showToast, ToastMessage } = useToastMessage();
 
   const { address } = useVortexAccount();
   const { chainId } = useVortexAccount();
@@ -78,9 +80,7 @@ export const useRegisterRamp = () => {
   const executionInput = useRampExecutionInput();
   const prepareRampSubmission = useSubmitRamp();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
-
-  // TODO if user declined signing, do something
-  const [userDeclinedSigning, setUserDeclinedSigning] = useState(false);
+  const signingRejected = useSigningRejected();
 
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
@@ -103,12 +103,18 @@ export const useRegisterRamp = () => {
     }
   };
 
+  // Create a process lock for the registration process
   const { checkLock, verifyLock, releaseLock } = useProcessLock(REGISTER_KEY_LOCAL_STORAGE);
+
+  // Create a process lock for the signing process
+  const {
+    checkLock: checkSigningLock,
+    verifyLock: verifySigningLock,
+    releaseLock: releaseSigningLock,
+  } = useProcessLock(START_KEY_LOCAL_STORAGE);
 
   // @TODO: maybe change to useCallback
   useEffect(() => {
-    console.log(`Starting ramp registry process at ${new Date().toISOString()}`);
-
     // Check if we can proceed with the registration process
     const lockResult = checkLock();
     if (!lockResult.canProceed) {
@@ -118,6 +124,10 @@ export const useRegisterRamp = () => {
     const { processRef } = lockResult;
 
     const registerRampProcess = async () => {
+      if (signingRejected) {
+        throw new Error('Signing was rejected, cannot proceed with ramp registration');
+      }
+
       if (rampKycStarted) {
         throw new Error('KYC is not valid yet');
       }
@@ -199,8 +209,6 @@ export const useRegisterRamp = () => {
         moonbeamApiComponents.api,
       );
 
-      console.log('setting ramp state with signed transactions...');
-
       setRampRegistered(true);
       setRampState({
         quote: executionInput.quote,
@@ -225,7 +233,6 @@ export const useRegisterRamp = () => {
       });
   }, [
     address,
-
     canRegisterRamp,
     chainId,
     checkLock,
@@ -237,14 +244,11 @@ export const useRegisterRamp = () => {
     setRampState,
     verifyLock,
     rampKycStarted,
+    rampStarted,
+    releaseSigningLock,
+    setSigningRejected,
+    signingRejected,
   ]);
-
-  // Create a process lock for the signing process
-  const {
-    checkLock: checkSigningLock,
-    verifyLock: verifySigningLock,
-    releaseLock: releaseSigningLock,
-  } = useProcessLock(START_KEY_LOCAL_STORAGE);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
   // This is only relevant for offramps. @TODO: Extract this to a separate hook for offramp
@@ -261,7 +265,7 @@ export const useRegisterRamp = () => {
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (!rampState || rampState?.ramp?.type === 'on' || !shouldRequestSignatures || userDeclinedSigning) {
+    if (!rampState || rampState?.ramp?.type === 'on' || !shouldRequestSignatures || signingRejected) {
       return; // Exit early if conditions aren't met
     }
 
@@ -351,8 +355,8 @@ export const useRegisterRamp = () => {
       .catch((error) => {
         console.error(`Error requesting signatures from user`, error);
         // TODO check if user declined based on error provided
-        // For now, assume it failed because the user declined
-        setUserDeclinedSigning(true);
+        setSigningRejected(true);
+        showToast(ToastMessage.SIGNING_REJECTED);
       })
       .finally(() => releaseSigningLock());
   }, [
@@ -366,8 +370,11 @@ export const useRegisterRamp = () => {
     setRampSigningPhase,
     setRampState,
     substrateWalletAccount,
-    userDeclinedSigning,
     verifySigningLock,
+    showToast,
+    signingRejected,
+    ToastMessage.SIGNING_REJECTED,
+    setSigningRejected,
   ]);
 
   return {

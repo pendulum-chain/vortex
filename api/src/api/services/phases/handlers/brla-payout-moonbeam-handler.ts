@@ -5,8 +5,9 @@ import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { BrlaApiService } from '../../brla/brlaApiService';
-import { checkMoonbeamBalancePeriodically } from '../../moonbeam/balance';
+import { checkEvmBalancePeriodically } from '../../moonbeam/balance';
 import logger from '../../../../config/logger';
+import { polygon } from 'viem/chains';
 
 export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -38,12 +39,13 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     const maxWaitingTimeMs = 5 * 60 * 1000; // 5 minutes
 
     try {
-      await checkMoonbeamBalancePeriodically(
+      await checkEvmBalancePeriodically(
         tokenDetails.polygonErc20Address,
         brlaEvmAddress,
         outputAmountBeforeFees.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
+        polygon
       );
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {

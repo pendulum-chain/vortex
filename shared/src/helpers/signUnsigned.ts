@@ -10,7 +10,7 @@ import { hdEthereum, mnemonicToLegacySeed } from '@polkadot/util-crypto';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 
 // Number of transactions to pre-sign for each transaction
-const NUMBER_OF_PRESIGNED_TXS = 3;
+const NUMBER_OF_PRESIGNED_TXS = 5;
 
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
@@ -58,8 +58,6 @@ async function signMultipleStellarTransactions(
   };
   // iterate objects of array meta
   for (const key in signedTx.meta.additionalTxs) {
-    console.log(`key: ${key}`);
-    console.log(`value: ${signedTx.meta[key]}`);
     if (!key.includes(tx.phase)) continue;
 
     const extraTransactionUnsigned = signedTx.meta.additionalTxs[key].txData;

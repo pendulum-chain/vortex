@@ -68,6 +68,10 @@ export async function signAndSubmitSubstrateTransaction(
           resolve(hash);
         }
       },
-    );
+    ).catch((error) => {
+      // Most likely, the user cancelled the signing process.
+      console.error('Error signing and submitting transaction', error);
+      reject('Error signing and sending transaction:' + error);
+    });
   });
 }

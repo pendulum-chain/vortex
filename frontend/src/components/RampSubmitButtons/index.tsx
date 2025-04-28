@@ -2,13 +2,14 @@ import { FC, useCallback } from 'react';
 import Big from 'big.js';
 import { useEventsContext } from '../../contexts/events';
 import { useFeeComparisonStore } from '../../stores/feeComparison';
-import { useInitializeFailedMessage, useRampSummaryVisible } from '../../stores/rampStore';
+import { useInitializeFailedMessage, useRampExecutionInput, useRampSummaryVisible } from '../../stores/rampStore';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
 import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
 import { useTranslation } from 'react-i18next';
+import { useWidgetMode } from '../../hooks/useWidgetMode';
 
 interface RampSubmitButtonsProps {
   toAmount?: Big;
@@ -20,12 +21,14 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage } = useRampValidation();
+  const executionInput = useRampExecutionInput()
   const initializeFailedMessage = useInitializeFailedMessage();
   const isRampSummaryDialogVisible = useRampSummaryVisible();
   const inputAmount = useInputAmount();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const rampDirection = useRampDirection();
+  const isWidgetMode = useWidgetMode();
 
   const handleCompareFeesClick = useCallback(
     (e: React.MouseEvent) => {
@@ -53,17 +56,19 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   };
 
   const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
-  const isSubmitButtonPending = isRampSummaryDialogVisible;
+  const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput);
 
   return (
     <div className="flex gap-3 mt-5">
-      <button
-        className="btn-vortex-primary-inverse btn"
-        style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
-        onClick={handleCompareFeesClick}
-      >
-        {t('components.swap.compareFees')}
-      </button>
+      {!isWidgetMode && (
+        <button
+          className="btn-vortex-primary-inverse btn"
+          style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}
+          onClick={handleCompareFeesClick}
+        >
+          {t('components.swap.compareFees')}
+        </button>
+      )}
       <SwapSubmitButton text={getButtonState()} disabled={isSubmitButtonDisabled} pending={isSubmitButtonPending} />
     </div>
   );

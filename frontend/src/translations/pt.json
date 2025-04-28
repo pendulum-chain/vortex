@@ -216,7 +216,8 @@
         "quote": "Cotação",
         "partner": "Parceiro",
         "destination": "Conta de destino",
-        "confirm": "Confirmar"
+        "confirm": "Confirmar",
+        "tryAgain": "Tentar novamente"
       },
       "selectionModal": {
         "title": "Selecione um token",
@@ -255,7 +256,7 @@
       "buyButton": "Comprar",
       "sellButton": "Vender",
       "firstInputLabel": {
-        "buy": "Você compra",
+        "buy": "Você paga",
         "sell": "Você vende"
       },
       "secondInputLabel": "Você recebe",
@@ -416,6 +417,8 @@
     "signingFailed": "Falha na assinatura. Por favor, tente novamente.",
     "walletAlreadyOpen": "Carteira já aberta aguardando conexão. Por favor, tente novamente.",
     "nodeConnectionError": "Erro ao conectar ao nó. Atualize a página para reconectar.",
-    "genericError": "Ocorreu um erro. Por favor, tente novamente."
+    "genericError": "Ocorreu um erro. Por favor, tente novamente.",
+    "rampLimitExceeded": "Este valor excede o limite restante de {{remaining}} BRL para sua conta.",
+    "signingRejected": "Assinatura rejeitada. Por favor, tente novamente."
   }
 }

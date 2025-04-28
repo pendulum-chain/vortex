@@ -44,6 +44,7 @@ export interface RampZustand {
   initializeFailedMessage: string | undefined;
   rampSummaryVisible: boolean;
   canRegisterRamp: boolean;
+  signingRejected: boolean;
 }
 
 export interface RampActions {
@@ -61,4 +62,5 @@ export interface RampActions {
   clearInitializeFailedMessage: () => void;
   resetRampState: () => void;
   setCanRegisterRamp: (canRegister: boolean) => void;
+  setSigningRejected: (rejected: boolean) => void;
 }

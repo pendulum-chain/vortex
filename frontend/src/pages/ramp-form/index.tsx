@@ -9,14 +9,15 @@ import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirec
 import { RampDirection, RampToggle } from '../../components/RampToggle';
 import { PoweredBy } from '../../components/PoweredBy';
 import { Onramp } from '../../components/Ramp/Onramp';
-import { DocumentUpload } from '../../components/BrlaComponents/KYCLevel2Form/';
-import { KYCDocType } from '../../services/api';
+import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
   const offrampKycStarted = useRampKycStarted();
   const offrampKycLevel2Started = useRampKycLevel2Started();
+
+  useSetRampUrlParams();
 
   return (
     <main>

@@ -75,6 +75,22 @@ export class BrlaService {
   }
 
   /**
+   * Get the remaining limit for a user
+   * @param taxId The user's tax ID
+   * @returns The remaining limit for onramp and offramp
+   */
+  static async getUserRemainingLimit(taxId: string): Promise<BrlaEndpoints.GetUserRemainingLimitResponse> {
+    return apiRequest<BrlaEndpoints.GetUserRemainingLimitResponse>(
+      'get',
+      `${this.BASE_PATH}/getUserRemainingLimit`,
+      undefined,
+      {
+        params: { taxId },
+      },
+    );
+  }
+
+  /**
    * Trigger an offramp operation
    * @param request The offramp request
    * @returns The offramp ID
