@@ -82,6 +82,41 @@ export const validateCreationInput: RequestHandler = (req, res, next) => {
   next();
 };
 
+export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, PriceQuery> = (req, res, next) => {
+  const { fromCrypto, toFiat, amount, network } = req.query;
+
+  if (!fromCrypto || !PriceEndpoints.isValidCryptoCurrency(fromCrypto)) {
+    res.status(400).json({
+      error: `Invalid fromCrypto. Supported currencies are: ${PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ')}`,
+    });
+    return;
+  }
+
+  if (!toFiat || !PriceEndpoints.isValidFiatCurrency(toFiat)) {
+    res.status(400).json({
+      error: `Invalid toFiat. Supported currencies are: ${PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ')}`,
+    });
+    return;
+  }
+
+  if (!amount) {
+    res.status(400).json({ error: 'Missing amount parameter' });
+    return;
+  }
+
+  if (!network) {
+    res.status(400).json({ error: 'Missing network parameter' });
+    return;
+  }
+
+  if (isNaN(parseFloat(amount))) {
+    res.status(400).json({ error: 'Invalid amount parameter. Not a number.' });
+    return;
+  }
+
+  next();
+};
+
 export const validatePriceInput: RequestHandler<{}, unknown, unknown, PriceQuery> = (req, res, next) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
