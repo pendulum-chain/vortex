@@ -123,6 +123,13 @@ export const PIXKYCForm = () => {
       required: true,
       index: 10,
     });
+    pixformFields.push({
+      id: ExtendedBrlaFieldOptions.PARTNER_CPF,
+      label: t('components.brlaExtendedForm.form.parnterCpf'),
+      type: 'text',
+      required: true,
+      index: 11,
+    });
   }
 
   return (
@@ -136,7 +143,7 @@ export const PIXKYCForm = () => {
             : null
           }
           { offrampKycStarted ? 
-            <KYCForm fields={PIXKYCFORM_FIELDS} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick}  />
+            <KYCForm fields={pixformFields} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick}  />
             : null
           }
         </>

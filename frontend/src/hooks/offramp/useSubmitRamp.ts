@@ -99,17 +99,9 @@ export const useSubmitRamp = () => {
 
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.
-              if (isValidCpf(taxId)) {
+              if (isValidCpf(taxId) || isValidCnpj(taxId)) {
                 console.log("User doesn't exist yet.");
                 setRampKycStarted(true);
-                return;
-              } else if (isValidCnpj(taxId)) {
-                console.log("CNPJ User doesn't exist yet.");
-                setInitializeFailedMessage(t('hooks.useSubmitOfframp.cnpjUserDoesntExist'));
-                setRampStarted(false);
-                setRampInitiating(false);
-                cleanupSEP24();
-                return;
               } else if (errorResponse.error.includes('KYC invalid')) {
                 setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
                 setRampStarted(false);

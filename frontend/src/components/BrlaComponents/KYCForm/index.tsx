@@ -42,6 +42,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
                   ExtendedBrlaFieldOptions.PHONE,
                   ExtendedBrlaFieldOptions.FULL_NAME,
                   ExtendedBrlaFieldOptions.BIRTHDATE,
+                  ExtendedBrlaFieldOptions.COMPANY_NAME,
                 ].includes(field.id as ExtendedBrlaFieldOptions)
                   ? 'col-span-2'
                   : ''

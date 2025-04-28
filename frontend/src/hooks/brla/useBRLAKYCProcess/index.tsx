@@ -135,14 +135,26 @@ export function useKYCProcess() {
       };
 
       try {
-        console.log('Calling createSubaccount');
-        await createSubaccount({
-          ...formData,
-          cpf: taxId,
-          birthdate: formData.birthdate.getTime(),
-          address: addressObject,
-          taxIdType: 'CPF',
-        });
+        if (isValidCnpj(taxId)) {
+          await createSubaccount({
+            ...formData,
+            cpf:  formData.partnerCpf,
+            cnpj: taxId,
+            address: addressObject,
+            taxIdType: 'CNPJ',
+            birthdate: formData.birthdate.getTime(),
+            startDate: formData.startDate?.getTime()
+          });
+        } else{
+          await createSubaccount({
+            ...formData,
+            cpf: taxId,
+            birthdate: formData.birthdate.getTime(),
+            address: addressObject,
+            taxIdType: 'CPF',
+            startDate: formData.startDate?.getTime(),
+          });
+        }
 
         setCpf(taxId);
         await queryClient.invalidateQueries({ queryKey: ['kyc-status', taxId] });
@@ -172,7 +184,7 @@ export function useKYCProcess() {
           await delay(SUCCESS_DISPLAY_DURATION_MS);
 
           // Only if this is a CNPJ type user, do we move to level 2.
-          if (!isValidCnpj(taxId)){
+          if (isValidCnpj(taxId)){
             return proceedWithKYCLevel2();
           }
           resetToDefault();

@@ -4,13 +4,16 @@ import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
 import { generateReferenceLabel } from '../services/brla/helpers';
-import { isValidKYCDocType, KYCDocType, KycLevel2Response } from '../services/brla/types';
+import { isValidKYCDocType, KYCDocType, KycLevel2Response, RegisterSubaccountPayload } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 import { PayInCodeQuery } from '../middlewares/validators';
 
 // BRLA API requires the date in the format YYYY-MMM-DD
-function convertDateToBRLAFormat(dateNumber: number) {
+function convertDateToBRLAFormat(dateNumber: number | undefined): string {
+  if (!dateNumber) {
+    return '';
+  }
   const date = new Date(dateNumber);
   const year = date.getFullYear(); // YYYY
   const month = date.toLocaleString('en-us', { month: 'short' }); // MMM
@@ -188,7 +191,14 @@ export const createSubaccount = async (
   res: Response<BrlaEndpoints.CreateSubaccountResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
-    const { cpf: taxId } = req.body;
+    const { cpf, cnpj, taxIdType } = req.body;
+    
+    const taxId = taxIdType === 'CNPJ' ? cnpj : cpf;
+
+    if (!taxId) {
+      res.status(400).json({ error: 'Missing cpf or cnpj' });
+      return;
+    }
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
@@ -198,7 +208,25 @@ export const createSubaccount = async (
     }
     // Convert birthdate from number to BRLA format
     const birthdate = convertDateToBRLAFormat(req.body.birthdate);
-    const subaccountPayload = { ...req.body, birthdate };
+    // if company startDate field was provided, convert it to BRLA format
+    const startDate = convertDateToBRLAFormat(req.body.startDate);
+
+    let subaccountPayload: RegisterSubaccountPayload = { ...req.body, birthdate, startDate };
+
+    // Extra validation for company fields
+    if (taxIdType === 'CNPJ') {
+      if (!subaccountPayload.companyName) {
+        res.status(400).json({ error: 'Missing companyName' });
+        return;
+      }
+      if (subaccountPayload.startDate === '') {
+        res.status(400).json({ error: 'Missing startDate' });
+        return;
+      }
+    }
+    
+    subaccountPayload = { ...subaccountPayload, companyName: subaccountPayload.companyName };
+    console.log('subaccountPayload', subaccountPayload);
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
@@ -207,6 +235,7 @@ export const createSubaccount = async (
     handleApiError(error, res, 'createSubaccount');
   }
 };
+
 
 export const fetchSubaccountKycStatus = async (
   req: Request<unknown, unknown, unknown, BrlaEndpoints.GetKycStatusRequest>,

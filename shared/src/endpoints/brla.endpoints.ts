@@ -85,7 +85,7 @@ export namespace BrlaEndpoints {
     cpf: string;
     birthdate: number; // Timestamp
     companyName?: string;
-    startDate?: string;
+    startDate?: number;
     cnpj?: string;
   }
 

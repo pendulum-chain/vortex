@@ -334,7 +334,10 @@
         "street": "Street",
         "number": "Number",
         "district": "District",
-        "birthdate": "Birthdate"
+        "birthdate": "Birthdate",
+        "companyName": "Company Name",
+        "startDate": "Company Start Date",
+        "parnterCpf": "Partner CPF"
       },
       "verificationStatus": {
         "pending": "Verifying your data, please wait",
@@ -389,6 +392,10 @@
           "required": "Company start date is required",
           "future": "Company start date cannot be in the future",
           "tooOld": "Invalid company start date"
+        },
+        "partnerCpf": {
+          "required": "Partner CPF is required",
+          "format": "Invalid Partner CPF format"
         }
       }
     },
