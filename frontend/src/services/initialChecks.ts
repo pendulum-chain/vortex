@@ -5,11 +5,12 @@ import { useToastMessage } from '../helpers/notifications';
 import { useRampDirection } from '../stores/rampDirectionStore';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRampActions } from '../stores/rampStore';
 
 function useRampAmountWithinAllowedLimits() {
   const { t } = useTranslation();
   const { showToast, ToastMessage } = useToastMessage();
-
+  const { setRampKycLevel2Started } = useRampActions();
   const rampDirection = useRampDirection();
 
   return useCallback(
@@ -24,16 +25,20 @@ function useRampAmountWithinAllowedLimits() {
 
         const amountNum = Number(amountUnits);
         const remainingLimitNum = Number(remainingLimitInUnits);
-
-        if (amountNum <= remainingLimitNum) {
-          return true;
-        } else {
-          showToast(
-            ToastMessage.RAMP_LIMIT_EXCEEDED,
-            t('toasts.rampLimitExceeded', { remaining: remainingLimitInUnits }),
-          );
-          return false;
-        }
+        
+        // TODO do we still need this check, here?
+        // if (true) {
+        //   return true;
+        // } else {
+        //   console.log('Ramp amount exceeds the allowed limits');
+        //   setRampKycLevel2Started(true);
+        //   showToast(
+        //     ToastMessage.RAMP_LIMIT_EXCEEDED,
+        //     t('toasts.rampLimitExceeded', { remaining: remainingLimitInUnits }),
+        //   );
+        //   return false;
+        // }
+        return true;
       } catch (error) {
         console.error('Error fetching remaining limit:', error);
         return false;

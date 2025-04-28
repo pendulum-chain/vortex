@@ -83,12 +83,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
 
-  const { data: kycResponse, error: kycStatusFetchError } = useKycStatusQuery(taxId); 
-  const { verificationStatus, updateStatus } = useVerificationStatusUI();
-  const { setRampKycStarted} = useRampActions();
-
-  const { STATUS_MESSAGES } = useStatusMessages();
-
 
   const validateAndSetFile = (
     file: File | null,

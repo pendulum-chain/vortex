@@ -23,6 +23,8 @@ import { RampExecutionInput } from '../../types/phases';
 import { useToastMessage } from '../../helpers/notifications';
 import { isValidCnpj, isValidCpf } from '../ramp/schema';
 import { BrlaService } from '../../services/api';
+import { useRampDirection } from '../../stores/rampDirectionStore';
+import { RampDirection } from '../../components/RampToggle';
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();
@@ -31,6 +33,7 @@ export const useSubmitRamp = () => {
   const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
+  const rampDirection = useRampDirection();
 
   const {
     setRampStarted,
@@ -39,6 +42,7 @@ export const useSubmitRamp = () => {
     setRampKycStarted,
     setInitializeFailedMessage,
     setRampSummaryVisible,
+    setRampKycLevel2Started
   } = useRampActions();
 
   const {
@@ -88,6 +92,26 @@ export const useSubmitRamp = () => {
 
             try {
               const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
+
+              const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
+              
+              const remainingLimitInUnits =
+                rampDirection === RampDirection.OFFRAMP
+                  ? remainingLimitResponse.remainingLimitOfframp
+                  : remainingLimitResponse.remainingLimitOnramp;
+      
+              const amountNum = Number(executionInput.quote.inputAmount);
+              const remainingLimitNum = Number(remainingLimitInUnits);
+              
+              // TODO mocking limit levels
+              if (true) {
+                setRampKycLevel2Started(true);
+                showToast(
+                  ToastMessage.RAMP_LIMIT_EXCEEDED,
+                  t('toasts.rampLimitExceeded', { remaining: remainingLimitInUnits }),
+                );
+                return;
+              } 
 
               // append EVM address to execution input
               const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };

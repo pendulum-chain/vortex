@@ -6,15 +6,14 @@ import { useKYCForm } from '../../hooks/brla/useKYCForm';
 import { VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 import { KYCForm } from './KYCForm';
-import { useRampActions, useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
+import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
 import { useCallback } from 'react';
 import { DocumentUpload } from './KYCLevel2Form';
 import { useTaxId } from '../../stores/ramp/useRampFormStore';
 import { isValidCnpj } from '../../hooks/ramp/schema';
 
 export const PIXKYCForm = () => {
-  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, isSubmitted } = useKYCProcess();
-  const { setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
+  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, setCpf, isSubmitted } = useKYCProcess();
   const offrampKycLevel2Started = useRampKycLevel2Started();
   const offrampKycStarted = useRampKycStarted();
   const { kycForm } = useKYCForm();
@@ -26,7 +25,9 @@ export const PIXKYCForm = () => {
   
   const handleDocumentSubmit = useCallback(() => {
     setIsSubmitted(true);
-  }, [setRampKycLevel2Started, setRampSummaryVisible]);
+    const taxIdToSet = taxId ? taxId : null
+    setCpf(taxIdToSet);
+  }, [setIsSubmitted, setCpf]);
 
 
   let pixformFields: BrlaFieldProps[] = [

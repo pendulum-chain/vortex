@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useRampActions, useRampKycLevel2Started, useRampKycStarted } from '../../../stores/rampStore';
+import { useRampActions, useRampKycLevel2Started } from '../../../stores/rampStore';
 import { useKycStatusQuery } from '../useKYCStatusQuery';
 import { KYCFormData } from '../useKYCForm';
 import { createSubaccount, KycStatus } from '../../../services/signingService';
@@ -63,6 +63,8 @@ export function useKYCProcess() {
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
+  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
+
   const taxId = useTaxId();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -73,8 +75,6 @@ export function useKYCProcess() {
   const offrampKycLevel2Started = useRampKycLevel2Started();
   const desiredLevel = offrampKycLevel2Started ? 2 : 1;
   const { data: kycResponse, error } = useKycStatusQuery(cpf, desiredLevel);
-
-  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
 
 
   const handleBackClick = useCallback(() => {
@@ -230,7 +230,7 @@ export function useKYCProcess() {
         const mappedStatus = status as KycStatus;
   
         const statusHandlers: Record<KycStatus, () => Promise<void>> = {
-          [KycStatus.APPROVED]: async () => {
+          [KycStatus.PENDING]: async () => {
             updateStatus(KycStatus.APPROVED, 2, STATUS_MESSAGES.SUCCESS);
             await delay(3000);
             proceedWithRamp();
@@ -241,7 +241,7 @@ export function useKYCProcess() {
             setRampKycLevel2Started(false);
             handleBackClick();
           },
-          [KycStatus.PENDING]: async () => undefined,
+          [KycStatus.APPROVED]: async () => undefined,
         };
   
         const handler = statusHandlers[mappedStatus];
@@ -274,6 +274,7 @@ export function useKYCProcess() {
     statusMessage,
     handleFormSubmit,
     handleBackClick,
+    setCpf,
     setIsSubmitted,
     isSubmitted,
   };

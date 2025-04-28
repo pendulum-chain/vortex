@@ -7,7 +7,7 @@ const RETRY_DELAY_MS = 5000; // 5 seconds
 const MAX_RETRIES = 5;
 
 export const useKycStatusQuery = (cpf: string | null, level: number = 1) => {
-  console.log('useKycStatusQuery', cpf);
+  console.log('useKycStatusQuery', cpf, level);
   return useQuery<BrlaKycStatus, Error>({
     queryKey: ['kyc-status', cpf],
     queryFn: async () => {
@@ -17,7 +17,6 @@ export const useKycStatusQuery = (cpf: string | null, level: number = 1) => {
     enabled: !!cpf,
     refetchInterval: (query) => {
       const data = query.state.data;
-      
       if (!data) return POLLING_INTERVAL_MS;
       if (data.level !== level) return POLLING_INTERVAL_MS;
       if (data.status === 'PENDING') return POLLING_INTERVAL_MS;
