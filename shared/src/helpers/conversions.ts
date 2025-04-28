@@ -29,9 +29,14 @@ export function getAddressForFormat(address: string, ss58Format: number | string
     ss58Format = parseInt(ss58Format, 10);
   }
 
-  const keyring = new Keyring();
-  const encodedAddress = keyring.encodeAddress(address, ss58Format);
-  return encodedAddress;
+  try {
+    const keyring = new Keyring();
+    const encodedAddress = keyring.encodeAddress(address, ss58Format);
+    return encodedAddress;
+  } catch (error) {
+    console.error(`Error encoding address ${address}: ${error}`);
+    return address;
+  }
 }
 
 export function encodeSubmittableExtrinsic(extrinsic: Extrinsic) {
