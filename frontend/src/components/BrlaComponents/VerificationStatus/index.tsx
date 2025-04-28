@@ -16,9 +16,8 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
   isLevel2,
 }) => {
   const { status: kycStatus, level } = status;
-
   const showSuccess =
-    kycStatus === KycStatus.APPROVED && (level === 1 || (level === 2 && isLevel2));
+    kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
 
   return (
     <motion.div

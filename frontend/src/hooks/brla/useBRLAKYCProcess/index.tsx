@@ -70,13 +70,14 @@ export function useKYCProcess() {
 
   const queryClient = useQueryClient();
 
-  // TODO why does this stop after the first ACCEPTED (kyc level 1) response?
-  const { data: kycResponse, error } = useKycStatusQuery(cpf);
-  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
+  const desiredLevel = offrampKycLevel2Started ? 2 : 1;
+  const { data: kycResponse, error } = useKycStatusQuery(cpf, desiredLevel);
+
+  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
+
 
   const handleBackClick = useCallback(() => {
-    console.log('Back button clicked');
     setRampKycLevel2Started(false);
     setRampKycStarted(false);
     resetRampState();
@@ -185,6 +186,7 @@ export function useKYCProcess() {
 
           // Only if this is a CNPJ type user, do we move to level 2.
           if (isValidCnpj(taxId)){
+            updateStatus(KycStatus.PENDING, 2, STATUS_MESSAGES.PENDING);
             return proceedWithKYCLevel2();
           }
           resetToDefault();
