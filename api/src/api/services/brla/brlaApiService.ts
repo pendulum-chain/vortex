@@ -127,7 +127,7 @@ export class BrlaApiService {
 
   public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest('/used-limit', 'GET', query);
+    return await this.sendRequest(Endpoint.UsedLimit, 'GET', query);
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
