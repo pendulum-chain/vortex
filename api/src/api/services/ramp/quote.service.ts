@@ -11,9 +11,7 @@ import {
   OnChainToken,
   isEvmTokenDetails,
   Networks,
-  isFiatToken,
 } from 'shared';
-import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { BaseRampService } from './base.service';
 import QuoteTicket, { QuoteTicketFeeStructureDb, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import Partner from '../../../models/partner.model';
@@ -91,8 +89,8 @@ export class QuoteService extends BaseRampService {
       // If partnerId was provided but not found or not active, we'll proceed without a partner
     }
 
-    // Calculate output amount using the original fee logic
-    const outputResult = await this.calculateOutputAmount(
+    // Calculate output amount and network fee
+    const outputResult = await this.calculateGrossOutputAndNetworkFee(
       request.inputAmount,
       request.inputCurrency,
       request.outputCurrency,
@@ -110,8 +108,8 @@ export class QuoteService extends BaseRampService {
       partner,
     );
 
-    // Validate that the output amount is positive after fees
-    if (Big(outputResult.receiveAmount).lte(0)) {
+    // Validate that the output amount is positive
+    if (Big(outputResult.grossOutputAmount).lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
         message: 'Input amount too low to cover fees',
@@ -126,7 +124,7 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount: outputResult.receiveAmount, // Use the original fee logic result
+      outputAmount: outputResult.grossOutputAmount, // Use the gross output amount
       outputCurrency: request.outputCurrency,
       fee: feeComponents, // Store the detailed fee structure directly
       partnerId: partner?.id || null,
@@ -134,7 +132,7 @@ export class QuoteService extends BaseRampService {
       status: 'pending',
       metadata: {
         onrampOutputAmountMoonbeamRaw: outputResult.outputAmountMoonbeamRaw,
-        onrampInputAmountUnits: outputResult.inputAmountAfterFees,
+        onrampInputAmountUnits: outputResult.inputAmountUsedForSwap,
       } as QuoteTicketMetadata,
     });
 
@@ -308,7 +306,7 @@ export class QuoteService extends BaseRampService {
     }
   }
 
-  private async calculateOutputAmount(
+  private async calculateGrossOutputAndNetworkFee(
     inputAmount: string,
     inputCurrency: RampCurrency,
     outputCurrency: RampCurrency,
@@ -316,11 +314,11 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
   ): Promise<{
-    receiveAmount: string;
-    fees: string;
-    outputAmountBeforeFees: string;
+    grossOutputAmount: string;
+    networkFeeUSD: string;
     outputAmountMoonbeamRaw: string;
-    inputAmountAfterFees: string;
+    inputAmountUsedForSwap: string;
+    effectiveExchangeRate?: string;
   }> {
     // Use this reference to satisfy ESLint
     this.validateChainSupport(rampType, from, to);
@@ -366,15 +364,15 @@ export class QuoteService extends BaseRampService {
       const outputTokenPendulumDetails =
         rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
 
-      // For onramp, calculate input amount after fees using the original helper function
-      let inputAmountAfterFees = inputAmount;
-      if (rampType === 'on' && isFiatToken(inputCurrency)) {
-        inputAmountAfterFees = calculateTotalReceiveOnramp(new Big(inputAmount), inputCurrency);
-      }
+      // Initialize networkFeeUSD with '0'
+      let networkFeeUSD = '0';
+      
+      // Use the original input amount directly for the swap
+      const inputAmountUsedForSwap = inputAmount;
 
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
-        fromAmountString: inputAmountAfterFees,
+        fromAmountString: inputAmountUsedForSwap,
         inputTokenDetails: inputTokenPendulumDetails,
         outputTokenDetails: outputTokenPendulumDetails,
       });
@@ -418,38 +416,32 @@ export class QuoteService extends BaseRampService {
           });
         }
 
+        // Calculate network fee in USD for EVM on-ramp via Squidrouter
+        const squidFeeUSD = squidrouterSwapValue.mul(0.08).toFixed(4);
+        // TODO: Replace hardcoded GLMR->USD rate (0.08) with dynamic price fetching.
+        networkFeeUSD = squidFeeUSD;
+
         amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
           tokenDetails!.pendulumDecimals,
           BigInt(toAmountMin),
         );
         amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
         amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
-          amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountAfterFees)),
+          amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountUsedForSwap)),
           4,
         );
       }
 
-      // Get the output amount before fees
-      const outputAmountBeforeFees = amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
+      // Get the gross output amount (before any fees)
+      const grossOutputAmount = amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
 
-      // Calculate the final receive amount using the original helper function for offramp
-      let receiveAmount = outputAmountBeforeFees;
-      let fees = '0';
-
-      if (rampType === 'off' && isFiatToken(outputCurrency)) {
-        receiveAmount = calculateTotalReceive(new Big(outputAmountBeforeFees), outputCurrency);
-
-        // Calculate fees as the difference
-        fees = new Big(outputAmountBeforeFees).minus(receiveAmount).toString();
-      }
-
-      // Return the values using the original structure
+      // Return the values using the new structure
       return {
-        receiveAmount,
-        fees,
-        outputAmountBeforeFees,
+        grossOutputAmount,
+        networkFeeUSD,
         outputAmountMoonbeamRaw,
-        inputAmountAfterFees,
+        inputAmountUsedForSwap,
+        effectiveExchangeRate: amountOut.effectiveExchangeRate,
       };
     } catch (error) {
       logger.error('Error calculating output amount:', error);
