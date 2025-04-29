@@ -28,6 +28,24 @@ import {
 } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 
+// TODO: Implement proper fee conversion logic using price feeds
+function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCurrency, exchangeRateInfo?: string): string {
+  logger.warn(`TODO: Implement fee conversion from USD to ${outputCurrency}. Using placeholder logic.`);
+  
+  // In a real implementation, we would use exchangeRateInfo for conversion
+  if (exchangeRateInfo) {
+    logger.debug(`Future implementation will use exchange rate: ${exchangeRateInfo}`);
+  }
+  
+  // Placeholder: If output is USD-like, return feeUSD. Otherwise, return feeUSD (needs real conversion).
+  const usdLikeCurrencies = ['USD', 'USDC', 'axlUSDC'];
+  if (usdLikeCurrencies.includes(outputCurrency as string)) {
+     return feeUSD;
+  }
+  // Returning USD value as placeholder - THIS WILL BE INCORRECT FOR CRYPTO OUTPUTS
+  return feeUSD;
+}
+
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format
@@ -89,8 +107,14 @@ export class QuoteService extends BaseRampService {
       // If partnerId was provided but not found or not active, we'll proceed without a partner
     }
 
-    // Calculate output amount and network fee
-    const outputResult = await this.calculateGrossOutputAndNetworkFee(
+    // Calculate gross output amount and network fee
+    const {
+      grossOutputAmount,
+      networkFeeUSD,
+      outputAmountMoonbeamRaw,
+      inputAmountUsedForSwap,
+      effectiveExchangeRate
+    } = await this.calculateGrossOutputAndNetworkFee(
       request.inputAmount,
       request.inputCurrency,
       request.outputCurrency,
@@ -100,7 +124,12 @@ export class QuoteService extends BaseRampService {
     );
 
     // Calculate core fee components using the database-driven logic
-    const coreFeeComponents = await this.calculateFeeComponents(
+    const {
+      vortexFee,
+      anchorFee,
+      partnerMarkupFee,
+      feeCurrency
+    } = await this.calculateFeeComponents(
       request.inputAmount,
       request.rampType,
       request.from,
@@ -108,26 +137,38 @@ export class QuoteService extends BaseRampService {
       partner,
     );
 
-    // Validate that the output amount is positive
-    if (Big(outputResult.grossOutputAmount).lte(0)) {
+    // Calculate total fee in USD
+    const totalFeeUSD = new Big(networkFeeUSD)
+      .plus(vortexFee)
+      .plus(anchorFee)
+      .plus(partnerMarkupFee)
+      .toString();
+
+    // Convert total fee to output currency
+    const totalFeeInOutputCurrency = convertFeeToOutputCurrency(
+      totalFeeUSD,
+      request.outputCurrency,
+      effectiveExchangeRate // Pass exchange rate info if available
+    );
+
+    // Calculate final output amount by subtracting the converted total fee from gross output
+    const finalOutputAmount = new Big(grossOutputAmount).minus(totalFeeInOutputCurrency);
+    if (finalOutputAmount.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Input amount too low to cover fees',
+        message: 'Input amount too low to cover calculated fees',
       });
     }
+    const finalOutputAmountStr = finalOutputAmount.toFixed(6, 0);
 
-    // Transform core fee components into the QuoteTicketFeeStructureDb format
-    const feeStructure: QuoteTicketFeeStructureDb = {
-      network: outputResult.networkFeeUSD,
-      vortex: coreFeeComponents.vortexFee,
-      anchor: coreFeeComponents.anchorFee,
-      partnerMarkup: coreFeeComponents.partnerMarkupFee,
-      total: new Big(outputResult.networkFeeUSD)
-        .plus(coreFeeComponents.vortexFee)
-        .plus(coreFeeComponents.anchorFee)
-        .plus(coreFeeComponents.partnerMarkupFee)
-        .toString(),
-      currency: coreFeeComponents.feeCurrency,
+    // Store the complete detailed fee structure
+    const feeToStore: QuoteTicketFeeStructureDb = {
+      network: networkFeeUSD,
+      vortex: vortexFee,
+      anchor: anchorFee,
+      partnerMarkup: partnerMarkupFee,
+      total: totalFeeUSD,
+      currency: feeCurrency, // Should be 'USD'
     };
 
     // Create quote in database with the detailed fee structure
@@ -138,26 +179,27 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount: outputResult.grossOutputAmount, // Use the gross output amount
+      outputAmount: finalOutputAmountStr, // Use the final output amount after fee deduction
       outputCurrency: request.outputCurrency,
-      fee: feeStructure, // Store the detailed fee structure
+      fee: feeToStore, // Store the detailed fee structure
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
       metadata: {
-        onrampOutputAmountMoonbeamRaw: outputResult.outputAmountMoonbeamRaw,
-        onrampInputAmountUnits: outputResult.inputAmountUsedForSwap,
+        onrampOutputAmountMoonbeamRaw: outputAmountMoonbeamRaw,
+        onrampInputAmountUnits: inputAmountUsedForSwap,
+        grossOutputAmount, // Store the gross amount before fee deduction
       } as QuoteTicketMetadata,
     });
 
     // Transform the detailed fee structure to the API response structure
     // Sum vortex and anchor fees to create the processing fee
     const responseFeeStructure: QuoteEndpoints.FeeStructure = {
-      network: trimTrailingZeros(quote.fee.network),
-      processing: trimTrailingZeros(new Big(quote.fee.vortex).plus(quote.fee.anchor).toString()),
-      partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
-      total: trimTrailingZeros(quote.fee.total),
-      currency: quote.fee.currency,
+      network: trimTrailingZeros(networkFeeUSD),
+      processing: trimTrailingZeros(new Big(vortexFee).plus(anchorFee).toString()),
+      partnerMarkup: trimTrailingZeros(partnerMarkupFee),
+      total: trimTrailingZeros(totalFeeUSD),
+      currency: feeCurrency,
     };
 
     return {
@@ -167,7 +209,7 @@ export class QuoteService extends BaseRampService {
       to: quote.to,
       inputAmount: trimTrailingZeros(quote.inputAmount),
       inputCurrency: quote.inputCurrency,
-      outputAmount: trimTrailingZeros(quote.outputAmount),
+      outputAmount: trimTrailingZeros(finalOutputAmountStr),
       outputCurrency: quote.outputCurrency,
       fee: responseFeeStructure,
       expiresAt: quote.expiresAt,
