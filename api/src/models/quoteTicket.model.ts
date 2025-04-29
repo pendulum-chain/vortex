@@ -3,7 +3,7 @@ import { DestinationType, RampCurrency } from 'shared';
 import sequelize from '../config/database';
 
 // Define the database fee structure
-interface QuoteTicketFeeStructureDb {
+export interface QuoteTicketFeeStructureDb {
   network: string;
   vortex: string;
   anchor: string;

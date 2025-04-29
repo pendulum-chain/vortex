@@ -10,11 +10,12 @@ import {
   getOnChainTokenDetails,
   OnChainToken,
   isEvmTokenDetails,
-  Networks, isFiatToken,
+  Networks,
+  isFiatToken,
 } from 'shared';
 import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { BaseRampService } from './base.service';
-import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
+import QuoteTicket, { QuoteTicketFeeStructureDb, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import Partner from '../../../models/partner.model';
 import FeeConfiguration from '../../../models/feeConfiguration.model';
 import logger from '../../../config/logger';
@@ -23,7 +24,10 @@ import { getTokenOutAmount } from '../nablaReads/outAmount';
 import { ApiManager } from '../pendulum/apiManager';
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM } from '../../../constants/constants';
+import {
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
+} from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 
 /**
@@ -114,16 +118,7 @@ export class QuoteService extends BaseRampService {
       });
     }
 
-    // Create the fee structure using the database-driven fee components
-    const feeStructure: QuoteEndpoints.FeeStructure = {
-      network: feeComponents.networkFee,
-      processing: feeComponents.processingFee,
-      partnerMarkup: feeComponents.partnerMarkupFee,
-      total: feeComponents.totalFee,
-      currency: feeComponents.feeCurrency,
-    };
-
-    // Create quote in database
+    // Create quote in database with the detailed fee structure
     const quote = await QuoteTicket.create({
       id: uuidv4(),
       rampType: request.rampType,
@@ -133,7 +128,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: request.inputCurrency,
       outputAmount: outputResult.receiveAmount, // Use the original fee logic result
       outputCurrency: request.outputCurrency,
-      fee: feeStructure, // Use the database-driven fee structure
+      fee: feeComponents, // Store the detailed fee structure directly
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
@@ -142,6 +137,16 @@ export class QuoteService extends BaseRampService {
         onrampInputAmountUnits: outputResult.inputAmountAfterFees,
       } as QuoteTicketMetadata,
     });
+
+    // Transform the detailed fee structure to the API response structure
+    // Sum vortex and anchor fees to create the processing fee
+    const responseFeeStructure: QuoteEndpoints.FeeStructure = {
+      network: trimTrailingZeros(quote.fee.network),
+      processing: trimTrailingZeros(new Big(quote.fee.vortex).plus(quote.fee.anchor).toString()),
+      partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
+      total: trimTrailingZeros(quote.fee.total),
+      currency: quote.fee.currency,
+    };
 
     return {
       id: quote.id,
@@ -152,13 +157,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: quote.inputCurrency,
       outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
-      fee: {
-        network: trimTrailingZeros(quote.fee.network),
-        processing: trimTrailingZeros(quote.fee.processing),
-        partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
-        total: trimTrailingZeros(quote.fee.total),
-        currency: quote.fee.currency,
-      },
+      fee: responseFeeStructure,
       expiresAt: quote.expiresAt,
     };
   }
@@ -173,6 +172,16 @@ export class QuoteService extends BaseRampService {
       return null;
     }
 
+    // Transform the detailed fee structure to the API response structure
+    // Sum vortex and anchor fees to create the processing fee
+    const responseFeeStructure: QuoteEndpoints.FeeStructure = {
+      network: trimTrailingZeros(quote.fee.network),
+      processing: trimTrailingZeros(new Big(quote.fee.vortex).plus(quote.fee.anchor).toString()),
+      partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
+      total: trimTrailingZeros(quote.fee.total),
+      currency: quote.fee.currency,
+    };
+
     return {
       id: quote.id,
       rampType: quote.rampType,
@@ -182,13 +191,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: quote.inputCurrency,
       outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
-      fee: {
-        network: trimTrailingZeros(quote.fee.network),
-        processing: trimTrailingZeros(quote.fee.processing),
-        partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
-        total: trimTrailingZeros(quote.fee.total),
-        currency: quote.fee.currency,
-      },
+      fee: responseFeeStructure,
       expiresAt: quote.expiresAt,
     };
   }
@@ -202,17 +205,11 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
     partner: Partner | null,
-  ): Promise<{
-    networkFee: string;
-    processingFee: string;
-    partnerMarkupFee: string;
-    totalFee: string;
-    feeCurrency: string;
-  }> {
+  ): Promise<QuoteTicketFeeStructureDb> {
     try {
       // Use this reference to satisfy ESLint
       this.validateChainSupport(rampType, from, to);
-      
+
       // 1. Get network fee (static 0 USD for now)
       const networkFeeConfig = await FeeConfiguration.findOne({
         where: {
@@ -228,17 +225,14 @@ export class QuoteService extends BaseRampService {
 
       const networkFee = networkFeeConfig.value.toString();
 
-      // 2. Get Vortex Foundation fee
-      const vortexFeeConfig = await FeeConfiguration.findOne({
-        where: {
-          feeType: 'vortex_foundation',
-          identifier: 'default',
-          isActive: true,
-        },
+      // 2. Get Vortex Foundation fee from the dedicated partner record
+      const vortexFoundationPartner = await Partner.findOne({
+        where: { name: 'vortex_foundation', isActive: true },
       });
 
-      if (!vortexFeeConfig) {
-        throw new Error('Vortex foundation fee configuration not found');
+      if (!vortexFoundationPartner) {
+        logger.error('Vortex Foundation partner configuration not found in database.');
+        throw new APIError({ status: httpStatus.INTERNAL_SERVER_ERROR, message: 'Internal configuration error [VF]' });
       }
 
       // 3. Get anchor base fee based on the ramp type and destination
@@ -262,15 +256,14 @@ export class QuoteService extends BaseRampService {
 
       // Calculate Vortex Foundation fee based on type (absolute or relative)
       let vortexFee = '0';
-      if (vortexFeeConfig.valueType === 'absolute') {
-        vortexFee = vortexFeeConfig.value.toString();
+      if (vortexFoundationPartner.markupType === 'none') {
+        vortexFee = '0';
+      } else if (vortexFoundationPartner.markupType === 'absolute') {
+        vortexFee = vortexFoundationPartner.markupValue.toString();
       } else {
         // For relative fee, calculate based on input amount
-        vortexFee = new Big(inputAmount).mul(vortexFeeConfig.value).div(100).toString();
+        vortexFee = new Big(inputAmount).mul(vortexFoundationPartner.markupValue).div(100).toString();
       }
-
-      // Sum up processing fee (Vortex Foundation + Anchor)
-      const processingFee = new Big(vortexFee).plus(anchorFee).toString();
 
       // 4. Calculate partner markup fee if applicable
       let partnerMarkupFee = '0';
@@ -284,14 +277,15 @@ export class QuoteService extends BaseRampService {
       }
 
       // 5. Calculate total fee
-      const totalFee = new Big(networkFee).plus(processingFee).plus(partnerMarkupFee).toString();
+      const totalFee = new Big(networkFee).plus(vortexFee).plus(anchorFee).plus(partnerMarkupFee).toString();
 
       return {
-        networkFee,
-        processingFee,
-        partnerMarkupFee,
-        totalFee,
-        feeCurrency: 'USD',
+        network: networkFee,
+        vortex: vortexFee,
+        anchor: anchorFee,
+        partnerMarkup: partnerMarkupFee,
+        total: totalFee,
+        currency: 'USD',
       };
     } catch (error) {
       logger.error('Error calculating fee components:', error);
@@ -330,7 +324,7 @@ export class QuoteService extends BaseRampService {
   }> {
     // Use this reference to satisfy ESLint
     this.validateChainSupport(rampType, from, to);
-    
+
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
@@ -410,9 +404,12 @@ export class QuoteService extends BaseRampService {
 
         // Check against our moonbeam funding amounts.
         const squidrouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
-        const fundingAmountUnits = getNetworkFromDestination(to) === Networks.Ethereum ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM) : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+        const fundingAmountUnits =
+          getNetworkFromDestination(to) === Networks.Ethereum
+            ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
+            : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
         const squidrouterSwapValueBuffer = getNetworkFromDestination(to) === Networks.Ethereum ? 10 : 2;
-        
+
         // Leave 10 glmr for other operations of the ephemeral, and as buffer for potential price changes.
         if (squidrouterSwapValue.gte(fundingAmountUnits.minus(squidrouterSwapValueBuffer))) {
           throw new APIError({
@@ -434,18 +431,18 @@ export class QuoteService extends BaseRampService {
 
       // Get the output amount before fees
       const outputAmountBeforeFees = amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
-      
+
       // Calculate the final receive amount using the original helper function for offramp
       let receiveAmount = outputAmountBeforeFees;
       let fees = '0';
-      
+
       if (rampType === 'off' && isFiatToken(outputCurrency)) {
         receiveAmount = calculateTotalReceive(new Big(outputAmountBeforeFees), outputCurrency);
-        
+
         // Calculate fees as the difference
         fees = new Big(outputAmountBeforeFees).minus(receiveAmount).toString();
       }
-      
+
       // Return the values using the original structure
       return {
         receiveAmount,
