@@ -24,10 +24,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   // Migrate existing data: convert the current fee value to the new fee structure
   await queryInterface.sequelize.query(`
-    UPDATE quote_tickets 
+    -- Assumption: Migrating existing decimal fee (fee_old_decimal) as the 'vortex' component, setting 'anchor' to 0.
+    UPDATE quote_tickets
     SET fee = jsonb_build_object(
       'network', '0',
-      'processing', fee_old_decimal,
+      'vortex', fee_old_decimal, 
+      'anchor', '0',
       'partnerMarkup', '0',
       'total', fee_old_decimal,
       'currency', 'USD'

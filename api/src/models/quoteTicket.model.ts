@@ -1,7 +1,16 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { DestinationType, RampCurrency, QuoteEndpoints } from 'shared';
+import { DestinationType, RampCurrency } from 'shared';
 import sequelize from '../config/database';
-import Partner from './partner.model';
+
+// Define the database fee structure
+interface QuoteTicketFeeStructureDb {
+  network: string;
+  vortex: string;
+  anchor: string;
+  partnerMarkup: string;
+  total: string;
+  currency: string;
+}
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
@@ -13,7 +22,7 @@ export interface QuoteTicketAttributes {
   inputCurrency: RampCurrency;
   outputAmount: string;
   outputCurrency: RampCurrency;
-  fee: QuoteEndpoints.FeeStructure;
+  fee: QuoteTicketFeeStructureDb;
   partnerId: string | null;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
@@ -48,7 +57,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare outputCurrency: RampCurrency;
 
-  declare fee: QuoteEndpoints.FeeStructure;
+  declare fee: QuoteTicketFeeStructureDb;
 
   declare partnerId: string | null;
 

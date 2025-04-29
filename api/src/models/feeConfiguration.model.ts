@@ -4,7 +4,7 @@ import sequelize from '../config/database';
 // Define the attributes of the FeeConfiguration model
 export interface FeeConfigurationAttributes {
   id: string; // UUID
-  feeType: 'vortex_foundation' | 'anchor_base' | 'network_estimate';
+  feeType: 'anchor_base' | 'network_estimate';
   identifier: string | null;
   valueType: 'absolute' | 'relative';
   value: number;
@@ -21,7 +21,7 @@ type FeeConfigurationCreationAttributes = Optional<FeeConfigurationAttributes, '
 class FeeConfiguration extends Model<FeeConfigurationAttributes, FeeConfigurationCreationAttributes> implements FeeConfigurationAttributes {
   declare id: string;
 
-  declare feeType: 'vortex_foundation' | 'anchor_base' | 'network_estimate';
+  declare feeType: 'anchor_base' | 'network_estimate';
 
   declare identifier: string | null;
 
