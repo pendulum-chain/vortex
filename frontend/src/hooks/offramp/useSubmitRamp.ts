@@ -106,10 +106,6 @@ export const useSubmitRamp = () => {
               // TODO mocking limit levels
               if (true) {
                 setRampKycLevel2Started(true);
-                showToast(
-                  ToastMessage.RAMP_LIMIT_EXCEEDED,
-                  t('toasts.rampLimitExceeded', { remaining: remainingLimitInUnits }),
-                );
                 return;
               } 
 

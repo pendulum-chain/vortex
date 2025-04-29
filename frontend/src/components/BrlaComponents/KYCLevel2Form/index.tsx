@@ -1,24 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
   CameraIcon,
   DocumentTextIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
-import { VerificationStatus } from '../VerificationStatus';
-import { KycStatus } from '../../../services/signingService';
-import { BrlaService } from '../../../services/api';
-import { KYCDocType, KYCDataUploadFileFileds } from '../../../services/api';
-import { useVerificationStatusUI } from '../../../hooks/brla/useBRLAKYCProcess';
-import { useKycStatusQuery } from '../../../hooks/brla/useKYCStatusQuery';
+import { BrlaService, KYCDocType } from '../../../services/api';
 import { useTaxId } from '../../../stores/ramp/useRampFormStore';
-import { useTranslation } from 'react-i18next';
-import { useRampActions } from '../../../stores/rampStore';
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];
-
-
 
 interface DocumentUploadProps {
   onSubmitHandler: () => void;
@@ -39,39 +30,22 @@ async function uploadFileAsBuffer(file: File, url: string) {
   });
 
   if (!res.ok) {
-    console.log("upload failed", res.statusText);
+    console.log('upload failed', res.statusText);
     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
   }
 }
-
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-const useStatusMessages = () => {
-  const { t } = useTranslation();
-
-  const STATUS_MESSAGES = {
-    PENDING: t('components.brlaExtendedForm.verificationStatus.pending'),
-    SUCCESS: t('components.brlaExtendedForm.verificationStatus.success'),
-    REJECTED: t('components.brlaExtendedForm.verificationStatus.rejected'),
-    ERROR: t('components.brlaExtendedForm.verificationStatus.error'),
-  };
-
-  return {
-    STATUS_MESSAGES,
-  };
-};
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   onSubmitHandler,
   onBackClick,
 }) => {
   const taxId = useTaxId();
-  // taxId has to be defined befor rendering this component.
   if (!taxId) {
     console.error('Tax ID is not available');
     return null;
   }
 
+  const [docType, setDocType] = useState<KYCDocType>(KYCDocType.RG);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -82,7 +56,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-
 
   const validateAndSetFile = (
     file: File | null,
@@ -130,14 +103,19 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     try {
       const response = await BrlaService.startKYC2({
         taxId,
-        documentType: KYCDocType.RG,// TODO a selector on this component will probably be enough
+        documentType: docType,
       });
-      console.log('KYC2 response:', response.uploadUrls);
+
+      if (!selfie || !front || !back) {
+        setError('There was an error uploading the files for verification. Please try again later.');
+        console.error('Validation flags were true, but file data is missing. This is a bug.');
+        return;
+      }
 
       await Promise.all([
-        uploadFileAsBuffer(selfie!, response.uploadUrls.selfieUploadUrl),
-        uploadFileAsBuffer(front!, response.uploadUrls.RGFrontUploadUrl),
-        uploadFileAsBuffer(back!, response.uploadUrls.RGBackUploadUrl),
+        uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
+        uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
+        uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl),
       ]);
 
       onSubmitHandler();
@@ -148,12 +126,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     }
   };
 
-
   const renderField = (
     label: string,
-    onChange:
-      | React.ChangeEventHandler<HTMLInputElement>
-      | undefined,
+    onChange: React.ChangeEventHandler<HTMLInputElement> | undefined,
     valid: boolean,
     Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
   ) => (
@@ -182,6 +157,25 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       <h2 className="text-2xl font-semibold text-center text-blue-700 mb-6">
         Upload Your Documents
       </h2>
+
+      <div className="flex gap-3 mb-6">
+        <button
+          type="button"
+          className={`${docType === KYCDocType.RG ? 'btn-vortex-primary' : 'btn-vortex-primary-inverse'} btn flex-1`}
+          onClick={() => setDocType(KYCDocType.RG)}
+          disabled={loading}
+        >
+          RG
+        </button>
+        <button
+          type="button"
+          className={`${docType === KYCDocType.CNH ? 'btn-vortex-primary' : 'btn-vortex-primary-inverse'} btn flex-1`}
+          onClick={() => setDocType(KYCDocType.CNH)}
+          disabled={loading}
+        >
+          CNH
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 gap-4">
         {renderField(
@@ -227,5 +221,3 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     </motion.div>
   );
 };
-
-

@@ -27,10 +27,10 @@ export const PIXKYCForm = () => {
     setIsSubmitted(true);
     const taxIdToSet = taxId ? taxId : null
     setCpf(taxIdToSet);
-  }, [setIsSubmitted, setCpf]);
+  }, [setIsSubmitted, setCpf, taxId]);
 
 
-  let pixformFields: BrlaFieldProps[] = [
+  const pixformFields: BrlaFieldProps[] = [
     {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
       label: t('components.brlaExtendedForm.form.fullName'),
