@@ -137,7 +137,10 @@ async function priceQuery(
       if (errorMessage.toLowerCase().includes('minimum') || errorMessage.toLowerCase().includes('maximum')) {
         throw new InvalidAmountError(`AlchemyPay: ${errorMessage}`);
       }
-      if (errorMessage.toLowerCase().includes('unsupported') || errorMessage.toLowerCase().includes('invalid currency')) {
+      if (
+        errorMessage.toLowerCase().includes('unsupported') ||
+        errorMessage.toLowerCase().includes('invalid currency')
+      ) {
         throw new UnsupportedPairError(`AlchemyPay: ${errorMessage}`);
       }
       // Default 4xx to InvalidParameterError
@@ -168,7 +171,7 @@ async function priceQuery(
 
   // Ensure data exists if success is true
   if (!body.data) {
-     throw new ProviderInternalError('AlchemyPay API returned success=true but no data field');
+    throw new ProviderInternalError('AlchemyPay API returned success=true but no data field');
   }
 
   const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;
@@ -176,7 +179,7 @@ async function priceQuery(
   const totalFee = (Number(rampFee) || 0) + (Number(networkFee) || 0);
   // According to a comment in the response sample [here](https://alchemypay.readme.io/docs/price-query#response-sample)
   // the `fiatQuantity` does not yet include the fees so we need to subtract them.
-  const fiatAmount = Number(fiatQuantity) - totalFee;
+  const fiatAmount = Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
 
   return {
     cryptoPrice: Number(cryptoPrice),
