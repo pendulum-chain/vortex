@@ -9,7 +9,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       primaryKey: true,
     },
     fee_type: {
-      type: DataTypes.ENUM('anchor_base', 'network_estimate'),
+      type: DataTypes.ENUM('anchor_base'),
       allowNull: false,
     },
     identifier: {
@@ -52,19 +52,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: 'idx_fee_configurations_lookup',
   });
 
-  // Insert initial data for network fee (static 0 USD)
+  // Insert initial data for fees
   await queryInterface.bulkInsert('fee_configurations', [
-    {
-      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'network_estimate',
-      identifier: 'default',
-      value_type: 'absolute',
-      value: 0,
-      currency: 'USD',
-      is_active: true,
-      created_at: new Date(),
-      updated_at: new Date(),
-    },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
       fee_type: 'anchor_base',
