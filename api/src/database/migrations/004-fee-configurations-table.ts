@@ -9,7 +9,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       primaryKey: true,
     },
     fee_type: {
-      type: DataTypes.ENUM('vortex_foundation', 'anchor_base', 'network_estimate'),
+      type: DataTypes.ENUM('anchor_base', 'network_estimate'),
       allowNull: false,
     },
     identifier: {
@@ -60,17 +60,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       identifier: 'default',
       value_type: 'absolute',
       value: 0,
-      currency: 'USD',
-      is_active: true,
-      created_at: new Date(),
-      updated_at: new Date(),
-    },
-    {
-      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'vortex_foundation',
-      identifier: 'default',
-      value_type: 'relative',
-      value: 0.001, // 0.001%
       currency: 'USD',
       is_active: true,
       created_at: new Date(),

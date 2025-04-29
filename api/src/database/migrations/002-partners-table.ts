@@ -60,9 +60,28 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex('partners', ['name'], {
     name: 'idx_partners_name',
   });
+
+  // Insert Vortex Foundation as a partner
+  await queryInterface.bulkInsert('partners', [
+    {
+      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
+      name: 'vortex_foundation',
+      display_name: 'Vortex Foundation',
+      markup_type: 'relative',
+      markup_value: 0.01, // 0.01%
+      markup_currency: 'USD',
+      payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  ]);
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
+  // Remove the Vortex Foundation partner
+  await queryInterface.bulkDelete('partners', { name: 'vortex_foundation' });
+  
   // Drop the partners table
   await queryInterface.dropTable('partners');
 }
