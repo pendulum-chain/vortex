@@ -10,8 +10,9 @@ import {
   getOnChainTokenDetails,
   OnChainToken,
   isEvmTokenDetails,
-  Networks, isFiatToken, getAnyFiatTokenDetails,
+  Networks, isFiatToken,
 } from 'shared';
+import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { BaseRampService } from './base.service';
 import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import Partner from '../../../models/partner.model';
@@ -86,8 +87,8 @@ export class QuoteService extends BaseRampService {
       // If partnerId was provided but not found or not active, we'll proceed without a partner
     }
 
-    // Calculate gross output amount and USD to output currency rate
-    const outputAmount = await this.calculateOutputAmount(
+    // Calculate output amount using the original fee logic
+    const outputResult = await this.calculateOutputAmount(
       request.inputAmount,
       request.inputCurrency,
       request.outputCurrency,
@@ -96,7 +97,7 @@ export class QuoteService extends BaseRampService {
       request.to,
     );
 
-    // Calculate fee components
+    // Calculate fee components using the database-driven logic
     const feeComponents = await this.calculateFeeComponents(
       request.inputAmount,
       request.rampType,
@@ -105,39 +106,15 @@ export class QuoteService extends BaseRampService {
       partner,
     );
 
-    // Calculate net output amount after fees
-    let netOutputAmount;
-    
-    if (request.rampType === 'off' && isFiatToken(request.outputCurrency)) {
-      // For off-ramp to fiat, apply the same logic as the old calculateTotalReceive function
-      const outputTokenDetails = getAnyFiatTokenDetails(request.outputCurrency);
-      const feeBasisPoints = outputTokenDetails.offrampFeesBasisPoints;
-      const fixedFees = new Big(
-        outputTokenDetails.offrampFeesFixedComponent ? outputTokenDetails.offrampFeesFixedComponent : 0,
-      );
-      
-      const grossAmount = new Big(outputAmount.grossOutputAmount);
-      const fees = grossAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
-      netOutputAmount = grossAmount.minus(fees).toString();
-      
-      if (Big(netOutputAmount).lte(0)) {
-        netOutputAmount = '0';
-      }
-    } else {
-      // For other cases, convert the USD fee to output currency and subtract
-      const totalFeeInOutputCurrency = Big(feeComponents.totalFee).mul(outputAmount.usdToOutputRate).toString();
-      netOutputAmount = Big(outputAmount.grossOutputAmount).minus(totalFeeInOutputCurrency).toString();
-    }
-
     // Validate that the output amount is positive after fees
-    if (Big(netOutputAmount).lte(0)) {
+    if (Big(outputResult.receiveAmount).lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
         message: 'Input amount too low to cover fees',
       });
     }
 
-    // Create the fee structure
+    // Create the fee structure using the database-driven fee components
     const feeStructure: QuoteEndpoints.FeeStructure = {
       network: feeComponents.networkFee,
       processing: feeComponents.processingFee,
@@ -154,15 +131,15 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount: netOutputAmount,
+      outputAmount: outputResult.receiveAmount, // Use the original fee logic result
       outputCurrency: request.outputCurrency,
-      fee: feeStructure,
+      fee: feeStructure, // Use the database-driven fee structure
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
       metadata: {
-        onrampOutputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
-        onrampInputAmountUnits: outputAmount.inputAmountAfterFees,
+        onrampOutputAmountMoonbeamRaw: outputResult.outputAmountMoonbeamRaw,
+        onrampInputAmountUnits: outputResult.inputAmountAfterFees,
       } as QuoteTicketMetadata,
     });
 
@@ -345,9 +322,10 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
   ): Promise<{
-    grossOutputAmount: string;
+    receiveAmount: string;
+    fees: string;
+    outputAmountBeforeFees: string;
     outputAmountMoonbeamRaw: string;
-    usdToOutputRate: string;
     inputAmountAfterFees: string;
   }> {
     // Use this reference to satisfy ESLint
@@ -394,30 +372,10 @@ export class QuoteService extends BaseRampService {
       const outputTokenPendulumDetails =
         rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
 
-      // For onramp, calculate input amount after fees (similar to the old calculateTotalReceiveOnramp)
+      // For onramp, calculate input amount after fees using the original helper function
       let inputAmountAfterFees = inputAmount;
       if (rampType === 'on' && isFiatToken(inputCurrency)) {
-        const inputTokenDetails = getAnyFiatTokenDetails(inputCurrency);
-        const feeBasisPoints = inputTokenDetails.onrampFeesBasisPoints;
-        
-        if (feeBasisPoints === undefined) {
-          throw new APIError({
-            status: httpStatus.INTERNAL_SERVER_ERROR,
-            message: 'No onramp fees basis points defined for input token',
-          });
-        }
-        
-        const fixedFees = new Big(
-          inputTokenDetails.onrampFeesFixedComponent ? inputTokenDetails.onrampFeesFixedComponent : 0,
-        );
-        const fees = new Big(inputAmount).mul(feeBasisPoints).div(10000).add(fixedFees).round(6, 0);
-        const totalReceiveRaw = new Big(inputAmount).minus(fees);
-        
-        if (totalReceiveRaw.gt(0)) {
-          inputAmountAfterFees = totalReceiveRaw.toFixed(6, 0);
-        } else {
-          inputAmountAfterFees = '0';
-        }
+        inputAmountAfterFees = calculateTotalReceiveOnramp(new Big(inputAmount), inputCurrency);
       }
 
       const amountOut = await getTokenOutAmount({
@@ -474,16 +432,26 @@ export class QuoteService extends BaseRampService {
         );
       }
 
-      // Calculate USD to output currency rate
-      // For simplicity, we'll use the effective exchange rate as a proxy
-      // This assumes 1 USD ≈ 1 axlUSDC in the swap path
-      const usdToOutputRate = amountOut.effectiveExchangeRate;
+      // Get the output amount before fees
+      const outputAmountBeforeFees = amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
       
-      // Return the gross output amount before any fees are applied
+      // Calculate the final receive amount using the original helper function for offramp
+      let receiveAmount = outputAmountBeforeFees;
+      let fees = '0';
+      
+      if (rampType === 'off' && isFiatToken(outputCurrency)) {
+        receiveAmount = calculateTotalReceive(new Big(outputAmountBeforeFees), outputCurrency);
+        
+        // Calculate fees as the difference
+        fees = new Big(outputAmountBeforeFees).minus(receiveAmount).toString();
+      }
+      
+      // Return the values using the original structure
       return {
-        grossOutputAmount: amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0),
+        receiveAmount,
+        fees,
+        outputAmountBeforeFees,
         outputAmountMoonbeamRaw,
-        usdToOutputRate,
         inputAmountAfterFees,
       };
     } catch (error) {
