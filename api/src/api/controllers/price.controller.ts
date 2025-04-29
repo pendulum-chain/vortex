@@ -1,36 +1,20 @@
-import { Request, Response, RequestHandler } from 'express';
+import { RequestHandler } from 'express';
 
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
+import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
 import * as transakService from '../services/transak.service';
+import { TransakPriceResult } from '../services/transak.service';
 import * as moonpayService from '../services/moonpay.service';
 import { MoonpayPrice } from '../services/moonpay.service';
-import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
-import { TransakPriceResult } from '../services/transak.service';
 import { PriceQuery } from '../middlewares/validators';
 import {
   InvalidAmountError,
   InvalidParameterError,
+  ProviderApiError,
   ProviderInternalError,
-  ProviderApiError, // This is the base class for provider-specific API errors
   UnsupportedPairError,
-  // ProviderError was incorrectly imported, ProviderApiError is the base
 } from '../errors/providerErrors';
-import { APIError } from '../errors/api-error'; // Corrected name: APIError
-
-// Define the expected response structure for the bundled endpoint
-type BundledPriceResult = {
-  status: 'fulfilled';
-  value: AnyPrice;
-} | {
-  status: 'rejected';
-  reason: { message: string; status?: number };
-};
-
-type AllPricesResponse = {
-  // Use mapped type to ensure all providers are potentially included
-  [K in PriceEndpoints.Provider]?: BundledPriceResult;
-};
 
 type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
 
@@ -42,18 +26,15 @@ type PriceHandler = (
 ) => Promise<AnyPrice>;
 
 const providerHandlers: Record<PriceEndpoints.Provider, PriceHandler> = {
-  alchemypay: async (fromCrypto, toFiat, amount, network) => {
+  alchemypay: async (fromCrypto, toFiat, amount, network) =>
     // Let errors from the service propagate directly
-    return await alchemyPayService.getPriceFor(fromCrypto, toFiat, amount, network);
-  },
-  moonpay: async (fromCrypto, toFiat, amount) => {
+    alchemyPayService.getPriceFor(fromCrypto, toFiat, amount, network),
+  moonpay: async (fromCrypto, toFiat, amount) =>
     // Let errors from the service propagate directly
-    return await moonpayService.getPriceFor(fromCrypto, toFiat, amount);
-  },
-  transak: async (fromCrypto, toFiat, amount, network) => {
+    moonpayService.getPriceFor(fromCrypto, toFiat, amount),
+  transak: async (fromCrypto, toFiat, amount, network) =>
     // Let errors from the service propagate directly
-    return await transakService.getPriceFor(fromCrypto, toFiat, amount, network);
-  },
+    transakService.getPriceFor(fromCrypto, toFiat, amount, network),
 };
 
 const getPriceFromProvider = async (
@@ -62,7 +43,7 @@ const getPriceFromProvider = async (
   toFiat: PriceEndpoints.FiatCurrency,
   amount: string,
   network?: string,
-) => await providerHandlers[provider](fromCrypto, toFiat, amount, network);
+) => providerHandlers[provider](fromCrypto, toFiat, amount, network);
 
 export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQuery> = async (req, res) => {
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
@@ -130,10 +111,9 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
   }
 };
 
-// Controller for the bundled price endpoint
 export const getAllPricesBundled: RequestHandler<
   Record<string, never>,
-  AllPricesResponse | { error: string }, // Allow error response type
+  PriceEndpoints.AllPricesResponse | { error: string },
   Record<string, never>,
   PriceQuery
 > = async (req, res) => {
@@ -178,7 +158,7 @@ export const getAllPricesBundled: RequestHandler<
   // Use Promise.allSettled to wait for all promises, regardless of success/failure
   const results = await Promise.allSettled(pricePromises);
 
-  const response: AllPricesResponse = {};
+  const response: PriceEndpoints.AllPricesResponse = {};
 
   results.forEach((result) => {
     // Promise.allSettled itself always fulfills. We need to check the status of our *inner* promise result.
@@ -196,9 +176,11 @@ export const getAllPricesBundled: RequestHandler<
           // Determine status code based on error type
           if (reason instanceof ProviderInternalError) {
             errorStatus = 502; // Bad Gateway for provider internal errors
-          } else if (reason instanceof UnsupportedPairError ||
-                     reason instanceof InvalidAmountError ||
-                     reason instanceof InvalidParameterError) {
+          } else if (
+            reason instanceof UnsupportedPairError ||
+            reason instanceof InvalidAmountError ||
+            reason instanceof InvalidParameterError
+          ) {
             errorStatus = 400; // Bad Request for validation/input errors
           }
           errorMessage = reason.message;
