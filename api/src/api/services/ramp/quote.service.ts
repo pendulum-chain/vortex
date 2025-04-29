@@ -10,7 +10,7 @@ import {
   getOnChainTokenDetails,
   OnChainToken,
   isEvmTokenDetails,
-  Networks,
+  Networks, isFiatToken, getAnyFiatTokenDetails,
 } from 'shared';
 import { BaseRampService } from './base.service';
 import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
@@ -105,11 +105,29 @@ export class QuoteService extends BaseRampService {
       partner,
     );
 
-    // Convert total fee from USD to output currency
-    const totalFeeInOutputCurrency = Big(feeComponents.totalFee).mul(outputAmount.usdToOutputRate).toString();
-    
     // Calculate net output amount after fees
-    const netOutputAmount = Big(outputAmount.grossOutputAmount).minus(totalFeeInOutputCurrency).toString();
+    let netOutputAmount;
+    
+    if (request.rampType === 'off' && isFiatToken(request.outputCurrency)) {
+      // For off-ramp to fiat, apply the same logic as the old calculateTotalReceive function
+      const outputTokenDetails = getAnyFiatTokenDetails(request.outputCurrency);
+      const feeBasisPoints = outputTokenDetails.offrampFeesBasisPoints;
+      const fixedFees = new Big(
+        outputTokenDetails.offrampFeesFixedComponent ? outputTokenDetails.offrampFeesFixedComponent : 0,
+      );
+      
+      const grossAmount = new Big(outputAmount.grossOutputAmount);
+      const fees = grossAmount.mul(feeBasisPoints).div(10000).add(fixedFees).round(2, 1);
+      netOutputAmount = grossAmount.minus(fees).toString();
+      
+      if (Big(netOutputAmount).lte(0)) {
+        netOutputAmount = '0';
+      }
+    } else {
+      // For other cases, convert the USD fee to output currency and subtract
+      const totalFeeInOutputCurrency = Big(feeComponents.totalFee).mul(outputAmount.usdToOutputRate).toString();
+      netOutputAmount = Big(outputAmount.grossOutputAmount).minus(totalFeeInOutputCurrency).toString();
+    }
 
     // Validate that the output amount is positive after fees
     if (Big(netOutputAmount).lte(0)) {
@@ -144,7 +162,7 @@ export class QuoteService extends BaseRampService {
       status: 'pending',
       metadata: {
         onrampOutputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
-        grossOutputAmount: outputAmount.grossOutputAmount,
+        onrampInputAmountUnits: outputAmount.inputAmountAfterFees,
       } as QuoteTicketMetadata,
     });
 
@@ -330,6 +348,7 @@ export class QuoteService extends BaseRampService {
     grossOutputAmount: string;
     outputAmountMoonbeamRaw: string;
     usdToOutputRate: string;
+    inputAmountAfterFees: string;
   }> {
     // Use this reference to satisfy ESLint
     this.validateChainSupport(rampType, from, to);
@@ -375,9 +394,35 @@ export class QuoteService extends BaseRampService {
       const outputTokenPendulumDetails =
         rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
 
+      // For onramp, calculate input amount after fees (similar to the old calculateTotalReceiveOnramp)
+      let inputAmountAfterFees = inputAmount;
+      if (rampType === 'on' && isFiatToken(inputCurrency)) {
+        const inputTokenDetails = getAnyFiatTokenDetails(inputCurrency);
+        const feeBasisPoints = inputTokenDetails.onrampFeesBasisPoints;
+        
+        if (feeBasisPoints === undefined) {
+          throw new APIError({
+            status: httpStatus.INTERNAL_SERVER_ERROR,
+            message: 'No onramp fees basis points defined for input token',
+          });
+        }
+        
+        const fixedFees = new Big(
+          inputTokenDetails.onrampFeesFixedComponent ? inputTokenDetails.onrampFeesFixedComponent : 0,
+        );
+        const fees = new Big(inputAmount).mul(feeBasisPoints).div(10000).add(fixedFees).round(6, 0);
+        const totalReceiveRaw = new Big(inputAmount).minus(fees);
+        
+        if (totalReceiveRaw.gt(0)) {
+          inputAmountAfterFees = totalReceiveRaw.toFixed(6, 0);
+        } else {
+          inputAmountAfterFees = '0';
+        }
+      }
+
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
-        fromAmountString: inputAmount,
+        fromAmountString: inputAmountAfterFees,
         inputTokenDetails: inputTokenPendulumDetails,
         outputTokenDetails: outputTokenPendulumDetails,
       });
@@ -439,6 +484,7 @@ export class QuoteService extends BaseRampService {
         grossOutputAmount: amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0),
         outputAmountMoonbeamRaw,
         usdToOutputRate,
+        inputAmountAfterFees,
       };
     } catch (error) {
       logger.error('Error calculating output amount:', error);
