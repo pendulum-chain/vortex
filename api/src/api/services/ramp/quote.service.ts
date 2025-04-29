@@ -99,8 +99,8 @@ export class QuoteService extends BaseRampService {
       request.to,
     );
 
-    // Calculate fee components using the database-driven logic
-    const feeComponents = await this.calculateFeeComponents(
+    // Calculate core fee components using the database-driven logic
+    const coreFeeComponents = await this.calculateFeeComponents(
       request.inputAmount,
       request.rampType,
       request.from,
@@ -116,6 +116,20 @@ export class QuoteService extends BaseRampService {
       });
     }
 
+    // Transform core fee components into the QuoteTicketFeeStructureDb format
+    const feeStructure: QuoteTicketFeeStructureDb = {
+      network: outputResult.networkFeeUSD,
+      vortex: coreFeeComponents.vortexFee,
+      anchor: coreFeeComponents.anchorFee,
+      partnerMarkup: coreFeeComponents.partnerMarkupFee,
+      total: new Big(outputResult.networkFeeUSD)
+        .plus(coreFeeComponents.vortexFee)
+        .plus(coreFeeComponents.anchorFee)
+        .plus(coreFeeComponents.partnerMarkupFee)
+        .toString(),
+      currency: coreFeeComponents.feeCurrency,
+    };
+
     // Create quote in database with the detailed fee structure
     const quote = await QuoteTicket.create({
       id: uuidv4(),
@@ -126,7 +140,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: request.inputCurrency,
       outputAmount: outputResult.grossOutputAmount, // Use the gross output amount
       outputCurrency: request.outputCurrency,
-      fee: feeComponents, // Store the detailed fee structure directly
+      fee: feeStructure, // Store the detailed fee structure
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
@@ -195,7 +209,7 @@ export class QuoteService extends BaseRampService {
   }
 
   /**
-   * Calculate fee components for a quote
+   * Calculate core fee components for a quote (vortex, anchor, and partner markup fees)
    */
   private async calculateFeeComponents(
     inputAmount: string,
@@ -203,27 +217,17 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
     partner: Partner | null,
-  ): Promise<QuoteTicketFeeStructureDb> {
+  ): Promise<{
+    vortexFee: string;
+    anchorFee: string;
+    partnerMarkupFee: string;
+    feeCurrency: string;
+  }> {
     try {
       // Use this reference to satisfy ESLint
       this.validateChainSupport(rampType, from, to);
 
-      // 1. Get network fee (static 0 USD for now)
-      const networkFeeConfig = await FeeConfiguration.findOne({
-        where: {
-          feeType: 'network_estimate',
-          identifier: 'default',
-          isActive: true,
-        },
-      });
-
-      if (!networkFeeConfig) {
-        throw new Error('Network fee configuration not found');
-      }
-
-      const networkFee = networkFeeConfig.value.toString();
-
-      // 2. Get Vortex Foundation fee from the dedicated partner record
+      // 1. Get Vortex Foundation fee from the dedicated partner record
       const vortexFoundationPartner = await Partner.findOne({
         where: { name: 'vortex_foundation', isActive: true },
       });
@@ -233,7 +237,7 @@ export class QuoteService extends BaseRampService {
         throw new APIError({ status: httpStatus.INTERNAL_SERVER_ERROR, message: 'Internal configuration error [VF]' });
       }
 
-      // 3. Get anchor base fee based on the ramp type and destination
+      // 2. Get anchor base fee based on the ramp type and destination
       let anchorIdentifier = 'default';
       if (rampType === 'on' && to === 'moonbeam') {
         anchorIdentifier = 'moonbeam_brla';
@@ -263,7 +267,7 @@ export class QuoteService extends BaseRampService {
         vortexFee = new Big(inputAmount).mul(vortexFoundationPartner.markupValue).div(100).toString();
       }
 
-      // 4. Calculate partner markup fee if applicable
+      // 3. Calculate partner markup fee if applicable
       let partnerMarkupFee = '0';
       if (partner && partner.markupType !== 'none') {
         if (partner.markupType === 'absolute') {
@@ -274,16 +278,11 @@ export class QuoteService extends BaseRampService {
         }
       }
 
-      // 5. Calculate total fee
-      const totalFee = new Big(networkFee).plus(vortexFee).plus(anchorFee).plus(partnerMarkupFee).toString();
-
       return {
-        network: networkFee,
-        vortex: vortexFee,
-        anchor: anchorFee,
-        partnerMarkup: partnerMarkupFee,
-        total: totalFee,
-        currency: 'USD',
+        vortexFee,
+        anchorFee,
+        partnerMarkupFee,
+        feeCurrency: 'USD',
       };
     } catch (error) {
       logger.error('Error calculating fee components:', error);
