@@ -213,7 +213,7 @@ export class QuoteService extends BaseRampService {
       // Use this reference to satisfy ESLint
       this.validateChainSupport(rampType, from, to);
       
-      // 1. Get network fee (static 1 USD for now)
+      // 1. Get network fee (static 0 USD for now)
       const networkFeeConfig = await FeeConfiguration.findOne({
         where: {
           feeType: 'network_estimate',

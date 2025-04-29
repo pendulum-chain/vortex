@@ -52,14 +52,14 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: 'idx_fee_configurations_lookup',
   });
 
-  // Insert initial data for network fee (static 1 USD)
+  // Insert initial data for network fee (static 0 USD)
   await queryInterface.bulkInsert('fee_configurations', [
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
       fee_type: 'network_estimate',
       identifier: 'default',
       value_type: 'absolute',
-      value: 1.00,
+      value: 0,
       currency: 'USD',
       is_active: true,
       created_at: new Date(),

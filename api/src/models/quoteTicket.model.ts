@@ -168,7 +168,4 @@ QuoteTicket.init(
   },
 );
 
-// Define association with Partner
-QuoteTicket.belongsTo(Partner, { foreignKey: 'partner_id', as: 'partner' });
-
 export default QuoteTicket;

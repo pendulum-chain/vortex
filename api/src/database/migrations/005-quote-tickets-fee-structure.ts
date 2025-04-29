@@ -1,7 +1,10 @@
 import { QueryInterface, DataTypes } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
-  // First, add the new fee JSONB column
+  // 1. Rename the old fee column
+  await queryInterface.renameColumn('quote_tickets', 'fee', 'fee_old_decimal');
+
+  // 2. Add the new fee JSONB column
   await queryInterface.addColumn('quote_tickets', 'fee', {
     type: DataTypes.JSONB,
     allowNull: true, // Allow null initially for migration
@@ -23,13 +26,13 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.query(`
     UPDATE quote_tickets 
     SET fee = jsonb_build_object(
-      'network', '1.00',
-      'processing', fee,
+      'network', '0',
+      'processing', fee_old_decimal,
       'partnerMarkup', '0',
-      'total', fee,
+      'total', fee_old_decimal,
       'currency', 'USD'
     )
-    WHERE fee IS NOT NULL
+    WHERE fee_old_decimal IS NOT NULL
   `);
 
   // Make the new fee column non-nullable now that it has values
@@ -37,6 +40,9 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     type: DataTypes.JSONB,
     allowNull: false,
   });
+
+  // Drop the old decimal fee column
+  await queryInterface.removeColumn('quote_tickets', 'fee_old_decimal');
 
   // Add index for partner_id
   await queryInterface.addIndex('quote_tickets', ['partner_id'], {
