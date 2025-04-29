@@ -20,7 +20,6 @@ import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { getTokenOutAmount } from '../nablaReads/outAmount';
 import { ApiManager } from '../pendulum/apiManager';
-import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM } from '../../../constants/constants';
@@ -87,7 +86,7 @@ export class QuoteService extends BaseRampService {
       // If partnerId was provided but not found or not active, we'll proceed without a partner
     }
 
-    // Calculate output amount (this would typically involve calling an external service or using a formula)
+    // Calculate gross output amount and USD to output currency rate
     const outputAmount = await this.calculateOutputAmount(
       request.inputAmount,
       request.inputCurrency,
@@ -100,18 +99,23 @@ export class QuoteService extends BaseRampService {
     // Calculate fee components
     const feeComponents = await this.calculateFeeComponents(
       request.inputAmount,
-      outputAmount.outputAmountBeforeFees,
       request.rampType,
       request.from,
       request.to,
       partner,
     );
 
+    // Convert total fee from USD to output currency
+    const totalFeeInOutputCurrency = Big(feeComponents.totalFee).mul(outputAmount.usdToOutputRate).toString();
+    
+    // Calculate net output amount after fees
+    const netOutputAmount = Big(outputAmount.grossOutputAmount).minus(totalFeeInOutputCurrency).toString();
+
     // Validate that the output amount is positive after fees
-    if (Big(outputAmount.receiveAmount).lte(0)) {
+    if (Big(netOutputAmount).lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Input amount is too low - fixed fee would exceed the output amount',
+        message: 'Input amount too low to cover fees',
       });
     }
 
@@ -132,7 +136,7 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount: outputAmount.receiveAmount,
+      outputAmount: netOutputAmount,
       outputCurrency: request.outputCurrency,
       fee: feeStructure,
       partnerId: partner?.id || null,
@@ -140,7 +144,7 @@ export class QuoteService extends BaseRampService {
       status: 'pending',
       metadata: {
         onrampOutputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
-        onrampInputAmountUnits: outputAmount.inputAmountAfterFees,
+        grossOutputAmount: outputAmount.grossOutputAmount,
       } as QuoteTicketMetadata,
     });
 
@@ -199,7 +203,6 @@ export class QuoteService extends BaseRampService {
    */
   private async calculateFeeComponents(
     inputAmount: string,
-    outputAmountBeforeFees: string,
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
@@ -324,11 +327,9 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
   ): Promise<{
-    receiveAmount: string;
-    fees: string;
-    outputAmountBeforeFees: string;
+    grossOutputAmount: string;
     outputAmountMoonbeamRaw: string;
-    inputAmountAfterFees: string;
+    usdToOutputRate: string;
   }> {
     // Use this reference to satisfy ESLint
     this.validateChainSupport(rampType, from, to);
@@ -374,12 +375,9 @@ export class QuoteService extends BaseRampService {
       const outputTokenPendulumDetails =
         rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
 
-      const inputAmountAfterFees =
-        rampType === 'on' ? calculateTotalReceiveOnramp(new Big(inputAmount), inputCurrency) : inputAmount;
-
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
-        fromAmountString: inputAmountAfterFees,
+        fromAmountString: inputAmount,
         inputTokenDetails: inputTokenPendulumDetails,
         outputTokenDetails: outputTokenPendulumDetails,
       });
@@ -431,25 +429,16 @@ export class QuoteService extends BaseRampService {
         );
       }
 
-      const outputAmountAfterFees =
-        rampType === 'off'
-          ? calculateTotalReceive(amountOut.preciseQuotedAmountOut.preciseBigDecimal, outputCurrency)
-          : amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
-
-      const effectiveFeesOfframp = amountOut.preciseQuotedAmountOut.preciseBigDecimal
-        .minus(outputAmountAfterFees)
-        .toFixed(2, 0);
-
-      const effectiveFeesOnrampBrl = new Big(inputAmount).minus(inputAmountAfterFees);
-      const effectiveFeesOnramp = effectiveFeesOnrampBrl.mul(amountOut.effectiveExchangeRate).toFixed(6, 0);
-      const effectiveFees = rampType === 'off' ? effectiveFeesOfframp : effectiveFeesOnramp;
-
+      // Calculate USD to output currency rate
+      // For simplicity, we'll use the effective exchange rate as a proxy
+      // This assumes 1 USD ≈ 1 axlUSDC in the swap path
+      const usdToOutputRate = amountOut.effectiveExchangeRate;
+      
+      // Return the gross output amount before any fees are applied
       return {
-        receiveAmount: outputAmountAfterFees,
-        fees: effectiveFees,
-        outputAmountBeforeFees: amountOut.roundedDownQuotedAmountOut.toString(),
+        grossOutputAmount: amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0),
         outputAmountMoonbeamRaw,
-        inputAmountAfterFees,
+        usdToOutputRate,
       };
     } catch (error) {
       logger.error('Error calculating output amount:', error);
