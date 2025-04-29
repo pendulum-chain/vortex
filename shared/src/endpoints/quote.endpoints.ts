@@ -9,6 +9,7 @@ export namespace QuoteEndpoints {
     inputAmount: string;
     inputCurrency: RampCurrency;
     outputCurrency: RampCurrency;
+    partnerId?: string; // Optional partner ID for fee markup
   }
 
   export interface QuoteResponse {
@@ -20,7 +21,11 @@ export namespace QuoteEndpoints {
     outputAmount: string;
     inputCurrency: RampCurrency;
     outputCurrency: RampCurrency;
-    fee: string;
+    fee: string; // Kept for backward compatibility
+    networkFee?: string; // New fee breakdown
+    processingFee?: string; // New fee breakdown
+    partnerMarkupFee?: string; // New fee breakdown
+    feeCurrency?: string; // Currency of the fee components
     expiresAt: Date;
   }
 

@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { DestinationType, RampCurrency } from 'shared';
 import sequelize from '../config/database';
+import Partner from './partner.model';
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
@@ -12,7 +13,12 @@ export interface QuoteTicketAttributes {
   inputCurrency: RampCurrency;
   outputAmount: string;
   outputCurrency: RampCurrency;
-  fee: string;
+  networkFee: string;
+  processingFee: string;
+  partnerMarkupFee: string;
+  totalFee: string;
+  feeCurrency: string;
+  partnerId: string | null;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
   metadata: any;
@@ -46,7 +52,17 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare outputCurrency: RampCurrency;
 
-  declare fee: string;
+  declare networkFee: string;
+
+  declare processingFee: string;
+
+  declare partnerMarkupFee: string;
+
+  declare totalFee: string;
+
+  declare feeCurrency: string;
+
+  declare partnerId: string | null;
 
   declare expiresAt: Date;
 
@@ -95,14 +111,48 @@ QuoteTicket.init(
       allowNull: false,
       field: 'output_amount',
     },
-    fee: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-    },
     outputCurrency: {
       type: DataTypes.STRING(8),
       allowNull: false,
       field: 'output_currency',
+    },
+    networkFee: {
+      type: DataTypes.DECIMAL(38, 18),
+      allowNull: false,
+      field: 'network_fee',
+    },
+    processingFee: {
+      type: DataTypes.DECIMAL(38, 18),
+      allowNull: false,
+      field: 'processing_fee',
+    },
+    partnerMarkupFee: {
+      type: DataTypes.DECIMAL(38, 18),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'partner_markup_fee',
+    },
+    totalFee: {
+      type: DataTypes.DECIMAL(38, 18),
+      allowNull: false,
+      field: 'total_fee',
+    },
+    feeCurrency: {
+      type: DataTypes.STRING(8),
+      allowNull: false,
+      defaultValue: 'USD',
+      field: 'fee_currency',
+    },
+    partnerId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'partner_id',
+      references: {
+        model: 'partners',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
     },
     expiresAt: {
       type: DataTypes.DATE,
@@ -140,13 +190,20 @@ QuoteTicket.init(
     indexes: [
       {
         name: 'idx_quote_chain_expiry',
-        fields: ['from', 'to', 'expiresAt'],
+        fields: ['from', 'to', 'expires_at'],
         where: {
           status: 'pending',
         },
       },
+      {
+        name: 'idx_quote_tickets_partner',
+        fields: ['partner_id'],
+      },
     ],
   },
 );
+
+// Define association with Partner
+QuoteTicket.belongsTo(Partner, { foreignKey: 'partner_id', as: 'partner' });
 
 export default QuoteTicket;
