@@ -76,7 +76,6 @@ export const getBrlaUser = async (
       return;
     }
 
-    // TODO how to check that pixId is valid, as a later offramp will get stuck if it's not valid..
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {

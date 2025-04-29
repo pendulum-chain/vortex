@@ -139,7 +139,7 @@ export function useKYCProcess() {
         if (isValidCnpj(taxId)) {
           await createSubaccount({
             ...formData,
-            cpf:  formData.partnerCpf,
+            cpf:  formData.partnerCpf!, // Field is validated in the form. Should not be null when submitting.
             cnpj: taxId,
             address: addressObject,
             taxIdType: 'CNPJ',

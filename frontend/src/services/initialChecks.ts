@@ -1,46 +1,27 @@
 import { RampExecutionInput } from '../types/phases';
-import { BrlaService } from './api';
-import { RampDirection } from '../components/RampToggle';
 import { useToastMessage } from '../helpers/notifications';
 import { useRampDirection } from '../stores/rampDirectionStore';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useRampActions } from '../stores/rampStore';
+import { BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS } from '../constants/constants';
+import Big from 'big.js';
 
 function useRampAmountWithinAllowedLimits() {
   const { t } = useTranslation();
   const { showToast, ToastMessage } = useToastMessage();
-  const { setRampKycLevel2Started } = useRampActions();
   const rampDirection = useRampDirection();
 
   return useCallback(
-    async (amountUnits: string, taxId: string): Promise<boolean> => {
+    async (amountUnits: string): Promise<boolean> => {
       try {
-        const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-
-        const remainingLimitInUnits =
-          rampDirection === RampDirection.OFFRAMP
-            ? remainingLimitResponse.remainingLimitOfframp
-            : remainingLimitResponse.remainingLimitOnramp;
-
-        const amountNum = Number(amountUnits);
-        const remainingLimitNum = Number(remainingLimitInUnits);
+        const amountBigNumber = Big(amountUnits);
+        if (amountBigNumber.lte(Big(BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS))) {
+          return false;
+        }
         
-        // TODO do we still need this check, here?
-        // if (true) {
-        //   return true;
-        // } else {
-        //   console.log('Ramp amount exceeds the allowed limits');
-        //   setRampKycLevel2Started(true);
-        //   showToast(
-        //     ToastMessage.RAMP_LIMIT_EXCEEDED,
-        //     t('toasts.rampLimitExceeded', { remaining: remainingLimitInUnits }),
-        //   );
-        //   return false;
-        // }
         return true;
       } catch (error) {
-        console.error('Error fetching remaining limit:', error);
+        console.error('useRampAmountWithinAllowedLimits: Error checking ramp limits: ', error);
         return false;
       }
     },
@@ -60,8 +41,7 @@ export function usePreRampCheck() {
         }
 
         const isWithinLimits = await rampWithinLimits(
-          executionInput.quote.rampType === 'on' ? executionInput.quote.inputAmount : executionInput.quote.outputAmount,
-          executionInput.taxId,
+          executionInput.quote.rampType === 'on' ? executionInput.quote.inputAmount : executionInput.quote.outputAmount
         );
         if (!isWithinLimits) {
           throw new Error('Ramp amount exceeds the allowed limits.');
