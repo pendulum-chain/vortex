@@ -1,34 +1,13 @@
 import { QueryInterface, DataTypes } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
-  // Add new fee columns to quote_tickets table
-  await queryInterface.addColumn('quote_tickets', 'network_fee', {
-    type: DataTypes.DECIMAL(38, 18),
+  // First, add the new fee JSONB column
+  await queryInterface.addColumn('quote_tickets', 'fee', {
+    type: DataTypes.JSONB,
     allowNull: true, // Allow null initially for migration
   });
 
-  await queryInterface.addColumn('quote_tickets', 'processing_fee', {
-    type: DataTypes.DECIMAL(38, 18),
-    allowNull: true, // Allow null initially for migration
-  });
-
-  await queryInterface.addColumn('quote_tickets', 'partner_markup_fee', {
-    type: DataTypes.DECIMAL(38, 18),
-    allowNull: true, // Allow null initially for migration
-    defaultValue: 0,
-  });
-
-  await queryInterface.addColumn('quote_tickets', 'total_fee', {
-    type: DataTypes.DECIMAL(38, 18),
-    allowNull: true, // Allow null initially for migration
-  });
-
-  await queryInterface.addColumn('quote_tickets', 'fee_currency', {
-    type: DataTypes.STRING(8),
-    allowNull: true, // Allow null initially for migration
-    defaultValue: 'USD',
-  });
-
+  // Add partner_id column
   await queryInterface.addColumn('quote_tickets', 'partner_id', {
     type: DataTypes.UUID,
     allowNull: true,
@@ -40,49 +19,24 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     onDelete: 'SET NULL',
   });
 
-  // Migrate existing data: copy the current fee value to total_fee, network_fee, and processing_fee
-  // In a real migration, you might want to calculate these values more precisely
+  // Migrate existing data: convert the current fee value to the new fee structure
   await queryInterface.sequelize.query(`
     UPDATE quote_tickets 
-    SET 
-      total_fee = fee,
-      network_fee = 1.00,
-      processing_fee = fee - 1.00,
-      partner_markup_fee = 0,
-      fee_currency = 'USD'
+    SET fee = jsonb_build_object(
+      'network', '1.00',
+      'processing', fee,
+      'partnerMarkup', '0',
+      'total', fee,
+      'currency', 'USD'
+    )
     WHERE fee IS NOT NULL
   `);
 
-  // Make the new columns non-nullable now that they have values
-  await queryInterface.changeColumn('quote_tickets', 'network_fee', {
-    type: DataTypes.DECIMAL(38, 18),
+  // Make the new fee column non-nullable now that it has values
+  await queryInterface.changeColumn('quote_tickets', 'fee', {
+    type: DataTypes.JSONB,
     allowNull: false,
   });
-
-  await queryInterface.changeColumn('quote_tickets', 'processing_fee', {
-    type: DataTypes.DECIMAL(38, 18),
-    allowNull: false,
-  });
-
-  await queryInterface.changeColumn('quote_tickets', 'partner_markup_fee', {
-    type: DataTypes.DECIMAL(38, 18),
-    allowNull: false,
-    defaultValue: 0,
-  });
-
-  await queryInterface.changeColumn('quote_tickets', 'total_fee', {
-    type: DataTypes.DECIMAL(38, 18),
-    allowNull: false,
-  });
-
-  await queryInterface.changeColumn('quote_tickets', 'fee_currency', {
-    type: DataTypes.STRING(8),
-    allowNull: false,
-    defaultValue: 'USD',
-  });
-
-  // Remove the old fee column
-  await queryInterface.removeColumn('quote_tickets', 'fee');
 
   // Add index for partner_id
   await queryInterface.addIndex('quote_tickets', ['partner_id'], {
@@ -91,30 +45,32 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
-  // Add back the original fee column
-  await queryInterface.addColumn('quote_tickets', 'fee', {
+  // Add back the original fee column as a temporary column
+  await queryInterface.addColumn('quote_tickets', 'fee_old', {
     type: DataTypes.DECIMAL(38, 18),
     allowNull: true, // Allow null initially for migration
   });
 
-  // Migrate data back: copy total_fee to fee
+  // Migrate data back: extract total fee from the JSONB structure
   await queryInterface.sequelize.query(`
     UPDATE quote_tickets 
-    SET fee = total_fee
-    WHERE total_fee IS NOT NULL
+    SET fee_old = (fee->>'total')::numeric
+    WHERE fee IS NOT NULL
   `);
 
-  // Make fee non-nullable again
-  await queryInterface.changeColumn('quote_tickets', 'fee', {
+  // Make fee_old non-nullable
+  await queryInterface.changeColumn('quote_tickets', 'fee_old', {
     type: DataTypes.DECIMAL(38, 18),
     allowNull: false,
   });
 
-  // Remove the new fee structure columns
-  await queryInterface.removeColumn('quote_tickets', 'network_fee');
-  await queryInterface.removeColumn('quote_tickets', 'processing_fee');
-  await queryInterface.removeColumn('quote_tickets', 'partner_markup_fee');
-  await queryInterface.removeColumn('quote_tickets', 'total_fee');
-  await queryInterface.removeColumn('quote_tickets', 'fee_currency');
+  // Remove the fee JSONB column
+  await queryInterface.removeColumn('quote_tickets', 'fee');
+
+  // Rename fee_old back to fee
+  await queryInterface.renameColumn('quote_tickets', 'fee_old', 'fee');
+
+  // Remove the partner_id column and its index
+  await queryInterface.removeIndex('quote_tickets', 'idx_quote_tickets_partner');
   await queryInterface.removeColumn('quote_tickets', 'partner_id');
 }

@@ -1,6 +1,15 @@
 import { DestinationType, RampCurrency } from '../index';
 
 export namespace QuoteEndpoints {
+  // Fee structure
+  export interface FeeStructure {
+    network: string;
+    processing: string;
+    partnerMarkup: string;
+    total: string;
+    currency: string;
+  }
+
   // POST /quotes
   export interface CreateQuoteRequest {
     rampType: 'on' | 'off';
@@ -21,11 +30,7 @@ export namespace QuoteEndpoints {
     outputAmount: string;
     inputCurrency: RampCurrency;
     outputCurrency: RampCurrency;
-    fee: string; // Kept for backward compatibility
-    networkFee?: string; // New fee breakdown
-    processingFee?: string; // New fee breakdown
-    partnerMarkupFee?: string; // New fee breakdown
-    feeCurrency?: string; // Currency of the fee components
+    fee: FeeStructure;
     expiresAt: Date;
   }
 

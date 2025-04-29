@@ -71,12 +71,7 @@ export class QuoteService extends BaseRampService {
   /**
    * Create a new quote
    */
-  public async createQuote(request: QuoteEndpoints.CreateQuoteRequest & { partnerId?: string }): Promise<QuoteEndpoints.QuoteResponse & {
-    networkFee: string;
-    processingFee: string;
-    partnerMarkupFee: string;
-    feeCurrency: string;
-  }> {
+  public async createQuote(request: QuoteEndpoints.CreateQuoteRequest): Promise<QuoteEndpoints.QuoteResponse> {
     // Validate chain support
     this.validateChainSupport(request.rampType, request.from, request.to);
 
@@ -120,6 +115,15 @@ export class QuoteService extends BaseRampService {
       });
     }
 
+    // Create the fee structure
+    const feeStructure: QuoteEndpoints.FeeStructure = {
+      network: feeComponents.networkFee,
+      processing: feeComponents.processingFee,
+      partnerMarkup: feeComponents.partnerMarkupFee,
+      total: feeComponents.totalFee,
+      currency: feeComponents.feeCurrency,
+    };
+
     // Create quote in database
     const quote = await QuoteTicket.create({
       id: uuidv4(),
@@ -130,11 +134,7 @@ export class QuoteService extends BaseRampService {
       inputCurrency: request.inputCurrency,
       outputAmount: outputAmount.receiveAmount,
       outputCurrency: request.outputCurrency,
-      networkFee: feeComponents.networkFee,
-      processingFee: feeComponents.processingFee,
-      partnerMarkupFee: feeComponents.partnerMarkupFee,
-      totalFee: feeComponents.totalFee,
-      feeCurrency: feeComponents.feeCurrency,
+      fee: feeStructure,
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
@@ -153,11 +153,13 @@ export class QuoteService extends BaseRampService {
       inputCurrency: quote.inputCurrency,
       outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
-      fee: trimTrailingZeros(quote.totalFee), // Keep the original fee field for backward compatibility
-      networkFee: trimTrailingZeros(quote.networkFee),
-      processingFee: trimTrailingZeros(quote.processingFee),
-      partnerMarkupFee: trimTrailingZeros(quote.partnerMarkupFee),
-      feeCurrency: quote.feeCurrency,
+      fee: {
+        network: trimTrailingZeros(quote.fee.network),
+        processing: trimTrailingZeros(quote.fee.processing),
+        partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
+        total: trimTrailingZeros(quote.fee.total),
+        currency: quote.fee.currency,
+      },
       expiresAt: quote.expiresAt,
     };
   }
@@ -165,12 +167,7 @@ export class QuoteService extends BaseRampService {
   /**
    * Get a quote by ID
    */
-  public async getQuote(id: string): Promise<(QuoteEndpoints.QuoteResponse & {
-    networkFee: string;
-    processingFee: string;
-    partnerMarkupFee: string;
-    feeCurrency: string;
-  }) | null> {
+  public async getQuote(id: string): Promise<QuoteEndpoints.QuoteResponse | null> {
     const quote = await this.getQuoteTicket(id);
 
     if (!quote) {
@@ -186,11 +183,13 @@ export class QuoteService extends BaseRampService {
       inputCurrency: quote.inputCurrency,
       outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
-      fee: trimTrailingZeros(quote.totalFee), // Keep the original fee field for backward compatibility
-      networkFee: trimTrailingZeros(quote.networkFee),
-      processingFee: trimTrailingZeros(quote.processingFee),
-      partnerMarkupFee: trimTrailingZeros(quote.partnerMarkupFee),
-      feeCurrency: quote.feeCurrency,
+      fee: {
+        network: trimTrailingZeros(quote.fee.network),
+        processing: trimTrailingZeros(quote.fee.processing),
+        partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
+        total: trimTrailingZeros(quote.fee.total),
+        currency: quote.fee.currency,
+      },
       expiresAt: quote.expiresAt,
     };
   }

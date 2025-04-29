@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { DestinationType, RampCurrency } from 'shared';
+import { DestinationType, RampCurrency, QuoteEndpoints } from 'shared';
 import sequelize from '../config/database';
 import Partner from './partner.model';
 
@@ -13,11 +13,7 @@ export interface QuoteTicketAttributes {
   inputCurrency: RampCurrency;
   outputAmount: string;
   outputCurrency: RampCurrency;
-  networkFee: string;
-  processingFee: string;
-  partnerMarkupFee: string;
-  totalFee: string;
-  feeCurrency: string;
+  fee: QuoteEndpoints.FeeStructure;
   partnerId: string | null;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
@@ -52,15 +48,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare outputCurrency: RampCurrency;
 
-  declare networkFee: string;
-
-  declare processingFee: string;
-
-  declare partnerMarkupFee: string;
-
-  declare totalFee: string;
-
-  declare feeCurrency: string;
+  declare fee: QuoteEndpoints.FeeStructure;
 
   declare partnerId: string | null;
 
@@ -116,32 +104,9 @@ QuoteTicket.init(
       allowNull: false,
       field: 'output_currency',
     },
-    networkFee: {
-      type: DataTypes.DECIMAL(38, 18),
+    fee: {
+      type: DataTypes.JSONB,
       allowNull: false,
-      field: 'network_fee',
-    },
-    processingFee: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-      field: 'processing_fee',
-    },
-    partnerMarkupFee: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-      defaultValue: 0,
-      field: 'partner_markup_fee',
-    },
-    totalFee: {
-      type: DataTypes.DECIMAL(38, 18),
-      allowNull: false,
-      field: 'total_fee',
-    },
-    feeCurrency: {
-      type: DataTypes.STRING(8),
-      allowNull: false,
-      defaultValue: 'USD',
-      field: 'fee_currency',
     },
     partnerId: {
       type: DataTypes.UUID,
