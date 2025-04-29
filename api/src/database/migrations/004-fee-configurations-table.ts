@@ -70,7 +70,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       fee_type: 'vortex_foundation',
       identifier: 'default',
       value_type: 'relative',
-      value: 0.10, // 0.1%
+      value: 0.001, // 0.001%
       currency: 'USD',
       is_active: true,
       created_at: new Date(),
@@ -81,8 +81,41 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       fee_type: 'anchor_base',
       identifier: 'moonbeam_brla',
       value_type: 'absolute',
-      value: 0.50, // $0.50
-      currency: 'USD',
+      value: 0.75, // 0.75 BRL
+      currency: 'BRL',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
+      fee_type: 'anchor_base',
+      identifier: 'stellar_eurc',
+      value_type: 'relative',
+      value: 0.25, // 0.25%
+      currency: 'EUR',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
+      fee_type: 'anchor_base',
+      identifier: 'stellar_ars',
+      value_type: 'relative',
+      value: 2.00, // 2%
+      currency: 'ARS',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
+      fee_type: 'anchor_base',
+      identifier: 'stellar_ars',
+      value_type: 'absolute',
+      value: 10.00, // 10 ARS
+      currency: 'ARS',
       is_active: true,
       created_at: new Date(),
       updated_at: new Date(),
