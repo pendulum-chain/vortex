@@ -1,21 +1,15 @@
 import { RampExecutionInput } from '../types/phases';
-import { useToastMessage } from '../helpers/notifications';
-import { useRampDirection } from '../stores/rampDirectionStore';
 import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS } from '../constants/constants';
 import Big from 'big.js';
 
 function useRampAmountWithinAllowedLimits() {
-  const { t } = useTranslation();
-  const { showToast, ToastMessage } = useToastMessage();
-  const rampDirection = useRampDirection();
 
   return useCallback(
     async (amountUnits: string): Promise<boolean> => {
       try {
         const amountBigNumber = Big(amountUnits);
-        if (amountBigNumber.lte(Big(BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS))) {
+        if (amountBigNumber.gt(BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS)) {
           return false;
         }
         
@@ -25,7 +19,7 @@ function useRampAmountWithinAllowedLimits() {
         return false;
       }
     },
-    [rampDirection, showToast, t, ToastMessage.RAMP_LIMIT_EXCEEDED],
+    [],
   );
 }
 

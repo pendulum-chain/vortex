@@ -1,10 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import Big from 'big.js';
 import {
   FiatTokenDetails,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-  Networks,
   OnChainTokenDetails,
   QuoteEndpoints,
 } from 'shared';

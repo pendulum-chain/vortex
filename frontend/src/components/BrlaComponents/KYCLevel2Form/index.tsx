@@ -40,10 +40,6 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   onBackClick,
 }) => {
   const taxId = useTaxId();
-  if (!taxId) {
-    console.error('Tax ID is not available');
-    return null;
-  }
 
   const [docType, setDocType] = useState<KYCDocType>(KYCDocType.RG);
   const [selfie, setSelfie] = useState<File | null>(null);
@@ -56,6 +52,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+
+  if (!taxId) {
+    console.error('Tax ID is not available');
+    return null;
+  }
 
   const validateAndSetFile = (
     file: File | null,

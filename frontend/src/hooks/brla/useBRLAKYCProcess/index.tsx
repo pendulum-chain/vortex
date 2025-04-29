@@ -81,14 +81,14 @@ export function useKYCProcess() {
     setRampKycLevel2Started(false);
     setRampKycStarted(false);
     resetRampState();
-  }, [setRampKycStarted, resetRampState]);
+  }, [setRampKycLevel2Started, setRampKycStarted, resetRampState]);
 
   const proceedWithRamp = useCallback(() => {
     setIsSubmitted(false);
     setRampKycStarted(false);
     setRampKycLevel2Started(false);
     setRampSummaryVisible(true);
-  }, [setRampSummaryVisible, setRampKycStarted]);
+  }, [setRampKycLevel2Started, setRampSummaryVisible, setRampKycStarted]);
 
   const proceedWithKYCLevel2 = useCallback(() => {
     setIsSubmitted(false);
@@ -139,6 +139,7 @@ export function useKYCProcess() {
         if (isValidCnpj(taxId)) {
           await createSubaccount({
             ...formData,
+            // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
             cpf:  formData.partnerCpf!, // Field is validated in the form. Should not be null when submitting.
             cnpj: taxId,
             address: addressObject,
@@ -212,12 +213,15 @@ export function useKYCProcess() {
     }
   }, [
     kycResponse,
+    taxId,
     handleBackClick,
     updateStatus,
     resetToDefault,
     setRampKycStarted,
-    STATUS_MESSAGES.SUCCESS,
-    STATUS_MESSAGES.REJECTED,
+    proceedWithKYCLevel2,
+    proceedWithRamp,
+    STATUS_MESSAGES,
+    offrampKycLevel2Started
   ]);
 
   // Handler for KYC level 2
@@ -258,6 +262,8 @@ export function useKYCProcess() {
       handleBackClick,
       updateStatus,
       setRampKycStarted,
+      proceedWithRamp,
+      setRampKycLevel2Started,
       STATUS_MESSAGES.SUCCESS,
       STATUS_MESSAGES.REJECTED,
     ]);

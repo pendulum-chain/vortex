@@ -213,6 +213,8 @@ export const useSubmitRamp = () => {
       setUrlIntervalSEP24,
       setInitialResponseSEP24,
       showToast,
+      rampDirection,
+      setRampKycLevel2Started,
       ToastMessage.ERROR,
     ],
   );
