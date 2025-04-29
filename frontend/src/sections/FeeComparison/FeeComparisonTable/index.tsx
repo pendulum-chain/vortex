@@ -49,7 +49,7 @@ export function FeeComparisonTable() {
       amount,
       selectedNetwork
     ),
-    ...activeOptions['15s'],
+    ...activeOptions['1m'],
     enabled: !isOnramp, // Only fetch for offramp for now
   });
 
