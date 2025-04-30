@@ -68,7 +68,7 @@ export function useKYCProcess() {
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
-  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible } = useRampActions();
+  const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible, setCanRegisterRamp } = useRampActions();
 
   const taxId = useTaxId();
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -92,6 +92,7 @@ export function useKYCProcess() {
     setIsSubmitted(false);
     setRampKycStarted(false);
     setRampKycLevel2Started(false);
+    setCanRegisterRamp(true);
     setRampSummaryVisible(true);
   }, [setRampKycLevel2Started, setRampSummaryVisible, setRampKycStarted]);
 
@@ -244,7 +245,7 @@ export function useKYCProcess() {
         const mappedStatus = status as KycStatus;
   
         const statusHandlers: Record<KycStatus, () => Promise<void>> = {
-          [KycStatus.PENDING]: async () => {
+          [KycStatus.APPROVED]: async () => {
             updateStatus(KycStatus.APPROVED, KycLevel.LEVEL_2, STATUS_MESSAGES.SUCCESS);
             await delay(3000);
             proceedWithRamp();
@@ -255,7 +256,7 @@ export function useKYCProcess() {
             setRampKycLevel2Started(false);
             handleBackClick();
           },
-          [KycStatus.APPROVED]: async () => undefined,
+          [KycStatus.PENDING]: async () => undefined,
         };
   
         const handler = statusHandlers[mappedStatus];
