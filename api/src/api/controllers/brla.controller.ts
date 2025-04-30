@@ -9,6 +9,10 @@ import kycService from '../services/kyc/kyc.service';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 import { PayInCodeQuery } from '../middlewares/validators';
 
+// map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
+const lastInteractionMap = new Map<string, number>();
+
+
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number | undefined): string {
   if (!dateNumber) {
@@ -272,6 +276,8 @@ export const createSubaccount = async (
       console.log('subaccountPayload', subaccountPayload);
       
       await brlaApiService.retryKYC(subaccount.id, subaccountPayload);
+
+      lastInteractionMap.set(subaccount.id, Date.now());
       res.status(200).json({ subaccountId: '' });
       return;
     }
@@ -281,6 +287,7 @@ export const createSubaccount = async (
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
+    lastInteractionMap.set(id, Date.now());
     res.status(200).json({ subaccountId: id });
   } catch (error) {
     handleApiError(error, res, 'createSubaccount');
@@ -313,6 +320,16 @@ export const fetchSubaccountKycStatus = async (
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
       res.status(500).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
+      return;
+    }
+
+    const lastInteraction = lastInteractionMap.get(subaccount.id);
+    if (!lastInteraction) {
+      res.status(404).json({ error: `No KYC process started for ${taxId}` });
+    }
+    if (lastInteraction && lastEventCached.createdAt <= lastInteraction) {
+      
+      res.status(404).json({ error: `No new KYC events found for ${taxId}` });
       return;
     }
 
@@ -450,6 +467,7 @@ export const startKYC2 = async (
 
     const kycLevel2Response =  await kycService.requestKycLevel2(subaccount.id, documentType);
     
+    lastInteractionMap.set(subaccount.id, Date.now());
     res.status(200).json({uploadUrls: kycLevel2Response});
   } catch (error) {
     handleApiError(error, res, 'startKYC2');

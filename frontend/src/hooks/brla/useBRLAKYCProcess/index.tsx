@@ -69,15 +69,13 @@ export function useKYCProcess() {
   const { showToast, ToastMessage } = useToastMessage();
   const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
   const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible, setCanRegisterRamp } = useRampActions();
-
+  const offrampKycLevel2Started = useRampKycLevel2Started();
   const taxId = useTaxId();
-  const [isSubmitted, setIsSubmitted] = useState(false);
-
-  const [cpf, setCpf] = useState<string | null>(null);
-
   const queryClient = useQueryClient();
 
-  const offrampKycLevel2Started = useRampKycLevel2Started();
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [cpf, setCpf] = useState<string | null>(null);
+
   const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
   const { data: kycResponse, error } = useKycStatusQuery(cpf, desiredLevel);
 
@@ -237,7 +235,6 @@ export function useKYCProcess() {
 
   // Handler for KYC level 2
   useEffect(() => {
-      console.log('KYC Response form doc upload:', kycResponse);
       if (!kycResponse) return;
       if (kycResponse.level !== 2) return;
   

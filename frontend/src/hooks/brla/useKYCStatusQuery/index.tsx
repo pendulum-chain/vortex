@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { BrlaKycStatus, KycLevel } from '../useBRLAKYCProcess';
-import { fetchKycStatus } from '../../../services/signingService';
+import { fetchKycStatus, KycStatus } from '../../../services/signingService';
 
 const POLLING_INTERVAL_MS = 2000;
 const RETRY_DELAY_MS = 5000; // 5 seconds
@@ -19,7 +19,7 @@ export const useKycStatusQuery = (cpf: string | null, level: KycLevel = KycLevel
       const data = query.state.data;
       if (!data) return POLLING_INTERVAL_MS;
       if (data.level !== level) return POLLING_INTERVAL_MS;
-      if (data.status === 'PENDING') return POLLING_INTERVAL_MS;
+      if (data.status === KycStatus.PENDING || data.status === KycStatus.REJECTED) return POLLING_INTERVAL_MS;
 
       return false;
     },
