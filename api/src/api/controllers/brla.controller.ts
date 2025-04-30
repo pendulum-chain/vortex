@@ -245,11 +245,6 @@ export const createSubaccount = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (subaccount) {
-      res.status(400).json({ error: 'Subaccount already created' });
-      return;
-    }
     // Convert birthdate from number to BRLA format
     const birthdate = convertDateToBRLAFormat(req.body.birthdate);
     // if company startDate field was provided, convert it to BRLA format
@@ -267,6 +262,18 @@ export const createSubaccount = async (
         res.status(400).json({ error: 'Missing startDate' });
         return;
       }
+    }
+
+    const subaccount = await brlaApiService.getSubaccount(taxId);
+    if (subaccount && subaccount.kyc.level !== 0) {
+      res.status(400).json({ error: 'Subaccount already created' });
+      return;
+    } else if (subaccount && subaccount.kyc.level === 0) {
+      console.log('subaccountPayload', subaccountPayload);
+      
+      await brlaApiService.retryKYC(subaccount.id, subaccountPayload);
+      res.status(200).json({ subaccountId: '' });
+      return;
     }
     
     subaccountPayload = { ...subaccountPayload, companyName: subaccountPayload.companyName };
@@ -300,6 +307,7 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
+    // TODO replace subscription type with an enum, all codebase.
     const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id, 'KYC');
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.

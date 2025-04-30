@@ -234,10 +234,10 @@ export interface KycLevel2Response {
 export interface KycRetryPayload {
   fullName: string;
   cpf: string;
-  birthDate: string;
-  cnpj: string;
-  companyName: string;
-  startDate: string;
+  birthdate: string;
+  cnpj?: string;
+  companyName?: string;
+  startDate?: string;
 }
 
 interface SmartContractOperation {
