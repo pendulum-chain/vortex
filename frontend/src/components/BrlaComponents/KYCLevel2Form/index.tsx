@@ -17,16 +17,16 @@ interface DocumentUploadProps {
 }
 
 async function uploadFileAsBuffer(file: File, url: string) {
-  const arrayBuffer = await file.arrayBuffer();  
+  const arrayBuffer = await file.arrayBuffer();
   const uint8 = new Uint8Array(arrayBuffer);
 
   const res = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Content-Type': file.type,       
+      'Content-Type': file.type,
       'Content-Length': String(uint8.length),
     },
-    body: arrayBuffer                       
+    body: arrayBuffer,
   });
 
   if (!res.ok) {
@@ -94,9 +94,18 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     validateAndSetFile(file, setter, validSetter);
   };
 
+  const isSubmitDisabled =
+    loading ||
+    !selfieValid ||
+    (docType === KYCDocType.RG ? !frontValid || !backValid : !frontValid);
+
   const handleSubmit = async () => {
     setError('');
-    if (!selfieValid || !frontValid || !backValid) {
+    if (
+      !selfieValid ||
+      (docType === KYCDocType.RG && (!frontValid || !backValid)) ||
+      (docType === KYCDocType.CNH && !frontValid)
+    ) {
       setError('All files must be valid before submitting.');
       return;
     }
@@ -107,18 +116,34 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         documentType: docType,
       });
 
-      if (!selfie || !front || !back) {
-        setError('There was an error uploading the files for verification. Please try again later.');
-        console.error('Validation flags were true, but file data is missing. This is a bug.');
-        return;
+
+      const uploads: Promise<void>[] = [];
+      if (docType === KYCDocType.RG) {
+
+        if (!selfie || !front || !back) {
+          setError('There was an error uploading the files for verification. Please try again later.');
+          console.error('Validation flags were true, but file data is missing. This is a bug.');
+          return;
+        }
+        uploads.push(
+          uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
+          uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
+          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl)
+        );
+      } else {
+
+        if (!selfie || !front) {
+          setError('There was an error uploading the files for verification. Please try again later.');
+          console.error('Validation flags were true, but file data is missing. This is a bug.');
+          return;
+        }
+        uploads.push(
+          uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
+          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl)
+        );
       }
 
-      await Promise.all([
-        uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-        uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
-        uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl),
-      ]);
-
+      await Promise.all(uploads);
       onSubmitHandler();
     } catch {
       setError('Upload failed. Please try again.');
@@ -185,17 +210,29 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           selfieValid,
           CameraIcon
         )}
-        {renderField(
-          'Document Front',
-          (e) => handleFileChange(e, setFront, setFrontValid),
-          frontValid,
-          DocumentTextIcon
+        {docType === KYCDocType.RG && (
+          <>
+            {renderField(
+              'RG Front',
+              (e) => handleFileChange(e, setFront, setFrontValid),
+              frontValid,
+              DocumentTextIcon
+            )}
+            {renderField(
+              'RG Back',
+              (e) => handleFileChange(e, setBack, setBackValid),
+              backValid,
+              DocumentTextIcon
+            )}
+          </>
         )}
-        {renderField(
-          'Document Back',
-          (e) => handleFileChange(e, setBack, setBackValid),
-          backValid,
-          DocumentTextIcon
+        {docType === KYCDocType.CNH && (
+          renderField(
+            'CNH Document',
+            (e) => handleFileChange(e, setFront, setFrontValid),
+            backValid,
+            DocumentTextIcon
+          )
         )}
       </div>
 
@@ -214,7 +251,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           type="button"
           className="btn-vortex-primary btn flex-1"
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={isSubmitDisabled}
         >
           {loading ? 'Uploading...' : 'Submit'}
         </button>

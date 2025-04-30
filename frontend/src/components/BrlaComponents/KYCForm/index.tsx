@@ -5,7 +5,6 @@ import { useTranslation, Trans } from 'react-i18next';
 
 import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
-import { useFeeComparisonStore } from '../../../stores/feeComparison';
 import { useWidgetMode } from '../../../hooks/useWidgetMode';
 
 interface KYCFormProps {
@@ -16,14 +15,9 @@ interface KYCFormProps {
 }
 
 export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) => {
-  const { feeComparisonRef } = useFeeComparisonStore();
   const { handleSubmit } = form;
   const { t } = useTranslation();
   const isWidgetMode = useWidgetMode();
-
-  const compareFeesClick = useCallback(() => {
-    feeComparisonRef?.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [feeComparisonRef]);
 
   return (
     <FormProvider {...form}>
@@ -76,11 +70,6 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
               {t('components.brlaKYCForm.buttons.finish')}
             </button>
           </div>
-          {!isWidgetMode && (
-            <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={compareFeesClick}>
-              {t('components.brlaKYCForm.buttons.compareFees')}
-            </button>
-          )}
         </div>
       </motion.form>
     </FormProvider>
