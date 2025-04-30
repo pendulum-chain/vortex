@@ -31,10 +31,8 @@ export function FeeComparisonTable() {
 
   const amount = inputAmount || '100';
   
-  // Get the vortex price from the quote
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
-  // Fetch all prices in a single request
   const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery({
     queryKey: [
       cacheKeys.allPrices,
@@ -53,11 +51,9 @@ export function FeeComparisonTable() {
     enabled: !isOnramp, // Only fetch for offramp for now
   });
 
-  // Calculate provider prices from the bundled response
   const providerPrices = useMemo(() => {
     const prices: Record<string, Big> = {};
     
-    // Add vortex price from the quote
     prices['vortex'] = vortexPrice;
     
     if (allPricesResponse) {
@@ -114,7 +110,6 @@ export function FeeComparisonTable() {
       </div>
 
       {sortedProviders.map((provider) => {
-        // Get the result for this specific provider
         const providerResult = provider.name !== 'vortex' && allPricesResponse
           ? allPricesResponse[provider.name as PriceEndpoints.Provider] as PriceEndpoints.BundledPriceResult | undefined
           : undefined;

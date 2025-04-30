@@ -4,14 +4,15 @@ import { validatePriceInput, PriceQuery, validateBundledPriceInput } from '../..
 
 const router: Router = Router({ mergeParams: true });
 
-// Route for getting price from a specific provider
 router
   .route('/')
   .get<Record<string, never>, unknown, Record<string, never>, PriceQuery>(validatePriceInput, getPriceForProvider);
 
-// Route for getting prices from all providers bundled
 router
   .route('/all')
-  .get<Record<string, never>, unknown, Record<string, never>, PriceQuery>(validateBundledPriceInput, getAllPricesBundled);
+  .get<Record<string, never>, unknown, Record<string, never>, PriceQuery>(
+    validateBundledPriceInput,
+    getAllPricesBundled,
+  );
 
 export default router;

@@ -86,7 +86,6 @@ async function priceQuery(
     const errorMessage = body?.error?.message || `HTTP error ${response.status}: ${response.statusText}`;
     console.error(`Transak API Error (${response.status}): ${errorMessage}`);
 
-    // Analyze error message for specific types
     const lowerErrorMessage = errorMessage.toLowerCase();
     if (
       lowerErrorMessage.includes('invalid fiat currency') ||
@@ -115,7 +114,6 @@ async function priceQuery(
     throw new InvalidParameterError(`Transak API error: ${errorMessage}`);
   }
 
-  // Check if essential data is present in the successful response
   if (
     !body.response ||
     body.response.conversionPrice === undefined ||
@@ -128,7 +126,7 @@ async function priceQuery(
 
   const {
     response: { conversionPrice, cryptoAmount: resultCryptoAmount, fiatAmount, totalFee },
-  } = body; // Already parsed above
+  } = body;
 
   return {
     cryptoPrice: conversionPrice,

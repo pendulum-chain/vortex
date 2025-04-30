@@ -90,11 +90,9 @@ async function priceQuery(
     if (response.status >= 500) {
       throw new ProviderInternalError(`Moonpay server error: ${errorMessage}`);
     }
-    // Default to InvalidParameterError for other 4xx or unexpected errors
     throw new InvalidParameterError(`Moonpay API error: ${errorMessage}`);
   }
 
-  // Check if essential data is present in the successful response
   if (
     body.baseCurrencyAmount === undefined ||
     body.baseCurrencyPrice === undefined ||
@@ -111,7 +109,6 @@ async function priceQuery(
     console.warn(
       `Moonpay Warning: Requested base amount ${baseCurrencyAmount} differs from received ${receivedBaseCurrencyAmount}`,
     );
-    // Decide if this should be a hard error or just a warning. Throwing for now.
     throw new ProviderInternalError(
       `Moonpay response discrepancy: Requested base amount ${baseCurrencyAmount}, received ${receivedBaseCurrencyAmount}`,
     );

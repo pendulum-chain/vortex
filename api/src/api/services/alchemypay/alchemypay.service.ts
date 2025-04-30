@@ -165,11 +165,9 @@ async function priceQuery(
     if (errorMessage.toLowerCase().includes('invalid parameter')) {
       throw new InvalidParameterError(`AlchemyPay: ${errorMessage}`);
     }
-    // Default success=false to ProviderInternalError as it indicates a failure on their side
     throw new ProviderInternalError(`AlchemyPay API logic error: ${errorMessage}`);
   }
 
-  // Ensure data exists if success is true
   if (!body.data) {
     throw new ProviderInternalError('AlchemyPay API returned success=true but no data field');
   }

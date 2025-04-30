@@ -27,13 +27,9 @@ type PriceHandler = (
 
 const providerHandlers: Record<PriceEndpoints.Provider, PriceHandler> = {
   alchemypay: async (fromCrypto, toFiat, amount, network) =>
-    // Let errors from the service propagate directly
     alchemyPayService.getPriceFor(fromCrypto, toFiat, amount, network),
-  moonpay: async (fromCrypto, toFiat, amount) =>
-    // Let errors from the service propagate directly
-    moonpayService.getPriceFor(fromCrypto, toFiat, amount),
+  moonpay: async (fromCrypto, toFiat, amount) => moonpayService.getPriceFor(fromCrypto, toFiat, amount),
   transak: async (fromCrypto, toFiat, amount, network) =>
-    // Let errors from the service propagate directly
     transakService.getPriceFor(fromCrypto, toFiat, amount, network),
 };
 
@@ -102,10 +98,7 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
       console.error('Provider internal error:', err);
       res.status(502).json({ error: err.message });
     } else {
-      // Catch-all for unexpected errors (e.g., config errors, fetch network errors not caught in service, etc.)
-      // Log the full error for internal debugging.
       console.error('Unexpected server error:', err);
-      // Return a generic 500 error to the client.
       res.status(500).json({ error: 'An internal server error occurred while fetching the price.' });
     }
   }
@@ -140,10 +133,8 @@ export const getAllPricesBundled: RequestHandler<
   const fiat = toFiat.toLowerCase() as PriceEndpoints.FiatCurrency;
   const networkParam = network && typeof network === 'string' ? network : undefined;
 
-  // Define the list of providers to query
   const providersToQuery: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
 
-  // Create an array of promises, one for each provider
   const pricePromises = providersToQuery.map(async (provider) => {
     try {
       const price = await getPriceFromProvider(provider, crypto, fiat, amount, networkParam);
@@ -168,12 +159,10 @@ export const getAllPricesBundled: RequestHandler<
       if (status === 'fulfilled') {
         response[provider] = { status: 'fulfilled', value };
       } else {
-        // Handle errors caught within our mapped promise
         let errorStatus = 500; // Default internal server error
         let errorMessage = 'An unexpected error occurred with this provider.';
 
         if (reason instanceof ProviderApiError) {
-          // Determine status code based on error type
           if (reason instanceof ProviderInternalError) {
             errorStatus = 502; // Bad Gateway for provider internal errors
           } else if (
@@ -181,7 +170,7 @@ export const getAllPricesBundled: RequestHandler<
             reason instanceof InvalidAmountError ||
             reason instanceof InvalidParameterError
           ) {
-            errorStatus = 400; // Bad Request for validation/input errors
+            errorStatus = 400;
           }
           errorMessage = reason.message;
         } else if (reason instanceof Error) {
