@@ -96,6 +96,39 @@ export class PriceService {
    * @param network Optional network name
    * @returns Price information from all providers
    */
+  /**
+   * Get price information from all providers using the bundled endpoint
+   * @param fromCrypto The source cryptocurrency
+   * @param toFiat The target fiat currency
+   * @param amount The amount to convert
+   * @param network Optional network name
+   * @returns Price information from all providers, including success/failure status for each
+   */
+  static async getAllPricesBundled(
+    fromCrypto: PriceEndpoints.CryptoCurrency,
+    toFiat: PriceEndpoints.FiatCurrency,
+    amount: string,
+    network?: string,
+  ): Promise<PriceEndpoints.AllPricesResponse> {
+    return apiRequest<PriceEndpoints.AllPricesResponse>('get', `${this.BASE_PATH}/all`, undefined, {
+      params: {
+        fromCrypto,
+        toFiat,
+        amount,
+        network,
+      },
+    });
+  }
+
+  /**
+   * @deprecated Use getAllPricesBundled instead for better error handling and performance
+   * Get price information from all providers
+   * @param fromCrypto The source cryptocurrency
+   * @param toFiat The target fiat currency
+   * @param amount The amount to convert
+   * @param network Optional network name
+   * @returns Price information from all providers
+   */
   static async getAllPrices(
     fromCrypto: PriceEndpoints.CryptoCurrency,
     toFiat: PriceEndpoints.FiatCurrency,
