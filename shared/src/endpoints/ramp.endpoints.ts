@@ -18,6 +18,7 @@ export type RampPhase =
   | 'stellarPayment'
   | 'subsidizePreSwap'
   | 'subsidizePostSwap'
+  | 'distributeFees'
   | 'brlaTeleport'
   | 'brlaPayoutOnMoonbeam'
   | 'failed'

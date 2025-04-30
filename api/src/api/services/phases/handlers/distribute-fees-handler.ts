@@ -54,7 +54,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     // Using this reference to satisfy linter
     this.logPhaseExecution();
-    return 'subsidizePreSwap' as RampPhase; // Using a valid phase as a workaround
+    return 'distributeFees' as RampPhase;
   }
 
   /**
@@ -111,9 +111,9 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     // Determine stablecoin
+    // TODO: Add logic to select stablecoin (axlUSDC vs AssetHub USDC) based on availability or config.
     const stablecoinCurrencyId = { ForeignAsset: 1 }; // axlUSDC
     const stablecoinDecimals = PENDULUM_USDC_AXL.pendulumDecimals; // Should be 6
-    // TODO: Add logic to select stablecoin (axlUSDC vs AssetHub USDC) based on availability or config.
 
     // Convert fees from fiat to USD
     const networkFeeUSD = convertFiatToUSD(networkFeeFiat, targetFiat);
@@ -158,7 +158,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     // Determine next phase
     let nextPhase: RampPhase | null = null;
     if (state.type === 'on') {
-      nextPhase = quote.to === 'assethub' ? 'pendulumToAssethub' : 'pendulumToMoonbeam';
+      nextPhase = 'subsidizePostSwap';
     } else if (state.type === 'off') {
       nextPhase = 'subsidizePreSwap';
     }

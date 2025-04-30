@@ -20,7 +20,7 @@ Fees are a crucial part of the ramp process. The following describes the intende
         *   Off-Ramp BRL: Charged by BRLA during `brlaPayoutOnMoonbeam`.
         *   Off-Ramp Stellar (EURC, ARS, etc.): Charged by the Stellar anchor during `stellarPayment`.
     *   The **`vortex`**, **`network`**, and **`partnerMarkup` fees** are handled separately. They are effectively set aside from the main flow and distributed to their respective destination accounts during a dedicated `distributeFees` phase.
-        *   On-Ramp: `distributeFees` occurs *after* the swap and post-swap subsidization.
+        *   On-Ramp: `distributeFees` occurs *after* the swap but *before* post-swap subsidization.
         *   Off-Ramp: `distributeFees` occurs *before* the pre-swap subsidization.
     *   The **final net amount** delivered to the user (crypto for on-ramp, fiat for off-ramp) is the `grossOutputAmount` (post-swap amount) minus the total impact of all fee components.
 5.  **Fee Display:** The fee breakdown (`FeeStructure`) shown to the user in the quote response is presented in the relevant **fiat currency** for the transaction (e.g., BRL, EUR, ARS), converted from the initial USD calculations.
@@ -62,14 +62,14 @@ The ramp process is managed by a state machine, transitioning through various ph
 10. **Phase: `nablaSwap` (`nabla-swap-handler.ts`):**
     *   Gets live quote, checks slippage.
     *   Submits pre-signed swap (e.g., BRLA -> USDC) on Pendulum.
-    *   Transitions to `subsidizePostSwap`.
-11. **Phase: `subsidizePostSwap` (`subsidize-post-swap-handler.ts`):**
-    *   Checks the balance of the output crypto asset (e.g., USDC) on Pendulum ephemeral.
-    *   Tops up if necessary to match the exact `grossOutputAmount` (post-swap amount).
     *   Transitions to `distributeFees`.
-12. **Phase: `distributeFees` (New Handler):**
+11. **Phase: `distributeFees` (New Handler):**
     *   Calculates the amounts for Vortex, Network, and Partner fees based on the quote.
     *   Transfers these fee amounts (likely in a stablecoin like USDC from the ephemeral or a funding account) to the respective destination accounts (Vortex treasury, partner account, potentially a gas fund).
+    *   Transitions to `subsidizePostSwap`.
+12. **Phase: `subsidizePostSwap` (`subsidize-post-swap-handler.ts`):**
+    *   Checks the balance of the output crypto asset (e.g., USDC) on Pendulum ephemeral.
+    *   Tops up if necessary to match the exact `grossOutputAmount` (post-swap amount).
     *   Transitions to `pendulumToMoonbeam` (for EVM destination) or `pendulumToAssethub` (for AssetHub destination).
 
 **Final Delivery (On-Ramp):**
