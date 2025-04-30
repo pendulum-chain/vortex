@@ -66,7 +66,8 @@
         },
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "moreThanMaximumWithdrawal": {
-          "sell": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}."
+          "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
+          "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
         },
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
