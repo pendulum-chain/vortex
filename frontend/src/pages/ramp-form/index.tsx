@@ -10,6 +10,7 @@ import { RampDirection, RampToggle } from '../../components/RampToggle';
 import { PoweredBy } from '../../components/PoweredBy';
 import { Onramp } from '../../components/Ramp/Onramp';
 import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
+import {AirdropBanner} from '../../components/AirdropBanner';
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
@@ -23,6 +24,7 @@ export const RampForm = () => {
       <PoolSelectorModal />
       <RampSummaryDialog />
       <SigningBox />
+      <AirdropBanner />
       {offrampKycStarted ? (
         <PIXKYCForm />
       ) : (

@@ -63,7 +63,7 @@
         },
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "moreThanMaximumWithdrawal": {
-          "sell": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
+          "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
         },
         "lessThanMinimumWithdrawal": {
@@ -176,6 +176,16 @@
     }
   },
   "components": {
+    "airdropBanner": {
+      "title": "Oferta especial",
+      "description": "Deposite R$5 ou €10 para receber 20 USDT de graça!",
+      "button": "Mais informações",
+      "list": {
+        "1": "Compre ou venda de R$5 (PIX) ou €10 (SEPA) - rápido, fácil e sem taxas ocultas.",
+        "2": "Todos os usuários elegíveis recebem 10 USDT - <strong>os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT.</strong> Recompensas vão para sua carteira na Base ou AssetHub.",
+        "3": "Uma recompensa por utilizador - utilizamos verificações KYC e na cadeia para garantir a equidade e evitar abusos."
+      }
+    },
     "emailForm": {
       "success": "Salvo com sucesso!",
       "loading": "Carregando...",
