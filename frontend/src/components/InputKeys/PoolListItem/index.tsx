@@ -1,4 +1,5 @@
 import { OnChainToken, FiatToken, isOnChainToken, OnChainTokenDetails, isFiatToken } from 'shared';
+import { useTranslation } from 'react-i18next';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { isFiatTokenDisabled, getTokenDisabledReason } from '../../../config/tokenAvailability';
 import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
@@ -11,12 +12,13 @@ interface PoolListItemProps {
 }
 
 export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps) {
+  const { t } = useTranslation();
   const tokenIcon = useGetAssetIcon(token.assetIcon);
 
   const showBalance = isOnChainToken(token.type);
 
   const isDisabled = isFiatToken(token.type) && isFiatTokenDisabled(token.type);
-  const disabledReason = isFiatToken(token.type) && isDisabled ? getTokenDisabledReason(token.type) : undefined;
+  const disabledReason = isFiatToken(token.type) && isDisabled ? t(getTokenDisabledReason(token.type)) : undefined;
 
   return (
     <button
