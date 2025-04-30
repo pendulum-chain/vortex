@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
-import { PriceEndpoints } from 'shared';
+import { FiatToken, PriceEndpoints } from 'shared';
 import { useVortexAccount } from '../hooks/useVortexAccount';
 import { getNetworkId, isNetworkEVM } from 'shared';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
@@ -117,6 +117,11 @@ export interface InitializationErrorEvent {
   error_message: InitializationErrorMessage;
 }
 
+export interface TokenUnavailableErrorEvent {
+  event: 'token_unavailable';
+  token: FiatToken;
+}
+
 type InitializationErrorMessage =
   | 'node_connection_issue'
   | 'signer_service_issue'
@@ -138,7 +143,8 @@ export type TrackableEvent =
   | TransactionSignedEvent
   | ProgressEvent
   | NetworkChangeEvent
-  | InitializationErrorEvent;
+  | InitializationErrorEvent
+  | TokenUnavailableErrorEvent;
 
 type EventType = TrackableEvent['event'];
 

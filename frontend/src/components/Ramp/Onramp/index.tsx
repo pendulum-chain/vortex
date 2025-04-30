@@ -20,7 +20,6 @@ import { RampTerms } from '../../RampTerms';
 import { useValidateTerms } from '../../../stores/termsStore';
 import { useRampModalActions } from '../../../stores/rampModalStore';
 import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
-import { useSetRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useInitializeFailedMessage } from '../../../stores/rampStore';

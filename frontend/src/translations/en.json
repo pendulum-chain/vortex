@@ -55,6 +55,9 @@
     },
     "swap": {
       "error": {
+        "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
+        "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "initializeFailed": {
           "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
           "noAddress": "No address found.",

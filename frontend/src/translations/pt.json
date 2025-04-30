@@ -55,6 +55,9 @@
     },
     "swap": {
       "error": {
+        "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
+        "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "initializeFailed": {
           "default": "Estamos enfrentando um congestionamento digital. Por favor, aguarde enquanto liberamos o caminho e fazemos as coisas funcionarem novamente!",
           "noAddress": "Nenhum endereço encontrado.",
