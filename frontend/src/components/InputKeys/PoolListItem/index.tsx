@@ -1,6 +1,7 @@
+import { OnChainToken, FiatToken, isOnChainToken, OnChainTokenDetails, isFiatToken } from 'shared';
 import { CheckIcon } from '@heroicons/react/20/solid';
+import { isFiatTokenDisabled, getTokenDisabledReason } from '../../../config/tokenAvailability';
 import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
-import { OnChainToken, FiatToken, isOnChainToken, OnChainTokenDetails } from 'shared';
 import { TokenDefinition } from '../SelectionModal';
 import { UserBalance } from '../../UserBalance';
 interface PoolListItemProps {
@@ -14,12 +15,17 @@ export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps)
 
   const showBalance = isOnChainToken(token.type);
 
+  const isDisabled = isFiatToken(token.type) && isFiatTokenDisabled(token.type);
+  const disabledReason = isFiatToken(token.type) && isDisabled ? getTokenDisabledReason(token.type) : undefined;
+
   return (
     <button
       type="button"
       key={token.assetSymbol}
-      onClick={() => onSelect(token.type)}
-      className="items-center justify-start w-full gap-4 px-3 py-3 text-left bg-gray-200 border-0 shadow-xs btn hover:opacity-80 hover:bg-gray-300"
+      onClick={() => !isDisabled && onSelect(token.type)}
+      className={`items-center justify-start w-full gap-4 px-3 py-3 text-left bg-gray-200 border-0 shadow-xs btn ${
+        isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80 hover:bg-gray-300'
+      }`}
     >
       <span className="relative">
         <div className="text-xs">
@@ -36,7 +42,13 @@ export function PoolListItem({ token, isSelected, onSelect }: PoolListItemProps)
           <span className="text-lg leading-5">
             <strong>{token.assetSymbol}</strong>
           </span>
-          <span className="text-sm leading-5 text-neutral-500">{token.name || token.assetSymbol}</span>
+          <span className="text-sm leading-5 text-neutral-500">
+            {isDisabled ? (
+              <span className="text-red-500">{disabledReason || 'Unavailable'}</span>
+            ) : (
+              token.name || token.assetSymbol
+            )}
+          </span>
         </span>
         <span className="text-base">
           {showBalance && <UserBalance token={token.details as OnChainTokenDetails} className="font-bold" />}
