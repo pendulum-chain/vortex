@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { BrlaKycStatus } from '../useBRLAKYCProcess';
+import { BrlaKycStatus, KycLevel } from '../useBRLAKYCProcess';
 import { fetchKycStatus } from '../../../services/signingService';
 
 const POLLING_INTERVAL_MS = 2000;
 const RETRY_DELAY_MS = 5000; // 5 seconds
 const MAX_RETRIES = 5;
 
-export const useKycStatusQuery = (cpf: string | null, level = 1) => {
+export const useKycStatusQuery = (cpf: string | null, level: KycLevel = KycLevel.LEVEL_1) => {
   console.log('useKycStatusQuery', cpf, level);
   return useQuery<BrlaKycStatus, Error>({
     queryKey: ['kyc-status', cpf],
