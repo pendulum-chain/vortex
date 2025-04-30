@@ -187,7 +187,7 @@ export interface EndpointMapping {
   [Endpoint.KycRetry]: {
     POST: {
       body: KycRetryPayload;
-      response: any; // Doesn't return anything. 201.
+      response: unknown; // Doesn't return anything. 201.
     };
     GET: {
       body: undefined;

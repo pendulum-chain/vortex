@@ -137,10 +137,15 @@ export function useKYCProcess() {
 
       try {
         if (isValidCnpj(taxId)) {
+          
+          // Field is validated in the form. Should not be null when submitting.
+          if (!formData.partnerCpf) {
+            throw new Error('useKYCProcess: Partner CPF must be defined at this point');
+          }
+
           await createSubaccount({
             ...formData,
-            // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
-            cpf:  formData.partnerCpf!, // Field is validated in the form. Should not be null when submitting.
+            cpf:  formData.partnerCpf!, 
             cnpj: taxId,
             address: addressObject,
             taxIdType: 'CNPJ',

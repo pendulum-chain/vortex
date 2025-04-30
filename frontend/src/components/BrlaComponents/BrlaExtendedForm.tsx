@@ -25,7 +25,7 @@ export const PIXKYCForm = () => {
   
   const handleDocumentSubmit = useCallback(() => {
     setIsSubmitted(true);
-    const taxIdToSet = taxId ? taxId : null
+    const taxIdToSet = taxId || null
     setCpf(taxIdToSet);
   }, [setIsSubmitted, setCpf, taxId]);
 
@@ -126,7 +126,7 @@ export const PIXKYCForm = () => {
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.PARTNER_CPF,
-      label: t('components.brlaExtendedForm.form.parnterCpf'),
+      label: t('components.brlaExtendedForm.form.partnerCpff'),
       type: 'text',
       required: true,
       index: 11,

@@ -65,31 +65,6 @@ export class KycService {
     }
   }
 
-  protected async updateKycLevel2(
-    id: string,
-    status: KycLevel2Status,
-    uploadData?: KycLevel2Response, 
-    errorLog?: any,
-  ): Promise<[number, KycLevel2[]]> {
-    const kycLevel2 = await this.getKycLevel2ById(id);
-    if (!kycLevel2) {
-      throw new Error(`KYC Level 2 entry with id ${id} not found`);
-    }
-
-    const updateData: any = { status, uploadData };
-
-    if (errorLog) {
-      const errorLogs = [...kycLevel2.errorLogs, { ...errorLog, timestamp: new Date() }];
-      updateData.errorLogs = errorLogs;
-    }
-
-    return KycLevel2.update(updateData, {
-      where: { id },
-      returning: true,
-    });
-  }
-
-
   public async requestKycLevel2(
     subaccountId: string, 
     documentType: KYCDocType, 

@@ -27,7 +27,7 @@ class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> 
   declare subaccountId: string;
   declare documentType: KYCDocType;
   declare status: KycLevel2Status;
-  declare errorLogs: any[];
+  declare errorLogs: unknown[];
   declare uploadData: KycLevel2Response;
   declare createdAt: Date;
   declare updatedAt: Date;

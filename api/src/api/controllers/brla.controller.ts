@@ -259,11 +259,11 @@ export const createSubaccount = async (
 
     // Extra validation for company fields
     if (taxIdType === 'CNPJ') {
-      if (!subaccountPayload.companyName) {
+      if (!req.body.companyName) {
         res.status(400).json({ error: 'Missing companyName' });
         return;
       }
-      if (subaccountPayload.startDate === '') {
+      if (startDate === '') {
         res.status(400).json({ error: 'Missing startDate' });
         return;
       }

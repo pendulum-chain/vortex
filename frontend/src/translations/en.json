@@ -338,7 +338,7 @@
         "birthdate": "Birthdate",
         "companyName": "Company Name",
         "startDate": "Company Start Date",
-        "parnterCpf": "Partner CPF"
+        "partnerCpff": "Partner CPF"
       },
       "verificationStatus": {
         "pending": "Verifying your data, please wait",
