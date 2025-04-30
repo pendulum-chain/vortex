@@ -56,7 +56,7 @@ export const AirdropBanner = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                All eligible users get $10 USDT - <strong>the first 100 receive a $10 bonus, totaling $20 USDT.</strong> Rewards go to your wallet on Base or Polkadot.
+                All eligible users get $10 USDT - <strong>the first 100 receive a $10 bonus, totaling $20 USDT.</strong> Rewards go to your wallet on Base or AssetHub.
               </motion.li>
               <motion.li
                 className="mb-2"
