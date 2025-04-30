@@ -72,6 +72,28 @@ function trimTrailingZeros(decimalString: string): string {
   return `${integerPart}.${trimmedFraction}`;
 }
 
+// TODO: Implement proper USD to Fiat conversion using price feeds
+/* eslint-disable @typescript-eslint/no-unused-vars */
+function convertUSDtoTargetFiat(amountUSD: string, targetFiat: RampCurrency): string {
+  logger.warn(`TODO: Implement USD to ${targetFiat} conversion. Using placeholder logic.`);
+  // Placeholder: Returns original USD amount. Needs real implementation.
+  // A real implementation would fetch e.g., USD/BRL rate.
+  const usdLikeCurrencies = ['USD', 'USDC', 'axlUSDC'];
+  if (usdLikeCurrencies.includes(targetFiat as string)) return amountUSD; // Base case
+  return amountUSD; // Placeholder - needs real implementation
+}
+
+function getTargetFiatCurrency(rampType: 'on' | 'off', inputCurrency: RampCurrency, outputCurrency: RampCurrency): RampCurrency {
+  // TODO: Add validation to ensure the identified currency is a supported fiat currency
+  if (rampType === 'on') {
+    // Assuming input is the fiat currency for on-ramp (e.g., BRL from pix)
+    return inputCurrency;
+  }
+  // off-ramp: Assuming output is the fiat currency for off-ramp (e.g., BRL to pix, EUR to sepa)
+  return outputCurrency;
+}
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
 export class QuoteService extends BaseRampService {
   // List of supported chains for each ramp type
   private readonly SUPPORTED_CHAINS: {
@@ -119,7 +141,7 @@ export class QuoteService extends BaseRampService {
       );
 
     // Calculate core fee components using the database-driven logic
-    const { vortexFee, anchorFee, partnerMarkupFee, feeCurrency } = await this.calculateFeeComponents(
+    const { vortexFee, anchorFee, partnerMarkupFee } = await this.calculateFeeComponents(
       request.inputAmount,
       request.rampType,
       request.from,
@@ -130,7 +152,18 @@ export class QuoteService extends BaseRampService {
     // Calculate total fee in USD
     const totalFeeUSD = new Big(networkFeeUSD).plus(vortexFee).plus(anchorFee).plus(partnerMarkupFee).toString();
 
-    // Convert total fee to output currency
+    // Determine target fiat currency
+    const targetFiat = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
+    
+    // Convert fees to target fiat
+    const networkFeeFiat = convertUSDtoTargetFiat(networkFeeUSD, targetFiat);
+    const vortexFeeFiat = convertUSDtoTargetFiat(vortexFee, targetFiat);
+    const anchorFeeFiat = convertUSDtoTargetFiat(anchorFee, targetFiat);
+    const partnerMarkupFeeFiat = convertUSDtoTargetFiat(partnerMarkupFee, targetFiat);
+    const totalFeeFiat = convertUSDtoTargetFiat(totalFeeUSD, targetFiat);
+
+    // Convert total fee to output currency - KEEP THIS CALCULATION AS IS
+    // Still use the original USD total here for the final output amount calculation
     const totalFeeInOutputCurrency = convertFeeToOutputCurrency(
       totalFeeUSD,
       request.outputCurrency,
@@ -147,14 +180,14 @@ export class QuoteService extends BaseRampService {
     }
     const finalOutputAmountStr = finalOutputAmount.toFixed(6, 0);
 
-    // Store the complete detailed fee structure
+    // Store the complete detailed fee structure in target fiat currency
     const feeToStore: QuoteEndpoints.FeeStructure = {
-      network: networkFeeUSD,
-      vortex: vortexFee,
-      anchor: anchorFee,
-      partnerMarkup: partnerMarkupFee,
-      total: totalFeeUSD,
-      currency: feeCurrency, // Should be 'USD'
+      network: networkFeeFiat,
+      vortex: vortexFeeFiat,
+      anchor: anchorFeeFiat,
+      partnerMarkup: partnerMarkupFeeFiat,
+      total: totalFeeFiat,
+      currency: targetFiat,
     };
 
     // Create quote in database with the detailed fee structure
@@ -165,9 +198,9 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount: finalOutputAmountStr, // Use the final output amount after fee deduction
+      outputAmount: finalOutputAmountStr, 
       outputCurrency: request.outputCurrency,
-      fee: feeToStore, // Store the detailed fee structure
+      fee: feeToStore, 
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
@@ -179,12 +212,12 @@ export class QuoteService extends BaseRampService {
     });
 
     const responseFeeStructure: QuoteEndpoints.FeeStructure = {
-      network: trimTrailingZeros(networkFeeUSD),
-      vortex: trimTrailingZeros(vortexFee),
-      anchor: trimTrailingZeros(anchorFee),
-      partnerMarkup: trimTrailingZeros(partnerMarkupFee),
-      total: trimTrailingZeros(totalFeeUSD),
-      currency: feeCurrency,
+      network: trimTrailingZeros(networkFeeFiat),
+      vortex: trimTrailingZeros(vortexFeeFiat),
+      anchor: trimTrailingZeros(anchorFeeFiat),
+      partnerMarkup: trimTrailingZeros(partnerMarkupFeeFiat),
+      total: trimTrailingZeros(totalFeeFiat),
+      currency: targetFiat,
     };
 
     return {
