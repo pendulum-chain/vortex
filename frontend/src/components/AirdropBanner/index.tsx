@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, useMotionValue, AnimatePresence } from 'motion/react';
-
+import { useTranslation, Trans } from 'react-i18next';
 export const AirdropBanner = () => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const rotation = useMotionValue(0);
 
@@ -22,14 +23,14 @@ export const AirdropBanner = () => {
       <div className='flex flex-col items-center justify-center'>
        <div className="flex items-center justify-between text-center">
         <div>
-       <h1 className='text-xl'>🪂<strong> Airdrop offer</strong></h1>
+       <h1 className='text-xl'>🪂<strong> {t('components.airdropBanner.title')}</strong></h1>
         <p className="font-medium">
-            Deposit R$5 or €10 to Get 20 USDT for FREE!
+            {t('components.airdropBanner.description')}
         </p>
        </div>
 
         </div>
-        <button className="bg-[#000] text-white px-4 py-2 rounded-md mt-4 cursor-pointer">More info</button>
+        <button className="bg-[#000] text-white px-4 py-2 rounded-md mt-4 cursor-pointer">{t('components.airdropBanner.button')}</button>
       </div>
 
       <AnimatePresence>
@@ -48,7 +49,7 @@ export const AirdropBanner = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                Buy or sell from just R$5 (PIX) or €10 (SEPA) - quick, easy, and no hidden fees.
+                {t('components.airdropBanner.list.1')}
               </motion.li>
               <motion.li
                 className="mb-2"
@@ -56,7 +57,7 @@ export const AirdropBanner = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                All eligible users get $10 USDT - <strong>the first 100 receive a $10 bonus, totaling $20 USDT.</strong> Rewards go to your wallet on Base or AssetHub.
+                <Trans i18nKey="components.airdropBanner.list.2">All eligible users get $10 USDT - <strong>the first 100 receive a 10 bonus, totaling 20 USDT.</strong> Rewards go to your wallet on Base or AssetHub.</Trans>
               </motion.li>
               <motion.li
                 className="mb-2"
@@ -64,7 +65,7 @@ export const AirdropBanner = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                One reward per user - we use KYC and on-chain checks to ensure fairness and prevent abuse.
+                {t('components.airdropBanner.list.3')}
               </motion.li>
             </ul>
           </motion.div>

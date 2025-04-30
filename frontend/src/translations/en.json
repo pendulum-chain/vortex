@@ -176,6 +176,16 @@
     }
   },
   "components": {
+    "airdropBanner": {
+      "title": "Special offer",
+      "description": "Deposit R$5 or €10 to Get 20 USDT for FREE!",
+      "button": "More info",
+      "list": {
+        "1": "Buy or sell from just R$5 (PIX) or €10 (SEPA) - quick, easy, and no hidden fees.",
+        "2": "All eligible users get 10 USDT - <strong>the first 100 receive a 10 USDT bonus, totaling 20 USDT.</strong> Rewards go to your wallet on Base or AssetHub.",
+        "3": "One reward per user - we use KYC and on-chain checks to ensure fairness and prevent abuse."
+      }
+    },
     "emailForm": {
       "success": "Successfully saved!",
       "loading": "Loading...",
