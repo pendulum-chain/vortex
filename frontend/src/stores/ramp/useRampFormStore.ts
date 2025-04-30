@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
 
+export const DEFAULT_FIAT_TOKEN = FiatToken.BRL;
+export const DEFAULT_BRL_AMOUNT = '5';
+export const DEFAULT_EURC_AMOUNT = '20';
+export const DEFAULT_ARS_AMOUNT = '20';
+
 interface RampFormState {
   inputAmount?: string;
   onChainToken: OnChainToken;
@@ -23,9 +28,9 @@ interface RampFormActions {
 const storedNetwork = localStorage.getItem('SELECTED_NETWORK')
 
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
-  inputAmount: '20',
+  inputAmount: DEFAULT_BRL_AMOUNT,
   onChainToken: storedNetwork !== null && storedNetwork === Networks.AssetHub ? EvmToken.USDC : EvmToken.USDT,
-  fiatToken: FiatToken.EURC,
+  fiatToken: DEFAULT_FIAT_TOKEN,
   taxId: undefined,
   pixId: undefined,
 };
