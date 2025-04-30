@@ -79,18 +79,21 @@ export async function prepareOfframpTransactions({
     throw new Error(`Output currency must be fiat token for offramp, got ${quote.outputCurrency}`);
   }
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
-  const outputAmountBeforeFees = new Big(quote.outputAmount).add(new Big(quote.fee));
-  const outputAmountBeforeFeesRaw = multiplyByPowerOfTen(outputAmountBeforeFees, outputTokenDetails.decimals).toFixed(
-    0,
-    0,
-  );
+  
+  // Use grossOutputAmount from metadata instead of calculating it
+  if (!quote.metadata?.grossOutputAmount) {
+    throw new Error('Quote metadata is missing grossOutputAmount');
+  }
+  
+  const grossOutputAmountUnits = new Big(quote.metadata.grossOutputAmount);
+  const grossOutputAmountRaw = multiplyByPowerOfTen(grossOutputAmountUnits, outputTokenDetails.decimals).toFixed(0, 0);
 
   // Validate output amount from UI/sep24
   if (stellarPaymentData && stellarPaymentData.amount) {
     const stellarAmount = new Big(stellarPaymentData.amount);
-    if (!stellarAmount.eq(outputAmountBeforeFees)) {
+    if (!stellarAmount.eq(grossOutputAmountUnits)) {
       throw new Error(
-        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${outputAmountBeforeFees.toString()}`,
+        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${grossOutputAmountUnits.toString()}`,
       );
     }
   }
@@ -113,7 +116,7 @@ export async function prepareOfframpTransactions({
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    outputAmountBeforeFees: { units: outputAmountBeforeFees.toFixed(), raw: outputAmountBeforeFeesRaw },
+    outputAmountBeforeFees: { units: grossOutputAmountUnits.toFixed(), raw: grossOutputAmountRaw },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
   };
 
@@ -196,7 +199,7 @@ export async function prepareOfframpTransactions({
         inputTokenPendulumDetails.pendulumDecimals,
       ).toFixed(0, 0);
 
-      const nablaSoftMinimumOutput = outputAmountBeforeFees.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+      const nablaSoftMinimumOutput = grossOutputAmountUnits.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
       const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
         nablaSoftMinimumOutput,
         inputTokenPendulumDetails.pendulumDecimals,
@@ -251,7 +254,7 @@ export async function prepareOfframpTransactions({
 
         const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
           brlaEvmAddress,
-          outputAmountBeforeFeesRaw,
+          grossOutputAmountRaw,
           outputTokenDetails.pendulumCurrencyId,
         );
         unsignedTxs.push({
@@ -281,7 +284,7 @@ export async function prepareOfframpTransactions({
 
         const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
         const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
-          outputAmountRaw: outputAmountBeforeFeesRaw,
+          outputAmountRaw: grossOutputAmountRaw,
           stellarEphemeralAccountRaw,
           outputTokenDetails,
           executeSpacewalkNonce: 2,
@@ -315,7 +318,7 @@ export async function prepareOfframpTransactions({
       const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumber } =
         await buildPaymentAndMergeTx({
           ephemeralAccountId: account.address,
-          amountToAnchorUnits: outputAmountBeforeFees.toFixed(),
+          amountToAnchorUnits: grossOutputAmountUnits.toFixed(),
           paymentData: stellarPaymentData,
           tokenConfigStellar: outputTokenDetails,
         });
