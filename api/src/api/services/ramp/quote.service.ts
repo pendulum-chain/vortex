@@ -180,6 +180,12 @@ export class QuoteService extends BaseRampService {
     }
     const finalOutputAmountStr = finalOutputAmount.toFixed(6, 0);
 
+    // Calculate distributable fees (sum of network, vortex, and partner markup fees)
+    const distributableFeesFiat = new Big(networkFeeFiat)
+      .plus(vortexFeeFiat)
+      .plus(partnerMarkupFeeFiat)
+      .toString();
+
     // Store the complete detailed fee structure in target fiat currency
     const feeToStore: QuoteEndpoints.FeeStructure = {
       network: networkFeeFiat,
@@ -198,9 +204,9 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount: finalOutputAmountStr, 
+      outputAmount: finalOutputAmountStr,
       outputCurrency: request.outputCurrency,
-      fee: feeToStore, 
+      fee: feeToStore,
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
@@ -208,6 +214,9 @@ export class QuoteService extends BaseRampService {
         onrampOutputAmountMoonbeamRaw: outputAmountMoonbeamRaw,
         onrampInputAmountUnits: inputAmountUsedForSwap,
         grossOutputAmount, // Store the gross amount before fee deduction
+        anchorFeeFiat, // Store the anchor fee component
+        distributableFeesFiat, // Store the sum of distributable fees
+        targetFiat, // Store the target fiat currency
       } as QuoteTicketMetadata,
     });
 

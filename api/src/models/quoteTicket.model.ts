@@ -24,6 +24,10 @@ export interface QuoteTicketAttributes {
 export interface QuoteTicketMetadata {
   onrampOutputAmountMoonbeamRaw: string;
   onrampInputAmountUnits: string;
+  grossOutputAmount?: string;
+  anchorFeeFiat?: string;
+  distributableFeesFiat?: string;
+  targetFiat?: RampCurrency;
 }
 
 // Define the attributes that can be set during creation
