@@ -13,7 +13,7 @@ import {
   Networks,
 } from 'shared';
 import { BaseRampService } from './base.service';
-import QuoteTicket, { QuoteTicketFeeStructureDb, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
+import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import Partner from '../../../models/partner.model';
 import FeeConfiguration from '../../../models/feeConfiguration.model';
 import logger from '../../../config/logger';
@@ -31,16 +31,16 @@ import { multiplyByPowerOfTen } from '../pendulum/helpers';
 // TODO: Implement proper fee conversion logic using price feeds
 function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCurrency, exchangeRateInfo?: string): string {
   logger.warn(`TODO: Implement fee conversion from USD to ${outputCurrency}. Using placeholder logic.`);
-  
+
   // In a real implementation, we would use exchangeRateInfo for conversion
   if (exchangeRateInfo) {
     logger.debug(`Future implementation will use exchange rate: ${exchangeRateInfo}`);
   }
-  
+
   // Placeholder: If output is USD-like, return feeUSD. Otherwise, return feeUSD (needs real conversion).
   const usdLikeCurrencies = ['USD', 'USDC', 'axlUSDC'];
   if (usdLikeCurrencies.includes(outputCurrency as string)) {
-     return feeUSD;
+    return feeUSD;
   }
   // Returning USD value as placeholder - THIS WILL BE INCORRECT FOR CRYPTO OUTPUTS
   return feeUSD;
@@ -108,28 +108,18 @@ export class QuoteService extends BaseRampService {
     }
 
     // Calculate gross output amount and network fee
-    const {
-      grossOutputAmount,
-      networkFeeUSD,
-      outputAmountMoonbeamRaw,
-      inputAmountUsedForSwap,
-      effectiveExchangeRate
-    } = await this.calculateGrossOutputAndNetworkFee(
-      request.inputAmount,
-      request.inputCurrency,
-      request.outputCurrency,
-      request.rampType,
-      request.from,
-      request.to,
-    );
+    const { grossOutputAmount, networkFeeUSD, outputAmountMoonbeamRaw, inputAmountUsedForSwap, effectiveExchangeRate } =
+      await this.calculateGrossOutputAndNetworkFee(
+        request.inputAmount,
+        request.inputCurrency,
+        request.outputCurrency,
+        request.rampType,
+        request.from,
+        request.to,
+      );
 
     // Calculate core fee components using the database-driven logic
-    const {
-      vortexFee,
-      anchorFee,
-      partnerMarkupFee,
-      feeCurrency
-    } = await this.calculateFeeComponents(
+    const { vortexFee, anchorFee, partnerMarkupFee, feeCurrency } = await this.calculateFeeComponents(
       request.inputAmount,
       request.rampType,
       request.from,
@@ -138,17 +128,13 @@ export class QuoteService extends BaseRampService {
     );
 
     // Calculate total fee in USD
-    const totalFeeUSD = new Big(networkFeeUSD)
-      .plus(vortexFee)
-      .plus(anchorFee)
-      .plus(partnerMarkupFee)
-      .toString();
+    const totalFeeUSD = new Big(networkFeeUSD).plus(vortexFee).plus(anchorFee).plus(partnerMarkupFee).toString();
 
     // Convert total fee to output currency
     const totalFeeInOutputCurrency = convertFeeToOutputCurrency(
       totalFeeUSD,
       request.outputCurrency,
-      effectiveExchangeRate // Pass exchange rate info if available
+      effectiveExchangeRate,
     );
 
     // Calculate final output amount by subtracting the converted total fee from gross output
@@ -279,13 +265,17 @@ export class QuoteService extends BaseRampService {
 
       // 2. Get anchor base fee based on the ramp type and destination
       let anchorIdentifier = 'default';
-      if (rampType === 'on' && to === 'moonbeam') {
+      if (rampType === 'on' && from === 'pix') {
         anchorIdentifier = 'moonbeam_brla';
-      } else if (rampType === 'off' && from === 'moonbeam') {
+      } else if (rampType === 'off' && to === 'pix') {
         anchorIdentifier = 'moonbeam_brla';
+      } else if (rampType === 'off' && from === 'sepa') {
+        anchorIdentifier = 'stellar_eurc';
+      } else if (rampType === 'off' && from === 'cbu') {
+        anchorIdentifier = 'stellar_ars';
       }
 
-      const anchorFeeConfig = await FeeConfiguration.findOne({
+      const anchorFeeConfigs = await FeeConfiguration.findAll({
         where: {
           feeType: 'anchor_base',
           identifier: anchorIdentifier,
@@ -293,28 +283,40 @@ export class QuoteService extends BaseRampService {
         },
       });
 
-      // If no specific anchor fee is found, use 0
-      const anchorFee = anchorFeeConfig ? anchorFeeConfig.value.toString() : '0';
+      // Calculate anchor fee based on type (absolute or relative)
+      let anchorFee = '0';
+      if (anchorFeeConfigs.length > 0) {
+        let totalAnchorFee = new Big(0);
+
+        for (const feeConfig of anchorFeeConfigs) {
+          if (feeConfig.valueType === 'absolute') {
+            totalAnchorFee = totalAnchorFee.plus(feeConfig.value);
+          } else if (feeConfig.valueType === 'relative') {
+            const relativeFee = new Big(inputAmount).mul(feeConfig.value).div(100);
+            totalAnchorFee = totalAnchorFee.plus(relativeFee);
+          }
+        }
+
+        anchorFee = totalAnchorFee.toFixed(2);
+      }
 
       // Calculate Vortex Foundation fee based on type (absolute or relative)
       let vortexFee = '0';
       if (vortexFoundationPartner.markupType === 'none') {
         vortexFee = '0';
       } else if (vortexFoundationPartner.markupType === 'absolute') {
-        vortexFee = vortexFoundationPartner.markupValue.toString();
+        vortexFee = vortexFoundationPartner.markupValue.toFixed(2);
       } else {
-        // For relative fee, calculate based on input amount
-        vortexFee = new Big(inputAmount).mul(vortexFoundationPartner.markupValue).div(100).toString();
+        vortexFee = new Big(inputAmount).mul(vortexFoundationPartner.markupValue).div(100).toFixed(2);
       }
 
       // 3. Calculate partner markup fee if applicable
       let partnerMarkupFee = '0';
       if (partner && partner.markupType !== 'none') {
         if (partner.markupType === 'absolute') {
-          partnerMarkupFee = partner.markupValue.toString();
+          partnerMarkupFee = partner.markupValue.toFixed(2);
         } else {
-          // For relative fee, calculate based on input amount
-          partnerMarkupFee = new Big(inputAmount).mul(partner.markupValue).div(100).toString();
+          partnerMarkupFee = new Big(inputAmount).mul(partner.markupValue).div(100).toFixed(2);
         }
       }
 
@@ -405,7 +407,7 @@ export class QuoteService extends BaseRampService {
 
       // Initialize networkFeeUSD with '0'
       let networkFeeUSD = '0';
-      
+
       // Use the original input amount directly for the swap
       const inputAmountUsedForSwap = inputAmount;
 
@@ -456,7 +458,7 @@ export class QuoteService extends BaseRampService {
         }
 
         // Calculate network fee in USD for EVM on-ramp via Squidrouter
-        const squidFeeUSD = squidrouterSwapValue.mul(0.08).toFixed(4);
+        const squidFeeUSD = squidrouterSwapValue.mul(0.08).toFixed(2);
         // TODO: Replace hardcoded GLMR->USD rate (0.08) with dynamic price fetching.
         networkFeeUSD = squidFeeUSD;
 
