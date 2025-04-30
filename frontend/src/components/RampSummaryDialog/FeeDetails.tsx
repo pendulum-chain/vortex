@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiatTokenDetails, isFiatTokenDetails, Networks, OnChainTokenDetails } from 'shared';
+import { FiatTokenDetails, isFiatTokenDetails, Networks, OnChainTokenDetails, QuoteEndpoints } from 'shared';
 
 import { ExchangeRate } from '../ExchangeRate';
 import { NetworkIcon } from '../NetworkIcon';
@@ -8,7 +8,7 @@ import { RampDirection } from '../RampToggle';
 
 interface FeeDetailsProps {
   network: Networks;
-  feesCost: string;
+  feesCost: QuoteEndpoints.FeeStructure;
   fiatSymbol: string;
   exchangeRate: string;
   fromToken: OnChainTokenDetails | FiatTokenDetails;
@@ -51,7 +51,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         <p className="flex items-center gap-2">
           <NetworkIcon network={network} className="w-4 h-4" />
           <strong>
-            {feesCost} {(toToken as OnChainTokenDetails).assetSymbol}
+            {feesCost.total} {(toToken as OnChainTokenDetails).assetSymbol}
           </strong>
         </p>
       </div>

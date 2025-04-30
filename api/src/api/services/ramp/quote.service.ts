@@ -162,7 +162,7 @@ export class QuoteService extends BaseRampService {
     const finalOutputAmountStr = finalOutputAmount.toFixed(6, 0);
 
     // Store the complete detailed fee structure
-    const feeToStore: QuoteTicketFeeStructureDb = {
+    const feeToStore: QuoteEndpoints.FeeStructure = {
       network: networkFeeUSD,
       vortex: vortexFee,
       anchor: anchorFee,
@@ -192,11 +192,10 @@ export class QuoteService extends BaseRampService {
       } as QuoteTicketMetadata,
     });
 
-    // Transform the detailed fee structure to the API response structure
-    // Sum vortex and anchor fees to create the processing fee
     const responseFeeStructure: QuoteEndpoints.FeeStructure = {
       network: trimTrailingZeros(networkFeeUSD),
-      processing: trimTrailingZeros(new Big(vortexFee).plus(anchorFee).toString()),
+      vortex: trimTrailingZeros(vortexFee),
+      anchor: trimTrailingZeros(anchorFee),
       partnerMarkup: trimTrailingZeros(partnerMarkupFee),
       total: trimTrailingZeros(totalFeeUSD),
       currency: feeCurrency,
@@ -226,11 +225,10 @@ export class QuoteService extends BaseRampService {
       return null;
     }
 
-    // Transform the detailed fee structure to the API response structure
-    // Sum vortex and anchor fees to create the processing fee
     const responseFeeStructure: QuoteEndpoints.FeeStructure = {
       network: trimTrailingZeros(quote.fee.network),
-      processing: trimTrailingZeros(new Big(quote.fee.vortex).plus(quote.fee.anchor).toString()),
+      vortex: trimTrailingZeros(quote.fee.vortex),
+      anchor: trimTrailingZeros(quote.fee.anchor),
       partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
       total: trimTrailingZeros(quote.fee.total),
       currency: quote.fee.currency,
