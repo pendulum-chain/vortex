@@ -31,7 +31,9 @@ function convertFiatToUSD(amountFiat: string, sourceFiat: RampCurrency): string 
  * @returns The amount in token units
  */
 function convertUSDToTokenUnits(amountUSD: string, tokenDetails: { decimals: number }): string {
-  logger.warn(`TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`);
+  logger.warn(
+    `TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`,
+  );
   // Placeholder: Assumes 1 USD = 1 token unit, adjusts for decimals. Needs real price.
   const amountUnits = new Big(amountUSD);
   return multiplyByPowerOfTen(amountUnits, tokenDetails.decimals).toFixed(0, 0);
@@ -52,17 +54,9 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    // Using this reference to satisfy linter
-    this.logPhaseExecution();
-    return 'distributeFees' as RampPhase;
+    return 'distributeFees';
   }
 
-  /**
-   * Helper method to satisfy 'this' usage requirement
-   */
-  private logPhaseExecution(): void {
-    logger.debug(`Executing ${this.getPhaseName()} phase`);
-  }
 
   /**
    * Execute the phase
@@ -130,15 +124,21 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     const transfers = [];
 
     if (new Big(networkFeeStablecoinRaw).gt(0)) {
-      transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, networkFeeStablecoinRaw));
+      transfers.push(
+        api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, networkFeeStablecoinRaw),
+      );
     }
 
     if (new Big(vortexFeeStablecoinRaw).gt(0)) {
-      transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
+      transfers.push(
+        api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw),
+      );
     }
 
     if (new Big(partnerMarkupFeeStablecoinRaw).gt(0) && partnerPayoutAddress) {
-      transfers.push(api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw));
+      transfers.push(
+        api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw),
+      );
     }
 
     // Submit batch

@@ -83,7 +83,11 @@ function convertUSDtoTargetFiat(amountUSD: string, targetFiat: RampCurrency): st
   return amountUSD; // Placeholder - needs real implementation
 }
 
-function getTargetFiatCurrency(rampType: 'on' | 'off', inputCurrency: RampCurrency, outputCurrency: RampCurrency): RampCurrency {
+function getTargetFiatCurrency(
+  rampType: 'on' | 'off',
+  inputCurrency: RampCurrency,
+  outputCurrency: RampCurrency,
+): RampCurrency {
   // TODO: Add validation to ensure the identified currency is a supported fiat currency
   if (rampType === 'on') {
     // Assuming input is the fiat currency for on-ramp (e.g., BRL from pix)
@@ -92,6 +96,7 @@ function getTargetFiatCurrency(rampType: 'on' | 'off', inputCurrency: RampCurren
   // off-ramp: Assuming output is the fiat currency for off-ramp (e.g., BRL to pix, EUR to sepa)
   return outputCurrency;
 }
+
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
 export class QuoteService extends BaseRampService {
@@ -154,7 +159,7 @@ export class QuoteService extends BaseRampService {
 
     // Determine target fiat currency
     const targetFiat = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
-    
+
     // Convert fees to target fiat
     const networkFeeFiat = convertUSDtoTargetFiat(networkFeeUSD, targetFiat);
     const vortexFeeFiat = convertUSDtoTargetFiat(vortexFee, targetFiat);
@@ -178,13 +183,12 @@ export class QuoteService extends BaseRampService {
         message: 'Input amount too low to cover calculated fees',
       });
     }
-    const finalOutputAmountStr = finalOutputAmount.toFixed(6, 0);
+    // Format final output amount to 6 decimal places for onramps, 2 for offramps
+    const finalOutputAmountStr =
+      request.rampType === 'on' ? finalOutputAmount.toFixed(6, 0) : finalOutputAmount.toFixed(2, 0);
 
     // Calculate distributable fees (sum of network, vortex, and partner markup fees)
-    const distributableFeesFiat = new Big(networkFeeFiat)
-      .plus(vortexFeeFiat)
-      .plus(partnerMarkupFeeFiat)
-      .toString();
+    const distributableFeesFiat = new Big(networkFeeFiat).plus(vortexFeeFiat).plus(partnerMarkupFeeFiat).toString();
 
     // Store the complete detailed fee structure in target fiat currency
     const feeToStore: QuoteEndpoints.FeeStructure = {
