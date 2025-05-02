@@ -218,16 +218,39 @@ export class QuoteService extends BaseRampService {
       );
 
     // Calculate core fee components using the database-driven logic
-    const { vortexFee, anchorFee, partnerMarkupFee } = await this.calculateFeeComponents(
+    const { vortexFee, anchorFee, partnerMarkupFee, feeCurrency } = await this.calculateFeeComponents(
       request.inputAmount,
       request.rampType,
       request.from,
       request.to,
       partner,
+      request.inputCurrency,
+      request.outputCurrency,
     );
 
+    // Convert fees from feeCurrency to USD if needed
+    let vortexFeeUSD = vortexFee;
+    let anchorFeeUSD = anchorFee;
+    let partnerMarkupFeeUSD = partnerMarkupFee;
+
+    // If fees are not in USD-like currency, convert them to USD
+    if (!isUsdLikeCurrency(feeCurrency)) {
+      try {
+        // Get exchange rate from feeCurrency to USD
+        const rateFiatToUSD = await priceFeedService.getFiatExchangeRate(feeCurrency as string, 'USD');
+        
+        // Convert fees to USD
+        vortexFeeUSD = new Big(vortexFee).mul(rateFiatToUSD).toFixed(2);
+        anchorFeeUSD = new Big(anchorFee).mul(rateFiatToUSD).toFixed(2);
+        partnerMarkupFeeUSD = new Big(partnerMarkupFee).mul(rateFiatToUSD).toFixed(2);
+      } catch (error) {
+        logger.error(`Error converting fees from ${feeCurrency} to USD: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Use original values as fallback (this is not ideal but prevents complete failure)
+      }
+    }
+
     // Calculate total fee in USD
-    const totalFeeUSD = new Big(networkFeeUSD).plus(vortexFee).plus(anchorFee).plus(partnerMarkupFee).toString();
+    const totalFeeUSD = new Big(networkFeeUSD).plus(vortexFeeUSD).plus(anchorFeeUSD).plus(partnerMarkupFeeUSD).toString();
 
     // Determine target fiat currency
     const targetFiat = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
@@ -369,11 +392,13 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
     partner: Partner | null,
+    inputCurrency: RampCurrency,
+    outputCurrency: RampCurrency,
   ): Promise<{
     vortexFee: string;
     anchorFee: string;
     partnerMarkupFee: string;
-    feeCurrency: string;
+    feeCurrency: RampCurrency;
   }> {
     try {
       // Use this reference to satisfy ESLint
@@ -447,11 +472,14 @@ export class QuoteService extends BaseRampService {
         }
       }
 
+      // Determine the correct fiat currency for the transaction
+      const targetFiat = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
+      
       return {
         vortexFee,
         anchorFee,
         partnerMarkupFee,
-        feeCurrency: 'USD',
+        feeCurrency: targetFiat,
       };
     } catch (error) {
       logger.error('Error calculating fee components:', error);
