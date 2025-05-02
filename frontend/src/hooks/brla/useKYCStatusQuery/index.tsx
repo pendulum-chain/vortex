@@ -7,7 +7,6 @@ const RETRY_DELAY_MS = 5000; // 5 seconds
 const MAX_RETRIES = 5;
 
 export const useKycStatusQuery = (cpf: string | null, level: KycLevel = KycLevel.LEVEL_1) => {
-  console.log('useKycStatusQuery', cpf, level);
   return useQuery<BrlaKycStatus, Error>({
     queryKey: ['kyc-status', cpf],
     queryFn: async () => {

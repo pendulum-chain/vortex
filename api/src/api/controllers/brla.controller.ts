@@ -262,6 +262,10 @@ export const createSubaccount = async (
         res.status(400).json({ error: 'Missing companyName' });
         return;
       }
+      if (!req.body.cpf) {
+        res.status(400).json({ error: 'Missing cpf. Partner cpf is required' });
+        return;
+      }
       if (startDate === '') {
         res.status(400).json({ error: 'Missing startDate' });
         return;
@@ -456,7 +460,7 @@ export const startKYC2 = async (
       return;
     }
 
-    if (subaccount.kyc.level < 1) {
+    if (subaccount.kyc.level !== 1) {
       res.status(400).json({ error: 'KYC invalid. User must have a valid KYC level 1 status' });
       return;
     }
