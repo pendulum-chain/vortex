@@ -181,7 +181,7 @@
   "components": {
     "airdropBanner": {
       "title": "Oferta especial",
-      "description": "Deposite R$5 ou €10 para receber 20 USDT de graça!",
+      "description": "Compre ou venda apenas R$5 ou €10 - receba 20 USDT de graça!",
       "button": "Mais informações",
       "list": {
         "1": "Compre ou venda de R$5 (PIX) ou €10 (SEPA) - rápido, fácil e sem taxas ocultas.",
