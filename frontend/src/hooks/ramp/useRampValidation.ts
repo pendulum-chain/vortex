@@ -136,7 +136,7 @@ function validateOfframp(
 function validateTokenAvailability(
   t: TFunction<'translation', undefined>,
   fiatToken: FiatToken,
-  trackEvent: (event: TrackableEvent) => void
+  trackEvent: (event: TrackableEvent) => void,
 ): string | null {
   if (isFiatTokenDisabled(fiatToken)) {
     const reason = getTokenDisabledReason(fiatToken);
@@ -144,7 +144,7 @@ function validateTokenAvailability(
       event: 'token_unavailable',
       token: fiatToken,
     });
-    return t(reason)
+    return t(reason);
   }
   return null;
 }
@@ -201,13 +201,11 @@ export const useRampValidation = () => {
     }
 
     if (validationError) return validationError;
-    if (quoteLoading) return t('components.swap.validation.calculatingQuote');
 
     return null;
   }, [
     isDisconnected,
     isOnramp,
-    quoteLoading,
     t,
     inputAmount,
     fromToken,
