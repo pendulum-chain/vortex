@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -28,41 +28,59 @@ const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 const useStatusMessages = () => {
   const { t } = useTranslation();
-
-  const STATUS_MESSAGES = {
-    PENDING: t('components.brlaExtendedForm.verificationStatus.pending'),
-    SUCCESS: t('components.brlaExtendedForm.verificationStatus.success'),
+  const STATUS_MESSAGES = useMemo(() => ({
+    PENDING:  t('components.brlaExtendedForm.verificationStatus.pending'),
+    SUCCESS:  t('components.brlaExtendedForm.verificationStatus.success'),
     REJECTED: t('components.brlaExtendedForm.verificationStatus.rejected'),
-    ERROR: t('components.brlaExtendedForm.verificationStatus.error'),
-  };
+    ERROR:    t('components.brlaExtendedForm.verificationStatus.error'),
+  }), [t]);
 
-  return {
-    STATUS_MESSAGES,
-  };
+  return { STATUS_MESSAGES };
 };
 
 export const useVerificationStatusUI = () => {
   const { STATUS_MESSAGES } = useStatusMessages();
   type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
 
-  const [verificationStatus, setVerificationStatus] = useState<{status: KycStatus, level: KycLevel}>({status: KycStatus.PENDING, level: 1});
+  const [verificationStatus, setVerificationStatus] = useState<{
+    status: KycStatus;
+    level: KycLevel;
+  }>({ status: KycStatus.PENDING, level: KycLevel.LEVEL_1 });
+
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
 
-  const updateStatus = useCallback((status: KycStatus, level: number, message: StatusMessageType) => {
-    setVerificationStatus({status, level});
-    setStatusMessage(message);
-  }, []);
+  const updateStatus = useCallback(
+    (status: KycStatus, level: KycLevel, message: StatusMessageType) => {
+      setVerificationStatus((prev) => {
+        if (prev.status === status && prev.level === level) {
+          return prev;
+        }
+        return { status, level };
+      });
+      setStatusMessage((prev) => (prev === message ? prev : message));
+    },
+    []
+  );
+
+  const resetToDefault = useCallback(() => {
+    setVerificationStatus((prev) =>
+      prev.status === KycStatus.PENDING && prev.level === KycLevel.LEVEL_1
+        ? prev
+        : { status: KycStatus.PENDING, level: KycLevel.LEVEL_1 }
+    );
+    setStatusMessage((prev) =>
+      prev === STATUS_MESSAGES.PENDING ? prev : STATUS_MESSAGES.PENDING
+    );
+  }, [STATUS_MESSAGES.PENDING]);
 
   return {
     verificationStatus,
     statusMessage,
     updateStatus,
-    resetToDefault: useCallback(() => {
-      setVerificationStatus({status: KycStatus.PENDING, level: KycLevel.LEVEL_1});
-      setStatusMessage(STATUS_MESSAGES.PENDING);
-    }, [STATUS_MESSAGES.PENDING]),
+    resetToDefault,
   };
 };
+
 
 export function useKYCProcess() {
   const { STATUS_MESSAGES } = useStatusMessages();
@@ -187,12 +205,6 @@ export function useKYCProcess() {
       throw new Error('useKYCProcess: CPF must be defined at this point');
     }
 
-    const status = kycResponse.status as KycStatus;
-    if (handled.current.lvl1 === status) {
-      return;
-    }
-    handled.current.lvl1 = status;
-
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
 
@@ -245,12 +257,6 @@ export function useKYCProcess() {
   useEffect(() => {
       if (!kycResponse) return;
       if (kycResponse.level !== 2) return;
-
-      const status = kycResponse.status as KycStatus;
-      if (handled.current.lvl2 === status) {
-        return;
-      }
-      handled.current.lvl2 = status;
   
       const handleStatus = async (status: string) => {
         const mappedStatus = status as KycStatus;

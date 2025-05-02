@@ -338,6 +338,7 @@ export const fetchSubaccountKycStatus = async (
       status: lastEventCached.data.kycStatus,
       level: lastEventCached.data.level,
     });
+
   } catch (error) {
     handleApiError(error, res, 'fetchSubaccountKycStatus');
   }
