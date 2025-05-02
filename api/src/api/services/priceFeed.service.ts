@@ -1,4 +1,7 @@
+import { getPendulumDetails, RampCurrency } from 'shared';
 import logger from '../../config/logger';
+import { getTokenOutAmount } from './nablaReads/outAmount';
+import { ApiManager } from './pendulum/apiManager';
 
 /**
  * PriceFeedService
@@ -113,25 +116,51 @@ export class PriceFeedService {
   
   /**
    * Get the exchange rate between two fiat currencies
-   * 
+   *
    * @param fromCurrency - The source currency code (e.g., 'USD', 'EUR')
    * @param toCurrency - The target currency code (e.g., 'BRL', 'ARS')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
   public async getFiatExchangeRate(fromCurrency: string, toCurrency: string): Promise<number> {
     try {
-      // TODO: Implement Nabla exchange rate lookup
-      // Example implementation:
-      // 1. Check cache first
-      // 2. If cache is stale or empty, calculate from Nabla pool rates
-      // 3. Update cache with new rate
-      // 4. Return exchange rate
-      
-      // For now, throw a "Not implemented" error
       logger.debug(`Using ${this.constructor.name} instance to fetch exchange rate from ${fromCurrency} to ${toCurrency}`);
-      throw new Error('getFiatExchangeRate method not implemented');
+      
+      // Get API instance from ApiManager
+      const apiManager = ApiManager.getInstance();
+      const networkName = 'pendulum';
+      const apiInstance = await apiManager.getApi(networkName);
+      
+      // Get Pendulum details for both currencies
+      const inputTokenPendulumDetails = getPendulumDetails(fromCurrency as RampCurrency);
+      const outputTokenPendulumDetails = getPendulumDetails(toCurrency as RampCurrency);
+      
+      // Use a standard input amount (1.0) to get the exchange rate
+      const inputAmount = '1.0';
+      
+      // Call getTokenOutAmount to get the exchange rate
+      const amountOut = await getTokenOutAmount({
+        api: apiInstance.api,
+        fromAmountString: inputAmount,
+        inputTokenDetails: inputTokenPendulumDetails,
+        outputTokenDetails: outputTokenPendulumDetails,
+      });
+      
+      // Extract the exchange rate from the result
+      // The effectiveExchangeRate is already calculated as output/input in the getTokenOutAmount function
+      const exchangeRate = parseFloat(amountOut.effectiveExchangeRate);
+      
+      logger.debug(`Exchange rate from ${fromCurrency} to ${toCurrency}: ${exchangeRate}`);
+      
+      return exchangeRate;
     } catch (error) {
-      logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}:`, error);
+      // Log the error with appropriate context
+      if (error instanceof Error) {
+        logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}: ${error.message}`);
+      } else {
+        logger.error(`Unknown error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}`);
+      }
+      
+      // Re-throw the error to be handled by the caller
       throw error;
     }
   }
