@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -75,6 +75,7 @@ export function useKYCProcess() {
 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [cpf, setCpf] = useState<string | null>(null);
+  const handled = useRef<{ lvl1?: KycStatus; lvl2?: KycStatus }>({});
 
   const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
   const { data: kycResponse, error } = useKycStatusQuery(cpf, desiredLevel);
@@ -186,6 +187,12 @@ export function useKYCProcess() {
       throw new Error('useKYCProcess: CPF must be defined at this point');
     }
 
+    const status = kycResponse.status as KycStatus;
+    if (handled.current.lvl1 === status) {
+      return;
+    }
+    handled.current.lvl1 = status;
+
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
 
@@ -229,7 +236,8 @@ export function useKYCProcess() {
     setRampKycStarted,
     proceedWithKYCLevel2,
     proceedWithRamp,
-    STATUS_MESSAGES,
+    STATUS_MESSAGES.SUCCESS,
+    STATUS_MESSAGES.REJECTED,
     offrampKycLevel2Started
   ]);
 
@@ -237,6 +245,12 @@ export function useKYCProcess() {
   useEffect(() => {
       if (!kycResponse) return;
       if (kycResponse.level !== 2) return;
+
+      const status = kycResponse.status as KycStatus;
+      if (handled.current.lvl2 === status) {
+        return;
+      }
+      handled.current.lvl2 = status;
   
       const handleStatus = async (status: string) => {
         const mappedStatus = status as KycStatus;
