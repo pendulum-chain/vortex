@@ -27,24 +27,7 @@ import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
 } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
-
-// TODO: Implement proper fee conversion logic using price feeds
-function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCurrency, exchangeRateInfo?: string): string {
-  logger.warn(`TODO: Implement fee conversion from USD to ${outputCurrency}. Using placeholder logic.`);
-
-  // In a real implementation, we would use exchangeRateInfo for conversion
-  if (exchangeRateInfo) {
-    logger.debug(`Future implementation will use exchange rate: ${exchangeRateInfo}`);
-  }
-
-  // Placeholder: If output is USD-like, return feeUSD. Otherwise, return feeUSD (needs real conversion).
-  const usdLikeCurrencies = ['USD', 'USDC', 'axlUSDC'];
-  if (usdLikeCurrencies.includes(outputCurrency as string)) {
-    return feeUSD;
-  }
-  // Returning USD value as placeholder - THIS WILL BE INCORRECT FOR CRYPTO OUTPUTS
-  return feeUSD;
-}
+import { priceFeedService } from '../priceFeed.service';
 
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
@@ -72,15 +55,104 @@ function trimTrailingZeros(decimalString: string): string {
   return `${integerPart}.${trimmedFraction}`;
 }
 
-// TODO: Implement proper USD to Fiat conversion using price feeds
-/* eslint-disable @typescript-eslint/no-unused-vars */
-function convertUSDtoTargetFiat(amountUSD: string, targetFiat: RampCurrency): string {
-  logger.warn(`TODO: Implement USD to ${targetFiat} conversion. Using placeholder logic.`);
-  // Placeholder: Returns original USD amount. Needs real implementation.
-  // A real implementation would fetch e.g., USD/BRL rate.
-  const usdLikeCurrencies = ['USD', 'USDC', 'axlUSDC'];
-  if (usdLikeCurrencies.includes(targetFiat as string)) return amountUSD; // Base case
-  return amountUSD; // Placeholder - needs real implementation
+/**
+ * Helper function to map RampCurrency to CoinGecko token ID
+ * @param currency - The RampCurrency to map
+ * @returns The corresponding CoinGecko token ID or null if not mappable
+ */
+function getCoinGeckoTokenId(currency: RampCurrency): string | null {
+  const tokenIdMap: Record<string, string> = {
+    'GLMR': 'moonbeam',
+    'ETH': 'ethereum',
+    'AVAX': 'avalanche-2',
+    'MATIC': 'matic-network',
+    'BNB': 'binancecoin',
+  };
+  
+  return tokenIdMap[currency as string] || null;
+}
+
+/**
+ * Determines if a currency is a USD-like stablecoin
+ * @param currency - The currency to check
+ * @returns True if the currency is USD-like
+ */
+function isUsdLikeCurrency(currency: RampCurrency): boolean {
+  const usdLikeCurrencies = ['USD', 'USDC', 'axlUSDC', 'USDT'];
+  return usdLikeCurrencies.includes(currency as string);
+}
+
+/**
+ * Converts a fee amount in USD to the specified output currency
+ * @param feeUSD - The fee amount in USD
+ * @param outputCurrency - The target currency to convert to
+ * @returns The fee amount in the output currency
+ */
+async function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCurrency): Promise<string> {
+  try {
+    // If output is USD-like, return feeUSD (1:1 conversion)
+    if (isUsdLikeCurrency(outputCurrency)) {
+      return feeUSD;
+    }
+    
+    // Check if outputCurrency is another fiat currency
+    const fiatCurrencies = ['BRL', 'EUR', 'ARS'];
+    if (fiatCurrencies.includes(outputCurrency as string)) {
+      // Get exchange rate from USD to the target fiat
+      const rate = await priceFeedService.getFiatExchangeRate('USD', outputCurrency as string);
+      return new Big(feeUSD).mul(rate).toFixed(2);
+    }
+    
+    // If outputCurrency is a crypto token, convert USD to crypto
+    const tokenId = getCoinGeckoTokenId(outputCurrency);
+    if (tokenId) {
+      // Get crypto price in USD
+      const cryptoPriceUSD = await priceFeedService.getCryptoPrice(tokenId, 'usd');
+      if (cryptoPriceUSD <= 0) {
+        throw new Error(`Invalid price for ${outputCurrency}: ${cryptoPriceUSD}`);
+      }
+      
+      // Calculate fee in crypto: feeUSD / cryptoPriceUSD
+      return new Big(feeUSD).div(cryptoPriceUSD).toFixed(6);
+    }
+    
+    // If we reach here, we couldn't convert the fee
+    logger.warn(`Could not convert fee from USD to ${outputCurrency}. Using 1:1 conversion as fallback.`);
+    return feeUSD;
+  } catch (error) {
+    // Log the error but don't fail the quote creation
+    logger.error(`Error converting fee from USD to ${outputCurrency}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Return the USD value as fallback
+    return feeUSD;
+  }
+}
+
+/**
+ * Converts a USD amount to the specified target fiat currency
+ * @param amountUSD - The amount in USD
+ * @param targetFiat - The target fiat currency
+ * @returns The amount in the target fiat currency
+ */
+async function convertUSDtoTargetFiat(amountUSD: string, targetFiat: RampCurrency): Promise<string> {
+  try {
+    // If target is USD-like, return amountUSD (1:1 conversion)
+    if (isUsdLikeCurrency(targetFiat)) {
+      return amountUSD;
+    }
+    
+    // Get exchange rate from USD to the target fiat
+    const rate = await priceFeedService.getFiatExchangeRate('USD', targetFiat as string);
+    
+    // Calculate amount in target fiat
+    return new Big(amountUSD).mul(rate).toFixed(2);
+  } catch (error) {
+    // Log the error but don't fail the quote creation
+    logger.error(`Error converting USD to ${targetFiat}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Return the USD value as fallback
+    return amountUSD;
+  }
 }
 
 function getTargetFiatCurrency(
@@ -135,7 +207,7 @@ export class QuoteService extends BaseRampService {
     }
 
     // Calculate gross output amount and network fee
-    const { grossOutputAmount, networkFeeUSD, outputAmountMoonbeamRaw, inputAmountUsedForSwap, effectiveExchangeRate } =
+    const { grossOutputAmount, networkFeeUSD, outputAmountMoonbeamRaw, inputAmountUsedForSwap } =
       await this.calculateGrossOutputAndNetworkFee(
         request.inputAmount,
         request.inputCurrency,
@@ -161,18 +233,26 @@ export class QuoteService extends BaseRampService {
     const targetFiat = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
     // Convert fees to target fiat
-    const networkFeeFiat = convertUSDtoTargetFiat(networkFeeUSD, targetFiat);
-    const vortexFeeFiat = convertUSDtoTargetFiat(vortexFee, targetFiat);
-    const anchorFeeFiat = convertUSDtoTargetFiat(anchorFee, targetFiat);
-    const partnerMarkupFeeFiat = convertUSDtoTargetFiat(partnerMarkupFee, targetFiat);
-    const totalFeeFiat = convertUSDtoTargetFiat(totalFeeUSD, targetFiat);
+    const networkFeeFiatPromise = convertUSDtoTargetFiat(networkFeeUSD, targetFiat);
+    const vortexFeeFiatPromise = convertUSDtoTargetFiat(vortexFee, targetFiat);
+    const anchorFeeFiatPromise = convertUSDtoTargetFiat(anchorFee, targetFiat);
+    const partnerMarkupFeeFiatPromise = convertUSDtoTargetFiat(partnerMarkupFee, targetFiat);
+    const totalFeeFiatPromise = convertUSDtoTargetFiat(totalFeeUSD, targetFiat);
+
+    // Await all conversions
+    const [networkFeeFiat, vortexFeeFiat, anchorFeeFiat, partnerMarkupFeeFiat, totalFeeFiat] = await Promise.all([
+      networkFeeFiatPromise,
+      vortexFeeFiatPromise,
+      anchorFeeFiatPromise,
+      partnerMarkupFeeFiatPromise,
+      totalFeeFiatPromise,
+    ]);
 
     // Convert total fee to output currency - KEEP THIS CALCULATION AS IS
     // Still use the original USD total here for the final output amount calculation
-    const totalFeeInOutputCurrency = convertFeeToOutputCurrency(
+    const totalFeeInOutputCurrency = await convertFeeToOutputCurrency(
       totalFeeUSD,
-      request.outputCurrency,
-      effectiveExchangeRate,
+      request.outputCurrency
     );
 
     // Calculate final output amount by subtracting the converted total fee from gross output
@@ -332,16 +412,17 @@ export class QuoteService extends BaseRampService {
       // Calculate anchor fee based on type (absolute or relative)
       let anchorFee = '0';
       if (anchorFeeConfigs.length > 0) {
-        let totalAnchorFee = new Big(0);
-
-        for (const feeConfig of anchorFeeConfigs) {
+        // Calculate total anchor fee by reducing the array
+        const totalAnchorFee = anchorFeeConfigs.reduce((total, feeConfig) => {
           if (feeConfig.valueType === 'absolute') {
-            totalAnchorFee = totalAnchorFee.plus(feeConfig.value);
-          } else if (feeConfig.valueType === 'relative') {
-            const relativeFee = new Big(inputAmount).mul(feeConfig.value).div(100);
-            totalAnchorFee = totalAnchorFee.plus(relativeFee);
+            return total.plus(feeConfig.value);
           }
-        }
+          if (feeConfig.valueType === 'relative') {
+            const relativeFee = new Big(inputAmount).mul(feeConfig.value).div(100);
+            return total.plus(relativeFee);
+          }
+          return total;
+        }, new Big(0));
 
         anchorFee = totalAnchorFee.toFixed(2);
       }
@@ -504,9 +585,21 @@ export class QuoteService extends BaseRampService {
         }
 
         // Calculate network fee in USD for EVM on-ramp via Squidrouter
-        const squidFeeUSD = squidrouterSwapValue.mul(0.08).toFixed(2);
-        // TODO: Replace hardcoded GLMR->USD rate (0.08) with dynamic price fetching.
-        networkFeeUSD = squidFeeUSD;
+        try {
+          // Get current GLMR price in USD from price feed service
+          const glmrPriceUSD = await priceFeedService.getCryptoPrice('moonbeam', 'usd');
+          const squidFeeUSD = squidrouterSwapValue.mul(glmrPriceUSD).toFixed(2);
+          networkFeeUSD = squidFeeUSD;
+          logger.debug(`Network fee calculated using GLMR price: $${glmrPriceUSD}, fee: $${squidFeeUSD}`);
+        } catch (error) {
+          // If price feed fails, log the error and use a fallback price
+          logger.error(`Failed to get GLMR price, using fallback: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // Fallback to previous hardcoded value as safety measure
+          const fallbackGlmrPrice = 0.08;
+          const squidFeeUSD = squidrouterSwapValue.mul(fallbackGlmrPrice).toFixed(2);
+          networkFeeUSD = squidFeeUSD;
+          logger.warn(`Using fallback GLMR price: $${fallbackGlmrPrice}, fee: $${squidFeeUSD}`);
+        }
 
         amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
           tokenDetails!.pendulumDecimals,
