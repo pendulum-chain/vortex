@@ -2,7 +2,7 @@ import logger from '../../config/logger';
 
 /**
  * PriceFeedService
- * 
+ *
  * A singleton service that centralizes price lookups for crypto (CoinGecko) and fiat (Nabla) currencies.
  * This service is part of the fee-handling refactor to provide consistent price data across the application.
  */
@@ -12,20 +12,21 @@ export class PriceFeedService {
   // Configuration properties
   private coingeckoApiKey: string | undefined;
   
+  private coingeckoApiBaseUrl: string;
+  
   /**
    * Private constructor to enforce singleton pattern
    */
   private constructor() {
     // Read configuration from environment variables
     this.coingeckoApiKey = process.env.COINGECKO_API_KEY;
+    this.coingeckoApiBaseUrl = process.env.COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';
     
     if (!this.coingeckoApiKey) {
       logger.warn('COINGECKO_API_KEY environment variable is not set. CoinGecko API calls may be rate-limited.');
     }
     
-    // TODO: Add configuration for API endpoints
-    // const COINGECKO_API_BASE_URL = 'https://api.coingecko.com/api/v3';
-    // const NABLA_API_BASE_URL = '...'; // To be determined
+    logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
   }
   
   /**
@@ -40,25 +41,72 @@ export class PriceFeedService {
   
   /**
    * Get the price of a cryptocurrency in terms of another currency
-   * 
+   *
    * @param tokenId - The ID of the token as recognized by CoinGecko (e.g., 'bitcoin', 'ethereum')
    * @param vsCurrency - The currency to get the price in (e.g., 'usd', 'eur')
    * @returns The price of the token in the specified currency
+   * @throws Error if the price cannot be fetched or if the token/currency is not found
    */
   public async getCryptoPrice(tokenId: string, vsCurrency: string): Promise<number> {
+    if (!tokenId || !vsCurrency) {
+      throw new Error('Token ID and currency are required');
+    }
+
     try {
-      // TODO: Implement CoinGecko API call
-      // Example implementation:
-      // 1. Check cache first
-      // 2. If cache is stale or empty, make API call with this.coingeckoApiKey
-      // 3. Update cache with new price
-      // 4. Return price
+      logger.debug(`Fetching price for ${tokenId} in ${vsCurrency} from CoinGecko`);
       
-      // For now, throw a "Not implemented" error
-      logger.debug(`Would use ${this.coingeckoApiKey} to fetch price for ${tokenId} in ${vsCurrency}`);
-      throw new Error('getCryptoPrice method not implemented');
+      // Construct the API URL
+      const url = new URL(`${this.coingeckoApiBaseUrl}/simple/price`);
+      url.searchParams.append('ids', tokenId);
+      url.searchParams.append('vs_currencies', vsCurrency);
+      
+      // Prepare headers for the request
+      const headers: HeadersInit = {
+        'Accept': 'application/json',
+      };
+      
+      // Add API key if available
+      if (this.coingeckoApiKey) {
+        headers['x-cg-demo-api-key'] = this.coingeckoApiKey;
+      }
+      
+      // Make the API request
+      const response = await fetch(url.toString(), { headers });
+      
+      // Handle non-2xx responses
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`CoinGecko API error (${response.status}): ${errorText}`);
+        throw new Error(`CoinGecko API error: ${response.status} ${response.statusText}`);
+      }
+      
+      // Parse the response
+      const data = await response.json();
+      
+      // Check if the token exists in the response
+      if (!data[tokenId]) {
+        throw new Error(`Token '${tokenId}' not found in CoinGecko response`);
+      }
+      
+      // Check if the currency exists for the token
+      if (data[tokenId][vsCurrency] === undefined) {
+        throw new Error(`Currency '${vsCurrency}' not found for token '${tokenId}'`);
+      }
+      
+      // Extract and return the price
+      const price = data[tokenId][vsCurrency];
+      logger.debug(`Price for ${tokenId} in ${vsCurrency}: ${price}`);
+      
+      return price;
     } catch (error) {
-      logger.error(`Error fetching crypto price for ${tokenId} in ${vsCurrency}:`, error);
+      // Log the error with appropriate context
+      if (error instanceof Error) {
+        logger.error(`Error fetching crypto price for ${tokenId} in ${vsCurrency}: ${error.message}`);
+      } else {
+        logger.error(`Unknown error fetching crypto price for ${tokenId} in ${vsCurrency}`);
+      }
+      
+      // Re-throw the error to be handled by the caller
       throw error;
     }
   }
