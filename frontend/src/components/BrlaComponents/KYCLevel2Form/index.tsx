@@ -127,8 +127,8 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         }
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
-          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl)
+          uploadFileAsBuffer(front, response.uploadUrls.rgFrontUploadUrl),
+          uploadFileAsBuffer(back, response.uploadUrls.rgBackUploadUrl)
         );
       } else {
 
@@ -139,7 +139,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         }
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl)
+          uploadFileAsBuffer(front, response.uploadUrls.cnhUploadUrl)
         );
       }
 
@@ -230,7 +230,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           renderField(
             'CNH Document',
             (e) => handleFileChange(e, setFront, setFrontValid),
-            backValid,
+            frontValid,
             DocumentTextIcon
           )
         )}

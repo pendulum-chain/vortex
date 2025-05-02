@@ -126,7 +126,7 @@ export const PIXKYCForm = () => {
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.PARTNER_CPF,
-      label: t('components.brlaExtendedForm.form.partnerCpff'),
+      label: t('components.brlaExtendedForm.form.partnerCpf'),
       type: 'text',
       required: true,
       index: 11,

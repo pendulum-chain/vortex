@@ -1,25 +1,50 @@
 import { RampExecutionInput } from '../types/phases';
 import { useCallback } from 'react';
-import { BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS } from '../constants/constants';
 import Big from 'big.js';
+import { BrlaService } from './api';
+import { RampDirection } from '../components/RampToggle';
+import { useRampDirection } from '../stores/rampDirectionStore';
+import { useTranslation } from 'react-i18next';
+import { useToastMessage } from '../helpers/notifications';
 
 function useRampAmountWithinAllowedLimits() {
+  const { t } = useTranslation();
+  const { showToast, ToastMessage } = useToastMessage()
+  const rampDirection = useRampDirection();
 
   return useCallback(
-    async (amountUnits: string): Promise<boolean> => {
+    async (amountUnits: string, taxId: string): Promise<boolean> => {
       try {
-        const amountBigNumber = Big(amountUnits);
-        if (amountBigNumber.gt(BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS)) {
+        const subaccount = await BrlaService.getUser(taxId);
+        const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
+
+        if (subaccount.kycLevel < 2) {
+          return true;
+        }
+
+        const remainingLimitInUnits =
+          rampDirection === RampDirection.OFFRAMP
+            ? remainingLimitResponse.remainingLimitOfframp
+            : remainingLimitResponse.remainingLimitOnramp;
+
+        const amountNum = Number(amountUnits);
+        const remainingLimitNum = Number(remainingLimitInUnits);
+      
+        if (amountNum <= remainingLimitNum) {
+          return true;
+        } else {
+          showToast(
+            ToastMessage.RAMP_LIMIT_EXCEEDED,
+            t('toasts.rampLimitExceeded', { remaining: remainingLimitInUnits }),
+          );
           return false;
         }
-        
-        return true;
       } catch (error) {
         console.error('useRampAmountWithinAllowedLimits: Error checking ramp limits: ', error);
         return false;
       }
     },
-    [],
+    [rampDirection, showToast, t, ToastMessage.RAMP_LIMIT_EXCEEDED],
   );
 }
 
@@ -35,7 +60,8 @@ export function usePreRampCheck() {
         }
 
         const isWithinLimits = await rampWithinLimits(
-          executionInput.quote.rampType === 'on' ? executionInput.quote.inputAmount : executionInput.quote.outputAmount
+          executionInput.quote.rampType === 'on' ? executionInput.quote.inputAmount : executionInput.quote.outputAmount,
+          executionInput.taxId
         );
         if (!isWithinLimits) {
           throw new Error('Ramp amount exceeds the allowed limits.');

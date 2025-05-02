@@ -8,6 +8,7 @@ export namespace BrlaEndpoints {
 
   export interface GetUserResponse {
     evmAddress: string;
+    kycLevel: number;
   }
 
   // GET /brla/getOfframpStatus?taxId=:taxId
@@ -119,13 +120,13 @@ export namespace BrlaEndpoints {
   }
 
   export interface StartKYC2Response {
-    uploadUrls: KYCDataUploadFileFileds
+    uploadUrls: KYCDataUploadFileFiles
   }
 
-  export interface KYCDataUploadFileFileds {
+  export interface KYCDataUploadFileFiles {
     selfieUploadUrl: string;
-    RGFrontUploadUrl: string;
-    RGBackUploadUrl: string;
-    CNHUploadUrl: string;
+    rgFrontUploadUrl: string;
+    rgBackUploadUrl: string;
+    cnhUploadUrl: string;
   }
 }

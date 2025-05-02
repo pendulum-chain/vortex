@@ -103,8 +103,7 @@ export const useSubmitRamp = () => {
               const amountNum = Number(executionInput.quote.inputAmount);
               const remainingLimitNum = Number(remainingLimitInUnits);
               
-              // TODO mocking limit levels
-              if (true) {
+              if (amountNum <= remainingLimitNum) {
                 setRampKycLevel2Started(true);
                 return;
               } 

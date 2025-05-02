@@ -332,7 +332,10 @@
         "street": "Rua",
         "number": "Número",
         "district": "Bairro",
-        "birthdate": "Data de Nascimento"
+        "birthdate": "Data de Nascimento",
+        "companyName": "Nome da Empresa",
+        "startDate": "Data de Início da Empresa",
+        "partnerCpff": "CPF do Parceiro"
       },
       "verificationStatus": {
         "pending": "Verificando seus dados, por favor aguarde",
@@ -387,6 +390,10 @@
           "required": "Data de início é obrigatória",
           "future": "Data de início não pode ser no futuro",
           "tooOld": "Data de início inválida"
+        },
+        "partnerCpf": {
+          "required": "CPF do parceiro é obrigatório",
+          "format": "Formato de CPF do parceiro inválido"
         }
       }
     },

@@ -91,7 +91,7 @@ export const getBrlaUser = async (
       return;
     }
 
-    res.json({ evmAddress: subaccount.wallets.evm });
+    res.json({ evmAddress: subaccount.wallets.evm, kycLevel: subaccount.kyc.level });
     return;
   } catch (error) {
     handleApiError(error, res, 'getBrlaUser');

@@ -6,7 +6,7 @@ export enum KYCDocType {
   CNH = 'CNH',
 }
 
-export type KYCDataUploadFileFileds = BrlaEndpoints.KYCDataUploadFileFileds;
+export type KYCDataUploadFileFiles = BrlaEndpoints.KYCDataUploadFileFiles;
 /**
  * Service for interacting with BRLA API endpoints
  */

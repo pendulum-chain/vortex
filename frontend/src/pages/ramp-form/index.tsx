@@ -14,8 +14,8 @@ import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
   const onSwapDirectionToggle = useRampDirectionToggle();
-  const offrampKycStarted = useRampKycStarted();
-  const offrampKycLevel2Started = useRampKycLevel2Started();
+  const rampKycStarted = useRampKycStarted();
+  const rampKycLevel2Started = useRampKycLevel2Started();
 
   useSetRampUrlParams();
 
@@ -24,7 +24,7 @@ export const RampForm = () => {
       <PoolSelectorModal />
       <RampSummaryDialog />
       <SigningBox />
-      {(offrampKycStarted || offrampKycLevel2Started) ? (
+      {(rampKycStarted || rampKycLevel2Started) ? (
         <PIXKYCForm />
       ) : (
         <motion.div

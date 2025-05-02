@@ -226,9 +226,9 @@ export interface KycLevel2Payload {
 export interface KycLevel2Response {
   id: string;
   selfieUploadUrl: string;
-  RGFrontUploadUrl: string;
-  RGBackUploadUrl: string;
-  CNHUploadUrl: string;
+  rgFrontUploadUrl: string;
+  rgBackUploadUrl: string;
+  cnhUploadUrl: string;
 }
 
 export interface KycRetryPayload {

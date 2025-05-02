@@ -6,7 +6,6 @@ export const MOONBEAM_WSS = 'wss://wss.api.moonbeam.network';
 export const WALLETCONNECT_ASSETHUB_ID = 'polkadot:68d56f15f85d3136970ec16946040bc1';
 
 export const TRANSFER_WAITING_TIME_SECONDS = 6000;
-export const BRLA_MAXIMUM_LEVEL_2_AMOUNT_UNITS = 1000000; // TODO get the actual value from BRLA.
 export const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 export const SIGNING_SERVICE_URL =
   config.maybeSignerServiceUrl || (config.isProd ? '/api/production' : 'http://localhost:3000');
