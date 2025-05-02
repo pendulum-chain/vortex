@@ -3,11 +3,18 @@ import logger from '../../config/logger';
 import { getTokenOutAmount } from './nablaReads/outAmount';
 import { ApiManager } from './pendulum/apiManager';
 
+// Cache entry interface
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
 /**
  * PriceFeedService
  *
  * A singleton service that centralizes price lookups for crypto (CoinGecko) and fiat (Nabla) currencies.
  * This service is part of the fee-handling refactor to provide consistent price data across the application.
+ * Includes in-memory caching with configurable TTLs to reduce API calls and improve performance.
  */
 export class PriceFeedService {
   private static instance: PriceFeedService;
@@ -17,6 +24,16 @@ export class PriceFeedService {
   
   private coingeckoApiBaseUrl: string;
   
+  // Cache configuration
+  private cryptoCacheTtlMs: number;
+  
+  private fiatCacheTtlMs: number;
+  
+  // Cache storage
+  private cryptoPriceCache: Map<string, CacheEntry<number>> = new Map();
+  
+  private fiatExchangeRateCache: Map<string, CacheEntry<number>> = new Map();
+  
   /**
    * Private constructor to enforce singleton pattern
    */
@@ -25,11 +42,16 @@ export class PriceFeedService {
     this.coingeckoApiKey = process.env.COINGECKO_API_KEY;
     this.coingeckoApiBaseUrl = process.env.COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';
     
+    // Read cache TTL configuration with defaults (5 minutes = 300000 ms)
+    this.cryptoCacheTtlMs = parseInt(process.env.CRYPTO_CACHE_TTL_MS || '300000', 10);
+    this.fiatCacheTtlMs = parseInt(process.env.FIAT_CACHE_TTL_MS || '300000', 10);
+    
     if (!this.coingeckoApiKey) {
       logger.warn('COINGECKO_API_KEY environment variable is not set. CoinGecko API calls may be rate-limited.');
     }
     
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
+    logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
   }
   
   /**
@@ -54,6 +76,20 @@ export class PriceFeedService {
     if (!tokenId || !vsCurrency) {
       throw new Error('Token ID and currency are required');
     }
+
+    // Create a cache key for this request
+    const cacheKey = `crypto:${tokenId}:${vsCurrency}`;
+    
+    // Check if we have a valid cached value
+    const cachedEntry = this.cryptoPriceCache.get(cacheKey);
+    const now = Date.now();
+    
+    if (cachedEntry && cachedEntry.expiresAt > now) {
+      logger.debug(`Cache hit for ${cacheKey}. Using cached price: ${cachedEntry.value}`);
+      return cachedEntry.value;
+    }
+    
+    logger.debug(`Cache miss for ${cacheKey}. Fetching from CoinGecko API.`);
 
     try {
       logger.debug(`Fetching price for ${tokenId} in ${vsCurrency} from CoinGecko`);
@@ -96,9 +132,15 @@ export class PriceFeedService {
         throw new Error(`Currency '${vsCurrency}' not found for token '${tokenId}'`);
       }
       
-      // Extract and return the price
+      // Extract the price
       const price = data[tokenId][vsCurrency];
       logger.debug(`Price for ${tokenId} in ${vsCurrency}: ${price}`);
+      
+      // Cache the result with expiration time
+      this.cryptoPriceCache.set(cacheKey, {
+        value: price,
+        expiresAt: now + this.cryptoCacheTtlMs
+      });
       
       return price;
     } catch (error) {
@@ -122,6 +164,20 @@ export class PriceFeedService {
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
   public async getFiatExchangeRate(fromCurrency: string, toCurrency: string): Promise<number> {
+    // Create a cache key for this request
+    const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
+    
+    // Check if we have a valid cached value
+    const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
+    const now = Date.now();
+    
+    if (cachedEntry && cachedEntry.expiresAt > now) {
+      logger.debug(`Cache hit for ${cacheKey}. Using cached exchange rate: ${cachedEntry.value}`);
+      return cachedEntry.value;
+    }
+    
+    logger.debug(`Cache miss for ${cacheKey}. Fetching from Nabla.`);
+    
     try {
       logger.debug(`Using ${this.constructor.name} instance to fetch exchange rate from ${fromCurrency} to ${toCurrency}`);
       
@@ -150,6 +206,12 @@ export class PriceFeedService {
       const exchangeRate = parseFloat(amountOut.effectiveExchangeRate);
       
       logger.debug(`Exchange rate from ${fromCurrency} to ${toCurrency}: ${exchangeRate}`);
+      
+      // Cache the result with expiration time
+      this.fiatExchangeRateCache.set(cacheKey, {
+        value: exchangeRate,
+        expiresAt: now + this.fiatCacheTtlMs
+      });
       
       return exchangeRate;
     } catch (error) {
