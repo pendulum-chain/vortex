@@ -27,7 +27,7 @@ export const RampFeeCollapse = () => {
   const fromAmount = inputAmount ? Big(inputAmount) : Big(1);
   const fromAmountGreaterZero = fromAmount.gt(0) ? fromAmount : Big(1);
   const toAmount = outputAmount ? Big(outputAmount) : Big(1);
-  const fee = quote ? Big(quote.fee) : Big(0);
+  const fee = quote ? Big(quote.fee.total) : Big(0); // FIXME adjust to more complex fee structure
 
   const exchangeRateBeforeFees = toAmount.plus(fee).div(fromAmountGreaterZero).toNumber();
 
