@@ -163,7 +163,7 @@ export class PriceFeedService {
    * @param toCurrency - The target currency code (e.g., 'BRL', 'ARS')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
-  public async getFiatExchangeRate(fromCurrency: string, toCurrency: string): Promise<number> {
+  public async getFiatExchangeRate(fromCurrency: string, toCurrency: string, inputAmount: string = '1.0'): Promise<number> {
     // Create a cache key for this request
     const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
     
@@ -189,9 +189,6 @@ export class PriceFeedService {
       // Get Pendulum details for both currencies
       const inputTokenPendulumDetails = getPendulumDetails(fromCurrency as RampCurrency);
       const outputTokenPendulumDetails = getPendulumDetails(toCurrency as RampCurrency);
-      
-      // Use a standard input amount (1.0) to get the exchange rate
-      const inputAmount = '1.0';
       
       // Call getTokenOutAmount to get the exchange rate
       const amountOut = await getTokenOutAmount({
