@@ -28,7 +28,7 @@ module.exports = {
     project: './tsconfig.json', // Path relative to tsconfigRootDir
     tsconfigRootDir: __dirname, // Correctly resolves the directory of this config file
   },
-  extends: ['airbnb-base', 'prettier', 'plugin:@typescript-eslint/recommended'],
+  extends: ['prettier', 'plugin:@typescript-eslint/recommended'],
   settings: {
     'import/resolver': {
       node: {
