@@ -90,6 +90,7 @@ function isUsdLikeCurrency(currency: RampCurrency): boolean {
  * @param outputCurrency - The target currency to convert to
  * @returns The fee amount in the output currency
  */
+// TODO merge this with convertUSDtoTargetFiat to de-duplicate code
 async function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCurrency): Promise<string> {
   try {
     // If output is USD-like, return feeUSD (1:1 conversion)
@@ -97,9 +98,7 @@ async function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCu
       return feeUSD;
     }
 
-    // Check if outputCurrency is another fiat currency
     if (isFiatToken(outputCurrency)) {
-      // Get exchange rate from USD to the target fiat
       const rate = await priceFeedService.getFiatExchangeRate(outputCurrency);
       return new Big(feeUSD).mul(rate).toFixed(2);
     }
@@ -107,7 +106,6 @@ async function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCu
     // If outputCurrency is a crypto token, convert USD to crypto
     const tokenId = getCoinGeckoTokenId(outputCurrency);
     if (tokenId) {
-      // Get crypto price in USD
       const cryptoPriceUSD = await priceFeedService.getCryptoPrice(tokenId, 'usd');
       if (cryptoPriceUSD <= 0) {
         throw new Error(`Invalid price for ${outputCurrency}: ${cryptoPriceUSD}`);
@@ -122,7 +120,6 @@ async function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCu
     throw new Error('Could not convert fee to target currency');
     return feeUSD;
   } catch (error) {
-    // Log the error but don't fail the quote creation
     logger.error(
       `Error converting fee from USD to ${outputCurrency}: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
@@ -134,7 +131,7 @@ async function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCu
 }
 
 /**
- * Converts a USD amount to the specified target fiat currency
+ * Converts a USD amount to the specified target fiat currency.
  * @param amountUSD - The amount in USD
  * @param targetFiat - The target fiat currency
  * @returns The amount in the target fiat currency
@@ -146,13 +143,10 @@ async function convertUSDtoTargetFiat(amountUSD: string, targetFiat: RampCurrenc
       return amountUSD;
     }
 
-    // Get exchange rate from USD to the target fiat
     const rate = await priceFeedService.getFiatExchangeRate(targetFiat);
 
-    // Calculate amount in target fiat
     return new Big(amountUSD).mul(rate).toFixed(2);
   } catch (error) {
-    // Log the error but don't fail the quote creation
     logger.error(`Error converting USD to ${targetFiat}: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
     // Return the USD value as fallback
@@ -223,7 +217,12 @@ export class QuoteService extends BaseRampService {
       );
 
     // Calculate core fee components using the database-driven logic
-    const { vortexFee, anchorFee, partnerMarkupFee, feeCurrency } = await this.calculateFeeComponents(
+    const {
+      vortexFee,
+      anchorFee: anchorFeeFiat,
+      partnerMarkupFee,
+      feeCurrency,
+    } = await this.calculateFeeComponents(
       request.inputAmount,
       request.rampType,
       request.from,
@@ -233,60 +232,27 @@ export class QuoteService extends BaseRampService {
       request.outputCurrency,
     );
 
-    // Convert fees from feeCurrency to USD if needed
-    let vortexFeeUSD = vortexFee;
-    let anchorFeeUSD = anchorFee;
-    let partnerMarkupFeeUSD = partnerMarkupFee;
-
-    // If fees are not in USD-like currency, convert them to USD
-    if (!isUsdLikeCurrency(feeCurrency)) {
-      try {
-        const rateUsdToFiat = await priceFeedService.getFiatExchangeRate(feeCurrency);
-        const rateFiatToUSD = 1 / rateUsdToFiat;
-
-        // Convert fees to USD
-        vortexFeeUSD = new Big(vortexFee).mul(rateFiatToUSD).toFixed(2);
-        anchorFeeUSD = new Big(anchorFee).mul(rateFiatToUSD).toFixed(2);
-        partnerMarkupFeeUSD = new Big(partnerMarkupFee).mul(rateFiatToUSD).toFixed(2);
-      } catch (error) {
-        logger.error(
-          `Error converting fees from ${feeCurrency} to USD: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`,
-        );
-        // Use original values as fallback (this is not ideal but prevents complete failure)
-      }
-    }
-
-    const totalFeeUSD = new Big(networkFeeUSD)
-      .plus(vortexFeeUSD)
-      .plus(anchorFeeUSD)
-      .plus(partnerMarkupFeeUSD)
-      .toString();
-
     const targetFiat = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
     // Convert fees to target fiat
     const networkFeeFiatPromise = convertUSDtoTargetFiat(networkFeeUSD, targetFiat);
     const vortexFeeFiatPromise = convertUSDtoTargetFiat(vortexFee, targetFiat);
-    const anchorFeeFiatPromise = convertUSDtoTargetFiat(anchorFee, targetFiat);
     const partnerMarkupFeeFiatPromise = convertUSDtoTargetFiat(partnerMarkupFee, targetFiat);
-    const totalFeeFiatPromise = convertUSDtoTargetFiat(totalFeeUSD, targetFiat);
 
-    const [networkFeeFiat, vortexFeeFiat, anchorFeeFiat, partnerMarkupFeeFiat, totalFeeFiat] = await Promise.all([
+    const [networkFeeFiat, vortexFeeFiat, partnerMarkupFeeFiat] = await Promise.all([
       networkFeeFiatPromise,
       vortexFeeFiatPromise,
-      anchorFeeFiatPromise,
       partnerMarkupFeeFiatPromise,
-      totalFeeFiatPromise,
     ]);
 
-    // Convert total fee to output currency - KEEP THIS CALCULATION AS IS
-    // Still use the original USD total here for the final output amount calculation
-    const totalFeeInOutputCurrency = await convertFeeToOutputCurrency(totalFeeUSD, request.outputCurrency);
+    const totalFeeFiat = new Big(networkFeeFiat)
+      .plus(vortexFeeFiat)
+      .plus(partnerMarkupFeeFiat)
+      .plus(anchorFeeFiat)
+      .toFixed(2);
 
     // Calculate final output amount by subtracting the converted total fee from gross output
-    const finalOutputAmount = new Big(grossOutputAmount).minus(totalFeeInOutputCurrency);
+    const finalOutputAmount = new Big(grossOutputAmount).minus(totalFeeFiat);
     if (finalOutputAmount.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
