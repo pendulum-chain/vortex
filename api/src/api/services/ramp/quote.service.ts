@@ -8,7 +8,6 @@ import {
   getOnChainTokenDetails,
   getPendulumDetails,
   isEvmTokenDetails,
-  isFiatToken,
   Networks,
   OnChainToken,
   QuoteEndpoints,
@@ -55,103 +54,6 @@ function trimTrailingZeros(decimalString: string): string {
   }
 
   return `${integerPart}.${trimmedFraction}`;
-}
-
-/**
- * Helper function to map RampCurrency to CoinGecko token ID
- * @param currency - The RampCurrency to map
- * @returns The corresponding CoinGecko token ID or null if not mappable
- */
-function getCoinGeckoTokenId(currency: RampCurrency): string | null {
-  const tokenIdMap: Record<string, string> = {
-    GLMR: 'moonbeam',
-    ETH: 'ethereum',
-    AVAX: 'avalanche-2',
-    MATIC: 'matic-network',
-    BNB: 'binancecoin',
-  };
-
-  return tokenIdMap[currency as string] || null;
-}
-
-/**
- * Determines if a currency is a USD-like stablecoin
- * @param currency - The currency to check
- * @returns True if the currency is USD-like
- */
-function isUsdLikeCurrency(currency: RampCurrency): boolean {
-  const usdLikeCurrencies: RampCurrency[] = [EvmToken.USDCE, EvmToken.USDT, EvmToken.USDC];
-  return usdLikeCurrencies.includes(currency);
-}
-
-/**
- * Converts a fee amount in USD to the specified output currency
- * @param feeUSD - The fee amount in USD
- * @param outputCurrency - The target currency to convert to
- * @returns The fee amount in the output currency
- */
-// TODO merge this with convertUSDtoTargetFiat to de-duplicate code
-async function convertFeeToOutputCurrency(feeUSD: string, outputCurrency: RampCurrency): Promise<string> {
-  try {
-    // If output is USD-like, return feeUSD (1:1 conversion)
-    if (isUsdLikeCurrency(outputCurrency)) {
-      return feeUSD;
-    }
-
-    if (isFiatToken(outputCurrency)) {
-      const rate = await priceFeedService.getFiatExchangeRate(outputCurrency);
-      return new Big(feeUSD).mul(rate).toFixed(2);
-    }
-
-    // If outputCurrency is a crypto token, convert USD to crypto
-    const tokenId = getCoinGeckoTokenId(outputCurrency);
-    if (tokenId) {
-      const cryptoPriceUSD = await priceFeedService.getCryptoPrice(tokenId, 'usd');
-      if (cryptoPriceUSD <= 0) {
-        throw new Error(`Invalid price for ${outputCurrency}: ${cryptoPriceUSD}`);
-      }
-
-      // Calculate fee in crypto: feeUSD / cryptoPriceUSD
-      return new Big(feeUSD).div(cryptoPriceUSD).toFixed(6);
-    }
-
-    // If we reach here, we couldn't convert the fee
-    logger.warn(`Could not convert fee from USD to ${outputCurrency}. Using 1:1 conversion as fallback.`);
-    throw new Error('Could not convert fee to target currency');
-    return feeUSD;
-  } catch (error) {
-    logger.error(
-      `Error converting fee from USD to ${outputCurrency}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
-    console.error('stack', error);
-
-    // Return the USD value as fallback
-    return feeUSD;
-  }
-}
-
-/**
- * Converts a USD amount to the specified target fiat currency.
- * @param amountUSD - The amount in USD
- * @param targetFiat - The target fiat currency
- * @returns The amount in the target fiat currency
- */
-async function convertUSDtoTargetFiat(amountUSD: string, targetFiat: RampCurrency): Promise<string> {
-  try {
-    // If target is USD-like, return amountUSD (1:1 conversion)
-    if (isUsdLikeCurrency(targetFiat)) {
-      return amountUSD;
-    }
-
-    const rate = await priceFeedService.getFiatExchangeRate(targetFiat);
-
-    return new Big(amountUSD).mul(rate).toFixed(2);
-  } catch (error) {
-    logger.error(`Error converting USD to ${targetFiat}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-
-    // Return the USD value as fallback
-    return amountUSD;
-  }
 }
 
 function getTargetFiatCurrency(
@@ -232,12 +134,14 @@ export class QuoteService extends BaseRampService {
       request.outputCurrency,
     );
 
+    // We can pick any USD-like stablecoin for the conversion
+    const usdCurrency = EvmToken.USDC;
     // Convert fees denoted in USD to fee currency
-    const networkFeeFiatPromise = convertUSDtoTargetFiat(networkFeeUSD, feeCurrency);
+    const networkFeeFiatPromise = priceFeedService.convertCurrency(networkFeeUSD, usdCurrency, feeCurrency);
     // Convert fees denoted in fee currency to USD (needed for fee distribution transactions)
-    const vortexFeeUsdPromise = convertFeeToOutputCurrency(vortexFeeFiat, feeCurrency);
-    const partnerMarkupFeeUsdPromise = convertFeeToOutputCurrency(partnerMarkupFeeFiat, feeCurrency);
-    const anchorFeeUsdPromise = convertFeeToOutputCurrency(anchorFeeFiat, feeCurrency);
+    const vortexFeeUsdPromise = priceFeedService.convertCurrency(vortexFeeFiat, feeCurrency, usdCurrency);
+    const partnerMarkupFeeUsdPromise = priceFeedService.convertCurrency(partnerMarkupFeeFiat, feeCurrency, usdCurrency);
+    const anchorFeeUsdPromise = priceFeedService.convertCurrency(anchorFeeFiat, feeCurrency, usdCurrency);
 
     const [networkFeeFiat, vortexFeeUsd, partnerMarkupFeeUsd, anchorFeeUsd] = await Promise.all([
       networkFeeFiatPromise,
