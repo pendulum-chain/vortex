@@ -49,16 +49,8 @@ This document summarizes the refactoring applied to the fee calculation and hand
 
 ## Outstanding TODOs / Placeholders
 
-*   Implement real price feed logic in placeholder conversion functions:
-    *   `convertFeeToOutputCurrency` (`quote.service.ts`)
-    *   `convertUSDtoTargetFiat` (`quote.service.ts`)
-    *   `convertFiatToUSD` (`onrampTransactions.ts`, `distribute-fees-handler.ts`)
-    *   `convertUSDToTokenUnits` (`onrampTransactions.ts`, `distribute-fees-handler.ts`)
-    *   For this, we should implement a price-fetching that caches the prices as we'll always have a need for the same prices for each ramp. The caching could work so that a new price for a respective token is only queried if the last price was older than 5 minutes. The price-query service shouldn't poll the price periodically but only when a new quote is created and the cache is stale. 
-    * For the time being, this service would only need to query Coingecko for the Moonbeam GLMR price. The price of the fiat-token -> USD can be determined based on our swap pool rate. It cannot get queried from Coingecko.
-*   Replace hardcoded GLMR->USD rate (0.08) in `calculateGrossOutputAndNetworkFee` (`quote.service.ts`) with dynamic price fetching.
 *   Finalize the Network fee payout address configuration in `DistributeFeesHandler`.
 *   Refine stablecoin selection logic in `DistributeFeesHandler`.
 *   Add validation for `targetFiat` currency identification in `getTargetFiatCurrency` (`quote.service.ts`).
 *   Change the logic of the `distribute-fees-handler.ts` so that it's also using presigned transactions. The have to be added to `onrampingTransactions.ts` and `offrampingTransactions.ts` and the handler itself should only submit the transactino but not sign.
-    *   This means that we need to make sure that the exchange rates/prices from USD to the relevant currencies (e.g. GLMR) are only used once when creating the presigned transactions. The distribute-fees handler doesn't need to fetch those prices again.
+   *   The USD amounts that are supposed to be paid our are stored on the metadata of a quote-ticket model. 
