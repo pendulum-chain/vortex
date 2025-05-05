@@ -1,4 +1,4 @@
-import { getPendulumDetails, RampCurrency } from 'shared';
+import { EvmToken, getPendulumDetails, RampCurrency } from 'shared';
 import logger from '../../config/logger';
 import { getTokenOutAmount } from './nablaReads/outAmount';
 import { ApiManager } from './pendulum/apiManager';
@@ -40,7 +40,7 @@ export class PriceFeedService {
   private constructor() {
     // Read configuration from environment variables
     this.coingeckoApiKey = process.env.COINGECKO_API_KEY;
-    this.coingeckoApiBaseUrl = process.env.COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';
+    this.coingeckoApiBaseUrl = process.env.COINGECKO_API_URL || 'https://pro-api.coingecko.com/api/v3';
     
     // Read cache TTL configuration with defaults (5 minutes = 300000 ms)
     this.cryptoCacheTtlMs = parseInt(process.env.CRYPTO_CACHE_TTL_MS || '300000', 10);
@@ -106,7 +106,7 @@ export class PriceFeedService {
       
       // Add API key if available
       if (this.coingeckoApiKey) {
-        headers['x-cg-demo-api-key'] = this.coingeckoApiKey;
+        headers['x-cg-pro-api-key'] = this.coingeckoApiKey;
       }
       
       // Make the API request
@@ -157,17 +157,17 @@ export class PriceFeedService {
   }
   
   /**
-   * Get the exchange rate between two fiat currencies
+   * Get the exchange rate from USD to another fiat currency. The source currency is always USD.
    *
-   * @param fromCurrency - The source currency code (e.g., 'USD', 'EUR')
    * @param toCurrency - The target currency code (e.g., 'BRL', 'ARS')
+   * @param inputAmount - The amount to convert (default is '1.0')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
-  public async getFiatExchangeRate(fromCurrency: string, toCurrency: string, inputAmount: string = '1.0'): Promise<number> {
-    // Create a cache key for this request
+  public async getFiatExchangeRate(toCurrency: RampCurrency, inputAmount = '1.0'): Promise<number> {
+    // Always use a USD-like token as the source currency
+    const fromCurrency = EvmToken.USDT;
+
     const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
-    
-    // Check if we have a valid cached value
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
     const now = Date.now();
     
@@ -181,14 +181,12 @@ export class PriceFeedService {
     try {
       logger.debug(`Using ${this.constructor.name} instance to fetch exchange rate from ${fromCurrency} to ${toCurrency}`);
       
-      // Get API instance from ApiManager
       const apiManager = ApiManager.getInstance();
       const networkName = 'pendulum';
       const apiInstance = await apiManager.getApi(networkName);
       
-      // Get Pendulum details for both currencies
-      const inputTokenPendulumDetails = getPendulumDetails(fromCurrency as RampCurrency);
-      const outputTokenPendulumDetails = getPendulumDetails(toCurrency as RampCurrency);
+      const inputTokenPendulumDetails = getPendulumDetails(fromCurrency);
+      const outputTokenPendulumDetails = getPendulumDetails(toCurrency);
       
       // Call getTokenOutAmount to get the exchange rate
       const amountOut = await getTokenOutAmount({
@@ -198,13 +196,10 @@ export class PriceFeedService {
         outputTokenDetails: outputTokenPendulumDetails,
       });
       
-      // Extract the exchange rate from the result
-      // The effectiveExchangeRate is already calculated as output/input in the getTokenOutAmount function
       const exchangeRate = parseFloat(amountOut.effectiveExchangeRate);
       
       logger.debug(`Exchange rate from ${fromCurrency} to ${toCurrency}: ${exchangeRate}`);
       
-      // Cache the result with expiration time
       this.fiatExchangeRateCache.set(cacheKey, {
         value: exchangeRate,
         expiresAt: now + this.fiatCacheTtlMs
@@ -212,7 +207,6 @@ export class PriceFeedService {
       
       return exchangeRate;
     } catch (error) {
-      // Log the error with appropriate context
       if (error instanceof Error) {
         logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}: ${error.message}`);
       } else {
@@ -225,5 +219,4 @@ export class PriceFeedService {
   }
 }
 
-// Export the singleton instance
 export const priceFeedService = PriceFeedService.getInstance();
