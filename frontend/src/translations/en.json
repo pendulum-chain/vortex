@@ -439,7 +439,7 @@
       "buttons": {
         "back": "Back",
         "uploading": "Uploading...",
-        "Finish": "Finish"
+        "finish": "Finish"
       }
     }
   },
