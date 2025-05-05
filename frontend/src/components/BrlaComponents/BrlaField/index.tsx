@@ -23,6 +23,9 @@ export enum ExtendedBrlaFieldOptions {
   CPF = 'cpf',
   BIRTHDATE = 'birthdate',
   EMAIL = 'email',
+  COMPANY_NAME = 'companyName',
+  START_DATE = 'startDate',
+  PARTNER_CPF = 'partnerCpf',
 }
 
 export type BrlaFieldOptions = StandardBrlaFieldOptions | ExtendedBrlaFieldOptions;

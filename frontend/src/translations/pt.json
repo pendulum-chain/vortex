@@ -345,7 +345,10 @@
         "street": "Rua",
         "number": "Número",
         "district": "Bairro",
-        "birthdate": "Data de Nascimento"
+        "birthdate": "Data de Nascimento",
+        "companyName": "Nome da Empresa",
+        "startDate": "Data de Início da Empresa",
+        "partnerCpff": "CPF do Parceiro"
       },
       "verificationStatus": {
         "pending": "Verificando seus dados, por favor aguarde",
@@ -390,7 +393,43 @@
           "required": "Data de nascimento é obrigatória",
           "future": "Data de nascimento não pode ser no futuro",
           "tooOld": "Data de nascimento inválida"
+        },
+        "companyName": {
+          "required": "Nome da empresa é obrigatório",
+          "minLength": "Nome da empresa deve ter pelo menos 3 caracteres",
+          "format": "Nome da empresa só pode conter letras e espaços"
+        },
+        "startDate": {
+          "required": "Data de início é obrigatória",
+          "future": "Data de início não pode ser no futuro",
+          "tooOld": "Data de início inválida"
+        },
+        "partnerCpf": {
+          "required": "CPF do parceiro é obrigatório",
+          "format": "Formato de CPF do parceiro inválido"
         }
+      }
+    },
+    "documentUpload": {
+    "title": "Verificação Rápida",
+    "description": "Para garantir uma experiência segura e fluida, precisamos de uma rápida verificação de identidade. Por favor, envie uma imagem nítida do seu documento.",
+    "validation": {
+      "invalidFileType": "Tipo de arquivo inválido. Apenas PNG, JPEG ou PDF são permitidos.",
+      "fileSizeExceeded": "O tamanho do arquivo excede o limite de {{max}}.",
+      "validationError": "Todos os arquivos devem ser válidos antes de enviar."
+      },
+    "uploadBug": "Ocorreu um erro ao enviar os arquivos para verificação. Por favor, tente novamente mais tarde.",
+    "uploadFailed": "Falha no envio. Por favor, tente novamente.",
+    "fields": {
+      "uploadSelfie": "Enviar selfie",
+      "rgFront": "Frente do RG",
+      "rgBack": "Verso do RG",
+      "cnhDocument": "Documento CNH"
+      },
+    "buttons": {
+      "back": "Voltar",
+      "uploading": "Enviando...",
+      "finish": "Concluir"
       }
     },
     "rating": {

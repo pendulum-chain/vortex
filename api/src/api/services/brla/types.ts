@@ -210,6 +210,36 @@ export const enum SmartContractOperationType {
   BURN = 'BURN',
 }
 
+export enum KYCDocType {
+  RG = 'RG',
+  CNH = 'CNH',
+}
+
+export function isValidKYCDocType(value: string): value is KYCDocType {
+  return Object.values(KYCDocType).includes(value as unknown as KYCDocType);
+}
+
+export interface KycLevel2Payload {
+  documentType: KYCDocType;
+}
+
+export interface KycLevel2Response {
+  id: string;
+  selfieUploadUrl: string;
+  RGFrontUploadUrl: string;
+  RGBackUploadUrl: string;
+  CNHUploadUrl: string;
+}
+
+export interface KycRetryPayload {
+  fullName: string;
+  cpf: string;
+  birthdate: string;
+  cnpj?: string;
+  companyName?: string;
+  startDate?: string;
+}
+
 interface SmartContractOperation {
   id: string;
   operationName: SmartContractOperationType;

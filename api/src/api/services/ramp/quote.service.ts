@@ -21,8 +21,11 @@ import { ApiManager } from '../pendulum/apiManager';
 import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM } from '../../../constants/constants';
-import { multiplyByPowerOfTen } from "../pendulum/helpers";
+import {
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
+} from '../../../constants/constants';
+import { multiplyByPowerOfTen } from '../pendulum/helpers';
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format
@@ -249,9 +252,12 @@ export class QuoteService extends BaseRampService {
 
         // Check against our moonbeam funding amounts.
         const squidrouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
-        const fundingAmountUnits = getNetworkFromDestination(to) === Networks.Ethereum ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM) : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+        const fundingAmountUnits =
+          getNetworkFromDestination(to) === Networks.Ethereum
+            ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
+            : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
         const squidrouterSwapValueBuffer = getNetworkFromDestination(to) === Networks.Ethereum ? 10 : 2;
-        
+
         // Leave 10 glmr for other operations of the ephemeral, and as buffer for potential price changes.
         if (squidrouterSwapValue.gte(fundingAmountUnits.minus(squidrouterSwapValueBuffer))) {
           throw new APIError({

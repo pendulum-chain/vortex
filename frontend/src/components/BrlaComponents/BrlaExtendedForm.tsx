@@ -6,15 +6,31 @@ import { useKYCForm } from '../../hooks/brla/useKYCForm';
 import { VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 import { KYCForm } from './KYCForm';
+import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
+import { useCallback } from 'react';
+import { DocumentUpload } from './KYCLevel2Form';
+import { useTaxId } from '../../stores/ramp/useRampFormStore';
+import { isValidCnpj } from '../../hooks/ramp/schema';
 
 export const PIXKYCForm = () => {
-  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, isSubmitted } = useKYCProcess();
-
+  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, setCpf, isSubmitted } = useKYCProcess();
+  const offrampKycLevel2Started = useRampKycLevel2Started();
+  const offrampKycStarted = useRampKycStarted();
   const { kycForm } = useKYCForm();
 
   const { t } = useTranslation();
 
-  const PIXKYCFORM_FIELDS: BrlaFieldProps[] = [
+  const taxId = useTaxId();
+
+  
+  const handleDocumentSubmit = useCallback(() => {
+    setIsSubmitted(true);
+    const taxIdToSet = taxId || null
+    setCpf(taxIdToSet);
+  }, [setIsSubmitted, setCpf, taxId]);
+
+
+  const pixformFields: BrlaFieldProps[] = [
     {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
       label: t('components.brlaExtendedForm.form.fullName'),
@@ -88,13 +104,56 @@ export const PIXKYCForm = () => {
     },
   ];
 
+  if (!taxId) {
+    return null;
+  }
+
+  if (isValidCnpj(taxId)) {
+    pixformFields.push({
+      id: ExtendedBrlaFieldOptions.COMPANY_NAME,
+      label: t('components.brlaExtendedForm.form.companyName'),
+      type: 'text',
+      placeholder: t('components.brlaExtendedForm.form.companyName'),
+      required: true,
+      index: 9,
+    });
+    pixformFields.push({
+      id: ExtendedBrlaFieldOptions.START_DATE,
+      label: t('components.brlaExtendedForm.form.startDate'),
+      type: 'date',
+      required: true,
+      index: 10,
+    });
+    pixformFields.push({
+      id: ExtendedBrlaFieldOptions.PARTNER_CPF,
+      label: t('components.brlaExtendedForm.form.partnerCpf'),
+      type: 'text',
+      required: true,
+      index: 11,
+    });
+  }
+
   return (
     <div className="relative">
-      {!isSubmitted ? (
-        <KYCForm fields={PIXKYCFORM_FIELDS} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick} />
-      ) : (
-        <VerificationStatus status={verificationStatus} message={statusMessage} />
-      )}
+      {isSubmitted ? (
+        <VerificationStatus
+          status={verificationStatus}
+          message={statusMessage}
+          isLevel2={offrampKycLevel2Started}
+        />
+      ) : offrampKycLevel2Started ? (
+        <DocumentUpload
+          onSubmitHandler={handleDocumentSubmit}
+          onBackClick={handleBackClick}
+        />
+      ) : offrampKycStarted ? (
+        <KYCForm
+          fields={pixformFields}
+          form={kycForm}
+          onSubmit={handleFormSubmit}
+          onBackClick={handleBackClick}
+        />
+      ) : null}
     </div>
   );
 };

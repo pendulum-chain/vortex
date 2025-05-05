@@ -119,7 +119,10 @@ export async function prepareOnrampTransactions(
 
       const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
       // For assethub, we skip the 2 squidrouter transactions, so nonce is 2 lower.
-      const moonbeamCleanupStartingNonce = toNetworkId === getNetworkId(Networks.AssetHub) ? moonbeamEphemeralStartingNonce + 2 : moonbeamEphemeralStartingNonce + 4;
+      const moonbeamCleanupStartingNonce =
+        toNetworkId === getNetworkId(Networks.AssetHub)
+          ? moonbeamEphemeralStartingNonce + 2
+          : moonbeamEphemeralStartingNonce + 4;
       unsignedTxs.push({
         txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup',

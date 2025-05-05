@@ -2,12 +2,11 @@ import { RequestHandler } from 'express';
 import { ParsedQs } from 'qs';
 import httpStatus from 'http-status';
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
-import { TokenConfig } from 'shared';
+import { BrlaEndpoints, TokenConfig } from 'shared';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
-import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
-
+import { isValidKYCDocType, RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 
 interface CreationBody {
@@ -110,7 +109,7 @@ export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, Pri
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (Number.isNaN(Number(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter. Not a number.' });
     return;
   }
@@ -152,7 +151,7 @@ export const validatePriceInput: RequestHandler<{}, unknown, unknown, PriceQuery
     return;
   }
 
-  if (isNaN(parseFloat(amount))) {
+  if (Number.isNaN(Number(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter. Not a number.' });
     return;
   }
@@ -337,7 +336,7 @@ export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) 
     return;
   }
 
-  if (!amount || isNaN(Number(amount))) {
+  if (!amount || Number.isNaN(Number(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
@@ -413,7 +412,7 @@ export const validateTriggerPayIn: RequestHandler = (req, res, next) => {
     return;
   }
 
-  if (!amount || isNaN(Number(amount))) {
+  if (!amount || Number.isNaN(Number(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
@@ -436,7 +435,7 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
     return;
   }
 
-  if (!amount || isNaN(Number(amount))) {
+  if (!amount || Number.isNaN(Number(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
@@ -445,6 +444,22 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
     res.status(httpStatus.BAD_REQUEST).json({
       error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
     });
+    return;
+  }
+
+  next();
+};
+
+export const validateStartKyc2: RequestHandler = (req, res, next) => {
+  const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
+
+  if (!taxId) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!isValidKYCDocType(documentType)) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
     return;
   }
 
