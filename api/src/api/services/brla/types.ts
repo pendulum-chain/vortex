@@ -215,7 +215,7 @@ export enum KYCDocType {
   CNH = 'CNH',
 }
 
-export function isValidKYCDocType(value: string ): value is KYCDocType {
+export function isValidKYCDocType(value: string): value is KYCDocType {
   return Object.values(KYCDocType).includes(value as unknown as KYCDocType);
 }
 
@@ -226,9 +226,9 @@ export interface KycLevel2Payload {
 export interface KycLevel2Response {
   id: string;
   selfieUploadUrl: string;
-  rgFrontUploadUrl: string;
-  rgBackUploadUrl: string;
-  cnhUploadUrl: string;
+  RGFrontUploadUrl: string;
+  RGBackUploadUrl: string;
+  CNHUploadUrl: string;
 }
 
 export interface KycRetryPayload {

@@ -127,8 +127,8 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         }
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.rgFrontUploadUrl),
-          uploadFileAsBuffer(back, response.uploadUrls.rgBackUploadUrl)
+          uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
+          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl)
         );
       } else {
 
@@ -137,9 +137,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           console.error('Validation flags were true, but file data is missing. This is a bug.');
           return;
         }
+        console.log('CNH upload URL:', response.uploadUrls);
+
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.cnhUploadUrl)
+          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl)
         );
       }
 

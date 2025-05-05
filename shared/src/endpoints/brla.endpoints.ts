@@ -125,8 +125,8 @@ export namespace BrlaEndpoints {
 
   export interface KYCDataUploadFileFiles {
     selfieUploadUrl: string;
-    rgFrontUploadUrl: string;
-    rgBackUploadUrl: string;
-    cnhUploadUrl: string;
+    RGFrontUploadUrl: string;
+    RGBackUploadUrl: string;
+    CNHUploadUrl: string;
   }
 }

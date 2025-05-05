@@ -10,7 +10,7 @@ export enum KycLevel2Status {
 }
 
 export interface KycLevel2Attributes {
-  id: string; 
+  id: string;
   subaccountId: string;
   documentType: KYCDocType;
   status: KycLevel2Status;
@@ -20,7 +20,10 @@ export interface KycLevel2Attributes {
   updatedAt: Date;
 }
 
-type KycLevel2CreationAttributes = Optional<KycLevel2Attributes, 'id' | 'errorLogs' | 'uploadData' | 'createdAt' | 'updatedAt'>;
+type KycLevel2CreationAttributes = Optional<
+  KycLevel2Attributes,
+  'id' | 'errorLogs' | 'uploadData' | 'createdAt' | 'updatedAt'
+>;
 
 class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> implements KycLevel2Attributes {
   declare id: string; // Doubles as token. TODO: is that safe?

@@ -10,9 +10,11 @@ router
 
 router
   .route('/all')
-  .get<Record<string, never>, unknown, Record<string, never>, PriceQuery>(
-    validateBundledPriceInput,
-    getAllPricesBundled,
-  );
+  .get<
+    Record<string, never>,
+    unknown,
+    Record<string, never>,
+    PriceQuery
+  >(validateBundledPriceInput, getAllPricesBundled);
 
 export default router;

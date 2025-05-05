@@ -35,22 +35,16 @@ export class KycService {
     );
   }
 
-
   protected async getKycLevel2ById(id: string): Promise<KycLevel2 | null> {
     return KycLevel2.findByPk(id);
   }
 
-
-  protected async getLatestKycLevel2BySubaccount(
-    subaccountId: string,
-  ): Promise<KycLevel2 | null> {
-
+  protected async getLatestKycLevel2BySubaccount(subaccountId: string): Promise<KycLevel2 | null> {
     return KycLevel2.findOne({
       where: { subaccountId },
       order: [['createdAt', 'DESC']],
     });
   }
-
 
   protected async withTransaction<T>(callback: (transaction: Transaction) => Promise<T>): Promise<T> {
     const transaction = await sequelize.transaction();
@@ -65,10 +59,7 @@ export class KycService {
     }
   }
 
-  public async requestKycLevel2(
-    subaccountId: string, 
-    documentType: KYCDocType, 
-  ): Promise<KycLevel2Response> {
+  public async requestKycLevel2(subaccountId: string, documentType: KYCDocType): Promise<KycLevel2Response> {
     try {
       // Ensure no existing KYC Level 2 process is in progress for the subaccount, or the user is already level 2.
       const existingKycLevel2 = await this.getLatestKycLevel2BySubaccount(subaccountId);
@@ -107,17 +98,15 @@ export class KycService {
     }
   }
 
-
   public async hasCompletedKycLevel2(subaccountId: string): Promise<boolean> {
     const kycLevel2 = (await this.getLatestKycLevel2BySubaccount(subaccountId)) as KycLevel2 | null;
-    
+
     if (!kycLevel2) {
       return false;
     }
 
     return kycLevel2.status === KycLevel2Status.ACCEPTED;
   }
-
 }
 
 export default new KycService();

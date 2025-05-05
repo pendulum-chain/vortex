@@ -1,11 +1,11 @@
 import { RequestHandler } from 'express';
 import { ParsedQs } from 'qs';
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
-import { TokenConfig } from 'shared';
+import { BrlaEndpoints, TokenConfig } from 'shared';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
-import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
+import { isValidKYCDocType, RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 
 interface CreationBody {
@@ -426,3 +426,18 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
   next();
 };
 
+export const startKYC2Validator: RequestHandler = (req, res, next) => {
+  const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
+
+  if (!taxId) {
+    res.status(400).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!isValidKYCDocType(documentType)) {
+    res.status(400).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
+    return;
+  }
+
+  next();
+};

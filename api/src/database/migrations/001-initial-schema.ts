@@ -181,7 +181,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex('ramp_states', ['quote_id'], {
     name: 'idx_ramp_quote',
   });
-  
+
   await queryInterface.createTable('kyc_level_2', {
     id: {
       type: DataTypes.UUID,
@@ -232,7 +232,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.addIndex('kyc_level_2', ['subaccount_id'], {
     name: 'idx_kyc_level_2_subaccount',
   });
-  
+
   await queryInterface.addIndex('kyc_level_2', ['status'], {
     name: 'idx_kyc_level_2_status',
   });

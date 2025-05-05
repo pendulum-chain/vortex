@@ -3,7 +3,11 @@ import { moonbeam } from 'viem/chains';
 import erc20ABI from '../../../contracts/ERC20';
 import Big from 'big.js';
 import { ApiManager } from '../pendulum/apiManager';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM, MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../constants/constants';
+import {
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
+  MOONBEAM_FUNDING_PRIVATE_KEY,
+} from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { privateKeyToAccount } from 'viem/accounts';
 import { createMoonbeamClientsAndConfig } from './createServices';
@@ -16,7 +20,7 @@ export function checkEvmBalancePeriodically(
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
-  chain: any
+  chain: any,
 ) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
@@ -76,12 +80,17 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string, des
   }
 };
 
-export function getMoonbeamFundingData(decimals: number, largeFunding: boolean = false): {
+export function getMoonbeamFundingData(
+  decimals: number,
+  largeFunding: boolean = false,
+): {
   fundingAmountRaw: string;
   walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>['walletClient'];
   publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>['publicClient'];
 } {
-  const fundingAmountUnits = largeFunding ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM) : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+  const fundingAmountUnits = largeFunding
+    ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
+    : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
   const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);

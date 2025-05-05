@@ -17,7 +17,7 @@ function useRampAmountWithinAllowedLimits() {
       try {
         const subaccount = await BrlaService.getUser(taxId);
         const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-
+        console.log('level:', subaccount.kycLevel);
         if (subaccount.kycLevel < 2) {
           return true;
         }
@@ -29,8 +29,8 @@ function useRampAmountWithinAllowedLimits() {
 
         const amountNum = Number(amountUnits);
         const remainingLimitNum = Number(remainingLimitInUnits);
-      
-        if (amountNum <= remainingLimitNum) {
+        console.log('remainingLimitNum', remainingLimitNum);
+        if (amountNum > remainingLimitNum) {
           return true;
         } else {
           showToast(
@@ -40,6 +40,9 @@ function useRampAmountWithinAllowedLimits() {
           return false;
         }
       } catch (error) {
+        if (error instanceof Error && error.message.includes('Subaccount not found')) {
+          return true; // If the subaccount is not found, the user is not registered and allow the flow to continue.
+        }
         console.error('useRampAmountWithinAllowedLimits: Error checking ramp limits: ', error);
         return false;
       }
