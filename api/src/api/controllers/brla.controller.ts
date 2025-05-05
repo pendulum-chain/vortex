@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { validateMaskedNumber } from 'shared';
 import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
+import httpStatus from 'http-status';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
 import { BrlaTeleportService } from '../services/brla/brlaTeleportService';
@@ -29,18 +30,18 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
       const errorMessageString = splitError[1];
       try {
         const details = JSON.parse(errorMessageString);
-        res.status(400).json({ error: 'Invalid request', details });
+        res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details });
       } catch (e) {
         // The error was not encoded as JSON
-        res.status(400).json({ error: 'Invalid request', details: errorMessageString });
+        res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details: errorMessageString });
       }
     } else {
-      res.status(400).json({ error: 'Invalid request', details: error.message });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details: error.message });
     }
     return;
   }
 
-  res.status(500).json({
+  res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
     error: 'Server error',
     details: error instanceof Error ? error.message : 'Unknown error',
   });
@@ -67,7 +68,7 @@ export const getBrlaUser = async (
     const { taxId } = req.query;
 
     if (!taxId) {
-      res.status(400).json({ error: 'Missing taxId query parameters' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId query parameters' });
       return;
     }
 
@@ -75,11 +76,11 @@ export const getBrlaUser = async (
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      res.status(404).json({ error: 'Subaccount not found' });
+      res.status(httpStatus.NOT_FOUND).json({ error: 'Subaccount not found' });
       return;
     }
     if (subaccount.kyc.level < 1) {
-      res.status(400).json({ error: 'KYC invalid' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'KYC invalid' });
       return;
     }
 
@@ -98,7 +99,7 @@ export const getBrlaUserRemainingLimit = async (
     const { taxId } = req.query;
 
     if (!taxId) {
-      res.status(400).json({ error: 'Missing taxId query parameter' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId query parameter' });
       return;
     }
 
@@ -106,14 +107,14 @@ export const getBrlaUserRemainingLimit = async (
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
     if (!subaccount) {
-      res.status(404).json({ error: 'Subaccount not found' });
+      res.status(httpStatus.NOT_FOUND).json({ error: 'Subaccount not found' });
       return;
     }
 
     const totalLimit = subaccount.kyc.limits;
     const usedLimit = await brlaApiService.getSubaccountUsedLimit(subaccount.id);
     if (!usedLimit) {
-      res.status(404).json({ error: 'Limits not found' });
+      res.status(httpStatus.NOT_FOUND).json({ error: 'Limits not found' });
       return;
     }
 
@@ -145,7 +146,7 @@ export const triggerBrlaOfframp = async (
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
     if (!subaccount) {
-      res.status(404).json({ error: 'Subaccount not found' });
+      res.status(httpStatus.NOT_FOUND).json({ error: 'Subaccount not found' });
       return;
     }
 
@@ -155,17 +156,17 @@ export const triggerBrlaOfframp = async (
 
       // validate the recipient's taxId with partial information
       if (!validateMaskedNumber(pixKeyData.taxId, receiverTaxId)) {
-        res.status(400).json({ error: 'Invalid pixKey or receiverTaxId' });
+        res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
         return;
       }
     } catch (error) {
-      res.status(400).json({ error: 'Invalid pixKey or receiverTaxId' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
       return;
     }
 
     const { limitBurn } = subaccount.kyc.limits;
     if (Number(amount) > limitBurn) {
-      res.status(400).json({ error: 'Amount exceeds limit' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Amount exceeds limit' });
       return;
     }
 
@@ -175,7 +176,7 @@ export const triggerBrlaOfframp = async (
       amount: Number(amount),
       taxId: receiverTaxId,
     });
-    res.status(200).json({ offrampId });
+    res.status(httpStatus.OK).json({ offrampId });
     return;
   } catch (error) {
     handleApiError(error, res, 'triggerOfframp');
@@ -190,21 +191,21 @@ export const getOfframpStatus = async (
     const { taxId } = req.query;
 
     if (!taxId) {
-      res.status(400).json({ error: 'Missing taxId' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId' });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      res.status(400).json({ error: 'Subaccount not found' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount not found' });
       return;
     }
 
     const lastEventCached = await eventPoller.getLatestEventForUser(subaccount.id);
 
     if (!lastEventCached) {
-      res.status(404).json({ error: `No status events found for ${taxId}` });
+      res.status(httpStatus.NOT_FOUND).json({ error: `No status events found for ${taxId}` });
       return;
     }
 
@@ -213,11 +214,11 @@ export const getOfframpStatus = async (
       lastEventCached.subscription !== 'BURN' &&
       lastEventCached.subscription !== 'BALANCE-UPDATE'
     ) {
-      res.status(404).json({ error: `No offramp status event found for ${taxId}` });
+      res.status(httpStatus.NOT_FOUND).json({ error: `No offramp status event found for ${taxId}` });
       return;
     }
 
-    res.status(200).json({
+    res.status(httpStatus.OK).json({
       type: lastEventCached.subscription,
       status: lastEventCached.data.status,
     });
@@ -236,7 +237,7 @@ export const createSubaccount = async (
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (subaccount) {
-      res.status(400).json({ error: 'Subaccount already created' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount already created' });
       return;
     }
     // Convert birthdate from number to BRLA format
@@ -245,7 +246,7 @@ export const createSubaccount = async (
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
-    res.status(200).json({ subaccountId: id });
+    res.status(httpStatus.OK).json({ subaccountId: id });
   } catch (error) {
     handleApiError(error, res, 'createSubaccount');
   }
@@ -259,14 +260,14 @@ export const fetchSubaccountKycStatus = async (
     const { taxId } = req.query;
 
     if (!taxId) {
-      res.status(400).json({ error: 'Missing taxId' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId' });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      res.status(400).json({ error: 'Subaccount not found' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount not found' });
       return;
     }
 
@@ -274,11 +275,11 @@ export const fetchSubaccountKycStatus = async (
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
-      res.status(200).json({ type: 'KYC', status: 'PENDING' });
+      res.status(httpStatus.OK).json({ type: 'KYC', status: 'PENDING' });
       return;
     }
 
-    res.status(200).json({
+    res.status(httpStatus.OK).json({
       type: lastEventCached.subscription,
       status: lastEventCached.data.kycStatus,
     });
@@ -310,19 +311,19 @@ export const getPayInCode = async (
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      res.status(404).json({ error: 'Subaccount not found' });
+      res.status(httpStatus.NOT_FOUND).json({ error: 'Subaccount not found' });
       return;
     }
 
     if (subaccount.kyc.level < 1) {
-      res.status(400).json({ error: 'KYC invalid' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'KYC invalid' });
       return;
     }
 
     const { limitMint } = subaccount.kyc.limits;
 
     if (Number(amount) > limitMint) {
-      res.status(400).json({ error: 'Amount exceeds limit' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Amount exceeds limit' });
       return;
     }
 
@@ -332,7 +333,7 @@ export const getPayInCode = async (
       referenceLabel: generateReferenceLabel(receiverAddress),
     });
 
-    res.status(200).json(brCode);
+    res.status(httpStatus.OK).json(brCode);
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }
@@ -358,14 +359,14 @@ export const validatePixKey = async (
     const { pixKey } = req.query;
 
     if (!pixKey) {
-      res.status(400).json({ error: 'pixKey must be provided' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'pixKey must be provided' });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
     await brlaApiService.validatePixKey(pixKey);
 
-    res.status(200).json({ valid: true });
+    res.status(httpStatus.OK).json({ valid: true });
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }
@@ -394,14 +395,14 @@ export const triggerPayIn = async (
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      res.status(400).json({ error: 'taxId invalid' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'taxId invalid' });
       return;
     }
     logger.info('Requesting teleport:', subaccount.id, amount, receiverAddress);
     const teleportService = BrlaTeleportService.getInstance();
     await teleportService.requestTeleport(subaccount.id, Number(amount), receiverAddress);
 
-    res.status(200);
+    res.status(httpStatus.OK);
   } catch (error) {
     handleApiError(error, res, 'triggerOnramp');
   }

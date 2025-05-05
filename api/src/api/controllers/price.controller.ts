@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express';
+import httpStatus from 'http-status';
 
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
@@ -45,24 +46,24 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || typeof provider !== 'string') {
-    res.status(400).json({ error: 'Invalid provider parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid provider parameter' });
     return;
   }
 
   const providerLower = provider.toLowerCase() as PriceEndpoints.Provider;
 
   if (!fromCrypto || typeof fromCrypto !== 'string') {
-    res.status(400).json({ error: 'Invalid fromCrypto parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid fromCrypto parameter' });
     return;
   }
 
   if (!toFiat || typeof toFiat !== 'string') {
-    res.status(400).json({ error: 'Invalid toFiat parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid toFiat parameter' });
     return;
   }
 
   if (!amount || typeof amount !== 'string') {
-    res.status(400).json({ error: 'Invalid amount parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter' });
     return;
   }
 
@@ -70,7 +71,7 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
 
   try {
     if (!providerHandlers[providerLower]) {
-      res.status(400).json({ error: 'Invalid provider' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid provider' });
       return;
     }
 
@@ -86,20 +87,20 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
   } catch (err) {
     if (err instanceof UnsupportedPairError) {
       // 400 Bad Request: The combination of inputs is invalid/unsupported by the provider.
-      res.status(400).json({ error: err.message });
+      res.status(httpStatus.BAD_REQUEST).json({ error: err.message });
     } else if (err instanceof InvalidAmountError) {
       // 400 Bad Request: The amount is outside the provider's limits.
-      res.status(400).json({ error: err.message });
+      res.status(httpStatus.BAD_REQUEST).json({ error: err.message });
     } else if (err instanceof InvalidParameterError) {
       // 400 Bad Request: Some other input parameter was invalid for the provider.
-      res.status(400).json({ error: err.message });
+      res.status(httpStatus.BAD_REQUEST).json({ error: err.message });
     } else if (err instanceof ProviderInternalError) {
       // 502 Bad Gateway: The upstream provider had an internal issue. Log it.
       console.error('Provider internal error:', err);
-      res.status(502).json({ error: err.message });
+      res.status(httpStatus.BAD_GATEWAY).json({ error: err.message });
     } else {
       console.error('Unexpected server error:', err);
-      res.status(500).json({ error: 'An internal server error occurred while fetching the price.' });
+      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'An internal server error occurred while fetching the price.' });
     }
   }
 };
@@ -115,17 +116,17 @@ export const getAllPricesBundled: RequestHandler<
   // Input validation is handled by the middleware, but we need to ensure
   // the parameters are correctly typed for the service calls
   if (!fromCrypto || typeof fromCrypto !== 'string') {
-    res.status(400).json({ error: 'Invalid fromCrypto parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid fromCrypto parameter' });
     return;
   }
 
   if (!toFiat || typeof toFiat !== 'string') {
-    res.status(400).json({ error: 'Invalid toFiat parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid toFiat parameter' });
     return;
   }
 
   if (!amount || typeof amount !== 'string') {
-    res.status(400).json({ error: 'Invalid amount parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter' });
     return;
   }
 
@@ -159,18 +160,18 @@ export const getAllPricesBundled: RequestHandler<
       if (status === 'fulfilled') {
         response[provider] = { status: 'fulfilled', value };
       } else {
-        let errorStatus = 500; // Default internal server error
+        let errorStatus = httpStatus.INTERNAL_SERVER_ERROR; // Default internal server error
         let errorMessage = 'An unexpected error occurred with this provider.';
 
         if (reason instanceof ProviderApiError) {
           if (reason instanceof ProviderInternalError) {
-            errorStatus = 502; // Bad Gateway for provider internal errors
+            errorStatus = httpStatus.BAD_GATEWAY; // Bad Gateway for provider internal errors
           } else if (
             reason instanceof UnsupportedPairError ||
             reason instanceof InvalidAmountError ||
             reason instanceof InvalidParameterError
           ) {
-            errorStatus = 400;
+            errorStatus = httpStatus.BAD_REQUEST;
           }
           errorMessage = reason.message;
         } else if (reason instanceof Error) {
@@ -197,5 +198,5 @@ export const getAllPricesBundled: RequestHandler<
   });
 
   // Always return 200 OK with the aggregated response, even if some providers failed
-  res.status(200).json(response);
+  res.status(httpStatus.OK).json(response);
 };
