@@ -62,18 +62,15 @@ function convertUSDToTokenUnits(
  * @returns The encoded transaction
  */
 async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
-  // Get the API instance
   const apiManager = ApiManager.getInstance();
   const { api } = await apiManager.getApi('pendulum');
 
-  // Get the metadata with USD fee structure
   const metadata = quote.metadata as QuoteTicketMetadata;
   if (!metadata.usdFeeStructure) {
     logger.warn('No USD fee structure found in quote metadata, skipping fee distribution transaction');
     return null;
   }
 
-  // Read fee components from metadata.usdFeeStructure
   const networkFeeUSD = metadata.usdFeeStructure.network;
   const vortexFeeUSD = metadata.usdFeeStructure.vortex;
   const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
@@ -94,7 +91,6 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
     }
   }
 
-  // Determine stablecoin based on source network
   const fromNetwork = getNetworkFromDestination(quote.from);
   if (!fromNetwork) {
     logger.warn(`Invalid network for source ${quote.from}, skipping fee distribution transaction`);
@@ -112,7 +108,6 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const vortexFeeStablecoinRaw = convertUSDToTokenUnits(vortexFeeUSD, { decimals: stablecoinDecimals });
   const partnerMarkupFeeStablecoinRaw = convertUSDToTokenUnits(partnerMarkupFeeUSD, { decimals: stablecoinDecimals });
 
-  // Build transfers
   const transfers = [];
 
   if (new Big(networkFeeStablecoinRaw).gt(0)) {
@@ -129,7 +124,6 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
     );
   }
 
-  // Create batch transaction
   if (transfers.length > 0) {
     const batchTx = api.tx.utility.batchAll(transfers);
     // Create unsigned transaction (don't sign it here)
@@ -137,6 +131,391 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   }
 
   return null;
+}
+
+/**
+ * Creates transactions for EVM source networks using Squidrouter
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param stateMeta State metadata to update
+ * @returns Updated state metadata
+ */
+async function createEvmSourceTransactions(
+  params: {
+    userAddress: string;
+    pendulumEphemeralAddress: string;
+    fromNetwork: Networks;
+    inputAmountRaw: string;
+    inputTokenDetails: any; // Use any to avoid TypeScript errors
+  },
+  unsignedTxs: UnsignedTx[],
+): Promise<Partial<StateMetadata>> {
+  const { userAddress, pendulumEphemeralAddress, fromNetwork, inputAmountRaw, inputTokenDetails } = params;
+
+  const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash } =
+    await createOfframpSquidrouterTransactions({
+      inputTokenDetails,
+      fromNetwork,
+      rawAmount: inputAmountRaw,
+      pendulumAddressDestination: pendulumEphemeralAddress,
+      fromAddress: userAddress,
+    });
+
+  unsignedTxs.push({
+    txData: encodeEvmTransactionData(approveData) as any,
+    phase: 'squidrouterApprove',
+    network: fromNetwork,
+    nonce: 0,
+    signer: userAddress,
+  });
+
+  unsignedTxs.push({
+    txData: encodeEvmTransactionData(swapData) as any,
+    phase: 'squidrouterSwap',
+    network: fromNetwork,
+    nonce: 0,
+    signer: userAddress,
+  });
+
+  return {
+    squidRouterReceiverId,
+    squidRouterReceiverHash,
+  };
+}
+
+/**
+ * Creates transactions for AssetHub source networks
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ */
+async function createAssetHubSourceTransactions(
+  params: {
+    userAddress: string;
+    pendulumEphemeralAddress: string;
+    inputAmountRaw: string;
+  },
+  unsignedTxs: UnsignedTx[],
+  fromNetwork: Networks,
+): Promise<void> {
+  const { userAddress, pendulumEphemeralAddress, inputAmountRaw } = params;
+
+  // Create Assethub to Pendulum transaction
+  const assethubToPendulumTransaction = await createAssethubToPendulumXCM(
+    pendulumEphemeralAddress,
+    'usdc',
+    inputAmountRaw,
+  );
+
+  logger.info('assethub to pendulum txs done');
+
+  unsignedTxs.push({
+    txData: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
+    phase: 'assethubToPendulum',
+    network: fromNetwork,
+    nonce: 0,
+    signer: userAddress,
+  });
+}
+
+/**
+ * Creates Nabla swap transactions for Pendulum
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce and state metadata
+ */
+async function createNablaSwapTransactions(
+  params: {
+    quote: QuoteTicketAttributes;
+    account: AccountMeta;
+    inputTokenPendulumDetails: any;
+    outputTokenPendulumDetails: any;
+    grossOutputAmountUnits: Big;
+  },
+  unsignedTxs: UnsignedTx[],
+  nextNonce: number,
+): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
+  const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails, grossOutputAmountUnits } = params;
+
+  const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
+    new Big(quote.inputAmount),
+    inputTokenPendulumDetails.pendulumDecimals,
+  ).toFixed(0, 0);
+
+  const nablaSoftMinimumOutput = grossOutputAmountUnits.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+  const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
+    nablaSoftMinimumOutput,
+    inputTokenPendulumDetails.pendulumDecimals,
+  ).toFixed();
+
+  const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(
+    quote,
+    account,
+    inputTokenPendulumDetails,
+    outputTokenPendulumDetails,
+  );
+
+  unsignedTxs.push({
+    txData: approveTransaction,
+    phase: 'nablaApprove',
+    network: account.network,
+    nonce: nextNonce,
+    signer: account.address,
+  });
+  nextNonce++;
+
+  unsignedTxs.push({
+    txData: swapTransaction,
+    phase: 'nablaSwap',
+    network: account.network,
+    nonce: nextNonce,
+    signer: account.address,
+  });
+  nextNonce++;
+
+  return {
+    nextNonce,
+    stateMeta: {
+      nablaSoftMinimumOutputRaw,
+      inputAmountBeforeSwapRaw,
+    },
+  };
+}
+
+/**
+ * Creates fee distribution transaction
+ * @param quote Quote ticket
+ * @param account Account metadata
+ * @param unsignedTxs Array to add transactions to
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce
+ */
+async function addFeeDistributionTransaction(
+  quote: QuoteTicketAttributes,
+  account: AccountMeta,
+  unsignedTxs: UnsignedTx[],
+  nextNonce: number,
+): Promise<number> {
+  const feeDistributionTx = await createFeeDistributionTransaction(quote);
+
+  if (feeDistributionTx) {
+    unsignedTxs.push({
+      txData: feeDistributionTx,
+      phase: 'distributeFees',
+      network: account.network,
+      nonce: nextNonce,
+      signer: account.address,
+    });
+    nextNonce++;
+  }
+
+  return nextNonce;
+}
+
+/**
+ * Creates BRL-specific transactions for Pendulum to Moonbeam transfer
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param pendulumCleanupTx Cleanup transaction template
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce and state metadata
+ */
+async function createBRLTransactions(
+  params: {
+    brlaEvmAddress: string;
+    grossOutputAmountRaw: string;
+    outputTokenDetails: any;
+    account: AccountMeta;
+    taxId: string;
+    pixDestination: string;
+    receiverTaxId: string;
+  },
+  unsignedTxs: UnsignedTx[],
+  pendulumCleanupTx: Omit<UnsignedTx, 'nonce'>,
+  nextNonce: number,
+): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
+  const { brlaEvmAddress, grossOutputAmountRaw, outputTokenDetails, account, taxId, pixDestination, receiverTaxId } =
+    params;
+
+  const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
+    brlaEvmAddress,
+    grossOutputAmountRaw,
+    outputTokenDetails.pendulumCurrencyId,
+  );
+
+  unsignedTxs.push({
+    txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
+    phase: 'pendulumToMoonbeam',
+    network: account.network,
+    nonce: nextNonce,
+    signer: account.address,
+  });
+  nextNonce++;
+
+  // Add the cleanup transaction with the next nonce
+  unsignedTxs.push({
+    ...pendulumCleanupTx,
+    nonce: nextNonce,
+  });
+  nextNonce++;
+
+  return {
+    nextNonce,
+    stateMeta: {
+      taxId,
+      brlaEvmAddress,
+      pixDestination,
+      receiverTaxId,
+    },
+  };
+}
+
+/**
+ * Creates Stellar-specific transactions for Spacewalk redeem
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ * @param pendulumCleanupTx Cleanup transaction template
+ * @param nextNonce Next available nonce
+ * @returns Updated nonce and state metadata
+ */
+async function createStellarTransactions(
+  params: {
+    grossOutputAmountRaw: string;
+    stellarEphemeralEntry: AccountMeta;
+    outputTokenDetails: any;
+    account: AccountMeta;
+    stellarPaymentData: PaymentData;
+  },
+  unsignedTxs: UnsignedTx[],
+  pendulumCleanupTx: Omit<UnsignedTx, 'nonce'>,
+  nextNonce: number,
+): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
+  const { grossOutputAmountRaw, stellarEphemeralEntry, outputTokenDetails, account, stellarPaymentData } = params;
+
+  const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
+  const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
+    outputAmountRaw: grossOutputAmountRaw,
+    stellarEphemeralAccountRaw,
+    outputTokenDetails,
+    executeSpacewalkNonce: nextNonce,
+  });
+
+  unsignedTxs.push({
+    txData: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
+    phase: 'spacewalkRedeem',
+    network: account.network,
+    nonce: nextNonce,
+    signer: account.address,
+  });
+  const executeSpacewalkNonce = nextNonce;
+  nextNonce++;
+
+  // Add the cleanup transaction with the next nonce
+  unsignedTxs.push({
+    ...pendulumCleanupTx,
+    nonce: nextNonce,
+  });
+  nextNonce++;
+
+  return {
+    nextNonce,
+    stateMeta: {
+      stellarTarget: {
+        stellarTargetAccountId: stellarPaymentData.anchorTargetAccount,
+        stellarTokenDetails: outputTokenDetails,
+      },
+      stellarEphemeralAccountId: stellarEphemeralEntry.address,
+      executeSpacewalkNonce,
+    },
+  };
+}
+
+/**
+ * Creates Stellar payment and merge transactions
+ * @param params Transaction parameters
+ * @param unsignedTxs Array to add transactions to
+ */
+async function createStellarPaymentTransactions(
+  params: {
+    account: AccountMeta;
+    grossOutputAmountUnits: Big;
+    outputTokenDetails: any;
+    stellarPaymentData: PaymentData;
+  },
+  unsignedTxs: UnsignedTx[],
+): Promise<void> {
+  const { account, grossOutputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
+
+  const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumber } =
+    await buildPaymentAndMergeTx({
+      ephemeralAccountId: account.address,
+      amountToAnchorUnits: grossOutputAmountUnits.toFixed(),
+      paymentData: stellarPaymentData,
+      tokenConfigStellar: outputTokenDetails,
+    });
+
+  const createAccountPrimaryTx: UnsignedTx = {
+    txData: createAccountTransactions[0].tx,
+    phase: 'stellarCreateAccount',
+    network: account.network,
+    nonce: 0,
+    signer: account.address,
+  };
+
+  const paymentTransactionPrimary: UnsignedTx = {
+    txData: paymentTransactions[0].tx,
+    phase: 'stellarPayment',
+    network: account.network,
+    nonce: 1,
+    signer: account.address,
+    meta: {
+      expectedSequenceNumber,
+    },
+  };
+
+  const mergeAccountTransactionPrimary: UnsignedTx = {
+    txData: mergeAccountTransactions[0].tx,
+    phase: 'stellarCleanup',
+    network: account.network,
+    nonce: 2,
+    signer: account.address,
+    meta: {
+      expectedSequenceNumber,
+    },
+  };
+
+  const createAccountMultiSignedTxs = createAccountTransactions.map((tx, index) => ({
+    ...createAccountPrimaryTx,
+    txData: tx.tx,
+    nonce: createAccountPrimaryTx.nonce + index,
+  }));
+
+  const createAccountTx = addAdditionalTransactionsToMeta(createAccountPrimaryTx, createAccountMultiSignedTxs);
+  unsignedTxs.push(createAccountTx);
+
+  const paymentTransactionMultiSignedTxs = paymentTransactions.map((tx, index) => ({
+    ...paymentTransactionPrimary,
+    txData: tx.tx,
+    nonce: paymentTransactionPrimary.nonce + index,
+  }));
+
+  const paymentTransaction = addAdditionalTransactionsToMeta(
+    paymentTransactionPrimary,
+    paymentTransactionMultiSignedTxs,
+  );
+  unsignedTxs.push(paymentTransaction);
+
+  const mergeAccountTransactionMultiSignedTxs = mergeAccountTransactions.map((tx, index) => ({
+    ...mergeAccountTransactionPrimary,
+    txData: tx.tx,
+    nonce: mergeAccountTransactionPrimary.nonce + index,
+  }));
+
+  const mergeAccountTx = addAdditionalTransactionsToMeta(
+    mergeAccountTransactionPrimary,
+    mergeAccountTransactionMultiSignedTxs,
+  );
+  unsignedTxs.push(mergeAccountTx);
 }
 
 interface OfframpTransactionParams {
@@ -171,30 +550,25 @@ export async function prepareOfframpTransactions({
     throw new Error(`Invalid network for destination ${quote.from}`);
   }
 
-  // validate input token. At this point should be validated by the quote endpoint,
-  // but we need it for the type check
   if (!isOnChainToken(quote.inputCurrency)) {
-    throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
+    throw new Error(`Input currency must be on-chain token for offramp, got ${quote.inputCurrency}`);
   }
 
-  // TODO we could compress this into a helper.
   const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency)!;
-  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0); // Raw amount on initial chain.
+  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
 
   if (!isFiatToken(quote.outputCurrency)) {
     throw new Error(`Output currency must be fiat token for offramp, got ${quote.outputCurrency}`);
   }
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
-  
-  // Use grossOutputAmount from metadata instead of calculating it
+
   if (!quote.metadata?.grossOutputAmount) {
     throw new Error('Quote metadata is missing grossOutputAmount');
   }
-  
+
   const grossOutputAmountUnits = new Big(quote.metadata.grossOutputAmount);
   const grossOutputAmountRaw = multiplyByPowerOfTen(grossOutputAmountUnits, outputTokenDetails.decimals).toFixed(0, 0);
 
-  // Validate output amount from UI/sep24
   if (stellarPaymentData && stellarPaymentData.amount) {
     const stellarAmount = new Big(stellarPaymentData.amount);
     if (!stellarAmount.eq(grossOutputAmountUnits)) {
@@ -217,7 +591,7 @@ export async function prepareOfframpTransactions({
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency);
 
-  // add common data to state metadata, for later use on the executors
+  // Initialize state metadata
   stateMeta = {
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
@@ -226,144 +600,80 @@ export async function prepareOfframpTransactions({
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
   };
 
-  // If coming from evm chain, we need to pass the proper squidrouter transactions
-  // to the user.
-  if (isEvmTokenDetails(inputTokenDetails)) {
-    if (!userAddress) {
-      throw new Error('User address must be provided for offramping from EVM network.');
-    }
+  if (!userAddress) {
+    throw new Error('User address must be provided for offramping.');
+  }
 
-    const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash } =
-      await createOfframpSquidrouterTransactions({
-        inputTokenDetails,
+  if (isEvmTokenDetails(inputTokenDetails)) {
+    const evmSourceMetadata = await createEvmSourceTransactions(
+      {
+        userAddress,
+        pendulumEphemeralAddress: pendulumEphemeralEntry.address,
         fromNetwork,
-        rawAmount: inputAmountRaw,
-        pendulumAddressDestination: pendulumEphemeralEntry.address,
-        fromAddress: userAddress,
-      });
-    unsignedTxs.push({
-      txData: encodeEvmTransactionData(approveData) as any,
-      phase: 'squidrouterApprove',
-      network: fromNetwork,
-      nonce: 0,
-      signer: userAddress,
-    });
-    unsignedTxs.push({
-      txData: encodeEvmTransactionData(swapData) as any,
-      phase: 'squidrouterSwap',
-      network: fromNetwork,
-      nonce: 0,
-      signer: userAddress,
-    });
+        inputAmountRaw,
+        inputTokenDetails,
+      },
+      unsignedTxs,
+    );
 
     stateMeta = {
       ...stateMeta,
-      squidRouterReceiverId,
-      squidRouterReceiverHash,
+      ...evmSourceMetadata,
     };
   } else {
-    if (!userAddress) {
-      throw new Error('User address must be provided for offramping.');
-    }
-
-    // Create Assethub to Pendulum transaction
-    const assethubToPendulumTransaction = await createAssethubToPendulumXCM(
-      pendulumEphemeralEntry.address,
-      'usdc',
-      inputAmountRaw,
+    await createAssetHubSourceTransactions(
+      {
+        userAddress,
+        pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+        inputAmountRaw,
+      },
+      unsignedTxs,
+      fromNetwork,
     );
-    logger.info('assethub to pendulum txs done');
-    unsignedTxs.push({
-      txData: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
-      phase: 'assethubToPendulum',
-      network: fromNetwork,
-      nonce: 0,
-      signer: userAddress,
-    });
   }
 
-  // Create unsigned transactions for each ephemeral account
+  // Process each ephemeral account
   for (const account of signingAccounts) {
     logger.info(`Processing account ${account.address} on network ${account.network}`);
     const accountNetworkId = getNetworkId(account.network);
 
-    if (!isOnChainToken(quote.inputCurrency)) {
-      throw new Error(`Input currency cannot be fiat token ${quote.inputCurrency} for offramp.`);
-    }
-    const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency);
-    if (!inputTokenDetails) {
-      throw new Error(`Token ${quote.inputCurrency} is not supported for offramp`);
-    }
-
-    // If network is Moonbeam, we need to create a second transaction to send the funds to the user
+    // Skip Moonbeam account processing (empty block in original code)
     if (accountNetworkId === getNetworkId(Networks.Moonbeam)) {
+      // No transactions needed for Moonbeam ephemeral at this stage
     }
-    // If network is Pendulum, create all the swap transactions
+    // Process Pendulum account
     else if (accountNetworkId === getNetworkId(Networks.Pendulum)) {
-      const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
-        new Big(quote.inputAmount),
-        inputTokenPendulumDetails.pendulumDecimals,
-      ).toFixed(0, 0);
+      // Initialize nonce counter for Pendulum transactions
+      let pendulumNonce = 0;
 
-      const nablaSoftMinimumOutput = grossOutputAmountUnits.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
-      const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
-        nablaSoftMinimumOutput,
-        inputTokenPendulumDetails.pendulumDecimals,
-      ).toFixed();
-
-      const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(
-        quote,
-        account,
-        inputTokenPendulumDetails,
-        outputTokenPendulumDetails,
+      // Create Nabla swap transactions using helper function
+      const nablaResult = await createNablaSwapTransactions(
+        {
+          quote,
+          account,
+          inputTokenPendulumDetails,
+          outputTokenPendulumDetails,
+          grossOutputAmountUnits,
+        },
+        unsignedTxs,
+        pendulumNonce,
       );
 
-      unsignedTxs.push({
-        txData: approveTransaction,
-        phase: 'nablaApprove',
-        network: account.network,
-        nonce: 0,
-        signer: account.address,
-      });
-
-      unsignedTxs.push({
-        txData: swapTransaction,
-        phase: 'nablaSwap',
-        network: account.network,
-        nonce: 1,
-        signer: account.address,
-      });
-
-      // Generate the fee distribution transaction
-      const feeDistributionTx = await createFeeDistributionTransaction(quote);
-      
-      // Track the next available nonce, which will be adjusted based on whether we have a fee distribution tx
-      let nextNonce = 2;
-      
-      if (feeDistributionTx) {
-        unsignedTxs.push({
-          txData: feeDistributionTx,
-          phase: 'distributeFees',
-          network: account.network,
-          nonce: nextNonce,
-          signer: account.address,
-        });
-        nextNonce++;
-      }
-      
+      pendulumNonce = nablaResult.nextNonce;
       stateMeta = {
         ...stateMeta,
-        nablaSoftMinimumOutputRaw,
-        inputAmountBeforeSwapRaw,
+        ...nablaResult.stateMeta,
       };
 
+      // Add fee distribution transaction if available using helper function
+      pendulumNonce = await addFeeDistributionTransaction(quote, account, unsignedTxs, pendulumNonce);
+
+      // Prepare cleanup transaction to be added later with the correct nonce
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
         inputTokenPendulumDetails.pendulumCurrencyId,
         outputTokenPendulumDetails.pendulumCurrencyId,
       );
-      
-      // The cleanup transaction will be added after either pendulumToMoonbeam or spacewalkRedeem
-      // We'll store its reference for now and add it with the correct nonce later
+
       const pendulumCleanupTx: Omit<UnsignedTx, 'nonce'> = {
         txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
         phase: 'pendulumCleanup',
@@ -378,32 +688,25 @@ export async function prepareOfframpTransactions({
           );
         }
 
-        const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
-          brlaEvmAddress,
-          grossOutputAmountRaw,
-          outputTokenDetails.pendulumCurrencyId,
+        const brlResult = await createBRLTransactions(
+          {
+            brlaEvmAddress,
+            grossOutputAmountRaw,
+            outputTokenDetails,
+            account,
+            taxId,
+            pixDestination,
+            receiverTaxId,
+          },
+          unsignedTxs,
+          pendulumCleanupTx,
+          pendulumNonce,
         );
-        unsignedTxs.push({
-          txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
-          phase: 'pendulumToMoonbeam',
-          network: account.network,
-          nonce: nextNonce,
-          signer: account.address,
-        });
-        nextNonce++;
 
-        // Add the cleanup transaction with the next nonce
-        unsignedTxs.push({
-          ...pendulumCleanupTx,
-          nonce: nextNonce,
-        });
-
+        pendulumNonce = brlResult.nextNonce;
         stateMeta = {
           ...stateMeta,
-          taxId,
-          brlaEvmAddress,
-          pixDestination,
-          receiverTaxId,
+          ...brlResult.stateMeta,
         };
       } else {
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
@@ -414,115 +717,46 @@ export async function prepareOfframpTransactions({
           throw new Error('Stellar payment data must be provided for offramp');
         }
 
-        const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
-        const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
-          outputAmountRaw: grossOutputAmountRaw,
-          stellarEphemeralAccountRaw,
-          outputTokenDetails,
-          executeSpacewalkNonce: nextNonce,
-        });
+        // Use helper function to create Stellar transactions
+        const stellarResult = await createStellarTransactions(
+          {
+            grossOutputAmountRaw,
+            stellarEphemeralEntry,
+            outputTokenDetails,
+            account,
+            stellarPaymentData,
+          },
+          unsignedTxs,
+          pendulumCleanupTx,
+          pendulumNonce,
+        );
 
-        unsignedTxs.push({
-          txData: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
-          phase: 'spacewalkRedeem',
-          network: account.network,
-          nonce: nextNonce,
-          signer: account.address,
-        });
-        nextNonce++;
-
-        // Add the cleanup transaction with the next nonce
-        unsignedTxs.push({
-          ...pendulumCleanupTx,
-          nonce: nextNonce,
-        });
-
+        pendulumNonce = stellarResult.nextNonce;
         stateMeta = {
           ...stateMeta,
-          stellarTarget: {
-            stellarTargetAccountId: stellarPaymentData.anchorTargetAccount,
-            stellarTokenDetails: outputTokenDetails,
-          },
-          stellarEphemeralAccountId: stellarEphemeralEntry.address,
-          executeSpacewalkNonce: nextNonce - 1, // Store the nonce that was used for spacewalkRedeem
+          ...stellarResult.stateMeta,
         };
       }
-    } else if (accountNetworkId === getNetworkId(Networks.Stellar) && quote.outputCurrency !== FiatToken.BRL) {
+    }
+    // Process Stellar account for non-BRL outputs using helper function
+    else if (accountNetworkId === getNetworkId(Networks.Stellar) && quote.outputCurrency !== FiatToken.BRL) {
       if (!isStellarOutputTokenDetails(outputTokenDetails)) {
         throw new Error(`Output currency must be Stellar token for offramp, got ${quote.outputCurrency}`);
       }
+
       if (!stellarPaymentData) {
         throw new Error('Stellar payment data must be provided for offramp');
       }
-      const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumber } =
-        await buildPaymentAndMergeTx({
-          ephemeralAccountId: account.address,
-          amountToAnchorUnits: grossOutputAmountUnits.toFixed(),
-          paymentData: stellarPaymentData,
-          tokenConfigStellar: outputTokenDetails,
-        });
 
-      const createAccountPrimaryTx: UnsignedTx = {
-        txData: createAccountTransactions[0].tx,
-        phase: 'stellarCreateAccount',
-        network: account.network,
-        nonce: 0,
-        signer: account.address,
-      };
-
-      const paymentTransactionPrimary: UnsignedTx = {
-        txData: paymentTransactions[0].tx,
-        phase: 'stellarPayment',
-        network: account.network,
-        nonce: 1,
-        signer: account.address,
-        meta: {
-          expectedSequenceNumber,
+      await createStellarPaymentTransactions(
+        {
+          account,
+          grossOutputAmountUnits,
+          outputTokenDetails,
+          stellarPaymentData,
         },
-      };
-
-      const mergeAccountTransactionPrimary: UnsignedTx = {
-        txData: mergeAccountTransactions[0].tx,
-        phase: 'stellarCleanup',
-        network: account.network,
-        nonce: 2,
-        signer: account.address,
-        meta: {
-          expectedSequenceNumber,
-        },
-      };
-
-      const createAccountMultiSignedTxs = createAccountTransactions.map((tx, index) => ({
-        ...createAccountPrimaryTx,
-        txData: tx.tx,
-        nonce: createAccountPrimaryTx.nonce + index,
-      }));
-
-      const createAccountTx = addAdditionalTransactionsToMeta(createAccountPrimaryTx, createAccountMultiSignedTxs);
-      unsignedTxs.push(createAccountTx);
-
-      const paymentTransactionMultiSignedTxs = paymentTransactions.map((tx, index) => ({
-        ...paymentTransactionPrimary,
-        txData: tx.tx,
-        nonce: paymentTransactionPrimary.nonce + index,
-      }));
-
-      const paymentTransaction = addAdditionalTransactionsToMeta(
-        paymentTransactionPrimary,
-        paymentTransactionMultiSignedTxs,
+        unsignedTxs,
       );
-      unsignedTxs.push(paymentTransaction);
-
-      const mergeAccountTransactionMultiSignedTxs = mergeAccountTransactions.map((tx, index) => ({
-        ...mergeAccountTransactionPrimary,
-        txData: tx.tx,
-        nonce: mergeAccountTransactionPrimary.nonce + index,
-      }));
-      const mergeAccountTx = addAdditionalTransactionsToMeta(
-        mergeAccountTransactionPrimary,
-        mergeAccountTransactionMultiSignedTxs,
-      );
-      unsignedTxs.push(mergeAccountTx);
     }
   }
 
