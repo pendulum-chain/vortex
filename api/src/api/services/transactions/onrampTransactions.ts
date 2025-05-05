@@ -14,11 +14,9 @@ import {
   isOnChainTokenDetails,
   Networks,
   UnsignedTx,
-  RampCurrency,
-  RampPhase,
 } from 'shared';
 import Big from 'big.js';
-import { PENDULUM_USDC_AXL, PENDULUM_USDC_ASSETHUB } from 'shared/src/tokens/constants/pendulum';
+import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
 import Partner from '../../../models/partner.model';
 import { ApiManager } from '../pendulum/apiManager';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
@@ -34,18 +32,17 @@ import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
 import { StateMetadata } from '../phases/meta-state-types';
 import logger from '../../../config/logger';
 
-// TODO: Implement proper Fiat to USD conversion using price feeds
-function convertFiatToUSD(amountFiat: string, sourceFiat: RampCurrency): string {
-  logger.warn(`TODO: Implement ${sourceFiat} to USD conversion. Using placeholder logic.`);
-  // Placeholder: Returns original fiat amount. Needs real implementation.
-  const usdLikeCurrencies = ['USD', 'USDC', 'axlUSDC'];
-  if (usdLikeCurrencies.includes(sourceFiat as string)) return amountFiat; // Base case
-  return amountFiat;
-}
-
 // TODO: Implement USD to Token Units conversion using price feeds
-function convertUSDToTokenUnits(amountUSD: string, tokenDetails: { decimals: number /* Add price info if available */ }): string {
-  logger.warn(`TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`);
+// TODO replace all usages with this function
+function convertUSDToTokenUnits(
+  amountUSD: string,
+  tokenDetails: {
+    decimals: number /* Add price info if available */;
+  },
+): string {
+  logger.warn(
+    `TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`,
+  );
   // Placeholder: Assumes 1 USD = 1 token unit, adjusts for decimals. Needs real price.
   const amountUnits = new Big(amountUSD);
   return multiplyByPowerOfTen(amountUnits, tokenDetails.decimals).toFixed(0, 0);
@@ -56,9 +53,7 @@ function convertUSDToTokenUnits(amountUSD: string, tokenDetails: { decimals: num
  * @param quote The quote ticket
  * @returns The encoded transaction
  */
-async function createFeeDistributionTransaction(
-  quote: QuoteTicketAttributes,
-): Promise<string | null> {
+async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
   // Get the API instance
   const apiManager = ApiManager.getInstance();
   const { api } = await apiManager.getApi('pendulum');
@@ -113,15 +108,11 @@ async function createFeeDistributionTransaction(
   const transfers = [];
 
   if (new Big(networkFeeStablecoinRaw).gt(0)) {
-    transfers.push(
-      api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, networkFeeStablecoinRaw),
-    );
+    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, networkFeeStablecoinRaw));
   }
 
   if (new Big(vortexFeeStablecoinRaw).gt(0)) {
-    transfers.push(
-      api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw),
-    );
+    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
   }
 
   if (new Big(partnerMarkupFeeStablecoinRaw).gt(0) && partnerPayoutAddress) {
@@ -189,39 +180,21 @@ export async function prepareOnrampTransactions(
 
   // Cast metadata to the correct type for better type safety
   const metadata = quote.metadata as QuoteTicketMetadata;
-  
-  // Get the original input amount before anchor fee deduction
-  const originalInputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
-  
-  // Use placeholder values if the metadata properties don't exist
-  // These properties might not be defined in the current QuoteTicketMetadata type
-  // but are expected to be added in the future
-  const anchorFeeFiat = '0'; // This would come from metadata.anchorFeeFiat
-  const targetFiat = 'USDC' as RampCurrency; // This would come from metadata.targetFiat
-  
-  // Convert anchor fee from fiat to USD
-  const anchorFeeUSD = convertFiatToUSD(anchorFeeFiat, targetFiat);
-  
-  // Convert anchor fee from USD to input token units
-  const anchorFeeInInputTokenRaw = convertUSDToTokenUnits(anchorFeeUSD, inputTokenDetails);
-  
-  // Calculate input amount after anchor fee deduction
-  const inputAmountPostAnchorFeeRaw = new Big(originalInputAmountRaw).minus(anchorFeeInInputTokenRaw).toFixed(0, 0);
-  const inputAmountPostAnchorFeeUnits = multiplyByPowerOfTen(new Big(inputAmountPostAnchorFeeRaw), -inputTokenDetails.decimals);
-  
-  // Use the input amount after anchor fee for the swap
-  const inputAmountUnits = inputAmountPostAnchorFeeUnits;
+
+  // Convert input amount to raw units for Moonbeam
+  const inputAmountPostAnchorFeeRaw = new Big(quote.inputAmount).minus(quote.fee.anchor).toFixed(0, 0);
+  const inputAmountUnits = multiplyByPowerOfTen(new Big(inputAmountPostAnchorFeeRaw), -inputTokenDetails.decimals);
 
   // The output amount to be obtained on Moonbeam, differs from the amount to be obtained on destination evm chain.
   // We'll use the gross output amount (before fee deduction) for swap calculations
   const grossOutputAmountPendulumUnits = new Big(metadata.grossOutputAmount || '0');
-  
+
   // Convert gross output to raw units for Moonbeam
   const outputAmountRaw = multiplyByPowerOfTen(
     grossOutputAmountPendulumUnits,
-    outputTokenDetails.pendulumDecimals
+    outputTokenDetails.pendulumDecimals,
   ).toFixed(0, 0);
-  
+
   // Use the gross output amount for swap calculations
   const outputAmount = grossOutputAmountPendulumUnits;
 
@@ -238,8 +211,7 @@ export async function prepareOnrampTransactions(
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,
     taxId,
-    inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
-    inputAmountBeforeSwapRaw: inputAmountPostAnchorFeeRaw,
+    inputAmountUnits: inputAmountUnits.toFixed(),
   };
 
   for (const account of signingAccounts) {
@@ -262,7 +234,10 @@ export async function prepareOnrampTransactions(
 
       const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
       // For assethub, we skip the 2 squidrouter transactions, so nonce is 2 lower.
-      const moonbeamCleanupStartingNonce = toNetworkId === getNetworkId(Networks.AssetHub) ? moonbeamEphemeralStartingNonce + 2 : moonbeamEphemeralStartingNonce + 4;
+      const moonbeamCleanupStartingNonce =
+        toNetworkId === getNetworkId(Networks.AssetHub)
+          ? moonbeamEphemeralStartingNonce + 2
+          : moonbeamEphemeralStartingNonce + 4;
       unsignedTxs.push({
         txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
         phase: 'moonbeamCleanup',
@@ -365,9 +340,9 @@ export async function prepareOnrampTransactions(
         // Use the final output amount (net of all fees) for the final transfer
         const finalOutputAmountRaw = multiplyByPowerOfTen(
           new Big(quote.outputAmount),
-          outputTokenDetails.pendulumDecimals
+          outputTokenDetails.pendulumDecimals,
         ).toFixed(0, 0);
-        
+
         const pendulumToAssethubXcmTransaction = await createPendulumToAssethubTransfer(
           destinationAddress,
           outputTokenDetails.pendulumCurrencyId,
@@ -388,9 +363,9 @@ export async function prepareOnrampTransactions(
         // Use the final output amount (net of all fees) for the final transfer
         const finalOutputAmountRaw = multiplyByPowerOfTen(
           new Big(quote.outputAmount),
-          outputTokenDetails.pendulumDecimals
+          outputTokenDetails.pendulumDecimals,
         ).toFixed(0, 0);
-        
+
         const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
           moonbeamEphemeralEntry.address,
           finalOutputAmountRaw,
