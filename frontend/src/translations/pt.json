@@ -305,6 +305,9 @@
       "details": "Detalhes",
       "yourQuote": "Sua cotação",
       "vortexFee": "Taxa da Vortex",
+      "networkFee": "Taxa de rede",
+      "partnerMarkupFee": "Taxa de parceiro",
+      "totalFee": "Taxa total",
       "finalAmount": "Valor final"
     },
     "transactionStatusBanner": {

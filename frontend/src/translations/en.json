@@ -306,6 +306,9 @@
       "details": "Details",
       "yourQuote": "Your quote",
       "vortexFee": "Vortex fee",
+      "networkFee": "Network fee",
+      "partnerMarkupFee": "Partner markup fee",
+      "totalFee": "Total Fee",
       "finalAmount": "Final Amount"
     },
     "transactionStatusBanner": {
