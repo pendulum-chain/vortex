@@ -218,9 +218,9 @@ export class QuoteService extends BaseRampService {
 
     // Calculate core fee components using the database-driven logic
     const {
-      vortexFee,
+      vortexFee: vortexFeeFiat,
       anchorFee: anchorFeeFiat,
-      partnerMarkupFee,
+      partnerMarkupFee: partnerMarkupFeeFiat,
       feeCurrency,
     } = await this.calculateFeeComponents(
       request.inputAmount,
@@ -232,18 +232,28 @@ export class QuoteService extends BaseRampService {
       request.outputCurrency,
     );
 
-    const targetFiat = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
+    // Convert fees denoted in USD to fee currency
+    const networkFeeFiatPromise = convertUSDtoTargetFiat(networkFeeUSD, feeCurrency);
+    // Convert fees denoted in fee currency to USD (needed for fee distribution transactions)
+    const vortexFeeUsdPromise = convertFeeToOutputCurrency(vortexFeeFiat, feeCurrency);
+    const partnerMarkupFeeUsdPromise = convertFeeToOutputCurrency(partnerMarkupFeeFiat, feeCurrency);
+    const anchorFeeUsdPromise = convertFeeToOutputCurrency(anchorFeeFiat, feeCurrency);
 
-    // Convert fees to target fiat
-    const networkFeeFiatPromise = convertUSDtoTargetFiat(networkFeeUSD, targetFiat);
-    const vortexFeeFiatPromise = convertUSDtoTargetFiat(vortexFee, targetFiat);
-    const partnerMarkupFeeFiatPromise = convertUSDtoTargetFiat(partnerMarkupFee, targetFiat);
-
-    const [networkFeeFiat, vortexFeeFiat, partnerMarkupFeeFiat] = await Promise.all([
+    const [networkFeeFiat, vortexFeeUsd, partnerMarkupFeeUsd, anchorFeeUsd] = await Promise.all([
       networkFeeFiatPromise,
-      vortexFeeFiatPromise,
-      partnerMarkupFeeFiatPromise,
+      vortexFeeUsdPromise,
+      partnerMarkupFeeUsdPromise,
+      anchorFeeUsdPromise,
     ]);
+
+    const usdFeeStructure = {
+      network: networkFeeUSD,
+      vortex: vortexFeeUsd,
+      anchor: anchorFeeUsd,
+      partnerMarkup: partnerMarkupFeeUsd,
+      total: new Big(networkFeeUSD).plus(vortexFeeUsd).plus(partnerMarkupFeeUsd).plus(anchorFeeUsd).toFixed(2),
+      currency: 'USD',
+    };
 
     const totalFeeFiat = new Big(networkFeeFiat)
       .plus(vortexFeeFiat)
@@ -263,9 +273,6 @@ export class QuoteService extends BaseRampService {
     const finalOutputAmountStr =
       request.rampType === 'on' ? finalOutputAmount.toFixed(6, 0) : finalOutputAmount.toFixed(2, 0);
 
-    // Calculate distributable fees (sum of network, vortex, and partner markup fees)
-    const distributableFeesFiat = new Big(networkFeeFiat).plus(vortexFeeFiat).plus(partnerMarkupFeeFiat).toString();
-
     // Store the complete detailed fee structure in target fiat currency
     const feeToStore: QuoteEndpoints.FeeStructure = {
       network: networkFeeFiat,
@@ -273,7 +280,7 @@ export class QuoteService extends BaseRampService {
       anchor: anchorFeeFiat,
       partnerMarkup: partnerMarkupFeeFiat,
       total: totalFeeFiat,
-      currency: targetFiat,
+      currency: feeCurrency,
     };
 
     // Create quote in database with the detailed fee structure
@@ -294,9 +301,7 @@ export class QuoteService extends BaseRampService {
         onrampOutputAmountMoonbeamRaw: outputAmountMoonbeamRaw,
         onrampInputAmountUnits: inputAmountUsedForSwap,
         grossOutputAmount, // Store the gross amount before fee deduction
-        anchorFeeFiat, // Store the anchor fee component
-        distributableFeesFiat, // Store the sum of distributable fees
-        targetFiat, // Store the target fiat currency
+        usdFeeStructure,
       } as QuoteTicketMetadata,
     });
 
@@ -306,7 +311,7 @@ export class QuoteService extends BaseRampService {
       anchor: trimTrailingZeros(anchorFeeFiat),
       partnerMarkup: trimTrailingZeros(partnerMarkupFeeFiat),
       total: trimTrailingZeros(totalFeeFiat),
-      currency: targetFiat,
+      currency: feeCurrency,
     };
 
     return {
@@ -446,13 +451,13 @@ export class QuoteService extends BaseRampService {
       }
 
       // Determine the correct fiat currency for the transaction
-      const targetFiat = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
+      const feeCurrency = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
 
       return {
         vortexFee,
         anchorFee,
         partnerMarkupFee,
-        feeCurrency: targetFiat,
+        feeCurrency,
       };
     } catch (error) {
       logger.error('Error calculating fee components:', error);

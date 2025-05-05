@@ -16,7 +16,7 @@ export interface QuoteTicketAttributes {
   partnerId: string | null;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
-  metadata: any;
+  metadata: QuoteTicketMetadata;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,9 +25,9 @@ export interface QuoteTicketMetadata {
   onrampOutputAmountMoonbeamRaw: string;
   onrampInputAmountUnits: string;
   grossOutputAmount?: string;
-  anchorFeeFiat?: string;
-  distributableFeesFiat?: string;
-  targetFiat?: RampCurrency;
+  // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
+  // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
+  usdFeeStructure: QuoteEndpoints.FeeStructure;
 }
 
 // Define the attributes that can be set during creation
@@ -59,7 +59,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare status: 'pending' | 'consumed' | 'expired';
 
-  declare metadata: string;
+  declare metadata: QuoteTicketMetadata;
 
   declare createdAt: Date;
 
