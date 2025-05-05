@@ -336,14 +336,19 @@ export async function prepareOfframpTransactions({
 
       // Generate the fee distribution transaction
       const feeDistributionTx = await createFeeDistributionTransaction(quote);
+      
+      // Track the next available nonce, which will be adjusted based on whether we have a fee distribution tx
+      let nextNonce = 2;
+      
       if (feeDistributionTx) {
         unsignedTxs.push({
           txData: feeDistributionTx,
           phase: 'distributeFees',
           network: account.network,
-          nonce: 2,
+          nonce: nextNonce,
           signer: account.address,
         });
+        nextNonce++;
       }
       
       stateMeta = {
@@ -356,13 +361,15 @@ export async function prepareOfframpTransactions({
         inputTokenPendulumDetails.pendulumCurrencyId,
         outputTokenPendulumDetails.pendulumCurrencyId,
       );
-      unsignedTxs.push({
+      
+      // The cleanup transaction will be added after either pendulumToMoonbeam or spacewalkRedeem
+      // We'll store its reference for now and add it with the correct nonce later
+      const pendulumCleanupTx: Omit<UnsignedTx, 'nonce'> = {
         txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
         phase: 'pendulumCleanup',
         network: account.network,
-        nonce: 4, // Will always come after either pendulumToMoonbeam or spacewalkRedeem, and distributeFees.
         signer: account.address,
-      });
+      };
 
       if (quote.outputCurrency === FiatToken.BRL) {
         if (!brlaEvmAddress || !pixDestination || !taxId || !receiverTaxId) {
@@ -380,8 +387,15 @@ export async function prepareOfframpTransactions({
           txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
           phase: 'pendulumToMoonbeam',
           network: account.network,
-          nonce: 3,
+          nonce: nextNonce,
           signer: account.address,
+        });
+        nextNonce++;
+
+        // Add the cleanup transaction with the next nonce
+        unsignedTxs.push({
+          ...pendulumCleanupTx,
+          nonce: nextNonce,
         });
 
         stateMeta = {
@@ -399,22 +413,28 @@ export async function prepareOfframpTransactions({
         if (!stellarPaymentData?.anchorTargetAccount) {
           throw new Error('Stellar payment data must be provided for offramp');
         }
-        const executeSpacewalkNonce = 3;
 
         const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
         const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
           outputAmountRaw: grossOutputAmountRaw,
           stellarEphemeralAccountRaw,
           outputTokenDetails,
-          executeSpacewalkNonce: 3,
+          executeSpacewalkNonce: nextNonce,
         });
 
         unsignedTxs.push({
           txData: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
           phase: 'spacewalkRedeem',
           network: account.network,
-          nonce: executeSpacewalkNonce,
+          nonce: nextNonce,
           signer: account.address,
+        });
+        nextNonce++;
+
+        // Add the cleanup transaction with the next nonce
+        unsignedTxs.push({
+          ...pendulumCleanupTx,
+          nonce: nextNonce,
         });
 
         stateMeta = {
@@ -424,7 +444,7 @@ export async function prepareOfframpTransactions({
             stellarTokenDetails: outputTokenDetails,
           },
           stellarEphemeralAccountId: stellarEphemeralEntry.address,
-          executeSpacewalkNonce,
+          executeSpacewalkNonce: nextNonce - 1, // Store the nonce that was used for spacewalkRedeem
         };
       }
     } else if (accountNetworkId === getNetworkId(Networks.Stellar) && quote.outputCurrency !== FiatToken.BRL) {
