@@ -20,7 +20,10 @@ import {
 
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
-import { QuoteTicketAttributes } from '../../../models/quoteTicket.model';
+import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
+import Partner from '../../../models/partner.model';
+import { ApiManager } from '../pendulum/apiManager';
+import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { encodeEvmTransactionData } from './index';
 import { createNablaTransactionsForQuote } from './nabla';
@@ -32,6 +35,109 @@ import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
 import logger from '../../../config/logger';
+
+/**
+ * Convert USD amount to token units
+ * @param amountUSD The amount in USD
+ * @param tokenDetails The token details
+ * @returns The amount in token units
+ */
+function convertUSDToTokenUnits(
+  amountUSD: string,
+  tokenDetails: {
+    decimals: number /* Add price info if available */;
+  },
+): string {
+  logger.warn(
+    `TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`,
+  );
+  // Placeholder: Assumes 1 USD = 1 token unit, adjusts for decimals. Needs real price.
+  const amountUnits = new Big(amountUSD);
+  return multiplyByPowerOfTen(amountUnits, tokenDetails.decimals).toFixed(0, 0);
+}
+
+/**
+ * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
+ * @param quote The quote ticket
+ * @returns The encoded transaction
+ */
+async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
+  // Get the API instance
+  const apiManager = ApiManager.getInstance();
+  const { api } = await apiManager.getApi('pendulum');
+
+  // Get the metadata with USD fee structure
+  const metadata = quote.metadata as QuoteTicketMetadata;
+  if (!metadata.usdFeeStructure) {
+    logger.warn('No USD fee structure found in quote metadata, skipping fee distribution transaction');
+    return null;
+  }
+
+  // Read fee components from metadata.usdFeeStructure
+  const networkFeeUSD = metadata.usdFeeStructure.network;
+  const vortexFeeUSD = metadata.usdFeeStructure.vortex;
+  const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
+
+  // Get payout addresses
+  const vortexPartner = await Partner.findOne({ where: { name: 'vortex_foundation', isActive: true } });
+  if (!vortexPartner || !vortexPartner.payoutAddress) {
+    logger.warn('Vortex partner or payout address not found, skipping fee distribution transaction');
+    return null;
+  }
+  const vortexPayoutAddress = vortexPartner.payoutAddress;
+
+  let partnerPayoutAddress = null;
+  if (quote.partnerId) {
+    const quotePartner = await Partner.findOne({ where: { id: quote.partnerId, isActive: true } });
+    if (quotePartner && quotePartner.payoutAddress) {
+      partnerPayoutAddress = quotePartner.payoutAddress;
+    }
+  }
+
+  // Determine stablecoin based on source network
+  const fromNetwork = getNetworkFromDestination(quote.from);
+  if (!fromNetwork) {
+    logger.warn(`Invalid network for source ${quote.from}, skipping fee distribution transaction`);
+    return null;
+  }
+
+  // Select stablecoin based on source network
+  const isAssetHubSource = fromNetwork === Networks.AssetHub;
+  const stablecoinDetails = isAssetHubSource ? PENDULUM_USDC_ASSETHUB : PENDULUM_USDC_AXL;
+  const stablecoinCurrencyId = stablecoinDetails.pendulumCurrencyId;
+  const stablecoinDecimals = stablecoinDetails.pendulumDecimals;
+
+  // Convert USD fees to stablecoin raw units
+  const networkFeeStablecoinRaw = convertUSDToTokenUnits(networkFeeUSD, { decimals: stablecoinDecimals });
+  const vortexFeeStablecoinRaw = convertUSDToTokenUnits(vortexFeeUSD, { decimals: stablecoinDecimals });
+  const partnerMarkupFeeStablecoinRaw = convertUSDToTokenUnits(partnerMarkupFeeUSD, { decimals: stablecoinDecimals });
+
+  // Build transfers
+  const transfers = [];
+
+  if (new Big(networkFeeStablecoinRaw).gt(0)) {
+    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, networkFeeStablecoinRaw));
+  }
+
+  if (new Big(vortexFeeStablecoinRaw).gt(0)) {
+    transfers.push(api.tx.tokens.transferKeepAlive(vortexPayoutAddress, stablecoinCurrencyId, vortexFeeStablecoinRaw));
+  }
+
+  if (new Big(partnerMarkupFeeStablecoinRaw).gt(0) && partnerPayoutAddress) {
+    transfers.push(
+      api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw),
+    );
+  }
+
+  // Create batch transaction
+  if (transfers.length > 0) {
+    const batchTx = api.tx.utility.batchAll(transfers);
+    // Create unsigned transaction (don't sign it here)
+    return encodeSubmittableExtrinsic(batchTx);
+  }
+
+  return null;
+}
 
 interface OfframpTransactionParams {
   quote: QuoteTicketAttributes;
@@ -227,6 +333,19 @@ export async function prepareOfframpTransactions({
         nonce: 1,
         signer: account.address,
       });
+
+      // Generate the fee distribution transaction
+      const feeDistributionTx = await createFeeDistributionTransaction(quote);
+      if (feeDistributionTx) {
+        unsignedTxs.push({
+          txData: feeDistributionTx,
+          phase: 'distributeFees',
+          network: account.network,
+          nonce: 2,
+          signer: account.address,
+        });
+      }
+      
       stateMeta = {
         ...stateMeta,
         nablaSoftMinimumOutputRaw,
@@ -241,7 +360,7 @@ export async function prepareOfframpTransactions({
         txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
         phase: 'pendulumCleanup',
         network: account.network,
-        nonce: 3, // Will always come after either pendulumToMoonbeam or spacewalkRedeem.
+        nonce: 4, // Will always come after either pendulumToMoonbeam or spacewalkRedeem, and distributeFees.
         signer: account.address,
       });
 
@@ -261,7 +380,7 @@ export async function prepareOfframpTransactions({
           txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
           phase: 'pendulumToMoonbeam',
           network: account.network,
-          nonce: 2,
+          nonce: 3,
           signer: account.address,
         });
 
@@ -280,14 +399,14 @@ export async function prepareOfframpTransactions({
         if (!stellarPaymentData?.anchorTargetAccount) {
           throw new Error('Stellar payment data must be provided for offramp');
         }
-        const executeSpacewalkNonce = 2;
+        const executeSpacewalkNonce = 3;
 
         const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
         const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
           outputAmountRaw: grossOutputAmountRaw,
           stellarEphemeralAccountRaw,
           outputTokenDetails,
-          executeSpacewalkNonce: 2,
+          executeSpacewalkNonce: 3,
         });
 
         unsignedTxs.push({
