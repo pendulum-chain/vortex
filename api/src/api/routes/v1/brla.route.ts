@@ -4,7 +4,7 @@ import {
   validateBrlaTriggerOfframpInput,
   validataSubaccountCreation,
   validateGetPayInCode,
-  startKYC2Validator,
+  validateStartKyc2,
 } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
@@ -25,6 +25,6 @@ router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaContro
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
 
-router.route('/startKYC2').post(startKYC2Validator, brlaController.startKYC2);
+router.route('/startKYC2').post(validateStartKyc2, brlaController.startKYC2);
 
 export default router;

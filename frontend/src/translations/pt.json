@@ -410,6 +410,28 @@
         }
       }
     },
+    "documentUpload": {
+    "title": "Verificação Rápida",
+    "description": "Para garantir uma experiência segura e fluida, precisamos de uma rápida verificação de identidade. Por favor, envie uma imagem nítida do seu documento.",
+    "validation": {
+      "invalidFileType": "Tipo de arquivo inválido. Apenas PNG, JPEG ou PDF são permitidos.",
+      "fileSizeExceeded": "O tamanho do arquivo excede o limite de {{max}}.",
+      "validationError": "Todos os arquivos devem ser válidos antes de enviar."
+      },
+    "uploadBug": "Ocorreu um erro ao enviar os arquivos para verificação. Por favor, tente novamente mais tarde.",
+    "uploadFailed": "Falha no envio. Por favor, tente novamente.",
+    "fields": {
+      "uploadSelfie": "Enviar selfie",
+      "rgFront": "Frente do RG",
+      "rgBack": "Verso do RG",
+      "cnhDocument": "Documento CNH"
+      },
+    "buttons": {
+      "back": "Voltar",
+      "uploading": "Enviando...",
+      "Finish": "Concluir"
+      }
+    },
     "rating": {
       "title": "Sua opinião é importante!",
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",

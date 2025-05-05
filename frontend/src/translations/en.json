@@ -419,6 +419,28 @@
     "footer": {
       "poweredBy": "Powered by",
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
+    },
+    "documentUpload": {
+      "title": "Fast-Track Verification",
+      "description": "To ensure a safe and seamless experience, we need a quick ID verification. Please upload a clear image of your document.",
+      "validation": {
+        "invalidFileType": "Invalid file type. Only PNG, JPEG, or PDF allowed.",
+        "fileSizeExceeded": "File size exceeds {{max}} limit.",
+        "validationError": "All files must be valid before submitting."
+      },
+      "uploadBug": "There was an error uploading the files for verification. Please try again later.",
+      "uploadFailed": "Upload failed. Please try again.",
+      "fields": {
+        "uploadSelfie": "Upload Selfie",
+        "rgFront":     "RG Front",
+        "rgBack":      "RG Back",
+        "cnhDocument": "CNH Document"
+      },
+      "buttons": {
+        "back": "Back",
+        "uploading": "Uploading...",
+        "Finish": "Finish"
+      }
     }
   },
   "hooks": {

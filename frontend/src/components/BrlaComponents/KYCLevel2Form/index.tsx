@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import {
   CameraIcon,
   DocumentTextIcon,
@@ -39,6 +40,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   onSubmitHandler,
   onBackClick,
 }) => {
+  const { t } = useTranslation();
   const taxId = useTaxId();
 
   const [docType, setDocType] = useState<KYCDocType>(KYCDocType.RG);
@@ -69,13 +71,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       return;
     }
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError('Invalid file type. Only PNG, JPEG, or PDF allowed.');
+      setError(t('components.documentUpload.validation.invalidFileType'));
       setter(null);
       validSetter(false);
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setError('File size exceeds 15 MB limit.');
+      setError(t('components.documentUpload.validation.fileSizeExceeded', { max: '15 MB' }));
       setter(null);
       validSetter(false);
       return;
@@ -106,7 +108,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       (docType === KYCDocType.RG && (!frontValid || !backValid)) ||
       (docType === KYCDocType.CNH && !frontValid)
     ) {
-      setError('All files must be valid before submitting.');
+      setError(t('components.documentUpload.validation.validationError'));
       return;
     }
     setLoading(true);
@@ -116,12 +118,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         documentType: docType,
       });
 
-
       const uploads: Promise<void>[] = [];
       if (docType === KYCDocType.RG) {
-
         if (!selfie || !front || !back) {
-          setError('There was an error uploading the files for verification. Please try again later.');
+          setError(t('components.documentUpload.uploadBug'));
           console.error('Validation flags were true, but file data is missing. This is a bug.');
           return;
         }
@@ -131,14 +131,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl)
         );
       } else {
-
         if (!selfie || !front) {
-          setError('There was an error uploading the files for verification. Please try again later.');
+          setError(t('components.documentUpload.uploadBug'));
           console.error('Validation flags were true, but file data is missing. This is a bug.');
           return;
         }
-        console.log('CNH upload URL:', response.uploadUrls);
-
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
           uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl)
@@ -148,7 +145,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       await Promise.all(uploads);
       onSubmitHandler();
     } catch {
-      setError('Upload failed. Please try again.');
+      setError(t('components.documentUpload.uploadFailed'));  
     } finally {
       setLoading(false);
     }
@@ -183,8 +180,11 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       className="px-4 pt-6 pb-8 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 bg-white"
     >
       <h2 className="text-2xl font-semibold text-center text-blue-700 mb-6">
-        Upload Your Documents
+        {t('components.documentUpload.title')}
       </h2>
+      <p className="text-center text-gray-600 mb-4">
+        {t('components.documentUpload.description')}
+      </p>
 
       <div className="flex gap-3 mb-6">
         <button
@@ -207,7 +207,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
       <div className="grid grid-cols-1 gap-4">
         {renderField(
-          'Upload Selfie',
+          t('components.documentUpload.fields.uploadSelfie'),
           (e) => handleFileChange(e, setSelfie, setSelfieValid),
           selfieValid,
           CameraIcon
@@ -215,13 +215,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         {docType === KYCDocType.RG && (
           <>
             {renderField(
-              'RG Front',
+              t('components.documentUpload.fields.rgFront'),
               (e) => handleFileChange(e, setFront, setFrontValid),
               frontValid,
               DocumentTextIcon
             )}
             {renderField(
-              'RG Back',
+              t('components.documentUpload.fields.rgBack'),
               (e) => handleFileChange(e, setBack, setBackValid),
               backValid,
               DocumentTextIcon
@@ -230,7 +230,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         )}
         {docType === KYCDocType.CNH && (
           renderField(
-            'CNH Document',
+            t('components.documentUpload.fields.cnhDocument'),
             (e) => handleFileChange(e, setFront, setFrontValid),
             frontValid,
             DocumentTextIcon
@@ -247,7 +247,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           onClick={onBackClick}
           disabled={loading}
         >
-          Back
+          {t('components.documentUpload.buttons.back')}
         </button>
         <button
           type="button"
@@ -255,7 +255,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           onClick={handleSubmit}
           disabled={isSubmitDisabled}
         >
-          {loading ? 'Uploading...' : 'Submit'}
+          {loading ? t('components.documentUpload.buttons.uploading') : t('components.documentUpload.buttons.finish')}
         </button>
       </div>
     </motion.div>

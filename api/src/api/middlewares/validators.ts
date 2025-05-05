@@ -426,7 +426,7 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const startKYC2Validator: RequestHandler = (req, res, next) => {
+export const validateStartKyc2: RequestHandler = (req, res, next) => {
   const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
 
   if (!taxId) {

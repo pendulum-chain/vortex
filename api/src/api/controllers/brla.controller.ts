@@ -7,6 +7,7 @@ import { generateReferenceLabel } from '../services/brla/helpers';
 import { RegisterSubaccountPayload } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
 import { PayInCodeQuery } from '../middlewares/validators';
+import logger from '../../config/logger';
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const lastInteractionMap = new Map<string, number>();
@@ -275,7 +276,7 @@ export const createSubaccount = async (
       res.status(400).json({ error: 'Subaccount already created' });
       return;
     } else if (subaccount && subaccount.kyc.level === 0) {
-      console.log('subaccountPayload', subaccountPayload);
+      logger.info('Subaccount Payload', subaccountPayload);
 
       await brlaApiService.retryKYC(subaccount.id, subaccountPayload);
 
@@ -285,7 +286,7 @@ export const createSubaccount = async (
     }
 
     subaccountPayload = { ...subaccountPayload, companyName: subaccountPayload.companyName };
-    console.log('subaccountPayload', subaccountPayload);
+    logger.info('Subaccount Payload', subaccountPayload);
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
