@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import { KycLevel2Toggle } from '../../KycLevel2Toggle';
 import {
   CameraIcon,
   DocumentTextIcon,
@@ -145,7 +146,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       await Promise.all(uploads);
       onSubmitHandler();
     } catch {
-      setError(t('components.documentUpload.uploadFailed'));  
+      setError(t('components.documentUpload.uploadFailed'));
     } finally {
       setLoading(false);
     }
@@ -186,24 +187,10 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         {t('components.documentUpload.description')}
       </p>
 
-      <div className="flex gap-3 mb-6">
-        <button
-          type="button"
-          className={`${docType === KYCDocType.RG ? 'btn-vortex-primary' : 'btn-vortex-primary-inverse'} btn flex-1`}
-          onClick={() => setDocType(KYCDocType.RG)}
-          disabled={loading}
-        >
-          RG
-        </button>
-        <button
-          type="button"
-          className={`${docType === KYCDocType.CNH ? 'btn-vortex-primary' : 'btn-vortex-primary-inverse'} btn flex-1`}
-          onClick={() => setDocType(KYCDocType.CNH)}
-          disabled={loading}
-        >
-          CNH
-        </button>
-      </div>
+      <KycLevel2Toggle
+        activeDocType={docType}
+        onToggle={setDocType}
+      />
 
       <div className="grid grid-cols-1 gap-4">
         {renderField(
