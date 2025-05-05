@@ -135,24 +135,25 @@ export const PIXKYCForm = () => {
 
   return (
     <div className="relative">
-
-      {!isSubmitted ? 
-      (
-        <>
-          { offrampKycLevel2Started ? 
-            (<DocumentUpload  onSubmitHandler={handleDocumentSubmit} onBackClick={handleBackClick} />)
-            : null
-          }
-          { offrampKycStarted ? 
-            <KYCForm fields={pixformFields} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick}  />
-            : null
-          }
-        </>
-      ) : (
-        <>
-        <VerificationStatus status={verificationStatus} message={statusMessage} isLevel2={offrampKycLevel2Started}/>
-      </>
-      )}
+      {isSubmitted ? (
+        <VerificationStatus
+          status={verificationStatus}
+          message={statusMessage}
+          isLevel2={offrampKycLevel2Started}
+        />
+      ) : offrampKycLevel2Started ? (
+        <DocumentUpload
+          onSubmitHandler={handleDocumentSubmit}
+          onBackClick={handleBackClick}
+        />
+      ) : offrampKycStarted ? (
+        <KYCForm
+          fields={pixformFields}
+          form={kycForm}
+          onSubmit={handleFormSubmit}
+          onBackClick={handleBackClick}
+        />
+      ) : null}
     </div>
   );
 };
