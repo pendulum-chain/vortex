@@ -55,6 +55,9 @@
     },
     "swap": {
       "error": {
+        "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
+        "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "initializeFailed": {
           "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
           "noAddress": "No address found.",
@@ -176,6 +179,16 @@
     }
   },
   "components": {
+    "airdropBanner": {
+      "title": "Special offer",
+      "description": "Buy or Sell just R$5 or €10 - get 20 USDT for FREE",
+      "button": "More info",
+      "list": {
+        "1": "Buy or sell from just R$5 (PIX) or €10 (SEPA) - quick, easy, and no hidden fees.",
+        "2": "All eligible users get 10 USDT - <strong>the first 100 receive a 10 USDT bonus, totaling 20 USDT.</strong> Rewards go to your wallet on Base or AssetHub.",
+        "3": "One reward per user - we use KYC and on-chain checks to ensure fairness and prevent abuse."
+      }
+    },
     "emailForm": {
       "success": "Successfully saved!",
       "loading": "Loading...",

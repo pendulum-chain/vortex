@@ -22,14 +22,14 @@ import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helper
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM } from '../../../constants/constants';
-import { multiplyByPowerOfTen } from '../../services/pendulum/helpers';
+import { multiplyByPowerOfTen } from "../pendulum/helpers";
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format
  * @returns Formatted string with unnecessary trailing zeros removed but at least two decimal places
  */
 function trimTrailingZeros(decimalString: string): string {
-  if (!decimalString.includes('.')) {
+  if (!decimalString?.includes('.')) {
     return `${decimalString}.00`;
   }
 

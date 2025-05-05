@@ -1,13 +1,12 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import Big from 'big.js';
+import { PriceEndpoints } from 'shared';
 
 import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
 import { Skeleton } from '../../../components/Skeleton';
 import { formatPrice } from '../helpers';
 import { cn } from '../../../helpers/cn';
-import { useNetwork } from '../../../contexts/network';
 import { PriceProvider } from '../priceProviders';
 import { useQuote } from '../../../stores/ramp/useQuoteStore';
 import { useRampDirection } from '../../../stores/rampDirectionStore';
@@ -17,7 +16,8 @@ interface FeeProviderRowProps {
   provider: PriceProvider;
   isBestRate: boolean;
   bestPrice: Big;
-  onPriceFetched: (providerName: string, price: Big) => void;
+  isLoading: boolean;
+  result?: PriceEndpoints.BundledPriceResult;
   amountRaw: string;
   sourceAssetSymbol: string;
   targetAssetSymbol: string;
@@ -27,7 +27,8 @@ export function FeeProviderRow({
   provider,
   isBestRate,
   bestPrice,
-  onPriceFetched,
+  isLoading,
+  result,
   amountRaw,
   sourceAssetSymbol,
   targetAssetSymbol,
@@ -39,7 +40,6 @@ export function FeeProviderRow({
   // We keep a reference to the previous vortex price to avoid spamming the server with the same quote.
   const prevVortexPrice = useRef<Big | null>(null);
   const prevProviderPrice = useRef<Big | null>(null);
-  const { selectedNetwork } = useNetwork();
   const quote = useQuote();
 
   const rampDirection = useRampDirection();
@@ -49,39 +49,38 @@ export function FeeProviderRow({
 
   const amount = useMemo(() => Big(amountRaw || '0'), [amountRaw]);
 
-  const {
-    isLoading,
-    error,
-    data: providerPriceRaw,
-  } = useQuery({
-    queryKey: [amount, sourceAssetSymbol, targetAssetSymbol, vortexPrice.toString(), provider.name, selectedNetwork],
-    queryFn: () => provider.query(sourceAssetSymbol, targetAssetSymbol, amount, selectedNetwork),
-    retry: false,
-  });
+  // Determine if there's an error from the result
+  const error = result?.status === 'rejected' ? result.reason : undefined;
 
+  // Calculate provider price based on the result or vortex price
   const providerPrice = useMemo(() => {
     if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
 
     // FIXME - this is a hack until we implement fetching prices for onramp providers
     if (isOnramp) return undefined;
 
-    return providerPriceRaw && providerPriceRaw.gte(0) ? providerPriceRaw : undefined;
-  }, [provider.name, vortexPrice, isOnramp, providerPriceRaw]);
+    if (result?.status === 'fulfilled' && result.value.fiatAmount) {
+      return Big(result.value.fiatAmount);
+    }
+    
+    return undefined;
+  }, [provider.name, vortexPrice, isOnramp, result]);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) return;
     return providerPrice.minus(bestPrice);
   }, [isLoading, error, providerPrice, bestPrice]);
 
+  // Update the parent component with the price
   useEffect(() => {
     if (isLoading) return;
 
     const currentPrice = providerPrice ? providerPrice : new Big(0);
     if (prevProviderPrice.current?.eq(currentPrice)) return;
 
-    onPriceFetched(provider.name, currentPrice);
+    // No need to call onPriceFetched as the parent now manages prices
     prevProviderPrice.current = currentPrice;
-  }, [isLoading, providerPrice, provider.name, onPriceFetched]);
+  }, [isLoading, providerPrice]);
 
   useEffect(() => {
     if (isLoading || !providerPrice || error) return;
