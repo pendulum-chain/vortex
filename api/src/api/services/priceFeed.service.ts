@@ -1,4 +1,5 @@
-import { EvmToken, getPendulumDetails, RampCurrency } from 'shared';
+import { getPendulumDetails, RampCurrency } from 'shared';
+import { PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
 import logger from '../../config/logger';
 import { getTokenOutAmount } from './nablaReads/outAmount';
 import { ApiManager } from './pendulum/apiManager';
@@ -164,8 +165,7 @@ export class PriceFeedService {
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
   public async getFiatExchangeRate(toCurrency: RampCurrency, inputAmount = '1.0'): Promise<number> {
-    // Always use a USD-like token as the source currency
-    const fromCurrency = EvmToken.USDT;
+    const fromCurrency = "USD";
 
     const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
@@ -184,8 +184,10 @@ export class PriceFeedService {
       const apiManager = ApiManager.getInstance();
       const networkName = 'pendulum';
       const apiInstance = await apiManager.getApi(networkName);
-      
-      const inputTokenPendulumDetails = getPendulumDetails(fromCurrency);
+
+      // We assume that the exchange rate from axlUSDC to the target currency in the Forex AMM
+      // resemble the real fiat exchange rate.
+      const inputTokenPendulumDetails = PENDULUM_USDC_AXL;
       const outputTokenPendulumDetails = getPendulumDetails(toCurrency);
       
       // Call getTokenOutAmount to get the exchange rate
