@@ -54,7 +54,6 @@ export interface UnsignedTx {
 }
 
 export type PresignedTx = UnsignedTx & {
-  // TODO Any additional types needed?
 };
 
 export interface RampErrorLog {

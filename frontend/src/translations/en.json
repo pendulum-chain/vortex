@@ -346,7 +346,10 @@
         "street": "Street",
         "number": "Number",
         "district": "District",
-        "birthdate": "Birthdate"
+        "birthdate": "Birthdate",
+        "companyName": "Company Name",
+        "startDate": "Company Start Date",
+        "partnerCpf": "Partner CPF"
       },
       "verificationStatus": {
         "pending": "Verifying your data, please wait",
@@ -391,6 +394,20 @@
           "required": "Birthdate is required",
           "future": "Birthdate cannot be in the future",
           "tooOld": "Invalid birthdate"
+        },
+        "companyName": {
+          "required": "Company name is required",
+          "minLength": "Company name must be at least 3 characters",
+          "format": "Company name can only contain letters and spaces"
+        },
+        "startDate": {
+          "required": "Company start date is required",
+          "future": "Company start date cannot be in the future",
+          "tooOld": "Invalid company start date"
+        },
+        "partnerCpf": {
+          "required": "Partner CPF is required",
+          "format": "Invalid Partner CPF format"
         }
       }
     },
@@ -402,6 +419,28 @@
     "footer": {
       "poweredBy": "Powered by",
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
+    },
+    "documentUpload": {
+      "title": "Fast-Track Verification",
+      "description": "To ensure a safe and seamless experience, we need a quick ID verification. Please upload a clear image of your document.",
+      "validation": {
+        "invalidFileType": "Invalid file type. Only PNG, JPEG, or PDF allowed.",
+        "fileSizeExceeded": "File size exceeds {{max}} limit.",
+        "validationError": "All files must be valid before submitting."
+      },
+      "uploadBug": "There was an error uploading the files for verification. Please try again later.",
+      "uploadFailed": "Upload failed. Please try again.",
+      "fields": {
+        "uploadSelfie": "Upload Selfie",
+        "rgFront":     "RG Front",
+        "rgBack":      "RG Back",
+        "cnhDocument": "CNH Document"
+      },
+      "buttons": {
+        "back": "Back",
+        "uploading": "Uploading...",
+        "finish": "Finish"
+      }
     }
   },
   "hooks": {

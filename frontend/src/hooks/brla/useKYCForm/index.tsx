@@ -60,6 +60,22 @@ const createKycFormSchema = (t: (key: string) => string) =>
         .required(t('components.brlaExtendedForm.validation.birthdate.required'))
         .max(new Date(), t('components.brlaExtendedForm.validation.birthdate.future'))
         .min(new Date(1900, 0, 1), t('components.brlaExtendedForm.validation.birthdate.tooOld')),
+
+      [ExtendedBrlaFieldOptions.COMPANY_NAME]: yup
+        .string()
+        .min(3, t('components.brlaExtendedForm.validation.companyName.minLength')),
+
+      [ExtendedBrlaFieldOptions.START_DATE]: yup
+        .date()
+        .transform((value, originalValue) => {
+          return originalValue === '' ? undefined : value;
+        })
+        .max(new Date(), t('components.brlaExtendedForm.validation.startDate.future'))
+        .min(new Date(1900, 0, 1), t('components.brlaExtendedForm.validation.startDate.tooOld')),
+
+      [ExtendedBrlaFieldOptions.PARTNER_CPF]: yup
+        .string()
+        .matches(/^\d{3}(\.\d{3}){2}-\d{2}$|^\d{11}$/, t('components.brlaExtendedForm.validation.partnerCpf.format')),
     })
     .required();
 

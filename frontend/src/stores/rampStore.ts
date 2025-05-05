@@ -26,6 +26,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
     rampRegistered: false,
     rampInitiating: false,
     rampKycStarted: false,
+    rampKycLevel2Started: false,
     rampPaymentConfirmed: false,
     rampState: undefined,
     rampSigningPhase: undefined,
@@ -45,6 +46,7 @@ export const useRampStore = create<RampStore>()((set, get) => {
       rampRegistered: state.rampRegistered,
       rampInitiating: state.rampInitiating,
       rampKycStarted: state.rampKycStarted,
+      rampKycLevel2Started: state.rampKycLevel2Started,
       rampPaymentConfirmed: state.rampPaymentConfirmed,
       rampState: state.rampState,
       rampSigningPhase: state.rampSigningPhase,
@@ -86,6 +88,10 @@ export const useRampStore = create<RampStore>()((set, get) => {
       },
       setRampKycStarted: (kycStarted) => {
         set({ rampKycStarted: kycStarted });
+        saveState();
+      },
+      setRampKycLevel2Started: (kycLevel2Started) => {
+        set({ rampKycLevel2Started: kycLevel2Started });
         saveState();
       },
       setRampPaymentConfirmed: (paymentConfirmed) => {
@@ -145,6 +151,7 @@ export const useRampRegistered = () => useRampStore((state) => state.rampRegiste
 export const useRampInitiating = () => useRampStore((state) => state.rampInitiating);
 export const useRampExecutionInput = () => useRampStore((state) => state.rampExecutionInput);
 export const useRampKycStarted = () => useRampStore((state) => state.rampKycStarted);
+export const useRampKycLevel2Started = () => useRampStore((state) => state.rampKycLevel2Started);
 export const useRampPaymentConfirmed = () => useRampStore((state) => state.rampPaymentConfirmed);
 export const useInitializeFailedMessage = () => useRampStore((state) => state.initializeFailedMessage);
 export const useRampSummaryVisible = () => useRampStore((state) => state.rampSummaryVisible);
