@@ -1,6 +1,7 @@
 import { Keyring } from '@polkadot/api';
 import Big from 'big.js';
 import { Request, Response } from 'express';
+import httpStatus from 'http-status';
 
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
 import { SubsidizeEndpoints } from 'shared/src/endpoints/subsidize.endpoints';
@@ -60,7 +61,7 @@ export const subsidizePreSwap = async (
     return;
   } catch (error) {
     console.error('Error in subsidizePreSwap::', error);
-    res.status(500).json({
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -92,7 +93,7 @@ export const subsidizePostSwap = async (
     return;
   } catch (error) {
     console.error('Error in subsidizePostSwap::', error);
-    res.status(500).json({
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     });

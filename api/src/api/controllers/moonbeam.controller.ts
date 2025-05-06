@@ -3,6 +3,7 @@ import { moonbeam } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import Big from 'big.js';
 import { Request, Response } from 'express';
+import httpStatus from 'http-status';
 
 import { MoonbeamEndpoints } from 'shared/src/endpoints/moonbeam.endpoints';
 import {
@@ -63,12 +64,12 @@ export const executeXcmController = async (
       return;
     } catch (error) {
       console.error('Error executing XCM:', error);
-      res.status(400).json({ error: 'Invalid transaction' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid transaction' });
       return;
     }
   } catch (error) {
     console.error('Error executing XCM:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error' });
   }
 };
 

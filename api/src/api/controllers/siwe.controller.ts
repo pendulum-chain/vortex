@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import httpStatus from 'http-status';
 import { SiweEndpoints } from 'shared/src/endpoints/siwe.endpoints';
 import { createAndSendNonce, verifyAndStoreSiweMessage } from '../services/siwe.service';
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
@@ -10,7 +11,7 @@ export const sendSiweMessage = async (
   const { walletAddress } = req.body;
 
   if (!walletAddress) {
-    res.status(400).json({ error: 'Wallet address is required' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Wallet address is required' });
     return;
   }
 
@@ -20,7 +21,7 @@ export const sendSiweMessage = async (
     return;
   } catch (error) {
     console.error('Nonce generation error:', error);
-    res.status(500).json({ error: 'Error while generating nonce' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Error while generating nonce' });
   }
 };
 
@@ -31,7 +32,7 @@ export const validateSiweSignature = async (
   const { nonce, signature, siweMessage } = req.body;
 
   if (!nonce || !signature || !siweMessage) {
-    res.status(400).json({ error: 'Missing required fields' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing required fields' });
     return;
   }
 
@@ -53,11 +54,11 @@ export const validateSiweSignature = async (
     console.error('Signature validation error:', error);
 
     if (error instanceof Error && error.name === 'SiweValidationError') {
-      res.status(401).json({ error: `Siwe validation error: ${error.message}` });
+      res.status(httpStatus.UNAUTHORIZED).json({ error: `Siwe validation error: ${error.message}` });
       return;
     }
 
     const message = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ error: `Could not validate signature: ${message}` });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: `Could not validate signature: ${message}` });
   }
 };
