@@ -61,4 +61,5 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.removeIndex('kyc_level_2', 'idx_kyc_level_2_subaccount');
   await queryInterface.removeIndex('kyc_level_2', 'idx_kyc_level_2_status');
+  await queryInterface.dropTable('kyc_level_2');
 }
