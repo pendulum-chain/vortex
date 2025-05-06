@@ -25,7 +25,7 @@ export async function createNablaTransactionsForQuote(
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee.anchor)).toFixed(0, 0);
 
   const approveTransaction = await prepareNablaApproveTransaction({
     inputTokenDetails: inputTokenPendulumDetails,
@@ -66,7 +66,7 @@ export async function createNablaTransactionsForOnramp(
 
   const amountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenPendulumDetails.pendulumDecimals).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee.anchor)).toFixed(0, 0);
 
   const approveTransaction = await prepareNablaApproveTransaction({
     inputTokenDetails: inputTokenPendulumDetails,

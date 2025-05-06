@@ -27,6 +27,9 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     try {
       const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, 'nablaApprove');
 
+      if (typeof nablaApproveTransaction !== 'string') {
+        throw new Error('NablaApprovePhaseHandler: Invalid transaction data. This is a bug.');
+      }
       const approvalExtrinsic = decodeSubmittableExtrinsic(nablaApproveTransaction, pendulumNode.api);
       const result = await submitExtrinsic(approvalExtrinsic);
 

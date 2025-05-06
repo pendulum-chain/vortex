@@ -9,13 +9,6 @@ module.exports = {
     'no-use-before-define': 'off',
     '@typescript-eslint/no-use-before-define': ['error', { variables: false }],
     'no-multi-str': 0,
-    'import/extensions': [
-      'error',
-      'ignorePackages',
-      {
-        ts: 'never',
-      },
-    ],
   },
   env: {
     es2020: true,

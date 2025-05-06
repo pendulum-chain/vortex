@@ -36,7 +36,7 @@ import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
 import logger from '../../../config/logger';
 
-/**
+/**V
  * Convert USD amount to token units
  * @param amountUSD The amount in USD
  * @param tokenDetails The token details

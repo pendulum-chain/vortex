@@ -71,6 +71,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Won't execute the swap now. The estimated output amount is too low.");
       }
 
+      if (typeof nablaSwapTransaction !== 'string') {
+        throw new Error(
+          'NablaSwapPhaseHandler: Presigned transaction is not a string -> not an encoded Nabla transaction.',
+        );
+      }
+
       const swapExtrinsic = decodeSubmittableExtrinsic(nablaSwapTransaction, pendulumNode.api);
       const result = await submitExtrinsic(swapExtrinsic);
 

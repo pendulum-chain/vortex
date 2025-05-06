@@ -44,6 +44,7 @@ function convertUSDToTokenUnits(
     decimals: number /* Add price info if available */;
   },
 ): string {
+  // TODO fix this
   logger.warn(
     `TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`,
   );
@@ -175,6 +176,7 @@ async function createMoonbeamTransactions(
   const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
   
   // For assethub, we skip the 2 squidrouter transactions, so nonce is 2 lower.
+  // TODO is the moonbeamCleanup nonce too high?
   const moonbeamCleanupNonce =
     toNetworkId === getNetworkId(Networks.AssetHub)
       ? nextNonce + 1  // +1 because we skip squidrouter transactions

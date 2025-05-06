@@ -1,11 +1,11 @@
 import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
+import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
+import RampState from '../../../../models/rampState.model';
 import QuoteTicket from '../../../../models/quoteTicket.model';
 import { ApiManager } from '../../pendulum/apiManager';
 import logger from '../../../../config/logger';
-import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 
 /**
  * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum
