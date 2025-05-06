@@ -34,9 +34,12 @@ export class SlackNotifier {
   }
 
   public async sendMessage(message: SlackMessage): Promise<void> {
+
+    const slackUserId = process.env.SLACK_USER_ID;
+
     const messageWithUserTag = {
       ...message,
-      text: `<@${process.env.SLACK_USER_ID}> ${message.text}`,
+      text: slackUserId ? `<@${slackUserId}> ${message.text}` : message.text,
     };
 
     const signature = generateMessageSignature(messageWithUserTag);
