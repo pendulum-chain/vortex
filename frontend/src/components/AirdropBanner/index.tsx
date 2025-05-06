@@ -77,7 +77,7 @@ export const AirdropBanner = () => {
                     onClick={(e) => e.stopPropagation()}
                     rel="noreferrer"
                   >
-                    Check here
+                    here
                   </a>{' '}
                   (Updates every 24hrs)
                 </Trans>

@@ -181,12 +181,12 @@
   "components": {
     "airdropBanner": {
       "title": "Special offer until 15 May",
-      "description": "Buy or sell USDT/C for just R$5 - get 20 USDT for FREE",
+      "description": "Buy or sell USDT/C from just R$5 - get 20 USDT for FREE",
       "button": "More info",
       "list": {
-        "1": "Buy or sell USDT/C for just R$5 (PIX) - quick, easy, and no hidden fees.",
+        "1": "Buy or sell USDT/C from just R$5 (PIX) - quick, easy, and no hidden fees.",
         "2": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub a week after campaign ends.",
-        "3": "One reward per person - <1>Check here</1> (Updates every 24hrs)"
+        "3": "One reward per person - <1>here</1> (Updates every 24hrs)"
       }
     },
     "emailForm": {
