@@ -185,8 +185,8 @@
       "button": "More info",
       "list": {
         "1": "Buy or sell USDT/C for just R$5 (PIX) - quick, easy, and no hidden fees.",
-        "2": "<strong>All eligible users get 10 USDT</strong> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub a week after campaign ends.",
-        "3": "One reward per person - Check here (Updates every 24hrs)"
+        "2": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub a week after campaign ends.",
+        "3": "One reward per person - <1>Check here</1> (Updates every 24hrs)"
       }
     },
     "emailForm": {
@@ -432,8 +432,8 @@
       "uploadFailed": "Upload failed. Please try again.",
       "fields": {
         "uploadSelfie": "Upload Selfie",
-        "rgFront":     "RG Front",
-        "rgBack":      "RG Back",
+        "rgFront": "RG Front",
+        "rgBack": "RG Back",
         "cnhDocument": "CNH Document"
       },
       "buttons": {
