@@ -241,17 +241,10 @@ export const createSubaccount = async (
   try {
     const { cpf, cnpj, taxIdType } = req.body;
 
-<<<<<<< HEAD
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (subaccount) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount already created' });
-=======
     const taxId = taxIdType === 'CNPJ' ? cnpj : cpf;
 
     if (!taxId) {
-      res.status(400).json({ error: 'Missing cpf or cnpj' });
->>>>>>> staging
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing cpf or cnpj' });
       return;
     }
 
@@ -266,30 +259,32 @@ export const createSubaccount = async (
     // Extra validation for company fields
     if (taxIdType === 'CNPJ') {
       if (!req.body.companyName) {
-        res.status(400).json({ error: 'Missing companyName' });
+        res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing companyName' });
         return;
       }
       if (!req.body.cpf) {
-        res.status(400).json({ error: 'Missing cpf. Partner cpf is required' });
+        res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing cpf. Partner cpf is required' });
         return;
       }
       if (startDate === '') {
-        res.status(400).json({ error: 'Missing startDate' });
+        res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing startDate' });
         return;
       }
     }
 
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (subaccount && subaccount.kyc.level !== 0) {
-      res.status(400).json({ error: 'Subaccount already created' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount already created' });
       return;
-    } else if (subaccount && subaccount.kyc.level === 0) {
+    }
+
+    if (subaccount && subaccount.kyc.level === 0) {
       logger.info('Subaccount Payload', subaccountPayload);
 
       await brlaApiService.retryKYC(subaccount.id, subaccountPayload);
 
       lastInteractionMap.set(subaccount.id, Date.now());
-      res.status(200).json({ subaccountId: '' });
+      res.status(httpStatus.OK).json({ subaccountId: '' });
       return;
     }
 
@@ -298,12 +293,8 @@ export const createSubaccount = async (
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
-<<<<<<< HEAD
-    res.status(httpStatus.OK).json({ subaccountId: id });
-=======
     lastInteractionMap.set(id, Date.now());
     res.status(200).json({ subaccountId: id });
->>>>>>> staging
   } catch (error) {
     handleApiError(error, res, 'createSubaccount');
   }
@@ -333,9 +324,6 @@ export const fetchSubaccountKycStatus = async (
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
-<<<<<<< HEAD
-      res.status(httpStatus.OK).json({ type: 'KYC', status: 'PENDING' });
-=======
       res.status(500).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
       return;
     }
@@ -346,7 +334,6 @@ export const fetchSubaccountKycStatus = async (
     }
     if (lastInteraction && lastEventCached.createdAt <= lastInteraction) {
       res.status(404).json({ error: `No new KYC events found for ${taxId}` });
->>>>>>> staging
       return;
     }
 
