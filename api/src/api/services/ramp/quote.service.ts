@@ -125,6 +125,7 @@ export class QuoteService extends BaseRampService {
       feeCurrency,
     } = await this.calculateFeeComponents(
       request.inputAmount,
+      grossOutputAmount,
       request.rampType,
       request.from,
       request.to,
@@ -269,6 +270,7 @@ export class QuoteService extends BaseRampService {
    */
   private async calculateFeeComponents(
     inputAmount: string,
+    outputAmount: string, // This is the gross output amount of the Nabla swap before fees
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
@@ -301,9 +303,9 @@ export class QuoteService extends BaseRampService {
         anchorIdentifier = 'moonbeam_brla';
       } else if (rampType === 'off' && to === 'pix') {
         anchorIdentifier = 'moonbeam_brla';
-      } else if (rampType === 'off' && from === 'sepa') {
+      } else if (rampType === 'off' && to === 'sepa') {
         anchorIdentifier = 'stellar_eurc';
-      } else if (rampType === 'off' && from === 'cbu') {
+      } else if (rampType === 'off' && to === 'cbu') {
         anchorIdentifier = 'stellar_ars';
       }
 
@@ -324,7 +326,9 @@ export class QuoteService extends BaseRampService {
             return total.plus(feeConfig.value);
           }
           if (feeConfig.valueType === 'relative') {
-            const relativeFee = new Big(inputAmount).mul(feeConfig.value).div(100);
+            // Calculate relative fee based on the input or output amount
+            const amount = rampType === 'on' ? inputAmount : outputAmount;
+            const relativeFee = new Big(amount).mul(feeConfig.value).div(100);
             return total.plus(relativeFee);
           }
           return total;

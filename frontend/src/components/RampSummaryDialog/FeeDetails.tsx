@@ -3,13 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { FiatTokenDetails, isFiatTokenDetails, Networks, OnChainTokenDetails, QuoteEndpoints } from 'shared';
 
 import { ExchangeRate } from '../ExchangeRate';
-import { NetworkIcon } from '../NetworkIcon';
 import { RampDirection } from '../RampToggle';
 
 interface FeeDetailsProps {
-  network: Networks;
   feesCost: QuoteEndpoints.FeeStructure;
-  fiatSymbol: string;
   exchangeRate: string;
   fromToken: OnChainTokenDetails | FiatTokenDetails;
   toToken: OnChainTokenDetails | FiatTokenDetails;
@@ -19,9 +16,7 @@ interface FeeDetailsProps {
 }
 
 export const FeeDetails: FC<FeeDetailsProps> = ({
-  network,
   feesCost,
-  fiatSymbol,
   fromToken,
   toToken,
   exchangeRate,
@@ -45,13 +40,10 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
           {isOfframp
             ? t('components.dialogs.RampSummaryDialog.offrampFee')
             : t('components.dialogs.RampSummaryDialog.onrampFee')}{' '}
-          ({`${fiatToken.offrampFeesBasisPoints / 100}%`}
-          {fiatToken.offrampFeesFixedComponent ? ` + ${fiatToken.offrampFeesFixedComponent} ${fiatSymbol}` : ''})
         </p>
         <p className="flex items-center gap-2">
-          <NetworkIcon network={network} className="w-4 h-4" />
           <strong>
-            {feesCost.total} {(toToken as OnChainTokenDetails).assetSymbol}
+            {feesCost.total} {feesCost.currency.toUpperCase()}
           </strong>
         </p>
       </div>
