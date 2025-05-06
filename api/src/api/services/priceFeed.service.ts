@@ -264,7 +264,7 @@ export class PriceFeedService {
    * @param toCurrency - The target currency
    * @returns The converted amount as a string
    */
-  public async convertCurrency(amount: string, fromCurrency: RampCurrency, toCurrency: RampCurrency): Promise<string> {
+  public async convertCurrency(amount: string, fromCurrency: RampCurrency, toCurrency: RampCurrency, decimals = 6): Promise<string> {
     try {
       // If currencies are the same, return the original amount
       if (fromCurrency === toCurrency) {
@@ -286,7 +286,7 @@ export class PriceFeedService {
       // USD -> Fiat conversion
       if (isUsdLikeCurrency(fromCurrency) && isFiatToken(toCurrency)) {
         const rate = await this.getFiatExchangeRate(toCurrency);
-        const result = new Big(amount).mul(rate).toFixed(2);
+        const result = new Big(amount).mul(rate).toFixed(decimals);
         logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using rate: ${rate}`);
         return result;
       }
@@ -297,7 +297,7 @@ export class PriceFeedService {
         if (rate <= 0) {
           throw new Error(`Invalid exchange rate for ${fromCurrency}: ${rate}`);
         }
-        const result = new Big(amount).div(rate).toFixed(2);
+        const result = new Big(amount).div(rate).toFixed(decimals);
         logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using inverse rate: 1/${rate}`);
         return result;
       }
@@ -314,7 +314,7 @@ export class PriceFeedService {
           throw new Error(`Invalid price for ${toCurrency}: ${cryptoPriceUSD}`);
         }
 
-        const result = new Big(amount).div(cryptoPriceUSD).toFixed(6);
+        const result = new Big(amount).div(cryptoPriceUSD).toFixed(decimals);
         logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
         return result;
       }
@@ -327,7 +327,7 @@ export class PriceFeedService {
         }
 
         const cryptoPriceUSD = await this.getCryptoPrice(tokenId, 'usd');
-        const result = new Big(amount).mul(cryptoPriceUSD).toFixed(2);
+        const result = new Big(amount).mul(cryptoPriceUSD).toFixed(decimals);
         logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
         return result;
       }

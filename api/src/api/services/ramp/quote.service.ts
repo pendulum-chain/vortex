@@ -118,7 +118,6 @@ export class QuoteService extends BaseRampService {
         request.to,
       );
 
-    // Calculate core fee components using the database-driven logic
     const {
       vortexFee: vortexFeeFiat,
       anchorFee: anchorFeeFiat,

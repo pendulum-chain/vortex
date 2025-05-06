@@ -53,14 +53,14 @@ export function RampFeeCollapse() {
   if (Big(quote.fee.partnerMarkup).gt(0)) {
     feeItems.push({
       label: t('components.feeCollapse.partnerMarkupFee'),
-      value: `${quote.fee.partnerMarkup} ${quote.fee.currency.toUpperCase()}`,
+      value: `${Big(quote.fee.partnerMarkup).toFixed(2)} ${quote.fee.currency.toUpperCase()}`,
     });
   }
 
   if (Big(quote.fee.network).gt(0)) {
     feeItems.push({
       label: t('components.feeCollapse.networkFee'),
-      value: `${quote.fee.network} ${quote.fee.currency.toUpperCase()}`,
+      value: `${Big(quote.fee.network).toFixed(2)} ${quote.fee.currency.toUpperCase()}`,
     });
   }
 
