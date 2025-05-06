@@ -69,7 +69,7 @@ export const AirdropBanner = () => {
                 transition={{ delay: 0.3 }}
               >
                 <Trans i18nKey="components.airdropBanner.list.3">
-                  One reward per person -
+                  One reward per person - Check
                   <a
                     className="underline hover:text-blue-700 transition"
                     href="https://github.com/pendulum-chain/vortex/blob/campaign-may-2025/eligible-users.csv"
@@ -77,6 +77,7 @@ export const AirdropBanner = () => {
                     onClick={(e) => e.stopPropagation()}
                     rel="noreferrer"
                   >
+                    {' '}
                     here
                   </a>{' '}
                   (Updates every 24hrs)
