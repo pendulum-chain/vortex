@@ -180,12 +180,12 @@
   },
   "components": {
     "airdropBanner": {
-      "title": "Special offer until 15th May",
-      "description": "Buy or Sell just R$5 or €10 - get 20 USDT for FREE",
+      "title": "Special offer until 15 May",
+      "description": "Buy or Sell just R$5 - get 20 USDT for FREE",
       "button": "More info",
       "list": {
-        "1": "Buy or sell from just R$5 (PIX) or €10 (SEPA) - quick, easy, and no hidden fees.",
-        "2": "<strong>All eligible users get 10 USDT</strong> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub.",
+        "1": "Buy or sell from just R$5 (PIX) - quick, easy, and no hidden fees.",
+        "2": "<strong>All eligible users get 10 USDT</strong> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub a week after campaign ends.",
         "3": "One reward per person - Check here (Updates every 24hrs)"
       }
     },
