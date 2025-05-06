@@ -1,11 +1,8 @@
 import {
   FiatToken,
   getAnyFiatTokenDetails,
-  getNetworkDisplayName,
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
-  isNetworkEVM,
-  Networks,
   OnChainToken,
   RampPhase,
 } from 'shared';

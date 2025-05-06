@@ -179,7 +179,7 @@ export class ApiManager {
     createCall: (api: ApiPromise) => SubmittableExtrinsic<'promise', ISubmittableResult>,
     senderKeypair: KeyringPair,
     networkName: SubstrateApiNetwork,
-  ): Promise<{hash: string}> {
+  ): Promise<{ hash: string }> {
     const apiInstance = await this.getApi(networkName);
     const call = createCall(apiInstance.api);
 
@@ -195,13 +195,13 @@ export class ApiManager {
             reject(new Error(`Transaction failed: ${dispatchError}`));
           }
 
-          if (submissionResult.isError){
+          if (submissionResult.isError) {
             reject(new Error(`Transaction was not included: ${submissionResult.dispatchError}`));
           }
 
-          if (submissionResult.isFinalized){
+          if (submissionResult.isFinalized) {
             const hash = status.asFinalized.toString();
-            resolve({hash})
+            resolve({ hash });
           }
         });
       });
@@ -223,13 +223,13 @@ export class ApiManager {
                 reject(new Error(`Transaction failed: ${dispatchError}`));
               }
 
-              if (submissionResult.isError){
+              if (submissionResult.isError) {
                 reject(new Error(`Transaction was not included: ${submissionResult.dispatchError}`));
               }
 
-              if (submissionResult.isFinalized){
+              if (submissionResult.isFinalized) {
                 const hash = status.asFinalized.toString();
-                resolve({hash})
+                resolve({ hash });
               }
             });
           });

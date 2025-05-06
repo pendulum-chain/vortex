@@ -1,12 +1,11 @@
 import { RequestHandler } from 'express';
 import { ParsedQs } from 'qs';
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
-import { TokenConfig } from 'shared';
+import { BrlaEndpoints, TokenConfig } from 'shared';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
-import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
-
+import { isValidKYCDocType, RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 
 interface CreationBody {
@@ -404,29 +403,6 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateTriggerPayIn: RequestHandler = (req, res, next) => {
-  const { taxId, receiverAddress, amount } = req.body;
-
-  if (!taxId) {
-    res.status(400).json({ error: 'Missing taxId parameter' });
-    return;
-  }
-
-  if (!amount || isNaN(Number(amount))) {
-    res.status(400).json({ error: 'Missing or invalid amount parameter' });
-    return;
-  }
-
-  if (!receiverAddress || !receiverAddress.startsWith('0x')) {
-    res.status(400).json({
-      error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
-    });
-    return;
-  }
-
-  next();
-};
-
 export const validateGetPayInCode: RequestHandler = (req, res, next) => {
   const { taxId, receiverAddress, amount } = req.query as PayInCodeQuery;
 
@@ -444,6 +420,22 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
     res.status(400).json({
       error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
     });
+    return;
+  }
+
+  next();
+};
+
+export const validateStartKyc2: RequestHandler = (req, res, next) => {
+  const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
+
+  if (!taxId) {
+    res.status(400).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!isValidKYCDocType(documentType)) {
+    res.status(400).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
     return;
   }
 

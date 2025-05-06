@@ -54,8 +54,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       if (state.type === 'on' && !isMoonbeamFunded) {
         logger.info('Funding moonbeam ephemeral...');
-        
-        const destinationNetwork = getNetworkFromDestination(state.to); 
+
+        const destinationNetwork = getNetworkFromDestination(state.to);
         // For onramp case, "to" is always a network.
         if (!destinationNetwork) {
           throw new Error('FundEphemeralPhaseHandler: Invalid destination network.');

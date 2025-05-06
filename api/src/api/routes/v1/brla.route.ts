@@ -3,8 +3,8 @@ import * as brlaController from '../../controllers/brla.controller';
 import {
   validateBrlaTriggerOfframpInput,
   validataSubaccountCreation,
-  validateTriggerPayIn,
   validateGetPayInCode,
+  validateStartKyc2,
 } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
@@ -25,6 +25,6 @@ router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaContro
 
 router.route('/createSubaccount').post(validataSubaccountCreation, brlaController.createSubaccount);
 
-router.route('/triggerPayIn').post(validateTriggerPayIn, brlaController.triggerPayIn);
+router.route('/startKYC2').post(validateStartKyc2, brlaController.startKYC2);
 
 export default router;

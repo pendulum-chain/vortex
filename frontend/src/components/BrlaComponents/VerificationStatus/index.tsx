@@ -1,33 +1,48 @@
+import React from 'react';
 import { motion } from 'motion/react';
 
 import { KycStatus } from '../../../services/signingService';
 import { Spinner } from '../../Spinner';
 
 interface VerificationStatusProps {
-  status: KycStatus;
+  status: { status: KycStatus; level: number };
   message: string;
+  isLevel2: boolean;
 }
 
-export const VerificationStatus = ({ status, message }: VerificationStatusProps) => (
-  <motion.div
-    className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg justify-center items-center shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col"
-    initial={{ scale: 0.9, opacity: 0 }}
-    animate={{ scale: 1, opacity: 1 }}
-    transition={{ duration: 0.3 }}
-  >
-    {status === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
-    {status === KycStatus.APPROVED && <SuccessIcon />}
-    {status === KycStatus.REJECTED && <ErrorIcon />}
-    <motion.p
-      className="mt-4 text-lg font-bold"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.3, duration: 0.5 }}
+export const VerificationStatus: React.FC<VerificationStatusProps> = ({
+  status,
+  message,
+  isLevel2,
+}) => {
+  const { status: kycStatus, level } = status;
+  const showSuccess =
+    kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
+
+  return (
+    <motion.div
+      className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center"
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3 }}
     >
-      {message}
-    </motion.p>
-  </motion.div>
-);
+      {kycStatus === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
+
+      {showSuccess && <SuccessIcon />}
+
+      {kycStatus === KycStatus.REJECTED && <ErrorIcon />}
+
+      <motion.p
+        className="mt-4 text-lg font-bold text-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+      >
+        {message}
+      </motion.p>
+    </motion.div>
+  );
+};
 
 const SuccessIcon = () => (
   <motion.svg

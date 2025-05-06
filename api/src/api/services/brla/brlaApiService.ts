@@ -9,7 +9,11 @@ import {
   FastQuoteQueryParams,
   FastQuoteResponse,
   SwapPayload,
-  OnchainLog, UsedLimitData,
+  KYCDocType,
+  KycLevel2Response,
+  KycRetryPayload,
+  OnchainLog,
+  UsedLimitData,
 } from './types';
 import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
@@ -123,7 +127,7 @@ export class BrlaApiService {
 
   public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest('/used-limit', 'GET', query);
+    return await this.sendRequest(Endpoint.UsedLimit, 'GET', query);
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {
@@ -135,8 +139,11 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.Subaccounts, 'POST', undefined, registerSubaccountPayload);
   }
 
-  public async getAllEventsByUser(userId: string): Promise<Event[] | undefined> {
-    const query = `subaccountId=${encodeURIComponent(userId)}`;
+  public async getAllEventsByUser(userId: string, subscription: string | null = null): Promise<Event[] | undefined> {
+    let query = `subaccountId=${encodeURIComponent(userId)}`;
+    if (subscription) {
+      query += `&subscription=${encodeURIComponent(subscription)}`;
+    }
     const response = await this.sendRequest(Endpoint.WebhookEvents, 'GET', query);
     return response.events;
   }
@@ -183,5 +190,15 @@ export class BrlaApiService {
   public async getOnChainHistoryOut(userId: string): Promise<OnchainLog[]> {
     const query = `subaccountId=${encodeURIComponent(userId)}`;
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, 'GET', query)).onchainLogs;
+  }
+
+  public async startKYC2(subaccountId: string, documentType: KYCDocType): Promise<KycLevel2Response> {
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(Endpoint.KycLevel2, 'POST', query, { documentType });
+  }
+
+  public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<any> {
+    const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
+    return await this.sendRequest(Endpoint.KycRetry, 'POST', query, retryKycPayload);
   }
 }
