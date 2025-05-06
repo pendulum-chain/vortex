@@ -180,13 +180,13 @@
   },
   "components": {
     "airdropBanner": {
-      "title": "Special offer",
-      "description": "Buy or Sell just R$5 or €10 - get 20 USDT for FREE",
+      "title": "Special offer until 15 May",
+      "description": "Buy or sell USDT/C from just R$5 - get 20 USDT for FREE",
       "button": "More info",
       "list": {
-        "1": "Buy or sell from just R$5 (PIX) or €10 (SEPA) - quick, easy, and no hidden fees.",
-        "2": "All eligible users get 10 USDT - <strong>the first 100 receive a 10 USDT bonus, totaling 20 USDT.</strong> Rewards go to your wallet on Base or AssetHub.",
-        "3": "One reward per user - we use KYC and on-chain checks to ensure fairness and prevent abuse."
+        "1": "Buy or sell USDT/C from just R$5 (PIX) - quick, easy, and no hidden fees.",
+        "2": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub a week after campaign ends.",
+        "3": "One reward per person - Check <1>here</1> (Updates every 24hrs)"
       }
     },
     "emailForm": {
@@ -432,8 +432,8 @@
       "uploadFailed": "Upload failed. Please try again.",
       "fields": {
         "uploadSelfie": "Upload Selfie",
-        "rgFront":     "RG Front",
-        "rgBack":      "RG Back",
+        "rgFront": "RG Front",
+        "rgBack": "RG Back",
         "cnhDocument": "CNH Document"
       },
       "buttons": {

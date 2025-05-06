@@ -180,13 +180,13 @@
   },
   "components": {
     "airdropBanner": {
-      "title": "Oferta especial",
-      "description": "Compre ou venda apenas R$5 ou €10 - receba 20 USDT de graça!",
+      "title": "Oferta especial até 15 Maio",
+      "description": "Compre ou venda USDT/C por apenas R$5 - receba 20 USDT de graça!",
       "button": "Mais informações",
       "list": {
-        "1": "Compre ou venda de R$5 (PIX) ou €10 (SEPA) - rápido, fácil e sem taxas ocultas.",
-        "2": "Todos os usuários elegíveis recebem 10 USDT - <strong>os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT.</strong> Recompensas vão para sua carteira na Base ou AssetHub.",
-        "3": "Uma recompensa por utilizador - utilizamos verificações KYC e na cadeia para garantir a equidade e evitar abusos."
+        "1": "Compre ou venda USDT/C por apenas R$5 (PIX) - rápido, fácil e sem taxas ocultas.",
+        "2": "<1>Todos os usuários elegíveis recebem 10 USDT</1> - os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT. Recompensas vão para sua carteira na Base ou AssetHub após o término da campanha.",
+        "3": "Uma recompensa por pessoa - Verifique <1>aqui</1> (Atualiza a cada 24 horas)"
       }
     },
     "emailForm": {
@@ -411,25 +411,25 @@
       }
     },
     "documentUpload": {
-    "title": "Verificação Rápida",
-    "description": "Para garantir uma experiência segura e fluida, precisamos de uma rápida verificação de identidade. Por favor, envie uma imagem nítida do seu documento.",
-    "validation": {
-      "invalidFileType": "Tipo de arquivo inválido. Apenas PNG, JPEG ou PDF são permitidos.",
-      "fileSizeExceeded": "O tamanho do arquivo excede o limite de {{max}}.",
-      "validationError": "Todos os arquivos devem ser válidos antes de enviar."
+      "title": "Verificação Rápida",
+      "description": "Para garantir uma experiência segura e fluida, precisamos de uma rápida verificação de identidade. Por favor, envie uma imagem nítida do seu documento.",
+      "validation": {
+        "invalidFileType": "Tipo de arquivo inválido. Apenas PNG, JPEG ou PDF são permitidos.",
+        "fileSizeExceeded": "O tamanho do arquivo excede o limite de {{max}}.",
+        "validationError": "Todos os arquivos devem ser válidos antes de enviar."
       },
-    "uploadBug": "Ocorreu um erro ao enviar os arquivos para verificação. Por favor, tente novamente mais tarde.",
-    "uploadFailed": "Falha no envio. Por favor, tente novamente.",
-    "fields": {
-      "uploadSelfie": "Enviar selfie",
-      "rgFront": "Frente do RG",
-      "rgBack": "Verso do RG",
-      "cnhDocument": "Documento CNH"
+      "uploadBug": "Ocorreu um erro ao enviar os arquivos para verificação. Por favor, tente novamente mais tarde.",
+      "uploadFailed": "Falha no envio. Por favor, tente novamente.",
+      "fields": {
+        "uploadSelfie": "Enviar selfie",
+        "rgFront": "Frente do RG",
+        "rgBack": "Verso do RG",
+        "cnhDocument": "Documento CNH"
       },
-    "buttons": {
-      "back": "Voltar",
-      "uploading": "Enviando...",
-      "finish": "Concluir"
+      "buttons": {
+        "back": "Voltar",
+        "uploading": "Enviando...",
+        "finish": "Concluir"
       }
     },
     "rating": {
