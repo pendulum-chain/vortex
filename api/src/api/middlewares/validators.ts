@@ -109,7 +109,7 @@ export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, Pri
     return;
   }
 
-  if (Number.isNaN(Number(amount))) {
+  if (isNaN(parseFloat(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter. Not a number.' });
     return;
   }
@@ -151,7 +151,7 @@ export const validatePriceInput: RequestHandler<{}, unknown, unknown, PriceQuery
     return;
   }
 
-  if (Number.isNaN(Number(amount))) {
+  if (isNaN(parseFloat(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter. Not a number.' });
     return;
   }
@@ -336,7 +336,7 @@ export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) 
     return;
   }
 
-  if (!amount || Number.isNaN(Number(amount))) {
+  if (!amount || isNaN(Number(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
@@ -404,29 +404,6 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateTriggerPayIn: RequestHandler = (req, res, next) => {
-  const { taxId, receiverAddress, amount } = req.body;
-
-  if (!taxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId parameter' });
-    return;
-  }
-
-  if (!amount || Number.isNaN(Number(amount))) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
-    return;
-  }
-
-  if (!receiverAddress || !receiverAddress.startsWith('0x')) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
-    });
-    return;
-  }
-
-  next();
-};
-
 export const validateGetPayInCode: RequestHandler = (req, res, next) => {
   const { taxId, receiverAddress, amount } = req.query as PayInCodeQuery;
 
@@ -435,7 +412,7 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
     return;
   }
 
-  if (!amount || Number.isNaN(Number(amount))) {
+  if (!amount || isNaN(Number(amount))) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
