@@ -82,7 +82,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       fee_type: 'off',
       identifier: 'stellar_eurc',
       value_type: 'relative',
-      value: 0.25, // 0.25%
+      value: 0.0025, // 0.25% (represented as decimal)
       currency: 'EUR',
       is_active: true,
       created_at: new Date(),
@@ -93,7 +93,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       fee_type: 'off',
       identifier: 'stellar_ars',
       value_type: 'relative',
-      value: 2.00, // 2%
+      value: 0.02, // 2% (represented as decimal)
       currency: 'ARS',
       is_active: true,
       created_at: new Date(),

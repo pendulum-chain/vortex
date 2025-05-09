@@ -332,7 +332,7 @@ export class QuoteService extends BaseRampService {
           if (feeConfig.valueType === 'relative') {
             // Calculate relative fee based on the input or output amount
             const amount = rampType === 'on' ? inputAmount : outputAmount;
-            const relativeFee = new Big(amount).mul(feeConfig.value).div(100);
+            const relativeFee = new Big(amount).mul(feeConfig.value);
             return total.plus(relativeFee);
           }
           return total;
@@ -348,7 +348,7 @@ export class QuoteService extends BaseRampService {
       } else if (vortexFoundationPartner.markupType === 'absolute') {
         vortexFee = vortexFoundationPartner.markupValue.toFixed(2);
       } else {
-        vortexFee = new Big(inputAmount).mul(vortexFoundationPartner.markupValue).div(100).toFixed(2);
+        vortexFee = new Big(inputAmount).mul(vortexFoundationPartner.markupValue).toFixed(2);
       }
 
       // 3. Calculate partner markup fee if applicable
@@ -358,7 +358,7 @@ export class QuoteService extends BaseRampService {
         if (partner.markupType === 'absolute') {
           partnerMarkupFee = partner.markupValue.toFixed(2);
         } else {
-          partnerMarkupFee = new Big(inputAmount).mul(partner.markupValue).div(100).toFixed(2);
+          partnerMarkupFee = new Big(inputAmount).mul(partner.markupValue).toFixed(2);
         }
       }
 

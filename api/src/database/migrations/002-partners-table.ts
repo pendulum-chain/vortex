@@ -73,7 +73,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       name: 'vortex_foundation',
       display_name: 'Vortex Foundation',
       markup_type: 'relative',
-      markup_value: 0.01, // 0.01%
+      markup_value: 0.0001, // 0.01% (represented as decimal)
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       fee_type: 'on',
@@ -86,7 +86,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       name: 'vortex_foundation',
       display_name: 'Vortex Foundation',
       markup_type: 'relative',
-      markup_value: 0.01, // 0.01%
+      markup_value: 0.0001, // 0.01% (represented as decimal)
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       fee_type: 'off',
