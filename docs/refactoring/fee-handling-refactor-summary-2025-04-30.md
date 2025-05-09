@@ -29,11 +29,15 @@ This document summarizes the refactoring applied to the fee calculation and hand
     *   Final XCM transfers now use the final net `outputAmount` from the quote.
 
 5.  **Fee Distribution Phase (`distribute-fees-handler.ts`):**
-    *   A new `DistributeFeesHandler` was created.
-    *   It reads the fiat-denominated Network, Vortex, and Partner fees from `quote.fee`.
-    *   It converts these back to USD (placeholder) and then to stablecoin units (placeholder, assuming axlUSDC).
-    *   It transfers the calculated stablecoin amounts from the Pendulum ephemeral account to the Vortex payout address (for Network and Vortex fees) and the Partner's payout address (if applicable).
-    *   Network fee destination is currently set to the Vortex payout address.
+    *   Implements pre-signed transaction flow:
+        - Transaction services (`onrampTransactions.ts`, `offrampTransactions.ts`) prepare and pre-sign batched fee distribution transactions
+        - Transactions are stored in `state.presignedTxs` with `phase: 'distributeFees'`
+    *   Distribution handler:
+        - Retrieves transaction using `this.getPresignedTransaction(state, 'distributeFees')`
+        - Submits pre-signed transaction rather than constructing locally
+    *   Maintains existing fee destination logic:
+        - Network and Vortex fees go to Vortex payout address
+        - Partner fees go to Partner's payout address if applicable
 
 6.  **State Machine Integration:**
     *   The `DistributeFeesHandler` was registered.
@@ -47,10 +51,8 @@ This document summarizes the refactoring applied to the fee calculation and hand
 
 8.  **Cleanup:** Deleted `api/src/api/helpers/quote.ts`.
 
-## Outstanding TODOs / Placeholders
+## Outstanding TODOs
 
-*   Finalize the Network fee payout address configuration in `DistributeFeesHandler`.
-*   Refine stablecoin selection logic in `DistributeFeesHandler`.
-*   Add validation for `targetFiat` currency identification in `getTargetFiatCurrency` (`quote.service.ts`).
-*   Change the logic of the `distribute-fees-handler.ts` so that it's also using presigned transactions. The have to be added to `onrampingTransactions.ts` and `offrampingTransactions.ts` and the handler itself should only submit the transactino but not sign.
-   *   The USD amounts that are supposed to be paid our are stored on the metadata of a quote-ticket model. 
+- Change output currency from EURC to EUR
+- Pass the partnerId to the backend when creating a quote
+- Allow distinguishing between on/offramp
