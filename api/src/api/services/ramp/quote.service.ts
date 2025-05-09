@@ -289,11 +289,15 @@ export class QuoteService extends BaseRampService {
 
       // 1. Get Vortex Foundation fee from the dedicated partner record
       const vortexFoundationPartner = await Partner.findOne({
-        where: { name: 'vortex_foundation', isActive: true },
+        where: {
+          name: 'vortex_foundation',
+          isActive: true,
+          feeType: rampType
+        },
       });
 
       if (!vortexFoundationPartner) {
-        logger.error('Vortex Foundation partner configuration not found in database.');
+        logger.error(`Vortex Foundation partner configuration not found for ${rampType}-ramp in database.`);
         throw new APIError({ status: httpStatus.INTERNAL_SERVER_ERROR, message: 'Internal configuration error [VF]' });
       }
 
@@ -311,7 +315,7 @@ export class QuoteService extends BaseRampService {
 
       const anchorFeeConfigs = await FeeConfiguration.findAll({
         where: {
-          feeType: 'anchor_base',
+          feeType: rampType,
           identifier: anchorIdentifier,
           isActive: true,
         },
@@ -349,7 +353,8 @@ export class QuoteService extends BaseRampService {
 
       // 3. Calculate partner markup fee if applicable
       let partnerMarkupFee = '0';
-      if (partner && partner.markupType !== 'none') {
+      // Only apply partner markup if partner exists, has a non-none markup type, and feeType matches current ramp type
+      if (partner && partner.markupType !== 'none' && partner.feeType === rampType) {
         if (partner.markupType === 'absolute') {
           partnerMarkupFee = partner.markupValue.toFixed(2);
         } else {

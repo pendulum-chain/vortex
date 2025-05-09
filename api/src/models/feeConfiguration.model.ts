@@ -4,7 +4,7 @@ import sequelize from '../config/database';
 // Define the attributes of the FeeConfiguration model
 export interface FeeConfigurationAttributes {
   id: string; // UUID
-  feeType: 'anchor_base';
+  feeType: 'on' | 'off';
   identifier: string | null;
   valueType: 'absolute' | 'relative';
   value: number;
@@ -21,7 +21,7 @@ type FeeConfigurationCreationAttributes = Optional<FeeConfigurationAttributes, '
 class FeeConfiguration extends Model<FeeConfigurationAttributes, FeeConfigurationCreationAttributes> implements FeeConfigurationAttributes {
   declare id: string;
 
-  declare feeType: 'anchor_base';
+  declare feeType: 'on' | 'off';
 
   declare identifier: string | null;
 
@@ -47,7 +47,7 @@ FeeConfiguration.init(
       primaryKey: true,
     },
     feeType: {
-      type: DataTypes.ENUM('anchor_base'),
+      type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
       field: 'fee_type',
     },

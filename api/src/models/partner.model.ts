@@ -11,6 +11,7 @@ export interface PartnerAttributes {
   markupValue: number;
   markupCurrency: string | null;
   payoutAddress: string | null;
+  feeType: 'on' | 'off';
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,8 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
   declare markupCurrency: string | null;
 
   declare payoutAddress: string | null;
+
+  declare feeType: 'on' | 'off';
 
   declare isActive: boolean;
 
@@ -88,6 +91,11 @@ Partner.init(
       type: DataTypes.STRING(255),
       allowNull: true,
       field: 'payout_address',
+    },
+    feeType: {
+      type: DataTypes.ENUM('on', 'off'),
+      allowNull: false,
+      field: 'fee_type',
     },
     isActive: {
       type: DataTypes.BOOLEAN,

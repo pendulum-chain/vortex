@@ -9,8 +9,9 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       primaryKey: true,
     },
     fee_type: {
-      type: DataTypes.ENUM('anchor_base'),
+      type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
+      defaultValue: 'on',
     },
     identifier: {
       type: DataTypes.STRING(100),
@@ -56,7 +57,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.bulkInsert('fee_configurations', [
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'anchor_base',
+      fee_type: 'on',
       identifier: 'moonbeam_brla',
       value_type: 'absolute',
       value: 0.75, // 0.75 BRL
@@ -67,7 +68,18 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'anchor_base',
+      fee_type: 'off',
+      identifier: 'moonbeam_brla',
+      value_type: 'absolute',
+      value: 0.75, // 0.75 BRL
+      currency: 'BRL',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
+      fee_type: 'off',
       identifier: 'stellar_eurc',
       value_type: 'relative',
       value: 0.25, // 0.25%
@@ -78,7 +90,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'anchor_base',
+      fee_type: 'off',
       identifier: 'stellar_ars',
       value_type: 'relative',
       value: 2.00, // 2%
@@ -89,7 +101,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'anchor_base',
+      fee_type: 'off',
       identifier: 'stellar_ars',
       value_type: 'absolute',
       value: 10.00, // 10 ARS
@@ -102,6 +114,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
-  // Drop the fee_configurations table
+  // Drop the fee_configurations table if needed
   await queryInterface.dropTable('fee_configurations');
 }

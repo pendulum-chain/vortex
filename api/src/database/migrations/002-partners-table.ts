@@ -39,6 +39,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    fee_type: {
+      type: DataTypes.ENUM('on', 'off'),
+      allowNull: false,
+      defaultValue: 'on',
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -71,6 +76,20 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_value: 0.01, // 0.01%
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
+      fee_type: 'on',
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: queryInterface.sequelize.literal('uuid_generate_v4()'),
+      name: 'vortex_foundation',
+      display_name: 'Vortex Foundation',
+      markup_type: 'relative',
+      markup_value: 0.01, // 0.01%
+      markup_currency: 'USD',
+      payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
+      fee_type: 'off',
       is_active: true,
       created_at: new Date(),
       updated_at: new Date(),
@@ -81,7 +100,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Remove the Vortex Foundation partner
   await queryInterface.bulkDelete('partners', { name: 'vortex_foundation' });
-  
-  // Drop the partners table
+
+  // Drop the partners table if needed
   await queryInterface.dropTable('partners');
 }
