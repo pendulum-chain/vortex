@@ -41,18 +41,6 @@ export namespace BrlaEndpoints {
     valid: boolean;
   }
 
-  // GET /brla/payIn?taxId=:taxId&amount=:amount&receiverAddress=:receiverAddress
-  export interface GetPayInCodeRequest {
-    taxId: string;
-    amount: string;
-    receiverAddress: string;
-  }
-
-  export interface GetPayInCodeResponse {
-    brCode: string;
-    [key: string]: any; // Additional fields from BRLA API
-  }
-
   export interface GetUserRemainingLimitRequest {
     taxId: string;
   }

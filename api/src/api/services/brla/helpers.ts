@@ -1,12 +1,16 @@
 import { sha256 } from 'ethers';
 import { EvmAddress } from './brlaTeleportService';
+import QuoteTicket from '../../../models/quoteTicket.model';
 
-export function verifyReferenceLabel(referenceLabel: string, receiverAddress: EvmAddress): boolean {
-  return true; // TODO ONRAMP testing, remove.
-  const referenceLabelClaimed = sha256(receiverAddress).toString().slice(0, 18);
-  return referenceLabel === referenceLabelClaimed;
+export function verifyReferenceLabel(referenceLabel: string, memo: string): boolean {
+  return referenceLabel === memo;
 }
 
-export function generateReferenceLabel(receiverAddress: EvmAddress): string {
-  return sha256(receiverAddress).toString().slice(0, 18);
+type QuoteId = string;
+
+export function generateReferenceLabel(quote: QuoteTicket | QuoteId): string {
+  if (typeof quote === 'string') {
+    return quote.slice(0, 8);
+  }
+  return quote.id.slice(0, 8);
 }

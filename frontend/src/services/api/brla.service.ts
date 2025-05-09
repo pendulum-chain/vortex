@@ -58,23 +58,6 @@ export class BrlaService {
   }
 
   /**
-   * Get a BR Code for payment
-   * @param taxId The user's tax ID
-   * @param amount The payment amount
-   * @param receiverAddress The receiver's address
-   * @returns The BR Code for payment
-   */
-  static async getPayInCode(
-    taxId: string,
-    amount: string,
-    receiverAddress: EvmAddress,
-  ): Promise<BrlaEndpoints.GetPayInCodeResponse> {
-    return apiRequest<BrlaEndpoints.GetPayInCodeResponse>('get', `${this.BASE_PATH}/payIn`, undefined, {
-      params: { taxId, amount, receiverAddress },
-    });
-  }
-
-  /**
    * Get the remaining limit for a user
    * @param taxId The user's tax ID
    * @returns The remaining limit for onramp and offramp

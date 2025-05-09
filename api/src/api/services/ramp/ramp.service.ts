@@ -141,7 +141,7 @@ export class RampService extends BaseRampService {
 
         brCode = await this.validateBrlaOnrampRequest(
           additionalData.taxId,
-          moonbeamEphemeralEntry.address as `0x${string}`,
+          quote,
           quote.inputAmount,
         );
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
@@ -369,7 +369,7 @@ export class RampService extends BaseRampService {
    */
   public async validateBrlaOnrampRequest(
     taxId: string,
-    ephemeralAddress: `0x${string}`,
+    quote: QuoteTicket,
     amount: string,
   ): Promise<string> {
     const brlaApiService = BrlaApiService.getInstance();
@@ -391,7 +391,7 @@ export class RampService extends BaseRampService {
     const brCode = await brlaApiService.generateBrCode({
       subaccountId: subaccount.id,
       amount: String(amount),
-      referenceLabel: generateReferenceLabel(ephemeralAddress),
+      referenceLabel: generateReferenceLabel(quote),
     });
 
     return brCode.brCode;
