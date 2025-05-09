@@ -4,6 +4,7 @@ import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shar
 import { useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
 import { useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
 import { useNetwork } from '../contexts/network';
+import { useSetPartnerId } from '../stores/partnerStore';
 
 interface RampUrlParams {
   ramp: RampDirection;
@@ -11,6 +12,7 @@ interface RampUrlParams {
   to?: string;
   from?: string;
   fromAmount?: string;
+  partnerId?: string;
 }
 
 const defaultFiatTokenAmounts: Record<FiatToken, string> = { eurc: '20', ars: '20', brl: '5' };
@@ -81,6 +83,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const toTokenParam = params.get('to')?.toLowerCase();
     const fromTokenParam = params.get('from')?.toLowerCase();
     const inputAmountParam = params.get('fromAmount');
+    const partnerIdParam = params.get('partnerId');
 
     const ramp =
       rampParam === undefined ? rampDirection : rampParam === 'buy' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
@@ -105,6 +108,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       from,
       to,
       fromAmount: inputAmountParam || fromAmount || undefined,
+      partnerId: partnerIdParam || undefined,
     };
   }, [params, rampDirection, selectedNetwork]);
 
@@ -112,9 +116,10 @@ export const useRampUrlParams = (): RampUrlParams => {
 };
 
 export const useSetRampUrlParams = () => {
-  const { ramp, to, from, fromAmount } = useRampUrlParams();
+  const { ramp, to, from, fromAmount, partnerId } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
+  const setPartnerIdFn = useSetPartnerId();
 
   const { setFiatToken, setOnChainToken, setInputAmount } = useRampFormStoreActions();
 
@@ -135,6 +140,10 @@ export const useSetRampUrlParams = () => {
 
     if (fromAmount) {
       setInputAmount(fromAmount);
+    }
+
+    if (partnerId) {
+      setPartnerIdFn(partnerId);
     }
 
     hasInitialized.current = true;

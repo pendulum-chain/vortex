@@ -55,4 +55,3 @@ This document summarizes the refactoring applied to the fee calculation and hand
 
 - Change output currency from EURC to EUR
 - Pass the partnerId to the backend when creating a quote
-- Allow distinguishing between on/offramp

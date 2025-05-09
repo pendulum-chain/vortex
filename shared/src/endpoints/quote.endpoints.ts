@@ -19,7 +19,7 @@ export namespace QuoteEndpoints {
     inputAmount: string;
     inputCurrency: RampCurrency;
     outputCurrency: RampCurrency;
-    partnerId?: string; // Optional partner ID for fee markup
+    partnerId?: string; // Optional partner name for fee markup (not UUID)
   }
 
   export interface QuoteResponse {

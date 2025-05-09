@@ -100,11 +100,15 @@ export class QuoteService extends BaseRampService {
     if (request.partnerId) {
       partner = await Partner.findOne({
         where: {
-          id: request.partnerId,
+          name: request.partnerId,
           isActive: true,
         },
       });
-      // If partnerId was provided but not found or not active, we'll proceed without a partner
+      
+      // If partnerId (name) was provided but not found or not active, log a warning and proceed without a partner
+      if (!partner) {
+        logger.warn(`Partner with name '${request.partnerId}' not found or not active. Proceeding with default fees.`);
+      }
     }
 
     // Calculate gross output amount and network fee
@@ -309,6 +313,8 @@ export class QuoteService extends BaseRampService {
         });
 
         if (partnerRecords.length > 0) {
+          let hasApplicableFees = false;
+          
           for (const record of partnerRecords) {
             if (record.markupType !== 'none') {
               let markupFeeComponent = new Big(0);
@@ -319,6 +325,10 @@ export class QuoteService extends BaseRampService {
               }
               // TODO Convert to USD if needed (for now assuming all are in the same currency)
               totalPartnerMarkupUSD = totalPartnerMarkupUSD.plus(markupFeeComponent);
+              
+              if (markupFeeComponent.gt(0)) {
+                hasApplicableFees = true;
+              }
             }
 
             // Vortex Fee Component from this partner record
@@ -331,11 +341,21 @@ export class QuoteService extends BaseRampService {
               }
               // TODO Convert to USD if needed (for now assuming all are in the same currency)
               totalVortexFeeUSD = totalVortexFeeUSD.plus(vortexFeeComponent);
+              
+              if (vortexFeeComponent.gt(0)) {
+                hasApplicableFees = true;
+              }
             }
+          }
+          
+          // Log warning if partner found but no applicable custom fees
+          if (!hasApplicableFees) {
+            logger.warn(`Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`);
           }
         } else {
           // No specific partner records found, will use default Vortex fee below
           // totalPartnerMarkupUSD remains 0
+          logger.warn(`No fee configuration found for partner with name '${partnerName}'. Proceeding with default fees.`);
         }
       }
 

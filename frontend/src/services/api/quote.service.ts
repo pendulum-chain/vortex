@@ -15,6 +15,7 @@ export class QuoteService {
    * @param inputAmount The input amount
    * @param inputCurrency The input currency
    * @param outputCurrency The output currency
+   * @param partnerId Optional partner ID for fee markup
    * @returns The created quote
    */
   static async createQuote(
@@ -24,6 +25,7 @@ export class QuoteService {
     inputAmount: string,
     inputCurrency: OnChainToken | FiatToken,
     outputCurrency: OnChainToken | FiatToken,
+    partnerId?: string,
   ): Promise<QuoteEndpoints.QuoteResponse> {
     const request: QuoteEndpoints.CreateQuoteRequest = {
       rampType,
@@ -33,6 +35,12 @@ export class QuoteService {
       inputCurrency,
       outputCurrency,
     };
+    
+    // Only add partnerId if it's provided and not empty
+    if (partnerId) {
+      request.partnerId = partnerId;
+    }
+    
     return apiRequest<QuoteEndpoints.QuoteResponse>('post', this.BASE_PATH, request);
   }
 
