@@ -21,7 +21,7 @@ type Teleport = {
   dateRequested: string;
   status: TeleportStatus;
   receiverAddress: EvmAddress;
-  memo?: string;
+  memo: string;
   id?: string;
 };
 
@@ -53,13 +53,14 @@ export class BrlaTeleportService {
     return BrlaTeleportService.teleportService;
   }
 
-  public async requestTeleport(subaccountId: string, amount: number, receiverAddress: EvmAddress): Promise<void> {
+  public async requestTeleport(subaccountId: string, amount: number, receiverAddress: EvmAddress, memo: string): Promise<void> {
     const teleport: Teleport = {
       amount,
       subaccountId,
       dateRequested: new Date().toISOString(),
       status: 'claimed',
       receiverAddress,
+      memo,
     };
     logger.info('Requesting teleport:', teleport);
     this.teleports.set(subaccountId, teleport);
@@ -163,7 +164,7 @@ export class BrlaTeleportService {
         // Check the referceLabel to match the address requested, and amount.
         // Last mintOp should match the amount.
         if (
-          verifyReferenceLabel(lastPayIn.referenceLabel, teleport.receiverAddress) // TODO testing && lastPayIn.mintOps[0].amount === teleport.amount
+          verifyReferenceLabel(lastPayIn.referenceLabel, teleport.memo) 
         ) {
           this.teleports.set(subaccountId, { ...teleport, status: 'arrived' });
           this.startTeleport(subaccountId);

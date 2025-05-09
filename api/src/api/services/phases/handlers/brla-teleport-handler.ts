@@ -9,6 +9,7 @@ import { checkEvmBalancePeriodically } from '../../moonbeam/balance';
 import { BrlaTeleportService } from '../../brla/brlaTeleportService';
 import logger from '../../../../config/logger';
 import { moonbeam } from 'viem/chains';
+import { generateReferenceLabel } from '../../brla/helpers';
 
 export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -32,12 +33,14 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       if (!subaccount) {
         throw new Error('Subaccount not found');
       }
-      logger.info('Requesting teleport:', subaccount.id, inputAmountBrla, moonbeamEphemeralAddress);
+      const memo = state.quoteId.slice(0, 8);
+      logger.info('Requesting teleport:', subaccount.id, inputAmountBrla, moonbeamEphemeralAddress, memo);
       const teleportService = BrlaTeleportService.getInstance();
       await teleportService.requestTeleport(
         subaccount.id,
         Number(inputAmountBrla),
         moonbeamEphemeralAddress as `0x${string}`,
+        generateReferenceLabel(state.quoteId)
       );
 
       // now we wait and verify that funds have arrived at the actual destination ephemeral.
