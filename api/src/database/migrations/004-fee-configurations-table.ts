@@ -1,4 +1,4 @@
-import { QueryInterface, DataTypes } from 'sequelize';
+import { QueryInterface, DataTypes, Op } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Create fee_configurations table
@@ -8,19 +8,20 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    fee_type: {
+    feeType: {
       type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
-      defaultValue: 'on',
+      field: 'fee_type',
     },
     identifier: {
       type: DataTypes.STRING(100),
       allowNull: true,
       comment: 'Optional context, e.g., network name, anchor name, or "default"',
     },
-    value_type: {
+    valueType: {
       type: DataTypes.ENUM('absolute', 'relative'),
       allowNull: false,
+      field: 'value_type',
     },
     value: {
       type: DataTypes.DECIMAL(10, 4),
@@ -31,20 +32,23 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: false,
       defaultValue: 'USD',
     },
-    is_active: {
+    isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
+      field: 'is_active',
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at',
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at',
     },
   });
 
@@ -104,7 +108,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       fee_type: 'off',
       identifier: 'stellar_ars',
       value_type: 'absolute',
-      value: 10.00, // 10 ARS
+      value: 10.0, // 10 ARS
       currency: 'ARS',
       is_active: true,
       created_at: new Date(),
@@ -114,6 +118,21 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
-  // Drop the fee_configurations table if needed
+  // Remove the initial data
+  await queryInterface.bulkDelete('fee_configurations', {
+    identifier: {
+      [Op.in]: ['moonbeam_brla', 'stellar_eurc', 'stellar_ars'],
+    },
+  });
+
+  // Remove the index
+  await queryInterface.removeIndex('fee_configurations', 'idx_fee_configurations_lookup');
+
+  // Drop the fee_configurations table
   await queryInterface.dropTable('fee_configurations');
+
+  // Explicitly drop the ENUM type
+  // Note: The name of the enum type might be schema-qualified in some setups,
+  // but 'enum_fee_configurations_fee_type' is what the error message indicates.
+  await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_fee_configurations_fee_type";');
 }
