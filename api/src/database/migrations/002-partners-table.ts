@@ -11,7 +11,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      unique: true,
     },
     display_name: {
       type: DataTypes.STRING(100),
@@ -44,6 +43,16 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: false,
       defaultValue: 'on',
     },
+    vortex_fee_type: {
+      type: DataTypes.ENUM('absolute', 'relative', 'none'),
+      allowNull: false,
+      defaultValue: 'none',
+    },
+    vortex_fee_value: {
+      type: DataTypes.DECIMAL(10, 4),
+      allowNull: false,
+      defaultValue: 0,
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -61,9 +70,9 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
   });
 
-  // Add index for faster lookups
-  await queryInterface.addIndex('partners', ['name'], {
-    name: 'idx_partners_name',
+  // Add composite index for faster lookups
+  await queryInterface.addIndex('partners', ['name', 'fee_type'], {
+    name: 'idx_partners_name_fee_type',
   });
 
   // Insert Vortex Foundation as a partner
@@ -77,6 +86,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       fee_type: 'on',
+      vortex_fee_type: 'none',
+      vortex_fee_value: 0,
       is_active: true,
       created_at: new Date(),
       updated_at: new Date(),
@@ -90,6 +101,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       fee_type: 'off',
+      vortex_fee_type: 'none',
+      vortex_fee_value: 0,
       is_active: true,
       created_at: new Date(),
       updated_at: new Date(),
@@ -100,6 +113,9 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Remove the Vortex Foundation partner
   await queryInterface.bulkDelete('partners', { name: 'vortex_foundation' });
+
+  // Remove the composite index
+  await queryInterface.removeIndex('partners', 'idx_partners_name_fee_type');
 
   // Drop the partners table if needed
   await queryInterface.dropTable('partners');

@@ -12,6 +12,8 @@ export interface PartnerAttributes {
   markupCurrency: string | null;
   payoutAddress: string | null;
   feeType: 'on' | 'off';
+  vortexFeeType: 'absolute' | 'relative' | 'none';
+  vortexFeeValue: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +42,10 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare feeType: 'on' | 'off';
 
+  declare vortexFeeType: 'absolute' | 'relative' | 'none';
+
+  declare vortexFeeValue: number;
+
   declare isActive: boolean;
 
   declare createdAt: Date;
@@ -58,7 +64,6 @@ Partner.init(
     name: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      unique: true,
     },
     displayName: {
       type: DataTypes.STRING(100),
@@ -97,6 +102,18 @@ Partner.init(
       allowNull: false,
       field: 'fee_type',
     },
+    vortexFeeType: {
+      type: DataTypes.ENUM('absolute', 'relative', 'none'),
+      allowNull: false,
+      defaultValue: 'none',
+      field: 'vortex_fee_type',
+    },
+    vortexFeeValue: {
+      type: DataTypes.DECIMAL(10, 4),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'vortex_fee_value',
+    },
     isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -123,8 +140,8 @@ Partner.init(
     timestamps: true,
     indexes: [
       {
-        name: 'idx_partners_name',
-        fields: ['name'],
+        name: 'idx_partners_name_fee_type',
+        fields: ['name', 'fee_type'],
       },
     ],
   },
