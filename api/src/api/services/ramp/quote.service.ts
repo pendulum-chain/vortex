@@ -287,21 +287,104 @@ export class QuoteService extends BaseRampService {
       // Use this reference to satisfy ESLint
       this.validateChainSupport(rampType, from, to);
 
-      // 1. Get Vortex Foundation fee from the dedicated partner record
-      const vortexFoundationPartner = await Partner.findOne({
-        where: {
-          name: 'vortex_foundation',
-          isActive: true,
-          feeType: rampType
-        },
-      });
+      // Determine the correct fiat currency for the transaction
+      const feeCurrency = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
 
-      if (!vortexFoundationPartner) {
-        logger.error(`Vortex Foundation partner configuration not found for ${rampType}-ramp in database.`);
-        throw new APIError({ status: httpStatus.INTERNAL_SERVER_ERROR, message: 'Internal configuration error [VF]' });
+      // Initialize fee accumulators
+      let totalPartnerMarkupUSD = new Big(0);
+      let totalVortexFeeUSD = new Big(0);
+
+      // Get partner name if partner is provided
+      const partnerName = partner?.name;
+
+      // 1. Fetch and process partner-specific configurations if partnerName is provided
+      if (partnerName) {
+        // Query all records where name matches partnerName AND feeType matches rampType
+        const partnerRecords = await Partner.findAll({
+          where: {
+            name: partnerName,
+            feeType: rampType,
+            isActive: true,
+          },
+        });
+
+        if (partnerRecords.length > 0) {
+          for (const record of partnerRecords) {
+            if (record.markupType !== 'none') {
+              let markupFeeComponent = new Big(0);
+              if (record.markupType === 'absolute') {
+                markupFeeComponent = new Big(record.markupValue);
+              } else {
+                markupFeeComponent = new Big(inputAmount).mul(record.markupValue);
+              }
+              // TODO Convert to USD if needed (for now assuming all are in the same currency)
+              totalPartnerMarkupUSD = totalPartnerMarkupUSD.plus(markupFeeComponent);
+            }
+
+            // Vortex Foundation Fee Component from this partner record
+            if (record.vortexFeeType !== 'none') {
+              let vortexFeeComponent = new Big(0);
+              if (record.vortexFeeType === 'absolute') {
+                vortexFeeComponent = new Big(record.vortexFeeValue);
+              } else {
+                vortexFeeComponent = new Big(inputAmount).mul(record.vortexFeeValue);
+              }
+              // TODO Convert to USD if needed (for now assuming all are in the same currency)
+              totalVortexFeeUSD = totalVortexFeeUSD.plus(vortexFeeComponent);
+            }
+          }
+        } else {
+          // No specific partner records found, will use default Vortex Foundation fee below
+          // totalPartnerMarkupUSD remains 0
+        }
       }
 
-      // 2. Get anchor base fee based on the ramp type and destination
+      // 2. If no partner was provided initially
+      if (!partnerName) {
+        // Query all vortex_foundation records for this ramp type
+        const vortexFoundationPartners = await Partner.findAll({
+          where: {
+            name: 'vortex_foundation',
+            isActive: true,
+            feeType: rampType,
+          },
+        });
+
+        if (vortexFoundationPartners.length === 0) {
+          logger.error(`Vortex Foundation partner configuration not found for ${rampType}-ramp in database.`);
+          throw new APIError({
+            status: httpStatus.INTERNAL_SERVER_ERROR,
+            message: 'Internal configuration error [VF]',
+          });
+        }
+
+        // Process each vortex_foundation record and accumulate fees
+        for (const vortexFoundationPartner of vortexFoundationPartners) {
+          if (vortexFoundationPartner.markupType !== 'none') {
+            let vortexFeeComponent = new Big(0);
+            if (vortexFoundationPartner.markupType === 'absolute') {
+              vortexFeeComponent = new Big(vortexFoundationPartner.markupValue);
+            } else {
+              vortexFeeComponent = new Big(inputAmount).mul(vortexFoundationPartner.markupValue);
+            }
+
+            totalVortexFeeUSD = totalVortexFeeUSD.plus(vortexFeeComponent);
+          }
+
+          if (vortexFoundationPartner.vortexFeeType !== 'none') {
+            let vortexFeeComponent = new Big(0);
+            if (vortexFoundationPartner.vortexFeeType === 'absolute') {
+              vortexFeeComponent = new Big(vortexFoundationPartner.vortexFeeValue);
+            } else {
+              vortexFeeComponent = new Big(inputAmount).mul(vortexFoundationPartner.vortexFeeValue);
+            }
+
+            totalVortexFeeUSD = totalVortexFeeUSD.plus(vortexFeeComponent);
+          }
+        }
+      }
+
+      // 3. Get anchor base fee based on the ramp type and destination
       let anchorIdentifier = 'default';
       if (rampType === 'on' && from === 'pix') {
         anchorIdentifier = 'moonbeam_brla';
@@ -341,34 +424,10 @@ export class QuoteService extends BaseRampService {
         anchorFee = totalAnchorFee.toFixed(2);
       }
 
-      // Calculate Vortex Foundation fee based on type (absolute or relative)
-      let vortexFee = '0';
-      if (vortexFoundationPartner.markupType === 'none') {
-        vortexFee = '0';
-      } else if (vortexFoundationPartner.markupType === 'absolute') {
-        vortexFee = vortexFoundationPartner.markupValue.toFixed(2);
-      } else {
-        vortexFee = new Big(inputAmount).mul(vortexFoundationPartner.markupValue).toFixed(2);
-      }
-
-      // 3. Calculate partner markup fee if applicable
-      let partnerMarkupFee = '0';
-      // Only apply partner markup if partner exists, has a non-none markup type, and feeType matches current ramp type
-      if (partner && partner.markupType !== 'none' && partner.feeType === rampType) {
-        if (partner.markupType === 'absolute') {
-          partnerMarkupFee = partner.markupValue.toFixed(2);
-        } else {
-          partnerMarkupFee = new Big(inputAmount).mul(partner.markupValue).toFixed(2);
-        }
-      }
-
-      // Determine the correct fiat currency for the transaction
-      const feeCurrency = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
-
       return {
-        vortexFee,
+        vortexFee: totalVortexFeeUSD.toFixed(2),
         anchorFee,
-        partnerMarkupFee,
+        partnerMarkupFee: totalPartnerMarkupUSD.toFixed(2),
         feeCurrency,
       };
     } catch (error) {
