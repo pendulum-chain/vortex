@@ -321,7 +321,7 @@ export class QuoteService extends BaseRampService {
               totalPartnerMarkupUSD = totalPartnerMarkupUSD.plus(markupFeeComponent);
             }
 
-            // Vortex Foundation Fee Component from this partner record
+            // Vortex Fee Component from this partner record
             if (record.vortexFeeType !== 'none') {
               let vortexFeeComponent = new Big(0);
               if (record.vortexFeeType === 'absolute') {
@@ -334,31 +334,31 @@ export class QuoteService extends BaseRampService {
             }
           }
         } else {
-          // No specific partner records found, will use default Vortex Foundation fee below
+          // No specific partner records found, will use default Vortex fee below
           // totalPartnerMarkupUSD remains 0
         }
       }
 
       // 2. If no partner was provided initially
       if (!partnerName) {
-        // Query all vortex_foundation records for this ramp type
+        // Query all vortex records for this ramp type
         const vortexFoundationPartners = await Partner.findAll({
           where: {
-            name: 'vortex_foundation',
+            name: 'vortex',
             isActive: true,
             feeType: rampType,
           },
         });
 
         if (vortexFoundationPartners.length === 0) {
-          logger.error(`Vortex Foundation partner configuration not found for ${rampType}-ramp in database.`);
+          logger.error(`Vortex partner configuration not found for ${rampType}-ramp in database.`);
           throw new APIError({
             status: httpStatus.INTERNAL_SERVER_ERROR,
             message: 'Internal configuration error [VF]',
           });
         }
 
-        // Process each vortex_foundation record and accumulate fees
+        // Process each vortex record and accumulate fees
         for (const vortexFoundationPartner of vortexFoundationPartners) {
           if (vortexFoundationPartner.markupType !== 'none') {
             let vortexFeeComponent = new Big(0);

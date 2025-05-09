@@ -76,7 +76,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
-  const vortexPartner = await Partner.findOne({ where: { name: 'vortex_foundation', isActive: true } });
+  const vortexPartner = await Partner.findOne({ where: { name: 'vortex', isActive: true } });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
     logger.warn('Vortex partner or payout address not found, skipping fee distribution transaction');
     return null;

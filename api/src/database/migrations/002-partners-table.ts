@@ -75,12 +75,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: 'idx_partners_name_fee_type',
   });
 
-  // Insert Vortex Foundation as a partner
+  // Insert Vortex as a partner
   await queryInterface.bulkInsert('partners', [
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      name: 'vortex_foundation',
-      display_name: 'Vortex Foundation',
+      name: 'vortex',
+      display_name: 'Vortex',
       markup_type: 'relative',
       markup_value: 0.0001, // 0.01% (represented as decimal)
       markup_currency: 'USD',
@@ -94,8 +94,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      name: 'vortex_foundation',
-      display_name: 'Vortex Foundation',
+      name: 'vortex',
+      display_name: 'Vortex',
       markup_type: 'relative',
       markup_value: 0.0001, // 0.01% (represented as decimal)
       markup_currency: 'USD',
@@ -111,8 +111,8 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 }
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
-  // Remove the Vortex Foundation partner
-  await queryInterface.bulkDelete('partners', { name: 'vortex_foundation' });
+  // Remove the Vortex partner
+  await queryInterface.bulkDelete('partners', { name: 'vortex' });
 
   // Remove the composite index
   await queryInterface.removeIndex('partners', 'idx_partners_name_fee_type');
