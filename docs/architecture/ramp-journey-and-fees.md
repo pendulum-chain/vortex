@@ -153,3 +153,10 @@ The ramp process is managed by a state machine, transitioning through various ph
     *   Submits the pre-signed Stellar transaction. This transaction sends the final fiat amount (e.g., EURC) from the Stellar ephemeral account to the user's final destination Stellar address. **Note:** The Stellar anchor fee is deducted by the anchor during this process, so the amount sent must account for this to ensure the user receives the quoted net amount.
     *   Transitions to `complete`.
 14. **Phase: `complete` (`complete-phase-handler.ts`):** Terminal state.
+
+
+## Amendments
+
+The 'FeeRefactoring' table was renamed to 'Anchors'.
+- The `fee_type` fields were renamed to `ramp_type` to better reflect the type.
+

@@ -33,8 +33,25 @@ mock.module('shared', () => ({
     };
   }),
   RampCurrency: {
-    // Not used directly but needed for the import
+    USD: 'USD',
+    BRL: 'BRL',
+    EUR: 'EUR',
+    ARS: 'ARS',
+    USDC: 'USDC',
+    USDT: 'USDT',
+    USDCE: 'USDCE',
+    ETH: 'ETH',
+    GLMR: 'GLMR',
+    AVAX: 'AVAX',
+    MATIC: 'MATIC',
+    BNB: 'BNB',
   },
+  EvmToken: {
+    USDC: 'USDC',
+    USDT: 'USDT',
+    USDCE: 'USDCE',
+  },
+  isFiatToken: mock((currency: string) => ['BRL', 'EUR', 'ARS'].includes(currency)),
 }));
 
 // Keep the existing mock structure for Nabla, but we'll use the imported mock for checks
@@ -90,6 +107,12 @@ describe('PriceFeedService', () => {
   const mockCoinGeckoResponse = {
     bitcoin: {
       usd: 50000,
+    },
+    moonbeam: {
+      usd: 100,
+    },
+    ethereum: {
+      usd: 3000,
     },
   };
 
@@ -358,7 +381,8 @@ describe('PriceFeedService', () => {
     });
 
     it('should fetch exchange rate from Nabla when cache is empty', async () => {
-      const rate = await priceFeedService.getFiatExchangeRate('USD', 'BRL');
+      // Use type assertion to bypass TypeScript's type checking
+      const rate = await priceFeedService.getFiatExchangeRate('BRL' as any);
 
       expect(rate).toBe(1.25);
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
@@ -366,13 +390,13 @@ describe('PriceFeedService', () => {
 
     it('should return cached exchange rate without Nabla call when cache is valid', async () => {
       // First call to populate cache
-      await priceFeedService.getFiatExchangeRate('USD', 'BRL');
+      await priceFeedService.getFiatExchangeRate('BRL' as any);
       
       // Reset mock to verify it's not called again
       (getTokenOutAmountMock as any).mockClear();
       
       // Second call should use cache
-      const rate = await priceFeedService.getFiatExchangeRate('USD', 'BRL');
+      const rate = await priceFeedService.getFiatExchangeRate('BRL' as any);
       
       expect(rate).toBe(1.25);
       expect(getTokenOutAmountMock).not.toHaveBeenCalled();
@@ -392,7 +416,7 @@ describe('PriceFeedService', () => {
       Date.now = () => startTime;
 
       // First call to populate cache
-      await serviceInstance.getFiatExchangeRate('USD', 'BRL');
+      await serviceInstance.getFiatExchangeRate('BRL' as any);
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
       (getTokenOutAmountMock as any).mockClear();
 
@@ -400,7 +424,7 @@ describe('PriceFeedService', () => {
       Date.now = () => startTime + 150; // 150ms later
 
       // Second call should make a new Nabla call
-      await serviceInstance.getFiatExchangeRate('USD', 'BRL');
+      await serviceInstance.getFiatExchangeRate('BRL' as any);
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify the second call happened
     });
 
@@ -409,26 +433,74 @@ describe('PriceFeedService', () => {
       // Configure the mock to throw an error for this specific test
       (getTokenOutAmountMock as any).mockRejectedValueOnce(nablaError);
 
-      await expect(priceFeedService.getFiatExchangeRate('USD', 'EUR')).rejects.toThrow('Nabla API Error');
+      await expect(priceFeedService.getFiatExchangeRate('EUR' as any)).rejects.toThrow('Nabla API Error');
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify it was called
     });
 
-    it('should throw an error when fromCurrency is not provided', async () => {
-      // Mock implementation to throw for empty fromCurrency
-      (getTokenOutAmountMock as any).mockImplementationOnce(() => {
-        throw new Error('Missing required parameters');
-      });
+    it('should accept a custom input amount', async () => {
+      await priceFeedService.getFiatExchangeRate('BRL' as any, '10.0');
+      
+      expect(getTokenOutAmountMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromAmountString: '10.0'
+        })
+      );
+    });
+  });
 
-      await expect(priceFeedService.getFiatExchangeRate('', 'BRL')).rejects.toThrow('Missing required parameters');
+  describe('convertCurrency', () => {
+    it('should return the original amount when currencies are the same', async () => {
+      const result = await priceFeedService.convertCurrency('100', 'USDC' as any, 'USDC' as any);
+      expect(result).toBe('100');
     });
 
-    it('should throw an error when toCurrency is not provided', async () => {
-      // Mock implementation to throw for empty toCurrency
-      (getTokenOutAmountMock as any).mockImplementationOnce(() => {
-        throw new Error('Missing required parameters');
-      });
+    it('should perform 1:1 conversion between USD-like stablecoins', async () => {
+      const result = await priceFeedService.convertCurrency('100', 'USDC' as any, 'USDT' as any);
+      expect(result).toBe('100');
+    });
 
-      await expect(priceFeedService.getFiatExchangeRate('USD', '')).rejects.toThrow('Missing required parameters');
+    it('should convert USD to fiat using getFiatExchangeRate', async () => {
+      const result = await priceFeedService.convertCurrency('100', 'USDC' as any, 'BRL' as any);
+      expect(result).toBe('125.000000'); // 100 * 1.25 = 125
+      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should convert fiat to USD using inverse of getFiatExchangeRate', async () => {
+      const result = await priceFeedService.convertCurrency('125', 'BRL' as any, 'USDC' as any);
+      expect(result).toBe('100.000000'); // 125 / 1.25 = 100
+      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should convert USD to crypto using getCryptoPrice', async () => {
+      const result = await priceFeedService.convertCurrency('300', 'USDC' as any, 'ETH' as any);
+      expect(result).toBe('0.100000'); // 300 / 3000 = 0.1
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should convert crypto to USD using getCryptoPrice', async () => {
+      const result = await priceFeedService.convertCurrency('0.1', 'ETH' as any, 'USDC' as any);
+      expect(result).toBe('300.000000'); // 0.1 * 3000 = 300
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle conversion errors by returning the original amount', async () => {
+      // Force an error by making getCoinGeckoTokenId return null
+      // @ts-expect-error - accessing private method for testing
+      const originalGetCoinGeckoTokenId = priceFeedService.getCoinGeckoTokenId;
+      // @ts-expect-error - overriding private method for testing
+      priceFeedService.getCoinGeckoTokenId = () => null;
+
+      const result = await priceFeedService.convertCurrency('100', 'USDC' as any, 'UNKNOWN' as any);
+      expect(result).toBe('100'); // Should return original amount on error
+
+      // Restore the original method
+      // @ts-expect-error - restoring private method
+      priceFeedService.getCoinGeckoTokenId = originalGetCoinGeckoTokenId;
+    });
+
+    it('should use specified decimal precision', async () => {
+      const result = await priceFeedService.convertCurrency('100', 'USDC' as any, 'BRL' as any, 2);
+      expect(result).toBe('125.00'); // 100 * 1.25 = 125, with 2 decimal places
     });
   });
 
@@ -449,7 +521,7 @@ describe('PriceFeedService', () => {
 
       // Access private properties for testing (consider adding public getters if preferred)
       // @ts-expect-error - accessing private properties for testing
-      expect(instance.coingeckoApiBaseUrl).toBe('https://api.coingecko.com/api/v3');
+      expect(instance.coingeckoApiBaseUrl).toBe('https://pro-api.coingecko.com/api/v3');
       // @ts-expect-error - accessing private properties for testing
       expect(instance.cryptoCacheTtlMs).toBe(300000);
       // @ts-expect-error - accessing private properties for testing

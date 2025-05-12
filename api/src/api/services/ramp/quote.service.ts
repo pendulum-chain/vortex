@@ -289,7 +289,6 @@ export class QuoteService extends BaseRampService {
     feeCurrency: RampCurrency;
   }> {
     try {
-      // Use this reference to satisfy ESLint
       this.validateChainSupport(rampType, from, to);
 
       // We want to use the FIAT currency for the fees
