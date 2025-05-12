@@ -34,6 +34,7 @@ export class BrlaTeleportService {
 
   private intervalMs = 10000;
 
+  // Key is a composite of subaccountId and memo: `${subaccountId}:${memo}`
   private teleports: Map<string, Teleport> = new Map();
 
   private completedTeleports: Map<string, Teleport> = new Map();
@@ -53,12 +54,33 @@ export class BrlaTeleportService {
     return BrlaTeleportService.teleportService;
   }
 
+  private getCompositeKey(subaccountId: string, memo: string): string {
+    const safeMemo = typeof memo === 'string' ? memo : '';
+    return `${subaccountId}:${safeMemo}`;
+  }
+
   public async requestTeleport(
     subaccountId: string,
     amount: number,
     receiverAddress: EvmAddress,
     memo: string,
   ): Promise<void> {
+    const compositeKey = this.getCompositeKey(subaccountId, memo);
+    const existing = this.teleports.get(compositeKey);
+
+    if (
+      existing &&
+      existing.amount === amount &&
+      existing.receiverAddress === receiverAddress &&
+      (existing.status === 'claimed' || existing.status === 'started')
+    ) {
+      logger.info(
+        `Skipping duplicate teleport request for subaccount ${subaccountId}, memo "${memo}" ` +
+          `(amount=${amount}, receiver=${receiverAddress}). Current status: ${existing.status}.`,
+      );
+      return;
+    }
+
     const teleport: Teleport = {
       amount,
       subaccountId,
@@ -67,24 +89,38 @@ export class BrlaTeleportService {
       receiverAddress,
       memo,
     };
-    logger.info('Requesting teleport:', teleport);
-    this.teleports.set(subaccountId, teleport);
+    logger.info(`Requesting teleport "${compositeKey}":`, teleport);
+    this.teleports.set(compositeKey, teleport);
     this.maybeStartPeriodicChecks();
   }
 
-  private async startTeleport(subaccountId: string): Promise<void> {
-    const teleport = this.teleports.get(subaccountId);
+  public cancelPendingTeleport(subaccountId: string, memo: string): void {
+    const compositeKey = this.getCompositeKey(subaccountId, memo);
+    const pending = this.teleports.get(compositeKey);
+    if (pending) {
+      this.teleports.delete(compositeKey);
+      logger.info(`Cancelled pending teleport for key "${compositeKey}" (subaccount ${subaccountId}, memo "${memo}").`);
+    } else {
+      logger.info(
+        `No pending teleport found to cancel for key "${compositeKey}" (subaccount ${subaccountId}, memo "${memo}").`,
+      );
+    }
+  }
 
-    // Ignore operation
+  private async startTeleport(compositeKey: string): Promise<void> {
+    const teleport = this.teleports.get(compositeKey);
+
     if (teleport === undefined) {
-      throw new Error('Teleport not found. This cannot not happen.');
+      logger.error(`Teleport not found for key "${compositeKey}" at startTeleport. This should not happen.`);
+      return;
     }
 
     if (teleport.status !== 'arrived') {
-      throw new Error('Teleport not in arrived state.');
+      logger.warn(`Teleport "${compositeKey}" not in 'arrived' state.`);
+      return;
     }
 
-    logger.info('Starting teleport:', teleport);
+    logger.info(`Starting teleport "${compositeKey}":`, teleport);
     const fastQuoteParams: FastQuoteQueryParams = {
       subaccountId: teleport.subaccountId,
       operation: 'swap',
@@ -97,31 +133,35 @@ export class BrlaTeleportService {
 
     try {
       const { token: quoteToken } = await this.brlaApiService.createFastQuote(fastQuoteParams);
-      this.teleports.set(subaccountId, { ...teleport, status: 'quoted' });
+      const quotedTeleportState: Teleport = { ...teleport, status: 'quoted' };
+      this.teleports.set(compositeKey, quotedTeleportState);
+      logger.info(`Teleport ${compositeKey} status: quoted`);
 
-      // Execute the actual swap operation
       const { id } = await this.brlaApiService.swapRequest({
         token: quoteToken,
-        receiverAddress: teleport.receiverAddress,
+        receiverAddress: quotedTeleportState.receiverAddress,
       });
-      this.teleports.set(subaccountId, { ...teleport, status: 'started', id });
+
+      const startedTeleportState: Teleport = { ...quotedTeleportState, status: 'started', id };
+      this.teleports.set(compositeKey, startedTeleportState);
+      logger.info(`Teleport ${compositeKey} status: started, API operationId: ${id}`);
 
       this.maybeStartPeriodicChecks();
     } catch (e) {
-      logger.error('Error starting teleport:', e);
-      this.teleports.set(subaccountId, { ...teleport, status: 'failed' });
+      logger.error(`Error starting teleport "${compositeKey}":`, e);
+      this.teleports.set(compositeKey, { ...teleport, status: 'failed' });
     }
   }
 
   private maybeStartPeriodicChecks(): void {
-    const pendingTeleports = [...this.teleports.entries()].filter(
-      (entry) => entry[1].status === 'claimed' || entry[1].status === 'started',
+    const pendingTeleports = [...this.teleports.values()].filter(
+      (teleport) => teleport.status === 'claimed' || teleport.status === 'started',
     ).length;
 
     if (this.checkInterval === null && pendingTeleports > 0) {
       this.checkInterval = setInterval(() => {
         this.checkPendingTeleports().catch((err) => {
-          console.error('Error in periodic teleport check:', err);
+          logger.error('Error in periodic teleport check:', err);
         });
       }, this.intervalMs);
     }
@@ -131,53 +171,74 @@ export class BrlaTeleportService {
     if (this.teleports.size === 0 && this.checkInterval !== null) {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
+      return;
     }
 
-    this.teleports.forEach(async (teleport, subaccountId) => {
+    // Process 'started' teleports first
+    for (const [compositeKey, teleport] of this.teleports) {
       if (teleport.status === 'started') {
-        const onChainOuts = await this.brlaApiService.getOnChainHistoryOut(subaccountId);
-        const relevantOut = onChainOuts.find((out: OnchainLog) => out.id === teleport.id);
+        try {
+          const onChainOuts = await this.brlaApiService.getOnChainHistoryOut(teleport.subaccountId);
+          const relevantOut = onChainOuts.find((out: OnchainLog) => out.id === teleport.id);
 
-        if (!relevantOut) {
-          return;
-        }
+          if (!relevantOut) {
+            return;
+          }
 
-        // We are interested in the last contract op for this operation being
-        // a mint one. smartContractOps are ordered descending by timestamp.
-        const lastContractOp = relevantOut.smartContractOps[0];
+          // We are interested in the last contract op for this operation being
+          // a mint one. smartContractOps are ordered descending by timestamp.
+          const lastContractOp = relevantOut.smartContractOps[0];
 
-        if (lastContractOp.operationName === SmartContractOperationType.MINT && lastContractOp.executed === true) {
-          this.completedTeleports.set(subaccountId, { ...teleport, status: 'completed' });
-          logger.info('Teleport completed:', teleport);
-          this.teleports.delete(subaccountId);
+          if (
+            lastContractOp &&
+            lastContractOp.operationName === SmartContractOperationType.MINT &&
+            lastContractOp.executed === true
+          ) {
+            const completedTeleport = { ...teleport, status: 'completed' as TeleportStatus };
+            this.completedTeleports.set(compositeKey, completedTeleport);
+            logger.info(`Teleport completed "${compositeKey}":`, completedTeleport);
+            this.teleports.delete(compositeKey);
+          }
+        } catch (error) {
+          logger.error(`Error checking 'started' teleport ${compositeKey}:`, error);
         }
       }
-    });
+    }
 
-    this.teleports.forEach(async (teleport, subaccountId) => {
-      // For claimed teleports, we need to wait for funds to arrive, only then it makes sense to
-      // start the actual transfer process.
+    // Process 'claimed' teleports
+    for (const [compositeKey, teleport] of this.teleports) {
       if (teleport.status === 'claimed') {
-        const payIns = await this.brlaApiService.getPayInHistory(subaccountId);
-        // TODO we also need to check actual balance, which has to be gte what is requested.
-        if (payIns.length === 0) {
-          return;
-        }
+        try {
+          const payIns = await this.brlaApiService.getPayInHistory(teleport.subaccountId);
+          // TODO: we also need to check actual balance, which has to be gte what is requested.
+          if (payIns.length === 0) {
+            return;
+          }
 
-        // Must be the last one, if any.
-        const lastPayIn = payIns[0];
-        // Check the referceLabel to match the address requested, and amount.
-        // Last mintOp should match the amount.
-        if (verifyReferenceLabel(lastPayIn.referenceLabel, teleport.memo)) {
-          this.teleports.set(subaccountId, { ...teleport, status: 'arrived' });
-          this.startTeleport(subaccountId);
-        }
+          // Must be the last one, if any.
+          const matchingPayIn = payIns.find(
+            (payIn) =>
+              verifyReferenceLabel(payIn.referenceLabel, teleport.memo) &&
+              Number(payIn.amount) >= Number(teleport.amount),
+          );
 
-        // delete teleports that have been waiting for more than 15 minutes
-        if (teleport.status === 'claimed' && Date.now() - new Date(teleport.dateRequested).getTime() > 15 * 60 * 1000) {
-          this.teleports.delete(subaccountId);
+          if (matchingPayIn) {
+            logger.info(`Matching PayIn found for teleport "${compositeKey}". Status changing to 'arrived'.`);
+            this.teleports.set(compositeKey, { ...teleport, status: 'arrived' });
+            // Intentionally not awaiting startTeleport to allow checkPendingTeleports to complete its iteration.
+            // startTeleport is async and will handle its own errors.
+            this.startTeleport(compositeKey).catch((err) => {
+              logger.error(
+                `Error occurred during startTeleport called for ${compositeKey} from checkPendingTeleports:`,
+                err,
+              );
+              // The teleport might be set to 'failed' within startTeleport itself.
+            });
+          } // Deletion of teleports is handled by the phase processor.
+        } catch (error) {
+          logger.error(`Error checking 'claimed' teleport ${compositeKey}:`, error);
         }
       }
-    });
+    }
   }
 }

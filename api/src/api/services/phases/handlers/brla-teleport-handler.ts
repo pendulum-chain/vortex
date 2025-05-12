@@ -11,6 +11,9 @@ import logger from '../../../../config/logger';
 import { moonbeam } from 'viem/chains';
 import { generateReferenceLabel } from '../../brla/helpers';
 
+// The rationale for these difference is that it allows for a finer check over the payment timeout in
+// case of service restart. A smaller timeout for the balance check loop allows to get out of the outer
+// process loop and check for the operation timestamp.
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -27,18 +30,21 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       throw new Error('BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
+    const teleportService = BrlaTeleportService.getInstance();
+     const brlaApiService = BrlaApiService.getInstance();
+    const subaccount = await brlaApiService.getSubaccount(taxId);
     try {
       const inputAmountBrla = new Big(inputAmountUnits).mul(100); // BRLA understands raw amount with 2 decimal places.
 
-      const brlaApiService = BrlaApiService.getInstance();
-      const subaccount = await brlaApiService.getSubaccount(taxId);
+     
+      
 
       if (!subaccount) {
         throw new Error('Subaccount not found');
       }
       const memo = generateReferenceLabel(state.quoteId);
       logger.info('Requesting teleport:', subaccount.id, inputAmountBrla, moonbeamEphemeralAddress, memo);
-      const teleportService = BrlaTeleportService.getInstance();
+     
       await teleportService.requestTeleport(
         subaccount.id,
         Number(inputAmountBrla),
@@ -60,7 +66,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       await checkEvmBalancePeriodically(
         tokenDetails.moonbeamErc20Address,
         moonbeamEphemeralAddress,
-        inputAmountBeforeSwapRaw, // TODO verify this is okay, regarding decimals.
+        inputAmountBeforeSwapRaw,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
         moonbeam,
@@ -74,7 +80,9 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
       if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
         logger.error('Payment timeout:', error);
-        // TODO remove entry from BrlaTeleportService
+
+        const memo = generateReferenceLabel(state.quoteId);
+        teleportService.cancelPendingTeleport(subaccount.id, memo);
         return this.transitionToNextPhase(state, 'failed');
       }
 
