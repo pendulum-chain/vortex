@@ -1,12 +1,11 @@
-import { useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { useTranslation, Trans } from 'react-i18next';
 
 import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
-import { useWidgetMode } from '../../../hooks/useWidgetMode';
-
+import { useKYCFormLocalStorage } from './useKYCFormLocalStorage';
 interface KYCFormProps {
   fields: BrlaFieldProps[];
   form: UseFormReturn<KYCFormData>;
@@ -17,7 +16,17 @@ interface KYCFormProps {
 export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) => {
   const { handleSubmit } = form;
   const { t } = useTranslation();
-  const isWidgetMode = useWidgetMode();
+  const { clearStorage } = useKYCFormLocalStorage(form);
+
+  const handleFormSubmit = async (formData: KYCFormData) => {
+    clearStorage();
+    await onSubmit(formData);
+  };
+
+  const handleBackClick = () => {
+    clearStorage();
+    onBackClick();
+  };
 
   return (
     <FormProvider {...form}>
@@ -26,7 +35,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
         className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px]"
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(handleFormSubmit)}
       >
         <h1 className="mt-2 mb-4 text-3xl font-bold text-center text-blue-700">{t('components.brlaKYCForm.title')}</h1>
         <div className="grid grid-cols-2 gap-4">
@@ -63,7 +72,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
         </div>
         <div className="grid gap-3 mt-8 mb-8">
           <div className="flex gap-3">
-            <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick}>
+            <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={handleBackClick}>
               {t('components.brlaKYCForm.buttons.back')}
             </button>
             <button type="submit" className="btn-vortex-primary btn flex-1">

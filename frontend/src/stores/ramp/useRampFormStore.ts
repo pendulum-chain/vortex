@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
+import { BRLA_KYC_FORM_STORAGE_KEY } from '../../components/BrlaComponents/KYCForm/useKYCFormLocalStorage';
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.BRL;
 export const DEFAULT_BRL_AMOUNT = '5';
@@ -25,13 +26,26 @@ interface RampFormActions {
   };
 }
 
-const storedNetwork = localStorage.getItem('SELECTED_NETWORK')
+const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
+
+const getInitialTaxId = () => {
+  try {
+    const savedData = localStorage.getItem(BRLA_KYC_FORM_STORAGE_KEY);
+    if (savedData) {
+      const parsedData = JSON.parse(savedData);
+      return parsedData.taxId || '';
+    }
+  } catch (error) {
+    console.error('Error loading taxId from localStorage:', error);
+  }
+  return '';
+};
 
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   inputAmount: DEFAULT_BRL_AMOUNT,
   onChainToken: storedNetwork !== null && storedNetwork === Networks.AssetHub ? EvmToken.USDC : EvmToken.USDT,
   fiatToken: DEFAULT_FIAT_TOKEN,
-  taxId: undefined,
+  taxId: getInitialTaxId(),
   pixId: undefined,
 };
 
