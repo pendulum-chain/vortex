@@ -12,7 +12,7 @@ import { moonbeam } from 'viem/chains';
 import { generateReferenceLabel } from '../../brla/helpers';
 
 // The rationale for these difference is that it allows for a finer check over the payment timeout in
-// case of service restart. A smaller timeout for the balance check loop allows to get out of the outer
+// case of service restart. A smaller timeout for the balance check loop allows to get out to the outer
 // process loop and check for the operation timestamp.
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -30,23 +30,27 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       throw new Error('BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
-    const teleportService = BrlaTeleportService.getInstance();
-     const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
+    let teleportService: BrlaTeleportService;
+    let subaccountId: string;
+    let memo: string;
+
     try {
       const inputAmountBrla = new Big(inputAmountUnits).mul(100); // BRLA understands raw amount with 2 decimal places.
 
-     
-      
+      teleportService = BrlaTeleportService.getInstance();
+      const brlaApiService = BrlaApiService.getInstance();
+      const subaccount = await brlaApiService.getSubaccount(taxId);
 
       if (!subaccount) {
         throw new Error('Subaccount not found');
       }
-      const memo = generateReferenceLabel(state.quoteId);
-      logger.info('Requesting teleport:', subaccount.id, inputAmountBrla, moonbeamEphemeralAddress, memo);
-     
+      subaccountId = subaccount.id;
+
+      memo = generateReferenceLabel(state.quoteId);
+      logger.info('Requesting teleport:', subaccountId, inputAmountBrla, moonbeamEphemeralAddress, memo);
+
       await teleportService.requestTeleport(
-        subaccount.id,
+        subaccountId,
         Number(inputAmountBrla),
         moonbeamEphemeralAddress as `0x${string}`,
         memo,
@@ -54,8 +58,10 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
 
       // now we wait and verify that funds have arrived at the actual destination ephemeral.
     } catch (e) {
-      console.error('Error in brlaTeleport', e);
-      throw new Error('BrlaTeleportPhaseHandler: Failed to trigger BRLA pay in.');
+      logger.error('Error in brlaTeleport', e);
+      throw new Error(
+        `BrlaTeleportPhaseHandler: Failed to trigger BRLA pay in. Cause: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
 
     try {
@@ -79,10 +85,9 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
 
       const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
       if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
-        logger.error('Payment timeout:', error);
+        logger.error('Payment timeout. Cancelling ramp.');
 
-        const memo = generateReferenceLabel(state.quoteId);
-        teleportService.cancelPendingTeleport(subaccount.id, memo);
+        teleportService.cancelPendingTeleport(subaccountId, memo);
         return this.transitionToNextPhase(state, 'failed');
       }
 

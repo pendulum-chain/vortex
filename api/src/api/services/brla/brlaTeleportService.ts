@@ -210,7 +210,6 @@ export class BrlaTeleportService {
       if (teleport.status === 'claimed') {
         try {
           const payIns = await this.brlaApiService.getPayInHistory(teleport.subaccountId);
-          // TODO: we also need to check actual balance, which has to be gte what is requested.
           if (payIns.length === 0) {
             return;
           }
@@ -232,7 +231,6 @@ export class BrlaTeleportService {
                 `Error occurred during startTeleport called for ${compositeKey} from checkPendingTeleports:`,
                 err,
               );
-              // The teleport might be set to 'failed' within startTeleport itself.
             });
           } // Deletion of teleports is handled by the phase processor.
         } catch (error) {
