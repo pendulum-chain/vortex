@@ -15,7 +15,7 @@ export interface Event {
 
 export type Kyc2FailureReason =
   | 'face match failure' // Selfie issue. Blurred, too dark, too light, glasses, etc.
-  | 'name does not match' // Document picture issue. Anything from not legible to no document at all.
+  | 'name does not match'; // Document picture issue. Anything from not legible to no document at all.
 
 interface EventData {
   status: string;
@@ -24,7 +24,6 @@ interface EventData {
   level: number;
   [key: string]: unknown;
 }
-
 
 export class EventPoller {
   private cache: Map<string, Event[]> = new Map();

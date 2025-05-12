@@ -5,7 +5,7 @@ import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { BrlaApiService } from '../../brla/brlaApiService';
-import { checkEvmBalancePeriodically } from '../../moonbeam/balance';
+import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from '../../moonbeam/balance';
 import { BrlaTeleportService } from '../../brla/brlaTeleportService';
 import logger from '../../../../config/logger';
 import { moonbeam } from 'viem/chains';
@@ -43,7 +43,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         subaccount.id,
         Number(inputAmountBrla),
         moonbeamEphemeralAddress as `0x${string}`,
-        memo
+        memo,
       );
 
       // now we wait and verify that funds have arrived at the actual destination ephemeral.
@@ -67,32 +67,33 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       );
 
       // Add delay to ensure the transaction is settled
-      await new Promise((resolve) => setTimeout(resolve, 12000)); // 12 seconds, 2 moonbeam blocks.
+      await new Promise((resolve) => setTimeout(resolve, 30000)); // 30 seconds.
+    } catch (error) {
+      if (!(error instanceof BalanceCheckError)) throw error;
 
-    } catch (balanceCheckError) {
-      if (!(balanceCheckError instanceof Error)) throw balanceCheckError;
-      const { message } = balanceCheckError;
-    
-      const isCheckTimeout = message.includes('did not meet the limit within the specified time');
-      if (isCheckTimeout && this.finalPaymentTimeout(state)) {
-        logger.error('Payment timeout:', balanceCheckError);
+      const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
+      if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
+        logger.error('Payment timeout:', error);
+        // TODO remove entry from BrlaTeleportService
         return this.transitionToNextPhase(state, 'failed');
       }
-    
+
       throw isCheckTimeout
-        ? this.createRecoverableError(`BrlaTeleportPhaseHandler: ${message}`)
-        : new Error(`Error checking Moonbeam balance: ${message}`);
+        ? this.createRecoverableError(`BrlaTeleportPhaseHandler: ${error}`)
+        : new Error(`Error checking Moonbeam balance: ${error}`);
     }
 
     return this.transitionToNextPhase(state, 'moonbeamToPendulumXcm');
   }
 
-  protected finalPaymentTimeout(state: RampState): boolean {
-    const thisPhaseEntry = state.phaseHistory.find((phaseHistoryEntry) => phaseHistoryEntry.phase === this.getPhaseName());
+  protected isPaymentTimeoutReached(state: RampState): boolean {
+    const thisPhaseEntry = state.phaseHistory.find(
+      (phaseHistoryEntry) => phaseHistoryEntry.phase === this.getPhaseName(),
+    );
     if (!thisPhaseEntry) {
       throw new Error('BrlaTeleportPhaseHandler: Phase not found in history. State corrupted.');
     }
-    
+
     if (thisPhaseEntry.timestamp.getTime() + PAYMENT_TIMEOUT_MS < Date.now()) {
       return true;
     }

@@ -14,6 +14,21 @@ import { createMoonbeamClientsAndConfig } from './createServices';
 import logger from '../../../config/logger';
 import { Networks } from 'shared';
 
+export enum BalanceCheckErrorType {
+  Timeout = 'BALANCE_CHECK_TIMEOUT',
+  ReadFailure = 'BALANCE_CHECK_READ_FAILURE',
+}
+
+export class BalanceCheckError extends Error {
+  constructor(
+    public readonly type: BalanceCheckErrorType,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'BalanceCheckError';
+  }
+}
+
 export function checkEvmBalancePeriodically(
   tokenAddress: string,
   brlaEvmAddress: string,
@@ -21,7 +36,7 @@ export function checkEvmBalancePeriodically(
   intervalMs: number,
   timeoutMs: number,
   chain: any,
-) {
+): Promise<Big> {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const intervalId = setInterval(async () => {
@@ -38,8 +53,9 @@ export function checkEvmBalancePeriodically(
           args: [brlaEvmAddress],
         })) as string;
 
-        logger.info(`Moonbeam balance check: ${result.toString()} / ${amountDesiredRaw.toString()}`);
-        const someBalanceBig = new Big(result.toString());
+        logger.info(`Moonbeam balance check: ${result} / ${amountDesiredRaw}`);
+
+        const someBalanceBig = new Big(result);
         const amountDesiredUnitsBig = new Big(amountDesiredRaw);
 
         if (someBalanceBig.gte(amountDesiredUnitsBig)) {
@@ -47,11 +63,18 @@ export function checkEvmBalancePeriodically(
           resolve(someBalanceBig);
         } else if (Date.now() - startTime > timeoutMs) {
           clearInterval(intervalId);
-          reject(new Error(`Balance did not meet the limit within the specified time (${timeoutMs} ms)`));
+          reject(
+            new BalanceCheckError(
+              BalanceCheckErrorType.Timeout,
+              `Balance did not meet the limit within ${timeoutMs}ms`,
+            ),
+          );
         }
-      } catch (error) {
+      } catch (err: any) {
         clearInterval(intervalId);
-        reject(new Error(`Error checking balance: ${error}`));
+        reject(
+          new BalanceCheckError(BalanceCheckErrorType.ReadFailure, `Error checking balance: ${err.message ?? err}`),
+        );
       }
     }, intervalMs);
   });

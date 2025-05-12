@@ -403,7 +403,6 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
-
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
   const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
 

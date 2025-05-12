@@ -329,7 +329,7 @@ export const fetchSubaccountKycStatus = async (
     if (!lastInteraction) {
       res.status(404).json({ error: `No KYC process started for ${taxId}` });
     }
-    if (lastInteraction && lastEventCached.createdAt <= (lastInteraction - 60000)) {
+    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 60000) {
       // If the last event is older than 1 minute from the last interaction, we assume it's not a new event.
       // So it is ignored.
       console.log('Last kyc interaction', lastInteraction);
@@ -347,7 +347,6 @@ export const fetchSubaccountKycStatus = async (
     handleApiError(error, res, 'fetchSubaccountKycStatus');
   }
 };
-
 
 /**
  * Validates a pix key

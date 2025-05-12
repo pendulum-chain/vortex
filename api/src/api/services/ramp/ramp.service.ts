@@ -139,11 +139,7 @@ export class RampService extends BaseRampService {
           });
         }
 
-        brCode = await this.validateBrlaOnrampRequest(
-          additionalData.taxId,
-          quote,
-          quote.inputAmount,
-        );
+        brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
@@ -367,11 +363,7 @@ export class RampService extends BaseRampService {
   /**
    * BRLA. Validate the onramp request. Returns appropiate pay in code if valid.
    */
-  public async validateBrlaOnrampRequest(
-    taxId: string,
-    quote: QuoteTicket,
-    amount: string,
-  ): Promise<string> {
+  public async validateBrlaOnrampRequest(taxId: string, quote: QuoteTicket, amount: string): Promise<string> {
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {

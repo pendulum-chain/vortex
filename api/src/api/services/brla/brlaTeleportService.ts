@@ -53,7 +53,12 @@ export class BrlaTeleportService {
     return BrlaTeleportService.teleportService;
   }
 
-  public async requestTeleport(subaccountId: string, amount: number, receiverAddress: EvmAddress, memo: string): Promise<void> {
+  public async requestTeleport(
+    subaccountId: string,
+    amount: number,
+    receiverAddress: EvmAddress,
+    memo: string,
+  ): Promise<void> {
     const teleport: Teleport = {
       amount,
       subaccountId,
@@ -163,9 +168,7 @@ export class BrlaTeleportService {
         const lastPayIn = payIns[0];
         // Check the referceLabel to match the address requested, and amount.
         // Last mintOp should match the amount.
-        if (
-          verifyReferenceLabel(lastPayIn.referenceLabel, teleport.memo) 
-        ) {
+        if (verifyReferenceLabel(lastPayIn.referenceLabel, teleport.memo)) {
           this.teleports.set(subaccountId, { ...teleport, status: 'arrived' });
           this.startTeleport(subaccountId);
         }
