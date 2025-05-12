@@ -104,7 +104,7 @@ export class QuoteService extends BaseRampService {
           isActive: true,
         },
       });
-      
+
       // If partnerId (name) was provided but not found or not active, log a warning and proceed without a partner
       if (!partner) {
         logger.warn(`Partner with name '${request.partnerId}' not found or not active. Proceeding with default fees.`);
@@ -133,7 +133,7 @@ export class QuoteService extends BaseRampService {
       request.rampType,
       request.from,
       request.to,
-      partner,
+      request.partnerId,
       request.inputCurrency,
       request.outputCurrency,
     );
@@ -170,7 +170,8 @@ export class QuoteService extends BaseRampService {
       .toFixed(2);
 
     // Calculate final output amount by subtracting the converted total fee from gross output
-    const finalOutputAmount = new Big(grossOutputAmount).minus(totalFeeFiat);
+    const feeInOutputCurrency = await priceFeedService.convertCurrency(totalFeeFiat, feeCurrency, request.outputCurrency);
+    const finalOutputAmount = new Big(grossOutputAmount).minus(feeInOutputCurrency);
     if (finalOutputAmount.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
@@ -278,7 +279,7 @@ export class QuoteService extends BaseRampService {
     rampType: 'on' | 'off',
     from: DestinationType,
     to: DestinationType,
-    partner: Partner | null,
+    partnerName: string | undefined,
     inputCurrency: RampCurrency,
     outputCurrency: RampCurrency,
   ): Promise<{
@@ -291,15 +292,12 @@ export class QuoteService extends BaseRampService {
       // Use this reference to satisfy ESLint
       this.validateChainSupport(rampType, from, to);
 
-      // Determine the correct fiat currency for the transaction
+      // We want to use the FIAT currency for the fees
       const feeCurrency = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
 
       // Initialize fee accumulators
-      let totalPartnerMarkupUSD = new Big(0);
-      let totalVortexFeeUSD = new Big(0);
-
-      // Get partner name if partner is provided
-      const partnerName = partner?.name;
+      let totalPartnerMarkupInFeeCurrency = new Big(0);
+      let totalVortexFeeInFeeCurrency = new Big(0);
 
       // 1. Fetch and process partner-specific configurations if partnerName is provided
       if (partnerName) {
@@ -314,7 +312,7 @@ export class QuoteService extends BaseRampService {
 
         if (partnerRecords.length > 0) {
           let hasApplicableFees = false;
-          
+
           for (const record of partnerRecords) {
             if (record.markupType !== 'none') {
               let markupFeeComponent = new Big(0);
@@ -323,9 +321,14 @@ export class QuoteService extends BaseRampService {
               } else {
                 markupFeeComponent = new Big(inputAmount).mul(record.markupValue);
               }
-              // TODO Convert to USD if needed (for now assuming all are in the same currency)
-              totalPartnerMarkupUSD = totalPartnerMarkupUSD.plus(markupFeeComponent);
-              
+
+              const markupFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+                markupFeeComponent.toString(),
+                inputCurrency,
+                feeCurrency,
+              );
+              totalPartnerMarkupInFeeCurrency = totalPartnerMarkupInFeeCurrency.plus(markupFeeComponentInFeeCurrency);
+
               if (markupFeeComponent.gt(0)) {
                 hasApplicableFees = true;
               }
@@ -339,23 +342,31 @@ export class QuoteService extends BaseRampService {
               } else {
                 vortexFeeComponent = new Big(inputAmount).mul(record.vortexFeeValue);
               }
-              // TODO Convert to USD if needed (for now assuming all are in the same currency)
-              totalVortexFeeUSD = totalVortexFeeUSD.plus(vortexFeeComponent);
-              
+              const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+                vortexFeeComponent.toString(),
+                inputCurrency,
+                feeCurrency,
+              );
+              totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
+
               if (vortexFeeComponent.gt(0)) {
                 hasApplicableFees = true;
               }
             }
           }
-          
+
           // Log warning if partner found but no applicable custom fees
           if (!hasApplicableFees) {
-            logger.warn(`Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`);
+            logger.warn(
+              `Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`,
+            );
           }
         } else {
           // No specific partner records found, will use default Vortex fee below
           // totalPartnerMarkupUSD remains 0
-          logger.warn(`No fee configuration found for partner with name '${partnerName}'. Proceeding with default fees.`);
+          logger.warn(
+            `No fee configuration found for partner with name '${partnerName}'. Proceeding with default fees.`,
+          );
         }
       }
 
@@ -388,18 +399,12 @@ export class QuoteService extends BaseRampService {
               vortexFeeComponent = new Big(inputAmount).mul(vortexFoundationPartner.markupValue);
             }
 
-            totalVortexFeeUSD = totalVortexFeeUSD.plus(vortexFeeComponent);
-          }
-
-          if (vortexFoundationPartner.vortexFeeType !== 'none') {
-            let vortexFeeComponent = new Big(0);
-            if (vortexFoundationPartner.vortexFeeType === 'absolute') {
-              vortexFeeComponent = new Big(vortexFoundationPartner.vortexFeeValue);
-            } else {
-              vortexFeeComponent = new Big(inputAmount).mul(vortexFoundationPartner.vortexFeeValue);
-            }
-
-            totalVortexFeeUSD = totalVortexFeeUSD.plus(vortexFeeComponent);
+            const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+              vortexFeeComponent.toString(),
+              inputCurrency,
+              feeCurrency,
+            );
+            totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
           }
         }
       }
@@ -445,9 +450,9 @@ export class QuoteService extends BaseRampService {
       }
 
       return {
-        vortexFee: totalVortexFeeUSD.toFixed(2),
+        vortexFee: totalVortexFeeInFeeCurrency.toFixed(2),
         anchorFee,
-        partnerMarkupFee: totalPartnerMarkupUSD.toFixed(2),
+        partnerMarkupFee: totalPartnerMarkupInFeeCurrency.toFixed(2),
         feeCurrency,
       };
     } catch (error) {

@@ -17,7 +17,7 @@ export const createQuote = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId } = req.body;
 
     // Validate required fields
     if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
@@ -43,6 +43,7 @@ export const createQuote = async (
       inputAmount,
       inputCurrency,
       outputCurrency,
+      partnerId
     });
 
     // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.
