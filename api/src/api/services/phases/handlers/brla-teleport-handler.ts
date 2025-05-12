@@ -37,7 +37,6 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
     try {
       const inputAmountBrla = new Big(inputAmountUnits).mul(100); // BRLA understands raw amount with 2 decimal places.
 
-      teleportService = BrlaTeleportService.getInstance();
       const brlaApiService = BrlaApiService.getInstance();
       const subaccount = await brlaApiService.getSubaccount(taxId);
 
