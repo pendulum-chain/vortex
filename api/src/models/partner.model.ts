@@ -11,7 +11,7 @@ export interface PartnerAttributes {
   markupValue: number;
   markupCurrency: string | null;
   payoutAddress: string | null;
-  feeType: 'on' | 'off';
+  rampType: 'on' | 'off';
   vortexFeeType: 'absolute' | 'relative' | 'none';
   vortexFeeValue: number;
   isActive: boolean;
@@ -40,7 +40,7 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare payoutAddress: string | null;
 
-  declare feeType: 'on' | 'off';
+  declare rampType: 'on' | 'off';
 
   declare vortexFeeType: 'absolute' | 'relative' | 'none';
 
@@ -97,10 +97,10 @@ Partner.init(
       allowNull: true,
       field: 'payout_address',
     },
-    feeType: {
+    rampType: {
       type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
-      field: 'fee_type',
+      field: 'ramp_type',
     },
     vortexFeeType: {
       type: DataTypes.ENUM('absolute', 'relative', 'none'),
@@ -140,8 +140,8 @@ Partner.init(
     timestamps: true,
     indexes: [
       {
-        name: 'idx_partners_name_fee_type',
-        fields: ['name', 'fee_type'],
+        name: 'idx_partners_name_ramp_type',
+        fields: ['name', 'ramp_type'],
       },
     ],
   },

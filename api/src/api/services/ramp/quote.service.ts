@@ -16,7 +16,7 @@ import {
 import { BaseRampService } from './base.service';
 import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import Partner from '../../../models/partner.model';
-import FeeConfiguration from '../../../models/feeConfiguration.model';
+import Anchor from '../../../models/anchor.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { getTokenOutAmount } from '../nablaReads/outAmount';
@@ -301,11 +301,11 @@ export class QuoteService extends BaseRampService {
 
       // 1. Fetch and process partner-specific configurations if partnerName is provided
       if (partnerName) {
-        // Query all records where name matches partnerName AND feeType matches rampType
+        // Query all records where name matches partnerName AND rampType matches rampType
         const partnerRecords = await Partner.findAll({
           where: {
             name: partnerName,
-            feeType: rampType,
+            rampType: rampType,
             isActive: true,
           },
         });
@@ -377,7 +377,7 @@ export class QuoteService extends BaseRampService {
           where: {
             name: 'vortex',
             isActive: true,
-            feeType: rampType,
+            rampType: rampType,
           },
         });
 
@@ -421,9 +421,9 @@ export class QuoteService extends BaseRampService {
         anchorIdentifier = 'stellar_ars';
       }
 
-      const anchorFeeConfigs = await FeeConfiguration.findAll({
+      const anchorFeeConfigs = await Anchor.findAll({
         where: {
-          feeType: rampType,
+          rampType: rampType,
           identifier: anchorIdentifier,
           isActive: true,
         },

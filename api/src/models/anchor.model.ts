@@ -1,10 +1,10 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
-// Define the attributes of the FeeConfiguration model
-export interface FeeConfigurationAttributes {
+// Define the attributes of the Anchor model
+export interface AnchorAttributes {
   id: string; // UUID
-  feeType: 'on' | 'off';
+  rampType: 'on' | 'off';
   identifier: string | null;
   valueType: 'absolute' | 'relative';
   value: number;
@@ -15,13 +15,13 @@ export interface FeeConfigurationAttributes {
 }
 
 // Define the attributes that can be set during creation
-type FeeConfigurationCreationAttributes = Optional<FeeConfigurationAttributes, 'id' | 'createdAt' | 'updatedAt'>;
+type AnchorCreationAttributes = Optional<AnchorAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
-// Define the FeeConfiguration model
-class FeeConfiguration extends Model<FeeConfigurationAttributes, FeeConfigurationCreationAttributes> implements FeeConfigurationAttributes {
+// Define the Anchor model
+class Anchor extends Model<AnchorAttributes, AnchorCreationAttributes> implements AnchorAttributes {
   declare id: string;
 
-  declare feeType: 'on' | 'off';
+  declare rampType: 'on' | 'off';
 
   declare identifier: string | null;
 
@@ -39,17 +39,17 @@ class FeeConfiguration extends Model<FeeConfigurationAttributes, FeeConfiguratio
 }
 
 // Initialize the model
-FeeConfiguration.init(
+Anchor.init(
   {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    feeType: {
+    rampType: {
       type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
-      field: 'fee_type',
+      field: 'ramp_type',
     },
     identifier: {
       type: DataTypes.STRING(100),
@@ -91,16 +91,16 @@ FeeConfiguration.init(
   },
   {
     sequelize,
-    modelName: 'FeeConfiguration',
-    tableName: 'fee_configurations',
+    modelName: 'Anchor',
+    tableName: 'anchors',
     timestamps: true,
     indexes: [
       {
-        name: 'idx_fee_configurations_lookup',
-        fields: ['fee_type', 'identifier', 'is_active'],
+        name: 'idx_anchors_lookup',
+        fields: ['ramp_type', 'identifier', 'is_active'],
       },
     ],
   },
 );
 
-export default FeeConfiguration;
+export default Anchor;

@@ -1,17 +1,17 @@
 import { QueryInterface, DataTypes, Op } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
-  // Create fee_configurations table
-  await queryInterface.createTable('fee_configurations', {
+  // Create anchors table
+  await queryInterface.createTable('anchors', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    feeType: {
+    rampType: {
       type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
-      field: 'fee_type',
+      field: 'ramp_type',
     },
     identifier: {
       type: DataTypes.STRING(100),
@@ -53,15 +53,15 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Add index for faster lookups
-  await queryInterface.addIndex('fee_configurations', ['fee_type', 'identifier', 'is_active'], {
-    name: 'idx_fee_configurations_lookup',
+  await queryInterface.addIndex('anchors', ['ramp_type', 'identifier', 'is_active'], {
+    name: 'idx_anchors_lookup',
   });
 
   // Insert initial data for fees
-  await queryInterface.bulkInsert('fee_configurations', [
+  await queryInterface.bulkInsert('anchors', [
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'on',
+      ramp_type: 'on',
       identifier: 'moonbeam_brla',
       value_type: 'absolute',
       value: 0.75, // 0.75 BRL
@@ -72,7 +72,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'off',
+      ramp_type: 'off',
       identifier: 'moonbeam_brla',
       value_type: 'absolute',
       value: 0.75, // 0.75 BRL
@@ -83,7 +83,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'off',
+      ramp_type: 'off',
       identifier: 'stellar_eurc',
       value_type: 'relative',
       value: 0.0025, // 0.25% (represented as decimal)
@@ -94,7 +94,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'off',
+      ramp_type: 'off',
       identifier: 'stellar_ars',
       value_type: 'relative',
       value: 0.02, // 2% (represented as decimal)
@@ -105,7 +105,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     {
       id: queryInterface.sequelize.literal('uuid_generate_v4()'),
-      fee_type: 'off',
+      ramp_type: 'off',
       identifier: 'stellar_ars',
       value_type: 'absolute',
       value: 10.0, // 10 ARS
@@ -119,20 +119,20 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
 export async function down(queryInterface: QueryInterface): Promise<void> {
   // Remove the initial data
-  await queryInterface.bulkDelete('fee_configurations', {
+  await queryInterface.bulkDelete('anchors', {
     identifier: {
       [Op.in]: ['moonbeam_brla', 'stellar_eurc', 'stellar_ars'],
     },
   });
 
   // Remove the index
-  await queryInterface.removeIndex('fee_configurations', 'idx_fee_configurations_lookup');
+  await queryInterface.removeIndex('anchors', 'idx_anchors_lookup');
 
-  // Drop the fee_configurations table
-  await queryInterface.dropTable('fee_configurations');
+  // Drop the anchors table
+  await queryInterface.dropTable('anchors');
 
   // Explicitly drop the ENUM type
   // Note: The name of the enum type might be schema-qualified in some setups,
-  // but 'enum_fee_configurations_fee_type' is what the error message indicates.
-  await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_fee_configurations_fee_type";');
+  // but 'enum_anchors_fee_type' is what the error message indicates.
+  await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_anchors_fee_type";');
 }

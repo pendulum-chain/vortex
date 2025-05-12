@@ -1,15 +1,16 @@
-import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
+import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME } from '../../../constants/constants';
 import {
-  SubaccountData,
-  RegisterSubaccountPayload,
-  OfframpPayload,
-  OnrampPayload,
-  PixKeyData,
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
+  OfframpPayload,
+  OnchainLog,
+  OnrampPayload,
+  PixKeyData,
+  RegisterSubaccountPayload,
+  SubaccountData,
   SwapPayload,
-  OnchainLog, UsedLimitData,
+  UsedLimitData,
 } from './types';
 import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
@@ -123,7 +124,7 @@ export class BrlaApiService {
 
   public async getSubaccountUsedLimit(subaccountId: string): Promise<UsedLimitData | undefined> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
-    return await this.sendRequest('/used-limit', 'GET', query);
+    return await this.sendRequest(Endpoint.UsedLimit, 'GET', query);
   }
 
   public async triggerOfframp(subaccountId: string, offrampParams: OfframpPayload): Promise<{ id: string }> {

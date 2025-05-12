@@ -2,7 +2,7 @@ import sequelize from '../config/database';
 import QuoteTicket from './quoteTicket.model';
 import RampState from './rampState.model';
 import Partner from './partner.model';
-import FeeConfiguration from './feeConfiguration.model';
+import Anchor from './anchor.model';
 
 // Define associations
 RampState.belongsTo(QuoteTicket, { foreignKey: 'quoteId', as: 'quote' });
@@ -15,7 +15,7 @@ const models = {
   QuoteTicket,
   RampState,
   Partner,
-  FeeConfiguration,
+  Anchor,
 };
 
 // Export models and sequelize instance

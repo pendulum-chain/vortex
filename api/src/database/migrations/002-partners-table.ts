@@ -12,67 +12,79 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.STRING(100),
       allowNull: false,
     },
-    display_name: {
+    displayName: {
       type: DataTypes.STRING(100),
       allowNull: false,
+      field: 'display_name',
     },
-    logo_url: {
+    logoUrl: {
       type: DataTypes.STRING(255),
       allowNull: true,
+      field: 'logo_url',
     },
-    markup_type: {
+    markupType: {
       type: DataTypes.ENUM('absolute', 'relative', 'none'),
       allowNull: false,
+      field: 'markup_type',
       defaultValue: 'none',
     },
-    markup_value: {
+    markupValue: {
       type: DataTypes.DECIMAL(10, 4),
       allowNull: false,
+      field: 'markup_value',
       defaultValue: 0,
     },
-    markup_currency: {
+    markupCurrency: {
       type: DataTypes.STRING(8),
       allowNull: true,
+      field: 'markup_currency',
     },
-    payout_address: {
+    payoutAddress: {
       type: DataTypes.STRING(255),
       allowNull: true,
+      field: 'payout_address',
     },
-    fee_type: {
+    rampType: {
       type: DataTypes.ENUM('on', 'off'),
       allowNull: false,
+      field: 'ramp_type',
       defaultValue: 'on',
     },
-    vortex_fee_type: {
+    vortexFeeType: {
       type: DataTypes.ENUM('absolute', 'relative', 'none'),
       allowNull: false,
+      field: 'vortex_fee_type',
       defaultValue: 'none',
     },
-    vortex_fee_value: {
+    vortexFeeValue: {
       type: DataTypes.DECIMAL(10, 4),
       allowNull: false,
+      field: 'vortex_fee_value',
       defaultValue: 0,
     },
-    is_active: {
+    isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
+      field: 'is_active',
       defaultValue: true,
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
+      field: 'created_at',
       defaultValue: DataTypes.NOW,
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
+      field: 'updated_at',
       defaultValue: DataTypes.NOW,
     },
   });
 
   // Add composite index for faster lookups
-  await queryInterface.addIndex('partners', ['name', 'fee_type'], {
-    name: 'idx_partners_name_fee_type',
+  await queryInterface.addIndex('partners', ['name', 'ramp_type'], {
+    name: 'idx_partners_name_ramp_type',
   });
 
   // Insert Vortex as a partner
@@ -85,7 +97,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_value: 0.0001, // 0.01% (represented as decimal)
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
-      fee_type: 'on',
+      ramp_type: 'on',
       vortex_fee_type: 'none',
       vortex_fee_value: 0,
       is_active: true,
@@ -100,7 +112,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_value: 0.0001, // 0.01% (represented as decimal)
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
-      fee_type: 'off',
+      ramp_type: 'off',
       vortex_fee_type: 'none',
       vortex_fee_value: 0,
       is_active: true,
@@ -115,7 +127,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_value: 1.432, // $1.00 (represented as decimal)
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
-      fee_type: 'on',
+      ramp_type: 'on',
       vortex_fee_type: 'relative',
       vortex_fee_value: 0.1, // 0.1% (represented as decimal)
       is_active: true,
@@ -130,7 +142,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_value: 0.1,
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
-      fee_type: 'on',
+      ramp_type: 'on',
       vortex_fee_type: 'relative',
       vortex_fee_value: 0.2,
       is_active: true,
@@ -145,7 +157,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_value: 1.000, // $1.00 (represented as decimal)
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
-      fee_type: 'off',
+      ramp_type: 'off',
       vortex_fee_type: 'relative',
       vortex_fee_value: 0.1, // 0.1% (represented as decimal)
       is_active: true,
@@ -160,7 +172,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       markup_value: 0.01,
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
-      fee_type: 'off',
+      ramp_type: 'off',
       vortex_fee_type: 'relative',
       vortex_fee_value: 0.2,
       is_active: true,
@@ -175,7 +187,7 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.bulkDelete('partners', { name: 'vortex' });
 
   // Remove the composite index
-  await queryInterface.removeIndex('partners', 'idx_partners_name_fee_type');
+  await queryInterface.removeIndex('partners', 'idx_partners_name_ramp_type');
 
   // Drop the partners table if needed
   await queryInterface.dropTable('partners');
