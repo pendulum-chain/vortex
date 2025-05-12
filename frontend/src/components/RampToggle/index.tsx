@@ -32,7 +32,7 @@ export const RampToggle = ({ activeDirection, onToggle }: RampToggleProps) => {
       >
         {t('components.swap.sellButton')}
       </button>
-          
+
       <motion.div
         layoutId="rampToggleIndicator"
         className="absolute bottom-0 h-0.5 bg-blue-700"

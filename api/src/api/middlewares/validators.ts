@@ -1,5 +1,6 @@
 import { RequestHandler } from 'express';
 import { ParsedQs } from 'qs';
+import httpStatus from 'http-status';
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import { BrlaEndpoints, TokenConfig } from 'shared';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
@@ -60,22 +61,22 @@ export const validateCreationInput: RequestHandler = (req, res, next) => {
   const { accountId, maxTime, assetCode, baseFee } = req.body as CreationBody;
 
   if (!accountId || !maxTime) {
-    res.status(400).json({ error: 'Missing accountId or maxTime parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing accountId or maxTime parameter' });
     return;
   }
 
   if (!assetCode) {
-    res.status(400).json({ error: 'Missing assetCode parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing assetCode parameter' });
     return;
   }
 
   if (!baseFee) {
-    res.status(400).json({ error: 'Missing baseFee parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing baseFee parameter' });
     return;
   }
 
   if (typeof maxTime !== 'number') {
-    res.status(400).json({ error: 'maxTime must be a number' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'maxTime must be a number' });
     return;
   }
   next();
@@ -85,31 +86,31 @@ export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, Pri
   const { fromCrypto, toFiat, amount, network } = req.query;
 
   if (!fromCrypto || !PriceEndpoints.isValidCryptoCurrency(fromCrypto)) {
-    res.status(400).json({
+    res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid fromCrypto. Supported currencies are: ${PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ')}`,
     });
     return;
   }
 
   if (!toFiat || !PriceEndpoints.isValidFiatCurrency(toFiat)) {
-    res.status(400).json({
+    res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid toFiat. Supported currencies are: ${PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ')}`,
     });
     return;
   }
 
   if (!amount) {
-    res.status(400).json({ error: 'Missing amount parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing amount parameter' });
     return;
   }
 
   if (!network) {
-    res.status(400).json({ error: 'Missing network parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing network parameter' });
     return;
   }
 
   if (isNaN(parseFloat(amount))) {
-    res.status(400).json({ error: 'Invalid amount parameter. Not a number.' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter. Not a number.' });
     return;
   }
 
@@ -120,38 +121,38 @@ export const validatePriceInput: RequestHandler<{}, unknown, unknown, PriceQuery
   const { provider, fromCrypto, toFiat, amount, network } = req.query;
 
   if (!provider || !PriceEndpoints.isValidProvider(provider)) {
-    res.status(400).json({
+    res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid provider. Supported providers are: ${PriceEndpoints.VALID_PROVIDERS.join(', ')}`,
     });
     return;
   }
 
   if (!fromCrypto || !PriceEndpoints.isValidCryptoCurrency(fromCrypto)) {
-    res.status(400).json({
+    res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid fromCrypto. Supported currencies are: ${PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ')}`,
     });
     return;
   }
 
   if (!toFiat || !PriceEndpoints.isValidFiatCurrency(toFiat)) {
-    res.status(400).json({
+    res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid toFiat. Supported currencies are: ${PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ')}`,
     });
     return;
   }
 
   if (!amount) {
-    res.status(400).json({ error: 'Missing amount parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing amount parameter' });
     return;
   }
 
   if (!network) {
-    res.status(400).json({ error: 'Missing network parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing network parameter' });
     return;
   }
 
   if (isNaN(parseFloat(amount))) {
-    res.status(400).json({ error: 'Invalid amount parameter. Not a number.' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter. Not a number.' });
     return;
   }
 
@@ -162,22 +163,22 @@ export const validateChangeOpInput: RequestHandler = (req, res, next) => {
   const { accountId, sequence, paymentData, maxTime, assetCode, baseFee } = req.body as ChangeOpBody;
 
   if (!accountId || !sequence || !paymentData || !maxTime) {
-    res.status(400).json({ error: 'Missing required parameters' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing required parameters' });
     return;
   }
 
   if (!assetCode) {
-    res.status(400).json({ error: 'Missing assetCode parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing assetCode parameter' });
     return;
   }
 
   if (!baseFee) {
-    res.status(400).json({ error: 'Missing baseFee parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing baseFee parameter' });
     return;
   }
 
   if (typeof sequence !== 'string' || typeof maxTime !== 'number') {
-    res.status(400).json({ error: 'Invalid input types' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid input types' });
     return;
   }
   next();
@@ -187,12 +188,12 @@ const validateRequestBodyValuesForTransactionStore = (): RequestHandler => (req,
   const { flowType } = req.body;
 
   if (!flowType) {
-    res.status(400).json({ error: 'Missing flowType parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing flowType parameter' });
     return;
   }
 
   if (!FLOW_HEADERS[flowType as keyof typeof FLOW_HEADERS]) {
-    res.status(400).json({
+    res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid flowType. Supported flowTypes are: ${Object.keys(FLOW_HEADERS).join(', ')}`,
     });
     return;
@@ -212,7 +213,7 @@ const validateRequestBodyValues =
       const missingItems = requiredRequestBodyKeys.filter((key) => !data[key]);
       const errorMessage = `Request body data does not match schema. Missing items: ${missingItems.join(', ')}`;
       console.error(errorMessage);
-      res.status(400).json({ error: errorMessage });
+      res.status(httpStatus.BAD_REQUEST).json({ error: errorMessage });
       return;
     }
 
@@ -228,17 +229,17 @@ export const validatePreSwapSubsidizationInput: RequestHandler = (req, res, next
   const { amountRaw, address } = req.body as SwapBody;
 
   if (amountRaw === undefined) {
-    res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "amountRaw" parameter' });
     return;
   }
 
   if (typeof amountRaw !== 'string') {
-    res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: '"amountRaw" parameter must be a string' });
     return;
   }
 
   if (address === undefined) {
-    res.status(400).json({ error: 'Missing "address" parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "address" parameter' });
     return;
   }
 
@@ -249,22 +250,22 @@ export const validatePostSwapSubsidizationInput: RequestHandler = (req, res, nex
   const { amountRaw, address, token } = req.body as Required<SwapBody>;
 
   if (amountRaw === undefined) {
-    res.status(400).json({ error: 'Missing "amountRaw" parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "amountRaw" parameter' });
     return;
   }
 
   if (typeof amountRaw !== 'string') {
-    res.status(400).json({ error: '"amountRaw" parameter must be a string' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: '"amountRaw" parameter must be a string' });
     return;
   }
 
   if (address === undefined) {
-    res.status(400).json({ error: 'Missing "address" parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "address" parameter' });
     return;
   }
 
   if (token === undefined) {
-    res.status(400).json({ error: 'Missing "token" parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing "token" parameter' });
     return;
   }
 
@@ -275,17 +276,17 @@ export const validateSep10Input: RequestHandler = (req, res, next) => {
   const { challengeXDR, outToken, clientPublicKey } = req.body as Sep10Body;
 
   if (!challengeXDR) {
-    res.status(400).json({ error: 'Missing Anchor challenge: challengeXDR' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing Anchor challenge: challengeXDR' });
     return;
   }
 
   if (!outToken) {
-    res.status(400).json({ error: 'Missing offramp token identifier: outToken' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing offramp token identifier: outToken' });
     return;
   }
 
   if (!clientPublicKey) {
-    res.status(400).json({ error: 'Missing Stellar ephemeral public key: clientPublicKey' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing Stellar ephemeral public key: clientPublicKey' });
     return;
   }
   next();
@@ -295,7 +296,7 @@ export const validateSiweCreate: RequestHandler = (req, res, next) => {
   const { walletAddress } = req.body as SiweCreateBody;
 
   if (!walletAddress) {
-    res.status(400).json({ error: 'Missing param: walletAddress' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing param: walletAddress' });
     return;
   }
   next();
@@ -305,17 +306,17 @@ export const validateSiweValidate: RequestHandler = (req, res, next) => {
   const { nonce, signature, siweMessage } = req.body as SiweValidateBody;
 
   if (!signature) {
-    res.status(400).json({ error: 'Missing param: signature' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing param: signature' });
     return;
   }
 
   if (!nonce) {
-    res.status(400).json({ error: 'Missing param: nonce' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing param: nonce' });
     return;
   }
 
   if (!siweMessage) {
-    res.status(400).json({ error: 'Missing param: siweMessage' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing param: siweMessage' });
     return;
   }
 
@@ -326,22 +327,22 @@ export const validateBrlaTriggerOfframpInput: RequestHandler = (req, res, next) 
   const { taxId, pixKey, amount, receiverTaxId } = req.body as TriggerOfframpRequest;
 
   if (!taxId) {
-    res.status(400).json({ error: 'Missing taxId parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId parameter' });
     return;
   }
 
   if (!pixKey) {
-    res.status(400).json({ error: 'Missing pixKey parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing pixKey parameter' });
     return;
   }
 
   if (!amount || isNaN(Number(amount))) {
-    res.status(400).json({ error: 'Missing or invalid amount parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
     return;
   }
 
   if (!receiverTaxId) {
-    res.status(400).json({ error: 'Missing receiverTaxId parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing receiverTaxId parameter' });
     return;
   }
 
@@ -353,50 +354,50 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
     req.body as RegisterSubaccountPayload;
 
   if (taxIdType !== 'CPF' && taxIdType !== 'CNPJ') {
-    res.status(400).json({ error: 'taxIdType parameter must be either CPF or CNPJ' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'taxIdType parameter must be either CPF or CNPJ' });
     return;
   }
 
   if (!cpf) {
-    res.status(400).json({
+    res.status(httpStatus.BAD_REQUEST).json({
       error: "Missing cpf parameter. If taxIdType is CNPJ, should be a partner's CPF",
     });
     return;
   }
 
   if (!phone) {
-    res.status(400).json({ error: 'Missing phone parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing phone parameter' });
     return;
   }
 
   if (!address) {
-    res.status(400).json({ error: 'Missing address parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing address parameter' });
     return;
   }
 
   if (!fullName) {
-    res.status(400).json({ error: 'Missing fullName parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing fullName parameter' });
     return;
   }
 
   if (!birthdate) {
-    res.status(400).json({ error: 'Missing birthdate parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing birthdate parameter' });
     return;
   }
 
   // CNPJ specific validations
   if (taxIdType === 'CNPJ' && !companyName) {
-    res.status(400).json({ error: 'Missing companyName parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing companyName parameter' });
     return;
   }
 
   if (taxIdType === 'CNPJ' && !startDate) {
-    res.status(400).json({ error: 'Missing startDate parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing startDate parameter' });
     return;
   }
 
   if (taxIdType === 'CNPJ' && !cnpj) {
-    res.status(400).json({ error: 'Missing cnpj parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing cnpj parameter' });
     return;
   }
 
@@ -407,12 +408,12 @@ export const validateStartKyc2: RequestHandler = (req, res, next) => {
   const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
 
   if (!taxId) {
-    res.status(400).json({ error: 'Missing taxId parameter' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId parameter' });
     return;
   }
 
   if (!isValidKYCDocType(documentType)) {
-    res.status(400).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
     return;
   }
 

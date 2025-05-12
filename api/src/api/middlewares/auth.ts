@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import httpStatus from 'http-status';
 import { validateSignatureAndGetMemo } from '../services/siwe.service';
 
 declare global {
@@ -30,7 +31,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
 
     // Check if matches the address requested by client, otherwise ignore cookie
     if (!authToken?.signature || !authToken?.nonce) {
-      res.status(401).json({
+      res.status(httpStatus.UNAUTHORIZED).json({
         error: 'Missing or invalid authentication token',
       });
       return;
@@ -40,7 +41,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
 
     // Client declared usage of memo, but it could not be derived from provided signatures
     if (!memo) {
-      res.status(401).json({
+      res.status(httpStatus.UNAUTHORIZED).json({
         error: 'Missing or invalid authentication token',
       });
       return;
@@ -52,7 +53,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
     const err = error as Error;
     // Distinguish between failed signature check and other errors
     if (err.message.includes('Could not verify signature')) {
-      res.status(401).json({
+      res.status(httpStatus.UNAUTHORIZED).json({
         error: 'Signature validation failed.',
         details: err.message,
       });
@@ -60,7 +61,7 @@ async function getMemoFromCookiesMiddleware(req: Request, res: Response, next: N
     }
 
     console.error(`Error in getMemoFromCookiesMiddleware: ${err.message}`);
-    res.status(500).json({
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       error: 'Error while verifying signature',
       details: err.message,
     });
