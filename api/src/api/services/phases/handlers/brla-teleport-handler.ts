@@ -30,7 +30,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       throw new Error('BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
-    let teleportService: BrlaTeleportService;
+    const teleportService = BrlaTeleportService.getInstance();
     let subaccountId: string;
     let memo: string;
 
