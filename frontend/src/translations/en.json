@@ -184,9 +184,10 @@
       "description": "Buy or sell USDT/C from just R$5 - get 20 USDT for FREE",
       "button": "More info",
       "list": {
-        "1": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub.",
-        "2": "One reward per person, paid out every day - <1>check your status</1> <2>here</2>.",
-        "3": "Your trust matters - <1>Vortex is</1> <2>open source</2> for full transparency."
+        "1": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT.",
+        "2": "Earned rewards are sent directly to your wallet. <1>No need to claim!</1>",
+        "3": "One reward per person, paid out every day - <1>check your status</1> <2>here</2>.",
+        "4": "Your trust matters - <1>Vortex is</1> <2>open source</2> for full transparency."
       }
     },
     "emailForm": {
