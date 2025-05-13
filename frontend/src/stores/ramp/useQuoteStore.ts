@@ -43,7 +43,7 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
     brl: 'pix',
     ars: 'cbu',
-    eurc: 'sepa',
+    eur: 'sepa',
   };
 
   return destinationMap[fiatToken] || 'sepa';

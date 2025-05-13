@@ -16,7 +16,7 @@ interface RampUrlParams {
   partnerId?: string;
 }
 
-const defaultFiatTokenAmounts: Record<FiatToken, string> = { eurc: DEFAULT_EURC_AMOUNT, ars: DEFAULT_ARS_AMOUNT, brl: DEFAULT_BRL_AMOUNT };
+const defaultFiatTokenAmounts: Record<FiatToken, string> = { eur: DEFAULT_EURC_AMOUNT, ars: DEFAULT_ARS_AMOUNT, brl: DEFAULT_BRL_AMOUNT };
 
 function findFiatToken(fiatToken?: string): FiatToken | undefined {
   if (!fiatToken) {
