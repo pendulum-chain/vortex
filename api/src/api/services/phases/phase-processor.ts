@@ -99,10 +99,17 @@ export class PhaseProcessor {
     }
 
     // Try to acquire the lock
-    const lockAcquired = await this.acquireLock(state);
+    let lockAcquired = await this.acquireLock(state);
     if (!lockAcquired) {
       if (this.isLockExpired(state)) {
         logger.info(`Lock for ramp ${rampId} has expired. Ignoring previous lock and continue processing...`);
+        // Force release the expired lock and try to acquire it again
+        await this.releaseLock(state);
+        lockAcquired = await this.acquireLock(state);
+        if (!lockAcquired) {
+          logger.warn(`Failed to acquire lock for ramp ${rampId} even after clearing expired lock`);
+          return;
+        }
       } else {
         logger.info(`Skipping processing for ramp ${rampId} as it's already being processed`);
         return;
