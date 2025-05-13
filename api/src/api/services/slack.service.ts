@@ -1,6 +1,10 @@
 // 6 hours in milliseconds
 const COOLDOWN_PERIOD_MS = 6 * 60 * 60 * 1000;
 
+function generateMessageSignature(message: SlackMessage): string {
+  return JSON.stringify(message);
+}
+
 export interface SlackMessage {
   text: string;
   [key: string]: unknown;
@@ -20,10 +24,6 @@ export class SlackNotifier {
     this.messageHistory = new Map();
   }
 
-  private generateMessageSignature(message: SlackMessage): string {
-    return JSON.stringify(message);
-  }
-
   private isMessageAllowed(signature: string): boolean {
     const now = Date.now();
     const lastSent = this.messageHistory.get(signature);
@@ -34,7 +34,15 @@ export class SlackNotifier {
   }
 
   public async sendMessage(message: SlackMessage): Promise<void> {
-    const signature = this.generateMessageSignature(message);
+
+    const slackUserId = process.env.SLACK_USER_ID;
+
+    const messageWithUserTag = {
+      ...message,
+      text: slackUserId ? `<@${slackUserId}> ${message.text}` : message.text,
+    };
+
+    const signature = generateMessageSignature(messageWithUserTag);
 
     if (!this.isMessageAllowed(signature)) {
       // Message is still in cooldown period, skip sending

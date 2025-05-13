@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import { AccountInfo } from '@polkadot/types/interfaces';
 import { Request, Response } from 'express';
+import httpStatus from 'http-status';
 
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
 import { PendulumEndpoints } from 'shared/src/endpoints/pendulum.endpoints';
@@ -24,7 +25,7 @@ export const fundEphemeralAccountController = async (
   const networkName = 'pendulum';
 
   if (!ephemeralAddress) {
-    res.status(400).send({ error: 'Invalid request parameters' });
+    res.status(httpStatus.BAD_REQUEST).send({ error: 'Invalid request parameters' });
     return;
   }
 
@@ -34,11 +35,11 @@ export const fundEphemeralAccountController = async (
       res.json({ status: 'success', data: undefined });
       return;
     }
-    res.status(500).send({ error: 'Funding error' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).send({ error: 'Funding error' });
     return;
   } catch (error) {
     console.error('Error funding ephemeral account:', error);
-    res.status(500).send({ error: 'Internal Server Error' });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).send({ error: 'Internal Server Error' });
   }
 };
 
