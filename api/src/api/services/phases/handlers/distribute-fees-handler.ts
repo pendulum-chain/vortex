@@ -1,4 +1,4 @@
-import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
+import { decodeSubmittableExtrinsic, getAddressForFormat, parseEventRedeemRequest, RampPhase } from 'shared';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { StateMetadata } from '../meta-state-types';
@@ -6,6 +6,9 @@ import RampState from '../../../../models/rampState.model';
 import QuoteTicket from '../../../../models/quoteTicket.model';
 import { ApiManager } from '../../pendulum/apiManager';
 import logger from '../../../../config/logger';
+import { ISubmittableResult } from '@polkadot/types/types';
+import { DispatchError, EventRecord } from '@polkadot/types/interfaces';
+import { TransactionTemporarilyBannedError } from '../../xcm/send';
 
 /**
  * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum
@@ -28,21 +31,12 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   /**
    * Execute the phase
    * @param state The current ramp state
-   * @param meta The state metadata
    * @returns The next phase and any output
    */
   protected async executePhase(state: RampState): Promise<RampState> {
-    logger.info(`Executing distributeFees phase for ramp ${state.id}`);
-    const meta = state.state as StateMetadata;
-
     const quote = await QuoteTicket.findOne({ where: { id: state.quoteId } });
     if (!quote) {
       throw this.createUnrecoverableError(`Quote ticket not found for ID: ${state.quoteId}`);
-    }
-
-    const { pendulumEphemeralAddress } = meta;
-    if (!pendulumEphemeralAddress) {
-      throw this.createUnrecoverableError('Pendulum ephemeral address not found in state metadata');
     }
 
     try {
@@ -52,11 +46,14 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         throw this.createUnrecoverableError('Pre-signed fee distribution transaction not found');
       }
 
+      console.log('Before fetching api');
       const { api } = await this.apiManager.getApi('pendulum');
 
+      console.log('After fetching api');
       const decodedTx = decodeSubmittableExtrinsic(txData as string, api);
+      console.log('Decoded transaction');
 
-      await this.submitTransaction(decodedTx, meta.pendulumEphemeralAddress, 'pendulum');
+      await this.submitTransaction(decodedTx, 'pendulum');
       logger.info(`Successfully submitted fee distribution transaction for ramp ${state.id}`);
     } catch (error: any) {
       logger.error(`Error distributing fees for ramp ${state.id}:`, error);
@@ -77,23 +74,77 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   /**
    * Submit a transaction to the blockchain
    * @param tx The transaction to submit
-   * @param account The account to use for signing
    * @param network The network to submit to
    * @returns The transaction hash
    */
-  private async submitTransaction(
-    tx: SubmittableExtrinsic<'promise', any>,
-    account: string,
-    network: 'pendulum',
-  ): Promise<string> {
-    try {
-      logger.debug(`Submitting transaction to ${network} for ${this.getPhaseName()} phase`);
-      const result = await tx.signAndSend(account);
-      return result.hash.toString();
-    } catch (error) {
-      logger.error(`Error submitting transaction to ${network}:`, error);
-      throw error;
+  private async submitTransaction(tx: SubmittableExtrinsic<'promise', any>, network: 'pendulum'): Promise<void> {
+    logger.debug(`Submitting transaction to ${network} for ${this.getPhaseName()} phase`);
+    return await new Promise((resolve, reject) =>
+      tx
+        .send((submissionResult: ISubmittableResult) => {
+          const { status, events, dispatchError } = submissionResult;
+
+          // Try to find a 'system.ExtrinsicFailed' event
+          const systemExtrinsicFailedEvent = events.find(
+            (record) => record.event.section === 'system' && record.event.method === 'ExtrinsicFailed',
+          );
+
+          if (dispatchError) {
+            logger.error(`Transaction to ${network} failed with error:`, dispatchError.toString());
+            reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'distributeFees'));
+          }
+
+          if (status.isFinalized) {
+            logger.info('Transaction to distribute fees finalized:', status.asFinalized.toString());
+            resolve();
+          }
+        })
+        .catch((error) => {
+          // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
+          if (error?.message.includes('1012:')) {
+            reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
+          }
+          reject(new Error(`Failed to do XCM transfer: ${error}`));
+        }),
+    );
+  }
+
+  /**
+   * Handle dispatch errors from extrinsic submissions
+   * @param dispatchError The dispatch error
+   * @param systemExtrinsicFailedEvent The system extrinsic failed event record
+   * @param extrinsicCalled The name of the extrinsic that was called
+   * @returns An error with details about the failure
+   */
+  private async handleDispatchError(
+    dispatchError: DispatchError,
+    systemExtrinsicFailedEvent: EventRecord | undefined,
+    extrinsicCalled: string,
+  ): Promise<Error> {
+    if (dispatchError?.isModule) {
+      const decoded = (await this.apiManager.getApi('pendulum')).api.registry.findMetaError(dispatchError.asModule);
+      const { name, section, method } = decoded;
+
+      return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
     }
+
+    if (systemExtrinsicFailedEvent) {
+      const eventName =
+        systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
+          ? systemExtrinsicFailedEvent?.event.data[0].toString()
+          : 'Unknown';
+
+      const {
+        phase,
+        event: { method, section },
+      } = systemExtrinsicFailedEvent;
+      logger.error(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
+
+      return new Error(`Failed to dispatch ${extrinsicCalled}`);
+    }
+
+    logger.error('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
+    return new Error(`Unknown error during ${extrinsicCalled}`);
   }
 }
 
