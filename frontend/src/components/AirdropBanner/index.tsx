@@ -62,6 +62,17 @@ export const AirdropBanner = () => {
                 transition={{ delay: 0.2 }}
               >
                 <Trans i18nKey="components.airdropBanner.list.2">
+                  Earned rewards are sent to the blockchain network linked to your transaction.
+                  <strong>No need to claim!</strong>
+                </Trans>
+              </motion.li>
+              <motion.li
+                className="mb-2"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Trans i18nKey="components.airdropBanner.list.3">
                   One reward per person, paid out every 24 hours – <strong>Check your status</strong>
                   <a
                     className="underline hover:text-blue-700 transition font-bold"
@@ -80,9 +91,9 @@ export const AirdropBanner = () => {
                 className="mb-2"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.4 }}
               >
-                <Trans i18nKey="components.airdropBanner.list.3">
+                <Trans i18nKey="components.airdropBanner.list.4">
                   Your trust matters – <strong>Vortex is </strong>
                   <a
                     className="underline hover:text-blue-700 transition font-bold"

@@ -185,8 +185,9 @@
       "button": "Mais informações",
       "list": {
         "1": "<1>Todos os usuários elegíveis recebem 10 USDT</1> - os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT. Recompensas vão para sua carteira na Base ou AssetHub.",
-        "2": "Uma recompensa por pessoa, paga diariamente – <1>confira seu status</1> <2>aqui</2>.",
-        "3": "Sua confiança é importante – <1>o Vortex é</1> <2>open source</2> para total transparência."
+        "2": "Recompensas ganhas são enviadas para a rede blockchain vinculada à sua transação. <1>Não é necessário reivindicar!</1>",
+        "3": "Uma recompensa por pessoa, paga diariamente – <1>confira seu status</1> <2>aqui</2>.",
+        "4": "Sua confiança é importante – <1>o Vortex é</1> <2>open source</2> para total transparência."
       }
     },
     "emailForm": {
