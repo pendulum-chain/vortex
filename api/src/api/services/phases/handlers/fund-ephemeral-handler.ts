@@ -78,7 +78,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
     // off ramp cases
     if (state.type === 'off' && state.from === 'assethub') {
-      return 'subsidizePreSwap';
+      return 'distributeFees';
     } else {
       return 'moonbeamToPendulum'; // Via contract.subsidizePreSwap
     }
