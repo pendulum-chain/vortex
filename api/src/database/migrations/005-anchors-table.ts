@@ -130,9 +130,4 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
 
   // Drop the anchors table
   await queryInterface.dropTable('anchors');
-
-  // Explicitly drop the ENUM type
-  // Note: The name of the enum type might be schema-qualified in some setups,
-  // but 'enum_anchors_fee_type' is what the error message indicates.
-  await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_anchors_fee_type";');
 }
