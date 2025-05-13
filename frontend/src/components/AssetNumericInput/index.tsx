@@ -12,6 +12,7 @@ interface AssetNumericInputProps {
   onChange?: (e: ChangeEvent) => void;
   disabled?: boolean;
   readOnly?: boolean;
+  loading?: boolean;
   registerInput: UseFormRegisterReturn<keyof RampFormValues>;
   id: string;
 }
@@ -35,10 +36,14 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
       <AssetButton disabled={rest.disabled} assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
     </div>
 
-    <NumericInput
-      register={registerInput}
-      additionalStyle={cn('text-right text-lg', rest.readOnly && 'text-xl')}
-      {...rest}
-    />
+    {rest.loading ? (
+      <div className="loading loading-bars loading-md ml-auto mr-4"></div>
+    ) : (
+      <NumericInput
+        register={registerInput}
+        additionalStyle={cn('text-right text-lg', rest.readOnly && 'text-xl')}
+        {...rest}
+      />
+    )}
   </div>
 );

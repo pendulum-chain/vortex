@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Keypair } from 'stellar-sdk';
+import httpStatus from 'http-status';
 
 import { FiatToken } from 'shared';
 import { StellarEndpoints } from 'shared/src/endpoints/stellar.endpoints';
@@ -30,7 +31,7 @@ export const createStellarTransactionHandler = async (
     return;
   } catch (error) {
     console.error('Error in createStellarTransaction:', error);
-    res.status(500).json({ error: 'Failed to create transaction', details: (error as Error).message });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to create transaction', details: (error as Error).message });
   }
 };
 
@@ -50,7 +51,7 @@ export const signSep10ChallengeHandler = async (
     return;
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
-    res.status(500).json({ error: 'Failed to sign challenge', details: (error as Error).message });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to sign challenge', details: (error as Error).message });
   }
 };
 
@@ -68,7 +69,7 @@ export const getSep10MasterPKHandler = async (
     return;
   } catch (error) {
     console.error('Error in getSep10MasterPK:', error);
-    res.status(500).json({ error: 'Failed to get master public key', details: (error as Error).message });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to get master public key', details: (error as Error).message });
   }
 };
 

@@ -6,7 +6,11 @@ import {
   DepositLog,
   FastQuoteResponse,
   OnchainLog,
-  SwapPayload, UsedLimitData,
+  SwapPayload,
+  KycLevel2Payload,
+  KycLevel2Response,
+  KycRetryPayload,
+  UsedLimitData,
 } from './types';
 import { Event } from './webhooks';
 
@@ -21,6 +25,8 @@ export enum Endpoint {
   FastQuote = '/fast-quote',
   Swap = '/swap',
   OnChainHistoryOut = '/on-chain/history/out',
+  KycLevel2 = '/kyc/level2',
+  KycRetry = '/kyc/retry',
 }
 
 export interface EndpointMapping {
@@ -158,6 +164,34 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: { onchainLogs: OnchainLog[] };
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.KycLevel2]: {
+    POST: {
+      body: KycLevel2Payload;
+      response: KycLevel2Response;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.KycRetry]: {
+    POST: {
+      body: KycRetryPayload;
+      response: unknown; // Doesn't return anything. 201.
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
     };
     PATCH: {
       body: undefined;

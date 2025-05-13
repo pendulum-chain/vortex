@@ -55,6 +55,9 @@
     },
     "swap": {
       "error": {
+        "EURC_tokenUnavailable": "Ajustando sua saída EUR - em breve!",
+        "ARS_tokenUnavailable": "Ajustando sua saída ARS - em breve!",
+        "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "initializeFailed": {
           "default": "Estamos enfrentando um congestionamento digital. Por favor, aguarde enquanto liberamos o caminho e fazemos as coisas funcionarem novamente!",
           "noAddress": "Nenhum endereço encontrado.",
@@ -63,7 +66,7 @@
         },
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "moreThanMaximumWithdrawal": {
-          "sell": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
+          "buy": "O valor máximo de compra é {{maxAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor máximo de venda é {{maxAmountUnits}} {{assetSymbol}}."
         },
         "lessThanMinimumWithdrawal": {
@@ -176,6 +179,17 @@
     }
   },
   "components": {
+    "airdropBanner": {
+      "title": "Oferta especial até 15 Maio",
+      "description": "Compre ou venda USDT/C por apenas R$5 - receba 20 USDT de graça!",
+      "button": "Mais informações",
+      "list": {
+        "1": "<1>Todos os usuários elegíveis recebem 10 USDT</1> - os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT.",
+        "2": "As recompensas ganhas são enviadas diretamente para sua carteira. <1>Não é necessário reivindicar!</1>",
+        "3": "Uma recompensa por pessoa, paga diariamente – <1>confira seu status</1> <2>aqui</2>.",
+        "4": "Sua confiança é importante – <1>o Vortex é</1> <2>open source</2> para total transparência."
+      }
+    },
     "emailForm": {
       "success": "Salvo com sucesso!",
       "loading": "Carregando...",
@@ -335,7 +349,10 @@
         "street": "Rua",
         "number": "Número",
         "district": "Bairro",
-        "birthdate": "Data de Nascimento"
+        "birthdate": "Data de Nascimento",
+        "companyName": "Nome da Empresa",
+        "startDate": "Data de Início da Empresa",
+        "partnerCpff": "CPF do Parceiro"
       },
       "verificationStatus": {
         "pending": "Verificando seus dados, por favor aguarde",
@@ -380,7 +397,43 @@
           "required": "Data de nascimento é obrigatória",
           "future": "Data de nascimento não pode ser no futuro",
           "tooOld": "Data de nascimento inválida"
+        },
+        "companyName": {
+          "required": "Nome da empresa é obrigatório",
+          "minLength": "Nome da empresa deve ter pelo menos 3 caracteres",
+          "format": "Nome da empresa só pode conter letras e espaços"
+        },
+        "startDate": {
+          "required": "Data de início é obrigatória",
+          "future": "Data de início não pode ser no futuro",
+          "tooOld": "Data de início inválida"
+        },
+        "partnerCpf": {
+          "required": "CPF do parceiro é obrigatório",
+          "format": "Formato de CPF do parceiro inválido"
         }
+      }
+    },
+    "documentUpload": {
+      "title": "Verificação Rápida",
+      "description": "Para garantir uma experiência segura e fluida, precisamos de uma rápida verificação de identidade. Por favor, envie uma imagem nítida do seu documento.",
+      "validation": {
+        "invalidFileType": "Tipo de arquivo inválido. Apenas PNG, JPEG ou PDF são permitidos.",
+        "fileSizeExceeded": "O tamanho do arquivo excede o limite de {{max}}.",
+        "validationError": "Todos os arquivos devem ser válidos antes de enviar."
+      },
+      "uploadBug": "Ocorreu um erro ao enviar os arquivos para verificação. Por favor, tente novamente mais tarde.",
+      "uploadFailed": "Falha no envio. Por favor, tente novamente.",
+      "fields": {
+        "uploadSelfie": "Enviar selfie",
+        "rgFront": "Frente do RG",
+        "rgBack": "Verso do RG",
+        "cnhDocument": "Documento CNH"
+      },
+      "buttons": {
+        "back": "Voltar",
+        "uploading": "Enviando...",
+        "finish": "Concluir"
       }
     },
     "rating": {

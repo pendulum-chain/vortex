@@ -1,14 +1,18 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 
-import { getAnyFiatTokenDetails, getNetworkDisplayName, getOnChainTokenDetailsOrDefault, isNetworkEVM } from 'shared';
+import { getAnyFiatTokenDetails, getNetworkDisplayName, getOnChainTokenDetailsOrDefault, isNetworkEVM, PriceEndpoints } from 'shared';
 import { FeeProviderRow } from '../FeeProviderRow';
 import { useNetwork } from '../../../contexts/network';
 import { priceProviders } from '../priceProviders';
 import { useRampFormStore } from '../../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../../stores/rampDirectionStore';
 import { RampDirection } from '../../../components/RampToggle';
+import { PriceService } from '../../../services/api';
+import { cacheKeys, activeOptions } from '../../../constants/cache';
+import { useQuote } from '../../../stores/ramp/useQuoteStore';
 
 const DEFAULT_PROVIDERS = [...priceProviders];
 
@@ -16,6 +20,7 @@ export function FeeComparisonTable() {
   const { t } = useTranslation();
   const { inputAmount, onChainToken, fiatToken } = useRampFormStore();
   const { selectedNetwork } = useNetwork();
+  const quote = useQuote();
 
   const rampDirection = useRampDirection();
   const isOnramp = rampDirection === RampDirection.ONRAMP;
@@ -25,12 +30,43 @@ export function FeeComparisonTable() {
   const targetAssetSymbol = isOnramp ? onChainTokenDetails.assetSymbol : fiatTokenDetails.fiat.symbol;
 
   const amount = inputAmount || '100';
+  
+  const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
-  const [providerPrices, setProviderPrices] = useState<Record<string, Big>>({});
+  const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery({
+    queryKey: [
+      cacheKeys.allPrices,
+      amount,
+      sourceAssetSymbol,
+      targetAssetSymbol,
+      selectedNetwork
+    ],
+    queryFn: () => PriceService.getAllPricesBundled(
+      sourceAssetSymbol.toLowerCase() as PriceEndpoints.CryptoCurrency,
+      targetAssetSymbol.toLowerCase() as PriceEndpoints.FiatCurrency,
+      amount,
+      selectedNetwork
+    ),
+    ...activeOptions['1m'],
+    enabled: !isOnramp, // Only fetch for offramp for now
+  });
 
-  const handlePriceUpdate = useCallback((providerName: string, price: Big) => {
-    setProviderPrices((prev) => ({ ...prev, [providerName]: price }));
-  }, []);
+  const providerPrices = useMemo(() => {
+    const prices: Record<string, Big> = {};
+    
+    prices['vortex'] = vortexPrice;
+    
+    if (allPricesResponse) {
+      Object.entries(allPricesResponse).forEach(([provider, result]) => {
+        const typedResult = result as PriceEndpoints.BundledPriceResult | undefined;
+        if (typedResult?.status === 'fulfilled' && typedResult.value.fiatAmount) {
+          prices[provider] = Big(typedResult.value.fiatAmount);
+        }
+      });
+    }
+    
+    return prices;
+  }, [allPricesResponse, vortexPrice]);
 
   const bestProvider = useMemo(() => {
     return Object.entries(providerPrices).reduce(
@@ -73,20 +109,27 @@ export function FeeComparisonTable() {
         </div>
       </div>
 
-      {sortedProviders.map((provider) => (
-        <div key={provider.name}>
-          <div className="w-full my-4 border-b border-gray-200" />
-          <FeeProviderRow
-            provider={provider}
-            onPriceFetched={handlePriceUpdate}
-            isBestRate={provider.name === bestProvider.bestProvider}
-            bestPrice={bestProvider.bestPrice}
-            amountRaw={amount}
-            sourceAssetSymbol={sourceAssetSymbol}
-            targetAssetSymbol={targetAssetSymbol}
-          />
-        </div>
-      ))}
+      {sortedProviders.map((provider) => {
+        const providerResult = provider.name !== 'vortex' && allPricesResponse
+          ? allPricesResponse[provider.name as PriceEndpoints.Provider] as PriceEndpoints.BundledPriceResult | undefined
+          : undefined;
+          
+        return (
+          <div key={provider.name}>
+            <div className="w-full my-4 border-b border-gray-200" />
+            <FeeProviderRow
+              provider={provider}
+              result={providerResult}
+              isLoading={isLoadingPrices && provider.name !== 'vortex'}
+              isBestRate={provider.name === bestProvider.bestProvider}
+              bestPrice={bestProvider.bestPrice}
+              amountRaw={amount}
+              sourceAssetSymbol={sourceAssetSymbol}
+              targetAssetSymbol={targetAssetSymbol}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

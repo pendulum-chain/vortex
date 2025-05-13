@@ -36,7 +36,7 @@ import { priceFeedService } from '../priceFeed.service';
  * @returns Formatted string with unnecessary trailing zeros removed but at least two decimal places
  */
 function trimTrailingZeros(decimalString: string): string {
-  if (!decimalString.includes('.')) {
+  if (!decimalString?.includes('.')) {
     return `${decimalString}.00`;
   }
 

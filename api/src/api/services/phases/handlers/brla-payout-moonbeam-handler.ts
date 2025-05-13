@@ -45,7 +45,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         outputAmountBeforeFees.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
-        polygon
+        polygon,
       );
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {

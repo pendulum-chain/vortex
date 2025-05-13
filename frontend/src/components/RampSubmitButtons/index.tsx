@@ -10,6 +10,8 @@ import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
 import { useTranslation } from 'react-i18next';
 import { useWidgetMode } from '../../hooks/useWidgetMode';
+import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
+
 
 interface RampSubmitButtonsProps {
   toAmount?: Big;
@@ -24,11 +26,15 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const executionInput = useRampExecutionInput()
   const initializeFailedMessage = useInitializeFailedMessage();
   const isRampSummaryDialogVisible = useRampSummaryVisible();
-  const inputAmount = useInputAmount();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const rampDirection = useRampDirection();
   const isWidgetMode = useWidgetMode();
+
+
+  const inputAmount = useInputAmount();
+  const { quote } = useQuoteStore();
+  const quoteInputAmount = quote?.inputAmount;
 
   const handleCompareFeesClick = useCallback(
     (e: React.MouseEvent) => {
@@ -55,8 +61,9 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
     return t('components.swapSubmitButton.confirm');
   };
 
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage;
-  const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput);
+  const isQuoteOutdated = !!quoteInputAmount && !!inputAmount && !(Big(quoteInputAmount).eq(Big(inputAmount)))
+  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || isQuoteOutdated;
+  const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput) || isQuoteOutdated;
 
   return (
     <div className="flex gap-3 mt-5">

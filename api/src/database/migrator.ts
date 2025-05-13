@@ -7,7 +7,7 @@ import logger from '../config/logger';
 // Create Umzug instance for migrations
 const umzug = new Umzug({
   migrations: {
-    glob: path.join(__dirname, './migrations/*.ts'),
+    glob: path.join(__dirname, './migrations/*.{ts,js}'),
     resolve: ({ name, path, context }: MigrationParams<any>) => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const migration = require(path!);

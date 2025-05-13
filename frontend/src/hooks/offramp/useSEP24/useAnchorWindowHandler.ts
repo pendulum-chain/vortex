@@ -7,10 +7,8 @@ import { useNetwork } from '../../../contexts/network';
 import { sep24Second } from '../../../services/anchor/sep24/second';
 
 import { useTrackSEP24Events } from './useTrackSEP24Events';
-import { usePendulumNode } from '../../../contexts/polkadotNode';
 import { useRampActions, useRampStore } from '../../../stores/rampStore';
 import { useSep24AnchorSessionParams, useSep24InitialResponse } from '../../../stores/sep24Store';
-import { useVortexAccount } from '../../useVortexAccount';
 import { useToastMessage } from '../../../helpers/notifications';
 
 const handleError = (error: unknown, setRampingStarted: (started: boolean) => void): void => {
@@ -19,9 +17,8 @@ const handleError = (error: unknown, setRampingStarted: (started: boolean) => vo
 };
 
 export const useAnchorWindowHandler = () => {
-  const { trackKYCStarted, trackKYCCompleted } = useTrackSEP24Events();
+  const { trackKYCStarted } = useTrackSEP24Events();
   const { selectedNetwork } = useNetwork();
-  const { apiComponents: pendulumNode } = usePendulumNode();
   const { setRampStarted } = useRampActions();
 
   const { showToast, ToastMessage } = useToastMessage();

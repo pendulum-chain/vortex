@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from 'shared';
+import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 
 import { LabeledInput } from '../../LabeledInput';
 import { BrlaSwapFields } from '../../BrlaComponents/BrlaSwapFields';
@@ -19,10 +19,11 @@ import { useRampForm } from '../../../hooks/ramp/useRampForm';
 import { RampTerms } from '../../RampTerms';
 import { useValidateTerms } from '../../../stores/termsStore';
 import { useRampModalActions } from '../../../stores/rampModalStore';
-import { useFiatToken, useInputAmount, useOnChainToken } from '../../../stores/ramp/useRampFormStore';
+import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useInitializeFailedMessage } from '../../../stores/rampStore';
+import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -33,6 +34,7 @@ export const Onramp = () => {
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
+  const quoteLoading = useQuoteLoading();
 
   const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
 
@@ -95,12 +97,13 @@ export const Onramp = () => {
         tokenSymbol={toToken.assetSymbol}
         onClick={() => openTokenSelectModal('to')}
         registerInput={form.register('outputAmount')}
+        loading={quoteLoading}
         disabled={!toAmount}
         readOnly={true}
         id="outputAmount"
       />
     ),
-    [toToken, form, toAmount, openTokenSelectModal],
+    [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal],
   );
 
   const handleConfirm = useCallback(() => {

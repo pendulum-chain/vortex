@@ -8,6 +8,7 @@ export namespace BrlaEndpoints {
 
   export interface GetUserResponse {
     evmAddress: string;
+    kycLevel: number;
   }
 
   // GET /brla/getOfframpStatus?taxId=:taxId
@@ -28,6 +29,7 @@ export namespace BrlaEndpoints {
   export interface GetKycStatusResponse {
     type: string;
     status: string;
+    level: number
   }
 
   // GET /brla/validatePixKey?pixKey=:pixKey
@@ -93,7 +95,7 @@ export namespace BrlaEndpoints {
     cpf: string;
     birthdate: number; // Timestamp
     companyName?: string;
-    startDate?: string;
+    startDate?: number;
     cnpj?: string;
   }
 
@@ -101,19 +103,30 @@ export namespace BrlaEndpoints {
     subaccountId: string;
   }
 
-  // POST /brla/triggerPayIn
-  export interface TriggerPayInRequest {
-    taxId: string;
-    amount: number;
-    receiverAddress: string;
-  }
-
-  export interface TriggerPayInResponse {
-    // Empty response with 200 status
-  }
-
   export interface BrlaErrorResponse {
     error: string;
     details?: string;
+  }
+
+  export enum KYCDocType {
+    RG = 'RG',
+    CNH = 'CNH',
+  }
+
+  // POST /brla/startKYC2
+  export interface StartKYC2Request {
+    documentType: KYCDocType,
+    taxId: string,
+  }
+
+  export interface StartKYC2Response {
+    uploadUrls: KYCDataUploadFileFiles
+  }
+
+  export interface KYCDataUploadFileFiles {
+    selfieUploadUrl: string;
+    RGFrontUploadUrl: string;
+    RGBackUploadUrl: string;
+    CNHUploadUrl: string;
   }
 }

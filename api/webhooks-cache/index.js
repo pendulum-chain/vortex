@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const httpStatus = require('http-status');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,7 +20,7 @@ function authMiddleware(req, res, next) {
     return next();
   }
 
-  return res.status(401).json({ error: 'Unauthorized' });
+  return res.status(httpStatus.UNAUTHORIZED).json({ error: 'Unauthorized' });
 }
 
 const checkDomain = (req, res, next) => {
@@ -34,7 +35,7 @@ const checkDomain = (req, res, next) => {
   }
   console.log(origin);
 
-  return res.status(403).json({ error: 'Access denied. Domain not allowed to post events' });
+  return res.status(httpStatus.FORBIDDEN).json({ error: 'Access denied. Domain not allowed to post events' });
 };
 
 app.post('*', checkDomain, (req, res) => {
@@ -45,7 +46,7 @@ app.post('*', checkDomain, (req, res) => {
   }
 
   console.log('Event received:', req.body);
-  res.status(200).send('Event recorded');
+  res.status(httpStatus.OK).send('Event recorded');
 });
 
 app.get('/events', authMiddleware, (req, res) => {

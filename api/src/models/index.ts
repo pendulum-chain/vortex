@@ -1,8 +1,9 @@
 import sequelize from '../config/database';
+import Anchor from './anchor.model';
 import QuoteTicket from './quoteTicket.model';
 import RampState from './rampState.model';
+import KycLevel2 from './kycLevel2.model';
 import Partner from './partner.model';
-import Anchor from './anchor.model';
 
 // Define associations
 RampState.belongsTo(QuoteTicket, { foreignKey: 'quoteId', as: 'quote' });
@@ -14,6 +15,7 @@ Partner.hasMany(QuoteTicket, { foreignKey: 'partnerId', as: 'quotes' });
 const models = {
   QuoteTicket,
   RampState,
+  KycLevel2,
   Partner,
   Anchor,
 };

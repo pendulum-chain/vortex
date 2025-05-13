@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { RampDirection } from '../components/RampToggle';
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
-import { useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
-import { useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
+import { DEFAULT_RAMP_DIRECTION, useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
+import { DEFAULT_ARS_AMOUNT, DEFAULT_BRL_AMOUNT, DEFAULT_EURC_AMOUNT, useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
 import { useNetwork } from '../contexts/network';
 import { useSetPartnerId } from '../stores/partnerStore';
+import { isFiatTokenEnabled, getFirstEnabledFiatToken } from '../config/tokenAvailability';
 
 interface RampUrlParams {
   ramp: RampDirection;
@@ -15,7 +16,7 @@ interface RampUrlParams {
   partnerId?: string;
 }
 
-const defaultFiatTokenAmounts: Record<FiatToken, string> = { eurc: '20', ars: '20', brl: '5' };
+const defaultFiatTokenAmounts: Record<FiatToken, string> = { eurc: DEFAULT_EURC_AMOUNT, ars: DEFAULT_ARS_AMOUNT, brl: DEFAULT_BRL_AMOUNT };
 
 function findFiatToken(fiatToken?: string): FiatToken | undefined {
   if (!fiatToken) {
@@ -86,7 +87,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const partnerIdParam = params.get('partnerId');
 
     const ramp =
-      rampParam === undefined ? rampDirection : rampParam === 'buy' ? RampDirection.ONRAMP : RampDirection.OFFRAMP;
+      rampParam === undefined ? rampDirection : rampParam === 'sell' ? RampDirection.OFFRAMP : rampParam === 'buy' ? RampDirection.ONRAMP : DEFAULT_RAMP_DIRECTION;
 
     const from =
       ramp === RampDirection.OFFRAMP
@@ -125,17 +126,33 @@ export const useSetRampUrlParams = () => {
 
   const hasInitialized = useRef(false);
 
+  const handleFiatToken = (token: FiatToken) => {
+    if (isFiatTokenEnabled(token)) {
+      setFiatToken(token);
+    } else {
+      setFiatToken(getFirstEnabledFiatToken());
+    }
+  };
+
   useEffect(() => {
     if (hasInitialized.current) return;
 
     onToggle(ramp);
 
     if (to) {
-      ramp === RampDirection.OFFRAMP ? setFiatToken(to as FiatToken) : setOnChainToken(to as OnChainToken);
+      if (ramp === RampDirection.OFFRAMP) {
+        handleFiatToken(to as FiatToken);
+      } else {
+        setOnChainToken(to as OnChainToken);
+      }
     }
 
     if (from) {
-      ramp === RampDirection.OFFRAMP ? setOnChainToken(from as OnChainToken) : setFiatToken(from as FiatToken);
+      if (ramp === RampDirection.OFFRAMP) {
+        setOnChainToken(from as OnChainToken);
+      } else {
+        handleFiatToken(from as FiatToken);
+      }
     }
 
     if (fromAmount) {
