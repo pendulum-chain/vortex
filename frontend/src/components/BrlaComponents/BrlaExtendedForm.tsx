@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
-import { useKYCForm } from '../../hooks/brla/useKYCForm';
+import { KYCFormData, useKYCForm } from '../../hooks/brla/useKYCForm';
 
 import { VerificationStatus } from './VerificationStatus';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
@@ -11,6 +11,7 @@ import { useCallback } from 'react';
 import { DocumentUpload } from './KYCLevel2Form';
 import { useTaxId } from '../../stores/ramp/useRampFormStore';
 import { isValidCnpj } from '../../hooks/ramp/schema';
+import { useKYCFormLocalStorage } from './KYCForm/useKYCFormLocalStorage';
 
 export const PIXKYCForm = () => {
   const {
@@ -25,6 +26,7 @@ export const PIXKYCForm = () => {
 
   const rampKycLevel2Started = useRampKycLevel2Started();
   const { kycForm } = useKYCForm();
+  const { clearStorage } = useKYCFormLocalStorage(kycForm);
 
   const { t } = useTranslation();
 
@@ -34,7 +36,18 @@ export const PIXKYCForm = () => {
     setIsSubmitted(true);
     const taxIdToSet = taxId || null;
     setCpf(taxIdToSet);
+    clearStorage();
   }, [setIsSubmitted, setCpf, taxId]);
+
+  const handleFormSubmit = async (formData: KYCFormData) => {
+    clearStorage();
+    await handleKYCFormSubmit(formData);
+  };
+  
+  const onBackClick = () => {
+    clearStorage();
+    handleBackClick();
+  };
 
   const pixformFields: BrlaFieldProps[] = [
     {
@@ -150,14 +163,14 @@ export const PIXKYCForm = () => {
   if (rampKycLevel2Started) {
     return (
       <div className="relative">
-        <DocumentUpload onSubmitHandler={handleDocumentUploadSubmit} onBackClick={handleBackClick} />
+        <DocumentUpload onSubmitHandler={handleDocumentUploadSubmit} onBackClick={onBackClick} />
       </div>
     );
   }
 
   return (
     <div className="relative">
-      <KYCForm fields={pixformFields} form={kycForm} onSubmit={handleKYCFormSubmit} onBackClick={handleBackClick} />
+      <KYCForm fields={pixformFields} form={kycForm} onSubmit={handleFormSubmit} onBackClick={onBackClick} />
     </div>
   );
 };
