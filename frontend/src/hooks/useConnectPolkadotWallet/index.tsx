@@ -18,7 +18,7 @@ const alwaysShowWallets = ['talisman', 'subwallet-js', 'polkadot-js'];
 
 function filterNovaWallet(wallet: Wallet) {
   const isNovaWallet = window.walletExtension?.isNovaWallet;
-  return isNovaWallet ? true : wallet.title !== 'Nova Wallet';
+  return isNovaWallet || wallet.title !== 'Nova Wallet';
 }
 
 function getFilteredWallets() {
