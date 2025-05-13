@@ -48,7 +48,7 @@ export const AirdropBanner = () => {
                 className="mb-2"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ delay: 0.1 }}
               >
                 <Trans i18nKey="components.airdropBanner.list.1">
                   All eligible users get $10 USDT - <strong>the first 100 receive a 10 bonus, totaling 20 USDT.</strong>{' '}
@@ -59,7 +59,7 @@ export const AirdropBanner = () => {
                 className="mb-2"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.2 }}
               >
                 <Trans i18nKey="components.airdropBanner.list.2">
                   One reward per person, paid out every 24 hours – <strong>Check your status</strong>
