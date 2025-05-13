@@ -184,9 +184,9 @@
       "description": "Compre ou venda USDT/C por apenas R$5 - receba 20 USDT de graça!",
       "button": "Mais informações",
       "list": {
-        "1": "Compre ou venda USDT/C por apenas R$5 (PIX) - rápido, fácil e sem taxas ocultas.",
-        "2": "<1>Todos os usuários elegíveis recebem 10 USDT</1> - os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT. Recompensas vão para sua carteira na Base ou AssetHub após o término da campanha.",
-        "3": "Uma recompensa por pessoa - Verifique <1>aqui</1> (Atualiza a cada 24 horas)"
+        "1": "<1>Todos os usuários elegíveis recebem 10 USDT</1> - os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT. Recompensas vão para sua carteira na Base ou AssetHub após o término da campanha.",
+        "2": "Uma recompensa por pessoa, paga diariamente – <1>confira seu status</1> <2>aqui</2>.",
+        "3": "Sua confiança é importante – <1>o Vortex é</1> <2>open source</2> para total transparência."
       }
     },
     "emailForm": {
