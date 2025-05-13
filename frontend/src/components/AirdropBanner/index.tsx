@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation, Trans } from 'react-i18next';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
+
 export const AirdropBanner = () => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -49,7 +50,10 @@ export const AirdropBanner = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                {t('components.airdropBanner.list.1')}
+                <Trans i18nKey="components.airdropBanner.list.1">
+                  All eligible users get $10 USDT - <strong>the first 100 receive a 10 bonus, totaling 20 USDT.</strong>{' '}
+                  Rewards go to your wallet on Base or AssetHub.
+                </Trans>
               </motion.li>
               <motion.li
                 className="mb-2"
@@ -58,8 +62,18 @@ export const AirdropBanner = () => {
                 transition={{ delay: 0.2 }}
               >
                 <Trans i18nKey="components.airdropBanner.list.2">
-                  All eligible users get $10 USDT - <strong>the first 100 receive a 10 bonus, totaling 20 USDT.</strong>{' '}
-                  Rewards go to your wallet on Base or AssetHub.
+                  One reward per person, paid out every 24 hours – <strong>Check your status</strong>
+                  <a
+                    className="underline hover:text-blue-700 transition font-bold"
+                    href="https://github.com/pendulum-chain/vortex/blob/campaign-may-2025/eligible-users.csv"
+                    target="_blank"
+                    onClick={(e) => e.stopPropagation()}
+                    rel="noreferrer"
+                  >
+                    {' '}
+                    here
+                  </a>
+                  .
                 </Trans>
               </motion.li>
               <motion.li
@@ -69,18 +83,17 @@ export const AirdropBanner = () => {
                 transition={{ delay: 0.3 }}
               >
                 <Trans i18nKey="components.airdropBanner.list.3">
-                  One reward per person - Check
+                  Your trust matters – <strong>Vortex is </strong>
                   <a
-                    className="underline hover:text-blue-700 transition"
-                    href="https://github.com/pendulum-chain/vortex/blob/campaign-may-2025/eligible-users.csv"
+                    className="underline hover:text-blue-700 transition font-bold"
+                    href="https://github.com/pendulum-chain/vortex"
                     target="_blank"
                     onClick={(e) => e.stopPropagation()}
                     rel="noreferrer"
                   >
-                    {' '}
-                    here
+                    open source
                   </a>{' '}
-                  (Updates every 24hrs)
+                  for full transparency.
                 </Trans>
               </motion.li>
             </ul>
