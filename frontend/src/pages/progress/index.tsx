@@ -34,12 +34,12 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   failed: 0,
 
   // The following are unused phases in the onramping process but are included for completeness.
-  moonbeamToPendulum: 40,
-  assethubToPendulum: 24,
-  spacewalkRedeem: 130,
-  stellarPayment: 6,
-  brlaPayoutOnMoonbeam: 120,
-  stellarCreateAccount: 10,
+  moonbeamToPendulum: 0,
+  assethubToPendulum: 0,
+  spacewalkRedeem: 0,
+  stellarPayment: 0,
+  brlaPayoutOnMoonbeam: 0,
+  stellarCreateAccount: 0,
 };
 
 // The order of the phases is important for the progress bar.
@@ -63,12 +63,12 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   failed: 0,
 
   // The following are unused phases in the offramping process but are included for completeness.
-  brlaTeleport: 30,
-  moonbeamToPendulumXcm: 30,
+  brlaTeleport: 0,
+  moonbeamToPendulumXcm: 0,
   pendulumToAssethub: 0,
-  pendulumToMoonbeam: 40,
-  brlaPayoutOnMoonbeam: 120,
-  stellarCreateAccount: 10,
+  pendulumToMoonbeam: 0,
+  brlaPayoutOnMoonbeam: 0,
+  stellarCreateAccount: 0,
 };
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
@@ -83,28 +83,34 @@ const useProgressUpdate = (
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void,
 ) => {
-  const phaseStartTime = useRef(Date.now());
-  const phaseStartPercentage = useRef(displayedPercentage);
   const numberOfPhases = RELEVANT_PHASES_COUNT;
+  const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
     const targetPercentage = Math.round((100 / numberOfPhases) * (currentPhaseIndex + 1));
     const duration = rampPhaseRecords[currentPhase] * 1000;
+    const startTime = Date.now();
+    const startPercentage = displayedPercentage;
 
-    phaseStartTime.current = Date.now();
-    phaseStartPercentage.current = displayedPercentage;
-
-    const progressUpdateInterval = setInterval(() => {
-      const elapsedTime = Date.now() - phaseStartTime.current;
+    const calculateProgress = () => {
+      const elapsedTime = Date.now() - startTime;
       const timeRatio = Math.min(1, elapsedTime / duration);
 
-      const newPercentage = Math.round(
-        phaseStartPercentage.current + (targetPercentage - phaseStartPercentage.current) * timeRatio,
-      );
+      return Math.min(100, Math.round(startPercentage + (targetPercentage - startPercentage) * timeRatio));
+    };
+
+    intervalRef.current = setInterval(() => {
+      const newPercentage = calculateProgress();
 
       setDisplayedPercentage(() => {
-        if (timeRatio === 1) {
-          clearInterval(progressUpdateInterval);
+        if (newPercentage >= targetPercentage) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
           if (currentPhaseIndex === numberOfPhases - 1) {
             setShowCheckmark(true);
           }
@@ -113,7 +119,11 @@ const useProgressUpdate = (
       });
     }, 100);
 
-    return () => clearInterval(progressUpdateInterval);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, [
     currentPhase,
     currentPhaseIndex,
