@@ -17,7 +17,7 @@ export const RampToggle = ({ activeDirection, onToggle }: RampToggleProps) => {
   return (
     <div className="flex justify-center mb-6 relative">
       <button
-        className={`py-2 px-4 text-2xl font-bold text-center transition-all duration-300 flex-1 relative z-10 ${
+        className={`cursor-pointer py-2 px-4 text-2xl font-bold text-center transition-all duration-300 flex-1 relative z-10 ${
           activeDirection === RampDirection.ONRAMP ? 'text-blue-700' : 'text-gray-500 hover:text-gray-700'
         }`}
         onClick={() => onToggle(RampDirection.ONRAMP)}
@@ -25,14 +25,14 @@ export const RampToggle = ({ activeDirection, onToggle }: RampToggleProps) => {
         {t('components.swap.buyButton')}
       </button>
       <button
-        className={`py-2 px-4 text-2xl font-bold text-center transition-all duration-300 flex-1 relative z-10 ${
+        className={`cursor-pointer py-2 px-4 text-2xl font-bold text-center transition-all duration-300 flex-1 relative z-10 ${
           activeDirection === RampDirection.OFFRAMP ? 'text-blue-700' : 'text-gray-500 hover:text-gray-700'
         }`}
         onClick={() => onToggle(RampDirection.OFFRAMP)}
       >
         {t('components.swap.sellButton')}
       </button>
-          
+
       <motion.div
         layoutId="rampToggleIndicator"
         className="absolute bottom-0 h-0.5 bg-blue-700"
