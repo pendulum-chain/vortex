@@ -438,7 +438,15 @@ describe('PriceFeedService', () => {
     });
 
     it('should accept a custom input amount', async () => {
-      await priceFeedService.getFiatExchangeRate('BRL' as any, '10.0');
+      // Reset singleton to ensure a fresh instance
+      // @ts-expect-error - accessing private property for testing
+      PriceFeedService.instance = undefined;
+      const freshInstance = PriceFeedService.getInstance();
+      
+      // Clear mock before this specific test
+      (getTokenOutAmountMock as any).mockClear();
+      
+      await freshInstance.getFiatExchangeRate('BRL' as any, '10.0');
       
       expect(getTokenOutAmountMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -460,13 +468,29 @@ describe('PriceFeedService', () => {
     });
 
     it('should convert USD to fiat using getFiatExchangeRate', async () => {
-      const result = await priceFeedService.convertCurrency('100', 'USDC' as any, 'BRL' as any);
+      // Reset singleton to ensure a fresh instance
+      // @ts-expect-error - accessing private property for testing
+      PriceFeedService.instance = undefined;
+      const freshInstance = PriceFeedService.getInstance();
+      
+      // Clear mock before this specific test
+      (getTokenOutAmountMock as any).mockClear();
+      
+      const result = await freshInstance.convertCurrency('100', 'USDC' as any, 'BRL' as any);
       expect(result).toBe('125.000000'); // 100 * 1.25 = 125
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
     });
 
     it('should convert fiat to USD using inverse of getFiatExchangeRate', async () => {
-      const result = await priceFeedService.convertCurrency('125', 'BRL' as any, 'USDC' as any);
+      // Reset singleton to ensure a fresh instance
+      // @ts-expect-error - accessing private property for testing
+      PriceFeedService.instance = undefined;
+      const freshInstance = PriceFeedService.getInstance();
+      
+      // Clear mock before this specific test
+      (getTokenOutAmountMock as any).mockClear();
+      
+      const result = await freshInstance.convertCurrency('125', 'BRL' as any, 'USDC' as any);
       expect(result).toBe('100.000000'); // 125 / 1.25 = 100
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
     });
@@ -478,7 +502,15 @@ describe('PriceFeedService', () => {
     });
 
     it('should convert crypto to USD using getCryptoPrice', async () => {
-      const result = await priceFeedService.convertCurrency('0.1', 'ETH' as any, 'USDC' as any);
+      // Reset singleton to ensure a fresh instance
+      // @ts-expect-error - accessing private property for testing
+      PriceFeedService.instance = undefined;
+      const freshInstance = PriceFeedService.getInstance();
+      
+      // Clear fetch mock before this specific test
+      fetchMock.mockClear();
+      
+      const result = await freshInstance.convertCurrency('0.1', 'ETH' as any, 'USDC' as any);
       expect(result).toBe('300.000000'); // 0.1 * 3000 = 300
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
