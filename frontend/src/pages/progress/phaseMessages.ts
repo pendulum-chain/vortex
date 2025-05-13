@@ -12,21 +12,23 @@ import { TFunction } from 'i18next';
 export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'translation', undefined>): string {
   if (!ramp || !ramp.ramp) return t('pages.progress.initial');
 
-  const currentState = ramp.ramp!;
+  const currentState = ramp.ramp;
   const quote = ramp.quote;
   const currentPhase = currentState.currentPhase;
 
   const fromNetwork = getNetworkFromDestination(quote.from);
   const toNetwork = getNetworkFromDestination(quote.to);
 
+  if (!fromNetwork || !toNetwork) return t('pages.progress.initial');
+
   const inputAssetSymbol =
     currentState.type === 'off'
-      ? getOnChainTokenDetailsOrDefault(fromNetwork!, quote.inputCurrency as OnChainToken).assetSymbol
+      ? getOnChainTokenDetailsOrDefault(fromNetwork, quote.inputCurrency as OnChainToken).assetSymbol
       : getAnyFiatTokenDetails(quote.inputCurrency as FiatToken).assetSymbol;
   const outputAssetSymbol =
     currentState.type === 'off'
       ? getAnyFiatTokenDetails(quote.outputCurrency as FiatToken).assetSymbol
-      : getOnChainTokenDetailsOrDefault(toNetwork!, quote.outputCurrency as OnChainToken).assetSymbol;
+      : getOnChainTokenDetailsOrDefault(toNetwork, quote.outputCurrency as OnChainToken).assetSymbol;
 
   if (currentPhase === 'complete') return t('pages.progress.success');
 
