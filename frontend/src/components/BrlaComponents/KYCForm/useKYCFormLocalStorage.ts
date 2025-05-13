@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Path, PathValue, UseFormReturn } from 'react-hook-form';
 import { debounce } from '../../../hooks/useLocalStorage';
 import { useTaxId } from '../../../stores/ramp/useRampFormStore';
@@ -14,24 +14,27 @@ export const useKYCFormLocalStorage = <T extends object>(form: UseFormReturn<T>)
     localStorage.setItem(BRLA_KYC_FORM_STORAGE_KEY, JSON.stringify({ ...data, taxId }));
   }, 500);
 
+  const initializeStorageWithTaxId = useCallback(() => {
+    localStorage.setItem(BRLA_KYC_FORM_STORAGE_KEY, JSON.stringify({ taxId }));
+  }, [taxId]);
+
   useEffect(() => {
     const savedData = localStorage.getItem(BRLA_KYC_FORM_STORAGE_KEY);
-    console.log('savedData', savedData);
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        Object.entries(parsedData).forEach(([key, value]) => {
-          if (key !== 'taxId') {
-            setValue(key as Path<T>, value as PathValue<T, Path<T>>, { shouldValidate: true });
-          }
-        });
-      } catch (error) {
-        console.error('Error loading form data from localStorage:', error);
-      }
-    } else {
-      localStorage.setItem(BRLA_KYC_FORM_STORAGE_KEY, JSON.stringify({ taxId }));
+
+    if (!savedData) {
+      initializeStorageWithTaxId();
+      return;
     }
-  }, [setValue, taxId]);
+
+    try {
+      const parsedData = JSON.parse(savedData);
+      Object.entries(parsedData).forEach(([key, value]) => {
+        setValue(key as Path<T>, value as PathValue<T, Path<T>>, { shouldValidate: true });
+      });
+    } catch (error) {
+      console.error('Error loading form data from localStorage:', error);
+    }
+  }, [setValue, initializeStorageWithTaxId]);
 
   useEffect(() => {
     const subscription = watch((data) => {
@@ -40,9 +43,9 @@ export const useKYCFormLocalStorage = <T extends object>(form: UseFormReturn<T>)
     return () => subscription.unsubscribe();
   }, [watch, saveToStorage]);
 
-  const clearStorage = useCallback(() => {
+  const clearStorage = () => {
     localStorage.removeItem(BRLA_KYC_FORM_STORAGE_KEY);
-  }, []);
+  };
 
   return {
     clearStorage,
