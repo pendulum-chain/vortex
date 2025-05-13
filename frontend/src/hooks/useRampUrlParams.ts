@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef } from 'react';
 import { RampDirection } from '../components/RampToggle';
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
 import { DEFAULT_RAMP_DIRECTION, useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
-import { DEFAULT_ARS_AMOUNT, DEFAULT_BRL_AMOUNT, DEFAULT_EURC_AMOUNT, useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
+import {
+  DEFAULT_ARS_AMOUNT,
+  DEFAULT_BRL_AMOUNT,
+  DEFAULT_EURC_AMOUNT,
+  useRampFormStoreActions,
+} from '../stores/ramp/useRampFormStore';
 import { useNetwork } from '../contexts/network';
 import { useSetPartnerId } from '../stores/partnerStore';
 import { isFiatTokenEnabled, getFirstEnabledFiatToken } from '../config/tokenAvailability';
@@ -16,7 +21,11 @@ interface RampUrlParams {
   partnerId?: string;
 }
 
-const defaultFiatTokenAmounts: Record<FiatToken, string> = { eur: DEFAULT_EURC_AMOUNT, ars: DEFAULT_ARS_AMOUNT, brl: DEFAULT_BRL_AMOUNT };
+const defaultFiatTokenAmounts: Record<FiatToken, string> = {
+  eur: DEFAULT_EURC_AMOUNT,
+  ars: DEFAULT_ARS_AMOUNT,
+  brl: DEFAULT_BRL_AMOUNT,
+};
 
 function findFiatToken(fiatToken?: string): FiatToken | undefined {
   if (!fiatToken) {
@@ -87,7 +96,13 @@ export const useRampUrlParams = (): RampUrlParams => {
     const partnerIdParam = params.get('partnerId');
 
     const ramp =
-      rampParam === undefined ? rampDirection : rampParam === 'sell' ? RampDirection.OFFRAMP : rampParam === 'buy' ? RampDirection.ONRAMP : DEFAULT_RAMP_DIRECTION;
+      rampParam === undefined
+        ? rampDirection
+        : rampParam === 'sell'
+        ? RampDirection.OFFRAMP
+        : rampParam === 'buy'
+        ? RampDirection.ONRAMP
+        : DEFAULT_RAMP_DIRECTION;
 
     const from =
       ramp === RampDirection.OFFRAMP

@@ -43,7 +43,7 @@ export const createQuote = async (
       inputAmount,
       inputCurrency,
       outputCurrency,
-      partnerId
+      partnerId,
     });
 
     // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.

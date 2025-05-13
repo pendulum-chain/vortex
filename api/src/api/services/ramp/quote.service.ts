@@ -170,7 +170,11 @@ export class QuoteService extends BaseRampService {
       .toFixed(2);
 
     // Calculate final output amount by subtracting the converted total fee from gross output
-    const feeInOutputCurrency = await priceFeedService.convertCurrency(totalFeeFiat, feeCurrency, request.outputCurrency);
+    const feeInOutputCurrency = await priceFeedService.convertCurrency(
+      totalFeeFiat,
+      feeCurrency,
+      request.outputCurrency,
+    );
     const finalOutputAmount = new Big(grossOutputAmount).minus(feeInOutputCurrency);
     if (finalOutputAmount.lte(0)) {
       throw new APIError({

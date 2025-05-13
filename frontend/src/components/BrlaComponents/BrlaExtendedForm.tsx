@@ -13,7 +13,8 @@ import { useTaxId } from '../../stores/ramp/useRampFormStore';
 import { isValidCnpj } from '../../hooks/ramp/schema';
 
 export const PIXKYCForm = () => {
-  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, setCpf, isSubmitted } = useKYCProcess();
+  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, setCpf, isSubmitted } =
+    useKYCProcess();
   const offrampKycLevel2Started = useRampKycLevel2Started();
   const offrampKycStarted = useRampKycStarted();
   const { kycForm } = useKYCForm();
@@ -22,13 +23,11 @@ export const PIXKYCForm = () => {
 
   const taxId = useTaxId();
 
-  
   const handleDocumentSubmit = useCallback(() => {
     setIsSubmitted(true);
-    const taxIdToSet = taxId || null
+    const taxIdToSet = taxId || null;
     setCpf(taxIdToSet);
   }, [setIsSubmitted, setCpf, taxId]);
-
 
   const pixformFields: BrlaFieldProps[] = [
     {
@@ -136,23 +135,11 @@ export const PIXKYCForm = () => {
   return (
     <div className="relative">
       {isSubmitted ? (
-        <VerificationStatus
-          status={verificationStatus}
-          message={statusMessage}
-          isLevel2={offrampKycLevel2Started}
-        />
+        <VerificationStatus status={verificationStatus} message={statusMessage} isLevel2={offrampKycLevel2Started} />
       ) : offrampKycLevel2Started ? (
-        <DocumentUpload
-          onSubmitHandler={handleDocumentSubmit}
-          onBackClick={handleBackClick}
-        />
+        <DocumentUpload onSubmitHandler={handleDocumentSubmit} onBackClick={handleBackClick} />
       ) : offrampKycStarted ? (
-        <KYCForm
-          fields={pixformFields}
-          form={kycForm}
-          onSubmit={handleFormSubmit}
-          onBackClick={handleBackClick}
-        />
+        <KYCForm fields={pixformFields} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick} />
       ) : null}
     </div>
   );

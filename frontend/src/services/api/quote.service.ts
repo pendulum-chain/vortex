@@ -35,12 +35,12 @@ export class QuoteService {
       inputCurrency,
       outputCurrency,
     };
-    
+
     // Only add partnerId if it's provided and not empty
     if (partnerId) {
       request.partnerId = partnerId;
     }
-    
+
     return apiRequest<QuoteEndpoints.QuoteResponse>('post', this.BASE_PATH, request);
   }
 

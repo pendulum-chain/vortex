@@ -332,7 +332,7 @@ export const fetchSubaccountKycStatus = async (
     if (!lastInteraction) {
       res.status(404).json({ error: `No KYC process started for ${taxId}` });
     }
-    if (lastInteraction && lastEventCached.createdAt <= (lastInteraction - 60000)) {
+    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 60000) {
       // If the last event is older than 1 minute from the last interaction, we assume it's not a new event.
       // So it is ignored.
       console.log('Last kyc interaction', lastInteraction);
@@ -457,7 +457,7 @@ export const startKYC2 = async (
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
     if (!subaccount) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount not found'});
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount not found' });
       return;
     }
 

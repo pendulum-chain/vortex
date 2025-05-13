@@ -154,7 +154,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       name: 'n3mus_absolute',
       display_name: 'N3mus Absolute',
       markup_type: 'absolute',
-      markup_value: 1.000, // $1.00 (represented as decimal)
+      markup_value: 1.0, // $1.00 (represented as decimal)
       markup_currency: 'USD',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       ramp_type: 'off',

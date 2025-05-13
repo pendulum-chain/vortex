@@ -15,7 +15,7 @@ export function RampFeeCollapse() {
 
   const availableQuote = useQuote();
 
-  const rampDirection = useRampDirection()
+  const rampDirection = useRampDirection();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
 

@@ -25,7 +25,8 @@ mock.module('shared', () => ({
         pendulumDecimals: 6,
       };
     }
-    return { // Default fallback
+    return {
+      // Default fallback
       pendulumErc20WrapperAddress: '0x123',
       pendulumCurrencyId: { XCM: 1 },
       pendulumAssetSymbol: 'TEST',
@@ -92,10 +93,18 @@ mock.module('./pendulum/apiManager', () => {
 
 mock.module('../../config/logger', () => ({
   default: {
-    info: mock(() => { /* logger mock */ }),
-    debug: mock(() => { /* logger mock */ }),
-    warn: mock(() => { /* logger mock */ }),
-    error: mock(() => { /* logger mock */ }),
+    info: mock(() => {
+      /* logger mock */
+    }),
+    debug: mock(() => {
+      /* logger mock */
+    }),
+    warn: mock(() => {
+      /* logger mock */
+    }),
+    error: mock(() => {
+      /* logger mock */
+    }),
   },
 }));
 
@@ -134,7 +143,7 @@ describe('PriceFeedService', () => {
       COINGECKO_API_KEY: 'test-api-key',
       COINGECKO_API_URL: 'https://api.coingecko.com/api/v3',
       CRYPTO_CACHE_TTL_MS: '300000', // 5 minutes
-      FIAT_CACHE_TTL_MS: '300000',   // 5 minutes
+      FIAT_CACHE_TTL_MS: '300000', // 5 minutes
     };
 
     // Create a fresh fetch mock for each test
@@ -149,8 +158,10 @@ describe('PriceFeedService', () => {
         redirected: false,
         type: 'basic',
         url: '',
-        clone() { return this; }
-      } as Response)
+        clone() {
+          return this;
+        },
+      } as Response),
     );
 
     // Mock fetch
@@ -160,10 +171,10 @@ describe('PriceFeedService', () => {
     (getTokenOutAmountMock as any).mockClear();
     // Reset Nabla mock to default implementation if needed (if tests modify its behavior)
     (getTokenOutAmountMock as any).mockImplementation(async () => ({
-        effectiveExchangeRate: '1.25',
-        preciseQuotedAmountOut: { preciseBigDecimal: { toString: () => '1.25' } },
-        roundedDownQuotedAmountOut: { toString: () => '1.25' },
-        swapFee: { toString: () => '0.01' },
+      effectiveExchangeRate: '1.25',
+      preciseQuotedAmountOut: { preciseBigDecimal: { toString: () => '1.25' } },
+      roundedDownQuotedAmountOut: { toString: () => '1.25' },
+      swapFee: { toString: () => '0.01' },
     }));
 
     // Ensure singleton is reset *before* each test to pick up fresh env vars/mocks
@@ -214,13 +225,13 @@ describe('PriceFeedService', () => {
     it('should return cached price without API call when cache is valid', async () => {
       // First call to populate cache
       await priceFeedService.getCryptoPrice('bitcoin', 'usd');
-      
+
       // Reset mock to verify it's not called again
       fetchMock.mockClear();
-      
+
       // Second call should use cache
       const price = await priceFeedService.getCryptoPrice('bitcoin', 'usd');
-      
+
       expect(price).toBe(50000);
       expect(fetchMock).not.toHaveBeenCalled();
     });
@@ -256,7 +267,9 @@ describe('PriceFeedService', () => {
     });
 
     it('should throw an error when currency is not provided', async () => {
-      await expect(priceFeedService.getCryptoPrice('bitcoin', '')).rejects.toThrow('Token ID and currency are required');
+      await expect(priceFeedService.getCryptoPrice('bitcoin', '')).rejects.toThrow(
+        'Token ID and currency are required',
+      );
     });
 
     it('should throw an error when CoinGecko API returns non-OK response', async () => {
@@ -264,7 +277,7 @@ describe('PriceFeedService', () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const freshInstance = PriceFeedService.getInstance();
-      
+
       // Override fetch mock for this test with a non-OK response
       const errorResponse = {
         ok: false,
@@ -276,18 +289,22 @@ describe('PriceFeedService', () => {
         redirected: false,
         type: 'basic',
         url: '',
-        clone() { return this; }
+        clone() {
+          return this;
+        },
       } as Response;
-      
+
       // Use any type assertion to bypass TypeScript errors
       global.fetch = (() => Promise.resolve(errorResponse)) as any;
 
-      await expect(freshInstance.getCryptoPrice('bitcoin', 'usd')).rejects.toThrow('CoinGecko API error: 429 Too Many Requests');
+      await expect(freshInstance.getCryptoPrice('bitcoin', 'usd')).rejects.toThrow(
+        'CoinGecko API error: 429 Too Many Requests',
+      );
     });
 
     it('should throw an error when token is not found in CoinGecko response', async () => {
       // Override fetch mock for this test with an empty response
-      const emptyResponseMock = mock(() => 
+      const emptyResponseMock = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({}), // Empty data
@@ -298,18 +315,22 @@ describe('PriceFeedService', () => {
           redirected: false,
           type: 'basic',
           url: '',
-          clone() { return this; }
-        } as Response)
+          clone() {
+            return this;
+          },
+        } as Response),
       );
-      
+
       global.fetch = emptyResponseMock as any;
 
-      await expect(priceFeedService.getCryptoPrice('unknown-token', 'usd')).rejects.toThrow("Token 'unknown-token' not found in CoinGecko response");
+      await expect(priceFeedService.getCryptoPrice('unknown-token', 'usd')).rejects.toThrow(
+        "Token 'unknown-token' not found in CoinGecko response",
+      );
     });
 
     it('should throw an error when currency is not found for token', async () => {
       // Override fetch mock for this test with a partial response
-      const partialResponseMock = mock(() => 
+      const partialResponseMock = mock(() =>
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ bitcoin: {} }), // Token exists, currency doesn't
@@ -320,13 +341,17 @@ describe('PriceFeedService', () => {
           redirected: false,
           type: 'basic',
           url: '',
-          clone() { return this; }
-        } as Response)
+          clone() {
+            return this;
+          },
+        } as Response),
       );
-      
+
       global.fetch = partialResponseMock as any;
 
-      await expect(priceFeedService.getCryptoPrice('bitcoin', 'unknown-currency')).rejects.toThrow("Currency 'unknown-currency' not found for token 'bitcoin'");
+      await expect(priceFeedService.getCryptoPrice('bitcoin', 'unknown-currency')).rejects.toThrow(
+        "Currency 'unknown-currency' not found for token 'bitcoin'",
+      );
     });
 
     it('should handle network errors during fetch', async () => {
@@ -334,7 +359,7 @@ describe('PriceFeedService', () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const freshInstance = PriceFeedService.getInstance();
-      
+
       // Override fetch with a function that rejects
       global.fetch = (() => Promise.reject(new Error('Network error'))) as any;
 
@@ -358,7 +383,7 @@ describe('PriceFeedService', () => {
           headers: expect.not.objectContaining({
             'x-cg-demo-api-key': expect.any(String), // Verify header is NOT present
           }),
-        })
+        }),
       );
     });
   });
@@ -391,13 +416,13 @@ describe('PriceFeedService', () => {
     it('should return cached exchange rate without Nabla call when cache is valid', async () => {
       // First call to populate cache
       await priceFeedService.getFiatExchangeRate('BRL' as any);
-      
+
       // Reset mock to verify it's not called again
       (getTokenOutAmountMock as any).mockClear();
-      
+
       // Second call should use cache
       const rate = await priceFeedService.getFiatExchangeRate('BRL' as any);
-      
+
       expect(rate).toBe(1.25);
       expect(getTokenOutAmountMock).not.toHaveBeenCalled();
     });
@@ -442,16 +467,16 @@ describe('PriceFeedService', () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const freshInstance = PriceFeedService.getInstance();
-      
+
       // Clear mock before this specific test
       (getTokenOutAmountMock as any).mockClear();
-      
+
       await freshInstance.getFiatExchangeRate('BRL' as any, '10.0');
-      
+
       expect(getTokenOutAmountMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          fromAmountString: '10.0'
-        })
+          fromAmountString: '10.0',
+        }),
       );
     });
   });
@@ -472,10 +497,10 @@ describe('PriceFeedService', () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const freshInstance = PriceFeedService.getInstance();
-      
+
       // Clear mock before this specific test
       (getTokenOutAmountMock as any).mockClear();
-      
+
       const result = await freshInstance.convertCurrency('100', 'USDC' as any, 'BRL' as any);
       expect(result).toBe('125.000000'); // 100 * 1.25 = 125
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
@@ -486,10 +511,10 @@ describe('PriceFeedService', () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const freshInstance = PriceFeedService.getInstance();
-      
+
       // Clear mock before this specific test
       (getTokenOutAmountMock as any).mockClear();
-      
+
       const result = await freshInstance.convertCurrency('125', 'BRL' as any, 'USDC' as any);
       expect(result).toBe('100.000000'); // 125 / 1.25 = 100
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
@@ -506,10 +531,10 @@ describe('PriceFeedService', () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const freshInstance = PriceFeedService.getInstance();
-      
+
       // Clear fetch mock before this specific test
       fetchMock.mockClear();
-      
+
       const result = await freshInstance.convertCurrency('0.1', 'ETH' as any, 'USDC' as any);
       expect(result).toBe('300.000000'); // 0.1 * 3000 = 300
       expect(fetchMock).toHaveBeenCalledTimes(1);

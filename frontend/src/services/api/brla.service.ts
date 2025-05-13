@@ -117,11 +117,7 @@ export class BrlaService {
    * @param request Tax id and document type that will be used.
    * @returns The url's to upload the documents.
    */
-    static async startKYC2(
-      request: BrlaEndpoints.StartKYC2Request,
-    ): Promise<BrlaEndpoints.StartKYC2Response> {
-      return apiRequest<BrlaEndpoints.StartKYC2Response>('post', `${this.BASE_PATH}/startKYC2`, request);
-    }
-  
-
+  static async startKYC2(request: BrlaEndpoints.StartKYC2Request): Promise<BrlaEndpoints.StartKYC2Response> {
+    return apiRequest<BrlaEndpoints.StartKYC2Response>('post', `${this.BASE_PATH}/startKYC2`, request);
+  }
 }

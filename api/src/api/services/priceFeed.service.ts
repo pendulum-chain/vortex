@@ -264,7 +264,12 @@ export class PriceFeedService {
    * @param toCurrency - The target currency
    * @returns The converted amount as a string
    */
-  public async convertCurrency(amount: string, fromCurrency: RampCurrency, toCurrency: RampCurrency, decimals = 6): Promise<string> {
+  public async convertCurrency(
+    amount: string,
+    fromCurrency: RampCurrency,
+    toCurrency: RampCurrency,
+    decimals = 6,
+  ): Promise<string> {
     try {
       // If currencies are the same, return the original amount
       if (fromCurrency === toCurrency) {

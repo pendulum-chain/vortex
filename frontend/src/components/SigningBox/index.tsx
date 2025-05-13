@@ -52,7 +52,7 @@ export const SigningBox = () => {
   const isEVM = isNetworkEVM(selectedNetwork);
   const progressConfig = isEVM ? PROGRESS_CONFIGS.EVM : PROGRESS_CONFIGS.NON_EVM;
   const { confirmations } = useSafeWalletSignatureStore();
-  const signingRejected = useSigningRejected()
+  const signingRejected = useSigningRejected();
 
   const [progress, setProgress] = useState(0);
   const [signatureState, setSignatureState] = useState({ max: 0, current: 0 });

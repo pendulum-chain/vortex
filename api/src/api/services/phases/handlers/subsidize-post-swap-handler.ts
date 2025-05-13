@@ -61,17 +61,15 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     if (state.type === 'on') {
       if (state.to === 'assethub') {
         return 'pendulumToAssethub';
-      } 
-        return 'pendulumToMoonbeam';
-      
+      }
+      return 'pendulumToMoonbeam';
     }
 
     // off ramp cases
     if (state.state.outputTokenType === FiatToken.BRL) {
       return 'pendulumToMoonbeam';
-    } 
-      return 'spacewalkRedeem';
-    
+    }
+    return 'spacewalkRedeem';
   }
 }
 
