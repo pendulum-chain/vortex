@@ -332,7 +332,7 @@ export const fetchSubaccountKycStatus = async (
     if (!lastInteraction) {
       res.status(404).json({ error: `No KYC process started for ${taxId}` });
     }
-    if (lastInteraction && lastEventCached.createdAt <= (lastInteraction - 60000)) {
+    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 60000) {
       // If the last event is older than 1 minute from the last interaction, we assume it's not a new event.
       // So it is ignored.
       console.log('Last kyc interaction', lastInteraction);
@@ -348,57 +348,6 @@ export const fetchSubaccountKycStatus = async (
     });
   } catch (error) {
     handleApiError(error, res, 'fetchSubaccountKycStatus');
-  }
-};
-
-/**
- * Retrieves a a BR Code that can be used to onramp into BRLA
- *
- * Fetches a user's subaccount information from the BRLA API service.
- * It validates that the user exists and has completed a KYC verification.
- * It returns the corresponding BR Code given the amount and reference label, if any.
- *
- * @returns  Sends JSON response with brCode on success.
- *
- * @throws 400 - If subaccount's KYC is invalid, or the amount exceeds KYC limits.
- * @throws 404 - If the subaccount cannot be found
- * @throws 500 - For any server-side errors during processing
- */
-export const getPayInCode = async (
-  req: Request<unknown, unknown, unknown, PayInCodeQuery>,
-  res: Response<BrlaEndpoints.GetPayInCodeResponse | BrlaEndpoints.BrlaErrorResponse>,
-): Promise<void> => {
-  try {
-    const { taxId, amount, receiverAddress } = req.query as PayInCodeQuery;
-
-    const brlaApiService = BrlaApiService.getInstance();
-    const subaccount = await brlaApiService.getSubaccount(taxId);
-    if (!subaccount) {
-      res.status(httpStatus.NOT_FOUND).json({ error: 'Subaccount not found' });
-      return;
-    }
-
-    if (subaccount.kyc.level < 1) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'KYC invalid' });
-      return;
-    }
-
-    const { limitMint } = subaccount.kyc.limits;
-
-    if (Number(amount) > limitMint) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'Amount exceeds limit' });
-      return;
-    }
-
-    const brCode = await brlaApiService.generateBrCode({
-      subaccountId: subaccount.id,
-      amount: String(amount),
-      referenceLabel: generateReferenceLabel(receiverAddress),
-    });
-
-    res.status(httpStatus.OK).json(brCode);
-  } catch (error) {
-    handleApiError(error, res, 'triggerOnramp');
   }
 };
 

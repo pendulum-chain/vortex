@@ -1,7 +1,6 @@
 import { QueryInterface, DataTypes } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
-
   await queryInterface.createTable('kyc_level_2', {
     id: {
       type: DataTypes.UUID,
