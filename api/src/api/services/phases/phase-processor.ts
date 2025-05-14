@@ -75,15 +75,29 @@ export class PhaseProcessor {
    * @param state The current ramp state
    * @private
    */
-  private isLockExpired(state: RampState): boolean {
-    const lockDuration = 15 * 60 * 1000; // 15 minutes
-    const now = new Date();
-    if (!state.processingLock?.lockedAt) {
-      return true; // No lock time means it's not locked or has expired
-    }
-    const lockTime = new Date(state.processingLock.lockedAt);
-    return now.getTime() - lockTime.getTime() > lockDuration;
+private isLockExpired(state: RampState): boolean {
+  const lockDuration = 15 * 60 * 1000; // 15 minutes
+
+  // If no lock data exists, it's not actually locked
+  if (!state.processingLock || !state.processingLock.locked) {
+    return false;
   }
+
+  // If locked but missing timestamp, consider it expired
+  if (!state.processingLock.lockedAt) {
+    return true;
+  }
+
+  const lockTime = new Date(state.processingLock.lockedAt);
+  // Check if lockTime is valid
+  if (isNaN(lockTime.getTime())) {
+    logger.warn(`Invalid lock time for ramp ${state.id}`);
+    return true; // Consider invalid timestamps as expired
+  }
+
+  const now = new Date();
+  return now.getTime() - lockTime.getTime() > lockDuration;
+}
 
   /**
    * Process a ramping process

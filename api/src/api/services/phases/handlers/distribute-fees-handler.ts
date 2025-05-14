@@ -9,6 +9,7 @@ import logger from '../../../../config/logger';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { DispatchError, EventRecord } from '@polkadot/types/interfaces';
 import { TransactionTemporarilyBannedError } from '../../xcm/send';
+import { ApiPromise } from '@polkadot/api';
 
 /**
  * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum
@@ -53,7 +54,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const decodedTx = decodeSubmittableExtrinsic(txData as string, api);
       console.log('Decoded transaction');
 
-      await this.submitTransaction(decodedTx, 'pendulum');
+      await this.submitTransaction(decodedTx, api);
       logger.info(`Successfully submitted fee distribution transaction for ramp ${state.id}`);
     } catch (error: any) {
       logger.error(`Error distributing fees for ramp ${state.id}:`, error);
@@ -74,11 +75,11 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   /**
    * Submit a transaction to the blockchain
    * @param tx The transaction to submit
-   * @param network The network to submit to
+   * @param api The API instance
    * @returns The transaction hash
    */
-  private async submitTransaction(tx: SubmittableExtrinsic<'promise', any>, network: 'pendulum'): Promise<void> {
-    logger.debug(`Submitting transaction to ${network} for ${this.getPhaseName()} phase`);
+  private async submitTransaction(tx: SubmittableExtrinsic<'promise', any>, api: ApiPromise): Promise<void> {
+    logger.debug(`Submitting transaction to Pendulum for ${this.getPhaseName()} phase`);
     return await new Promise((resolve, reject) =>
       tx
         .send((submissionResult: ISubmittableResult) => {
@@ -90,8 +91,8 @@ export class DistributeFeesHandler extends BasePhaseHandler {
           );
 
           if (dispatchError) {
-            logger.error(`Transaction to ${network} failed with error:`, dispatchError.toString());
-            reject(this.handleDispatchError(dispatchError, systemExtrinsicFailedEvent, 'distributeFees'));
+            logger.error(`Submitting transaction to Pendulum failed with error:`, dispatchError.toString());
+            reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, 'distributeFees'));
           }
 
           if (status.isFinalized) {
@@ -102,27 +103,29 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         .catch((error) => {
           // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
           if (error?.message.includes('1012:')) {
-            reject(new TransactionTemporarilyBannedError('Transaction for xcm transfer is temporarily banned.'));
+            reject(new TransactionTemporarilyBannedError('Transaction for transfer is temporarily banned.'));
           }
-          reject(new Error(`Failed to do XCM transfer: ${error}`));
+          reject(new Error(`Failed to do transfer: ${error}`));
         }),
     );
   }
 
   /**
    * Handle dispatch errors from extrinsic submissions
+   * @param api The API instance
    * @param dispatchError The dispatch error
    * @param systemExtrinsicFailedEvent The system extrinsic failed event record
    * @param extrinsicCalled The name of the extrinsic that was called
    * @returns An error with details about the failure
    */
   private async handleDispatchError(
+    api: ApiPromise,
     dispatchError: DispatchError,
     systemExtrinsicFailedEvent: EventRecord | undefined,
     extrinsicCalled: string,
   ): Promise<Error> {
     if (dispatchError?.isModule) {
-      const decoded = (await this.apiManager.getApi('pendulum')).api.registry.findMetaError(dispatchError.asModule);
+      const decoded = api.registry.findMetaError(dispatchError.asModule);
       const { name, section, method } = decoded;
 
       return new Error(`Dispatch error: ${section}.${method}:: ${name}`);
