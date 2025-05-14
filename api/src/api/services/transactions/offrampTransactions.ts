@@ -646,6 +646,9 @@ export async function prepareOfframpTransactions({
       // Initialize nonce counter for Pendulum transactions
       let pendulumNonce = 0;
 
+      // Add fee distribution transaction if available using helper function
+      pendulumNonce = await addFeeDistributionTransaction(quote, account, unsignedTxs, pendulumNonce);
+
       // Create Nabla swap transactions using helper function
       const nablaResult = await createNablaSwapTransactions(
         {
@@ -664,9 +667,6 @@ export async function prepareOfframpTransactions({
         ...stateMeta,
         ...nablaResult.stateMeta,
       };
-
-      // Add fee distribution transaction if available using helper function
-      pendulumNonce = await addFeeDistributionTransaction(quote, account, unsignedTxs, pendulumNonce);
 
       // Prepare cleanup transaction to be added later with the correct nonce
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
