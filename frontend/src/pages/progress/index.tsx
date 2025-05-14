@@ -73,7 +73,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
 // Not all phases are relevant for the progress bar, so we need to exclude some.
-const RELEVANT_PHASES_COUNT = 12;
+const RELEVANT_PHASES_COUNT = 13;
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -313,17 +313,18 @@ export const ProgressPage = () => {
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
   const currentPhaseIndex = Object.keys(rampPhaseRecords).indexOf(currentPhase);
   const message = getMessageForPhase(rampState, t);
+  console.log("message", message, "rampState", rampState);
 
   const showIsDelayedWarning = useMemo(() => {
-    // Check if the last ramp update was more than 10 minutes ago
-    if (rampState?.ramp?.updatedAt && rampState?.ramp?.currentPhase !== 'complete') {
-      const updatedAt = new Date(rampState.ramp.updatedAt);
+    // Check if the ramp was created more than 10 minutes ago and is not in the 'complete' phase
+    if (rampState?.ramp?.createdAt && rampState?.ramp?.currentPhase !== 'complete') {
+      const createdAt = new Date(rampState.ramp.createdAt);
       const currentTime = new Date();
-      const timeDiff = Math.abs(currentTime.getTime() - updatedAt.getTime());
+      const timeDiff = Math.abs(currentTime.getTime() - createdAt.getTime());
       return timeDiff > 10 * 60 * 1000; // 10 minutes
     }
     return false;
-  }, [rampState?.ramp?.currentPhase, rampState?.ramp?.updatedAt]);
+  }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);
 
   useEffect(() => {
     // Only set up the polling if we have a ramp ID
@@ -344,6 +345,7 @@ export const ProgressPage = () => {
         }
 
         const maybeNewPhase = updatedRampProcess.currentPhase;
+        console.log("maybeNewPhase", maybeNewPhase, "prevPhaseRef.current", prevPhaseRef.current);
         if (maybeNewPhase !== prevPhaseRef.current) {
           trackEvent({
             event: 'progress',
