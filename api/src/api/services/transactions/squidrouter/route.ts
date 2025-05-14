@@ -56,7 +56,7 @@ export function createOnrampRouteParams(
 export async function getRoute(params: RouteParams) {
   // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
   const { integratorId } = squidRouterConfigBase;
-  const url = 'https://apiplus.squidrouter.com/v2/route';
+  const url = 'https://v2.api.squidrouter.com/v2/route';
 
   try {
     const result = await axios.post(url, params, {
