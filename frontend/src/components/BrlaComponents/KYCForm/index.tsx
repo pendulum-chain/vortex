@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { useTranslation, Trans } from 'react-i18next';

@@ -1,16 +1,16 @@
 import { useTranslation } from 'react-i18next';
+import { useCallback } from 'react';
 
 import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
 import { useKYCForm } from '../../hooks/brla/useKYCForm';
-
-import { VerificationStatus } from './VerificationStatus';
-import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
-import { KYCForm } from './KYCForm';
-import { useRampKycLevel2Started } from '../../stores/rampStore';
-import { useCallback } from 'react';
-import { DocumentUpload } from './KYCLevel2Form';
-import { useTaxId } from '../../stores/ramp/useRampFormStore';
 import { isValidCnpj } from '../../hooks/ramp/schema';
+import { useRampKycLevel2Started } from '../../stores/rampStore';
+
+import { useBrlaKycTaxIdLocalStorage } from './useBrlaKycTaxIdLocalStorage';
+import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
+import { VerificationStatus } from './VerificationStatus';
+import { DocumentUpload } from './KYCLevel2Form';
+import { KYCForm } from './KYCForm';
 
 export const PIXKYCForm = () => {
   const {
@@ -28,13 +28,20 @@ export const PIXKYCForm = () => {
 
   const { t } = useTranslation();
 
-  const taxId = useTaxId();
+  const { taxId, clearTaxId } = useBrlaKycTaxIdLocalStorage();
 
   const handleDocumentUploadSubmit = useCallback(() => {
+    if (!taxId) {
+      return;
+    }
+
     setIsSubmitted(true);
-    const taxIdToSet = taxId || null;
-    setCpf(taxIdToSet);
+    setCpf(taxId);
   }, [setIsSubmitted, setCpf, taxId]);
+
+  if (!taxId) {
+    return null;
+  }
 
   const pixformFields: BrlaFieldProps[] = [
     {
@@ -110,10 +117,6 @@ export const PIXKYCForm = () => {
     },
   ];
 
-  if (!taxId) {
-    return null;
-  }
-
   if (isValidCnpj(taxId)) {
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.COMPANY_NAME,
@@ -150,14 +153,29 @@ export const PIXKYCForm = () => {
   if (rampKycLevel2Started) {
     return (
       <div className="relative">
-        <DocumentUpload onSubmitHandler={handleDocumentUploadSubmit} onBackClick={handleBackClick} />
+        <DocumentUpload
+          onSubmitHandler={() => {
+            handleDocumentUploadSubmit();
+            clearTaxId();
+          }}
+          onBackClick={handleBackClick}
+          taxId={taxId}
+        />
       </div>
     );
   }
 
   return (
     <div className="relative">
-      <KYCForm fields={pixformFields} form={kycForm} onSubmit={handleKYCFormSubmit} onBackClick={handleBackClick} />
+      <KYCForm
+        fields={pixformFields}
+        form={kycForm}
+        onSubmit={handleKYCFormSubmit}
+        onBackClick={() => {
+          handleBackClick();
+          clearTaxId();
+        }}
+      />
     </div>
   );
 };

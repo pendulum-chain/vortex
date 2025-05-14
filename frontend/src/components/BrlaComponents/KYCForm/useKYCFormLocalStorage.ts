@@ -1,28 +1,20 @@
-import { useCallback, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Path, PathValue, UseFormReturn } from 'react-hook-form';
 import { debounce } from '../../../hooks/useLocalStorage';
-import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 
 export const BRLA_KYC_FORM_STORAGE_KEY = 'brla_kyc_form_data';
 
 export const useKYCFormLocalStorage = <T extends object>(form: UseFormReturn<T>) => {
-  const taxId = useTaxId();
-
   const { watch, setValue } = form;
 
   const saveToStorage = debounce((data: T) => {
-    localStorage.setItem(BRLA_KYC_FORM_STORAGE_KEY, JSON.stringify({ ...data, taxId }));
+    localStorage.setItem(BRLA_KYC_FORM_STORAGE_KEY, JSON.stringify(data));
   }, 500);
-
-  const initializeStorageWithTaxId = useCallback(() => {
-    localStorage.setItem(BRLA_KYC_FORM_STORAGE_KEY, JSON.stringify({ taxId }));
-  }, [taxId]);
 
   useEffect(() => {
     const savedData = localStorage.getItem(BRLA_KYC_FORM_STORAGE_KEY);
 
     if (!savedData) {
-      initializeStorageWithTaxId();
       return;
     }
 
@@ -34,7 +26,7 @@ export const useKYCFormLocalStorage = <T extends object>(form: UseFormReturn<T>)
     } catch (error) {
       console.error('Error loading form data from localStorage:', error);
     }
-  }, [setValue, initializeStorageWithTaxId]);
+  }, [setValue]);
 
   useEffect(() => {
     const subscription = watch((data) => {
