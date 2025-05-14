@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 
 import whiteLogo from '../../assets/logo/white.png';
+import whiteMobileLogo from '../../assets/logo/circle.png';
 import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
 import { NetworkSelector } from '../NetworkSelector';
 import { useNetwork } from '../../contexts/network';
@@ -22,7 +23,8 @@ export const Navbar = () => {
         }}
       >
         <div className="flex">
-          <img src={whiteLogo} alt="Vortex Logo" className="max-w-38" />
+          <img src={whiteLogo} alt="Vortex Logo" className="max-w-38 hidden sm:block" />
+          <img src={whiteMobileLogo} alt="Vortex Logo" className="max-w-12 block sm:hidden" />
         </div>
         <div className="flex items-center">
           <NetworkSelector disabled={networkSelectorDisabled} />
