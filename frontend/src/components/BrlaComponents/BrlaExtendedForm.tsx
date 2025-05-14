@@ -11,6 +11,7 @@ import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
 import { VerificationStatus } from './VerificationStatus';
 import { DocumentUpload } from './KYCLevel2Form';
 import { KYCForm } from './KYCForm';
+import { useKYCFormLocalStorage } from './KYCForm/useKYCFormLocalStorage';
 
 export const PIXKYCForm = () => {
   const {
@@ -25,6 +26,7 @@ export const PIXKYCForm = () => {
 
   const rampKycLevel2Started = useRampKycLevel2Started();
   const { kycForm } = useKYCForm();
+  const { clearStorage } = useKYCFormLocalStorage(kycForm);
 
   const { t } = useTranslation();
 
@@ -170,10 +172,14 @@ export const PIXKYCForm = () => {
       <KYCForm
         fields={pixformFields}
         form={kycForm}
-        onSubmit={handleKYCFormSubmit}
+        onSubmit={async (formData) => {
+          await handleKYCFormSubmit(formData);
+          clearStorage();
+        }}
         onBackClick={() => {
           handleBackClick();
           clearTaxId();
+          clearStorage();
         }}
       />
     </div>
