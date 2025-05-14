@@ -24,6 +24,7 @@ import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
 import { useTranslation } from 'react-i18next';
 import { useInitializeFailedMessage } from '../../../stores/rampStore';
+import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
 
 export const Offramp = () => {
   const { t } = useTranslation();
@@ -36,6 +37,8 @@ export const Offramp = () => {
   const fiatToken = useFiatToken();
   const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
   const { outputAmount: toAmount } = useQuoteService(debouncedInputAmount, onChainToken, fiatToken);
+
+  const quoteLoading = useQuoteLoading();
 
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
@@ -96,13 +99,14 @@ export const Offramp = () => {
         assetIcon={toToken.fiat.assetIcon}
         tokenSymbol={toToken.fiat.symbol}
         onClick={() => openTokenSelectModal('to')}
+        loading={quoteLoading}
         registerInput={form.register('outputAmount')}
         disabled={!toAmount}
         readOnly={true}
         id="outputAmount"
       />
     ),
-    [toToken.fiat.assetIcon, toToken.fiat.symbol, form, toAmount, openTokenSelectModal],
+    [toToken.fiat.assetIcon, toToken.fiat.symbol, quoteLoading, form, toAmount, openTokenSelectModal],
   );
 
   const handleConfirm = useCallback(() => {

@@ -39,10 +39,10 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
     const networkName = 'moonbeam';
     const moonbeamNode = await apiManager.getApi(networkName);
 
-    // Wait for at least 15 minutes after the complete phase, to allow time for squidrouter to refund 
+    // Wait for at least 15 minutes after the complete phase, to allow time for squidrouter to refund
     try {
-      const completeEntry = state.phaseHistory.find(entry => entry.phase === "complete");
-      
+      const completeEntry = state.phaseHistory.find((entry) => entry.phase === 'complete');
+
       if (!completeEntry) {
         return [false, this.createErrorObject(`No complete entry found in the data`)];
       }
@@ -50,11 +50,13 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
       const completeTime = new Date(completeEntry.timestamp);
       const timeDifferenceMs = Date.now() - completeTime.getTime();
       const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
-      
-      if (timeDifferenceMinutes < 15) {
-        return [false, this.createErrorObject(`At least 15 minutes must pass after the complete phase for moonbeam cleanup`)];
-      }
 
+      if (timeDifferenceMinutes < 15) {
+        return [
+          false,
+          this.createErrorObject(`At least 15 minutes must pass after the complete phase for moonbeam cleanup`),
+        ];
+      }
     } catch (e) {
       return [false, this.createErrorObject(`Moonbeam cleanup failed: ${e}`)];
     }

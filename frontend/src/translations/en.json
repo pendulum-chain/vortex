@@ -55,6 +55,9 @@
     },
     "swap": {
       "error": {
+        "EURC_tokenUnavailable": "Improving your EUR exit - back shortly! ",
+        "ARS_tokenUnavailable": "Improving your ARS exit - back shortly! ",
+        "BRL_tokenUnavailable": "Improving your BRL exit - back shortly! ",
         "initializeFailed": {
           "default": "We're experiencing a digital traffic jam. Please hold tight while we clear the road and get things moving again!",
           "noAddress": "No address found.",
@@ -176,6 +179,16 @@
     }
   },
   "components": {
+    "airdropBanner": {
+      "title": "Special offer until 15 May",
+      "description": "Buy or sell USDT/C from just R$5 - get 20 USDT for FREE",
+      "button": "More info",
+      "list": {
+        "1": "Buy or sell USDT/C from just R$5 (PIX) - quick, easy, and no hidden fees.",
+        "2": "<1>All eligible users get 10 USDT</1> - the first 100 receive a 10 USDT bonus, totaling 20 USDT. Rewards go to your wallet on Base or AssetHub a week after campaign ends.",
+        "3": "One reward per person - Check <1>here</1> (Updates every 24hrs)"
+      }
+    },
     "emailForm": {
       "success": "Successfully saved!",
       "loading": "Loading...",
@@ -333,7 +346,10 @@
         "street": "Street",
         "number": "Number",
         "district": "District",
-        "birthdate": "Birthdate"
+        "birthdate": "Birthdate",
+        "companyName": "Company Name",
+        "startDate": "Company Start Date",
+        "partnerCpf": "Partner CPF"
       },
       "verificationStatus": {
         "pending": "Verifying your data, please wait",
@@ -378,6 +394,20 @@
           "required": "Birthdate is required",
           "future": "Birthdate cannot be in the future",
           "tooOld": "Invalid birthdate"
+        },
+        "companyName": {
+          "required": "Company name is required",
+          "minLength": "Company name must be at least 3 characters",
+          "format": "Company name can only contain letters and spaces"
+        },
+        "startDate": {
+          "required": "Company start date is required",
+          "future": "Company start date cannot be in the future",
+          "tooOld": "Invalid company start date"
+        },
+        "partnerCpf": {
+          "required": "Partner CPF is required",
+          "format": "Invalid Partner CPF format"
         }
       }
     },
@@ -389,6 +419,28 @@
     "footer": {
       "poweredBy": "Powered by",
       "copyright": "Copyright © {{year}}, Vortex. All rights reserved."
+    },
+    "documentUpload": {
+      "title": "Fast-Track Verification",
+      "description": "To ensure a safe and seamless experience, we need a quick ID verification. Please upload a clear image of your document.",
+      "validation": {
+        "invalidFileType": "Invalid file type. Only PNG, JPEG, or PDF allowed.",
+        "fileSizeExceeded": "File size exceeds {{max}} limit.",
+        "validationError": "All files must be valid before submitting."
+      },
+      "uploadBug": "There was an error uploading the files for verification. Please try again later.",
+      "uploadFailed": "Upload failed. Please try again.",
+      "fields": {
+        "uploadSelfie": "Upload Selfie",
+        "rgFront": "RG Front",
+        "rgBack": "RG Back",
+        "cnhDocument": "CNH Document"
+      },
+      "buttons": {
+        "back": "Back",
+        "uploading": "Uploading...",
+        "finish": "Finish"
+      }
     }
   },
   "hooks": {

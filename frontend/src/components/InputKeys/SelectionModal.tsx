@@ -13,6 +13,7 @@ import {
   OnChainTokenDetails,
   stellarTokenConfig,
 } from 'shared';
+import { isFiatTokenDisabled } from '../../config/tokenAvailability';
 
 import { useOnchainTokenBalances } from '../../hooks/useOnchainTokenBalances';
 import { useNetwork } from '../../contexts/network';
@@ -69,6 +70,12 @@ function TokenSelectionList() {
   const rampDirection = useRampDirection();
 
   const handleTokenSelect = (token: OnChainToken | FiatToken) => {
+
+    const isFiatToken = Object.values(FiatToken).includes(token as FiatToken);
+    if (isFiatToken && isFiatTokenDisabled(token as FiatToken)) {
+      return; 
+    }
+
     if (rampDirection === RampDirection.ONRAMP) {
       if (tokenSelectModalType === 'from') {
         setFiatToken(token as FiatToken);

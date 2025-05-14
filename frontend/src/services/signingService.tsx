@@ -41,6 +41,7 @@ interface BrlaOfframpStatus {
 interface BrlaKycStatus {
   type: BrlaKycState;
   status: KycStatusType;
+  level: number;
 }
 
 type TaxIdType = 'CPF' | 'CNPJ';
@@ -58,7 +59,10 @@ export interface RegisterSubaccountPayload {
   };
   fullName: string;
   cpf: string;
+  cnpj?: string;
   birthdate: number; // Denoted in milliseconds since epoch
+  companyName?: string;
+  startDate?: number; // Denoted in milliseconds since epoch
 }
 
 export interface SignerServiceSep10Request {

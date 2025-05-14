@@ -1,12 +1,11 @@
 import { RequestHandler } from 'express';
 import { ParsedQs } from 'qs';
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
-import { TokenConfig } from 'shared';
+import { BrlaEndpoints, TokenConfig } from 'shared';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
-import { RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
-
+import { isValidKYCDocType, RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
 
 interface CreationBody {
@@ -79,6 +78,41 @@ export const validateCreationInput: RequestHandler = (req, res, next) => {
     res.status(400).json({ error: 'maxTime must be a number' });
     return;
   }
+  next();
+};
+
+export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, PriceQuery> = (req, res, next) => {
+  const { fromCrypto, toFiat, amount, network } = req.query;
+
+  if (!fromCrypto || !PriceEndpoints.isValidCryptoCurrency(fromCrypto)) {
+    res.status(400).json({
+      error: `Invalid fromCrypto. Supported currencies are: ${PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ')}`,
+    });
+    return;
+  }
+
+  if (!toFiat || !PriceEndpoints.isValidFiatCurrency(toFiat)) {
+    res.status(400).json({
+      error: `Invalid toFiat. Supported currencies are: ${PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ')}`,
+    });
+    return;
+  }
+
+  if (!amount) {
+    res.status(400).json({ error: 'Missing amount parameter' });
+    return;
+  }
+
+  if (!network) {
+    res.status(400).json({ error: 'Missing network parameter' });
+    return;
+  }
+
+  if (isNaN(parseFloat(amount))) {
+    res.status(400).json({ error: 'Invalid amount parameter. Not a number.' });
+    return;
+  }
+
   next();
 };
 
@@ -369,29 +403,6 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateTriggerPayIn: RequestHandler = (req, res, next) => {
-  const { taxId, receiverAddress, amount } = req.body;
-
-  if (!taxId) {
-    res.status(400).json({ error: 'Missing taxId parameter' });
-    return;
-  }
-
-  if (!amount || isNaN(Number(amount))) {
-    res.status(400).json({ error: 'Missing or invalid amount parameter' });
-    return;
-  }
-
-  if (!receiverAddress || !receiverAddress.startsWith('0x')) {
-    res.status(400).json({
-      error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
-    });
-    return;
-  }
-
-  next();
-};
-
 export const validateGetPayInCode: RequestHandler = (req, res, next) => {
   const { taxId, receiverAddress, amount } = req.query as PayInCodeQuery;
 
@@ -409,6 +420,22 @@ export const validateGetPayInCode: RequestHandler = (req, res, next) => {
     res.status(400).json({
       error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
     });
+    return;
+  }
+
+  next();
+};
+
+export const validateStartKyc2: RequestHandler = (req, res, next) => {
+  const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
+
+  if (!taxId) {
+    res.status(400).json({ error: 'Missing taxId parameter' });
+    return;
+  }
+
+  if (!isValidKYCDocType(documentType)) {
+    res.status(400).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
     return;
   }
 

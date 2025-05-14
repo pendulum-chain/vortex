@@ -15,6 +15,8 @@ export interface Event {
 
 interface EventData {
   status: string;
+  kycStatus: string;
+  level: number;
   [key: string]: unknown;
 }
 export class EventPoller {
@@ -127,8 +129,8 @@ export class EventPoller {
     }
   }
 
-  public async getLatestEventForUser(userId: string): Promise<Event | null> {
-    const events = await this.brlaApiService.getAllEventsByUser(userId);
+  public async getLatestEventForUser(userId: string, subscription: string | null = null): Promise<Event | null> {
+    const events = await this.brlaApiService.getAllEventsByUser(userId, subscription);
 
     if (!events || events.length === 0) {
       return null;

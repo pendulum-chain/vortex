@@ -20,10 +20,10 @@ import { RampTerms } from '../../RampTerms';
 import { useValidateTerms } from '../../../stores/termsStore';
 import { useRampModalActions } from '../../../stores/rampModalStore';
 import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
-import { useSetRampUrlParams } from '../../../hooks/useRampUrlParams';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useInitializeFailedMessage } from '../../../stores/rampStore';
+import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -34,6 +34,7 @@ export const Onramp = () => {
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
+  const quoteLoading = useQuoteLoading();
 
   const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
 
@@ -96,12 +97,13 @@ export const Onramp = () => {
         tokenSymbol={toToken.assetSymbol}
         onClick={() => openTokenSelectModal('to')}
         registerInput={form.register('outputAmount')}
+        loading={quoteLoading}
         disabled={!toAmount}
         readOnly={true}
         id="outputAmount"
       />
     ),
-    [toToken, form, toAmount, openTokenSelectModal],
+    [toToken.networkAssetIcon, toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal],
   );
 
   const handleConfirm = useCallback(() => {

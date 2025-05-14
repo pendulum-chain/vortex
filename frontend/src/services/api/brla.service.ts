@@ -1,6 +1,12 @@
 import { BrlaEndpoints, EvmAddress } from 'shared';
 import { apiRequest } from './api-client';
 
+export enum KYCDocType {
+  RG = 'RG',
+  CNH = 'CNH',
+}
+
+export type KYCDataUploadFileFiles = BrlaEndpoints.KYCDataUploadFileFiles;
 /**
  * Service for interacting with BRLA API endpoints
  */
@@ -107,11 +113,15 @@ export class BrlaService {
   }
 
   /**
-   * Trigger a pay-in operation
-   * @param request The pay-in request
-   * @returns Empty response with 200 status
+   * Start KYC level 2 process
+   * @param request Tax id and document type that will be used.
+   * @returns The url's to upload the documents.
    */
-  static async triggerPayIn(request: BrlaEndpoints.TriggerPayInRequest): Promise<BrlaEndpoints.TriggerPayInResponse> {
-    return apiRequest<BrlaEndpoints.TriggerPayInResponse>('post', `${this.BASE_PATH}/triggerPayIn`, request);
-  }
+    static async startKYC2(
+      request: BrlaEndpoints.StartKYC2Request,
+    ): Promise<BrlaEndpoints.StartKYC2Response> {
+      return apiRequest<BrlaEndpoints.StartKYC2Response>('post', `${this.BASE_PATH}/startKYC2`, request);
+    }
+  
+
 }

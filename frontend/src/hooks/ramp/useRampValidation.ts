@@ -1,13 +1,14 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import Big from 'big.js';
 import {
+  FiatToken,
   FiatTokenDetails,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-  Networks,
   OnChainTokenDetails,
   QuoteEndpoints,
 } from 'shared';
+import { isFiatTokenDisabled, getTokenDisabledReason } from '../../config/tokenAvailability';
 
 import { useOnchainTokenBalance } from '../useOnchainTokenBalance';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
@@ -132,6 +133,22 @@ function validateOfframp(
   return null;
 }
 
+function validateTokenAvailability(
+  t: TFunction<'translation', undefined>,
+  fiatToken: FiatToken,
+  trackEvent: (event: TrackableEvent) => void,
+): string | null {
+  if (isFiatTokenDisabled(fiatToken)) {
+    const reason = getTokenDisabledReason(fiatToken);
+    trackEvent({
+      event: 'token_unavailable',
+      token: fiatToken,
+    });
+    return t(reason);
+  }
+  return null;
+}
+
 export const useRampValidation = () => {
   const { t } = useTranslation();
 
@@ -160,6 +177,10 @@ export const useRampValidation = () => {
   const getCurrentErrorMessage = useCallback(() => {
     if (isDisconnected) return;
 
+    // First check if the fiat token is enabled
+    const tokenAvailabilityError = validateTokenAvailability(t, fiatToken, trackEvent);
+    if (tokenAvailabilityError) return tokenAvailabilityError;
+
     let validationError = null;
 
     if (isOnramp) {
@@ -180,13 +201,11 @@ export const useRampValidation = () => {
     }
 
     if (validationError) return validationError;
-    if (quoteLoading) return t('components.swap.validation.calculatingQuote');
 
     return null;
   }, [
     isDisconnected,
     isOnramp,
-    quoteLoading,
     t,
     inputAmount,
     fromToken,
@@ -194,6 +213,7 @@ export const useRampValidation = () => {
     toToken,
     quote,
     userInputTokenBalance?.balance,
+    fiatToken,
   ]);
 
   return {
