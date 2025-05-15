@@ -5,6 +5,7 @@ export enum TokenType {
   AssetHub = 'assethub',
   Stellar = 'stellar',
   Moonbeam = 'moonbeam',
+  Solana = 'solana',
 }
 
 export enum FiatToken {

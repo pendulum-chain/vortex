@@ -13,6 +13,7 @@ import USDC_BSC from '../assets/coins/USDC_BSC.svg';
 import USDT_BSC from '../assets/coins/USDT_BSC.svg';
 import USDC_ETHEREUM from '../assets/coins/USDC_ETHEREUM.svg';
 import USDT_ETHEREUM from '../assets/coins/USDT_ETHEREUM.svg';
+import USDC_SOLANA from '../assets/coins/USDC_SOLANA.svg';
 
 import USDC_POLYGON from '../assets/coins/USDC_POLYGON.svg';
 import USDT_POLYGON from '../assets/coins/USDT_POLYGON.svg';
@@ -40,6 +41,7 @@ const ICONS = {
   polygonUSDC: USDC_POLYGON,
   polygonUSDT: USDT_POLYGON,
   assethubUSDC: USDC_ASSETHUB,
+  solanaUSDC: USDC_SOLANA,
   ars: ARS,
   brl: BRL,
 };

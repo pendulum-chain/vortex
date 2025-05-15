@@ -26,18 +26,21 @@ import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
 } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
+
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format
  * @returns Formatted string with unnecessary trailing zeros removed but at least two decimal places
  */
-function trimTrailingZeros(decimalString: string): string {
-  if (!decimalString?.includes('.')) {
-    return `${decimalString}.00`;
+function trimTrailingZeros(decimalString: string | number): string {
+  const stringValue = typeof decimalString === 'number' ? decimalString.toString() : decimalString;
+
+  if (!stringValue?.includes('.')) {
+    return `${stringValue}.00`;
   }
 
   // Split string at decimal point
-  const [integerPart, fractionalPart] = decimalString.split('.');
+  const [integerPart, fractionalPart] = stringValue.split('.');
 
   // Trim trailing zeros but ensure there are at least 2 decimal places
   let trimmedFraction = fractionalPart.replace(/0+$/g, '');
@@ -64,7 +67,7 @@ export class QuoteService extends BaseRampService {
     },
     on: {
       from: ['pix'],
-      to: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
+      to: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon', 'solana'],
     },
   };
 
@@ -238,12 +241,19 @@ export class QuoteService extends BaseRampService {
           });
         }
 
+        // Use different dummy for EVM vs Solana
+        const evmDummy = '0x30a300612ab372cc73e53ffe87fb73d62ed68da3';
+        const destinationDummy =
+          to === 'solana'
+            ? 'GTX1Ke3yg26FbT7GYcSiSMe3yR15vimime6eEZTVGDEb'
+            : evmDummy;
+
         const routeParams = createOnrampRouteParams(
-          '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
+          evmDummy, // We always start squidrouter on an evm network ie Moonbeam
           amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
           outTokenDetails!,
           getNetworkFromDestination(to)!,
-          '0x30a300612ab372cc73e53ffe87fb73d62ed68da3',
+          destinationDummy
         );
 
         const routeResult = await getRoute(routeParams);
