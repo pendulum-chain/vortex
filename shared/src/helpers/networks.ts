@@ -1,4 +1,4 @@
-import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
+import {polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum} from 'viem/chains';
 
 export type PaymentMethod = 'pix' | 'sepa' | 'cbu';
 export type DestinationType = `${Networks}` | PaymentMethod;
@@ -14,6 +14,7 @@ export enum Networks {
   Moonbeam = 'moonbeam',
   Pendulum = 'pendulum',
   Stellar = 'stellar',
+  Solana = 'solana',
 }
 
 /**
@@ -39,7 +40,7 @@ const DEFAULT_NETWORK = Networks.AssetHub;
 type EVMNetworks = Exclude<Networks, Networks.AssetHub>;
 
 interface NetworkMetadata {
-  id: number;
+  id: number | string;
   displayName: string;
   isEVM: boolean;
 }
@@ -85,6 +86,11 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     displayName: 'Moonbeam',
     isEVM: true,
   },
+  [Networks.Solana]: {
+    id: "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    displayName: 'Solana',
+    isEVM: true, // Technically not EVM, but we treat it as such for compatibility with the wallet connector
+  },
   [Networks.Pendulum]: {
     id: PENDULUM_CHAIN_ID,
     displayName: 'Pendulum',
@@ -101,7 +107,7 @@ export function isNetworkEVM(network: Networks): network is EVMNetworks {
   return NETWORK_METADATA[network].isEVM;
 }
 
-export function getNetworkId(network: Networks): number {
+export function getNetworkId(network: Networks): number | string {
   return NETWORK_METADATA[network].id;
 }
 

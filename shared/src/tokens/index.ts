@@ -8,6 +8,7 @@ export * from './types/evm';
 export * from './types/assethub';
 export * from './types/stellar';
 export * from './types/moonbeam';
+export * from './types/solana';
 
 // Constants
 export * from './constants/pendulum';
@@ -18,6 +19,7 @@ export * from './evm/config';
 export * from './assethub/config';
 export * from './stellar/config';
 export * from './moonbeam/config';
+export * from './solana/config';
 
 // Utils
 export * from './utils/typeGuards';
