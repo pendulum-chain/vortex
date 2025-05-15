@@ -17,9 +17,11 @@ export class CompletePhaseHandler extends BasePhaseHandler {
 
     // Call into the squidrouter status endpoint to get the final status of the transaction
     // We don't need to wait nor handle the result. It's for them to track our transaction.
-    getStatus(state.state.squidRouterSwapHash).catch((error) =>
-      logger.error('Error getting status of squidrouter transaction', error),
-    );
+    if (state.state.squidRouterSwapHash) {
+      getStatus(state.state.squidRouterSwapHash).catch((error) =>
+        logger.error('Error getting status of squidrouter transaction', error),
+      );
+    }
 
     return state;
   }
