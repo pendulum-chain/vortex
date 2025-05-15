@@ -22,7 +22,7 @@ const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkBu
   <motion.button
     className={cn(
       'flex items-center gap-2 px-2 sm:px-4 py-3 rounded-full bg-base-100',
-      disabled && 'opacity-50 cursor-not-allowed',
+      disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
     )}
     onClick={onClick}
     whileHover={{ scale: disabled ? 1 : 1.02 }}

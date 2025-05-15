@@ -25,7 +25,7 @@ interface RampFormActions {
   };
 }
 
-const storedNetwork = localStorage.getItem('SELECTED_NETWORK')
+const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
 
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   inputAmount: DEFAULT_BRL_AMOUNT,
