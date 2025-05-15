@@ -40,11 +40,20 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       throw this.createUnrecoverableError(`Quote ticket not found for ID: ${state.quoteId}`);
     }
 
+    // Determine next phase
+    let nextPhase: RampPhase | null = null;
+    if (state.type === 'on') {
+      nextPhase = 'subsidizePostSwap';
+    } else {
+      nextPhase = 'subsidizePreSwap';
+    }
+
     try {
-      // Get the pre-signed fee distribution transaction
-      const { txData } = this.getPresignedTransaction(state, 'distributeFees');
-      if (!txData) {
-        throw this.createUnrecoverableError('Pre-signed fee distribution transaction not found');
+      // Get the pre-signed fee distribution transaction. This can be undefined if no fees are to be distributed.
+      const distributeFeeTransaction = this.getPresignedTransaction(state, 'distributeFees');
+      if (distributeFeeTransaction === undefined) {
+        logger.info('No fee distribution transaction data found. Skipping fee distribution.');
+        return this.transitionToNextPhase(state, nextPhase);
       }
 
       console.log('Before fetching api');
@@ -59,14 +68,6 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     } catch (error: any) {
       logger.error(`Error distributing fees for ramp ${state.id}:`, error);
       throw this.createRecoverableError(`Failed to distribute fees: ${error.message || 'Unknown error'}`);
-    }
-
-    // Determine next phase
-    let nextPhase: RampPhase | null = null;
-    if (state.type === 'on') {
-      nextPhase = 'subsidizePostSwap';
-    } else {
-      nextPhase = 'subsidizePreSwap';
     }
 
     return this.transitionToNextPhase(state, nextPhase);
