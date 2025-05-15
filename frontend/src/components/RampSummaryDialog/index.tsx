@@ -10,6 +10,8 @@ import { RampDirection } from '../RampToggle';
 import { TransactionTokensDisplay } from './TransactionTokensDisplay';
 import { RampSummaryButton } from './RampSummaryButton';
 import { useRampDirection } from '../../stores/rampDirectionStore';
+import { SigningBoxContent } from '../SigningBox/SigningBoxContent';
+import { useSigningBoxState } from '../../hooks/useSigningBoxState';
 
 export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
@@ -22,6 +24,8 @@ export const RampSummaryDialog: FC = () => {
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
+
+  const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
   if (!visible) return null;
   if (!executionInput) return null;
@@ -41,9 +45,24 @@ export const RampSummaryDialog: FC = () => {
     ? t('components.dialogs.RampSummaryDialog.headerText.buy')
     : t('components.dialogs.RampSummaryDialog.headerText.sell');
 
-  const actions = <RampSummaryButton />;
+  const actions = signingBoxVisible ? <></> : <RampSummaryButton />;
+
   const content = (
-    <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampDirection} />
+    <>
+      <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampDirection} />
+
+      {signingBoxVisible && (
+        <div className="mt-6 max-w-[320px] mx-auto">
+          <SigningBoxContent
+            progress={progress}
+            signatureState={signatureState}
+            confirmations={confirmations}
+            showHeader={false}
+            className="rounded"
+          />
+        </div>
+      )}
+    </>
   );
 
   return <Dialog content={content} visible={visible} actions={actions} headerText={headerText} onClose={onClose} />;
