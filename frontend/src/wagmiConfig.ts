@@ -62,6 +62,12 @@ createAppKit({
     'a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393', // phantom
     '18388be9ac2d02726dbac9777c96efaac06d744b2f6d580fccdd4127a6d01fd1', // rabby
   ],
+  themeMode: 'light',
+  themeVariables: {
+    '--w3m-accent': '#162456',
+  },
+  enableWalletGuide: false,
+  enableEIP6963: true,
   metadata,
 });
 
