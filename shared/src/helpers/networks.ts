@@ -87,7 +87,7 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     isEVM: true,
   },
   [Networks.Solana]: {
-    id: "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    id: "solana-mainnet-beta", // This is used by squidrouter
     displayName: 'Solana',
     isEVM: true, // Technically not EVM, but we treat it as such for compatibility with the wallet connector
   },
