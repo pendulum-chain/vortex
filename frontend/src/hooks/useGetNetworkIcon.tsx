@@ -5,6 +5,7 @@ import BSC from '../assets/chains/bsc.svg';
 import ARBITRUM from '../assets/chains/arbitrum.svg';
 import BASE from '../assets/chains/base.svg';
 import AVALANCHE from '../assets/chains/avalanche.svg';
+import SOLANA from '../assets/chains/solana.svg';
 
 import { Networks } from 'shared';
 
@@ -16,6 +17,7 @@ export const NETWORK_ICONS: Record<Networks, string> = {
   [Networks.Arbitrum]: ARBITRUM,
   [Networks.Base]: BASE,
   [Networks.Avalanche]: AVALANCHE,
+  [Networks.Solana]: SOLANA,
   [Networks.Moonbeam]: '',
   [Networks.Pendulum]: '',
   [Networks.Stellar]: '',
