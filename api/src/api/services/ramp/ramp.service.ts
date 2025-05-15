@@ -221,7 +221,7 @@ export class RampService extends BaseRampService {
       // Offramps starting on Assethub need to have the assetHubToPendulumHash
       // Offramps starting on an EVM network need to have the squidRouterApproveHash and squidRouterSwapHash
       // Onramps might need other checks.
-      //const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
+      // const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();
@@ -238,6 +238,7 @@ export class RampService extends BaseRampService {
 
       await this.updateRampState(request.rampId, {
         presignedTxs: request.presignedTxs,
+        state: { ...rampState.state, ...request.additionalData },
       });
 
       // Start processing the ramp asynchronously
