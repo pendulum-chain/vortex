@@ -32,6 +32,7 @@
     "@polkadot/util-crypto": "^13.2.1",
     "@scure/bip39": "^1.5.4",
     "@wagmi/core": "^2.16.7",
+    "axios": "^1.9.0",
     "big.js": "^6.2.1",
     "body-parser": "^1.17.0",
     "compression": "^1.6.2",

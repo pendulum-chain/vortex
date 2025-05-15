@@ -89,7 +89,7 @@ export class BrlaTeleportService {
       receiverAddress,
       memo,
     };
-    logger.info(`Requesting teleport "${compositeKey}":`, teleport);
+    logger.info(`Requesting teleport ${compositeKey}: ${teleport}`);
     this.teleports.set(compositeKey, teleport);
     this.maybeStartPeriodicChecks();
   }
