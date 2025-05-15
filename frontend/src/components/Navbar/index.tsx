@@ -4,6 +4,7 @@ import whiteLogo from '../../assets/logo/white.png';
 import whiteMobileLogo from '../../assets/logo/circle.png';
 import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
 import { NetworkSelector } from '../NetworkSelector';
+import { LanguageSelector } from '../LanguageSelector';
 import { useNetwork } from '../../contexts/network';
 
 export const Navbar = () => {
@@ -27,6 +28,7 @@ export const Navbar = () => {
           <img src={whiteMobileLogo} alt="Vortex Logo" className="max-w-12 block sm:hidden" />
         </div>
         <div className="flex items-center">
+          <LanguageSelector disabled={networkSelectorDisabled} />
           <NetworkSelector disabled={networkSelectorDisabled} />
           <ConnectWalletButton />
         </div>
