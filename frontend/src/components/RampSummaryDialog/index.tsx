@@ -10,7 +10,7 @@ import { RampDirection } from '../RampToggle';
 import { TransactionTokensDisplay } from './TransactionTokensDisplay';
 import { RampSummaryButton } from './RampSummaryButton';
 import { useRampDirection } from '../../stores/rampDirectionStore';
-import { SigningBoxContent } from '../SigningBox/SigningBoxContent';
+import { SigningBoxButton, SigningBoxContent } from '../SigningBox/SigningBoxContent';
 import { useSigningBoxState } from '../../hooks/useSigningBoxState';
 
 export const RampSummaryDialog: FC = () => {
@@ -45,7 +45,11 @@ export const RampSummaryDialog: FC = () => {
     ? t('components.dialogs.RampSummaryDialog.headerText.buy')
     : t('components.dialogs.RampSummaryDialog.headerText.sell');
 
-  const actions = signingBoxVisible ? <></> : <RampSummaryButton />;
+  const actions = signingBoxVisible ? (
+    <SigningBoxButton signatureState={signatureState} confirmations={confirmations} />
+  ) : (
+    <RampSummaryButton />
+  );
 
   const content = (
     <>
@@ -53,13 +57,7 @@ export const RampSummaryDialog: FC = () => {
 
       {signingBoxVisible && (
         <div className="mt-6 max-w-[320px] mx-auto">
-          <SigningBoxContent
-            progress={progress}
-            signatureState={signatureState}
-            confirmations={confirmations}
-            showHeader={false}
-            className="rounded"
-          />
+          <SigningBoxContent progress={progress} />
         </div>
       )}
     </>
