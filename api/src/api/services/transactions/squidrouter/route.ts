@@ -4,6 +4,9 @@ import { encodeFunctionData } from 'viem';
 import { getSquidRouterConfig, squidRouterConfigBase } from './config';
 import erc20ABI from '../../../../contracts/ERC20';
 import squidReceiverABI from '../../../../../../mooncontracts/splitReceiverABI.json';
+import logger from '../../../../config/logger';
+
+const SQUIDROUTER_BASE_URL = 'https://v2.api.squidrouter.com/v2';
 
 export interface RouteParams {
   fromAddress: string;
@@ -54,9 +57,9 @@ export function createOnrampRouteParams(
 }
 
 export async function getRoute(params: RouteParams) {
-  // This is the integrator ID for the Squid API at 'https://apiplus.squidrouter.com/v2'
+  // This is the integrator ID for the Squidrouter API
   const { integratorId } = squidRouterConfigBase;
-  const url = 'https://apiplus.squidrouter.com/v2/route';
+  const url = `${SQUIDROUTER_BASE_URL}/route`;
 
   try {
     const result = await axios.post(url, params, {
@@ -73,6 +76,32 @@ export async function getRoute(params: RouteParams) {
       console.error('Squidrouter API error:', (error as { response: { data: unknown } }).response.data);
     }
     console.error('Error with parameters:', params);
+    throw error;
+  }
+}
+
+// Function to get the status of the transaction using Squid API
+export async function getStatus(transactionId: string | undefined) {
+  const { integratorId } = squidRouterConfigBase;
+  if (!transactionId) {
+    throw new Error('Transaction ID is undefined');
+  }
+
+  try {
+    const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
+      params: {
+        transactionId,
+      },
+      headers: {
+        'x-integrator-id': integratorId,
+      },
+    });
+    return result.data;
+  } catch (error: any) {
+    if (error.response) {
+      console.error('API error:', error.response.data);
+    }
+    logger.error(error);
     throw error;
   }
 }

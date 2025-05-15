@@ -6,12 +6,33 @@ import { storageService } from '../../services/storage/local';
 import { LocalStorageKeys } from '../useLocalStorage';
 import { useToastMessage } from '../../helpers/notifications';
 
+declare global {
+  interface Window {
+    walletExtension: {
+      isNovaWallet: boolean;
+    };
+  }
+}
+
 const alwaysShowWallets = ['talisman', 'subwallet-js', 'polkadot-js'];
+
+function filterNovaWallet(wallet: Wallet) {
+  const isNovaWallet = window.walletExtension?.isNovaWallet;
+  return isNovaWallet || wallet.title !== 'Nova Wallet';
+}
+
+function getFilteredWallets() {
+  const wallets = getWallets();
+
+  return wallets
+    .filter((wallet) => alwaysShowWallets.includes(wallet.extensionName) || wallet.installed)
+    .filter(filterNovaWallet);
+}
 
 export const useConnectPolkadotWallet = () => {
   const [selectedWallet, setSelectedWallet] = useState<Wallet | undefined>();
   const { showToast, ToastMessage } = useToastMessage();
-  const wallets = getWallets().filter((wallet) => alwaysShowWallets.includes(wallet.extensionName) || wallet.installed);
+  const wallets = getFilteredWallets();
 
   const {
     mutate: selectWallet,

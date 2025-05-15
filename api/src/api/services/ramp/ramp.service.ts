@@ -139,11 +139,7 @@ export class RampService extends BaseRampService {
           });
         }
 
-        brCode = await this.validateBrlaOnrampRequest(
-          additionalData.taxId,
-          moonbeamEphemeralEntry.address as `0x${string}`,
-          quote.inputAmount,
-        );
+        brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
@@ -225,7 +221,7 @@ export class RampService extends BaseRampService {
       // Offramps starting on Assethub need to have the assetHubToPendulumHash
       // Offramps starting on an EVM network need to have the squidRouterApproveHash and squidRouterSwapHash
       // Onramps might need other checks.
-      //const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
+      // const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();
@@ -242,6 +238,7 @@ export class RampService extends BaseRampService {
 
       await this.updateRampState(request.rampId, {
         presignedTxs: request.presignedTxs,
+        state: { ...rampState.state, ...request.additionalData },
       });
 
       // Start processing the ramp asynchronously
@@ -367,11 +364,7 @@ export class RampService extends BaseRampService {
   /**
    * BRLA. Validate the onramp request. Returns appropiate pay in code if valid.
    */
-  public async validateBrlaOnrampRequest(
-    taxId: string,
-    ephemeralAddress: `0x${string}`,
-    amount: string,
-  ): Promise<string> {
+  public async validateBrlaOnrampRequest(taxId: string, quote: QuoteTicket, amount: string): Promise<string> {
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
@@ -391,7 +384,7 @@ export class RampService extends BaseRampService {
     const brCode = await brlaApiService.generateBrCode({
       subaccountId: subaccount.id,
       amount: String(amount),
-      referenceLabel: generateReferenceLabel(ephemeralAddress),
+      referenceLabel: generateReferenceLabel(quote),
     });
 
     return brCode.brCode;
