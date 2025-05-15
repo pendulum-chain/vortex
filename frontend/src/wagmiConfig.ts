@@ -1,11 +1,13 @@
-import { polygon, bsc, arbitrum, base, avalanche, mainnet } from '@reown/appkit/networks';
+import { arbitrum, avalanche, base, bsc, mainnet, polygon, solana } from '@reown/appkit/networks';
 import { http } from 'wagmi';
 import { config } from './config';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { createAppKit } from '@reown/appkit/react';
+import { SolanaAdapter } from '@reown/appkit-adapter-solana/react';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 
 // If we have an Alchemy API key, we can use it to fetch data from Polygon, otherwise use the default endpoint
-const transports = config.alchemyApiKey
+const wagmiTransports = config.alchemyApiKey
   ? {
       [polygon.id]: http(`https://polygon-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
       [mainnet.id]: http(`https://eth-mainnet.g.alchemy.com/v2/${config.alchemyApiKey}`),
@@ -32,20 +34,26 @@ const metadata = {
 };
 
 // 3. Set the networks
-const networks = [mainnet, polygon, bsc, arbitrum, base, avalanche];
+const networks = [mainnet, polygon, bsc, arbitrum, base, avalanche, solana];
 
 const projectId = '495a5f574d57e27fd65caa26d9ea4f10';
+
 // 4. Create Wagmi Adapter
 const wagmiAdapter = new WagmiAdapter({
   networks,
   projectId,
   ssr: false,
-  transports,
+  transports: wagmiTransports,
+});
+
+const solanaAdapter = new SolanaAdapter({
+  wallets: [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
 });
 
 // 5. Create modal
 createAppKit({
-  adapters: [wagmiAdapter],
+  // @ts-ignore
+  adapters: [wagmiAdapter, solanaAdapter],
   // @ts-expect-error - networks is not typed
   networks,
   projectId,
