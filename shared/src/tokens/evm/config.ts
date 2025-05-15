@@ -299,7 +299,7 @@ export const evmTokenConfig: Record<Networks, Record<EvmToken, EvmTokenDetails>>
       ...PENDULUM_USDC_AXL,
     },
   },
-  // TODO Stellar is a placeholder network, should not need this.
+  // TODO Solana is a placeholder network, should not need this.
   [Networks.Solana]: {
     [EvmToken.USDC]: {
       assetSymbol: 'USDC',
