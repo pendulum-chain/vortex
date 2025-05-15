@@ -43,6 +43,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
     initial: t('pages.progress.initial'),
     stellarCreateAccount: t('pages.progress.createStellarAccount'),
     fundEphemeral: t('pages.progress.fundEphemeral'),
+    distributeFees: getSwappingMessage(),
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
     subsidizePreSwap: getSwappingMessage(),

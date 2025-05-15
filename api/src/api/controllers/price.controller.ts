@@ -100,7 +100,9 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
       res.status(httpStatus.BAD_GATEWAY).json({ error: err.message });
     } else {
       console.error('Unexpected server error:', err);
-      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'An internal server error occurred while fetching the price.' });
+      res
+        .status(httpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: 'An internal server error occurred while fetching the price.' });
     }
   }
 };

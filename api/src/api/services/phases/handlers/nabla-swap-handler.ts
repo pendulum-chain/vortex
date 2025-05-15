@@ -1,6 +1,6 @@
 import { ExecuteMessageResult, readMessage, submitExtrinsic } from '@pendulum-chain/api-solang';
 import Big from 'big.js';
-import { NABLA_ROUTER, PendulumDetails, RampPhase, decodeSubmittableExtrinsic } from 'shared';
+import { NABLA_ROUTER, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import { Abi } from '@polkadot/api-contract';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
@@ -71,6 +71,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Won't execute the swap now. The estimated output amount is too low.");
       }
 
+      if (typeof nablaSwapTransaction !== 'string') {
+        throw new Error(
+          'NablaSwapPhaseHandler: Presigned transaction is not a string -> not an encoded Nabla transaction.',
+        );
+      }
+
       const swapExtrinsic = decodeSubmittableExtrinsic(nablaSwapTransaction, pendulumNode.api);
       const result = await submitExtrinsic(swapExtrinsic);
 
@@ -92,7 +98,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error(`Could not swap the required amount of token: ${errorMessage}`);
     }
 
-    return this.transitionToNextPhase(state, 'subsidizePostSwap');
+    const nextPhase = state.type === 'on' ? 'distributeFees' : 'subsidizePostSwap';
+    return this.transitionToNextPhase(state, nextPhase);
   }
 }
 

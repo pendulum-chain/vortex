@@ -34,7 +34,6 @@ export class SlackNotifier {
   }
 
   public async sendMessage(message: SlackMessage): Promise<void> {
-
     const slackUserId = process.env.SLACK_USER_ID;
 
     const messageWithUserTag = {

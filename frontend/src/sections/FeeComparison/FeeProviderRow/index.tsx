@@ -62,7 +62,7 @@ export function FeeProviderRow({
     if (result?.status === 'fulfilled' && result.value.fiatAmount) {
       return Big(result.value.fiatAmount);
     }
-    
+
     return undefined;
   }, [provider.name, vortexPrice, isOnramp, result]);
 

@@ -1,7 +1,7 @@
-import { BasePhaseHandler } from '../base-phase-handler';
 import { FiatToken, RampPhase } from 'shared';
-import RampState from '../../../../models/rampState.model';
 import Big from 'big.js';
+import { BasePhaseHandler } from '../base-phase-handler';
+import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { ApiManager } from '../../pendulum/apiManager';
 import { getFundingAccount } from '../../../controllers/subsidize.controller';
@@ -58,18 +58,18 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
   protected nextPhaseSelector(state: RampState): RampPhase {
     // onramp cases
-    if (state.type === 'on' && state.to !== 'assethub') {
+    if (state.type === 'on') {
+      if (state.to === 'assethub') {
+        return 'pendulumToAssethub';
+      }
       return 'pendulumToMoonbeam';
-    } else if (state.type === 'on' && state.to === 'assethub') {
-      return 'pendulumToAssethub';
     }
 
     // off ramp cases
     if (state.state.outputTokenType === FiatToken.BRL) {
       return 'pendulumToMoonbeam';
-    } else {
-      return 'spacewalkRedeem';
     }
+    return 'spacewalkRedeem';
   }
 }
 

@@ -2,11 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { KycLevel2Toggle } from '../../KycLevel2Toggle';
-import {
-  CameraIcon,
-  DocumentTextIcon,
-  CheckCircleIcon,
-} from '@heroicons/react/24/outline';
+import { CameraIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { BrlaService, KYCDocType } from '../../../services/api';
 import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 
@@ -37,10 +33,7 @@ async function uploadFileAsBuffer(file: File, url: string) {
   }
 }
 
-export const DocumentUpload: React.FC<DocumentUploadProps> = ({
-  onSubmitHandler,
-  onBackClick,
-}) => {
+export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler, onBackClick }) => {
   const { t } = useTranslation();
   const taxId = useTaxId();
 
@@ -64,7 +57,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const validateAndSetFile = (
     file: File | null,
     setter: React.Dispatch<React.SetStateAction<File | null>>,
-    validSetter: React.Dispatch<React.SetStateAction<boolean>>
+    validSetter: React.Dispatch<React.SetStateAction<boolean>>,
   ) => {
     if (!file) {
       setter(null);
@@ -91,16 +84,14 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: React.Dispatch<React.SetStateAction<File | null>>,
-    validSetter: React.Dispatch<React.SetStateAction<boolean>>
+    validSetter: React.Dispatch<React.SetStateAction<boolean>>,
   ) => {
     const file = e.target.files?.[0] || null;
     validateAndSetFile(file, setter, validSetter);
   };
 
   const isSubmitDisabled =
-    loading ||
-    !selfieValid ||
-    (docType === KYCDocType.RG ? !frontValid || !backValid : !frontValid);
+    loading || !selfieValid || (docType === KYCDocType.RG ? !frontValid || !backValid : !frontValid);
 
   const handleSubmit = async () => {
     setError('');
@@ -129,7 +120,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
           uploadFileAsBuffer(front, response.uploadUrls.RGFrontUploadUrl),
-          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl)
+          uploadFileAsBuffer(back, response.uploadUrls.RGBackUploadUrl),
         );
       } else {
         if (!selfie || !front) {
@@ -139,7 +130,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
         }
         uploads.push(
           uploadFileAsBuffer(selfie, response.uploadUrls.selfieUploadUrl),
-          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl)
+          uploadFileAsBuffer(front, response.uploadUrls.CNHUploadUrl),
         );
       }
 
@@ -156,20 +147,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     label: string,
     onChange: React.ChangeEventHandler<HTMLInputElement> | undefined,
     valid: boolean,
-    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>,
   ) => (
     <label className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-500">
       <Icon className="w-12 h-12 text-gray-400 mb-2" />
       <span className="text-gray-600 mb-1">{label}</span>
-      <input
-        type="file"
-        accept=".png,.jpeg,.jpg,.pdf"
-        onChange={onChange}
-        className="hidden"
-      />
-      {valid && (
-        <CheckCircleIcon className="absolute top-2 right-2 w-6 h-6 text-green-500" />
-      )}
+      <input type="file" accept=".png,.jpeg,.jpg,.pdf" onChange={onChange} className="hidden" />
+      {valid && <CheckCircleIcon className="absolute top-2 right-2 w-6 h-6 text-green-500" />}
     </label>
   );
 
@@ -180,24 +164,17 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       transition={{ duration: 0.3 }}
       className="px-4 pt-6 pb-8 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 bg-white"
     >
-      <h2 className="text-2xl font-semibold text-center text-blue-700 mb-6">
-        {t('components.documentUpload.title')}
-      </h2>
-      <p className="text-center text-gray-600 mb-4">
-        {t('components.documentUpload.description')}
-      </p>
+      <h2 className="text-2xl font-semibold text-center text-blue-700 mb-6">{t('components.documentUpload.title')}</h2>
+      <p className="text-center text-gray-600 mb-4">{t('components.documentUpload.description')}</p>
 
-      <KycLevel2Toggle
-        activeDocType={docType}
-        onToggle={setDocType}
-      />
+      <KycLevel2Toggle activeDocType={docType} onToggle={setDocType} />
 
       <div className="grid grid-cols-1 gap-4">
         {renderField(
           t('components.documentUpload.fields.uploadSelfie'),
           (e) => handleFileChange(e, setSelfie, setSelfieValid),
           selfieValid,
-          CameraIcon
+          CameraIcon,
         )}
         {docType === KYCDocType.RG && (
           <>
@@ -205,24 +182,23 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
               t('components.documentUpload.fields.rgFront'),
               (e) => handleFileChange(e, setFront, setFrontValid),
               frontValid,
-              DocumentTextIcon
+              DocumentTextIcon,
             )}
             {renderField(
               t('components.documentUpload.fields.rgBack'),
               (e) => handleFileChange(e, setBack, setBackValid),
               backValid,
-              DocumentTextIcon
+              DocumentTextIcon,
             )}
           </>
         )}
-        {docType === KYCDocType.CNH && (
+        {docType === KYCDocType.CNH &&
           renderField(
             t('components.documentUpload.fields.cnhDocument'),
             (e) => handleFileChange(e, setFront, setFrontValid),
             frontValid,
-            DocumentTextIcon
-          )
-        )}
+            DocumentTextIcon,
+          )}
       </div>
 
       {error && <p className="text-red-500 text-center mt-4">{error}</p>}
