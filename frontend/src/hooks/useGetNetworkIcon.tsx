@@ -12,7 +12,7 @@ export const NETWORK_ICONS: Record<Networks, string> = {
   [Networks.AssetHub]: ASSET_HUB,
   [Networks.Polygon]: POLYGON,
   [Networks.Ethereum]: ETHEREUM,
-  [Networks.BSC]: BSC,
+  // [Networks.BSC]: BSC,
   [Networks.Arbitrum]: ARBITRUM,
   [Networks.Base]: BASE,
   [Networks.Avalanche]: AVALANCHE,
