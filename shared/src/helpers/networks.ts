@@ -8,7 +8,7 @@ export enum Networks {
   Arbitrum = 'arbitrum',
   Avalanche = 'avalanche',
   Base = 'base',
-  BSC = 'bsc',
+  // BSC = 'bsc',
   Ethereum = 'ethereum',
   Polygon = 'polygon',
   Moonbeam = 'moonbeam',
@@ -60,11 +60,11 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
     displayName: 'Ethereum',
     isEVM: true,
   },
-  [Networks.BSC]: {
-    id: bsc.id,
-    displayName: 'BNB Smart Chain',
-    isEVM: true,
-  },
+  // [Networks.BSC]: {
+  //   id: bsc.id,
+  //   displayName: 'BNB Smart Chain',
+  //   isEVM: true,
+  // },
   [Networks.Arbitrum]: {
     id: arbitrum.id,
     displayName: 'Arbitrum One',
