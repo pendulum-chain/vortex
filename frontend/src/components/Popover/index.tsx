@@ -1,44 +1,24 @@
-import { ReactNode, useCallback, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { ReactNode, useEffect, useRef } from 'react';
 
 interface PopoverProps {
   children: ReactNode;
   className?: string;
-  id?: string;
+  isVisible?: boolean;
 }
 
-export const Popover = ({ children, className = '', id }: PopoverProps) => {
-  // const popoverRef = useRef<HTMLDivElement>(null);
-  // const modalsElement = document.getElementById('modals');
+export const Popover = ({ children, className = '', isVisible = true }: PopoverProps) => {
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  console.log('Popover render');
-
-  const setPopoverRef = useCallback((node: HTMLDivElement | null) => {
-    console.log('node', node);
-    if (node) {
-      if (node.matches && !node.matches(':popover-open')) {
-        console.log('showPopover');
-        node.showPopover();
-      } else if (node.matches && node.matches(':popover-open')) {
-        node.hidePopover();
-      }
+  useEffect(() => {
+    if (isVisible) {
+      popoverRef.current?.showPopover();
+    } else {
+      popoverRef.current?.hidePopover();
     }
-    // popoverRef.current = node;
-  }, []);
-
-  // useEffect(() => {
-  //   return () => {
-  //     const popover = popoverRef.current;
-  //     if (popover && popover.matches(':popover-open')) {
-  //       popover.hidePopover();
-  //     }
-  //   };
-  // }, []);
-
-  // if (!modalsElement) return null;
+  }, [isVisible]);
 
   return (
-    <div ref={setPopoverRef} popover="manual" id={id} className={className}>
+    <div ref={popoverRef} popover="manual" className={className}>
       {children}
     </div>
   );
