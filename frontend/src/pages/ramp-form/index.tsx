@@ -4,7 +4,6 @@ import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { RampDirection, RampToggle } from '../../components/RampToggle';
 import { RampSummaryDialog } from '../../components/RampSummaryDialog';
 import { AirdropBanner } from '../../components/AirdropBanner';
-import { SigningBox } from '../../components/SigningBox';
 import { Offramp } from '../../components/Ramp/Offramp';
 import { PoweredBy } from '../../components/PoweredBy';
 import { Onramp } from '../../components/Ramp/Onramp';

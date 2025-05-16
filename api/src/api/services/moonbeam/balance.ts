@@ -53,8 +53,6 @@ export function checkEvmBalancePeriodically(
           args: [brlaEvmAddress],
         })) as string;
 
-        logger.info(`Moonbeam balance check: ${result} / ${amountDesiredRaw}`);
-
         const someBalanceBig = new Big(result);
         const amountDesiredUnitsBig = new Big(amountDesiredRaw);
 

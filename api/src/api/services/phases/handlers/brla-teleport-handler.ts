@@ -106,7 +106,8 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       throw new Error('BrlaTeleportPhaseHandler: Phase not found in history. State corrupted.');
     }
 
-    if (thisPhaseEntry.timestamp.getTime() + PAYMENT_TIMEOUT_MS < Date.now()) {
+    const initialTimestamp = new Date(thisPhaseEntry.timestamp);
+    if (initialTimestamp.getTime() + PAYMENT_TIMEOUT_MS < Date.now()) {
       return true;
     }
     return false;
