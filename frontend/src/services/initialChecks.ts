@@ -17,7 +17,6 @@ function useRampAmountWithinAllowedLimits() {
       try {
         const subaccount = await BrlaService.getUser(taxId);
         const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-        console.log('level:', subaccount.kycLevel);
         if (subaccount.kycLevel < 2) {
           return true;
         }
@@ -29,8 +28,8 @@ function useRampAmountWithinAllowedLimits() {
 
         const amountNum = Number(amountUnits);
         const remainingLimitNum = Number(remainingLimitInUnits);
-        console.log('remainingLimitNum', remainingLimitNum);
-        if (amountNum > remainingLimitNum) {
+
+        if (amountNum <= remainingLimitNum) {
           return true;
         } else {
           showToast(
