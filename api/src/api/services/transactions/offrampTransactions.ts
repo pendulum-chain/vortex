@@ -26,7 +26,7 @@ import { ApiManager } from '../pendulum/apiManager';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { encodeEvmTransactionData } from './index';
-import { createNablaTransactionsForQuote } from './nabla';
+import { createNablaTransactionsForOfframp } from './nabla';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
 import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
@@ -35,6 +35,7 @@ import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
 import logger from '../../../config/logger';
+import { priceFeedService } from '../priceFeed.service';
 
 /**V
  * Convert USD amount to token units
@@ -237,6 +238,9 @@ async function createNablaSwapTransactions(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails, grossOutputAmountUnits } = params;
 
+  const feesWithoutAnchor = new Big(quote.fee.total).sub(new Big(quote.fee.anchor));
+  // TODO convert to input currency and then convert to get the perfect exchange rate
+  const feeInInputCurrency = ...
   const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
     new Big(quote.inputAmount),
     inputTokenPendulumDetails.pendulumDecimals,
@@ -248,7 +252,7 @@ async function createNablaSwapTransactions(
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed();
 
-  const { approveTransaction, swapTransaction } = await createNablaTransactionsForQuote(
+  const { approveTransaction, swapTransaction } = await createNablaTransactionsForOfframp(
     quote,
     account,
     inputTokenPendulumDetails,

@@ -1,5 +1,6 @@
 import {
   AccountMeta,
+  AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
@@ -257,6 +258,7 @@ async function createSquidrouterTransactions(
 async function createNablaSwapTransactions(
   params: {
     inputAmountUnits: Big;
+    anchorFee: Big;
     quote: QuoteTicketAttributes;
     account: AccountMeta;
     inputTokenPendulumDetails: any;
@@ -266,22 +268,22 @@ async function createNablaSwapTransactions(
   unsignedTxs: UnsignedTx[],
   nextNonce: number,
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
-  const {
-    inputAmountUnits,
-    quote,
-    account,
-    inputTokenPendulumDetails,
-    outputTokenPendulumDetails,
-    outputTokenDetails,
-  } = params;
+  const { inputAmountUnits, quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
-  // Calculate the soft minimum output based on the gross output amount
-  const grossOutputAmountPendulumUnits = new Big(quote.metadata?.grossOutputAmount || '0');
-  const nablaSoftMinimumOutput = grossOutputAmountPendulumUnits.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+  // For these minimums, we use the output amount after anchor fee deduction but before the other fees are deducted.
+  // This is because for onramps, the anchor fee is deducted before the nabla swap.
+  const outputAfterAnchorFee = new Big(quote.outputAmount).minus(quote.fee.total).add(quote.fee.anchor);
+  const nablaSoftMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
     nablaSoftMinimumOutput,
-    outputTokenDetails.pendulumDecimals,
+    inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed();
+
+  const nablaHardMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
+    new Big(nablaHardMinimumOutput),
+    inputTokenPendulumDetails.pendulumDecimals,
+  ).toFixed(0, 0);
 
   const { approveTransaction, swapTransaction } = await createNablaTransactionsForOnramp(
     inputAmountUnits,
@@ -289,6 +291,7 @@ async function createNablaSwapTransactions(
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
+    nablaHardMinimumOutputRaw,
   );
 
   // Add Nabla approve transaction

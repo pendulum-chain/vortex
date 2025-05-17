@@ -6,7 +6,7 @@ import { prepareNablaSwapTransaction } from './swap';
 import { prepareNablaApproveTransaction } from './approve';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 
-export async function createNablaTransactionsForQuote(
+export async function createNablaTransactionsForOfframp(
   quote: QuoteTicketAttributes,
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
@@ -55,6 +55,7 @@ export async function createNablaTransactionsForOnramp(
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
+  nablaHardMinimumOutputRaw: string
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
     throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
@@ -66,7 +67,6 @@ export async function createNablaTransactionsForOnramp(
 
   const amountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenPendulumDetails.pendulumDecimals).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee.anchor)).toFixed(0, 0);
 
   const approveTransaction = await prepareNablaApproveTransaction({
     inputTokenDetails: inputTokenPendulumDetails,
