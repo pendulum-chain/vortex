@@ -35,7 +35,7 @@
       "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
       "squidrouterSwap": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
       "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
-      "brlaTeleport": "Transferring newly minted assets to Moonbeam"
+      "brlaTeleport": "Your payment is being processed. This can take up to 5 minutes."
     },
     "success": {
       "title": {
