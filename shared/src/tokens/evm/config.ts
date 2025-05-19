@@ -66,35 +66,35 @@ export const evmTokenConfig: Record<Networks, Record<EvmToken, EvmTokenDetails>>
       ...PENDULUM_USDC_AXL,
     },
   },
-  // [Networks.BSC]: {
-  //   [EvmToken.USDC]: {
-  //     assetSymbol: 'USDC',
-  //     erc20AddressSourceChain: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC on BSC
-  //     networkAssetIcon: 'bscUSDC',
-  //     decimals: 18,
-  //     network: Networks.BSC,
-  //     type: TokenType.Evm,
-  //     ...PENDULUM_USDC_AXL,
-  //   },
-  //   [EvmToken.USDT]: {
-  //     assetSymbol: 'USDT',
-  //     erc20AddressSourceChain: '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC
-  //     networkAssetIcon: 'bscUSDT',
-  //     decimals: 18,
-  //     network: Networks.BSC,
-  //     type: TokenType.Evm,
-  //     ...PENDULUM_USDC_AXL,
-  //   },
-  //   [EvmToken.USDCE]: {
-  //     assetSymbol: 'USDC.e',
-  //     erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // Placeholder, update with actual address
-  //     networkAssetIcon: 'bscUSDC',
-  //     decimals: 18,
-  //     network: Networks.BSC,
-  //     type: TokenType.Evm,
-  //     ...PENDULUM_USDC_AXL,
-  //   },
-  // },
+  [Networks.BSC]: {
+    [EvmToken.USDC]: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC on BSC
+      networkAssetIcon: 'bscUSDC',
+      decimals: 18,
+      network: Networks.BSC,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+    [EvmToken.USDT]: {
+      assetSymbol: 'USDT',
+      erc20AddressSourceChain: '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC
+      networkAssetIcon: 'bscUSDT',
+      decimals: 18,
+      network: Networks.BSC,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+    [EvmToken.USDCE]: {
+      assetSymbol: 'USDC.e',
+      erc20AddressSourceChain: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // Placeholder, update with actual address
+      networkAssetIcon: 'bscUSDC',
+      decimals: 18,
+      network: Networks.BSC,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
   [Networks.Arbitrum]: {
     [EvmToken.USDC]: {
       assetSymbol: 'USDC',
