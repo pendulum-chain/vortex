@@ -12,6 +12,7 @@ import { useRampActions, useRampState, useRampStore } from '../../stores/rampSto
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
 import { config } from '../../config';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 
 // The order of the phases is important for the progress bar.
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
@@ -55,6 +56,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   subsidizePostSwap: 24,
   spacewalkRedeem: 130,
   stellarPayment: 6,
+  brlaPayoutOnMoonbeam: 30,
 
   complete: 0,
   timedOut: 0,
@@ -65,13 +67,12 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   moonbeamToPendulumXcm: 0,
   pendulumToAssethub: 0,
   pendulumToMoonbeam: 0,
-  brlaPayoutOnMoonbeam: 0,
   stellarCreateAccount: 0,
 };
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
 // Not all phases are relevant for the progress bar, so we need to exclude some.
-const RELEVANT_PHASES_COUNT = 12;
+const RELEVANT_PHASES_COUNT = {off: 13, on: 12};
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -81,7 +82,8 @@ const useProgressUpdate = (
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void,
 ) => {
-  const numberOfPhases = RELEVANT_PHASES_COUNT;
+  const rampDirection = useRampDirection()
+  const numberOfPhases = rampDirection === "onramp" ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
   const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {
