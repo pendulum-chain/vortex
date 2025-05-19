@@ -4,6 +4,8 @@ import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkId, Networks } from 'shar
 import { createOnrampRouteParams, getRoute } from './route';
 
 import erc20ABI from '../../../../contracts/ERC20';
+import Big from 'big.js';
+import { SQUIDROUTER_FEE_OVERPAY_PERCENTAGE } from './config';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -80,10 +82,12 @@ export async function createOnrampSquidrouterTransactions(
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     };
 
+    const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY_PERCENTAGE).toString();
+
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: transactionRequest.value,
+      value: overpayedFee,
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),

@@ -7,7 +7,8 @@ import { createOfframpRouteParams, getRoute } from './route';
 import erc20ABI from '../../../../contracts/ERC20';
 import { createRandomString, createSquidRouterHash } from '../../../helpers/squidrouter';
 import encodePayload from './payload';
-import { getSquidRouterConfig } from './config';
+import { getSquidRouterConfig, SQUIDROUTER_FEE_OVERPAY_PERCENTAGE } from './config';
+import Big from 'big.js';
 
 export interface OfframpSquidrouterParams {
   fromAddress: string;
@@ -64,6 +65,8 @@ export async function createOfframpSquidrouterTransactions(
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
+  const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY_PERCENTAGE).toString();
+
   return {
     approveData: {
       to: params.inputTokenDetails.erc20AddressSourceChain as `0x${string}`, // TODO check if this is correct
@@ -76,7 +79,7 @@ export async function createOfframpSquidrouterTransactions(
     swapData: {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data as `0x${string}`,
-      value: transactionRequest.value,
+      value: overpayedFee,
       gas: transactionRequest.gasLimit, // TODO do we still need * 2 here?
       maxFeePerGas: String(maxFeePerGas),
       maxPriorityFeePerGas: String(maxFeePerGas),
