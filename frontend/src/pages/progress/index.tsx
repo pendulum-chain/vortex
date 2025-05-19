@@ -17,7 +17,7 @@ import { config } from '../../config';
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   initial: 0,
   fundEphemeral: 20,
-  brlaTeleport: 90,
+  brlaTeleport: 5 * 60,
   moonbeamToPendulumXcm: 30,
   subsidizePreSwap: 24,
   nablaApprove: 24,
