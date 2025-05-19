@@ -19,16 +19,14 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
   const fromNetwork = getNetworkFromDestination(quote.from);
   const toNetwork = getNetworkFromDestination(quote.to);
 
-  if (!fromNetwork || !toNetwork) return t('pages.progress.initial');
-
   const inputAssetSymbol =
     currentState.type === 'off'
-      ? getOnChainTokenDetailsOrDefault(fromNetwork, quote.inputCurrency as OnChainToken).assetSymbol
+      ? getOnChainTokenDetailsOrDefault(fromNetwork!, quote.inputCurrency as OnChainToken).assetSymbol
       : getAnyFiatTokenDetails(quote.inputCurrency as FiatToken).assetSymbol;
   const outputAssetSymbol =
     currentState.type === 'off'
       ? getAnyFiatTokenDetails(quote.outputCurrency as FiatToken).assetSymbol
-      : getOnChainTokenDetailsOrDefault(toNetwork, quote.outputCurrency as OnChainToken).assetSymbol;
+      : getOnChainTokenDetailsOrDefault(toNetwork!, quote.outputCurrency as OnChainToken).assetSymbol;
 
   if (currentPhase === 'complete') return t('pages.progress.success');
 
