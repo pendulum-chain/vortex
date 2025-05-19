@@ -1,6 +1,6 @@
 import { AXL_USDC_MOONBEAM, getNetworkId, Networks } from 'shared';
 
-export const SQUIDROUTER_FEE_OVERPAY_PERCENTAGE = 0.5; // 50% overpayment
+export const SQUIDROUTER_FEE_OVERPAY = 0.5; // 50% overpayment
 
 interface ConfigBase {
   toChainId: string;

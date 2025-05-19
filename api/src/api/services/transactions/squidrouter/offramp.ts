@@ -7,7 +7,7 @@ import { createOfframpRouteParams, getRoute } from './route';
 import erc20ABI from '../../../../contracts/ERC20';
 import { createRandomString, createSquidRouterHash } from '../../../helpers/squidrouter';
 import encodePayload from './payload';
-import { getSquidRouterConfig, SQUIDROUTER_FEE_OVERPAY_PERCENTAGE } from './config';
+import { getSquidRouterConfig, SQUIDROUTER_FEE_OVERPAY } from './config';
 import Big from 'big.js';
 
 export interface OfframpSquidrouterParams {
@@ -65,7 +65,7 @@ export async function createOfframpSquidrouterTransactions(
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
-  const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY_PERCENTAGE).toString();
+  const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY).toString();
 
   return {
     approveData: {

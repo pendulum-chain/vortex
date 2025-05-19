@@ -5,7 +5,7 @@ import { createOnrampRouteParams, getRoute } from './route';
 
 import erc20ABI from '../../../../contracts/ERC20';
 import Big from 'big.js';
-import { SQUIDROUTER_FEE_OVERPAY_PERCENTAGE } from './config';
+import { SQUIDROUTER_FEE_OVERPAY } from './config';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -81,9 +81,9 @@ export async function createOnrampSquidrouterTransactions(
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     };
-
-    const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY_PERCENTAGE).toString();
-
+    console.log('original: ', transactionRequest.value);
+    const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY).toString();
+    console.log('Overpayed fee: ', overpayedFee);
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
