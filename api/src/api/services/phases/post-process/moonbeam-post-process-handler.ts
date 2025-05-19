@@ -5,6 +5,7 @@ import logger from '../../../../config/logger';
 import { ApiManager } from '../../pendulum/apiManager';
 import { submitExtrinsic } from '@pendulum-chain/api-solang';
 
+const CLEANUP_WAITING_TIME_MINUTES = 180; // 3 hours
 /**
  * Post process handler for Moonbeam cleanup operations
  */
@@ -51,10 +52,10 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
       const timeDifferenceMs = Date.now() - completeTime.getTime();
       const timeDifferenceMinutes = timeDifferenceMs / (1000 * 60);
 
-      if (timeDifferenceMinutes < 15) {
+      if (timeDifferenceMinutes < CLEANUP_WAITING_TIME_MINUTES) {
         return [
           false,
-          this.createErrorObject(`At least 15 minutes must pass after the complete phase for moonbeam cleanup`),
+          this.createErrorObject(`At least ${CLEANUP_WAITING_TIME_MINUTES} minutes must pass after the complete phase for moonbeam cleanup`),
         ];
       }
     } catch (e) {
