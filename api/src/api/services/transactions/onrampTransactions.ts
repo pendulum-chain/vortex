@@ -32,6 +32,7 @@ import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
 import { StateMetadata } from '../phases/meta-state-types';
 import logger from '../../../config/logger';
+import { priceFeedService } from '../priceFeed.service';
 
 /**
  * Convert USD amount to token units
@@ -258,7 +259,6 @@ async function createSquidrouterTransactions(
 async function createNablaSwapTransactions(
   params: {
     inputAmountUnits: Big;
-    anchorFee: Big;
     quote: QuoteTicketAttributes;
     account: AccountMeta;
     inputTokenPendulumDetails: any;
@@ -272,7 +272,9 @@ async function createNablaSwapTransactions(
 
   // For these minimums, we use the output amount after anchor fee deduction but before the other fees are deducted.
   // This is because for onramps, the anchor fee is deducted before the nabla swap.
-  const outputAfterAnchorFee = new Big(quote.outputAmount).minus(quote.fee.total).add(quote.fee.anchor);
+  const anchorFeeInOutputCurrency = await priceFeedService.convertCurrency(quote.fee.anchor, quote.inputCurrency, quote.outputCurrency);
+  const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(quote.fee.total, quote.inputCurrency, quote.outputCurrency);
+  const outputAfterAnchorFee = new Big(quote.outputAmount).minus(totalFeeInOutputCurrency).add(anchorFeeInOutputCurrency);
   const nablaSoftMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
     nablaSoftMinimumOutput,

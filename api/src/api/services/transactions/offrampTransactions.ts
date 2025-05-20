@@ -1,6 +1,6 @@
 import {
   AccountMeta,
-  addAdditionalTransactionsToMeta,
+  addAdditionalTransactionsToMeta, AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   encodeSubmittableExtrinsic,
   FiatToken,
@@ -238,25 +238,36 @@ async function createNablaSwapTransactions(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails, grossOutputAmountUnits } = params;
 
-  const feesWithoutAnchor = new Big(quote.fee.total).sub(new Big(quote.fee.anchor));
-  // TODO convert to input currency and then convert to get the perfect exchange rate
-  const feeInInputCurrency = ...
+  // For offramps, all fees except for the anchor fee are paid out (-> deducted) before the swap.
+  // Thus, we need to adjust the input amount to account for all deducted fees.
+  const anchorFeeInInputCurrency = await priceFeedService.convertCurrency(quote.fee.anchor, quote.outputCurrency, quote.inputCurrency)
+  const totalFeeInInputCurrency = await priceFeedService.convertCurrency(quote.fee.total, quote.outputCurrency, quote.inputCurrency)
   const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
-    new Big(quote.inputAmount),
+    new Big(quote.inputAmount).minus(totalFeeInInputCurrency).plus(anchorFeeInInputCurrency),
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
 
-  const nablaSoftMinimumOutput = grossOutputAmountUnits.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
+  // For these minimums, we use the output amount after all fees have been deducted except for the anchor fee.
+  const anchorFeeInOutputCurrency = quote.fee.anchor // No conversion needed, already in output currency
+  const outputBeforeAnchorFee = new Big(quote.outputAmount).minus(anchorFeeInOutputCurrency);
+  const nablaSoftMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
     nablaSoftMinimumOutput,
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed();
+
+  const nablaHardMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
+    new Big(nablaHardMinimumOutput),
+    inputTokenPendulumDetails.pendulumDecimals,
+  ).toFixed(0, 0);
 
   const { approveTransaction, swapTransaction } = await createNablaTransactionsForOfframp(
     quote,
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
+    nablaHardMinimumOutputRaw
   );
 
   unsignedTxs.push({
