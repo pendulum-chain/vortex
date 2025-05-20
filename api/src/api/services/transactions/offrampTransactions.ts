@@ -1,6 +1,7 @@
 import {
   AccountMeta,
-  addAdditionalTransactionsToMeta, AMM_MINIMUM_OUTPUT_HARD_MARGIN,
+  addAdditionalTransactionsToMeta,
+  AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   encodeSubmittableExtrinsic,
   FiatToken,
@@ -36,26 +37,6 @@ import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
 import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
 import logger from '../../../config/logger';
 import { priceFeedService } from '../priceFeed.service';
-
-/**V
- * Convert USD amount to token units
- * @param amountUSD The amount in USD
- * @param tokenDetails The token details
- * @returns The amount in token units
- */
-function convertUSDToTokenUnits(
-  amountUSD: string,
-  tokenDetails: {
-    decimals: number /* Add price info if available */;
-  },
-): string {
-  logger.warn(
-    `TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`,
-  );
-  // Placeholder: Assumes 1 USD = 1 token unit, adjusts for decimals. Needs real price.
-  const amountUnits = new Big(amountUSD);
-  return multiplyByPowerOfTen(amountUnits, tokenDetails.decimals).toFixed(0, 0);
-}
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -105,9 +86,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const stablecoinDecimals = stablecoinDetails.pendulumDecimals;
 
   // Convert USD fees to stablecoin raw units
-  const networkFeeStablecoinRaw = convertUSDToTokenUnits(networkFeeUSD, { decimals: stablecoinDecimals });
-  const vortexFeeStablecoinRaw = convertUSDToTokenUnits(vortexFeeUSD, { decimals: stablecoinDecimals });
-  const partnerMarkupFeeStablecoinRaw = convertUSDToTokenUnits(partnerMarkupFeeUSD, { decimals: stablecoinDecimals });
+  const networkFeeStablecoinRaw = multiplyByPowerOfTen(networkFeeUSD, stablecoinDecimals).toFixed(0, 0);
+  const vortexFeeStablecoinRaw = multiplyByPowerOfTen(vortexFeeUSD, stablecoinDecimals).toFixed(0, 0);
+  const partnerMarkupFeeStablecoinRaw = multiplyByPowerOfTen(partnerMarkupFeeUSD, stablecoinDecimals).toFixed(0, 0);
 
   const transfers = [];
 
@@ -231,24 +212,31 @@ async function createNablaSwapTransactions(
     account: AccountMeta;
     inputTokenPendulumDetails: any;
     outputTokenPendulumDetails: any;
-    grossOutputAmountUnits: Big;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number,
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
-  const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails, grossOutputAmountUnits } = params;
+  const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
   // For offramps, all fees except for the anchor fee are paid out (-> deducted) before the swap.
   // Thus, we need to adjust the input amount to account for all deducted fees.
-  const anchorFeeInInputCurrency = await priceFeedService.convertCurrency(quote.fee.anchor, quote.outputCurrency, quote.inputCurrency)
-  const totalFeeInInputCurrency = await priceFeedService.convertCurrency(quote.fee.total, quote.outputCurrency, quote.inputCurrency)
+  const anchorFeeInInputCurrency = await priceFeedService.convertCurrency(
+    quote.fee.anchor,
+    quote.outputCurrency,
+    quote.inputCurrency,
+  );
+  const totalFeeInInputCurrency = await priceFeedService.convertCurrency(
+    quote.fee.total,
+    quote.outputCurrency,
+    quote.inputCurrency,
+  );
   const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
     new Big(quote.inputAmount).minus(totalFeeInInputCurrency).plus(anchorFeeInInputCurrency),
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
 
   // For these minimums, we use the output amount after all fees have been deducted except for the anchor fee.
-  const anchorFeeInOutputCurrency = quote.fee.anchor // No conversion needed, already in output currency
+  const anchorFeeInOutputCurrency = quote.fee.anchor; // No conversion needed, already in output currency
   const outputBeforeAnchorFee = new Big(quote.outputAmount).minus(anchorFeeInOutputCurrency);
   const nablaSoftMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
@@ -262,12 +250,21 @@ async function createNablaSwapTransactions(
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
 
+  console.log(
+    'nablaHardMinimumOutputRaw',
+    nablaHardMinimumOutputRaw,
+    'nablaSoftMinimumOutputRaw',
+    nablaSoftMinimumOutputRaw,
+    'inputAmountBeforeSwapRaw',
+    inputAmountBeforeSwapRaw,
+  );
+
   const { approveTransaction, swapTransaction } = await createNablaTransactionsForOfframp(
     quote,
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    nablaHardMinimumOutputRaw
+    nablaHardMinimumOutputRaw,
   );
 
   unsignedTxs.push({
@@ -671,7 +668,6 @@ export async function prepareOfframpTransactions({
           account,
           inputTokenPendulumDetails,
           outputTokenPendulumDetails,
-          grossOutputAmountUnits,
         },
         unsignedTxs,
         pendulumNonce,

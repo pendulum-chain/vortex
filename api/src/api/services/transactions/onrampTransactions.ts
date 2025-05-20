@@ -35,27 +35,6 @@ import logger from '../../../config/logger';
 import { priceFeedService } from '../priceFeed.service';
 
 /**
- * Convert USD amount to token units
- * @param amountUSD The amount in USD
- * @param tokenDetails The token details
- * @returns The amount in token units
- */
-function convertUSDToTokenUnits(
-  amountUSD: string,
-  tokenDetails: {
-    decimals: number /* Add price info if available */;
-  },
-): string {
-  // TODO fix this
-  logger.warn(
-    `TODO: Implement USD to token units conversion for token with decimals ${tokenDetails.decimals}. Using placeholder 1:1 conversion.`,
-  );
-  // Placeholder: Assumes 1 USD = 1 token unit, adjusts for decimals. Needs real price.
-  const amountUnits = new Big(amountUSD);
-  return multiplyByPowerOfTen(amountUnits, tokenDetails.decimals).toFixed(0, 0);
-}
-
-/**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
  * @param quote The quote ticket
  * @returns The encoded transaction
@@ -107,9 +86,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const stablecoinDecimals = stablecoinDetails.pendulumDecimals;
 
   // Convert USD fees to stablecoin raw units
-  const networkFeeStablecoinRaw = convertUSDToTokenUnits(networkFeeUSD, { decimals: stablecoinDecimals });
-  const vortexFeeStablecoinRaw = convertUSDToTokenUnits(vortexFeeUSD, { decimals: stablecoinDecimals });
-  const partnerMarkupFeeStablecoinRaw = convertUSDToTokenUnits(partnerMarkupFeeUSD, { decimals: stablecoinDecimals });
+  const networkFeeStablecoinRaw = multiplyByPowerOfTen(networkFeeUSD, stablecoinDecimals).toFixed(0, 0);
+  const vortexFeeStablecoinRaw = multiplyByPowerOfTen(vortexFeeUSD, stablecoinDecimals).toFixed(0, 0);
+  const partnerMarkupFeeStablecoinRaw = multiplyByPowerOfTen(partnerMarkupFeeUSD, stablecoinDecimals).toFixed(0, 0);
 
   // Build transfers
   const transfers = [];
@@ -270,11 +249,28 @@ async function createNablaSwapTransactions(
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { inputAmountUnits, quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
+  // The input amount before the swap is the input amount minus the anchor fee
+  const anchorFeeInInputCurrency = quote.fee.anchor; // Already denoted in the input currency
+  const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
+    new Big(quote.inputAmount).minus(anchorFeeInInputCurrency),
+    inputTokenPendulumDetails.pendulumDecimals,
+  ).toFixed(0, 0);
+
   // For these minimums, we use the output amount after anchor fee deduction but before the other fees are deducted.
   // This is because for onramps, the anchor fee is deducted before the nabla swap.
-  const anchorFeeInOutputCurrency = await priceFeedService.convertCurrency(quote.fee.anchor, quote.inputCurrency, quote.outputCurrency);
-  const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(quote.fee.total, quote.inputCurrency, quote.outputCurrency);
-  const outputAfterAnchorFee = new Big(quote.outputAmount).minus(totalFeeInOutputCurrency).add(anchorFeeInOutputCurrency);
+  const anchorFeeInOutputCurrency = await priceFeedService.convertCurrency(
+    quote.fee.anchor,
+    quote.inputCurrency,
+    quote.outputCurrency,
+  );
+  const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(
+    quote.fee.total,
+    quote.inputCurrency,
+    quote.outputCurrency,
+  );
+  const outputAfterAnchorFee = new Big(quote.outputAmount)
+    .minus(totalFeeInOutputCurrency)
+    .add(anchorFeeInOutputCurrency);
   const nablaSoftMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
     nablaSoftMinimumOutput,
@@ -286,6 +282,13 @@ async function createNablaSwapTransactions(
     new Big(nablaHardMinimumOutput),
     inputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
+
+  console.log(
+    'nablaHardMinimumOutputRaw',
+    nablaHardMinimumOutputRaw,
+    'nablaSoftMinimumOutputRaw',
+    nablaSoftMinimumOutputRaw,
+  );
 
   const { approveTransaction, swapTransaction } = await createNablaTransactionsForOnramp(
     inputAmountUnits,
@@ -320,6 +323,7 @@ async function createNablaSwapTransactions(
     nextNonce,
     stateMeta: {
       nablaSoftMinimumOutputRaw,
+      inputAmountBeforeSwapRaw,
     },
   };
 }
@@ -541,8 +545,19 @@ export async function prepareOnrampTransactions(
   const metadata = quote.metadata as QuoteTicketMetadata;
 
   // Calculate amounts
-  const inputAmountPostAnchorFeeRaw = new Big(quote.inputAmount).minus(quote.fee.anchor).toFixed(0, 0);
-  const inputAmountUnits = multiplyByPowerOfTen(new Big(inputAmountPostAnchorFeeRaw), -inputTokenDetails.decimals);
+  const inputAmountPostAnchorFeeUnits = new Big(quote.inputAmount).minus(quote.fee.anchor);
+  const inputAmountPostAnchorFeeRaw = multiplyByPowerOfTen(
+    inputAmountPostAnchorFeeUnits,
+    inputTokenDetails.decimals,
+  ).toFixed(0, 0);
+  console.log(
+    'inputAmountPostAnchorFeeUnits',
+    inputAmountPostAnchorFeeUnits.toString(),
+    'inputAmountPostAnchorFeeRaw',
+    inputAmountPostAnchorFeeRaw,
+    'inputTokenDetails.decimals',
+    inputTokenDetails.decimals,
+  );
 
   // The output amount to be obtained on Moonbeam, differs from the amount to be obtained on destination evm chain.
   // We'll use the gross output amount (before fee deduction) for swap calculations
@@ -568,7 +583,7 @@ export async function prepareOnrampTransactions(
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,
     taxId,
-    inputAmountUnits: inputAmountUnits.toFixed(),
+    inputAmountUnits: inputAmountPostAnchorFeeUnits.toFixed(),
   };
 
   for (const account of signingAccounts) {
@@ -614,7 +629,7 @@ export async function prepareOnrampTransactions(
       // Create Nabla swap transactions
       const nablaResult = await createNablaSwapTransactions(
         {
-          inputAmountUnits,
+          inputAmountUnits: inputAmountPostAnchorFeeUnits,
           quote,
           account,
           inputTokenPendulumDetails,
