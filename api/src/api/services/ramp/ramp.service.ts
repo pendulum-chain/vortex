@@ -9,8 +9,9 @@ import {
   UnsignedTx,
   validateMaskedNumber,
 } from 'shared';
+import { Op } from 'sequelize';
 import { BaseRampService } from './base.service';
-import RampState, { RampStateAttributes } from '../../../models/rampState.model';
+import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
@@ -298,6 +299,44 @@ export class RampService extends BaseRampService {
     }
 
     return rampState.errorLogs;
+  }
+
+  /**
+   * Get transaction history for a wallet address
+   */
+  public async getTransactionHistory(walletAddress: string): Promise<RampEndpoints.GetTransactionHistoryResponse> {
+    const rampStates = await RampState.findAll({
+      where: {
+        state: {
+          [Op.or]: [{ walletAddress }, { destinationAddress: walletAddress }],
+        },
+      },
+      order: [['createdAt', 'DESC']],
+    });
+
+    const transactions = rampStates.map((ramp) => ({
+      id: ramp.id,
+      type: ramp.type,
+      fromNetwork: ramp.from,
+      toNetwork: ramp.to,
+      fromAmount: ramp.state.inputAmount,
+      toAmount: ramp.state.outputAmount,
+      fromCurrency: ramp.state.inputCurrency,
+      toCurrency: ramp.state.outputCurrency,
+      status: this.mapPhaseToStatus(ramp.currentPhase),
+      date: ramp.createdAt.toISOString(),
+    }));
+
+    return { transactions };
+  }
+
+  /**
+   * Map ramp phase to a user-friendly status
+   */
+  private mapPhaseToStatus(phase: RampPhase): string {
+    if (phase === 'complete') return 'success';
+    if (phase === 'failed' || phase === 'timedOut') return 'failed';
+    return 'pending';
   }
 
   private async cancelRamp(id: string): Promise<void> {
