@@ -1,43 +1,43 @@
 import { FC } from 'react';
-import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
-import { getNetworkDisplayName, Networks } from 'shared';
-import { Transaction } from '../types';
+import Big from 'big.js';
 import { ChevronRightIcon } from '@heroicons/react/20/solid';
+
+import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
+import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from 'shared';
+import { Transaction } from '../types';
+import { StatusBadge } from '../../StatusBadge';
 
 interface TransactionItemProps {
   transaction: Transaction;
 }
 
-const StatusBadge: FC<{ status: Transaction['status'] }> = ({ status }) => {
-  const colors = {
-    success: 'bg-green-100 text-green-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    failed: 'bg-red-100 text-red-800',
-  };
+const formatDate = (date: Date) =>
+  date.toLocaleString('default', {
+    month: 'long',
+    day: 'numeric',
+  });
 
-  return (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[status]}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  );
+const formatTooltipDate = (date: Date) =>
+  date.toLocaleString('default', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+
+const getNetworkName = (network: Transaction['fromNetwork'] | Transaction['toNetwork']) => {
+  if (typeof network === 'string' && ['pix', 'sepa', 'cbu'].includes(network)) {
+    return network.toUpperCase();
+  }
+  return getNetworkDisplayName(network as Networks);
 };
 
 export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
   const fromIcon = useGetAssetIcon(transaction.fromCurrency.toLowerCase());
   const toIcon = useGetAssetIcon(transaction.toCurrency.toLowerCase());
-
-  const formatDate = (date: Date) =>
-    date.toLocaleString('default', {
-      month: 'long',
-      day: 'numeric',
-    });
-
-  const getNetworkName = (network: Transaction['fromNetwork'] | Transaction['toNetwork']) => {
-    if (typeof network === 'string' && ['pix', 'sepa', 'cbu'].includes(network)) {
-      return network.toUpperCase();
-    }
-    return getNetworkDisplayName(network as Networks);
-  };
 
   return (
     <div className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50">
@@ -55,16 +55,22 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
             <span className="text-gray-500">{getNetworkName(transaction.toNetwork)}</span>
           </div>
           <div className="flex items-center">
-            <span className="font-medium">{transaction.fromAmount}</span>
+            <span className="font-medium">
+              {roundDownToSignificantDecimals(Big(transaction.fromAmount), 2).toString()}
+            </span>
             <ChevronRightIcon className="w-4 h-4 text-gray-400" />
-            <span className="font-medium">{transaction.toAmount}</span>
+            <span className="font-medium">
+              {roundDownToSignificantDecimals(Big(transaction.toAmount), 2).toString()}
+            </span>
           </div>
         </div>
       </div>
       <div className="flex flex-col items-end space-y-2">
         <StatusBadge status={transaction.status} />
-        <div className="text-sm text-gray-500">
-          <div>{formatDate(transaction.date)}</div>
+        <div className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+          <div className="tooltip tooltip-left z-50" data-tip={formatTooltipDate(transaction.date)}>
+            {formatDate(transaction.date)}
+          </div>
         </div>
       </div>
     </div>
