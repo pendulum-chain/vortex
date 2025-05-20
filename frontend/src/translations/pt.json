@@ -35,7 +35,7 @@
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
       "squidrouterSwap": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
       "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
-      "brlaTeleport": "Transferindo ativos recém-criados para Moonbeam"
+      "brlaTeleport": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos."
     },
     "success": {
       "title": {
@@ -180,7 +180,7 @@
   },
   "components": {
     "airdropBanner": {
-      "title": "Oferta especial até 15 Maio",
+      "title": "Oferta especial até 27 Maio",
       "description": "Compre ou venda USDT/C por apenas R$5 - receba 20 USDT de graça!",
       "button": "Mais informações",
       "list": {

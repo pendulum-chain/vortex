@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { KycLevel2Toggle } from '../../KycLevel2Toggle';
 import { CameraIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { BrlaService, KYCDocType } from '../../../services/api';
-import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];
@@ -12,6 +11,7 @@ const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];
 interface DocumentUploadProps {
   onSubmitHandler: () => void;
   onBackClick: () => void;
+  taxId: string;
 }
 
 async function uploadFileAsBuffer(file: File, url: string) {
@@ -33,9 +33,8 @@ async function uploadFileAsBuffer(file: File, url: string) {
   }
 }
 
-export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler, onBackClick }) => {
+export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler, onBackClick, taxId }) => {
   const { t } = useTranslation();
-  const taxId = useTaxId();
 
   const [docType, setDocType] = useState<KYCDocType>(KYCDocType.RG);
   const [selfie, setSelfie] = useState<File | null>(null);

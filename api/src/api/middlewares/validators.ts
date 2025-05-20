@@ -404,29 +404,6 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateGetPayInCode: RequestHandler = (req, res, next) => {
-  const { taxId, receiverAddress, amount } = req.query as PayInCodeQuery;
-
-  if (!taxId) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId parameter' });
-    return;
-  }
-
-  if (!amount || isNaN(Number(amount))) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing or invalid amount parameter' });
-    return;
-  }
-
-  if (!receiverAddress || !(receiverAddress as string).startsWith('0x')) {
-    res.status(httpStatus.BAD_REQUEST).json({
-      error: 'Missing or invalid receiverAddress parameter. receiverAddress must be a valid Evm address',
-    });
-    return;
-  }
-
-  next();
-};
-
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
   const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
 

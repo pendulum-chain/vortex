@@ -3,7 +3,6 @@ import * as brlaController from '../../controllers/brla.controller';
 import {
   validateBrlaTriggerOfframpInput,
   validataSubaccountCreation,
-  validateGetPayInCode,
   validateStartKyc2,
 } from '../../middlewares/validators';
 
@@ -18,8 +17,6 @@ router.route('/getOfframpStatus').get(brlaController.getOfframpStatus);
 router.route('/getKycStatus').get(brlaController.fetchSubaccountKycStatus);
 
 router.route('/validatePixKey').get(brlaController.validatePixKey);
-
-router.route('/payIn').get(validateGetPayInCode, brlaController.getPayInCode);
 
 router.route('/triggerOfframp').post(validateBrlaTriggerOfframpInput, brlaController.triggerBrlaOfframp);
 

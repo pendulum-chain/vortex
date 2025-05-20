@@ -1,33 +1,49 @@
 import { useTranslation } from 'react-i18next';
+import { useCallback } from 'react';
 
 import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
 import { useKYCForm } from '../../hooks/brla/useKYCForm';
-
-import { VerificationStatus } from './VerificationStatus';
-import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
-import { KYCForm } from './KYCForm';
-import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
-import { useCallback } from 'react';
-import { DocumentUpload } from './KYCLevel2Form';
-import { useTaxId } from '../../stores/ramp/useRampFormStore';
 import { isValidCnpj } from '../../hooks/ramp/schema';
+import { useRampKycLevel2Started } from '../../stores/rampStore';
+
+import { useBrlaKycTaxIdLocalStorage } from './useBrlaKycTaxIdLocalStorage';
+import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
+import { VerificationStatus } from './VerificationStatus';
+import { DocumentUpload } from './KYCLevel2Form';
+import { KYCForm } from './KYCForm';
+import { useKYCFormLocalStorage } from './KYCForm/useKYCFormLocalStorage';
 
 export const PIXKYCForm = () => {
-  const { verificationStatus, statusMessage, handleFormSubmit, handleBackClick, setIsSubmitted, setCpf, isSubmitted } =
-    useKYCProcess();
-  const offrampKycLevel2Started = useRampKycLevel2Started();
-  const offrampKycStarted = useRampKycStarted();
+  const {
+    verificationStatus,
+    statusMessage,
+    handleFormSubmit: handleKYCFormSubmit,
+    handleBackClick,
+    setIsSubmitted,
+    setCpf,
+    isSubmitted,
+  } = useKYCProcess();
+
+  const rampKycLevel2Started = useRampKycLevel2Started();
   const { kycForm } = useKYCForm();
+  const { clearStorage } = useKYCFormLocalStorage(kycForm);
 
   const { t } = useTranslation();
 
-  const taxId = useTaxId();
+  const { taxId, clearTaxId } = useBrlaKycTaxIdLocalStorage();
 
-  const handleDocumentSubmit = useCallback(() => {
+  const handleDocumentUploadSubmit = useCallback(() => {
+    if (!taxId) {
+      return;
+    }
+
     setIsSubmitted(true);
-    const taxIdToSet = taxId || null;
-    setCpf(taxIdToSet);
+    setCpf(taxId);
   }, [setIsSubmitted, setCpf, taxId]);
+
+  if (!taxId) {
+    return null;
+  }
 
   const pixformFields: BrlaFieldProps[] = [
     {
@@ -103,10 +119,6 @@ export const PIXKYCForm = () => {
     },
   ];
 
-  if (!taxId) {
-    return null;
-  }
-
   if (isValidCnpj(taxId)) {
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.COMPANY_NAME,
@@ -132,15 +144,44 @@ export const PIXKYCForm = () => {
     });
   }
 
+  if (isSubmitted) {
+    return (
+      <div className="relative">
+        <VerificationStatus status={verificationStatus} message={statusMessage} isLevel2={rampKycLevel2Started} />
+      </div>
+    );
+  }
+
+  if (rampKycLevel2Started) {
+    return (
+      <div className="relative">
+        <DocumentUpload
+          onSubmitHandler={() => {
+            handleDocumentUploadSubmit();
+            clearTaxId();
+          }}
+          onBackClick={handleBackClick}
+          taxId={taxId}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
-      {isSubmitted ? (
-        <VerificationStatus status={verificationStatus} message={statusMessage} isLevel2={offrampKycLevel2Started} />
-      ) : offrampKycLevel2Started ? (
-        <DocumentUpload onSubmitHandler={handleDocumentSubmit} onBackClick={handleBackClick} />
-      ) : offrampKycStarted ? (
-        <KYCForm fields={pixformFields} form={kycForm} onSubmit={handleFormSubmit} onBackClick={handleBackClick} />
-      ) : null}
+      <KYCForm
+        fields={pixformFields}
+        form={kycForm}
+        onSubmit={async (formData) => {
+          await handleKYCFormSubmit(formData);
+          clearStorage();
+        }}
+        onBackClick={() => {
+          handleBackClick();
+          clearTaxId();
+          clearStorage();
+        }}
+      />
     </div>
   );
 };

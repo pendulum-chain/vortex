@@ -17,6 +17,7 @@ export const storageKeys = {
   SQUIDROUTER_RECOVERY_STATE_SWAP: 'SQUIDROUTER_TRANSACTION_STATE_SWAP',
 
   LAST_TRANSACTION_SUBMISSION_INDEX: 'LAST_TRANSACTION_SUBMISSION_INDEX',
+  BRLA_KYC_TAX_ID: 'BRLA_KYC_TAX_ID',
 };
 
 /// This enum is used to keep track of the last transaction submission index. This is used to determine if a transaction has been submitted before.

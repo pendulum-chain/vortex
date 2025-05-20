@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -9,6 +9,7 @@ import { createSubaccount, KycStatus } from '../../../services/signingService';
 import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 import { useToastMessage } from '../../../helpers/notifications';
 import { isValidCnpj } from '../../ramp/schema';
+import { storageKeys } from '../../../constants/localStorage';
 
 export interface BrlaKycStatus {
   status: string;
@@ -86,12 +87,11 @@ export function useKYCProcess() {
   const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible, setCanRegisterRamp } =
     useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
-  const taxId = useTaxId();
+  const taxId = useTaxId() || localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID);
   const queryClient = useQueryClient();
 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [cpf, setCpf] = useState<string | null>(null);
-  const handled = useRef<{ lvl1?: KycStatus; lvl2?: KycStatus }>({});
 
   const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
   const { data: kycResponse, error } = useKycStatusQuery(cpf, desiredLevel);
@@ -100,6 +100,7 @@ export function useKYCProcess() {
     setRampKycLevel2Started(false);
     setRampKycStarted(false);
     resetRampState();
+    localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
   }, [setRampKycLevel2Started, setRampKycStarted, resetRampState]);
 
   const proceedWithRamp = useCallback(() => {
@@ -108,7 +109,8 @@ export function useKYCProcess() {
     setRampKycLevel2Started(false);
     setCanRegisterRamp(true);
     setRampSummaryVisible(true);
-  }, [setRampKycLevel2Started, setRampSummaryVisible, setRampKycStarted]);
+    localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
+  }, [setRampKycStarted, setRampKycLevel2Started, setCanRegisterRamp, setRampSummaryVisible]);
 
   const proceedWithKYCLevel2 = useCallback(() => {
     setIsSubmitted(false);
@@ -163,7 +165,7 @@ export function useKYCProcess() {
 
           await createSubaccount({
             ...formData,
-            cpf: formData.partnerCpf!,
+            cpf: formData.partnerCpf,
             cnpj: taxId,
             address: addressObject,
             taxIdType: 'CNPJ',
@@ -246,6 +248,7 @@ export function useKYCProcess() {
     STATUS_MESSAGES.SUCCESS,
     STATUS_MESSAGES.REJECTED,
     offrampKycLevel2Started,
+    STATUS_MESSAGES.PENDING,
   ]);
 
   // Handler for KYC level 2

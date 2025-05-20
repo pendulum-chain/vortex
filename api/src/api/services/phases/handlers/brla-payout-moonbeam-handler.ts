@@ -54,8 +54,8 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         if (balanceCheckError.message === 'Balance did not meet the limit within the specified time') {
           throw new Error(`BrlaPayoutOnMoonbeamPhaseHandler: balanceCheckError ${balanceCheckError.message}`);
         } else {
-          logger.error('Error checking Moonbeam balance:', balanceCheckError);
-          throw new Error(`Error checking Moonbeam balance`);
+          logger.error('Error checking Polygon balance:', balanceCheckError);
+          throw new Error(`Error checking Polygon balance`);
         }
       }
     }

@@ -12,12 +12,13 @@ import { useRampActions, useRampState, useRampStore } from '../../stores/rampSto
 import { RampService } from '../../services/api';
 import { getMessageForPhase } from './phaseMessages';
 import { config } from '../../config';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 
 // The order of the phases is important for the progress bar.
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   initial: 0,
   fundEphemeral: 20,
-  brlaTeleport: 90,
+  brlaTeleport: 5 * 60,
   moonbeamToPendulumXcm: 30,
   subsidizePreSwap: 24,
   nablaApprove: 24,
@@ -57,6 +58,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   subsidizePostSwap: 24,
   spacewalkRedeem: 130,
   stellarPayment: 6,
+  brlaPayoutOnMoonbeam: 30,
 
   complete: 0,
   timedOut: 0,
@@ -67,13 +69,12 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   moonbeamToPendulumXcm: 0,
   pendulumToAssethub: 0,
   pendulumToMoonbeam: 0,
-  brlaPayoutOnMoonbeam: 0,
   stellarCreateAccount: 0,
 };
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
 // Not all phases are relevant for the progress bar, so we need to exclude some.
-const RELEVANT_PHASES_COUNT = 13;
+const RELEVANT_PHASES_COUNT = {off: 14, on: 13};
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -83,7 +84,8 @@ const useProgressUpdate = (
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void,
 ) => {
-  const numberOfPhases = RELEVANT_PHASES_COUNT;
+  const rampDirection = useRampDirection()
+  const numberOfPhases = rampDirection === "onramp" ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
   const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {
@@ -313,7 +315,6 @@ export const ProgressPage = () => {
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
   const currentPhaseIndex = Object.keys(rampPhaseRecords).indexOf(currentPhase);
   const message = getMessageForPhase(rampState, t);
-  console.log("message", message, "rampState", rampState);
 
   const showIsDelayedWarning = useMemo(() => {
     // Check if the ramp was created more than 10 minutes ago and is not in the 'complete' phase
@@ -345,7 +346,6 @@ export const ProgressPage = () => {
         }
 
         const maybeNewPhase = updatedRampProcess.currentPhase;
-        console.log("maybeNewPhase", maybeNewPhase, "prevPhaseRef.current", prevPhaseRef.current);
         if (maybeNewPhase !== prevPhaseRef.current) {
           trackEvent({
             event: 'progress',

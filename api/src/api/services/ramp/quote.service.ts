@@ -564,7 +564,7 @@ export class QuoteService extends BaseRampService {
         const routeParams = createOnrampRouteParams(
           '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
           amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
-          tokenDetails!,
+          tokenDetails,
           getNetworkFromDestination(to)!,
           '0x30a300612ab372cc73e53ffe87fb73d62ed68da3',
         );
@@ -575,10 +575,12 @@ export class QuoteService extends BaseRampService {
 
         // Check against our moonbeam funding amounts.
         const squidrouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
+
         const fundingAmountUnits =
           getNetworkFromDestination(to) === Networks.Ethereum
             ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
             : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+
         const squidrouterSwapValueBuffer = getNetworkFromDestination(to) === Networks.Ethereum ? 10 : 2;
 
         // Leave 10 glmr for other operations of the ephemeral, and as buffer for potential price changes.
@@ -609,9 +611,10 @@ export class QuoteService extends BaseRampService {
         }
 
         amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
-          tokenDetails!.pendulumDecimals,
+          tokenDetails.decimals,
           BigInt(toAmountMin),
         );
+
         amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
         amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
           amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountUsedForSwap)),
