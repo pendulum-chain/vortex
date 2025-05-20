@@ -6,10 +6,10 @@ export function RampHistoryButton() {
 
   return (
     <button
-      className={`btn-vortex-accent px-4 py-2 cursor-pointer ${isActive ? 'bg-vortex-accent-hover' : ''}`}
+      className={`btn-vortex-accent px-3.5 py-1.5 cursor-pointer ${isActive ? 'bg-vortex-accent-hover' : ''}`}
       onClick={actions.toggleHistory}
     >
-      <ClockIcon className="w-4.5 h-4.5" />
+      <ClockIcon className="w-5 h-5" />
     </button>
   );
 }
