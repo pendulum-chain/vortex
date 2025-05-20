@@ -81,13 +81,11 @@ export async function createOnrampSquidrouterTransactions(
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     };
-    console.log('original: ', transactionRequest.value);
-    const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY).toString();
-    console.log('Overpayed fee: ', overpayedFee);
+    const overpaidFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY).toString();
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: overpayedFee,
+      value: overpaidFee,
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),

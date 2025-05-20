@@ -251,9 +251,9 @@ export class QuoteService extends BaseRampService {
         const { route } = routeResult.data;
         const { toAmountMin } = route.estimate;
 
-        const overpayedFee = (new Big(route.transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY);
+        const overpaidFee = (new Big(route.transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY);
         // Check against our moonbeam funding amounts.
-        const squidrouterSwapValue = multiplyByPowerOfTen(overpayedFee, -18);
+        const squidrouterSwapValue = multiplyByPowerOfTen(overpaidFee, -18);
         const fundingAmountUnits =
           getNetworkFromDestination(to) === Networks.Ethereum
             ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
@@ -265,7 +265,7 @@ export class QuoteService extends BaseRampService {
         if (squidrouterSwapValue.gte(fundingAmountUnits.minus(squidrouterSwapValueBuffer))) {
           throw new APIError({
             status: httpStatus.SERVICE_UNAVAILABLE,
-            message: 'Cannot service this route at the moment. Please try again later.',
+            message: 'Cannot service this route at the moment. Please ¡ry again later.',
           });
         }
 

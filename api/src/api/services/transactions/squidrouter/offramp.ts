@@ -65,7 +65,7 @@ export async function createOfframpSquidrouterTransactions(
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
-  const overpayedFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY).toString();
+  const overpaidFee = (new Big(transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY).toString();
 
   return {
     approveData: {
@@ -79,7 +79,7 @@ export async function createOfframpSquidrouterTransactions(
     swapData: {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data as `0x${string}`,
-      value: overpayedFee,
+      value: overpaidFee,
       gas: transactionRequest.gasLimit, // TODO do we still need * 2 here?
       maxFeePerGas: String(maxFeePerGas),
       maxPriorityFeePerGas: String(maxFeePerGas),
