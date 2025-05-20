@@ -6,7 +6,10 @@ import { createOnrampRouteParams, getRoute } from './route';
 import erc20ABI from '../../../../contracts/ERC20';
 import Big from 'big.js';
 import { SQUIDROUTER_FEE_OVERPAY } from './config';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM } from '../../../../constants/constants';
+import {
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
+} from '../../../../constants/constants';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 
 export interface OnrampSquidrouterParams {
@@ -40,7 +43,7 @@ export interface OnrampTransactionData {
 }
 
 function bigNumberMin(a: Big, b: Big): Big {
-  return a.lt(b) ? a : b; 
+  return a.lt(b) ? a : b;
 }
 
 export async function createOnrampSquidrouterTransactions(
@@ -87,19 +90,22 @@ export async function createOnrampSquidrouterTransactions(
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     };
-    
-    const fundingAmountUnits = getNetworkFromDestination(params.toNetwork) === Networks.Ethereum
-            ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
-            : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+
+    const fundingAmountUnits =
+      getNetworkFromDestination(params.toNetwork) === Networks.Ethereum
+        ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
+        : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
     const squidrouterSwapValueBuffer = getNetworkFromDestination(params.toNetwork) === Networks.Ethereum ? 10 : 2;
     const freeFundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits.minus(squidrouterSwapValueBuffer), 18); // 18 decimals for GLMR. Moonbeam is always starting chain.
-    const overpaidFee = bigNumberMin((new Big(route.transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY), freeFundingAmountRaw);
-
+    const overpaidFee = bigNumberMin(
+      new Big(route.transactionRequest.value).mul(1 + SQUIDROUTER_FEE_OVERPAY),
+      freeFundingAmountRaw,
+    );
 
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: overpaidFee.toFixed(0,0),
+      value: overpaidFee.toFixed(0, 0),
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),

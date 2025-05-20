@@ -267,10 +267,7 @@ export class QuoteService extends BaseRampService {
           });
         }
 
-        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
-          outTokenDetails.decimals,
-          BigInt(toAmountMin),
-        );
+        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(outTokenDetails.decimals, BigInt(toAmountMin));
 
         amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
         amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(

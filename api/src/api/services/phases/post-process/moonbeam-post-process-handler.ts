@@ -55,7 +55,9 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
       if (timeDifferenceMinutes < CLEANUP_WAITING_TIME_MINUTES) {
         return [
           false,
-          this.createErrorObject(`At least ${CLEANUP_WAITING_TIME_MINUTES} minutes must pass after the complete phase for moonbeam cleanup`),
+          this.createErrorObject(
+            `At least ${CLEANUP_WAITING_TIME_MINUTES} minutes must pass after the complete phase for moonbeam cleanup`,
+          ),
         ];
       }
     } catch (e) {

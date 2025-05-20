@@ -406,7 +406,7 @@ export const startKYC2 = async (
     const subaccount = await brlaApiService.getSubaccount(taxId);
 
     if (!subaccount) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount not found'});
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'Subaccount not found' });
       return;
     }
 

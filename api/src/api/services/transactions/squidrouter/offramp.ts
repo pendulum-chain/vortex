@@ -1,6 +1,6 @@
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
-import { EvmTokenDetails, EvmTransactionData, getNetworkFromDestination, Networks } from 'shared';
+import { EvmTokenDetails, EvmTransactionData, Networks } from 'shared';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { u8aToHex } from '@polkadot/util';
 import { createOfframpRouteParams, getRoute } from './route';
