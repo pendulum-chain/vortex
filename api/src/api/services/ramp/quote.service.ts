@@ -26,7 +26,6 @@ import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
 } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { SQUIDROUTER_FEE_OVERPAY } from '../transactions/squidrouter/config';
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format
@@ -251,9 +250,8 @@ export class QuoteService extends BaseRampService {
         const { route } = routeResult.data;
         const { toAmountMin } = route.estimate;
 
-        const overpaidFee = (new Big(route.transactionRequest.value)).mul(1 + SQUIDROUTER_FEE_OVERPAY);
         // Check against our moonbeam funding amounts.
-        const squidrouterSwapValue = multiplyByPowerOfTen(overpaidFee, -18);
+        const squidrouterSwapValue = multiplyByPowerOfTen(new Big(route.transactionRequest.value), -18);
         const fundingAmountUnits =
           getNetworkFromDestination(to) === Networks.Ethereum
             ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
@@ -265,7 +263,7 @@ export class QuoteService extends BaseRampService {
         if (squidrouterSwapValue.gte(fundingAmountUnits.minus(squidrouterSwapValueBuffer))) {
           throw new APIError({
             status: httpStatus.SERVICE_UNAVAILABLE,
-            message: 'Cannot service this route at the moment. Please ¡ry again later.',
+            message: 'Cannot service this route at the moment. Please try again later.',
           });
         }
 
