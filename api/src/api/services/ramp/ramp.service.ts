@@ -302,9 +302,9 @@ export class RampService extends BaseRampService {
   }
 
   /**
-   * Get transaction history for a wallet address
+   * Get ramp history for a wallet address
    */
-  public async getTransactionHistory(walletAddress: string): Promise<RampEndpoints.GetTransactionHistoryResponse> {
+  public async getRampHistory(walletAddress: string): Promise<RampEndpoints.GetRampHistoryResponse> {
     const rampStates = await RampState.findAll({
       where: {
         state: {
