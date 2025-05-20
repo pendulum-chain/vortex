@@ -125,8 +125,6 @@ export const useRegisterRamp = () => {
 
     const registerRampProcess = async () => {
       if (signingRejected) {
-        showToast(ToastMessage.SIGNING_REJECTED);
-
         throw new Error('Signing was rejected, cannot proceed with ramp registration');
       }
 
