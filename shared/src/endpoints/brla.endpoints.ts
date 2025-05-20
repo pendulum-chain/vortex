@@ -11,12 +11,12 @@ export namespace BrlaEndpoints {
     kycLevel: number;
   }
 
-  // GET /brla/getOfframpStatus?taxId=:taxId
-  export interface GetOfframpStatusRequest {
+  // GET /brla/getRampStatus?taxId=:taxId
+  export interface GetRampStatusRequest {
     taxId: string;
   }
 
-  export interface GetOfframpStatusResponse {
+  export interface GetRampStatusResponse {
     type: string;
     status: string;
   }

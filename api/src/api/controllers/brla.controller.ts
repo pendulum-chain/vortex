@@ -190,9 +190,9 @@ export const triggerBrlaOfframp = async (
   }
 };
 
-export const getOfframpStatus = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetOfframpStatusRequest>,
-  res: Response<BrlaEndpoints.GetOfframpStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
+export const getRampStatus = async (
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetRampStatusRequest>,
+  res: Response<BrlaEndpoints.GetRampStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -230,7 +230,7 @@ export const getOfframpStatus = async (
       status: lastEventCached.data.status,
     });
   } catch (error) {
-    handleApiError(error, res, 'getOfframpStatus');
+    handleApiError(error, res, 'getRampStatus');
   }
 };
 
