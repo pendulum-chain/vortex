@@ -164,7 +164,7 @@ export const getRampHistory = async (
       });
     }
 
-    const history = await rampService.getTransactionHistory(walletAddress);
+    const history = await rampService.getRampHistory(walletAddress);
     res.status(httpStatus.OK).json(history);
   } catch (error) {
     logger.error('Error getting transaction history:', error);

@@ -154,7 +154,7 @@ router.get('/:id/errors', rampController.getErrorLogs);
  * @api {get} v1/ramp/history/:walletAddress Get transaction history
  * @apiDescription Get transaction history for a wallet address
  * @apiVersion 1.0.0
- * @apiName GetTransactionHistory
+ * @apiName getRampHistory
  * @apiGroup Ramp
  * @apiPermission public
  *
