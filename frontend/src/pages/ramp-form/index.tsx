@@ -11,6 +11,8 @@ import { PoweredBy } from '../../components/PoweredBy';
 import { Onramp } from '../../components/Ramp/Onramp';
 import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
 import { AirdropBanner } from '../../components/AirdropBanner';
+import { RampHistoryButton } from '../../components/RampHistory/RampHistoryButton';
+import { RampHistory } from '../../components/RampHistory';
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
@@ -33,8 +35,12 @@ export const RampForm = () => {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
+          className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 relative overflow-hidden"
         >
+          <RampHistory />
+          <section className="w-full pb-1 flex justify-end">
+            <RampHistoryButton />
+          </section>
           <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
 
           {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
