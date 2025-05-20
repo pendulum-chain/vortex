@@ -322,12 +322,17 @@ export class QuoteService extends BaseRampService {
               if (record.markupType === 'absolute') {
                 markupFeeComponent = new Big(record.markupValue);
               } else {
-                markupFeeComponent = new Big(inputAmount).mul(record.markupValue);
+                const inputAmountInMarkupCurrency = await priceFeedService.convertCurrency(
+                  inputAmount,
+                  inputCurrency,
+                  record.markupCurrency,
+                );
+                markupFeeComponent = new Big(inputAmountInMarkupCurrency).mul(record.markupValue);
               }
 
               const markupFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
                 markupFeeComponent.toString(),
-                inputCurrency,
+                record.markupCurrency,
                 feeCurrency,
               );
               totalPartnerMarkupInFeeCurrency = totalPartnerMarkupInFeeCurrency.plus(markupFeeComponentInFeeCurrency);
@@ -343,11 +348,16 @@ export class QuoteService extends BaseRampService {
               if (record.vortexFeeType === 'absolute') {
                 vortexFeeComponent = new Big(record.vortexFeeValue);
               } else {
-                vortexFeeComponent = new Big(inputAmount).mul(record.vortexFeeValue);
+                const inputAmountInMarkupCurrency = await priceFeedService.convertCurrency(
+                  inputAmount,
+                  inputCurrency,
+                  record.markupCurrency,
+                );
+                vortexFeeComponent = new Big(inputAmountInMarkupCurrency).mul(record.vortexFeeValue);
               }
               const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
                 vortexFeeComponent.toString(),
-                inputCurrency,
+                record.markupCurrency,
                 feeCurrency,
               );
               totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
@@ -399,12 +409,17 @@ export class QuoteService extends BaseRampService {
             if (vortexFoundationPartner.markupType === 'absolute') {
               vortexFeeComponent = new Big(vortexFoundationPartner.markupValue);
             } else {
-              vortexFeeComponent = new Big(inputAmount).mul(vortexFoundationPartner.markupValue);
+              const inputAmountInMarkupCurrency = await priceFeedService.convertCurrency(
+                inputAmount,
+                inputCurrency,
+                vortexFoundationPartner.markupCurrency,
+              );
+              vortexFeeComponent = new Big(inputAmountInMarkupCurrency).mul(vortexFoundationPartner.markupValue);
             }
 
             const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
               vortexFeeComponent.toString(),
-              inputCurrency,
+              vortexFoundationPartner.markupCurrency,
               feeCurrency,
             );
             totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
@@ -433,10 +448,10 @@ export class QuoteService extends BaseRampService {
       });
 
       // Calculate anchor fee based on type (absolute or relative)
-      let anchorFee = '0';
+      let totalAnchorFee = new Big(0);
       if (anchorFeeConfigs.length > 0) {
         // Calculate total anchor fee by reducing the array
-        const totalAnchorFee = anchorFeeConfigs.reduce((total, feeConfig) => {
+        totalAnchorFee = anchorFeeConfigs.reduce((total, feeConfig) => {
           if (feeConfig.valueType === 'absolute') {
             return total.plus(feeConfig.value);
           }
@@ -448,13 +463,11 @@ export class QuoteService extends BaseRampService {
           }
           return total;
         }, new Big(0));
-
-        anchorFee = totalAnchorFee.toFixed(2);
       }
 
       return {
         vortexFee: totalVortexFeeInFeeCurrency.toFixed(2),
-        anchorFee,
+        anchorFee: totalAnchorFee.toFixed(2),
         partnerMarkupFee: totalPartnerMarkupInFeeCurrency.toFixed(2),
         feeCurrency,
       };
@@ -610,10 +623,7 @@ export class QuoteService extends BaseRampService {
           logger.warn(`Using fallback GLMR price: $${fallbackGlmrPrice}, fee: $${squidFeeUSD}`);
         }
 
-        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
-          tokenDetails.decimals,
-          BigInt(toAmountMin),
-        );
+        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(tokenDetails.decimals, BigInt(toAmountMin));
 
         amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
         amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(

@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
+import { RampCurrency } from 'shared';
 
 // Define the attributes of the Partner model
 export interface PartnerAttributes {
@@ -9,8 +10,8 @@ export interface PartnerAttributes {
   logoUrl: string | null;
   markupType: 'absolute' | 'relative' | 'none';
   markupValue: number;
-  markupCurrency: string | null;
-  payoutAddress: string | null;
+  markupCurrency: RampCurrency;
+  payoutAddress: string;
   rampType: 'on' | 'off';
   vortexFeeType: 'absolute' | 'relative' | 'none';
   vortexFeeValue: number;
@@ -36,9 +37,9 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
 
   declare markupValue: number;
 
-  declare markupCurrency: string | null;
+  declare markupCurrency: RampCurrency;
 
-  declare payoutAddress: string | null;
+  declare payoutAddress: string;
 
   declare rampType: 'on' | 'off';
 
