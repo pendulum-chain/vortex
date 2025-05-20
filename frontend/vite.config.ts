@@ -30,7 +30,7 @@ export default defineConfig({
       shared: path.resolve(__dirname, '../shared/dist/esm/index.js'),
     },
   },
-  server: {  
-    host: true  
-  }
+  server: {
+    host: true,
+  },
 });

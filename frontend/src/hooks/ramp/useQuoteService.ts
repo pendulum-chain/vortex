@@ -7,6 +7,7 @@ import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useNetwork } from '../../contexts/network';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
+import { usePartnerId } from '../../stores/partnerStore';
 
 // @TODO: Rethink this hook, because now
 // if you want to get a quote - you get outputAmount through useQuoteService
@@ -18,6 +19,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   const { selectedNetwork } = useNetwork();
   const rampDirection = useRampDirection();
   const rampType = rampDirection === RampDirection.ONRAMP ? 'on' : 'off';
+  const partnerId = usePartnerId();
 
   const { quote, fetchQuote, outputAmount } = useQuoteStore();
 
@@ -31,6 +33,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
         onChainToken,
         fiatToken,
         selectedNetwork,
+        partnerId,
       });
     } catch (err) {
       trackEvent({
@@ -38,7 +41,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
         error_message: 'signer_service_issue',
       });
     }
-  }, [inputAmount, fetchQuote, rampType, onChainToken, fiatToken, selectedNetwork, trackEvent]);
+  }, [inputAmount, fetchQuote, rampType, onChainToken, fiatToken, selectedNetwork, partnerId, trackEvent]);
 
   useEffect(() => {
     if (quote && inputAmount) {

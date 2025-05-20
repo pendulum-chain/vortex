@@ -21,12 +21,17 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
 
   const inputAssetSymbol =
     currentState.type === 'off'
-      ? getOnChainTokenDetailsOrDefault(fromNetwork!, quote.inputCurrency as OnChainToken).assetSymbol
+      ? fromNetwork
+        ? getOnChainTokenDetailsOrDefault(fromNetwork, quote.inputCurrency as OnChainToken).assetSymbol
+        : 'Unknown' // Fallback when network is undefined
       : getAnyFiatTokenDetails(quote.inputCurrency as FiatToken).assetSymbol;
+
   const outputAssetSymbol =
     currentState.type === 'off'
       ? getAnyFiatTokenDetails(quote.outputCurrency as FiatToken).assetSymbol
-      : getOnChainTokenDetailsOrDefault(toNetwork!, quote.outputCurrency as OnChainToken).assetSymbol;
+      : toNetwork
+      ? getOnChainTokenDetailsOrDefault(toNetwork, quote.outputCurrency as OnChainToken).assetSymbol
+      : 'Unknown'; // Fallback when network is undefined
 
   if (currentPhase === 'complete') return t('pages.progress.success');
 
@@ -41,6 +46,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
     initial: t('pages.progress.initial'),
     stellarCreateAccount: t('pages.progress.createStellarAccount'),
     fundEphemeral: t('pages.progress.fundEphemeral'),
+    distributeFees: getSwappingMessage(),
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
     subsidizePreSwap: getSwappingMessage(),

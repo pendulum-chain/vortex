@@ -3,22 +3,24 @@ import { v4 as uuidv4 } from 'uuid';
 import httpStatus from 'http-status';
 import {
   DestinationType,
+  EvmToken,
   getNetworkFromDestination,
-  getPendulumDetails,
-  QuoteEndpoints,
-  RampCurrency,
   getOnChainTokenDetails,
-  OnChainToken,
+  getPendulumDetails,
   isEvmTokenDetails,
   Networks,
+  OnChainToken,
+  QuoteEndpoints,
+  RampCurrency,
 } from 'shared';
 import { BaseRampService } from './base.service';
 import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
+import Partner from '../../../models/partner.model';
+import Anchor from '../../../models/anchor.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { getTokenOutAmount } from '../nablaReads/outAmount';
 import { ApiManager } from '../pendulum/apiManager';
-import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import {
@@ -26,6 +28,8 @@ import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
 } from '../../../constants/constants';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import { priceFeedService } from '../priceFeed.service';
+
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format
@@ -52,6 +56,22 @@ function trimTrailingZeros(decimalString: string): string {
   return `${integerPart}.${trimmedFraction}`;
 }
 
+function getTargetFiatCurrency(
+  rampType: 'on' | 'off',
+  inputCurrency: RampCurrency,
+  outputCurrency: RampCurrency,
+): RampCurrency {
+  // TODO: Add validation to ensure the identified currency is a supported fiat currency
+  if (rampType === 'on') {
+    // Assuming input is the fiat currency for on-ramp (e.g., BRL from pix)
+    return inputCurrency;
+  }
+  // off-ramp: Assuming output is the fiat currency for off-ramp (e.g., BRL to pix, EUR to sepa)
+  return outputCurrency;
+}
+
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
 export class QuoteService extends BaseRampService {
   // List of supported chains for each ramp type
   private readonly SUPPORTED_CHAINS: {
@@ -75,25 +95,108 @@ export class QuoteService extends BaseRampService {
     // Validate chain support
     this.validateChainSupport(request.rampType, request.from, request.to);
 
-    // Calculate output amount (this would typically involve calling an external service or using a formula)
-    const outputAmount = await this.calculateOutputAmount(
+    // Validate and get partner if provided
+    let partner = null;
+    if (request.partnerId) {
+      partner = await Partner.findOne({
+        where: {
+          name: request.partnerId,
+          isActive: true,
+        },
+      });
+
+      // If partnerId (name) was provided but not found or not active, log a warning and proceed without a partner
+      if (!partner) {
+        logger.warn(`Partner with name '${request.partnerId}' not found or not active. Proceeding with default fees.`);
+      }
+    }
+
+    // Calculate gross output amount and network fee
+    const { grossOutputAmount, networkFeeUSD, outputAmountMoonbeamRaw, inputAmountUsedForSwap } =
+      await this.calculateGrossOutputAndNetworkFee(
+        request.inputAmount,
+        request.inputCurrency,
+        request.outputCurrency,
+        request.rampType,
+        request.from,
+        request.to,
+      );
+
+    const {
+      vortexFee: vortexFeeFiat,
+      anchorFee: anchorFeeFiat,
+      partnerMarkupFee: partnerMarkupFeeFiat,
+      feeCurrency,
+    } = await this.calculateFeeComponents(
       request.inputAmount,
-      request.inputCurrency,
-      request.outputCurrency,
+      grossOutputAmount,
       request.rampType,
       request.from,
       request.to,
+      request.partnerId,
+      request.inputCurrency,
+      request.outputCurrency,
     );
 
-    // Validate that the output amount is positive after fees
-    if (Big(outputAmount.receiveAmount).lte(0)) {
+    // We can pick any USD-like stablecoin for the conversion
+    const usdCurrency = EvmToken.USDC;
+    // Convert fees denoted in USD to fee currency
+    const networkFeeFiatPromise = priceFeedService.convertCurrency(networkFeeUSD, usdCurrency, feeCurrency);
+    // Convert fees denoted in fee currency to USD (needed for fee distribution transactions)
+    const vortexFeeUsdPromise = priceFeedService.convertCurrency(vortexFeeFiat, feeCurrency, usdCurrency);
+    const partnerMarkupFeeUsdPromise = priceFeedService.convertCurrency(partnerMarkupFeeFiat, feeCurrency, usdCurrency);
+    const anchorFeeUsdPromise = priceFeedService.convertCurrency(anchorFeeFiat, feeCurrency, usdCurrency);
+
+    const [networkFeeFiat, vortexFeeUsd, partnerMarkupFeeUsd, anchorFeeUsd] = await Promise.all([
+      networkFeeFiatPromise,
+      vortexFeeUsdPromise,
+      partnerMarkupFeeUsdPromise,
+      anchorFeeUsdPromise,
+    ]);
+
+    const usdFeeStructure = {
+      network: networkFeeUSD,
+      vortex: vortexFeeUsd,
+      anchor: anchorFeeUsd,
+      partnerMarkup: partnerMarkupFeeUsd,
+      total: new Big(networkFeeUSD).plus(vortexFeeUsd).plus(partnerMarkupFeeUsd).plus(anchorFeeUsd).toFixed(2),
+      currency: 'USD',
+    };
+
+    const totalFeeFiat = new Big(networkFeeFiat)
+      .plus(vortexFeeFiat)
+      .plus(partnerMarkupFeeFiat)
+      .plus(anchorFeeFiat)
+      .toFixed(2);
+
+    // Calculate final output amount by subtracting the converted total fee from gross output
+    const feeInOutputCurrency = await priceFeedService.convertCurrency(
+      totalFeeFiat,
+      feeCurrency,
+      request.outputCurrency,
+    );
+    const finalOutputAmount = new Big(grossOutputAmount).minus(feeInOutputCurrency);
+    if (finalOutputAmount.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Input amount is too low - fixed fee would exceed the output amount',
+        message: 'Input amount too low to cover calculated fees',
       });
     }
+    // Format final output amount to 6 decimal places for onramps, 2 for offramps
+    const finalOutputAmountStr =
+      request.rampType === 'on' ? finalOutputAmount.toFixed(6, 0) : finalOutputAmount.toFixed(2, 0);
 
-    // Create quote in database
+    // Store the complete detailed fee structure in target fiat currency
+    const feeToStore: QuoteEndpoints.FeeStructure = {
+      network: networkFeeFiat,
+      vortex: vortexFeeFiat,
+      anchor: anchorFeeFiat,
+      partnerMarkup: partnerMarkupFeeFiat,
+      total: totalFeeFiat,
+      currency: feeCurrency,
+    };
+
+    // Create quote in database with the detailed fee structure
     const quote = await QuoteTicket.create({
       id: uuidv4(),
       rampType: request.rampType,
@@ -101,16 +204,28 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
-      outputAmount: outputAmount.receiveAmount,
+      outputAmount: finalOutputAmountStr,
       outputCurrency: request.outputCurrency,
-      fee: outputAmount.fees,
+      fee: feeToStore,
+      partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
       metadata: {
-        onrampOutputAmountMoonbeamRaw: outputAmount.outputAmountMoonbeamRaw,
-        onrampInputAmountUnits: outputAmount.inputAmountAfterFees,
+        onrampOutputAmountMoonbeamRaw: outputAmountMoonbeamRaw,
+        onrampInputAmountUnits: inputAmountUsedForSwap,
+        grossOutputAmount, // Store the gross amount before fee deduction
+        usdFeeStructure,
       } as QuoteTicketMetadata,
     });
+
+    const responseFeeStructure: QuoteEndpoints.FeeStructure = {
+      network: trimTrailingZeros(networkFeeFiat),
+      vortex: trimTrailingZeros(vortexFeeFiat),
+      anchor: trimTrailingZeros(anchorFeeFiat),
+      partnerMarkup: trimTrailingZeros(partnerMarkupFeeFiat),
+      total: trimTrailingZeros(totalFeeFiat),
+      currency: feeCurrency,
+    };
 
     return {
       id: quote.id,
@@ -119,9 +234,9 @@ export class QuoteService extends BaseRampService {
       to: quote.to,
       inputAmount: trimTrailingZeros(quote.inputAmount),
       inputCurrency: quote.inputCurrency,
-      outputAmount: trimTrailingZeros(quote.outputAmount),
+      outputAmount: trimTrailingZeros(finalOutputAmountStr),
       outputCurrency: quote.outputCurrency,
-      fee: trimTrailingZeros(quote.fee),
+      fee: responseFeeStructure,
       expiresAt: quote.expiresAt,
     };
   }
@@ -136,6 +251,15 @@ export class QuoteService extends BaseRampService {
       return null;
     }
 
+    const responseFeeStructure: QuoteEndpoints.FeeStructure = {
+      network: trimTrailingZeros(quote.fee.network),
+      vortex: trimTrailingZeros(quote.fee.vortex),
+      anchor: trimTrailingZeros(quote.fee.anchor),
+      partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
+      total: trimTrailingZeros(quote.fee.total),
+      currency: quote.fee.currency,
+    };
+
     return {
       id: quote.id,
       rampType: quote.rampType,
@@ -145,9 +269,202 @@ export class QuoteService extends BaseRampService {
       inputCurrency: quote.inputCurrency,
       outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
-      fee: trimTrailingZeros(quote.fee),
+      fee: responseFeeStructure,
       expiresAt: quote.expiresAt,
     };
+  }
+
+  /**
+   * Calculate core fee components for a quote (vortex, anchor, and partner markup fees)
+   */
+  private async calculateFeeComponents(
+    inputAmount: string,
+    outputAmount: string, // This is the gross output amount of the Nabla swap before fees
+    rampType: 'on' | 'off',
+    from: DestinationType,
+    to: DestinationType,
+    partnerName: string | undefined,
+    inputCurrency: RampCurrency,
+    outputCurrency: RampCurrency,
+  ): Promise<{
+    vortexFee: string;
+    anchorFee: string;
+    partnerMarkupFee: string;
+    feeCurrency: RampCurrency;
+  }> {
+    try {
+      this.validateChainSupport(rampType, from, to);
+
+      // We want to use the FIAT currency for the fees
+      const feeCurrency = getTargetFiatCurrency(rampType, inputCurrency, outputCurrency);
+
+      // Initialize fee accumulators
+      let totalPartnerMarkupInFeeCurrency = new Big(0);
+      let totalVortexFeeInFeeCurrency = new Big(0);
+
+      // 1. Fetch and process partner-specific configurations if partnerName is provided
+      if (partnerName) {
+        // Query all records where name matches partnerName AND rampType matches rampType
+        const partnerRecords = await Partner.findAll({
+          where: {
+            name: partnerName,
+            rampType: rampType,
+            isActive: true,
+          },
+        });
+
+        if (partnerRecords.length > 0) {
+          let hasApplicableFees = false;
+
+          for (const record of partnerRecords) {
+            if (record.markupType !== 'none') {
+              let markupFeeComponent = new Big(0);
+              if (record.markupType === 'absolute') {
+                markupFeeComponent = new Big(record.markupValue);
+              } else {
+                markupFeeComponent = new Big(inputAmount).mul(record.markupValue);
+              }
+
+              const markupFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+                markupFeeComponent.toString(),
+                inputCurrency,
+                feeCurrency,
+              );
+              totalPartnerMarkupInFeeCurrency = totalPartnerMarkupInFeeCurrency.plus(markupFeeComponentInFeeCurrency);
+
+              if (markupFeeComponent.gt(0)) {
+                hasApplicableFees = true;
+              }
+            }
+
+            // Vortex Fee Component from this partner record
+            if (record.vortexFeeType !== 'none') {
+              let vortexFeeComponent = new Big(0);
+              if (record.vortexFeeType === 'absolute') {
+                vortexFeeComponent = new Big(record.vortexFeeValue);
+              } else {
+                vortexFeeComponent = new Big(inputAmount).mul(record.vortexFeeValue);
+              }
+              const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+                vortexFeeComponent.toString(),
+                inputCurrency,
+                feeCurrency,
+              );
+              totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
+
+              if (vortexFeeComponent.gt(0)) {
+                hasApplicableFees = true;
+              }
+            }
+          }
+
+          // Log warning if partner found but no applicable custom fees
+          if (!hasApplicableFees) {
+            logger.warn(
+              `Partner with name '${partnerName}' found, but no active markup defined. Proceeding with default fees.`,
+            );
+          }
+        } else {
+          // No specific partner records found, will use default Vortex fee below
+          // totalPartnerMarkupUSD remains 0
+          logger.warn(
+            `No fee configuration found for partner with name '${partnerName}'. Proceeding with default fees.`,
+          );
+        }
+      }
+
+      // 2. If no partner was provided initially
+      if (!partnerName) {
+        // Query all vortex records for this ramp type
+        const vortexFoundationPartners = await Partner.findAll({
+          where: {
+            name: 'vortex',
+            isActive: true,
+            rampType: rampType,
+          },
+        });
+
+        if (vortexFoundationPartners.length === 0) {
+          logger.error(`Vortex partner configuration not found for ${rampType}-ramp in database.`);
+          throw new APIError({
+            status: httpStatus.INTERNAL_SERVER_ERROR,
+            message: 'Internal configuration error [VF]',
+          });
+        }
+
+        // Process each vortex record and accumulate fees
+        for (const vortexFoundationPartner of vortexFoundationPartners) {
+          if (vortexFoundationPartner.markupType !== 'none') {
+            let vortexFeeComponent = new Big(0);
+            if (vortexFoundationPartner.markupType === 'absolute') {
+              vortexFeeComponent = new Big(vortexFoundationPartner.markupValue);
+            } else {
+              vortexFeeComponent = new Big(inputAmount).mul(vortexFoundationPartner.markupValue);
+            }
+
+            const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+              vortexFeeComponent.toString(),
+              inputCurrency,
+              feeCurrency,
+            );
+            totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
+          }
+        }
+      }
+
+      // 3. Get anchor base fee based on the ramp type and destination
+      let anchorIdentifier = 'default';
+      if (rampType === 'on' && from === 'pix') {
+        anchorIdentifier = 'moonbeam_brla';
+      } else if (rampType === 'off' && to === 'pix') {
+        anchorIdentifier = 'moonbeam_brla';
+      } else if (rampType === 'off' && to === 'sepa') {
+        anchorIdentifier = 'stellar_eurc';
+      } else if (rampType === 'off' && to === 'cbu') {
+        anchorIdentifier = 'stellar_ars';
+      }
+
+      const anchorFeeConfigs = await Anchor.findAll({
+        where: {
+          rampType: rampType,
+          identifier: anchorIdentifier,
+          isActive: true,
+        },
+      });
+
+      // Calculate anchor fee based on type (absolute or relative)
+      let anchorFee = '0';
+      if (anchorFeeConfigs.length > 0) {
+        // Calculate total anchor fee by reducing the array
+        const totalAnchorFee = anchorFeeConfigs.reduce((total, feeConfig) => {
+          if (feeConfig.valueType === 'absolute') {
+            return total.plus(feeConfig.value);
+          }
+          if (feeConfig.valueType === 'relative') {
+            // Calculate relative fee based on the input or output amount
+            const amount = rampType === 'on' ? inputAmount : outputAmount;
+            const relativeFee = new Big(amount).mul(feeConfig.value);
+            return total.plus(relativeFee);
+          }
+          return total;
+        }, new Big(0));
+
+        anchorFee = totalAnchorFee.toFixed(2);
+      }
+
+      return {
+        vortexFee: totalVortexFeeInFeeCurrency.toFixed(2),
+        anchorFee,
+        partnerMarkupFee: totalPartnerMarkupInFeeCurrency.toFixed(2),
+        feeCurrency,
+      };
+    } catch (error) {
+      logger.error('Error calculating fee components:', error);
+      throw new APIError({
+        status: httpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to calculate fee components',
+      });
+    }
   }
 
   /**
@@ -162,7 +479,7 @@ export class QuoteService extends BaseRampService {
     }
   }
 
-  private async calculateOutputAmount(
+  private async calculateGrossOutputAndNetworkFee(
     inputAmount: string,
     inputCurrency: RampCurrency,
     outputCurrency: RampCurrency,
@@ -170,12 +487,15 @@ export class QuoteService extends BaseRampService {
     from: DestinationType,
     to: DestinationType,
   ): Promise<{
-    receiveAmount: string;
-    fees: string;
-    outputAmountBeforeFees: string;
+    grossOutputAmount: string;
+    networkFeeUSD: string;
     outputAmountMoonbeamRaw: string;
-    inputAmountAfterFees: string;
+    inputAmountUsedForSwap: string;
+    effectiveExchangeRate?: string;
   }> {
+    // Use this reference to satisfy ESLint
+    this.validateChainSupport(rampType, from, to);
+
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const apiInstance = await apiManager.getApi(networkName);
@@ -217,12 +537,15 @@ export class QuoteService extends BaseRampService {
       const outputTokenPendulumDetails =
         rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
 
-      const inputAmountAfterFees =
-        rampType === 'on' ? calculateTotalReceiveOnramp(new Big(inputAmount), inputCurrency) : inputAmount;
+      // Initialize networkFeeUSD with '0'
+      let networkFeeUSD = '0';
+
+      // Use the original input amount directly for the swap
+      const inputAmountUsedForSwap = inputAmount;
 
       const amountOut = await getTokenOutAmount({
         api: apiInstance.api,
-        fromAmountString: inputAmountAfterFees,
+        fromAmountString: inputAmountUsedForSwap,
         inputTokenDetails: inputTokenPendulumDetails,
         outputTokenDetails: outputTokenPendulumDetails,
       });
@@ -230,8 +553,8 @@ export class QuoteService extends BaseRampService {
       // if onramp, adjust for axlUSDC price difference.
       const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.rawBalance.toFixed(); // Store the value before the adjustment.
       if (rampType === 'on' && to !== 'assethub') {
-        const outTokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
-        if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
+        const tokenDetails = getOnChainTokenDetails(getNetworkFromDestination(to)!, outputCurrency as OnChainToken);
+        if (!tokenDetails || !isEvmTokenDetails(tokenDetails)) {
           throw new APIError({
             status: httpStatus.BAD_REQUEST,
             message: 'Invalid token details for onramp',
@@ -241,7 +564,7 @@ export class QuoteService extends BaseRampService {
         const routeParams = createOnrampRouteParams(
           '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
           amountOut.preciseQuotedAmountOut.rawBalance.toFixed(),
-          outTokenDetails,
+          tokenDetails,
           getNetworkFromDestination(to)!,
           '0x30a300612ab372cc73e53ffe87fb73d62ed68da3',
         );
@@ -268,37 +591,47 @@ export class QuoteService extends BaseRampService {
           });
         }
 
+        // Calculate network fee in USD for EVM on-ramp via Squidrouter
+        try {
+          // Get current GLMR price in USD from price feed service
+          const glmrPriceUSD = await priceFeedService.getCryptoPrice('moonbeam', 'usd');
+          const squidFeeUSD = squidrouterSwapValue.mul(glmrPriceUSD).toFixed(2);
+          networkFeeUSD = squidFeeUSD;
+          logger.debug(`Network fee calculated using GLMR price: $${glmrPriceUSD}, fee: $${squidFeeUSD}`);
+        } catch (error) {
+          // If price feed fails, log the error and use a fallback price
+          logger.error(
+            `Failed to get GLMR price, using fallback: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+          // Fallback to previous hardcoded value as safety measure
+          const fallbackGlmrPrice = 0.08;
+          const squidFeeUSD = squidrouterSwapValue.mul(fallbackGlmrPrice).toFixed(2);
+          networkFeeUSD = squidFeeUSD;
+          logger.warn(`Using fallback GLMR price: $${fallbackGlmrPrice}, fee: $${squidFeeUSD}`);
+        }
+
         amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
-          outTokenDetails.decimals,
+          tokenDetails.decimals,
           BigInt(toAmountMin),
         );
 
         amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
         amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
-          amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountAfterFees)),
+          amountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountUsedForSwap)),
           4,
         );
       }
 
-      const outputAmountAfterFees =
-        rampType === 'off'
-          ? calculateTotalReceive(amountOut.preciseQuotedAmountOut.preciseBigDecimal, outputCurrency)
-          : amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
+      // Get the gross output amount (before any fees)
+      const grossOutputAmount = amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
 
-      const effectiveFeesOfframp = amountOut.preciseQuotedAmountOut.preciseBigDecimal
-        .minus(outputAmountAfterFees)
-        .toFixed(2, 0);
-
-      const effectiveFeesOnrampBrl = new Big(inputAmount).minus(inputAmountAfterFees);
-      const effectiveFeesOnramp = effectiveFeesOnrampBrl.mul(amountOut.effectiveExchangeRate).toFixed(6, 0);
-      const effectiveFees = rampType === 'off' ? effectiveFeesOfframp : effectiveFeesOnramp;
-
+      // Return the values using the new structure
       return {
-        receiveAmount: outputAmountAfterFees,
-        fees: effectiveFees,
-        outputAmountBeforeFees: amountOut.roundedDownQuotedAmountOut.toString(),
+        grossOutputAmount,
+        networkFeeUSD,
         outputAmountMoonbeamRaw,
-        inputAmountAfterFees,
+        inputAmountUsedForSwap,
+        effectiveExchangeRate: amountOut.effectiveExchangeRate,
       };
     } catch (error) {
       logger.error('Error calculating output amount:', error);
