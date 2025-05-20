@@ -150,4 +150,20 @@ router.get('/:id', rampController.getRampStatus);
  */
 router.get('/:id/errors', rampController.getErrorLogs);
 
+/**
+ * @api {get} v1/ramp/history/:walletAddress Get transaction history
+ * @apiDescription Get transaction history for a wallet address
+ * @apiVersion 1.0.0
+ * @apiName GetTransactionHistory
+ * @apiGroup Ramp
+ * @apiPermission public
+ *
+ * @apiParam {String} walletAddress Wallet address
+ *
+ * @apiSuccess {Array} transactions List of transactions
+ *
+ * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
+ */
+router.get('/history/:walletAddress', rampController.getRampHistory);
+
 export default router;
