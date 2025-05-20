@@ -44,7 +44,6 @@ export const RampForm = () => {
           <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
 
           {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
-
           <div className="mb-16" />
           <PoweredBy />
         </motion.div>
