@@ -95,7 +95,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       display_name: 'Vortex',
       markup_type: 'relative',
       markup_value: 0.0001, // 0.01% (represented as decimal)
-      markup_currency: 'USD',
+      markup_currency: 'USDC',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       ramp_type: 'on',
       vortex_fee_type: 'none',
@@ -110,7 +110,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       display_name: 'Vortex',
       markup_type: 'relative',
       markup_value: 0.0001, // 0.01% (represented as decimal)
-      markup_currency: 'USD',
+      markup_currency: 'USDC',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       ramp_type: 'off',
       vortex_fee_type: 'none',
@@ -125,7 +125,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       display_name: 'N3mus Absolute',
       markup_type: 'absolute',
       markup_value: 1.432, // $1.00 (represented as decimal)
-      markup_currency: 'USD',
+      markup_currency: 'USDC',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       ramp_type: 'on',
       vortex_fee_type: 'relative',
@@ -140,7 +140,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       display_name: 'N3mus relative',
       markup_type: 'relative',
       markup_value: 0.1,
-      markup_currency: 'USD',
+      markup_currency: 'USDC',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       ramp_type: 'on',
       vortex_fee_type: 'relative',
@@ -155,7 +155,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       display_name: 'N3mus Absolute',
       markup_type: 'absolute',
       markup_value: 1.0, // $1.00 (represented as decimal)
-      markup_currency: 'USD',
+      markup_currency: 'USDC',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       ramp_type: 'off',
       vortex_fee_type: 'relative',
@@ -170,7 +170,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       display_name: 'N3mus relative',
       markup_type: 'relative',
       markup_value: 0.01,
-      markup_currency: 'USD',
+      markup_currency: 'USDC',
       payout_address: '6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy',
       ramp_type: 'off',
       vortex_fee_type: 'relative',
