@@ -1,18 +1,18 @@
-import { SigningBox } from '../../components/SigningBox';
-import { RampSummaryDialog } from '../../components/RampSummaryDialog';
-import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
-import { Offramp } from '../../components/Ramp/Offramp';
 import { motion } from 'motion/react';
-import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
+import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirectionStore';
 import { RampDirection, RampToggle } from '../../components/RampToggle';
-import { PoweredBy } from '../../components/PoweredBy';
-import { Onramp } from '../../components/Ramp/Onramp';
-import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
+import { RampSummaryDialog } from '../../components/RampSummaryDialog';
 import { AirdropBanner } from '../../components/AirdropBanner';
+import { Offramp } from '../../components/Ramp/Offramp';
+import { Onramp } from '../../components/Ramp/Onramp';
 import { RampHistoryButton } from '../../components/RampHistory/RampHistoryButton';
 import { RampHistory } from '../../components/RampHistory';
+import { PoweredBy } from '../../components/PoweredBy';
+
+import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirectionStore';
+import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
+import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();
@@ -26,7 +26,6 @@ export const RampForm = () => {
     <main>
       <PoolSelectorModal />
       <RampSummaryDialog />
-      <SigningBox />
       <AirdropBanner />
       {rampKycStarted || rampKycLevel2Started ? (
         <PIXKYCForm />

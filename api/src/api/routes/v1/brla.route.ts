@@ -12,7 +12,7 @@ router.route('/getUser').get(brlaController.getBrlaUser);
 
 router.route('/getUserRemainingLimit').get(brlaController.getBrlaUserRemainingLimit);
 
-router.route('/getOfframpStatus').get(brlaController.getOfframpStatus);
+router.route('/getRampStatus').get(brlaController.getRampStatus);
 
 router.route('/getKycStatus').get(brlaController.fetchSubaccountKycStatus);
 

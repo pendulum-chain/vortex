@@ -44,7 +44,6 @@ export interface ContractBalance {
   approximateNumber: number;
 }
 
-
 export function multiplyByPowerOfTen(bigDecimal: BigNumber, power: number) {
   const newBigDecimal = new BigNumber(bigDecimal);
   if (newBigDecimal.c[0] === 0) return newBigDecimal;
@@ -100,4 +99,3 @@ export function parseContractBalanceResponse(
     approximateNumber: preciseBigDecimal.toNumber(),
   };
 }
-
