@@ -17,6 +17,16 @@ div[data-rk] {
 @import 'tailwindcss';
 @plugin "daisyui";
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 :root {
   --color-primary: #0f4dc0;
   --color-primary-content: #fff;
@@ -171,6 +181,21 @@ div[data-rk] {
   @apply rounded-xl;
   @apply border;
   @apply border-blue-700;
+}
+
+.btn-vortex-accent {
+  @apply bg-gray-200;
+  @apply text-gray-700;
+  @apply rounded-full;
+  @apply border;
+  @apply border-gray-300;
+  @apply duration-200;
+}
+
+.btn-vortex-accent:hover {
+  @apply bg-blue-100;
+  @apply text-blue-700;
+  @apply border-blue-300;
 }
 
 .btn-vortex-primary-inverse:hover {

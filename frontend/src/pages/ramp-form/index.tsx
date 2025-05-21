@@ -5,8 +5,10 @@ import { RampDirection, RampToggle } from '../../components/RampToggle';
 import { RampSummaryDialog } from '../../components/RampSummaryDialog';
 import { AirdropBanner } from '../../components/AirdropBanner';
 import { Offramp } from '../../components/Ramp/Offramp';
-import { PoweredBy } from '../../components/PoweredBy';
 import { Onramp } from '../../components/Ramp/Onramp';
+import { RampHistoryButton } from '../../components/RampHistory/RampHistoryButton';
+import { RampHistory } from '../../components/RampHistory';
+import { PoweredBy } from '../../components/PoweredBy';
 
 import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirectionStore';
 import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
@@ -32,12 +34,15 @@ export const RampForm = () => {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96"
+          className="px-4 pt-4 pb-2 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 relative overflow-hidden"
         >
+          <RampHistory />
+          <section className="w-full pb-1 flex justify-end">
+            <RampHistoryButton />
+          </section>
           <RampToggle activeDirection={activeSwapDirection} onToggle={onSwapDirectionToggle} />
 
           {activeSwapDirection === RampDirection.ONRAMP ? <Onramp /> : <Offramp />}
-
           <div className="mb-16" />
           <PoweredBy />
         </motion.div>

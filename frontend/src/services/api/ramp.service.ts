@@ -103,4 +103,13 @@ export class RampService {
 
     return poll();
   }
+
+  /**
+   * Get transaction history for a wallet address
+   * @param walletAddress The wallet address
+   * @returns The transaction history
+   */
+  static async getRampHistory(walletAddress: string): Promise<RampEndpoints.GetRampHistoryResponse> {
+    return apiRequest<RampEndpoints.GetRampHistoryResponse>('get', `${this.BASE_PATH}/history/${walletAddress}`);
+  }
 }
