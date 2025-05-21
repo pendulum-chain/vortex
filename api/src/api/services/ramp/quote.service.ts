@@ -159,7 +159,7 @@ export class QuoteService extends BaseRampService {
       vortex: vortexFeeUsd,
       anchor: anchorFeeUsd,
       partnerMarkup: partnerMarkupFeeUsd,
-      total: new Big(networkFeeUSD).plus(vortexFeeUsd).plus(partnerMarkupFeeUsd).plus(anchorFeeUsd).toFixed(2),
+      total: new Big(networkFeeUSD).plus(vortexFeeUsd).plus(partnerMarkupFeeUsd).plus(anchorFeeUsd).toFixed(6),
       currency: 'USD',
     };
 
@@ -608,7 +608,7 @@ export class QuoteService extends BaseRampService {
         try {
           // Get current GLMR price in USD from price feed service
           const glmrPriceUSD = await priceFeedService.getCryptoPrice('moonbeam', 'usd');
-          const squidFeeUSD = squidrouterSwapValue.mul(glmrPriceUSD).toFixed(2);
+          const squidFeeUSD = squidrouterSwapValue.mul(glmrPriceUSD).toFixed(6);
           networkFeeUSD = squidFeeUSD;
           logger.debug(`Network fee calculated using GLMR price: $${glmrPriceUSD}, fee: $${squidFeeUSD}`);
         } catch (error) {
@@ -618,7 +618,7 @@ export class QuoteService extends BaseRampService {
           );
           // Fallback to previous hardcoded value as safety measure
           const fallbackGlmrPrice = 0.08;
-          const squidFeeUSD = squidrouterSwapValue.mul(fallbackGlmrPrice).toFixed(2);
+          const squidFeeUSD = squidrouterSwapValue.mul(fallbackGlmrPrice).toFixed(6);
           networkFeeUSD = squidFeeUSD;
           logger.warn(`Using fallback GLMR price: $${fallbackGlmrPrice}, fee: $${squidFeeUSD}`);
         }
