@@ -247,7 +247,9 @@ export const useRegisterRamp = () => {
     rampStarted,
     releaseSigningLock,
     setSigningRejected,
+    showToast,
     signingRejected,
+    ToastMessage.SIGNING_REJECTED,
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
@@ -355,8 +357,8 @@ export const useRegisterRamp = () => {
       .catch((error) => {
         console.error(`Error requesting signatures from user`, error);
         // TODO check if user declined based on error provided
-        setSigningRejected(true);
         showToast(ToastMessage.SIGNING_REJECTED);
+        setSigningRejected(true);
       })
       .finally(() => releaseSigningLock());
   }, [
