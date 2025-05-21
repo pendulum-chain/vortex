@@ -10,6 +10,7 @@ import { RampDirection } from '../RampToggle';
 import { TransactionTokensDisplay } from './TransactionTokensDisplay';
 import { RampSummaryButton } from './RampSummaryButton';
 import { useRampDirection } from '../../stores/rampDirectionStore';
+import { usePartnerId } from '../../stores/partnerStore';
 
 export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
@@ -22,6 +23,7 @@ export const RampSummaryDialog: FC = () => {
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
+  const partnerId = usePartnerId();
 
   if (!visible) return null;
   if (!executionInput) return null;
@@ -34,6 +36,7 @@ export const RampSummaryDialog: FC = () => {
       onChainToken,
       fiatToken,
       selectedNetwork,
+      partnerId,
     });
   };
 
