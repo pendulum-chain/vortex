@@ -9,7 +9,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
   [FiatToken.EURC]: {
     type: TokenType.Stellar,
     anchorHomepageUrl: 'https://mykobo.co',
-    tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
+    tomlFileUrl: 'https://stellar.mykobo.co/.well-known/stellar.toml',
     decimals: 12,
     pendulumDecimals: 12,
     fiat: {
