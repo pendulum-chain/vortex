@@ -19,7 +19,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   const rampDirection = useRampDirection();
   const rampType = rampDirection === RampDirection.ONRAMP ? 'on' : 'off';
 
-  const { quote, fetchQuote, outputAmount } = useQuoteStore();
+  const { fetchQuote, outputAmount } = useQuoteStore();
 
   const getQuote = useCallback(async () => {
     if (!inputAmount) return;
@@ -39,18 +39,6 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
       });
     }
   }, [inputAmount, fetchQuote, rampType, onChainToken, fiatToken, selectedNetwork, trackEvent]);
-
-  useEffect(() => {
-    if (quote && inputAmount) {
-      trackEvent({
-        event: 'transaction_confirmation',
-        from_asset: onChainToken,
-        to_asset: fiatToken,
-        from_amount: inputAmount,
-        to_amount: quote.outputAmount,
-      });
-    }
-  }, [quote, trackEvent, inputAmount, onChainToken, fiatToken]);
 
   useEffect(() => {
     getQuote();
