@@ -269,18 +269,19 @@ async function createNablaSwapTransactions(
     quote.outputCurrency,
   );
   const outputAfterAnchorFee = new Big(quote.outputAmount)
-    .minus(totalFeeInOutputCurrency)
-    .add(anchorFeeInOutputCurrency);
+    .plus(totalFeeInOutputCurrency)
+    .minus(anchorFeeInOutputCurrency);
+
   const nablaSoftMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
     nablaSoftMinimumOutput,
-    inputTokenPendulumDetails.pendulumDecimals,
-  ).toFixed();
+    outputTokenPendulumDetails.pendulumDecimals,
+  ).toFixed(0, 0);
 
-  const nablaHardMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
+  const nablaHardMinimumOutput = outputAfterAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN);
   const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
-    new Big(nablaHardMinimumOutput),
-    inputTokenPendulumDetails.pendulumDecimals,
+    nablaHardMinimumOutput,
+    outputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
 
   console.log(
@@ -290,7 +291,7 @@ async function createNablaSwapTransactions(
     nablaSoftMinimumOutputRaw,
   );
 
-  const { approveTransaction, swapTransaction } = await createNablaTransactionsForOnramp(
+  const { approve, swap } = await createNablaTransactionsForOnramp(
     inputAmountUnits,
     quote,
     account,
@@ -301,7 +302,7 @@ async function createNablaSwapTransactions(
 
   // Add Nabla approve transaction
   unsignedTxs.push({
-    txData: approveTransaction,
+    txData: approve.transaction,
     phase: 'nablaApprove',
     network: account.network,
     nonce: nextNonce,
@@ -311,7 +312,7 @@ async function createNablaSwapTransactions(
 
   // Add Nabla swap transaction
   unsignedTxs.push({
-    txData: swapTransaction,
+    txData: approve.transaction,
     phase: 'nablaSwap',
     network: account.network,
     nonce: nextNonce,
@@ -324,6 +325,10 @@ async function createNablaSwapTransactions(
     stateMeta: {
       nablaSoftMinimumOutputRaw,
       inputAmountBeforeSwapRaw,
+      nabla: {
+        approveExtrinsicOptions: approve.extrinsicOptions,
+        swapExtrinsicOptions: swap.extrinsicOptions,
+      },
     },
   };
 }

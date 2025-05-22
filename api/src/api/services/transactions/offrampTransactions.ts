@@ -241,13 +241,13 @@ async function createNablaSwapTransactions(
   const nablaSoftMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
     nablaSoftMinimumOutput,
-    inputTokenPendulumDetails.pendulumDecimals,
+    outputTokenPendulumDetails.pendulumDecimals,
   ).toFixed();
 
   const nablaHardMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
   const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
     new Big(nablaHardMinimumOutput),
-    inputTokenPendulumDetails.pendulumDecimals,
+    outputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
 
   console.log(
@@ -259,7 +259,7 @@ async function createNablaSwapTransactions(
     inputAmountBeforeSwapRaw,
   );
 
-  const { approveTransaction, swapTransaction } = await createNablaTransactionsForOfframp(
+  const { approve, swap } = await createNablaTransactionsForOfframp(
     quote,
     account,
     inputTokenPendulumDetails,
@@ -268,7 +268,7 @@ async function createNablaSwapTransactions(
   );
 
   unsignedTxs.push({
-    txData: approveTransaction,
+    txData: approve.transaction,
     phase: 'nablaApprove',
     network: account.network,
     nonce: nextNonce,
@@ -277,7 +277,7 @@ async function createNablaSwapTransactions(
   nextNonce++;
 
   unsignedTxs.push({
-    txData: swapTransaction,
+    txData: swap.transaction,
     phase: 'nablaSwap',
     network: account.network,
     nonce: nextNonce,
@@ -290,6 +290,10 @@ async function createNablaSwapTransactions(
     stateMeta: {
       nablaSoftMinimumOutputRaw,
       inputAmountBeforeSwapRaw,
+      nabla: {
+        approveExtrinsicOptions: approve.extrinsicOptions,
+        swapExtrinsicOptions: swap.extrinsicOptions,
+      }
     },
   };
 }

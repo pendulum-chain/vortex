@@ -1,4 +1,5 @@
 import { PendulumDetails, RampCurrency, StellarTokenDetails } from 'shared';
+import { ExtrinsicOptions } from '../transactions/nabla';
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
@@ -26,4 +27,8 @@ export interface StateMetadata {
   receiverTaxId: string;
   moonbeamEphemeralAddress: string;
   pendulumToAssethubXcmHash: string;
+  nabla: {
+    approveExtrinsicOptions: ExtrinsicOptions;
+    swapExtrinsicOptions: ExtrinsicOptions;
+  };
 }

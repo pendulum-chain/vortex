@@ -1,15 +1,30 @@
-import { ExecuteMessageResult, readMessage, submitExtrinsic } from '@pendulum-chain/api-solang';
+import {
+  createExecuteMessageExtrinsic,
+  ExecuteMessageResult,
+  ReadMessageResult,
+  submitExtrinsic,
+} from '@pendulum-chain/api-solang';
 import Big from 'big.js';
-import { NABLA_ROUTER, RampPhase, decodeSubmittableExtrinsic } from 'shared';
-import { Abi } from '@polkadot/api-contract';
+import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 
 import { ApiManager } from '../../pendulum/apiManager';
-import { routerAbi } from '../../../../contracts/Router';
-import { defaultReadLimits } from '../../../helpers/contracts';
 import { StateMetadata } from '../meta-state-types';
 import logger from '../../../../config/logger';
+import { Abi } from '@polkadot/api-contract';
+import { routerAbi } from '../../../../contracts/Router';
+
+function parseMessageResultError(result: ReadMessageResult) {
+  if (result.type === 'error') {
+    return result.error;
+  } else if (result.type === 'panic') {
+    return `${result.errorCode}: ${result.explanation}`;
+  } else if (result.type === 'reverted') {
+    return `${result.description}`;
+  }
+  return 'Could not extract error message for ReadMessageResult.';
+}
 
 export class NablaSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -41,29 +56,24 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     try {
       const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, 'nablaSwap');
+      const swapExtrinsicOptions = state.state.nabla.swapExtrinsicOptions;
 
-      logger.info('before RESPONSE prepareNablaSwapTransaction');
-      // get an up to date quote for the AMM
-      const response = await readMessage({
-        abi: new Abi(routerAbi),
+      // Do a dry-run with the extrinsic options we used to create the presigned extrinsic.
+      const dryRunResponse = await createExecuteMessageExtrinsic({
+        ...swapExtrinsicOptions,
         api: pendulumNode.api,
-        contractDeploymentAddress: NABLA_ROUTER,
-        callerAddress: pendulumEphemeralAddress,
-        messageName: 'getAmountOut',
-        messageArguments: [
-          inputAmountBeforeSwapRaw,
-          [
-            inputTokenPendulumDetails.pendulumErc20WrapperAddress,
-            outputTokenPendulumDetails.pendulumErc20WrapperAddress,
-          ],
-        ],
-        limits: defaultReadLimits,
+        abi: new Abi(routerAbi),
       });
-      if (response.type !== 'success') {
-        throw new Error("Couldn't get a quote from the AMM");
+
+      if (!dryRunResponse.result) {
+        throw new Error('Could not dry-run nabla swap transaction. Missing result.');
+      }
+      if (dryRunResponse.result.type !== 'success') {
+        const errorMessage = parseMessageResultError(dryRunResponse.result);
+        throw new Error('Could not dry-run nabla swap transaction: ' + errorMessage);
       }
 
-      const ouputAmountQuoteRaw = Big(response.value[0].toString());
+      const ouputAmountQuoteRaw = Big(dryRunResponse.value[0].toString());
       if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
         logger.info(
           `The estimated output amount is too low to swap. Expected: ${nablaSoftMinimumOutputRaw}, got: ${ouputAmountQuoteRaw}`,
@@ -80,6 +90,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const swapExtrinsic = decodeSubmittableExtrinsic(nablaSwapTransaction, pendulumNode.api);
       const result = await submitExtrinsic(swapExtrinsic);
 
+      console.log('Nabla swap result', result);
+
       if (result.status.type === 'error') {
         logger.error(`Could not swap token: ${result.status.error.toString()}`);
         throw new Error('Could not swap token');
@@ -87,6 +99,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     } catch (e) {
       let errorMessage = '';
       const { result } = e as ExecuteMessageResult;
+      console.log('Nabla swap failed. e', e);
       if (result?.type === 'reverted') {
         errorMessage = result.description;
       } else if (result?.type === 'error') {

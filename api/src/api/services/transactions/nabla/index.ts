@@ -5,6 +5,9 @@ import { ApiManager } from '../../pendulum/apiManager';
 import { prepareNablaSwapTransaction } from './swap';
 import { prepareNablaApproveTransaction } from './approve';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { CreateExecuteMessageExtrinsicOptions } from '@pendulum-chain/api-solang';
+
+export type ExtrinsicOptions = Omit<CreateExecuteMessageExtrinsicOptions, 'abi' | 'api'>;
 
 export async function createNablaTransactionsForOfframp(
   quote: QuoteTicketAttributes,
@@ -44,8 +47,14 @@ export async function createNablaTransactionsForOfframp(
   });
 
   return {
-    approveTransaction: encodeSubmittableExtrinsic(approveTransaction),
-    swapTransaction: encodeSubmittableExtrinsic(swapTransaction),
+    approve: {
+      transaction: encodeSubmittableExtrinsic(approveTransaction.extrinsic),
+      extrinsicOptions: approveTransaction.extrinsicOptions,
+    },
+    swap: {
+      transaction: encodeSubmittableExtrinsic(swapTransaction.extrinsic),
+      extrinsicOptions: swapTransaction.extrinsicOptions,
+    },
   };
 }
 
@@ -55,7 +64,7 @@ export async function createNablaTransactionsForOnramp(
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
-  nablaHardMinimumOutputRaw: string
+  nablaHardMinimumOutputRaw: string,
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
     throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
@@ -85,7 +94,13 @@ export async function createNablaTransactionsForOnramp(
   });
 
   return {
-    approveTransaction: encodeSubmittableExtrinsic(approveTransaction),
-    swapTransaction: encodeSubmittableExtrinsic(swapTransaction),
+    approve: {
+      transaction: encodeSubmittableExtrinsic(approveTransaction.extrinsic),
+      extrinsicOptions: approveTransaction.extrinsicOptions,
+    },
+    swap: {
+      transaction: encodeSubmittableExtrinsic(swapTransaction.extrinsic),
+      extrinsicOptions: swapTransaction.extrinsicOptions,
+    },
   };
 }
