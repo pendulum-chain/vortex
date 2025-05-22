@@ -22,6 +22,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   tokenSymbol,
   onClick,
   registerInput,
+  loading,
   ...rest
 }) => (
   <div
@@ -36,10 +37,11 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
       <AssetButton disabled={rest.disabled} assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
     </div>
 
-    {rest.loading ? (
+    {loading ? (
       <div className="loading loading-bars loading-md ml-auto mr-4"></div>
     ) : (
       <NumericInput
+        loading={loading}
         register={registerInput}
         additionalStyle={cn('text-right text-lg', rest.readOnly && 'text-xl')}
         {...rest}

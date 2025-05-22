@@ -18,7 +18,6 @@ import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
 import { useRampActions } from '../../stores/rampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
-import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
 import { useToastMessage } from '../../helpers/notifications';
 import { isValidCnpj, isValidCpf } from '../ramp/schema';
@@ -42,7 +41,7 @@ export const useSubmitRamp = () => {
     setRampKycStarted,
     setInitializeFailedMessage,
     setRampSummaryVisible,
-    setRampKycLevel2Started
+    setRampKycLevel2Started,
   } = useRampActions();
 
   const {
@@ -94,20 +93,20 @@ export const useSubmitRamp = () => {
               const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
 
               const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-              
+
               const remainingLimitInUnits =
                 rampDirection === RampDirection.OFFRAMP
                   ? remainingLimitResponse.remainingLimitOfframp
                   : remainingLimitResponse.remainingLimitOnramp;
-      
+
               const amountNum = Number(executionInput.quote.inputAmount);
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
-                // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and 
+                // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and
                 // handling of level 0 users.
                 setRampKycLevel2Started(true);
                 return;
-              } 
+              }
 
               // append EVM address to execution input
               const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
