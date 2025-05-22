@@ -61,6 +61,7 @@ const initializeApp = async () => {
     // Start background workers
     new CleanupWorker().start();
     new RampRecoveryWorker().start();
+    new RampRecoveryWorker().start();
 
     // Register phase handlers
     registerPhaseHandlers();
