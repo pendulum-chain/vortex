@@ -310,6 +310,9 @@ export class RampService extends BaseRampService {
         state: {
           [Op.or]: [{ walletAddress }, { destinationAddress: walletAddress }],
         },
+        currentPhase: {
+          [Op.ne]: 'initial',
+        },
       },
       order: [['createdAt', 'DESC']],
     });
