@@ -9,7 +9,8 @@ import { DepositLog } from '../services/brla/types';
 
 const DEFAULT_CRON_TIME = '*/15 * * * *';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
-const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000; 
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 
 class UnhandledPaymentWorker {
@@ -21,6 +22,8 @@ class UnhandledPaymentWorker {
   // This worker assumes that checkUnhandledPayments is idempotent on the same state.
   // Should the state be unhandled, it shall not be alerted again.
   private processedStateIds: Set<string> = new Set();
+  // Store subaccountIds with timestamps to limit alerts to one per day per subaccount
+  private alertedSubaccounts: Map<string, number> = new Map();
 
   constructor(cronTime = DEFAULT_CRON_TIME) {
     this.brlaApiService = BrlaApiService.getInstance();
@@ -143,25 +146,37 @@ class UnhandledPaymentWorker {
     return undefined;
   }
 
+  private hasRecentAlert(subaccountId: string): boolean {
+    const lastAlertTime = this.alertedSubaccounts.get(subaccountId);
+    if (!lastAlertTime) {
+      return false;
+    }
+    
+    const now = Date.now();
+    return (now - lastAlertTime) < ONE_DAY_MS;
+  }
+
   private async processStatesForUnhandledPayments(states: RampState[]): Promise<void> {
     for (const state of states) {
       try {
         // If already alerted in a previous cycle (DB flag is set), skip generating new alerts.
-        // The processedStateIds set primarily prevents re-fetching and re-processing,
-        // this is a secondary check if a state somehow gets re-processed.
+        // The processedStateIds set primarily prevents re-fetching and re-processing after server restarts.
         if (state.state.unhandledPaymentAlertSent) {
           this.processedStateIds.add(state.id); 
           continue;
         }
 
-        const subaccountId = state.state.taxId;
-        if (!subaccountId) {
+        const subaccount = await this.brlaApiService.getSubaccount(state.state.taxId);
+        if (!subaccount) {
           logger.warn(`No subaccount ID (taxId) found for state ${state.id}. Skipping payment checks for this state.`);
-          this.processedStateIds.add(state.id); 
+          this.updateAlertedState(state); 
           continue;
         }
+        const subaccountId = subaccount.id;
 
-        this.processedStateIds.add(state.id);
+        if (this.hasRecentAlert(subaccount.id)) {
+          continue;
+        }
 
         const referenceLabel = generateReferenceLabel(state.quoteId);
         const paymentHistory = await this.brlaApiService.getPayInHistory(subaccountId);
@@ -170,14 +185,15 @@ class UnhandledPaymentWorker {
         const matchingPayments = paymentHistory.filter(payment =>
           payment.referenceLabel === referenceLabel && payment.id
         );
-
+        
         if (matchingPayments.length > 0) {
           const firstMatchingPayment = matchingPayments[0]; 
           logger.error(`ALERT: Found ${matchingPayments.length} unhandled payment(s) for state ${state.id} with reference label ${referenceLabel}. First Payment ID: ${firstMatchingPayment.id}`);
           const reason = 'Payment found for an initial or failed state where none was expected.';
           const slackMessage = `Unhandled payment for State ID: ${state.id}, Payment ID(s): ${matchingPayments.map(p => p.id).join(', ')}, Label: ${referenceLabel}, Reason: ${reason}`;
 
-          this.updateAlertedState(state, slackMessage);
+          this.alertsThisCycle.push(slackMessage);
+          this.alertedSubaccounts.set(subaccountId, Date.now());
         }
 
         // Check 2: General duplicate reference labels in the payment history for the subaccount
@@ -186,7 +202,9 @@ class UnhandledPaymentWorker {
           logger.error(`ALERT: Found duplicate reference label ('${duplicateInfo.label}') in payment history for subaccount of state ${state.id}. Associated Payment IDs: ${duplicateInfo.ids.join(', ')}`);
           const reason = `Duplicate reference label '${duplicateInfo.label}' detected in subaccount ${subaccountId}.`;
           const slackMessage = `Duplicate payment reference issue associated with State ID: ${state.id}. Duplicated Label: '${duplicateInfo.label}', Involved Payment IDs: ${duplicateInfo.ids.join(', ')}. Reason: ${reason}`;
-          this.updateAlertedState(state, slackMessage);
+
+          this.alertsThisCycle.push(slackMessage);
+          this.alertedSubaccounts.set(subaccountId, Date.now());
         }
 
         // Check 3: Payments with NO reference label, or invalid one.
@@ -199,34 +217,37 @@ class UnhandledPaymentWorker {
           const invalidLabel = firstInvalidPayment.referenceLabel || 'undefined';
           logger.error(`ALERT: Found ${paymentsWithInvalidLabels.length} payment(s) with invalid reference label for state ${state.id}. First Payment ID: ${firstInvalidPayment.id}, Invalid Label: '${invalidLabel}'`);
           const reason = `Invalid reference label format detected. Expected 8 characters, found: '${invalidLabel}'`;
-          const slackMessage = `Invalid payment reference label for State ID: ${state.id}, Payment ID(s): ${firstInvalidPayment}, Invalid Label: '${invalidLabel}', Reason: ${reason}`;
+          const slackMessage = `Invalid payment reference label for State ID: ${state.id}, Payment ID(s): ${firstInvalidPayment.id}, Invalid Label: '${invalidLabel}', Reason: ${reason}`;
           
-          this.updateAlertedState(state, slackMessage);
+          this.alertsThisCycle.push(slackMessage);
+          this.alertedSubaccounts.set(subaccountId, Date.now());
         }
         
       } catch (error) {
         logger.error(`Error processing state ${state.id} for unhandled payments:`, error);
       }
+      this.updateAlertedState(state);
     }
-
+    
     if (this.alertsThisCycle.length > 0) {
       await this.notifySlack();
     }
     logger.info(`Attempted to process ${states.length} states for unhandled payments this cycle.`);
   }
 
-  private async updateAlertedState(state: RampState, message: string): Promise<void> {
+
+  private async updateAlertedState(state: RampState): Promise<void> {
 
     if (!state.state.unhandledPaymentAlertSent) {
       try {
         const newState = { ...state.state, unhandledPaymentAlertSent: true };
         await state.update({ state: newState }); 
+        this.processedStateIds.add(state.id);
         logger.info(`State ${state.id} successfully updated to mark unhandledPaymentAlertSent.`);
       } catch (error) {
         logger.error(`Error updating state ${state.id} to mark alert as sent:`, error);
       }
     }
-    this.alertsThisCycle.push(message);
   }
 
   private async notifySlack(): Promise<void> {
