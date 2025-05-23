@@ -3,7 +3,7 @@ import logger from '../../config/logger';
 import RampState from '../../models/rampState.model';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { Op } from 'sequelize';
-import { generateReferenceLabel } from '../services/brla/helpers';
+import { generateReferenceLabel, isValidReferenceLabel } from '../services/brla/helpers';
 import { SlackNotifier } from '../services/slack.service';
 import { DepositLog } from '../services/brla/types';
 
@@ -189,6 +189,21 @@ class UnhandledPaymentWorker {
           this.updateAlertedState(state, slackMessage);
         }
 
+        // Check 3: Payments with NO reference label, or invalid one.
+        const paymentsWithInvalidLabels = paymentHistory.filter(payment => 
+          payment.id && payment.referenceLabel !== undefined && !isValidReferenceLabel(payment.referenceLabel)
+        );
+
+        if (paymentsWithInvalidLabels.length > 0) {
+          const firstInvalidPayment = paymentsWithInvalidLabels[0];
+          const invalidLabel = firstInvalidPayment.referenceLabel || 'undefined';
+          logger.error(`ALERT: Found ${paymentsWithInvalidLabels.length} payment(s) with invalid reference label for state ${state.id}. First Payment ID: ${firstInvalidPayment.id}, Invalid Label: '${invalidLabel}'`);
+          const reason = `Invalid reference label format detected. Expected 8 characters, found: '${invalidLabel}'`;
+          const slackMessage = `Invalid payment reference label for State ID: ${state.id}, Payment ID(s): ${firstInvalidPayment}, Invalid Label: '${invalidLabel}', Reason: ${reason}`;
+          
+          this.updateAlertedState(state, slackMessage);
+        }
+        
       } catch (error) {
         logger.error(`Error processing state ${state.id} for unhandled payments:`, error);
       }
