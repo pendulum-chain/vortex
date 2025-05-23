@@ -63,7 +63,7 @@ export const NumericInput = ({
         value={defaultValue}
         autoFocus={autoFocus}
       />
-      {disabled && loading && (
+      {loading && (
         <span className="absolute top-1/2 right-3 -translate-y-1/2 loading loading-bars loading-sm text-primary"></span>
       )}
     </div>
