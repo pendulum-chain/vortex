@@ -65,14 +65,6 @@ export const useSubmitRamp = () => {
         try {
           await setSelectedNetwork(selectedNetwork);
 
-          trackEvent({
-            event: 'transaction_confirmation',
-            from_asset: getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken).assetSymbol,
-            to_asset: getAnyFiatTokenDetails(executionInput.fiatToken).fiat.symbol,
-            from_amount: executionInput.quote.inputAmount,
-            to_amount: executionInput.quote.outputAmount,
-          });
-
           if (!address) {
             throw new Error('Address must be defined at this stage');
           }
@@ -197,7 +189,6 @@ export const useSubmitRamp = () => {
       setRampInitiating,
       setSelectedNetwork,
       selectedNetwork,
-      trackEvent,
       address,
       chainId,
       setRampExecutionInput,

@@ -178,7 +178,7 @@ export const fetchSep10Signatures = async ({
 };
 
 export const fetchOfframpStatus = async (taxId: string) => {
-  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getOfframpStatus?taxId=${taxId}`);
+  const statusResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/getRampStatus?taxId=${taxId}`);
 
   if (statusResponse.status !== 200) {
     if (statusResponse.status === 404) {

@@ -144,3 +144,30 @@ export const getErrorLogs = async (
     next(error);
   }
 };
+
+/**
+ * Get ramp history for a wallet address
+ * @public
+ */
+export const getRampHistory = async (
+  req: Request<RampEndpoints.GetRampHistoryRequest>,
+  res: Response<RampEndpoints.GetRampHistoryResponse>,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { walletAddress } = req.params;
+
+    if (!walletAddress) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Wallet address is required',
+      });
+    }
+
+    const history = await rampService.getRampHistory(walletAddress);
+    res.status(httpStatus.OK).json(history);
+  } catch (error) {
+    logger.error('Error getting transaction history:', error);
+    next(error);
+  }
+};

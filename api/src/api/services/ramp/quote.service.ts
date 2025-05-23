@@ -251,8 +251,7 @@ export class QuoteService extends BaseRampService {
         const { toAmountMin } = route.estimate;
 
         // Check against our moonbeam funding amounts.
-        const squidrouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
-
+        const squidrouterSwapValue = multiplyByPowerOfTen(new Big(route.transactionRequest.value), -18);
         const fundingAmountUnits =
           getNetworkFromDestination(to) === Networks.Ethereum
             ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
@@ -268,10 +267,7 @@ export class QuoteService extends BaseRampService {
           });
         }
 
-        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(
-          outTokenDetails.decimals,
-          BigInt(toAmountMin),
-        );
+        amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(outTokenDetails.decimals, BigInt(toAmountMin));
 
         amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
         amountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
