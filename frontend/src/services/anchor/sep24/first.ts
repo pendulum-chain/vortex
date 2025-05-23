@@ -16,19 +16,19 @@ export async function sep24First(
   const { usesMemo } = getTokenDetailsSpacewalk(outputToken);
   const assetCode = sessionParams.tokenConfig.stellarAsset.code.string;
 
-  const params = new URLSearchParams({
+  const params = {
     asset_code: assetCode,
     amount: offrampAmount,
     ...(usesMemo && { account: ANCLAP_sep10Account }),
-  });
+  };
 
   const response = await fetch(`${sep24Url}/transactions/withdraw/interactive`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: params.toString(),
+    body: JSON.stringify(params),
   });
 
   if (response.status !== 200) {
