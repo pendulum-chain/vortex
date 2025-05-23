@@ -1,5 +1,5 @@
 import { Keypair, TransactionBuilder, Networks, Transaction } from 'stellar-sdk';
-import { TOKEN_CONFIG } from 'shared';
+import { FiatToken, TOKEN_CONFIG } from 'shared';
 import { SEP10_MASTER_SECRET, CLIENT_DOMAIN_SECRET } from '../../../constants/constants';
 import { fetchTomlValues } from '../../helpers/anchors';
 import { getOutToken, validateTransaction, validateFirstOperation, validateRemainingOperations } from './helpers';
@@ -19,7 +19,7 @@ interface Sep10Response {
 
 export const signSep10Challenge = async (
   challengeXDR: string,
-  outToken: keyof typeof TOKEN_CONFIG,
+  fiatToken: FiatToken,
   clientPublicKey: string,
   memo: string | null,
 ): Promise<Sep10Response> => {
@@ -28,6 +28,8 @@ export const signSep10Challenge = async (
   }
   const masterStellarKeypair = Keypair.fromSecret(SEP10_MASTER_SECRET);
   const clientDomainStellarKeypair = Keypair.fromSecret(CLIENT_DOMAIN_SECRET);
+
+  const outToken = fiatToken === "eur" ? "eurc" : fiatToken;
 
   const outTokenConfig = getOutToken(outToken);
   const { signingKey: anchorSigningKey } = (await fetchTomlValues(outTokenConfig.tomlFileUrl)) as TomlValues;

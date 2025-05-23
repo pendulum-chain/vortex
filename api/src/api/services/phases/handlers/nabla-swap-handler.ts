@@ -59,21 +59,22 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const swapExtrinsicOptions = state.state.nabla.swapExtrinsicOptions;
 
       // Do a dry-run with the extrinsic options we used to create the presigned extrinsic.
-      const dryRunResponse = await createExecuteMessageExtrinsic({
+      const { result: readMessageResult }  = await createExecuteMessageExtrinsic({
         ...swapExtrinsicOptions,
         api: pendulumNode.api,
         abi: new Abi(routerAbi),
+        skipDryRunning: false,
       });
 
-      if (!dryRunResponse.result) {
+      if (!readMessageResult) {
         throw new Error('Could not dry-run nabla swap transaction. Missing result.');
       }
-      if (dryRunResponse.result.type !== 'success') {
-        const errorMessage = parseMessageResultError(dryRunResponse.result);
+      if (readMessageResult.type !== 'success') {
+        const errorMessage = parseMessageResultError(readMessageResult);
         throw new Error('Could not dry-run nabla swap transaction: ' + errorMessage);
       }
 
-      const ouputAmountQuoteRaw = Big(dryRunResponse.value[0].toString());
+      const ouputAmountQuoteRaw = Big(readMessageResult.value[0].toString());
       if (ouputAmountQuoteRaw.lt(Big(nablaSoftMinimumOutputRaw))) {
         logger.info(
           `The estimated output amount is too low to swap. Expected: ${nablaSoftMinimumOutputRaw}, got: ${ouputAmountQuoteRaw}`,
@@ -90,8 +91,6 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const swapExtrinsic = decodeSubmittableExtrinsic(nablaSwapTransaction, pendulumNode.api);
       const result = await submitExtrinsic(swapExtrinsic);
 
-      console.log('Nabla swap result', result);
-
       if (result.status.type === 'error') {
         logger.error(`Could not swap token: ${result.status.error.toString()}`);
         throw new Error('Could not swap token');
@@ -99,13 +98,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     } catch (e) {
       let errorMessage = '';
       const { result } = e as ExecuteMessageResult;
-      console.log('Nabla swap failed. e', e);
       if (result?.type === 'reverted') {
         errorMessage = result.description;
       } else if (result?.type === 'error') {
         errorMessage = result.error;
       } else {
-        errorMessage = 'Something went wrong';
+        errorMessage = (e as string).toString();
       }
 
       throw new Error(`Could not swap the required amount of token: ${errorMessage}`);

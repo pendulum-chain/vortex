@@ -63,7 +63,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
       throw new Error('MoonbeamToPendulumXcmPhaseHandler: Failed to wait for tokens to arrive on Pendulum.');
     }
 
-    return this.transitionToNextPhase(state, 'distributeFees');
+    return this.transitionToNextPhase(state, 'subsidizePreSwap');
   }
 }
 

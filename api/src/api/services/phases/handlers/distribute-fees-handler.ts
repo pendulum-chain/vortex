@@ -60,7 +60,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const { api } = await this.apiManager.getApi('pendulum');
 
       console.log('After fetching api');
-      const decodedTx = decodeSubmittableExtrinsic(txData as string, api);
+      const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
       console.log('Decoded transaction');
 
       await this.submitTransaction(decodedTx, api);
@@ -92,7 +92,6 @@ export class DistributeFeesHandler extends BasePhaseHandler {
           );
 
           if (dispatchError) {
-            logger.error(`Submitting transaction to Pendulum failed with error:`, dispatchError.toString());
             reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, 'distributeFees'));
           }
 
