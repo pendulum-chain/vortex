@@ -181,7 +181,7 @@
   "components": {
     "airdropBanner": {
       "title": "Oferta especial até 27 Maio",
-      "description": "Compre ou venda USDT/C por apenas R$5 - receba 20 USDT de graça!",
+      "description": "Compre ou venda USDT/C por apenas R$5 ou €10 - receba 20 USDT de graça!",
       "button": "Mais informações",
       "list": {
         "1": "<1>Todos os usuários elegíveis recebem 10 USDT</1> - os primeiros 100 recebem um bônus de 10 USDT, totalizando 20 USDT.",
