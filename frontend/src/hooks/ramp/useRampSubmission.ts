@@ -12,8 +12,6 @@ import {
   createStellarEphemeral,
 } from '../../services/transactions/ephemerals';
 import { useRegisterRamp } from '../offramp/useRampService/useRegisterRamp';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../../components/RampToggle';
 import { useStartRamp } from '../offramp/useRampService/useStartRamp';
 import { usePreRampCheck } from '../../services/initialChecks';
 
@@ -35,7 +33,6 @@ export const useRampSubmission = () => {
   const { address } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
-  const rampDirection = useRampDirection();
   const { setRampExecutionInput, setRampInitiating, resetRampState } = useRampActions();
   const { registerRamp } = useRegisterRamp();
   const preRampCheck = usePreRampCheck();
@@ -85,18 +82,6 @@ export const useRampSubmission = () => {
     return executionInput;
   }, [validateSubmissionData, quote, onChainToken, fiatToken, address, selectedNetwork, taxId, pixId]);
 
-  const trackTransaction = useCallback(() => {
-    const fromAsset = rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken;
-    const toAsset = rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken;
-    trackEvent({
-      event: 'transaction_confirmation',
-      from_asset: fromAsset,
-      to_asset: toAsset,
-      from_amount: inputAmount?.toString() || '0',
-      to_amount: quote?.outputAmount || '0',
-    });
-  }, [trackEvent, rampDirection, fiatToken, onChainToken, inputAmount, quote]);
-
   const handleSubmissionError = useCallback(
     (error: SubmissionError) => {
       console.error('Error preparing submission:', error);
@@ -122,9 +107,7 @@ export const useRampSubmission = () => {
       const executionInput = prepareExecutionInput();
       await preRampCheck(executionInput);
       setRampExecutionInput(executionInput);
-
       await registerRamp(executionInput);
-      trackTransaction();
     } catch (error) {
       handleSubmissionError(error as SubmissionError);
     } finally {
@@ -136,7 +119,6 @@ export const useRampSubmission = () => {
     preRampCheck,
     setRampExecutionInput,
     registerRamp,
-    trackTransaction,
     handleSubmissionError,
   ]);
 
