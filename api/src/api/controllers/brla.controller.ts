@@ -4,7 +4,6 @@ import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import httpStatus from 'http-status';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
-import { generateReferenceLabel } from '../services/brla/helpers';
 import { RegisterSubaccountPayload } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
 import { PayInCodeQuery } from '../middlewares/validators';
