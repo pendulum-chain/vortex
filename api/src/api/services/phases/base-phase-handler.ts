@@ -3,7 +3,8 @@ import RampState from '../../../models/rampState.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from '../../errors/phase-error';
-import { PresignedTx, RampPhase } from 'shared';
+import { PresignedTx, RampErrorLog, RampPhase } from 'shared';
+import rampService from '../ramp/ramp.service';
 
 /**
  * Base interface for phase handlers
@@ -76,18 +77,16 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     const isPhaseError = error instanceof PhaseError;
     const isRecoverable = isPhaseError && error.isRecoverable === true;
 
-    const errorLogs = [
-      ...state.errorLogs,
+    const errorLog: RampErrorLog =
       {
         phase: this.getPhaseName(),
         timestamp: new Date().toISOString(),
         error: error.message || 'Unknown error',
         details: error.stack || {},
         recoverable: isRecoverable,
-      },
-    ];
+      };
 
-    await state.update({ errorLogs });
+    await rampService.appendErrorLog(state.id, errorLog);
   }
 
   /**
