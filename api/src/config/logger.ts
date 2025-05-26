@@ -1,18 +1,27 @@
 import { StreamOptions } from 'morgan';
 import winston, { format } from 'winston';
 
+const formatMeta = (meta: any) => {
+  // You can format the splat yourself
+  const splat = meta[Symbol.for('splat')];
+  if (splat && splat.length) {
+    return splat.length === 1 ? JSON.stringify(splat[0]) : JSON.stringify(splat);
+  }
+  return '';
+};
+
+const customFormat = winston.format.printf(
+  ({ timestamp, level, message, label = '', ...meta }) =>
+    `[${timestamp}] ${level}\t ${label} ${message} ${formatMeta(meta)}`,
+);
+
 const logger = winston.createLogger({
   level: 'info',
   format: format.combine(
     format.prettyPrint(),
-    format.splat(),
-    format.printf((info) => {
-      if (typeof info.message === 'object') {
-        info.message = JSON.stringify(info.message, null, 3);
-      }
-
-      return info.message;
-    }),
+    format.colorize(),
+    format.timestamp({ format: 'MMM D, YYYY HH:mm' }),
+    customFormat,
   ),
   transports: [
     //
