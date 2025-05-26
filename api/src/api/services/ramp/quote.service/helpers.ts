@@ -55,3 +55,29 @@ export function validateChainSupport(rampType: 'on' | 'off', from: DestinationTy
     });
   }
 }
+
+/**
+ * Trims trailing zeros from a decimal string, keeping at least two decimal places.
+ * @param decimalString - The decimal string to format
+ * @returns Formatted string with unnecessary trailing zeros removed but at least two decimal places
+ */
+export function trimTrailingZeros(decimalString: string): string {
+  if (!decimalString?.includes('.')) {
+    return `${decimalString}.00`;
+  }
+
+  // Split string at decimal point
+  const [integerPart, fractionalPart] = decimalString.split('.');
+
+  // Trim trailing zeros but ensure there are at least 2 decimal places
+  let trimmedFraction = fractionalPart.replace(/0+$/g, '');
+
+  // If all were zeros or not enough digits, pad to 2 decimal places
+  if (trimmedFraction.length === 0) {
+    trimmedFraction = '00';
+  } else if (trimmedFraction.length === 1) {
+    trimmedFraction += '0';
+  }
+
+  return `${integerPart}.${trimmedFraction}`;
+}
