@@ -312,7 +312,7 @@ async function createNablaSwapTransactions(
 
   // Add Nabla swap transaction
   unsignedTxs.push({
-    txData: approve.transaction,
+    txData: swap.transaction,
     phase: 'nablaSwap',
     network: account.network,
     nonce: nextNonce,
