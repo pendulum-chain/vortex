@@ -17,17 +17,6 @@ import { Abi } from '@polkadot/api-contract';
 import { routerAbi } from '../../../../contracts/Router';
 import { defaultReadLimits } from '../../../helpers/contracts';
 
-function parseMessageResultError(result: ReadMessageResult) {
-  if (result.type === 'error') {
-    return result.error;
-  } else if (result.type === 'panic') {
-    return `${result.errorCode}: ${result.explanation}`;
-  } else if (result.type === 'reverted') {
-    return `${result.description}`;
-  }
-  return 'Could not extract error message for ReadMessageResult.';
-}
-
 export class NablaSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return 'nablaSwap';
@@ -74,7 +63,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
           throw new Error('Could not dry-run nabla swap transaction. Missing result.');
         }
         if (readMessageResult.type !== 'success') {
-          const errorMessage = parseMessageResultError(readMessageResult);
+          const errorMessage = this.parseContractMessageResultError(readMessageResult);
           throw new Error('Could not dry-run nabla swap transaction: ' + errorMessage);
         }
       }

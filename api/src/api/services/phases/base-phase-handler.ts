@@ -5,6 +5,7 @@ import { APIError } from '../../errors/api-error';
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from '../../errors/phase-error';
 import { PresignedTx, RampErrorLog, RampPhase } from 'shared';
 import rampService from '../ramp/ramp.service';
+import { ReadMessageResult } from '@pendulum-chain/api-solang';
 
 /**
  * Base interface for phase handlers
@@ -134,5 +135,16 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    */
   protected getPresignedTransaction(state: RampState, phase: RampPhase): PresignedTx {
     return state.presignedTxs?.find((tx) => tx.phase === phase) as PresignedTx;
+  }
+
+  protected parseContractMessageResultError(result: ReadMessageResult) {
+    if (result.type === 'error') {
+      return result.error;
+    } else if (result.type === 'panic') {
+      return `${result.errorCode}: ${result.explanation}`;
+    } else if (result.type === 'reverted') {
+      return `${result.description}`;
+    }
+    return 'Could not extract error message for ReadMessageResult.';
   }
 }
