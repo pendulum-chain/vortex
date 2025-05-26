@@ -17,22 +17,18 @@ const customFormat = winston.format.printf(
 
 const logger = winston.createLogger({
   level: 'info',
-  format: format.combine(
-    format.prettyPrint(),
-    format.colorize(),
-    format.timestamp({ format: 'MMM D, YYYY HH:mm' }),
-    customFormat,
-  ),
   transports: [
-    //
-    // - Write to all logs with level `info` and below to `combined.log`
-    // - Write all logs error (and below) to `error.log`.
-    //
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' }),
-    // This console transport is always active, regardless of environment
+    new winston.transports.File({
+      filename: 'error.log',
+      level: 'error',
+      format: format.combine(format.timestamp({ format: 'MMM D, YYYY HH:mm:ss' }), format.prettyPrint(), customFormat),
+    }),
+    new winston.transports.File({
+      filename: 'combined.log',
+      format: format.combine(format.timestamp({ format: 'MMM D, YYYY HH:mm:ss' }), format.prettyPrint(), customFormat),
+    }),
     new winston.transports.Console({
-      format: winston.format.simple(),
+      format: format.combine(format.colorize(), winston.format.simple()),
     }),
   ],
 });
