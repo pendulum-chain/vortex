@@ -84,8 +84,6 @@ async function priceQuery(
 
   const url = `${baseUrl}${quoteRequestPath}?${quoteRequestParams.toString()}`;
 
-  console.log('MOONPAY URL:', url);
-
   const { response, body } = await fetchMoonpayData(url);
 
   return processMoonpayResponse(response, body, amount);
