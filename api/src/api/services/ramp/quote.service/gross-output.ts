@@ -1,4 +1,4 @@
-import Big from 'big.js';
+import { Big } from 'big.js';
 import httpStatus from 'http-status';
 import {
   DestinationType,
@@ -9,11 +9,12 @@ import {
   Networks,
   OnChainToken,
   RampCurrency,
+  EvmTokenDetails,
 } from 'shared';
 import { APIError } from '../../../errors/api-error';
 import { ApiManager } from '../../pendulum/apiManager';
 import { getTokenOutAmount, TokenOutData } from '../../nablaReads/outAmount';
-import { createOnrampRouteParams, getRoute } from '../../transactions/squidrouter/route';
+import { createOnrampRouteParams, getRoute, RouteParams } from '../../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../../helpers/contracts';
 import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
@@ -22,39 +23,37 @@ import {
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { priceFeedService } from '../../priceFeed.service';
 import logger from '../../../../config/logger';
-import { validateChainSupport } from './helpers';
 
-export interface GrossOutputResult {
-  grossOutputAmount: string;
-  networkFeeUSD: string;
-  outputAmountMoonbeamRaw: string;
-  inputAmountUsedForSwap: string;
+export interface NablaSwapRequest {
+  inputAmountForSwap: string;
+  inputCurrency: RampCurrency;
+  nablaOutputCurrency: RampCurrency;
+  rampType: 'on' | 'off';
+  fromPolkadotDestination: DestinationType;
+  toPolkadotDestination: DestinationType;
+}
+
+export interface NablaSwapResult {
+  nablaOutputAmountRaw: string;
+  nablaOutputAmountDecimal: Big;
   effectiveExchangeRate?: string;
 }
 
-export interface GrossOutputRequest {
-  inputAmount: string;
-  inputCurrency: RampCurrency;
-  outputCurrency: RampCurrency;
-  rampType: 'on' | 'off';
-  from: DestinationType;
-  to: DestinationType;
+export interface EvmBridgeRequest {
+  intermediateAmountRaw: string; // Raw output from Nabla swap (e.g. axlUSDC on Moonbeam)
+  intermediateCurrencyOnEvm: OnChainToken; // e.g. EvmToken.axlUSDC
+  finalOutputCurrency: OnChainToken; // Target token on final EVM chain
+  finalEvmDestination: DestinationType; // Target EVM chain
+  originalInputAmountForRateCalc: string; // The inputAmountForSwap that went into Nabla, for final rate calculation
 }
 
-interface EvmOnRampAdjustmentResult {
-  updatedAmountOut: TokenOutData;
-  networkFeeUSD: string;
+export interface EvmBridgeResult {
+  finalGrossOutputAmountDecimal: Big; // Final amount after Squidrouter
+  networkFeeUSD: string; // Squidrouter specific fee
+  finalEffectiveExchangeRate?: string;
 }
 
-/**
- * Performs the initial swap calculation using Nabla
- * @param apiInstance - The Pendulum API instance
- * @param fromAmountString - The input amount as string
- * @param inputTokenDetails - Input token details for Pendulum
- * @param outputTokenDetails - Output token details for Pendulum
- * @returns The amount out object from getTokenOutAmount
- */
-async function performInitialSwap(
+async function getNablaSwapOutAmount(
   apiInstance: any,
   fromAmountString: string,
   inputTokenDetails: any,
@@ -69,51 +68,75 @@ async function performInitialSwap(
 }
 
 /**
- * Handles EVM on-ramp specific adjustments including Squidrouter integration
- * @param amountOutSoFar - The initial swap result
- * @param outputCurrency - The output currency
- * @param toDestination - The destination for the on-ramp
- * @param inputAmountUsedForSwap - The input amount used for swap
- * @returns Updated amount out and network fee in USD
+ * Helper to get token details for final output currency on EVM destination
  */
-async function handleEvmOnRampAdjustments(
-  amountOutSoFar: TokenOutData,
-  outputCurrency: RampCurrency,
-  toDestination: DestinationType,
-  inputAmountUsedForSwap: string,
-): Promise<EvmOnRampAdjustmentResult> {
+function getTokenDetailsForEvmDestination(
+  finalOutputCurrency: OnChainToken,
+  finalEvmDestination: DestinationType
+): EvmTokenDetails {
   const tokenDetails = getOnChainTokenDetails(
-    getNetworkFromDestination(toDestination)!,
-    outputCurrency as OnChainToken,
+    getNetworkFromDestination(finalEvmDestination)!,
+    finalOutputCurrency,
   );
+  
   if (!tokenDetails || !isEvmTokenDetails(tokenDetails)) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
-      message: 'Invalid token details for onramp',
+      message: 'Invalid token details for EVM bridge',
     });
   }
 
-  const routeParams = createOnrampRouteParams(
-    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // It does not matter.
-    amountOutSoFar.preciseQuotedAmountOut.rawBalance.toFixed(),
+  return tokenDetails;
+}
+
+/**
+ * Helper to prepare route parameters for Squidrouter
+ */
+function prepareSquidrouterRouteParams(
+  intermediateAmountRaw: string,
+  tokenDetails: EvmTokenDetails,
+  finalEvmDestination: DestinationType
+): RouteParams {
+  return createOnrampRouteParams(
+    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
+    intermediateAmountRaw,
     tokenDetails,
-    getNetworkFromDestination(toDestination)!,
-    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3',
+    getNetworkFromDestination(finalEvmDestination)!,
+    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
   );
+}
 
+/**
+ * Helper to execute Squidrouter route and validate response
+ */
+async function getSquidrouterRouteData(routeParams: RouteParams): Promise<any> {
   const routeResult = await getRoute(routeParams);
-  const { route } = routeResult.data;
-  const { toAmountMin } = route.estimate;
+  
+  if (!routeResult?.data?.route?.estimate) {
+    throw new APIError({
+      status: httpStatus.SERVICE_UNAVAILABLE,
+      message: 'Invalid Squidrouter response',
+    });
+  }
 
-  // Check against our moonbeam funding amounts.
-  const squidrouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
+  return routeResult.data;
+}
+
+/**
+ * Helper to check Squidrouter swap value against funding limits
+ */
+function validateSquidrouterSwapValue(
+  routeResult: any,
+  finalEvmDestination: DestinationType
+): void {
+  const squidrouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
 
   const fundingAmountUnits =
-    getNetworkFromDestination(toDestination) === Networks.Ethereum
+    getNetworkFromDestination(finalEvmDestination) === Networks.Ethereum
       ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
       : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
 
-  const squidrouterSwapValueBuffer = getNetworkFromDestination(toDestination) === Networks.Ethereum ? 10 : 2;
+  const squidrouterSwapValueBuffer = getNetworkFromDestination(finalEvmDestination) === Networks.Ethereum ? 10 : 2;
 
   // Leave buffer for other operations of the ephemeral, and as buffer for potential price changes.
   if (squidrouterSwapValue.gte(fundingAmountUnits.minus(squidrouterSwapValueBuffer))) {
@@ -122,15 +145,22 @@ async function handleEvmOnRampAdjustments(
       message: 'Cannot service this route at the moment. Please try again later.',
     });
   }
+}
 
-  // Calculate network fee in USD for EVM on-ramp via Squidrouter
-  let networkFeeUSD: string;
+/**
+ * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
+ */
+async function calculateSquidrouterNetworkFee(
+  routeResult: any
+): Promise<string> {
+  const squidrouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
+
   try {
     // Get current GLMR price in USD from price feed service
     const glmrPriceUSD = await priceFeedService.getCryptoPrice('moonbeam', 'usd');
     const squidFeeUSD = squidrouterSwapValue.mul(glmrPriceUSD).toFixed(6);
-    networkFeeUSD = squidFeeUSD;
     logger.debug(`Network fee calculated using GLMR price: $${glmrPriceUSD}, fee: $${squidFeeUSD}`);
+    return squidFeeUSD;
   } catch (error) {
     // If price feed fails, log the error and use a fallback price
     logger.error(
@@ -139,125 +169,151 @@ async function handleEvmOnRampAdjustments(
     // Fallback to previous hardcoded value as safety measure
     const fallbackGlmrPrice = 0.08;
     const squidFeeUSD = squidrouterSwapValue.mul(fallbackGlmrPrice).toFixed(6);
-    networkFeeUSD = squidFeeUSD;
     logger.warn(`Using fallback GLMR price: $${fallbackGlmrPrice}, fee: $${squidFeeUSD}`);
+    return squidFeeUSD;
   }
-
-  // Update the amount out with Squidrouter results
-  const updatedAmountOut = { ...amountOutSoFar };
-  updatedAmountOut.preciseQuotedAmountOut = parseContractBalanceResponse(tokenDetails.decimals, BigInt(toAmountMin));
-  updatedAmountOut.roundedDownQuotedAmountOut = updatedAmountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
-  updatedAmountOut.effectiveExchangeRate = stringifyBigWithSignificantDecimals(
-    updatedAmountOut.preciseQuotedAmountOut.preciseBigDecimal.div(new Big(inputAmountUsedForSwap)),
-    4,
-  );
-
-  return {
-    updatedAmountOut,
-    networkFeeUSD,
-  };
 }
 
 /**
- * Calculates the gross output amount and network fee for a ramp operation
- * @param request - The gross output calculation request parameters
- * @returns Promise resolving to the gross output result
+ * Helper to calculate final effective exchange rate
  */
-export async function calculateGrossOutputAndNetworkFee(request: GrossOutputRequest): Promise<GrossOutputResult> {
-  const { inputAmount, inputCurrency, outputCurrency, rampType, from, to } = request;
+function calculateFinalExchangeRate(
+  finalGrossOutputAmount: string,
+  originalInputAmountForRateCalc: string,
+  tokenDetails: EvmTokenDetails
+): string {
+  const finalOutputDecimal = parseContractBalanceResponse(tokenDetails.decimals, BigInt(finalGrossOutputAmount));
+  return stringifyBigWithSignificantDecimals(
+    finalOutputDecimal.preciseBigDecimal.div(new Big(originalInputAmountForRateCalc)),
+    4,
+  );
+}
 
-  // Perform initial validations
-  validateChainSupport(rampType, from, to);
+// ===== EXPORTED FUNCTIONS =====
 
-  const apiManager = ApiManager.getInstance();
-  const networkName = 'pendulum';
-  const apiInstance = await apiManager.getApi(networkName);
+/**
+ * Performs the initial Nabla swap on Pendulum
+ */
+export async function calculateNablaSwapOutput(
+  request: NablaSwapRequest
+): Promise<NablaSwapResult> {
+  const {
+    inputAmountForSwap,
+    inputCurrency,
+    nablaOutputCurrency,
+    rampType,
+    fromPolkadotDestination,
+    toPolkadotDestination
+  } = request;
 
-  const fromNetwork = getNetworkFromDestination(from);
-  const toNetwork = getNetworkFromDestination(to);
-
-  if (rampType === 'on' && !toNetwork) {
+  // Validate input amount
+  if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
-      message: 'Invalid toNetwork for onramp.',
-    });
-  }
-  if (rampType === 'off' && !fromNetwork) {
-    throw new APIError({
-      status: httpStatus.BAD_REQUEST,
-      message: 'Invalid fromNetwork for offramp.',
-    });
-  }
-
-  const outTokenDetails = toNetwork ? getOnChainTokenDetails(toNetwork, outputCurrency as OnChainToken) : undefined;
-  if (rampType === 'on') {
-    if (!outTokenDetails) {
-      throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Invalid token details for onramp',
-      });
-    }
-  }
-
-  if (Big(inputAmount).lte(0)) {
-    throw new APIError({
-      status: httpStatus.BAD_REQUEST,
-      message: 'Invalid input amount',
+      message: 'Input amount for swap must be greater than 0',
     });
   }
 
   try {
-    // Determine token details for Pendulum
-    const inputTokenPendulumDetails =
-      rampType === 'on' ? getPendulumDetails(inputCurrency) : getPendulumDetails(inputCurrency, fromNetwork);
-    const outputTokenPendulumDetails =
-      rampType === 'on' ? getPendulumDetails(outputCurrency, toNetwork) : getPendulumDetails(outputCurrency);
+    // Get API manager and Pendulum API
+    const apiManager = ApiManager.getInstance();
+    const pendulumApi = await apiManager.getApi('pendulum');
 
-    // Initialize networkFeeUSD with '0'
-    let networkFeeUSD = '0';
+    // Get token details for Pendulum
+    const inputTokenPendulumDetails = rampType === 'on' 
+      ? getPendulumDetails(inputCurrency) 
+      : getPendulumDetails(inputCurrency, getNetworkFromDestination(fromPolkadotDestination));
+    
+    const outputTokenPendulumDetails = rampType === 'on' 
+      ? getPendulumDetails(nablaOutputCurrency, getNetworkFromDestination(toPolkadotDestination)) 
+      : getPendulumDetails(nablaOutputCurrency);
 
-    // Use the original input amount directly for the swap
-    const inputAmountUsedForSwap = inputAmount;
-
-    // Perform initial swap
-    let amountOut = await performInitialSwap(
-      apiInstance,
-      inputAmountUsedForSwap,
-      inputTokenPendulumDetails,
-      outputTokenPendulumDetails,
-    );
-
-    // Store the value before any adjustments
-    const outputAmountMoonbeamRaw: string = amountOut.preciseQuotedAmountOut.rawBalance.toFixed();
-
-    // Handle EVM on-ramp specific adjustments if needed
-    if (rampType === 'on' && to !== 'assethub') {
-      const evmAdjustmentResult = await handleEvmOnRampAdjustments(
-        amountOut,
-        outputCurrency,
-        to,
-        inputAmountUsedForSwap,
-      );
-      amountOut = evmAdjustmentResult.updatedAmountOut;
-      networkFeeUSD = evmAdjustmentResult.networkFeeUSD;
+    if (!inputTokenPendulumDetails || !outputTokenPendulumDetails) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Unable to get Pendulum token details',
+      });
     }
 
-    // Get the gross output amount (before any fees)
-    const grossOutputAmount = amountOut.preciseQuotedAmountOut.preciseBigDecimal.toFixed(6, 0);
+    // Perform the Nabla swap
+    const swapResult = await getNablaSwapOutAmount(
+      pendulumApi,
+      inputAmountForSwap,
+      inputTokenPendulumDetails,
+      outputTokenPendulumDetails
+    );
 
-    // Return the values using the new structure
     return {
-      grossOutputAmount,
-      networkFeeUSD,
-      outputAmountMoonbeamRaw,
-      inputAmountUsedForSwap,
-      effectiveExchangeRate: amountOut.effectiveExchangeRate,
+      nablaOutputAmountRaw: swapResult.preciseQuotedAmountOut.rawBalance.toFixed(),
+      nablaOutputAmountDecimal: swapResult.preciseQuotedAmountOut.preciseBigDecimal,
+      effectiveExchangeRate: swapResult.effectiveExchangeRate,
     };
   } catch (error) {
-    logger.error('Error calculating output amount:', error);
+    logger.error('Error calculating Nabla swap output:', error);
     throw new APIError({
       status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate output amount',
+      message: 'Failed to calculate Nabla swap output',
+    });
+  }
+}
+
+/**
+ * Handles EVM bridging/swapping via Squidrouter and calculates its specific network fee
+ */
+export async function calculateEvmBridgeAndNetworkFee(
+  request: EvmBridgeRequest
+): Promise<EvmBridgeResult> {
+  const {
+    intermediateAmountRaw,
+    finalOutputCurrency,
+    finalEvmDestination,
+    originalInputAmountForRateCalc
+  } = request;
+
+  try {
+    // Get token details for final output currency
+    const tokenDetails = getTokenDetailsForEvmDestination(finalOutputCurrency, finalEvmDestination);
+
+    // Prepare route parameters for Squidrouter
+    const routeParams = prepareSquidrouterRouteParams(
+      intermediateAmountRaw,
+      tokenDetails,
+      finalEvmDestination
+    );
+
+    // Execute Squidrouter route and validate response
+    const routeResult = await getSquidrouterRouteData(routeParams);
+
+    // Check Squidrouter swap value against funding limits
+    validateSquidrouterSwapValue(routeResult, finalEvmDestination);
+
+    // Calculate network fee (Squidrouter fee)
+    const networkFeeUSD = await calculateSquidrouterNetworkFee(routeResult);
+
+    // Parse final gross output amount
+    const finalGrossOutputAmount = routeResult.route.estimate.toAmountMin;
+    const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
+      tokenDetails.decimals,
+      BigInt(finalGrossOutputAmount)
+    ).preciseBigDecimal;
+
+    // Calculate final effective exchange rate
+    const finalEffectiveExchangeRate = calculateFinalExchangeRate(
+      finalGrossOutputAmount,
+      originalInputAmountForRateCalc,
+      tokenDetails
+    );
+
+    return {
+      finalGrossOutputAmountDecimal,
+      networkFeeUSD,
+      finalEffectiveExchangeRate,
+    };
+  } catch (error) {
+    logger.error('Error calculating EVM bridge and network fee:', error);
+    throw new APIError({
+      status: httpStatus.INTERNAL_SERVER_ERROR,
+      message: 'Failed to calculate EVM bridge and network fee',
     });
   }
 }
