@@ -9,8 +9,6 @@ import { formatPrice } from '../helpers';
 import { cn } from '../../../helpers/cn';
 import { PriceProvider } from '../priceProviders';
 import { useQuote } from '../../../stores/ramp/useQuoteStore';
-import { useRampDirection } from '../../../stores/rampDirectionStore';
-import { RampDirection } from '../../../components/RampToggle';
 
 interface FeeProviderRowProps {
   provider: PriceProvider;
@@ -42,9 +40,6 @@ export function FeeProviderRow({
   const prevProviderPrice = useRef<Big | null>(null);
   const quote = useQuote();
 
-  const rampDirection = useRampDirection();
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
-
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
   const amount = useMemo(() => Big(amountRaw || '0'), [amountRaw]);
@@ -56,15 +51,12 @@ export function FeeProviderRow({
   const providerPrice = useMemo(() => {
     if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
 
-    // FIXME - this is a hack until we implement fetching prices for onramp providers
-    if (isOnramp) return undefined;
-
     if (result?.status === 'fulfilled' && result.value.fiatAmount) {
       return Big(result.value.fiatAmount);
     }
-    
+
     return undefined;
-  }, [provider.name, vortexPrice, isOnramp, result]);
+  }, [provider.name, vortexPrice, result]);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) return;
