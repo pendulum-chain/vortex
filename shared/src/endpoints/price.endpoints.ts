@@ -1,5 +1,5 @@
 export namespace PriceEndpoints {
-  // GET /prices?provider=:provider&fromCrypto=:fromCrypto&toFiat=:toFiat&amount=:amount&network=:network
+  // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
   export const VALID_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
   export const VALID_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
   export const VALID_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
@@ -7,6 +7,7 @@ export namespace PriceEndpoints {
   export type Provider = (typeof VALID_PROVIDERS)[number];
   export type CryptoCurrency = (typeof VALID_CRYPTO_CURRENCIES)[number];
   export type FiatCurrency = (typeof VALID_FIAT_CURRENCIES)[number];
+  export type Currency = CryptoCurrency | FiatCurrency;
 
   // Validation functions
   export const isValidProvider = (value: unknown): value is Provider =>
@@ -18,13 +19,25 @@ export namespace PriceEndpoints {
   export const isValidFiatCurrency = (value: unknown): value is FiatCurrency =>
     typeof value === 'string' && VALID_FIAT_CURRENCIES.includes(value.toLowerCase() as FiatCurrency);
 
+  export type Direction = 'onramp' | 'offramp';
+
   export interface PriceRequest {
     provider: Provider;
-    fromCrypto: CryptoCurrency;
-    toFiat: FiatCurrency;
+    sourceCurrency: Currency;
+    targetCurrency: Currency;
     amount: string;
     network?: string;
+    direction: Direction;
   }
+
+  // Validation function for direction
+  export const isValidDirection = (value: unknown): value is Direction =>
+    typeof value === 'string' && (value === 'onramp' || value === 'offramp');
+
+  // Validation function for currency based on direction
+  export const isValidCurrencyForDirection = (currency: unknown, expectedType: 'crypto' | 'fiat'): boolean => {
+    return expectedType === 'crypto' ? isValidCryptoCurrency(currency) : isValidFiatCurrency(currency);
+  };
 
   // The response varies by provider, so we define a base interface with common fields
   export interface PriceResponseBase {
@@ -63,18 +76,20 @@ export namespace PriceEndpoints {
   }
 
   // Types for the bundled price endpoint (GET /prices/all)
-  
+
   // Represents the result for a single provider in the bundled response
-  export type BundledPriceResult = {
-    status: 'fulfilled';
-    value: PriceResponse;
-  } | {
-    status: 'rejected';
-    reason: {
-      message: string;
-      status?: number;
-    };
-  };
+  export type BundledPriceResult =
+    | {
+        status: 'fulfilled';
+        value: PriceResponse;
+      }
+    | {
+        status: 'rejected';
+        reason: {
+          message: string;
+          status?: number;
+        };
+      };
 
   // The complete response from the bundled price endpoint
   export type AllPricesResponse = {
