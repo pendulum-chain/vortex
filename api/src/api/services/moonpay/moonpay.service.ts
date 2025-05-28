@@ -7,13 +7,6 @@ import { getCryptoCode, getFiatCode } from './utils';
 
 const { priceProviders } = config;
 
-export interface MoonpayPrice {
-  cryptoPrice: number;
-  cryptoAmount: number;
-  fiatAmount: number;
-  totalFee: number;
-}
-
 export interface MoonpayResponse {
   baseCurrencyAmount: number;
   baseCurrencyPrice: number;
@@ -70,7 +63,7 @@ async function priceQuery(
   amount: string,
   extraFeePercentage: number,
   direction: PriceEndpoints.Direction,
-): Promise<MoonpayPrice> {
+): Promise<PriceEndpoints.MoonpayPriceResponse> {
   const { baseUrl, apiKey } = priceProviders.moonpay;
   if (!apiKey) throw new Error('Moonpay API key not configured');
 
@@ -86,7 +79,7 @@ async function priceQuery(
 
   const { response, body } = await fetchMoonpayData(url);
 
-  return processMoonpayResponse(response, body, amount);
+  return processMoonpayResponse(response, body, amount, direction);
 }
 
 export const getPriceFor = (
@@ -94,7 +87,7 @@ export const getPriceFor = (
   targetCurrency: string,
   amount: string,
   direction: PriceEndpoints.Direction,
-): Promise<MoonpayPrice> => {
+): Promise<PriceEndpoints.MoonpayPriceResponse> => {
   // We can specify a custom fee percentage here added on top of the Moonpay fee but we don't
   const extraFeePercentage = 0;
 
