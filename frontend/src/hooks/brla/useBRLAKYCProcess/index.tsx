@@ -10,6 +10,7 @@ import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 import { useToastMessage } from '../../../helpers/notifications';
 import { isValidCnpj } from '../../ramp/schema';
 import { storageKeys } from '../../../constants/localStorage';
+import { useDebouncedValue } from '../../useDebouncedValue';
 
 export interface BrlaKycStatus {
   status: string;
@@ -93,7 +94,8 @@ export function useKYCProcess() {
 
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
-  const { verificationStatus, statusMessage, failureMessage, updateStatus, resetToDefault } = useVerificationStatusUI(isSubmitted);
+  const isSubmittedDebounced = useDebouncedValue(isSubmitted, 3000);
+  const { verificationStatus, statusMessage, failureMessage, updateStatus, resetToDefault } = useVerificationStatusUI(isSubmittedDebounced);
   const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible, setCanRegisterRamp } =
     useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
