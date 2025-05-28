@@ -10,7 +10,7 @@ import { getTargetFiatCurrency, validateChainSupport } from './helpers';
 
 export interface CalculateFeeComponentsRequest {
   inputAmount: string;
-  outputAmount: string;
+  outputAmountOfframp: string; // This is only needed for offramp quotes
   rampType: 'on' | 'off';
   from: DestinationType;
   to: DestinationType;
@@ -352,7 +352,7 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
       request.from,
       request.to,
       request.inputAmount,
-      request.outputAmount,
+      request.outputAmountOfframp,
     );
 
     // Convert anchor fee to fee currency if needed
