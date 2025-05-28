@@ -1,9 +1,9 @@
 import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
+import { Networks } from 'shared';
 
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
-import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
 import * as moonpayService from '../services/moonpay/moonpay.service';
 import * as transakService from '../services/transak/transak.service';
 import { PriceQuery } from '../middlewares/validators';
@@ -15,14 +15,17 @@ import {
   UnsupportedPairError,
 } from '../errors/providerErrors';
 
-type AnyPrice = AlchemyPayPrice | PriceEndpoints.MoonpayPriceResponse | PriceEndpoints.TransakPriceResponse;
+type AnyPrice =
+  | PriceEndpoints.AlchemyPayPriceResponse
+  | PriceEndpoints.MoonpayPriceResponse
+  | PriceEndpoints.TransakPriceResponse;
 
 type PriceHandler = (
   sourceCurrency: PriceEndpoints.Currency,
   targetCurrency: PriceEndpoints.Currency,
   amount: string,
   direction: PriceEndpoints.Direction,
-  network?: string,
+  network?: Networks,
 ) => Promise<AnyPrice>;
 
 const providerHandlers: Record<PriceEndpoints.Provider, PriceHandler> = {
@@ -40,7 +43,7 @@ const getPriceFromProvider = async (
   targetCurrency: PriceEndpoints.Currency,
   amount: string,
   direction: PriceEndpoints.Direction,
-  network?: string,
+  network?: Networks,
 ) => providerHandlers[provider](sourceCurrency, targetCurrency, amount, direction, network);
 
 export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, PriceQuery> = async (req, res) => {
@@ -82,7 +85,7 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
       targetCurrency as PriceEndpoints.Currency,
       amount,
       direction,
-      networkParam,
+      networkParam as Networks | undefined,
     );
     res.json(price);
     // No need for return here, res.json() ends the response.
@@ -142,7 +145,14 @@ export const getAllPricesBundled: RequestHandler<
 
   const pricePromises = providersToQuery.map(async (provider) => {
     try {
-      const price = await getPriceFromProvider(provider, source, target, amount, direction, networkParam);
+      const price = await getPriceFromProvider(
+        provider,
+        source,
+        target,
+        amount,
+        direction,
+        networkParam as Networks | undefined,
+      );
       // Return a consistent structure including the provider for easier mapping later
       return { provider, status: 'fulfilled', value: price } as const;
     } catch (err) {
