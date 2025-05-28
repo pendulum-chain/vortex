@@ -4,10 +4,8 @@ import httpStatus from 'http-status';
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
 import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
-import * as transakService from '../services/transak.service';
-import { TransakPriceResult } from '../services/transak.service';
 import * as moonpayService from '../services/moonpay/moonpay.service';
-import { MoonpayPrice } from '../services/moonpay/moonpay.service';
+import * as transakService from '../services/transak/transak.service';
 import { PriceQuery } from '../middlewares/validators';
 import {
   InvalidAmountError,
@@ -17,7 +15,7 @@ import {
   UnsupportedPairError,
 } from '../errors/providerErrors';
 
-type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
+type AnyPrice = AlchemyPayPrice | PriceEndpoints.MoonpayPriceResponse | PriceEndpoints.TransakPriceResponse;
 
 type PriceHandler = (
   sourceCurrency: PriceEndpoints.Currency,
@@ -80,8 +78,8 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
 
     const price = await getPriceFromProvider(
       providerLower,
-      sourceCurrency.toLowerCase(),
-      targetCurrency.toLowerCase(),
+      sourceCurrency as PriceEndpoints.Currency,
+      targetCurrency as PriceEndpoints.Currency,
       amount,
       direction,
       networkParam,
@@ -136,8 +134,8 @@ export const getAllPricesBundled: RequestHandler<
     return;
   }
 
-  const source = sourceCurrency.toLowerCase();
-  const target = targetCurrency.toLowerCase();
+  const source = sourceCurrency as PriceEndpoints.Currency;
+  const target = targetCurrency as PriceEndpoints.Currency;
   const networkParam = network && typeof network === 'string' ? network : undefined;
 
   const providersToQuery: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
