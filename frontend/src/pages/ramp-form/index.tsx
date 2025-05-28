@@ -26,7 +26,6 @@ export const RampForm = () => {
     <main>
       <PoolSelectorModal />
       <RampSummaryDialog />
-      <AirdropBanner />
       {rampKycStarted || rampKycLevel2Started ? (
         <PIXKYCForm />
       ) : (
