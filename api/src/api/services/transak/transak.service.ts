@@ -58,8 +58,6 @@ async function priceQuery(
 
   const url = `${baseUrl}${requestPath}?${params.toString()}`;
 
-  console.log('TRANSAK REQUEST URL:', url);
-
   const { response, body } = await fetchTransakData(url);
 
   return processTransakResponse(response, body, amount, direction);
