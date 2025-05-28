@@ -1,3 +1,4 @@
+import { PriceEndpoints } from 'shared';
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -9,13 +10,6 @@ import { MoonpayResponse } from './moonpay.service';
 type MoonpayErrorResponse = {
   message?: string;
   type?: string;
-};
-
-type MoonpayQuoteResult = {
-  cryptoPrice: number;
-  cryptoAmount: number;
-  fiatAmount: number;
-  totalFee: number;
 };
 
 function handleMoonpayError(response: Response, body: MoonpayErrorResponse): never {
@@ -47,14 +41,17 @@ function handleMoonpayError(response: Response, body: MoonpayErrorResponse): nev
   throw new InvalidParameterError(`Moonpay API error: ${errorMessage}`);
 }
 
-function validateMoonpayResponse(body: MoonpayResponse, requestedAmount: string): MoonpayQuoteResult {
+function validateMoonpayResponse(
+  body: MoonpayResponse,
+  requestedAmount: string,
+  direction: PriceEndpoints.Direction,
+): PriceEndpoints.MoonpayPriceResponse {
   if (body.baseCurrencyAmount === undefined || body.quoteCurrencyAmount === undefined || body.feeAmount === undefined) {
     throw new ProviderInternalError('Moonpay response missing essential data fields');
   }
 
   const {
     baseCurrencyAmount: receivedBaseCurrencyAmount,
-    baseCurrencyPrice,
     quoteCurrencyAmount,
     feeAmount,
     baseCurrency: { minAmount, code },
@@ -74,10 +71,11 @@ function validateMoonpayResponse(body: MoonpayResponse, requestedAmount: string)
   }
 
   return {
-    cryptoPrice: baseCurrencyPrice,
-    cryptoAmount: Number(requestedAmount),
-    fiatAmount: quoteCurrencyAmount,
+    requestedAmount: Number(requestedAmount),
+    quoteAmount: quoteCurrencyAmount,
     totalFee: feeAmount,
+    direction,
+    provider: 'moonpay',
   };
 }
 
@@ -85,10 +83,11 @@ export async function processMoonpayResponse(
   response: Response,
   body: MoonpayResponse,
   requestedAmount: string,
-): Promise<MoonpayQuoteResult> {
+  direction: PriceEndpoints.Direction,
+): Promise<PriceEndpoints.MoonpayPriceResponse> {
   if (!response.ok) {
     return handleMoonpayError(response, body);
   }
 
-  return validateMoonpayResponse(body, requestedAmount);
+  return validateMoonpayResponse(body, requestedAmount, direction);
 }
