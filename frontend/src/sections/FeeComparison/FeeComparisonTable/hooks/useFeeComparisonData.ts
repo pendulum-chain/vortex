@@ -37,8 +37,8 @@ export function useFeeComparisonData(
     queryFn: () => {
       const direction = rampDirection === 'onramp' ? 'onramp' : 'offramp';
       return PriceService.getAllPricesBundled(
-        sourceAssetSymbol.toLowerCase(),
-        targetAssetSymbol.toLowerCase(),
+        sourceAssetSymbol.toLowerCase() as PriceEndpoints.Currency,
+        targetAssetSymbol.toLowerCase() as PriceEndpoints.Currency,
         amount,
         direction,
         selectedNetwork,
@@ -56,8 +56,9 @@ export function useFeeComparisonData(
     if (allPricesResponse) {
       Object.entries(allPricesResponse).forEach(([provider, result]) => {
         const typedResult = result as PriceEndpoints.BundledPriceResult | undefined;
-        if (typedResult?.status === 'fulfilled' && typedResult.value.fiatAmount) {
-          prices[provider] = Big(typedResult.value.fiatAmount);
+        if (typedResult?.status === 'fulfilled' && typedResult.value.quoteAmount) {
+          // Use quoteAmount which represents what the user will receive
+          prices[provider] = Big(typedResult.value.quoteAmount.toString());
         }
       });
     }
