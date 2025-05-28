@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Big from 'big.js';
 import { PriceEndpoints } from 'shared';
 
-import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
+import { RampParameters, useEventsContext } from '../../../contexts/events';
 import { Skeleton } from '../../../components/Skeleton';
 import { formatPrice } from '../helpers';
 import { cn } from '../../../helpers/cn';
@@ -51,8 +51,9 @@ export function FeeProviderRow({
   const providerPrice = useMemo(() => {
     if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
 
-    if (result?.status === 'fulfilled' && result.value.fiatAmount) {
-      return Big(result.value.fiatAmount);
+    if (result?.status === 'fulfilled' && result.value.quoteAmount) {
+      // Use quoteAmount which represents what the user will receive
+      return Big(result.value.quoteAmount.toString());
     }
 
     return undefined;
@@ -78,7 +79,7 @@ export function FeeProviderRow({
     if (isLoading || !providerPrice || error) return;
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
 
-    const parameters: OfframpingParameters = {
+    const parameters: RampParameters = {
       from_amount: amount.toFixed(2),
       from_asset: sourceAssetSymbol,
       to_amount: vortexPrice.toFixed(2),
