@@ -3,7 +3,6 @@ import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
 import { RampDirection, RampToggle } from '../../components/RampToggle';
 import { RampSummaryDialog } from '../../components/RampSummaryDialog';
-import { AirdropBanner } from '../../components/AirdropBanner';
 import { Offramp } from '../../components/Ramp/Offramp';
 import { Onramp } from '../../components/Ramp/Onramp';
 import { RampHistoryButton } from '../../components/RampHistory/RampHistoryButton';
@@ -26,7 +25,6 @@ export const RampForm = () => {
     <main>
       <PoolSelectorModal />
       <RampSummaryDialog />
-      <AirdropBanner />
       {rampKycStarted || rampKycLevel2Started ? (
         <PIXKYCForm />
       ) : (
