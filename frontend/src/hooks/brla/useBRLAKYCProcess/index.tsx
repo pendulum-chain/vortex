@@ -15,6 +15,7 @@ export interface BrlaKycStatus {
   status: string;
   level: number;
   type: string;
+  failureReason?: string;
 }
 
 export enum KycLevel {
@@ -42,7 +43,7 @@ const useStatusMessages = () => {
   return { STATUS_MESSAGES };
 };
 
-export const useVerificationStatusUI = () => {
+export const useVerificationStatusUI = (isSubmitted: boolean) => {
   const { STATUS_MESSAGES } = useStatusMessages();
   type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
 
@@ -52,8 +53,12 @@ export const useVerificationStatusUI = () => {
   }>({ status: KycStatus.PENDING, level: KycLevel.LEVEL_1 });
 
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
+  const [failureMessage, setFailureMessage] = useState<string | undefined>(undefined);
 
-  const updateStatus = useCallback((status: KycStatus, level: KycLevel, message: StatusMessageType) => {
+
+  const updateStatus = useCallback((status: KycStatus, level: KycLevel, message: StatusMessageType, failureReason?: string) => {
+    if (!isSubmitted) return;
+    console.log(`Updating KYC status to ${status} for level ${level}`);
     setVerificationStatus((prev) => {
       if (prev.status === status && prev.level === level) {
         return prev;
@@ -61,7 +66,8 @@ export const useVerificationStatusUI = () => {
       return { status, level };
     });
     setStatusMessage((prev) => (prev === message ? prev : message));
-  }, []);
+    setFailureMessage(failureReason);
+  }, [isSubmitted]);
 
   const resetToDefault = useCallback(() => {
     setVerificationStatus((prev) =>
@@ -75,23 +81,26 @@ export const useVerificationStatusUI = () => {
   return {
     verificationStatus,
     statusMessage,
+    failureMessage,
     updateStatus,
     resetToDefault,
   };
 };
 
 export function useKYCProcess() {
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [cpf, setCpf] = useState<string | null>(null);
+
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
-  const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
+  const { verificationStatus, statusMessage, failureMessage, updateStatus, resetToDefault } = useVerificationStatusUI(isSubmitted);
   const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible, setCanRegisterRamp } =
     useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
   const taxId = useTaxId() || localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID);
   const queryClient = useQueryClient();
 
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [cpf, setCpf] = useState<string | null>(null);
+
 
   const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
   const { data: kycResponse, error } = useKycStatusQuery(cpf, desiredLevel);
@@ -204,7 +213,7 @@ export function useKYCProcess() {
 
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
-
+  
       const statusHandlers: Record<KycStatus, () => Promise<void>> = {
         [KycStatus.APPROVED]: async () => {
           updateStatus(KycStatus.APPROVED, 1, STATUS_MESSAGES.SUCCESS);
@@ -215,14 +224,9 @@ export function useKYCProcess() {
             updateStatus(KycStatus.PENDING, KycLevel.LEVEL_2, STATUS_MESSAGES.PENDING);
             return proceedWithKYCLevel2();
           }
-          resetToDefault();
-          proceedWithRamp();
         },
         [KycStatus.REJECTED]: async () => {
-          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.REJECTED);
-          await delay(ERROR_DISPLAY_DURATION_MS);
-          resetToDefault();
-          handleBackClick();
+          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.REJECTED, kycResponse.failureReason);
         },
         [KycStatus.PENDING]: async () => undefined,
       };
@@ -255,21 +259,16 @@ export function useKYCProcess() {
   useEffect(() => {
     if (!kycResponse) return;
     if (kycResponse.level !== 2) return;
-
+    console.log('KYC level 2 response:', kycResponse);
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
 
       const statusHandlers: Record<KycStatus, () => Promise<void>> = {
         [KycStatus.APPROVED]: async () => {
           updateStatus(KycStatus.APPROVED, KycLevel.LEVEL_2, STATUS_MESSAGES.SUCCESS);
-          await delay(3000);
-          proceedWithRamp();
         },
         [KycStatus.REJECTED]: async () => {
-          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_2, STATUS_MESSAGES.REJECTED);
-          await delay(3000);
-          setRampKycLevel2Started(false);
-          handleBackClick();
+          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_2, STATUS_MESSAGES.REJECTED, kycResponse.failureReason);
         },
         [KycStatus.PENDING]: async () => undefined,
       };
@@ -303,10 +302,13 @@ export function useKYCProcess() {
   return {
     verificationStatus,
     statusMessage,
+    failureMessage,
     handleFormSubmit,
     handleBackClick,
     setCpf,
     setIsSubmitted,
     isSubmitted,
+    proceedWithRamp,
+    resetToDefault,
   };
 }

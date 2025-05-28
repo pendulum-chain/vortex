@@ -17,11 +17,14 @@ export const PIXKYCForm = () => {
   const {
     verificationStatus,
     statusMessage,
+    failureMessage,
     handleFormSubmit: handleKYCFormSubmit,
     handleBackClick,
     setIsSubmitted,
     setCpf,
     isSubmitted,
+    proceedWithRamp,
+    resetToDefault,
   } = useKYCProcess();
 
   const rampKycLevel2Started = useRampKycLevel2Started();
@@ -40,6 +43,13 @@ export const PIXKYCForm = () => {
     setIsSubmitted(true);
     setCpf(taxId);
   }, [setIsSubmitted, setCpf, taxId]);
+
+  const handleRetryDocumentUpload = useCallback(() => {
+    // Clear documents from memory and go back to document upload.
+    // Clear kyc pending status.
+    setIsSubmitted(false);
+    resetToDefault();
+  }, [setIsSubmitted]);
 
   if (!taxId) {
     return null;
@@ -147,7 +157,14 @@ export const PIXKYCForm = () => {
   if (isSubmitted) {
     return (
       <div className="relative">
-        <VerificationStatus status={verificationStatus} message={statusMessage} isLevel2={rampKycLevel2Started} />
+        <VerificationStatus 
+          status={verificationStatus} 
+          message={statusMessage} 
+          failureMessage={failureMessage}
+          isLevel2={rampKycLevel2Started}
+          onContinue={proceedWithRamp}
+          onRetry={handleRetryDocumentUpload}
+        />
       </div>
     );
   }

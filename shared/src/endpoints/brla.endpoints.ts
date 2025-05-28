@@ -29,6 +29,7 @@ export namespace BrlaEndpoints {
   export interface GetKycStatusResponse {
     type: string;
     status: string;
+    failureReason: string;
     level: number
   }
 

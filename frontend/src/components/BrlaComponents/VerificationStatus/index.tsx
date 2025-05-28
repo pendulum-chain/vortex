@@ -7,13 +7,19 @@ import { Spinner } from '../../Spinner';
 interface VerificationStatusProps {
   status: { status: KycStatus; level: number };
   message: string;
+  failureMessage?: string;
   isLevel2: boolean;
+  onContinue: () => void;
+  onRetry: () => void;
 }
 
 export const VerificationStatus: React.FC<VerificationStatusProps> = ({
   status,
   message,
+  failureMessage,
   isLevel2,
+  onContinue,
+  onRetry,
 }) => {
   const { status: kycStatus, level } = status;
   const showSuccess =
@@ -40,6 +46,41 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
       >
         {message}
       </motion.p>
+
+      {kycStatus === KycStatus.REJECTED && failureMessage && (
+        <motion.p
+          className="mt-2 text-sm text-red-600 text-center px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.5 }}
+        >
+          {failureMessage}
+        </motion.p>
+      )}
+
+      {showSuccess && (
+        <motion.button
+          className="btn-vortex-primary btn mt-6 px-8"
+          onClick={onContinue}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.3 }}
+        >
+          Continue
+        </motion.button>
+      )}
+
+      {kycStatus === KycStatus.REJECTED && (
+        <motion.button
+          className="btn-vortex-primary btn mt-6 px-8"
+          onClick={onRetry}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.3 }}
+        >
+          Try Again
+        </motion.button>
+      )}
     </motion.div>
   );
 };

@@ -332,8 +332,8 @@ export const fetchSubaccountKycStatus = async (
     if (!lastInteraction) {
       res.status(404).json({ error: `No KYC process started for ${taxId}` });
     }
-    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 60000) {
-      // If the last event is older than 1 minute from the last interaction, we assume it's not a new event.
+    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 2000) {
+      // If the last event is older than 2 seconds from the last interaction, we assume it's not a new event.
       // So it is ignored.
       console.log('Last kyc interaction', lastInteraction);
       console.log('Last kyc event', lastEventCached.createdAt);
@@ -344,6 +344,7 @@ export const fetchSubaccountKycStatus = async (
     res.status(httpStatus.OK).json({
       type: lastEventCached.subscription,
       status: lastEventCached.data.kycStatus,
+      failureReason: lastEventCached.data.failureReason,
       level: lastEventCached.data.level,
     });
   } catch (error) {

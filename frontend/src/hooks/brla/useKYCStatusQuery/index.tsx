@@ -19,7 +19,7 @@ export const useKycStatusQuery = (cpf: string | null, level: KycLevel = KycLevel
       if (!data) return POLLING_INTERVAL_MS;
       if (data.level !== level) return POLLING_INTERVAL_MS;
       if (data.status === KycStatus.PENDING || data.status === KycStatus.REJECTED) return POLLING_INTERVAL_MS;
-
+      
       return false;
     },
     retry: MAX_RETRIES,
