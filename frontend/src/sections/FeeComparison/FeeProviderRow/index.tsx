@@ -9,6 +9,9 @@ import { formatPrice } from '../helpers';
 import { cn } from '../../../helpers/cn';
 import { PriceProvider } from '../priceProviders';
 import { useQuote } from '../../../stores/ramp/useQuoteStore';
+import { useRampDirection } from '../../../stores/rampDirectionStore';
+import { RampDirection } from '../../../components/RampToggle';
+import { MINIMUM_BRL_BUY_AMOUNT } from './utils';
 
 interface FeeProviderRowProps {
   provider: PriceProvider;
@@ -32,6 +35,8 @@ export function FeeProviderRow({
   targetAssetSymbol,
 }: FeeProviderRowProps) {
   const { t } = useTranslation();
+  const rampDirection = useRampDirection();
+  const isBRLOnramp = rampDirection === RampDirection.ONRAMP && sourceAssetSymbol === 'BRL';
 
   const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
@@ -116,7 +121,10 @@ export function FeeProviderRow({
             <div className="flex flex-col items-center">
               <div className="flex justify-end w-full">
                 {error || !providerPrice ? (
-                  <span className="font-bold text-md">N/A</span>
+                  <>
+                    <span className="font-bold text-md">N/A</span>
+                    {isBRLOnramp && <span>(min {MINIMUM_BRL_BUY_AMOUNT[provider.name]}BRL)</span>}
+                  </>
                 ) : (
                   <>
                     <span className="font-bold text-md text-right">
