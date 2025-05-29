@@ -1,5 +1,11 @@
 import { EvmAddress } from '../types';
 
+export enum KycFailureReason {
+  FACE = 'face',
+  NAME = 'name',
+  UNKOWN = 'unknown',
+}
+
 export namespace BrlaEndpoints {
   // GET /brla/getUser?taxId=:taxId
   export interface GetUserRequest {
@@ -29,7 +35,7 @@ export namespace BrlaEndpoints {
   export interface GetKycStatusResponse {
     type: string;
     status: string;
-    failureReason: string;
+    failureReason: KycFailureReason;
     level: number
   }
 

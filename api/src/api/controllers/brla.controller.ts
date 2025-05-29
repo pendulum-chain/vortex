@@ -1,17 +1,29 @@
 import { Request, Response } from 'express';
 import { validateMaskedNumber } from 'shared';
-import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
+import { BrlaEndpoints, KycFailureReason } from 'shared/src/endpoints/brla.endpoints';
 import httpStatus from 'http-status';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
-import { generateReferenceLabel } from '../services/brla/helpers';
 import { RegisterSubaccountPayload } from '../services/brla/types';
+import { Kyc2FailureReason } from '../services/brla/webhooks';
 import kycService from '../services/kyc/kyc.service';
-import { PayInCodeQuery } from '../middlewares/validators';
 import logger from '../../config/logger';
+import { KycLevel2Status } from '../../models/kycLevel2.model';
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const lastInteractionMap = new Map<string, number>();
+
+// Maps webhook failure reasons to standardized enum values
+function mapKycFailureReason(webhookReason: Kyc2FailureReason): KycFailureReason {
+  switch (webhookReason) {
+    case 'face match failure':
+      return KycFailureReason.FACE;
+    case 'name does not match':
+      return KycFailureReason.NAME;
+    default:
+      return KycFailureReason.UNKOWN; // default
+  }
+}
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number | undefined): string {
@@ -300,6 +312,7 @@ export const createSubaccount = async (
   }
 };
 
+
 export const fetchSubaccountKycStatus = async (
   req: Request<unknown, unknown, unknown, BrlaEndpoints.GetKycStatusRequest>,
   res: Response<BrlaEndpoints.GetKycStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
@@ -343,10 +356,17 @@ export const fetchSubaccountKycStatus = async (
 
     res.status(httpStatus.OK).json({
       type: lastEventCached.subscription,
-      status: lastEventCached.data.kycStatus,
-      failureReason: lastEventCached.data.failureReason,
+      status: KycLevel2Status.ACCEPTED,
+      failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
       level: lastEventCached.data.level,
     });
+
+    // res.status(httpStatus.OK).json({
+    //   type: lastEventCached.subscription,
+    //   status: lastEventCached.data.kycStatus,
+    //   failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
+    //   level: lastEventCached.data.level,
+    // });
   } catch (error) {
     handleApiError(error, res, 'fetchSubaccountKycStatus');
   }

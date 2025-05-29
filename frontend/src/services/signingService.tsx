@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
-import { FiatToken } from 'shared';
+import { BrlaEndpoints, FiatToken } from 'shared';
 
 interface AccountStatusResponse {
   status: boolean;
@@ -28,7 +28,7 @@ type BrlaKycState = 'KYC';
 export enum KycStatus {
   PENDING = 'PENDING',
   REJECTED = 'REJECTED',
-  APPROVED = 'APPROVED',
+  APPROVED = 'APPROVED'
 }
 
 export type KycStatusType = keyof typeof KycStatus;
@@ -36,12 +36,6 @@ export type KycStatusType = keyof typeof KycStatus;
 interface BrlaOfframpStatus {
   type: BrlaOfframpState;
   status: OfframpStatus;
-}
-
-interface BrlaKycStatus {
-  type: BrlaKycState;
-  status: KycStatusType;
-  level: number;
 }
 
 type TaxIdType = 'CPF' | 'CNPJ';
@@ -200,7 +194,7 @@ export const fetchKycStatus = async (taxId: string) => {
     throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
   }
 
-  const eventStatus: BrlaKycStatus = await statusResponse.json();
+  const eventStatus: BrlaEndpoints.GetKycStatusResponse = await statusResponse.json();
   console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
   return eventStatus;
 };

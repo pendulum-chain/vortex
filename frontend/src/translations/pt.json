@@ -409,6 +409,11 @@
           "required": "CPF do parceiro é obrigatório",
           "format": "Formato de CPF do parceiro inválido"
         }
+      },
+      "kycFailureReasons": {
+        "face": "A verificação facial falhou. Certifique-se de que sua selfie está nítida e corresponde ao seu documento de identidade.",
+        "name": "A verificação do nome falhou. Certifique-se de que seu nome corresponde ao do documento de identidade fornecido.",
+        "unkown": "A verificação KYC falhou. Por favor, tente novamente ou entre em contato com o suporte."
       }
     },
     "documentUpload": {
