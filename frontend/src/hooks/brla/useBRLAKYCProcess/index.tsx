@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -11,7 +11,7 @@ import { useToastMessage } from '../../../helpers/notifications';
 import { isValidCnpj } from '../../ramp/schema';
 import { storageKeys } from '../../../constants/localStorage';
 import { useDebouncedValue } from '../../useDebouncedValue';
-import { BrlaEndpoints, KycFailureReason } from 'shared';
+import { KycFailureReason } from 'shared';
 
 export enum KycLevel {
   LEVEL_1 = 1,
@@ -46,7 +46,6 @@ const useHumanReadableError = () => {
     if (!reason) {
       return undefined;
     }
-
     const translationKey = `components.brlaExtendedForm.kycFailureReasons.${reason}`;
     const translatedMessage = t(translationKey, reason); // Raw key as fallback
 
@@ -108,6 +107,7 @@ export const useVerificationStatusUI = (isSubmitted: boolean) => {
 export function useKYCProcess() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [cpf, setCpf] = useState<string | null>(null);
+  const [kycVerificationError, setKycVerificationError] = useState<boolean>(false);
 
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
@@ -119,7 +119,7 @@ export function useKYCProcess() {
   const taxId = useTaxId() || localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID);
   const queryClient = useQueryClient();
 
-
+  const lastErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
   const { data: kycResponse, error: fetchStatusError } = useKycStatusQuery(cpf, desiredLevel);
@@ -313,16 +313,30 @@ export function useKYCProcess() {
   ]);
 
   useEffect(() => {
+    const threshold = 60000;
     if (fetchStatusError) {
-      //handleError(fetchStatusError.message);
-      // updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.REJECTED, kycResponse.failureReason);
+      console.log('KYC fetch error:', fetchStatusError);
+      if (!lastErrorTimerRef.current) {
+        console.log('Setting error timer for KYC fetch error');
+        lastErrorTimerRef.current = setTimeout(() => {
+                  console.log('Setting KYC verification error state');
+          setKycVerificationError(true);
+          lastErrorTimerRef.current = null;
+        }, threshold);
+      }
+    } else if (lastErrorTimerRef.current) {
+      clearTimeout(lastErrorTimerRef.current);
+      lastErrorTimerRef.current = null;
     }
-  }, [fetchStatusError, handleError]);
+
+  }, [fetchStatusError, setKycVerificationError]);
+
 
   return {
     verificationStatus,
     statusMessage,
     failureMessage,
+    kycVerificationError,
     handleFormSubmit,
     handleBackClick,
     setCpf,

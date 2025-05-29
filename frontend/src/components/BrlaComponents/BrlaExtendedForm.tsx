@@ -23,6 +23,7 @@ export const PIXKYCForm = () => {
     setIsSubmitted,
     setCpf,
     isSubmitted,
+    kycVerificationError,
     proceedWithRamp,
     resetToDefault,
   } = useKYCProcess();
@@ -163,7 +164,9 @@ export const PIXKYCForm = () => {
           failureMessage={failureMessage}
           isLevel2={rampKycLevel2Started}
           onContinue={proceedWithRamp}
+          onBackClick={handleBackClick}
           onRetry={handleRetryDocumentUpload}
+          kycVerificationError={kycVerificationError}
         />
       </div>
     );

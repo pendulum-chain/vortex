@@ -354,19 +354,14 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
+    
+
     res.status(httpStatus.OK).json({
       type: lastEventCached.subscription,
-      status: KycLevel2Status.ACCEPTED,
+      status: lastEventCached.data.kycStatus,
       failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
       level: lastEventCached.data.level,
     });
-
-    // res.status(httpStatus.OK).json({
-    //   type: lastEventCached.subscription,
-    //   status: lastEventCached.data.kycStatus,
-    //   failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
-    //   level: lastEventCached.data.level,
-    // });
   } catch (error) {
     handleApiError(error, res, 'fetchSubaccountKycStatus');
   }
