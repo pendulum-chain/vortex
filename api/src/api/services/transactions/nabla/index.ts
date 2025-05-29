@@ -1,16 +1,13 @@
-import { AccountMeta, Networks, PendulumDetails, encodeSubmittableExtrinsic } from 'shared';
-import Big from 'big.js';
-import { QuoteTicketAttributes } from '../../../../models/quoteTicket.model';
+import { AccountMeta, encodeSubmittableExtrinsic, Networks, PendulumDetails } from 'shared';
 import { ApiManager } from '../../pendulum/apiManager';
 import { prepareNablaSwapTransaction } from './swap';
 import { prepareNablaApproveTransaction } from './approve';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { CreateExecuteMessageExtrinsicOptions } from '@pendulum-chain/api-solang';
 
 export type ExtrinsicOptions = Omit<CreateExecuteMessageExtrinsicOptions, 'abi' | 'api'>;
 
 export async function createNablaTransactionsForOfframp(
-  quote: QuoteTicketAttributes,
+  amountRaw: string,
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
@@ -24,10 +21,6 @@ export async function createNablaTransactionsForOfframp(
   const networkName = 'pendulum';
   const pendulumNode = await apiManager.getApi(networkName);
 
-  const amountRaw = multiplyByPowerOfTen(
-    new Big(quote.inputAmount),
-    inputTokenPendulumDetails.pendulumDecimals,
-  ).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
 
   const approveTransaction = await prepareNablaApproveTransaction({
@@ -59,8 +52,7 @@ export async function createNablaTransactionsForOfframp(
 }
 
 export async function createNablaTransactionsForOnramp(
-  inputAmountUnits: Big,
-  quote: QuoteTicketAttributes,
+  amountRaw: string,
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
@@ -74,7 +66,6 @@ export async function createNablaTransactionsForOnramp(
   const networkName = 'pendulum';
   const pendulumNode = await apiManager.getApi(networkName);
 
-  const amountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenPendulumDetails.pendulumDecimals).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
 
   const approveTransaction = await prepareNablaApproveTransaction({

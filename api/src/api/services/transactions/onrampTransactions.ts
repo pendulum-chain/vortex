@@ -284,16 +284,8 @@ async function createNablaSwapTransactions(
     outputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
 
-  console.log(
-    'nablaHardMinimumOutputRaw',
-    nablaHardMinimumOutputRaw,
-    'nablaSoftMinimumOutputRaw',
-    nablaSoftMinimumOutputRaw,
-  );
-
   const { approve, swap } = await createNablaTransactionsForOnramp(
-    inputAmountUnits,
-    quote,
+    inputAmountBeforeSwapRaw,
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
@@ -464,15 +456,9 @@ async function createEvmDestinationTransactions(
 ): Promise<number> {
   const { moonbeamEphemeralAddress, outputTokenDetails, quote, account } = params;
 
-  // Use the final output amount (net of all fees) for the final transfer
-  const finalOutputAmountRaw = multiplyByPowerOfTen(
-    new Big(quote.outputAmount),
-    outputTokenDetails.pendulumDecimals,
-  ).toFixed(0, 0);
-
   const pendulumToMoonbeamXcmTransaction = await createPendulumToMoonbeamTransfer(
     moonbeamEphemeralAddress,
-    finalOutputAmountRaw,
+    quote.metadata.onrampOutputAmountMoonbeamRaw,
     outputTokenDetails.pendulumCurrencyId,
   );
 
@@ -555,14 +541,12 @@ export async function prepareOnrampTransactions(
     inputAmountPostAnchorFeeUnits,
     inputTokenDetails.decimals,
   ).toFixed(0, 0);
-  console.log(
-    'inputAmountPostAnchorFeeUnits',
-    inputAmountPostAnchorFeeUnits.toString(),
-    'inputAmountPostAnchorFeeRaw',
-    inputAmountPostAnchorFeeRaw,
-    'inputTokenDetails.decimals',
-    inputTokenDetails.decimals,
-  );
+
+  const outputAmountBeforeFinalStepRaw = new Big(quote.metadata.onrampOutputAmountMoonbeamRaw).toFixed(0, 0);
+  const outputAmountBeforeFinalStepUnits = multiplyByPowerOfTen(
+    outputAmountBeforeFinalStepRaw,
+    -outputTokenDetails.decimals,
+  ).toFixed();
 
   // Get token details for Pendulum
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
@@ -573,6 +557,7 @@ export async function prepareOnrampTransactions(
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
+    outputAmountBeforeFinalStep: { units: outputAmountBeforeFinalStepUnits, raw: outputAmountBeforeFinalStepRaw },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,

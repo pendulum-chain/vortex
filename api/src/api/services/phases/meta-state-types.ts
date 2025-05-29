@@ -8,7 +8,8 @@ export interface StateMetadata {
   outputTokenPendulumDetails: PendulumDetails;
   outputTokenType: RampCurrency;
   inputAmountBeforeSwapRaw: string;
-  outputAmountBeforeFees: { units: string; raw: string };
+  // The final step for onramp is the squidRouterSwap or XCM transfer, for offramps it's the anchor payout
+  outputAmountBeforeFinalStep: { units: string; raw: string };
   // Only used in offramp
   squidRouterReceiverId: string;
   moonbeamXcmTransactionHash: string;

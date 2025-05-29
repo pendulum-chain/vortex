@@ -260,7 +260,7 @@ async function createNablaSwapTransactions(
   );
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
-    quote,
+    inputAmountBeforeSwapRaw,
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
@@ -614,7 +614,7 @@ export async function prepareOfframpTransactions({
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    outputAmountBeforeFees: {
+    outputAmountBeforeFinalStep: {
       units: offrampAmountBeforeAnchorFeesUnits.toFixed(),
       raw: offrampAmountBeforeAnchorFeesRaw,
     },

@@ -168,7 +168,6 @@ export class QuoteService extends BaseRampService {
     // g. Handle EVM Bridge/Swap (If On-Ramp to EVM non-AssetHub)
     let squidrouterNetworkFeeUSD = '0';
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
-    let effectiveExchangeRate = nablaSwapResult.effectiveExchangeRate;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
     if (request.rampType === 'on' && request.to !== 'assethub') {
@@ -202,9 +201,6 @@ export class QuoteService extends BaseRampService {
       });
 
       finalGrossOutputAmountDecimal = new Big(evmBridgeResult.finalGrossOutputAmountDecimal);
-      if (evmBridgeResult.finalEffectiveExchangeRate) {
-        effectiveExchangeRate = evmBridgeResult.finalEffectiveExchangeRate;
-      }
     }
 
     const squidrouterNetworkFeeFiat = await priceFeedService.convertCurrency(
@@ -292,6 +288,9 @@ export class QuoteService extends BaseRampService {
     const offrampAmountBeforeAnchorFees =
       request.rampType === 'off' ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
 
+    // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
+    const onrampOutputAmountMoonbeamRaw = request.rampType === 'on' ? outputAmountMoonbeamRaw : undefined;
+
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
       id: uuidv4(),
@@ -307,10 +306,9 @@ export class QuoteService extends BaseRampService {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       status: 'pending',
       metadata: {
-        onrampOutputAmountMoonbeamRaw: outputAmountMoonbeamRaw,
+        onrampOutputAmountMoonbeamRaw,
         offrampAmountBeforeAnchorFees,
         usdFeeStructure,
-        effectiveExchangeRate,
       } as QuoteTicketMetadata,
     });
 

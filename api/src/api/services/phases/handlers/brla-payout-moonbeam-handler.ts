@@ -15,7 +15,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, pixDestination, outputAmountBeforeFees, brlaEvmAddress, outputTokenType, receiverTaxId } =
+    const { taxId, pixDestination, outputAmountBeforeFinalStep, brlaEvmAddress, outputTokenType, receiverTaxId } =
       state.state as StateMetadata;
 
     throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: This phase is not implemented yet.');
@@ -23,8 +23,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     if (
       !taxId ||
       !pixDestination ||
-      !outputAmountBeforeFees ||
-      !outputAmountBeforeFees ||
+      !outputAmountBeforeFinalStep ||
       !brlaEvmAddress ||
       !outputTokenType
     ) {
@@ -44,7 +43,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       await checkEvmBalancePeriodically(
         tokenDetails.polygonErc20Address,
         brlaEvmAddress,
-        outputAmountBeforeFees.raw,
+        outputAmountBeforeFinalStep.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
         polygon,
@@ -61,7 +60,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const amount = new Big(outputAmountBeforeFees.units).mul(100); // BRLA understands raw amount with 2 decimal places.
+      const amount = new Big(outputAmountBeforeFinalStep.units).mul(100); // BRLA understands raw amount with 2 decimal places.
 
       const brlaApiService = BrlaApiService.getInstance();
       const subaccount = await brlaApiService.getSubaccount(taxId);
