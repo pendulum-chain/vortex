@@ -23,8 +23,7 @@ export interface QuoteTicketAttributes {
 
 export interface QuoteTicketMetadata {
   onrampOutputAmountMoonbeamRaw: string;
-  onrampInputAmountUnits: string;
-  grossOutputAmount?: string;
+  offrampAmountBeforeAnchorFees?: string;
   // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
   // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
   usdFeeStructure: QuoteEndpoints.FeeStructure;

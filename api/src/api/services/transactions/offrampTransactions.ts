@@ -293,7 +293,7 @@ async function createNablaSwapTransactions(
       nabla: {
         approveExtrinsicOptions: approve.extrinsicOptions,
         swapExtrinsicOptions: swap.extrinsicOptions,
-      }
+      },
     },
   };
 }
@@ -339,7 +339,7 @@ async function addFeeDistributionTransaction(
 async function createBRLTransactions(
   params: {
     brlaEvmAddress: string;
-    grossOutputAmountRaw: string;
+    outputAmountRaw: string;
     outputTokenDetails: any;
     account: AccountMeta;
     taxId: string;
@@ -350,12 +350,11 @@ async function createBRLTransactions(
   pendulumCleanupTx: Omit<UnsignedTx, 'nonce'>,
   nextNonce: number,
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
-  const { brlaEvmAddress, grossOutputAmountRaw, outputTokenDetails, account, taxId, pixDestination, receiverTaxId } =
-    params;
+  const { brlaEvmAddress, outputAmountRaw, outputTokenDetails, account, taxId, pixDestination, receiverTaxId } = params;
 
   const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
     brlaEvmAddress,
-    grossOutputAmountRaw,
+    outputAmountRaw,
     outputTokenDetails.pendulumCurrencyId,
   );
 
@@ -396,7 +395,7 @@ async function createBRLTransactions(
  */
 async function createStellarTransactions(
   params: {
-    grossOutputAmountRaw: string;
+    outputAmountRaw: string;
     stellarEphemeralEntry: AccountMeta;
     outputTokenDetails: any;
     account: AccountMeta;
@@ -406,11 +405,11 @@ async function createStellarTransactions(
   pendulumCleanupTx: Omit<UnsignedTx, 'nonce'>,
   nextNonce: number,
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
-  const { grossOutputAmountRaw, stellarEphemeralEntry, outputTokenDetails, account, stellarPaymentData } = params;
+  const { outputAmountRaw, stellarEphemeralEntry, outputTokenDetails, account, stellarPaymentData } = params;
 
   const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
   const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
-    outputAmountRaw: grossOutputAmountRaw,
+    outputAmountRaw: outputAmountRaw,
     stellarEphemeralAccountRaw,
     outputTokenDetails,
     executeSpacewalkNonce: nextNonce,
@@ -454,18 +453,18 @@ async function createStellarTransactions(
 async function createStellarPaymentTransactions(
   params: {
     account: AccountMeta;
-    grossOutputAmountUnits: Big;
+    outputAmountUnits: Big;
     outputTokenDetails: any;
     stellarPaymentData: PaymentData;
   },
   unsignedTxs: UnsignedTx[],
 ): Promise<void> {
-  const { account, grossOutputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
+  const { account, outputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
 
   const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumber } =
     await buildPaymentAndMergeTx({
       ephemeralAccountId: account.address,
-      amountToAnchorUnits: grossOutputAmountUnits.toFixed(),
+      amountToAnchorUnits: outputAmountUnits.toFixed(),
       paymentData: stellarPaymentData,
       tokenConfigStellar: outputTokenDetails,
     });
@@ -578,18 +577,21 @@ export async function prepareOfframpTransactions({
   }
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
-  if (!quote.metadata?.grossOutputAmount) {
-    throw new Error('Quote metadata is missing grossOutputAmount');
+  if (!quote.metadata?.offrampAmountBeforeAnchorFees) {
+    throw new Error('Quote metadata is missing offrampAmountBeforeAnchorFees');
   }
 
-  const grossOutputAmountUnits = new Big(quote.metadata.grossOutputAmount);
-  const grossOutputAmountRaw = multiplyByPowerOfTen(grossOutputAmountUnits, outputTokenDetails.decimals).toFixed(0, 0);
+  const offrampAmountBeforeAnchorFeesUnits = new Big(quote.metadata.offrampAmountBeforeAnchorFees);
+  const offrampAmountBeforeAnchorFeesRaw = multiplyByPowerOfTen(
+    offrampAmountBeforeAnchorFeesUnits,
+    outputTokenDetails.decimals,
+  ).toFixed(0, 0);
 
   if (stellarPaymentData && stellarPaymentData.amount) {
     const stellarAmount = new Big(stellarPaymentData.amount);
-    if (!stellarAmount.eq(grossOutputAmountUnits)) {
+    if (!stellarAmount.eq(offrampAmountBeforeAnchorFeesUnits)) {
       throw new Error(
-        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${grossOutputAmountUnits.toString()}`,
+        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${offrampAmountBeforeAnchorFeesUnits.toString()}`,
       );
     }
   }
@@ -612,7 +614,10 @@ export async function prepareOfframpTransactions({
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    outputAmountBeforeFees: { units: grossOutputAmountUnits.toFixed(), raw: grossOutputAmountRaw },
+    outputAmountBeforeFees: {
+      units: offrampAmountBeforeAnchorFeesUnits.toFixed(),
+      raw: offrampAmountBeforeAnchorFeesRaw,
+    },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
   };
 
@@ -706,7 +711,7 @@ export async function prepareOfframpTransactions({
         const brlResult = await createBRLTransactions(
           {
             brlaEvmAddress,
-            grossOutputAmountRaw,
+            outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
             outputTokenDetails,
             account,
             taxId,
@@ -735,7 +740,7 @@ export async function prepareOfframpTransactions({
         // Use helper function to create Stellar transactions
         const stellarResult = await createStellarTransactions(
           {
-            grossOutputAmountRaw,
+            outputAmountRaw: offrampAmountBeforeAnchorFeesRaw,
             stellarEphemeralEntry,
             outputTokenDetails,
             account,
@@ -766,7 +771,7 @@ export async function prepareOfframpTransactions({
       await createStellarPaymentTransactions(
         {
           account,
-          grossOutputAmountUnits,
+          outputAmountUnits: offrampAmountBeforeAnchorFeesUnits,
           outputTokenDetails,
           stellarPaymentData,
         },

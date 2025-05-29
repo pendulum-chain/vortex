@@ -185,14 +185,14 @@ async function createSquidrouterTransactions(
   params: {
     outputTokenDetails: any;
     toNetwork: Networks;
-    outputAmountRaw: string;
+    rawAmount: string;
     destinationAddress: string;
     account: AccountMeta;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number,
 ): Promise<number> {
-  const { outputTokenDetails, toNetwork, outputAmountRaw, destinationAddress, account } = params;
+  const { outputTokenDetails, toNetwork, rawAmount, destinationAddress, account } = params;
 
   if (!isEvmTokenDetails(outputTokenDetails)) {
     throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.symbol}`);
@@ -201,7 +201,7 @@ async function createSquidrouterTransactions(
   const { approveData, swapData } = await createOnrampSquidrouterTransactions({
     outputTokenDetails,
     toNetwork,
-    rawAmount: outputAmountRaw,
+    rawAmount,
     addressDestination: destinationAddress,
     fromAddress: account.address,
     moonbeamEphemeralStartingNonce: nextNonce,
@@ -564,16 +564,6 @@ export async function prepareOnrampTransactions(
     inputTokenDetails.decimals,
   );
 
-  // The output amount to be obtained on Moonbeam, differs from the amount to be obtained on destination evm chain.
-  // We'll use the gross output amount (before fee deduction) for swap calculations
-  const grossOutputAmountPendulumUnits = new Big(metadata.grossOutputAmount || '0');
-
-  // Convert gross output to raw units for Moonbeam
-  const outputAmountRaw = multiplyByPowerOfTen(
-    grossOutputAmountPendulumUnits,
-    outputTokenDetails.pendulumDecimals,
-  ).toFixed(0, 0);
-
   // Get token details for Pendulum
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency);
   const outputTokenPendulumDetails = getPendulumDetails(quote.outputCurrency, toNetwork);
@@ -583,7 +573,6 @@ export async function prepareOnrampTransactions(
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    outputAmountBeforeFees: { units: grossOutputAmountPendulumUnits.toFixed(), raw: outputAmountRaw },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,
@@ -617,7 +606,7 @@ export async function prepareOnrampTransactions(
           {
             outputTokenDetails,
             toNetwork,
-            outputAmountRaw,
+            rawAmount: metadata.onrampOutputAmountMoonbeamRaw,
             destinationAddress,
             account,
           },

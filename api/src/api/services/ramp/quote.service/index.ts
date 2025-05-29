@@ -288,6 +288,10 @@ export class QuoteService extends BaseRampService {
       currency: 'USD',
     };
 
+    // This is the final net output amount before anchor fees are deducted
+    const offrampAmountBeforeAnchorFees =
+      request.rampType === 'off' ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
+
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
       id: uuidv4(),
@@ -304,8 +308,7 @@ export class QuoteService extends BaseRampService {
       status: 'pending',
       metadata: {
         onrampOutputAmountMoonbeamRaw: outputAmountMoonbeamRaw,
-        onrampInputAmountUnits: inputAmountForNablaSwap.toString(),
-        grossOutputAmount: finalGrossOutputAmountDecimal.toString(),
+        offrampAmountBeforeAnchorFees,
         usdFeeStructure,
         effectiveExchangeRate,
       } as QuoteTicketMetadata,
