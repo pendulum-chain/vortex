@@ -5,7 +5,7 @@ import { RampPhase } from 'shared';
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { getStatus } from '../../transactions/squidrouter/route';
-import { axelarGasService } from '../../../../contracts/AxelarGasService'
+import { axelarGasService } from '../../../../contracts/AxelarGasService';
 import { privateKeyToAccount } from 'viem/accounts';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
@@ -13,13 +13,13 @@ import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import Big from 'big.js';
 
 interface AxelarScanStatusResponse {
-    is_insufficient_fee: boolean;
-    status: string; // executed or express_executed (for complete).
-    fees: {
-      base_fee: number; // in units of the native token.
-    },
-    express_execute_gas_multiplier: number; // ??
-    id: string; // the id of the swap.
+  is_insufficient_fee: boolean;
+  status: string; // executed or express_executed (for complete).
+  fees: {
+    base_fee: number; // in units of the native token.
+  };
+  express_execute_gas_multiplier: number; // Assuming this is the multiplier to the base after which the express execution is enabled.
+  id: string; // the id of the swap.
 }
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
@@ -67,9 +67,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // Get the bridge hash
       const bridgeCallHash = state.state.squidRouterSwapHash;
       if (!bridgeCallHash) {
-        throw new Error('SquidRouterPayPhaseHandler: Missing bridge hash in state for squidRouterPay phase. State corrupted.');
+        throw new Error(
+          'SquidRouterPayPhaseHandler: Missing bridge hash in state for squidRouterPay phase. State corrupted.',
+        );
       }
-      
+
       // Enter check status loop
       await this.checkStatus(state, bridgeCallHash);
 
@@ -86,8 +88,8 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    */
   private async checkStatus(state: RampState, swapHash: string): Promise<void> {
     try {
-     // const _ = await getStatus(swapHash); // Found to be unreliable. Returned "not found" for valid transactions.
-      
+      // const _ = await getStatus(swapHash); // Found to be unreliable. Returned "not found" for valid transactions.
+
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidrouterPayTxHash; // in case of recovery, we may have already paid.
       while (!isExecuted) {
@@ -104,7 +106,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         if (axelarScanStatus.is_insufficient_fee && !payTxHash) {
           const glmrToFund = axelarScanStatus.fees.base_fee.toString();
           const logIndex = Number(axelarScanStatus.id.split('_')[2]);
-          payTxHash = await this.executeFundTransaction(glmrToFund, swapHash as `0x${string}`, logIndex); 
+          payTxHash = await this.executeFundTransaction(glmrToFund, swapHash as `0x${string}`, logIndex);
 
           await state.update({
             state: {
@@ -114,8 +116,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           });
         }
 
-        await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
-  
+        await new Promise((resolve) => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
       }
     } catch (error) {
       throw new Error(`SquidRouterPayPhaseHandler: Error waiting for transaction confirmation: ${error}`);
@@ -129,17 +130,16 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    */
   private async executeFundTransaction(glmrUnits: string, swapHash: `0x${string}`, logIndex: number): Promise<string> {
     try {
-      
       // Create addNativeGas transaction data
       const refundAddress = this.walletClient.account.address;
       const transactionData = encodeFunctionData({
         abi: axelarGasService,
         functionName: 'addNativeGas',
         args: [swapHash, logIndex, refundAddress],
-      }); 
+      });
       const gmlrValueRaw = multiplyByPowerOfTen(new Big(glmrUnits), 18); // Convert to raw GLMR units
       const { maxFeePerGas, maxPriorityFeePerGas } = await this.publicClient.estimateFeesPerGas();
-       const gasPaymentHash = await this.walletClient.sendTransaction({
+      const gasPaymentHash = await this.walletClient.sendTransaction({
         to: AXL_GAS_SERVICE_MOONBEAM as `0x${string}`,
         value: BigInt(gmlrValueRaw.toFixed(0, 0)),
         data: transactionData,
@@ -148,7 +148,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       });
       logger.info(`SquidRouterPayPhaseHandler: Fund transaction sent with hash: ${gasPaymentHash}`);
       return gasPaymentHash;
-     
     } catch (error) {
       logger.error('SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service: ', error);
       throw new Error('SquidRouterPayPhaseHandler: Failed to send transaction');
@@ -159,13 +158,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     try {
       // POST call, https://api.axelarscan.io/gmp/searchGMP
       const response = await fetch(`https://api.axelarscan.io/gmp/searchGMP`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json' 
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({                
+        body: JSON.stringify({
           txHash: swapHash,
-        })
+        }),
       });
 
       if (!response.ok) {
@@ -173,7 +172,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       }
       const responseData = await response.json();
       return (responseData as any).data[0] as AxelarScanStatusResponse;
-
     } catch (error) {
       if ((error as any).response) {
         console.error('API error:', (error as any).response);
@@ -181,9 +179,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       throw error;
     }
   }
-
 }
-
-
 
 export default new SquidRouterPayPhaseHandler();
