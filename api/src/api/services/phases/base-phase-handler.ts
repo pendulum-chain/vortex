@@ -78,14 +78,13 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     const isPhaseError = error instanceof PhaseError;
     const isRecoverable = isPhaseError && error.isRecoverable === true;
 
-    const errorLog: RampErrorLog =
-      {
-        phase: this.getPhaseName(),
-        timestamp: new Date().toISOString(),
-        error: error.message || 'Unknown error',
-        details: error.stack || {},
-        recoverable: isRecoverable,
-      };
+    const errorLog: RampErrorLog = {
+      phase: this.getPhaseName(),
+      timestamp: new Date().toISOString(),
+      error: error.message || 'Unknown error',
+      details: error.stack || {},
+      recoverable: isRecoverable,
+    };
 
     await rampService.appendErrorLog(state.id, errorLog);
   }

@@ -61,7 +61,7 @@ export interface RampErrorLog {
   phase: RampPhase;
   error: string;
   details?: Record<string, unknown>;
-  recoverable?: boolean
+  recoverable?: boolean;
 }
 
 export interface PaymentData {

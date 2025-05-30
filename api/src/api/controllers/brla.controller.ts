@@ -323,7 +323,9 @@ export const fetchSubaccountKycStatus = async (
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
-      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
+      res
+        .status(httpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
       return;
     }
 

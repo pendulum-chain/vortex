@@ -20,13 +20,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
 
     throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: This phase is not implemented yet.');
 
-    if (
-      !taxId ||
-      !pixDestination ||
-      !outputAmountBeforeFinalStep ||
-      !brlaEvmAddress ||
-      !outputTokenType
-    ) {
+    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !brlaEvmAddress || !outputTokenType) {
       throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.');
     }
 

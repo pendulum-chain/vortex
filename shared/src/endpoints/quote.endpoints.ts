@@ -5,7 +5,7 @@ export namespace QuoteEndpoints {
   export interface FeeStructure {
     network: string;
     anchor: string;
-    vortex: string
+    vortex: string;
     partnerMarkup: string;
     total: string;
     currency: RampCurrency;

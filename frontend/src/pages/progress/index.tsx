@@ -74,7 +74,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
 // Not all phases are relevant for the progress bar, so we need to exclude some.
-const RELEVANT_PHASES_COUNT = {off: 14, on: 13};
+const RELEVANT_PHASES_COUNT = { off: 14, on: 13 };
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -84,8 +84,8 @@ const useProgressUpdate = (
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void,
 ) => {
-  const rampDirection = useRampDirection()
-  const numberOfPhases = rampDirection === "onramp" ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
+  const rampDirection = useRampDirection();
+  const numberOfPhases = rampDirection === 'onramp' ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
   const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {

@@ -286,7 +286,7 @@ export async function calculatePreNablaDeductibleFees(
     if (rampType === 'on') {
       // For on-ramp: Only Anchor Fee is deducted before Nabla
       const anchorFee = await calculateAnchorFee(rampType, from, to, inputAmount, inputAmount);
-      
+
       // Convert anchor fee to fee currency if needed
       if (feeCurrency !== inputCurrency) {
         const anchorFeeInFeeCurrency = await priceFeedService.convertCurrency(
