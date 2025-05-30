@@ -1,7 +1,6 @@
-import { decodeSubmittableExtrinsic, getAddressForFormat, parseEventRedeemRequest, RampPhase } from 'shared';
+import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { BasePhaseHandler } from '../base-phase-handler';
-import { StateMetadata } from '../meta-state-types';
 import RampState from '../../../../models/rampState.model';
 import QuoteTicket from '../../../../models/quoteTicket.model';
 import { ApiManager } from '../../pendulum/apiManager';
@@ -79,7 +78,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * @param api The API instance
    * @returns The transaction hash
    */
-  private async submitTransaction(tx: SubmittableExtrinsic<'promise', any>, api: ApiPromise): Promise<void> {
+  private async submitTransaction(tx: SubmittableExtrinsic<'promise'>, api: ApiPromise): Promise<void> {
     logger.debug(`Submitting transaction to Pendulum for ${this.getPhaseName()} phase`);
     return await new Promise((resolve, reject) =>
       tx
