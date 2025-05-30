@@ -18,8 +18,6 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     const { taxId, pixDestination, outputAmountBeforeFinalStep, brlaEvmAddress, outputTokenType, receiverTaxId } =
       state.state as StateMetadata;
 
-    throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: This phase is not implemented yet.');
-
     if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !brlaEvmAddress || !outputTokenType) {
       throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.');
     }

@@ -40,12 +40,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     // Determine next phase
-    let nextPhase: RampPhase | null = null;
-    if (state.type === 'on') {
-      nextPhase = 'subsidizePostSwap';
-    } else {
-      nextPhase = 'subsidizePreSwap';
-    }
+    const nextPhase = state.type === 'on' ? 'subsidizePostSwap' : 'subsidizePreSwap';
 
     try {
       // Get the pre-signed fee distribution transaction. This can be undefined if no fees are to be distributed.
@@ -91,7 +86,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
           }
 
           if (status.isFinalized) {
-            logger.info('Transaction to distribute fees finalized:', status.asFinalized.toString());
+            logger.info(`Transaction to distribute fees finalized: ${status.asFinalized.toString()}`);
             resolve();
           }
         })
@@ -141,7 +136,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       return new Error(`Failed to dispatch ${extrinsicCalled}`);
     }
 
-    logger.error('Encountered some other error: ', dispatchError?.toString(), JSON.stringify(dispatchError));
+    logger.error(`Encountered some other error:  ${dispatchError?.toString()}, ${JSON.stringify(dispatchError)}`);
     return new Error(`Unknown error during ${extrinsicCalled}`);
   }
 }
