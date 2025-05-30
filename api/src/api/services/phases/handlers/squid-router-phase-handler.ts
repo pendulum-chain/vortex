@@ -1,7 +1,7 @@
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
-import { EvmTransactionData, getNetworkFromDestination, getNetworkId, RampPhase } from 'shared';
+import { getNetworkFromDestination, getNetworkId, RampPhase } from 'shared';
 import { createPublicClient, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 
@@ -47,6 +47,13 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
       if (!approveTransaction || !swapTransaction) {
         throw new Error('Missing presigned transactions for squidRouter phase');
+      }
+
+      const accountNonce = await this.getNonce(approveTransaction.signer as `0x${string}`);
+      if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
+        logger.warn(
+          `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`,
+        );
       }
 
       const destinationNetwork = getNetworkFromDestination(state.to);
@@ -117,6 +124,16 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       }
     } catch (error) {
       throw new Error(`SquidRouterPhaseHandler: Error waiting for transaction confirmation: ${error}`);
+    }
+  }
+
+  private async getNonce(address: `0x${string}`): Promise<number> {
+    try {
+      // List all transactions for the address to get the nonce
+      return await this.publicClient.getTransactionCount({ address });
+    } catch (error) {
+      logger.error('Error getting nonce', error);
+      throw new Error('Failed to get transaction nonce');
     }
   }
 }

@@ -15,17 +15,10 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, pixDestination, outputAmountBeforeFees, brlaEvmAddress, outputTokenType, receiverTaxId } =
+    const { taxId, pixDestination, outputAmountBeforeFinalStep, brlaEvmAddress, outputTokenType, receiverTaxId } =
       state.state as StateMetadata;
 
-    if (
-      !taxId ||
-      !pixDestination ||
-      !outputAmountBeforeFees ||
-      !outputAmountBeforeFees ||
-      !brlaEvmAddress ||
-      !outputTokenType
-    ) {
+    if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !brlaEvmAddress || !outputTokenType) {
       throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
@@ -42,7 +35,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       await checkEvmBalancePeriodically(
         tokenDetails.polygonErc20Address,
         brlaEvmAddress,
-        outputAmountBeforeFees.raw,
+        outputAmountBeforeFinalStep.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
         polygon,
@@ -59,7 +52,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      const amount = new Big(outputAmountBeforeFees.units).mul(100); // BRLA understands raw amount with 2 decimal places.
+      const amount = new Big(outputAmountBeforeFinalStep.units).mul(100); // BRLA understands raw amount with 2 decimal places.
 
       const brlaApiService = BrlaApiService.getInstance();
       const subaccount = await brlaApiService.getSubaccount(taxId);

@@ -20,10 +20,7 @@ export enum BalanceCheckErrorType {
 }
 
 export class BalanceCheckError extends Error {
-  constructor(
-    public readonly type: BalanceCheckErrorType,
-    message: string,
-  ) {
+  constructor(public readonly type: BalanceCheckErrorType, message: string) {
     super(message);
     this.name = 'BalanceCheckError';
   }

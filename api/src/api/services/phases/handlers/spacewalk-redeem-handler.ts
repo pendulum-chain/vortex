@@ -25,7 +25,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
     const {
       pendulumEphemeralAddress,
-      outputAmountBeforeFees,
+      outputAmountBeforeFinalStep,
       stellarTarget,
       executeSpacewalkNonce,
       stellarEphemeralAccountId,
@@ -33,7 +33,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
     if (
       !pendulumEphemeralAddress ||
-      !outputAmountBeforeFees ||
+      !outputAmountBeforeFinalStep ||
       !stellarTarget ||
       !executeSpacewalkNonce ||
       !stellarEphemeralAccountId
@@ -55,7 +55,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       // Re-execution guard
       if (currentEphemeralAccountNonce !== undefined && currentEphemeralAccountNonce > executeSpacewalkNonce) {
         await this.waitForOutputTokensToArriveOnStellar(
-          outputAmountBeforeFees.units,
+          outputAmountBeforeFinalStep.units,
           stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string,
         );
@@ -66,9 +66,9 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         pendulumNode,
         stellarTarget.stellarTokenDetails.stellarAsset.code.hex,
         stellarTarget.stellarTokenDetails.stellarAsset.issuer.hex,
-        outputAmountBeforeFees.raw,
+        outputAmountBeforeFinalStep.raw,
       );
-      logger.info(`Requesting redeem of ${outputAmountBeforeFees.units} tokens for vault ${vaultService.vaultId}`);
+      logger.info(`Requesting redeem of ${outputAmountBeforeFinalStep.units} tokens for vault ${vaultService.vaultId}`);
 
       const redeemExtrinsic = decodeSubmittableExtrinsic(spacewalkRedeemTransaction, pendulumNode.api);
       const redeemRequestEvent = await vaultService.submitRedeem(pendulumEphemeralAddress, redeemExtrinsic);
@@ -85,7 +85,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       if ((e as Error).message.includes('AmountExceedsUserBalance')) {
         logger.info(`Recovery mode: Redeem already performed. Waiting for execution and Stellar balance arrival.`);
         await this.waitForOutputTokensToArriveOnStellar(
-          outputAmountBeforeFees.units,
+          outputAmountBeforeFinalStep.units,
           stellarEphemeralAccountId,
           stellarTarget.stellarTokenDetails.stellarAsset.code.string,
         );

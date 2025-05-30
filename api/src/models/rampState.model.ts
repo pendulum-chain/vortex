@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
 import sequelize from '../config/database';
+import { StateMetadata } from '../api/services/phases/meta-state-types';
 
 export interface PhaseHistoryEntry {
   phase: RampPhase;
@@ -35,7 +36,7 @@ export interface RampStateAttributes {
   presignedTxs: PresignedTx[] | null; // JSONB array
   from: DestinationType;
   to: DestinationType;
-  state: any; // JSONB
+  state: StateMetadata; // JSONB
   quoteId: string; // UUID reference to QuoteTicket
   phaseHistory: PhaseHistoryEntry[]; // JSONB array
   errorLogs: RampErrorLog[]; // JSONB array
@@ -64,7 +65,7 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
 
   declare to: DestinationType;
 
-  declare state: any;
+  declare state: StateMetadata;
 
   declare quoteId: string;
 

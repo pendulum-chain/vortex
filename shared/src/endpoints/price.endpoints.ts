@@ -63,18 +63,20 @@ export namespace PriceEndpoints {
   }
 
   // Types for the bundled price endpoint (GET /prices/all)
-  
+
   // Represents the result for a single provider in the bundled response
-  export type BundledPriceResult = {
-    status: 'fulfilled';
-    value: PriceResponse;
-  } | {
-    status: 'rejected';
-    reason: {
-      message: string;
-      status?: number;
-    };
-  };
+  export type BundledPriceResult =
+    | {
+        status: 'fulfilled';
+        value: PriceResponse;
+      }
+    | {
+        status: 'rejected';
+        reason: {
+          message: string;
+          status?: number;
+        };
+      };
 
   // The complete response from the bundled price endpoint
   export type AllPricesResponse = {

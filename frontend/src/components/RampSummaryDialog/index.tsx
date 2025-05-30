@@ -12,6 +12,7 @@ import { RampSummaryButton } from './RampSummaryButton';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { SigningBoxButton, SigningBoxContent } from '../SigningBox/SigningBoxContent';
 import { useSigningBoxState } from '../../hooks/useSigningBoxState';
+import { usePartnerId } from '../../stores/partnerStore';
 
 export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
@@ -24,6 +25,7 @@ export const RampSummaryDialog: FC = () => {
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const { quote, fetchQuote } = useQuoteStore();
+  const partnerId = usePartnerId();
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
@@ -38,6 +40,7 @@ export const RampSummaryDialog: FC = () => {
       onChainToken,
       fiatToken,
       selectedNetwork,
+      partnerId: partnerId === null ? undefined : partnerId, // Handle null case
     });
   };
 

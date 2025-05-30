@@ -16,7 +16,6 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
   const { handleSubmit } = form;
   const { t } = useTranslation();
 
-
   return (
     <FormProvider {...form}>
       <motion.form

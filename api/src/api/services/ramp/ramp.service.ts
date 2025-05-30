@@ -342,6 +342,29 @@ export class RampService extends BaseRampService {
     return 'pending';
   }
 
+  /**
+   * Append an error log to a ramping process.
+   * This function limits the number of error logs to 100 per ramping process.
+   * @param id The ID of the ramping process
+   * @param errorLog The error log to append
+   */
+  public async appendErrorLog(id: string, errorLog: RampErrorLog): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      throw new APIError({
+        status: httpStatus.NOT_FOUND,
+        message: 'Ramp not found',
+      });
+    }
+
+    // Limit the number of error logs to 100
+    const updatedErrorLogs = [...(rampState.errorLogs || []), errorLog].slice(-100);
+    await rampState.update({
+      errorLogs: updatedErrorLogs,
+    });
+  }
+
   private async cancelRamp(id: string): Promise<void> {
     const rampState = await RampState.findByPk(id);
 

@@ -31,6 +31,10 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       throw new Error('InitialPhaseHandler: No signed transactions found. Cannot proceed.');
     }
 
+    if (state.type === 'on') {
+      return this.transitionToNextPhase(state, 'brlaTeleport');
+    }
+
     // Only stellar case requires an initial operation, sending the create ephemeral transaction
     if (state.state.stellarTarget) {
       const { txData: stellarCreationTransactionXDR } = this.getPresignedTransaction(state, 'stellarCreateAccount');

@@ -7,6 +7,7 @@ import { API } from '../../pendulum/apiManager';
 import { config } from '../../../../config';
 import { routerAbi } from '../../../../contracts/Router';
 import logger from '../../../../config/logger';
+import { ExtrinsicOptions } from './index';
 
 export interface PrepareNablaSwapParams {
   inputTokenDetails: PendulumDetails;
@@ -38,9 +39,7 @@ export async function createSwapExtrinsic({
   contractAbi,
   callerAddress,
 }: CreateSwapExtrinsicOptions) {
-  const { execution } = await createExecuteMessageExtrinsic({
-    abi: contractAbi,
-    api,
+  const extrinsicOptions: ExtrinsicOptions = {
     callerAddress,
     contractDeploymentAddress: NABLA_ROUTER,
     messageName: 'swapExactTokensForTokens',
@@ -55,14 +54,16 @@ export async function createSwapExtrinsic({
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
     skipDryRunning: true, // We have to skip this because it will not work before the approval transaction executed
-  });
+  };
+
+  const { execution } = await createExecuteMessageExtrinsic({ ...extrinsicOptions, api, abi: contractAbi });
 
   if (execution.type === 'onlyRpc') {
     throw Error("Couldn't create swap extrinsic. Can't execute only-RPC");
   }
 
   const { extrinsic } = execution;
-  return extrinsic;
+  return { extrinsic, extrinsicOptions };
 }
 
 export async function prepareNablaSwapTransaction({
@@ -72,13 +73,19 @@ export async function prepareNablaSwapTransaction({
   nablaHardMinimumOutputRaw,
   pendulumEphemeralAddress,
   pendulumNode,
-}: PrepareNablaSwapParams): Promise<Extrinsic> {
+}: PrepareNablaSwapParams): Promise<{
+  extrinsic: Extrinsic;
+  extrinsicOptions: ExtrinsicOptions;
+}> {
   const { api } = pendulumNode;
 
   const routerAbiObject = new Abi(routerAbi, api.registry.getChainProperties());
 
   // Try create swap extrinsic
   try {
+    logger.info(
+      `Preparing transaction to swap tokens: ${amountRaw} ${inputTokenDetails.pendulumAssetSymbol} -> min ${nablaHardMinimumOutputRaw} ${outputTokenDetails.pendulumAssetSymbol}`,
+    );
     return createSwapExtrinsic({
       api,
       amount: amountRaw,

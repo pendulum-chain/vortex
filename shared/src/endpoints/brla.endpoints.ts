@@ -29,7 +29,7 @@ export namespace BrlaEndpoints {
   export interface GetKycStatusResponse {
     type: string;
     status: string;
-    level: number
+    level: number;
   }
 
   // GET /brla/validatePixKey?pixKey=:pixKey
@@ -103,12 +103,12 @@ export namespace BrlaEndpoints {
 
   // POST /brla/startKYC2
   export interface StartKYC2Request {
-    documentType: KYCDocType,
-    taxId: string,
+    documentType: KYCDocType;
+    taxId: string;
   }
 
   export interface StartKYC2Response {
-    uploadUrls: KYCDataUploadFileFiles
+    uploadUrls: KYCDataUploadFileFiles;
   }
 
   export interface KYCDataUploadFileFiles {

@@ -3,7 +3,13 @@ import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 
-import { getAnyFiatTokenDetails, getNetworkDisplayName, getOnChainTokenDetailsOrDefault, isNetworkEVM, PriceEndpoints } from 'shared';
+import {
+  getAnyFiatTokenDetails,
+  getNetworkDisplayName,
+  getOnChainTokenDetailsOrDefault,
+  isNetworkEVM,
+  PriceEndpoints,
+} from 'shared';
 import { FeeProviderRow } from '../FeeProviderRow';
 import { useNetwork } from '../../../contexts/network';
 import { priceProviders } from '../priceProviders';
@@ -30,32 +36,27 @@ export function FeeComparisonTable() {
   const targetAssetSymbol = isOnramp ? onChainTokenDetails.assetSymbol : fiatTokenDetails.fiat.symbol;
 
   const amount = inputAmount || '100';
-  
+
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
   const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery({
-    queryKey: [
-      cacheKeys.allPrices,
-      amount,
-      sourceAssetSymbol,
-      targetAssetSymbol,
-      selectedNetwork
-    ],
-    queryFn: () => PriceService.getAllPricesBundled(
-      sourceAssetSymbol.toLowerCase() as PriceEndpoints.CryptoCurrency,
-      targetAssetSymbol.toLowerCase() as PriceEndpoints.FiatCurrency,
-      amount,
-      selectedNetwork
-    ),
+    queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, selectedNetwork],
+    queryFn: () =>
+      PriceService.getAllPricesBundled(
+        sourceAssetSymbol.toLowerCase() as PriceEndpoints.CryptoCurrency,
+        targetAssetSymbol.toLowerCase() as PriceEndpoints.FiatCurrency,
+        amount,
+        selectedNetwork,
+      ),
     ...activeOptions['1m'],
     enabled: !isOnramp, // Only fetch for offramp for now
   });
 
   const providerPrices = useMemo(() => {
     const prices: Record<string, Big> = {};
-    
+
     prices['vortex'] = vortexPrice;
-    
+
     if (allPricesResponse) {
       Object.entries(allPricesResponse).forEach(([provider, result]) => {
         const typedResult = result as PriceEndpoints.BundledPriceResult | undefined;
@@ -64,7 +65,7 @@ export function FeeComparisonTable() {
         }
       });
     }
-    
+
     return prices;
   }, [allPricesResponse, vortexPrice]);
 
@@ -110,10 +111,13 @@ export function FeeComparisonTable() {
       </div>
 
       {sortedProviders.map((provider) => {
-        const providerResult = provider.name !== 'vortex' && allPricesResponse
-          ? allPricesResponse[provider.name as PriceEndpoints.Provider] as PriceEndpoints.BundledPriceResult | undefined
-          : undefined;
-          
+        const providerResult =
+          provider.name !== 'vortex' && allPricesResponse
+            ? (allPricesResponse[provider.name as PriceEndpoints.Provider] as
+                | PriceEndpoints.BundledPriceResult
+                | undefined)
+            : undefined;
+
         return (
           <div key={provider.name}>
             <div className="w-full my-4 border-b border-gray-200" />

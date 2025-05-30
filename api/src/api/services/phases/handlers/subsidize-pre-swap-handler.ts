@@ -38,12 +38,8 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       const requiredAmount = Big(inputAmountBeforeSwapRaw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
-        logger.info('Subsidizing pre-swap with', requiredAmount.toString());
         logger.info(
-          'Target value: ',
-          inputAmountBeforeSwapRaw.toString(),
-          'Current value: ',
-          currentBalance.toString(),
+          `Subsidizing pre-swap with ${requiredAmount.toFixed()} to reach target value of ${inputAmountBeforeSwapRaw}`,
         );
         const fundingAccountKeypair = getFundingAccount();
         // TODO this and other calls, add to executeApiCall to avoid low priority errors.

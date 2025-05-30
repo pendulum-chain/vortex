@@ -10,14 +10,9 @@ interface VerificationStatusProps {
   isLevel2: boolean;
 }
 
-export const VerificationStatus: React.FC<VerificationStatusProps> = ({
-  status,
-  message,
-  isLevel2,
-}) => {
+export const VerificationStatus: React.FC<VerificationStatusProps> = ({ status, message, isLevel2 }) => {
   const { status: kycStatus, level } = status;
-  const showSuccess =
-    kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
+  const showSuccess = kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
 
   return (
     <motion.div

@@ -42,7 +42,7 @@ export const useSubmitRamp = () => {
     setRampKycStarted,
     setInitializeFailedMessage,
     setRampSummaryVisible,
-    setRampKycLevel2Started
+    setRampKycLevel2Started,
   } = useRampActions();
 
   const {
@@ -86,20 +86,20 @@ export const useSubmitRamp = () => {
               const { evmAddress: brlaEvmAddress } = await BrlaService.getUser(taxId);
 
               const remainingLimitResponse = await BrlaService.getUserRemainingLimit(taxId);
-              
+
               const remainingLimitInUnits =
                 rampDirection === RampDirection.OFFRAMP
                   ? remainingLimitResponse.remainingLimitOfframp
                   : remainingLimitResponse.remainingLimitOnramp;
-      
+
               const amountNum = Number(executionInput.quote.inputAmount);
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
-                // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and 
+                // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and
                 // handling of level 0 users.
                 setRampKycLevel2Started(true);
                 return;
-              } 
+              }
 
               // append EVM address to execution input
               const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
@@ -138,7 +138,9 @@ export const useSubmitRamp = () => {
             );
 
             // We have to add the fee to the amount we are going to send to the anchor. It will be deducted from the amount we are going to receive.
-            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee);
+            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(
+              executionInput.quote.fee.anchor,
+            );
 
             const anchorSessionParams = {
               token: sep10Token,

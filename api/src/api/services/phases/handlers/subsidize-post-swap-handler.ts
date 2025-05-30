@@ -1,7 +1,7 @@
-import { BasePhaseHandler } from '../base-phase-handler';
 import { FiatToken, RampPhase } from 'shared';
-import RampState from '../../../../models/rampState.model';
 import Big from 'big.js';
+import { BasePhaseHandler } from '../base-phase-handler';
+import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { ApiManager } from '../../pendulum/apiManager';
 import { getFundingAccount } from '../../../controllers/subsidize.controller';
@@ -17,10 +17,10 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     const networkName = 'pendulum';
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { pendulumEphemeralAddress, outputTokenPendulumDetails, outputAmountBeforeFees, outputTokenType } =
+    const { pendulumEphemeralAddress, outputTokenPendulumDetails, outputAmountBeforeFinalStep, outputTokenType } =
       state.state as StateMetadata;
 
-    if (!pendulumEphemeralAddress || !outputTokenPendulumDetails || !outputAmountBeforeFees || !outputTokenType) {
+    if (!pendulumEphemeralAddress || !outputTokenPendulumDetails || !outputAmountBeforeFinalStep || !outputTokenType) {
       throw new Error('SubsidizePostSwapPhaseHandler: State metadata corrupted. This is a bug.');
     }
 
@@ -35,10 +35,14 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         throw new Error('Invalid phase: input token did not arrive yet on pendulum');
       }
 
-      const requiredAmount = Big(outputAmountBeforeFees.raw).sub(currentBalance);
+      const requiredAmount = Big(outputAmountBeforeFinalStep.raw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
-        logger.info('Subsidizing post-swap with', requiredAmount.toString());
+        logger.info(
+          `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${
+            outputAmountBeforeFinalStep.raw
+          }`,
+        );
         const fundingAccountKeypair = getFundingAccount();
         await pendulumNode.api.tx.tokens
           .transfer(
@@ -51,25 +55,25 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
     } catch (e) {
-      console.error('Error in subsidizePostSwap:', e);
+      logger.error('Error in subsidizePostSwap:', e);
       throw new Error('SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.');
     }
   }
 
   protected nextPhaseSelector(state: RampState): RampPhase {
     // onramp cases
-    if (state.type === 'on' && state.to !== 'assethub') {
+    if (state.type === 'on') {
+      if (state.to === 'assethub') {
+        return 'pendulumToAssethub';
+      }
       return 'pendulumToMoonbeam';
-    } else if (state.type === 'on' && state.to === 'assethub') {
-      return 'pendulumToAssethub';
     }
 
     // off ramp cases
     if (state.state.outputTokenType === FiatToken.BRL) {
       return 'pendulumToMoonbeam';
-    } else {
-      return 'spacewalkRedeem';
     }
+    return 'spacewalkRedeem';
   }
 }
 

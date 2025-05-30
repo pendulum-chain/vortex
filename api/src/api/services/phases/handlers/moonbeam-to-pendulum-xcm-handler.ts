@@ -1,12 +1,12 @@
 import Big from 'big.js';
-import { RampPhase, decodeSubmittableExtrinsic, getAddressForFormat } from 'shared';
+import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
 
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import { StateMetadata } from '../meta-state-types';
 import { ApiManager } from '../../pendulum/apiManager';
 import { waitUntilTrue } from '../../../helpers/functions';
-import { submitMoonbeamXcm, submitXcm } from '../../xcm/send';
+import { submitMoonbeamXcm } from '../../xcm/send';
 import logger from '../../../../config/logger';
 
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
@@ -42,13 +42,19 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
           'moonbeamToPendulumXcm',
         );
 
-        const approvalExtrinsic = decodeSubmittableExtrinsic(
-          moonbeamToPendulumXcmTransaction as string,
-          moonbeamNode.api,
-        );
+        const xcmTransaction = decodeSubmittableExtrinsic(moonbeamToPendulumXcmTransaction as string, moonbeamNode.api);
+
+        // Check nonce of account
+        const txNonce = xcmTransaction.nonce.toNumber();
+        const accountNonce = await moonbeamNode.api.rpc.system.accountNextIndex(moonbeamEphemeralAddress);
+        if (txNonce !== accountNonce.toNumber()) {
+          logger.warn(
+            `Nonce mismatch for XCM transaction of account ${moonbeamEphemeralAddress}: expected ${accountNonce.toNumber()}, got ${txNonce}`,
+          );
+        }
 
         // TODO verify this works on Moonbeam also. It does not.
-        const { hash } = await submitMoonbeamXcm(moonbeamEphemeralAddress, approvalExtrinsic);
+        const { hash } = await submitMoonbeamXcm(moonbeamEphemeralAddress, xcmTransaction);
       }
     } catch (e) {
       console.error('Error while executing moonbeam-to-pendulum xcm:', e);

@@ -33,7 +33,6 @@ const checkDomain = (req, res, next) => {
   if (true) {
     return next();
   }
-  console.log(origin);
 
   return res.status(httpStatus.FORBIDDEN).json({ error: 'Access denied. Domain not allowed to post events' });
 };
@@ -45,7 +44,6 @@ app.post('*', checkDomain, (req, res) => {
     events.shift();
   }
 
-  console.log('Event received:', req.body);
   res.status(httpStatus.OK).send('Event recorded');
 });
 

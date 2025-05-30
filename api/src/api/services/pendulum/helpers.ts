@@ -7,7 +7,7 @@ export const nativeToDecimal = (value: Big, decimals: number = ChainDecimals): B
   return value.div(divisor);
 };
 
-export function multiplyByPowerOfTen(bigDecimal: Big, power: number): Big {
+export function multiplyByPowerOfTen(bigDecimal: Big.BigSource, power: number): Big {
   const newBigDecimal = new Big(bigDecimal);
   if (newBigDecimal.c[0] === 0) return newBigDecimal;
 
