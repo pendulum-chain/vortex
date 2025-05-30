@@ -38,7 +38,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       const requiredAmount = Big(outputAmountBeforeFinalStep.raw).sub(currentBalance);
       if (requiredAmount.gt(Big(0))) {
         // Do the actual subsidizing.
-        logger.info('Subsidizing post-swap with', requiredAmount.toString());
+        logger.info(`Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${outputAmountBeforeFinalStep}`);
         const fundingAccountKeypair = getFundingAccount();
         await pendulumNode.api.tx.tokens
           .transfer(
@@ -51,7 +51,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state));
     } catch (e) {
-      console.error('Error in subsidizePostSwap:', e);
+      logger.error('Error in subsidizePostSwap:', e);
       throw new Error('SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.');
     }
   }

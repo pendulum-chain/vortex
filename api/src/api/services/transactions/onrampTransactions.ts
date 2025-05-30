@@ -151,7 +151,8 @@ async function createMoonbeamTransactions(
     nonce: nextNonce,
     signer: account.address,
   });
-  nextNonce++;
+  // For some reason, the Moonbeam to Pendulum XCM transaction causes a nonce increment of 2.
+  nextNonce = nextNonce + 2;
 
   // Create and add Moonbeam cleanup transaction
   const moonbeamCleanupTransaction = await prepareMoonbeamCleanupTransaction();
@@ -160,8 +161,8 @@ async function createMoonbeamTransactions(
   // TODO is the moonbeamCleanup nonce too high?
   const moonbeamCleanupNonce =
     toNetworkId === getNetworkId(Networks.AssetHub)
-      ? nextNonce + 1 // +1 because we skip squidrouter transactions
-      : nextNonce + 3; // +3 because we need to account for squidrouter approve and swap
+      ? nextNonce // no nonce increase we skip squidrouter transactions
+      : nextNonce + 2; // +2 because we need to account for squidrouter approve and swap
 
   unsignedTxs.push({
     txData: encodeSubmittableExtrinsic(moonbeamCleanupTransaction),
