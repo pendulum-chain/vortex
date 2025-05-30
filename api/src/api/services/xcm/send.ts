@@ -4,6 +4,7 @@ import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { ApiPromise } from '@polkadot/api';
 import { SignedBlock } from '@polkadot/types/interfaces';
 import { encodeAddress } from '@polkadot/util-crypto';
+import logger from '../../../config/logger';
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
@@ -189,9 +190,12 @@ export const submitMoonbeamXcm = async (
   extrinsic: SubmittableExtrinsic<'promise'>,
 ): Promise<{ event: XcmSentEvent; hash: string }> =>
   new Promise((resolve, reject) => {
+    logger.info(`Submitting XCM transfer for address ${address}`);
     extrinsic
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
+
+        logger.info(`Moonbeam XCM transfer status: ${status.type}`);
 
         // Try to find a 'system.ExtrinsicFailed' event
         if (dispatchError) {
