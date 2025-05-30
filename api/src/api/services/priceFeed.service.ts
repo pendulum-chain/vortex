@@ -165,7 +165,7 @@ export class PriceFeedService {
    * @param inputAmount - The amount to convert (default is '1.0')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
-  public async getFiatExchangeRate(toCurrency: RampCurrency, inputAmount = '1.0'): Promise<number> {
+  public async getUsdToFiatExchangeRate(toCurrency: RampCurrency, inputAmount = '1.0'): Promise<number> {
     const fromCurrency = 'USD';
 
     const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
@@ -257,14 +257,14 @@ export class PriceFeedService {
   }
 
   private async convertUsdToFiat(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
-    const rate = await this.getFiatExchangeRate(toCurrency);
+    const rate = await this.getUsdToFiatExchangeRate(toCurrency);
     const result = new Big(amount).mul(rate).toFixed(decimals);
     logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using rate: ${rate}`);
     return result;
   }
 
   private async convertFiatToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
-    const rate = await this.getFiatExchangeRate(fromCurrency);
+    const rate = await this.getUsdToFiatExchangeRate(fromCurrency);
     if (rate <= 0) {
       throw new Error(`Invalid exchange rate for ${fromCurrency}: ${rate}`);
     }

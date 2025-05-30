@@ -407,7 +407,7 @@ describe('PriceFeedService', () => {
 
     it('should fetch exchange rate from Nabla when cache is empty', async () => {
       // Use type assertion to bypass TypeScript's type checking
-      const rate = await priceFeedService.getFiatExchangeRate('BRL' as any);
+      const rate = await priceFeedService.getUsdToFiatExchangeRate('BRL' as any);
 
       expect(rate).toBe(1.25);
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
@@ -415,13 +415,13 @@ describe('PriceFeedService', () => {
 
     it('should return cached exchange rate without Nabla call when cache is valid', async () => {
       // First call to populate cache
-      await priceFeedService.getFiatExchangeRate('BRL' as any);
+      await priceFeedService.getUsdToFiatExchangeRate('BRL' as any);
 
       // Reset mock to verify it's not called again
       (getTokenOutAmountMock as any).mockClear();
 
       // Second call should use cache
-      const rate = await priceFeedService.getFiatExchangeRate('BRL' as any);
+      const rate = await priceFeedService.getUsdToFiatExchangeRate('BRL' as any);
 
       expect(rate).toBe(1.25);
       expect(getTokenOutAmountMock).not.toHaveBeenCalled();
@@ -441,7 +441,7 @@ describe('PriceFeedService', () => {
       Date.now = () => startTime;
 
       // First call to populate cache
-      await serviceInstance.getFiatExchangeRate('BRL' as any);
+      await serviceInstance.getUsdToFiatExchangeRate('BRL' as any);
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
       (getTokenOutAmountMock as any).mockClear();
 
@@ -449,7 +449,7 @@ describe('PriceFeedService', () => {
       Date.now = () => startTime + 150; // 150ms later
 
       // Second call should make a new Nabla call
-      await serviceInstance.getFiatExchangeRate('BRL' as any);
+      await serviceInstance.getUsdToFiatExchangeRate('BRL' as any);
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify the second call happened
     });
 
@@ -458,7 +458,7 @@ describe('PriceFeedService', () => {
       // Configure the mock to throw an error for this specific test
       (getTokenOutAmountMock as any).mockRejectedValueOnce(nablaError);
 
-      await expect(priceFeedService.getFiatExchangeRate('EUR' as any)).rejects.toThrow('Nabla API Error');
+      await expect(priceFeedService.getUsdToFiatExchangeRate('EUR' as any)).rejects.toThrow('Nabla API Error');
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify it was called
     });
 
@@ -471,7 +471,7 @@ describe('PriceFeedService', () => {
       // Clear mock before this specific test
       (getTokenOutAmountMock as any).mockClear();
 
-      await freshInstance.getFiatExchangeRate('BRL' as any, '10.0');
+      await freshInstance.getUsdToFiatExchangeRate('BRL' as any, '10.0');
 
       expect(getTokenOutAmountMock).toHaveBeenCalledWith(
         expect.objectContaining({
