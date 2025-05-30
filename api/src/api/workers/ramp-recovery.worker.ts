@@ -4,7 +4,7 @@ import RampState from '../../models/rampState.model';
 import logger from '../../config/logger';
 import phaseProcessor from '../services/phases/phase-processor';
 
-const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
+const TEN_MINUTES_IN_MS = 1 * 60 * 1000;
 
 /**
  * Worker to recover failed ramp states

@@ -9,15 +9,17 @@ import { axelarGasService } from '../../../../contracts/AxelarGasService'
 import { privateKeyToAccount } from 'viem/accounts';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
+import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import Big from 'big.js';
 
 interface AxelarScanStatusResponse {
     is_insufficient_fee: boolean;
-    status: string; // executed (for complete).
-    base_fee: number; // in units of the native token.
+    status: string; // executed or express_executed (for complete).
+    fees: {
+      base_fee: number; // in units of the native token.
+    },
     express_execute_gas_multiplier: number; // ??
-    call: {
-      _logIndex: number; // log index of the initial swap transaction. Used to add gas.
-    }
+    id: string; // the id of the swap.
 }
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
@@ -63,7 +65,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
     try {
       // Get the bridge hash
-      const bridgeCallHash = state.state.squidRouterBridgeHash;
+      const bridgeCallHash = state.state.squidRouterSwapHash;
       if (!bridgeCallHash) {
         throw new Error('SquidRouterPayPhaseHandler: Missing bridge hash in state for squidRouterPay phase. State corrupted.');
       }
@@ -84,22 +86,25 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    */
   private async checkStatus(state: RampState, swapHash: string): Promise<void> {
     try {
-      const _ = await getStatus(swapHash); // Found to be unreliable. Returned "not found" for valid transactions.
+     // const _ = await getStatus(swapHash); // Found to be unreliable. Returned "not found" for valid transactions.
       
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidrouterPayTxHash; // in case of recovery, we may have already paid.
       while (!isExecuted) {
+        console.log('Checking Axelar scan status for swap hash:', swapHash);
         const axelarScanStatus = await this.getStatusAxelarScan(swapHash);
-
-        if (axelarScanStatus.status.toLowerCase() === 'executed') {
+        // need to filter for the one with correct id. This endpoint may return an array with many swaps.
+        console.log('Axelar scan status:', axelarScanStatus);
+        if (axelarScanStatus.status === 'executed' || axelarScanStatus.status === 'express_executed') {
           isExecuted = true;
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
           break;
         }
 
         if (axelarScanStatus.is_insufficient_fee && !payTxHash) {
-          const glmrToFund = axelarScanStatus.base_fee.toString();
-          payTxHash = await this.executeFundTransaction(glmrToFund, swapHash as `0x${string}`, axelarScanStatus.call._logIndex); 
+          const glmrToFund = axelarScanStatus.fees.base_fee.toString();
+          const logIndex = Number(axelarScanStatus.id.split('_')[2]);
+          payTxHash = await this.executeFundTransaction(glmrToFund, swapHash as `0x${string}`, logIndex); 
 
           await state.update({
             state: {
@@ -127,21 +132,21 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       
       // Create addNativeGas transaction data
       const refundAddress = this.walletClient.account.address;
-      const approveTransactionData = encodeFunctionData({
+      const transactionData = encodeFunctionData({
         abi: axelarGasService,
         functionName: 'addNativeGas',
-        args: [glmrUnits, swapHash, logIndex, refundAddress],
-      });
-      
+        args: [swapHash, logIndex, refundAddress],
+      }); 
+      const gmlrValueRaw = multiplyByPowerOfTen(new Big(glmrUnits), 18); // Convert to raw GLMR units
       const { maxFeePerGas, maxPriorityFeePerGas } = await this.publicClient.estimateFeesPerGas();
        const gasPaymentHash = await this.walletClient.sendTransaction({
         to: AXL_GAS_SERVICE_MOONBEAM as `0x${string}`,
-        value: 0n,
-        data: approveTransactionData,
+        value: BigInt(gmlrValueRaw.toFixed(0, 0)),
+        data: transactionData,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
-
+      logger.info(`SquidRouterPayPhaseHandler: Fund transaction sent with hash: ${gasPaymentHash}`);
       return gasPaymentHash;
      
     } catch (error) {
@@ -155,7 +160,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // POST call, https://api.axelarscan.io/gmp/searchGMP
       const response = await fetch(`https://api.axelarscan.io/gmp/searchGMP`, {
         method: "POST",
-        body: JSON.stringify({ 
+        headers: {
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({                
           txHash: swapHash,
         })
       });
