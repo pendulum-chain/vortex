@@ -4,7 +4,6 @@ import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import httpStatus from 'http-status';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
-import { generateReferenceLabel } from '../services/brla/helpers';
 import { RegisterSubaccountPayload } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
 import { PayInCodeQuery } from '../middlewares/validators';
@@ -190,9 +189,9 @@ export const triggerBrlaOfframp = async (
   }
 };
 
-export const getOfframpStatus = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetOfframpStatusRequest>,
-  res: Response<BrlaEndpoints.GetOfframpStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
+export const getRampStatus = async (
+  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetRampStatusRequest>,
+  res: Response<BrlaEndpoints.GetRampStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -230,7 +229,7 @@ export const getOfframpStatus = async (
       status: lastEventCached.data.status,
     });
   } catch (error) {
-    handleApiError(error, res, 'getOfframpStatus');
+    handleApiError(error, res, 'getRampStatus');
   }
 };
 

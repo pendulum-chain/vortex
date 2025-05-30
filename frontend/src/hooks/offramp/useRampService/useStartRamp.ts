@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRampStore } from '../../../stores/rampStore';
 import { RampService } from '../../../services/api';
+import { useTrackRampConfirmation } from '../../useTrackRampConfirmation';
 
 export const useStartRamp = () => {
   const {
@@ -9,6 +10,8 @@ export const useStartRamp = () => {
     rampPaymentConfirmed,
     actions: { setRampStarted },
   } = useRampStore();
+
+  const trackRampConfirmation = useTrackRampConfirmation();
 
   useEffect(() => {
     if (rampStarted || !rampState || !rampState.ramp || (rampState.signedTransactions.length || 0) === 0) {
@@ -45,10 +48,11 @@ export const useStartRamp = () => {
       .then((response) => {
         console.log('startRampResponse', response);
         setRampStarted(true);
+        trackRampConfirmation();
       })
       .catch((err) => {
         console.error('Error starting ramp:', err);
         // TODO this can fail if the ramp 'expired'. We should handle this case and show a message to the user
       });
-  }, [rampPaymentConfirmed, rampStarted, rampState, setRampStarted]);
+  }, [rampPaymentConfirmed, rampStarted, rampState, setRampStarted, trackRampConfirmation]);
 };

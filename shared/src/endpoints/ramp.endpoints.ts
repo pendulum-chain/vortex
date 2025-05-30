@@ -54,8 +54,7 @@ export interface UnsignedTx {
   meta?: any;
 }
 
-export type PresignedTx = UnsignedTx & {
-};
+export type PresignedTx = UnsignedTx & {};
 
 export interface RampErrorLog {
   timestamp: string;
@@ -132,4 +131,24 @@ export namespace RampEndpoints {
   }
 
   export type GetRampErrorLogsResponse = RampErrorLog[];
+
+  // GET /ramp/history/:walletAddress
+  export interface GetRampHistoryRequest {
+    walletAddress: string;
+  }
+
+  export type GetRampHistoryResponse = {
+    transactions: {
+      id: string;
+      type: 'on' | 'off';
+      fromNetwork: string;
+      toNetwork: string;
+      fromAmount: string;
+      toAmount: string;
+      fromCurrency: string;
+      toCurrency: string;
+      status: string;
+      date: string;
+    }[];
+  };
 }

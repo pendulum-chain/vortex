@@ -29,8 +29,8 @@ export class BrlaService {
    * @param taxId The user's tax ID
    * @returns The offramp status
    */
-  static async getOfframpStatus(taxId: string): Promise<BrlaEndpoints.GetOfframpStatusResponse> {
-    return apiRequest<BrlaEndpoints.GetOfframpStatusResponse>('get', `${this.BASE_PATH}/getOfframpStatus`, undefined, {
+  static async getRampStatus(taxId: string): Promise<BrlaEndpoints.GetRampStatusResponse> {
+    return apiRequest<BrlaEndpoints.GetRampStatusResponse>('get', `${this.BASE_PATH}/getRampStatus`, undefined, {
       params: { taxId },
     });
   }
