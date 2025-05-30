@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
-import { useNetwork } from '../../contexts/network';
 import { cn } from '../../helpers/cn';
+import { useNetworkTokenCompatibility } from '../../hooks/useNetworkTokenCompatibility';
 
 const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDC', assetIcon: 'usdc' },
@@ -64,7 +64,7 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
 
 const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
   const networkIcon = useGetNetworkIcon(network);
-  const { setSelectedNetwork } = useNetwork();
+  const { handleNetworkSelect } = useNetworkTokenCompatibility();
 
   return (
     <Badge
@@ -72,7 +72,7 @@ const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating
       label={getNetworkDisplayName(network)}
       isAnimating={isAnimating}
       rotationDuration={0.5}
-      onClick={() => setSelectedNetwork(network, true)}
+      onClick={() => handleNetworkSelect(network, true)}
     />
   );
 };

@@ -10,7 +10,6 @@ import { AssetNumericInput } from '../../AssetNumericInput';
 import { BenefitsList } from '../../BenefitsList';
 import { useEventsContext } from '../../../contexts/events';
 import { useNetwork } from '../../../contexts/network';
-import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
 import { useRampValidation } from '../../../hooks/ramp/useRampValidation';
 import { useRampSubmission } from '../../../hooks/ramp/useRampSubmission';
@@ -36,9 +35,7 @@ export const Onramp = () => {
   const fiatToken = useFiatToken();
   const quoteLoading = useQuoteLoading();
 
-  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
-
-  const { outputAmount: toAmount } = useQuoteService(debouncedInputAmount, onChainToken, fiatToken);
+  const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
 
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
@@ -61,13 +58,13 @@ export const Onramp = () => {
   const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
 
   useEffect(() => {
-    if (!fromAmountFieldTouched || debouncedInputAmount !== inputAmount) return;
+    if (!fromAmountFieldTouched || !inputAmount) return;
 
     trackEvent({
       event: 'amount_type',
-      input_amount: debouncedInputAmount ? debouncedInputAmount.toString() : '0',
+      input_amount: inputAmount.toString(),
     });
-  }, [fromAmountFieldTouched, debouncedInputAmount, inputAmount, trackEvent]);
+  }, [fromAmountFieldTouched, inputAmount, trackEvent]);
 
   const handleInputChange = useCallback(() => {
     setFromAmountFieldTouched(true);

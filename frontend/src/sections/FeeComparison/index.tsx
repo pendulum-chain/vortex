@@ -1,31 +1,17 @@
+import { useEffect, useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { FeeComparisonTable } from './FeeComparisonTable';
-
 import { useFeeComparisonStore } from '../../stores/feeComparison';
-import { useEffect, useRef } from 'react';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../../components/RampToggle';
+import { FeeComparisonTable } from './FeeComparisonTable';
 
 export const FeeComparison = () => {
   const ref = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
   const { setFeeComparisonRef } = useFeeComparisonStore();
-  const rampDirecton = useRampDirection();
 
   useEffect(() => {
     setFeeComparisonRef(ref);
   }, [setFeeComparisonRef]);
-
-  if (rampDirecton === RampDirection.ONRAMP) {
-    // We don't want to show the fee comparison section on the onramp page for now
-    return (
-      <section
-        ref={ref}
-        className="py-4 mt-10 mb-24 bg-[radial-gradient(at_74%_98%,theme(colors.blue.900),theme(colors.blue.950),theme(colors.blue.950))]"
-      />
-    );
-  }
 
   return (
     <section
