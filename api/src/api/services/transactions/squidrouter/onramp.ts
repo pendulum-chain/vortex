@@ -98,7 +98,7 @@ export async function createOnrampSquidrouterTransactions(
     const squidrouterSwapValueBuffer = getNetworkFromDestination(params.toNetwork) === Networks.Ethereum ? 10 : 2;
     const freeFundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits.minus(squidrouterSwapValueBuffer), 18); // 18 decimals for GLMR. Moonbeam is always starting chain.
     const overpaidFee = bigNumberMin(
-      new Big(route.transactionRequest.value).mul(1 + SQUIDROUTER_FEE_OVERPAY),
+      new Big(route.transactionRequest.value).mul(SQUIDROUTER_FEE_OVERPAY),
       freeFundingAmountRaw,
     );
 

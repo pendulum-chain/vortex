@@ -6,6 +6,7 @@ export type RampPhase =
   | 'stellarCreateAccount'
   | 'squidrouterApprove'
   | 'squidrouterSwap'
+  | 'squidrouterPay'
   | 'fundEphemeral'
   | 'nablaApprove'
   | 'nablaSwap'
