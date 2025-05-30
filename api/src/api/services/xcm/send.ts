@@ -109,7 +109,7 @@ async function waitForBlock(api: ApiPromise, blockHash: string, timeoutMs = 6000
         return block;
       }
     } catch (error) {
-      console.log(error);
+      logger.error(error);
     }
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }

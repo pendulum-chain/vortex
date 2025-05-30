@@ -250,15 +250,6 @@ async function createNablaSwapTransactions(
     outputTokenPendulumDetails.pendulumDecimals,
   ).toFixed(0, 0);
 
-  console.log(
-    'nablaHardMinimumOutputRaw',
-    nablaHardMinimumOutputRaw,
-    'nablaSoftMinimumOutputRaw',
-    nablaSoftMinimumOutputRaw,
-    'inputAmountBeforeSwapRaw',
-    inputAmountBeforeSwapRaw,
-  );
-
   const { approve, swap } = await createNablaTransactionsForOfframp(
     inputAmountBeforeSwapRaw,
     account,

@@ -55,13 +55,9 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         return this.transitionToNextPhase(state, nextPhase);
       }
 
-      console.log('Before fetching api');
       const { api } = await this.apiManager.getApi('pendulum');
 
-      console.log('After fetching api');
       const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
-      console.log('Decoded transaction');
-
       await this.submitTransaction(decodedTx, api);
       logger.info(`Successfully submitted fee distribution transaction for ramp ${state.id}`);
     } catch (error: any) {
