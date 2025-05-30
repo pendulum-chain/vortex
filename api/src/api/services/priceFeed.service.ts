@@ -249,6 +249,62 @@ export class PriceFeedService {
     logger.debug(message);
   }
 
+  private convertUsdLikeToUsdLike(
+    amount: string,
+    fromCurrency: RampCurrency,
+    toCurrency: RampCurrency,
+  ): string {
+    logger.debug(
+      `Both currencies are USD-like (${fromCurrency} -> ${toCurrency}), using 1:1 conversion for: ${amount}`,
+    );
+    return amount;
+  }
+
+  private async convertUsdToFiat(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
+    const rate = await this.getFiatExchangeRate(toCurrency);
+    const result = new Big(amount).mul(rate).toFixed(decimals);
+    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using rate: ${rate}`);
+    return result;
+  }
+
+  private async convertFiatToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
+    const rate = await this.getFiatExchangeRate(fromCurrency);
+    if (rate <= 0) {
+      throw new Error(`Invalid exchange rate for ${fromCurrency}: ${rate}`);
+    }
+    const result = new Big(amount).div(rate).toFixed(decimals);
+    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using inverse rate: 1/${rate}`);
+    return result;
+  }
+
+  private async convertUsdToCrypto(amount: string, toCurrency: RampCurrency, decimals: number): Promise<string> {
+    const tokenId = this.getCoinGeckoTokenId(toCurrency);
+    if (!tokenId) {
+      throw new Error(`No CoinGecko token ID mapping for ${toCurrency}`);
+    }
+
+    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, 'usd');
+    if (cryptoPriceUSD <= 0) {
+      throw new Error(`Invalid price for ${toCurrency}: ${cryptoPriceUSD}`);
+    }
+
+    const result = new Big(amount).div(cryptoPriceUSD).toFixed(decimals);
+    logger.debug(`Converted ${amount} USD to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
+    return result;
+  }
+
+  private async convertCryptoToUsd(amount: string, fromCurrency: RampCurrency, decimals: number): Promise<string> {
+    const tokenId = this.getCoinGeckoTokenId(fromCurrency);
+    if (!tokenId) {
+      throw new Error(`No CoinGecko token ID mapping for ${fromCurrency}`);
+    }
+
+    const cryptoPriceUSD = await this.getCryptoPrice(tokenId, 'usd');
+    const result = new Big(amount).mul(cryptoPriceUSD).toFixed(decimals);
+    logger.debug(`Converted ${amount} ${fromCurrency} to ${result} USD using price: ${cryptoPriceUSD}`);
+    return result;
+  }
+
   /**
    * Unified bidirectional currency conversion function
    *
@@ -284,59 +340,23 @@ export class PriceFeedService {
         currency === EvmToken.USDC || currency === EvmToken.USDT || currency === EvmToken.USDCE;
 
       if (isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        logger.debug(
-          `Both currencies are USD-like (${fromCurrency} -> ${toCurrency}), using 1:1 conversion for: ${amount}`,
-        );
-        return amount;
+        return this.convertUsdLikeToUsdLike(amount, fromCurrency, toCurrency);
       }
 
-      // USD -> Fiat conversion
       if (isUsdLikeCurrency(fromCurrency) && isFiatToken(toCurrency)) {
-        const rate = await this.getFiatExchangeRate(toCurrency);
-        const result = new Big(amount).mul(rate).toFixed(decimals);
-        logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using rate: ${rate}`);
-        return result;
+        return this.convertUsdToFiat(amount, toCurrency, decimals);
       }
 
-      // Fiat -> USD conversion
       if (isFiatToken(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        const rate = await this.getFiatExchangeRate(fromCurrency);
-        if (rate <= 0) {
-          throw new Error(`Invalid exchange rate for ${fromCurrency}: ${rate}`);
-        }
-        const result = new Big(amount).div(rate).toFixed(decimals);
-        logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using inverse rate: 1/${rate}`);
-        return result;
+        return this.convertFiatToUsd(amount, fromCurrency, decimals);
       }
 
-      // USD -> Crypto conversion
       if (isUsdLikeCurrency(fromCurrency) && !isFiatToken(toCurrency) && !isUsdLikeCurrency(toCurrency)) {
-        const tokenId = this.getCoinGeckoTokenId(toCurrency);
-        if (!tokenId) {
-          throw new Error(`No CoinGecko token ID mapping for ${toCurrency}`);
-        }
-
-        const cryptoPriceUSD = await this.getCryptoPrice(tokenId, 'usd');
-        if (cryptoPriceUSD <= 0) {
-          throw new Error(`Invalid price for ${toCurrency}: ${cryptoPriceUSD}`);
-        }
-
-        const result = new Big(amount).div(cryptoPriceUSD).toFixed(decimals);
-        logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
-        return result;
+        return this.convertUsdToCrypto(amount, toCurrency, decimals);
       }
 
-      // Crypto -> USD conversion
       if (!isFiatToken(fromCurrency) && !isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        const tokenId = this.getCoinGeckoTokenId(fromCurrency);
-        if (!tokenId) {
-          throw new Error(`No CoinGecko token ID mapping for ${fromCurrency}`);
-        }
-
-        const cryptoPriceUSD = await this.getCryptoPrice(tokenId, 'usd');
-        const result = new Big(amount).mul(cryptoPriceUSD).toFixed(decimals);
-        logger.debug(`Converted ${amount} ${fromCurrency} to ${result} ${toCurrency} using price: ${cryptoPriceUSD}`);
-        return result;
+        return this.convertCryptoToUsd(amount, fromCurrency, decimals);
       }
 
       // For other currency pairs, convert via USD as an intermediate step
