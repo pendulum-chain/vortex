@@ -1,5 +1,5 @@
 import Big from 'big.js';
-import { EvmToken, getPendulumDetails, isFiatToken, RampCurrency } from 'shared';
+import { EvmToken, getPendulumDetails, isFiatToken, RampCurrency, UsdLikeEvmToken } from 'shared';
 import { PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
 import logger from '../../config/logger';
 import { getTokenOutAmount } from './nablaReads/outAmount';
@@ -249,11 +249,7 @@ export class PriceFeedService {
     logger.debug(message);
   }
 
-  private convertUsdLikeToUsdLike(
-    amount: string,
-    fromCurrency: RampCurrency,
-    toCurrency: RampCurrency,
-  ): string {
+  private convertUsdLikeToUsdLike(amount: string, fromCurrency: RampCurrency, toCurrency: RampCurrency): string {
     logger.debug(
       `Both currencies are USD-like (${fromCurrency} -> ${toCurrency}), using 1:1 conversion for: ${amount}`,
     );
@@ -337,7 +333,7 @@ export class PriceFeedService {
 
       // Check if both currencies are USD-like stablecoins
       const isUsdLikeCurrency = (currency: RampCurrency): boolean =>
-        currency === EvmToken.USDC || currency === EvmToken.USDT || currency === EvmToken.USDCE;
+        Object.values(UsdLikeEvmToken).includes(currency as unknown as UsdLikeEvmToken);
 
       if (isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
         return this.convertUsdLikeToUsdLike(amount, fromCurrency, toCurrency);
