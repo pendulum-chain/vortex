@@ -410,6 +410,11 @@
           "required": "Partner CPF is required",
           "format": "Invalid Partner CPF format"
         }
+      },
+      "kycFailureReasons": {
+        "face": "Face verification failed. Please ensure your selfie is clear and matches your ID.",
+        "name": "Name verification failed. Please ensure your name matches the ID provided.",
+        "unkown": "KYC verification failed. Please try again or contact support."
       }
     },
     "rating": {

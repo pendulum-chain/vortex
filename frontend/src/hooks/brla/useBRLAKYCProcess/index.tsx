@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -10,12 +10,8 @@ import { useTaxId } from '../../../stores/ramp/useRampFormStore';
 import { useToastMessage } from '../../../helpers/notifications';
 import { isValidCnpj } from '../../ramp/schema';
 import { storageKeys } from '../../../constants/localStorage';
-
-export interface BrlaKycStatus {
-  status: string;
-  level: number;
-  type: string;
-}
+import { useDebouncedValue } from '../../useDebouncedValue';
+import { KycFailureReason } from 'shared';
 
 export enum KycLevel {
   LEVEL_1 = 1,
@@ -42,8 +38,29 @@ const useStatusMessages = () => {
   return { STATUS_MESSAGES };
 };
 
-export const useVerificationStatusUI = () => {
+const useHumanReadableError = () => {
+  const { t } = useTranslation();
+
+  const getTranslatedFailureReason = useCallback(
+  (reason?: KycFailureReason): string | undefined => {
+    if (!reason) {
+      return undefined;
+    }
+    const translationKey = `components.brlaExtendedForm.kycFailureReasons.${reason}`;
+    const translatedMessage = t(translationKey, reason); // Raw key as fallback
+
+    return translatedMessage === translationKey ? reason : translatedMessage; 
+  },
+  [t],
+);
+
+  return { getTranslatedFailureReason };
+};
+
+
+export const useVerificationStatusUI = (isSubmitted: boolean) => {
   const { STATUS_MESSAGES } = useStatusMessages();
+  const { getTranslatedFailureReason } = useHumanReadableError();
   type StatusMessageType = (typeof STATUS_MESSAGES)[keyof typeof STATUS_MESSAGES];
 
   const [verificationStatus, setVerificationStatus] = useState<{
@@ -52,8 +69,12 @@ export const useVerificationStatusUI = () => {
   }>({ status: KycStatus.PENDING, level: KycLevel.LEVEL_1 });
 
   const [statusMessage, setStatusMessage] = useState<StatusMessageType>(STATUS_MESSAGES.PENDING);
+  const [failureMessage, setFailureMessage] = useState<string | undefined>(undefined);
 
-  const updateStatus = useCallback((status: KycStatus, level: KycLevel, message: StatusMessageType) => {
+
+  const updateStatus = useCallback((status: KycStatus, level: KycLevel, message: StatusMessageType, failureReason?: KycFailureReason) => {
+    if (!isSubmitted) return;
+    console.log(`Updating KYC status to ${status} for level ${level}`);
     setVerificationStatus((prev) => {
       if (prev.status === status && prev.level === level) {
         return prev;
@@ -61,7 +82,9 @@ export const useVerificationStatusUI = () => {
       return { status, level };
     });
     setStatusMessage((prev) => (prev === message ? prev : message));
-  }, []);
+    const translatedFailureMsg = getTranslatedFailureReason(failureReason)
+    setFailureMessage(translatedFailureMsg);
+  }, [isSubmitted]);
 
   const resetToDefault = useCallback(() => {
     setVerificationStatus((prev) =>
@@ -75,26 +98,31 @@ export const useVerificationStatusUI = () => {
   return {
     verificationStatus,
     statusMessage,
+    failureMessage,
     updateStatus,
     resetToDefault,
   };
 };
 
 export function useKYCProcess() {
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [cpf, setCpf] = useState<string | null>(null);
+  const [kycVerificationError, setKycVerificationError] = useState<boolean>(false);
+
   const { STATUS_MESSAGES } = useStatusMessages();
   const { showToast, ToastMessage } = useToastMessage();
-  const { verificationStatus, statusMessage, updateStatus, resetToDefault } = useVerificationStatusUI();
+  const isSubmittedDebounced = useDebouncedValue(isSubmitted, 3000);
+  const { verificationStatus, statusMessage, failureMessage, updateStatus, resetToDefault } = useVerificationStatusUI(isSubmittedDebounced);
   const { setRampKycStarted, resetRampState, setRampKycLevel2Started, setRampSummaryVisible, setCanRegisterRamp } =
     useRampActions();
   const offrampKycLevel2Started = useRampKycLevel2Started();
   const taxId = useTaxId() || localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID);
   const queryClient = useQueryClient();
 
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [cpf, setCpf] = useState<string | null>(null);
+  const lastErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const desiredLevel = offrampKycLevel2Started ? KycLevel.LEVEL_2 : KycLevel.LEVEL_1;
-  const { data: kycResponse, error } = useKycStatusQuery(cpf, desiredLevel);
+  const { data: kycResponse, error: fetchStatusError } = useKycStatusQuery(cpf, desiredLevel);
 
   const handleBackClick = useCallback(() => {
     setRampKycLevel2Started(false);
@@ -204,7 +232,7 @@ export function useKYCProcess() {
 
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
-
+  
       const statusHandlers: Record<KycStatus, () => Promise<void>> = {
         [KycStatus.APPROVED]: async () => {
           updateStatus(KycStatus.APPROVED, 1, STATUS_MESSAGES.SUCCESS);
@@ -215,14 +243,9 @@ export function useKYCProcess() {
             updateStatus(KycStatus.PENDING, KycLevel.LEVEL_2, STATUS_MESSAGES.PENDING);
             return proceedWithKYCLevel2();
           }
-          resetToDefault();
-          proceedWithRamp();
         },
         [KycStatus.REJECTED]: async () => {
-          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.REJECTED);
-          await delay(ERROR_DISPLAY_DURATION_MS);
-          resetToDefault();
-          handleBackClick();
+          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.REJECTED, kycResponse.failureReason);
         },
         [KycStatus.PENDING]: async () => undefined,
       };
@@ -255,21 +278,16 @@ export function useKYCProcess() {
   useEffect(() => {
     if (!kycResponse) return;
     if (kycResponse.level !== 2) return;
-
+    console.log('KYC level 2 response:', kycResponse);
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
 
       const statusHandlers: Record<KycStatus, () => Promise<void>> = {
         [KycStatus.APPROVED]: async () => {
           updateStatus(KycStatus.APPROVED, KycLevel.LEVEL_2, STATUS_MESSAGES.SUCCESS);
-          await delay(3000);
-          proceedWithRamp();
         },
         [KycStatus.REJECTED]: async () => {
-          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_2, STATUS_MESSAGES.REJECTED);
-          await delay(3000);
-          setRampKycLevel2Started(false);
-          handleBackClick();
+          updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_2, STATUS_MESSAGES.REJECTED, kycResponse.failureReason);
         },
         [KycStatus.PENDING]: async () => undefined,
       };
@@ -295,18 +313,36 @@ export function useKYCProcess() {
   ]);
 
   useEffect(() => {
-    if (error) {
-      handleError(error.message);
+    const threshold = 60000;
+    if (fetchStatusError) {
+      console.log('KYC fetch error:', fetchStatusError);
+      if (!lastErrorTimerRef.current) {
+        console.log('Setting error timer for KYC fetch error');
+        lastErrorTimerRef.current = setTimeout(() => {
+                  console.log('Setting KYC verification error state');
+          setKycVerificationError(true);
+          lastErrorTimerRef.current = null;
+        }, threshold);
+      }
+    } else if (lastErrorTimerRef.current) {
+      clearTimeout(lastErrorTimerRef.current);
+      lastErrorTimerRef.current = null;
     }
-  }, [error, handleError]);
+
+  }, [fetchStatusError, setKycVerificationError]);
+
 
   return {
     verificationStatus,
     statusMessage,
+    failureMessage,
+    kycVerificationError,
     handleFormSubmit,
     handleBackClick,
     setCpf,
     setIsSubmitted,
     isSubmitted,
+    proceedWithRamp,
+    resetToDefault,
   };
 }
