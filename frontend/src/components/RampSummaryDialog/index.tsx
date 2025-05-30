@@ -40,7 +40,7 @@ export const RampSummaryDialog: FC = () => {
       onChainToken,
       fiatToken,
       selectedNetwork,
-      partnerId,
+      partnerId: partnerId === null ? undefined : partnerId, // Handle null case
     });
   };
 

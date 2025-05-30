@@ -176,6 +176,8 @@ export const useSetRampUrlParams = () => {
 
     if (partnerId) {
       setPartnerIdFn(partnerId);
+    } else {
+      setPartnerIdFn(null);
     }
 
     hasInitialized.current = true;

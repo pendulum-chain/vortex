@@ -26,6 +26,11 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   const getQuote = useCallback(async () => {
     if (!inputAmount) return;
 
+    if (partnerId === undefined) {
+      // If partnerId is undefined, it's not set yet, so we don't fetch a quote
+      return;
+    }
+
     try {
       await fetchQuote({
         rampType,
@@ -33,7 +38,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
         onChainToken,
         fiatToken,
         selectedNetwork,
-        partnerId,
+        partnerId: partnerId === null ? undefined : partnerId, // Handle null case
       });
     } catch (err) {
       trackEvent({
@@ -45,7 +50,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
 
   useEffect(() => {
     getQuote();
-  }, [getQuote]);
+  }, [getQuote, partnerId]);
 
   return {
     outputAmount,
