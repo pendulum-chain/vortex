@@ -8,7 +8,7 @@ export namespace QuoteEndpoints {
     vortex: string
     partnerMarkup: string;
     total: string;
-    currency: string;
+    currency: RampCurrency;
   }
 
   // POST /quotes
