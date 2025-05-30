@@ -4,9 +4,11 @@ import { useQuote } from '../../stores/ramp/useQuoteStore';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
+import { ArrowDownIcon, InformationCircleIcon } from '@heroicons/react/20/solid';
 
 interface FeeItem {
   label: string;
+  tooltip?: string;
   value: string;
 }
 
@@ -41,25 +43,20 @@ export function RampFeeCollapse() {
   // Generate fee items for display
   const feeItems: FeeItem[] = [];
 
-  // Combine Vortex and anchor fee to processing fee
-  const processingFee = Big(quote.fee.vortex).plus(quote.fee.anchor);
+  // Combine Vortex, Anchor, and Partner Markup fees into a single processing fee
+  const processingFee = Big(quote.fee.vortex).plus(quote.fee.anchor).plus(quote.fee.partnerMarkup);
   if (processingFee.gt(0)) {
     feeItems.push({
-      label: t('components.feeCollapse.vortexFee'),
+      label: t('components.feeCollapse.processingFee.label'),
+      tooltip: t('components.feeCollapse.processingFee.tooltip'),
       value: `${processingFee.toFixed(2)} ${quote.fee.currency.toUpperCase()}`,
-    });
-  }
-
-  if (Big(quote.fee.partnerMarkup).gt(0)) {
-    feeItems.push({
-      label: t('components.feeCollapse.partnerMarkupFee'),
-      value: `${Big(quote.fee.partnerMarkup).toFixed(2)} ${quote.fee.currency.toUpperCase()}`,
     });
   }
 
   if (Big(quote.fee.network).gt(0)) {
     feeItems.push({
-      label: t('components.feeCollapse.networkFee'),
+      label: t('components.feeCollapse.networkFee.label'),
+      tooltip: t('components.feeCollapse.networkFee.tooltip'),
       value: `${Big(quote.fee.network).toFixed(2)} ${quote.fee.currency.toUpperCase()}`,
     });
   }
@@ -69,7 +66,7 @@ export function RampFeeCollapse() {
       <div className="text-center text-sm text-gray-600">
         {`1 ${inputCurrency} ≈ ${exchangeRate.toFixed(4)} ${outputCurrency}`}
       </div>
-      <div className="border border-blue-700 collapse-arrow collapse">
+      <div className="border border-blue-700 collapse-arrow collapse overflow-visible">
         <input type="checkbox" />
         <div className="min-h-0 px-4 py-2 collapse-title">
           <div className="flex items-center justify-between">
@@ -79,7 +76,12 @@ export function RampFeeCollapse() {
         <div className="text-[15px] collapse-content">
           {feeItems.map((item, index) => (
             <div key={index} className="flex justify-between mt-2">
-              <p>{item.label}</p>
+              <div
+                className="flex items-center tooltip tooltip-primary tooltip-top before:whitespace-pre-wrap before:content-[attr(data-tip)]"
+                data-tip={item.tooltip}
+              >
+                {item.label} {item.tooltip && <InformationCircleIcon className="w-4 h-4 ml-1" />}
+              </div>
               <div className="flex">
                 <span>{item.value}</span>
               </div>
