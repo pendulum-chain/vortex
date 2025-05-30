@@ -193,13 +193,13 @@ export const submitMoonbeamXcm = async (
       .send((submissionResult: ISubmittableResult) => {
         const { status, events, dispatchError } = submissionResult;
 
+        // Try to find a 'system.ExtrinsicFailed' event
+        if (dispatchError) {
+          reject('Xcm transaction failed');
+        }
+
         if (status.isFinalized) {
           const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject('Xcm transaction failed');
-          }
 
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(
