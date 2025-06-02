@@ -17,8 +17,16 @@ interface AxelarScanStatusResponse {
   status: string; // executed or express_executed (for complete).
   fees: {
     base_fee: number; // in units of the native token.
+    source_base_fee: number; 
+    destination_base_fee: number;
+    source_express_fee: { 
+      total: number;
+    };
+    destination_express_fee: {
+      total: number;
+    };
   };
-  express_execute_gas_multiplier: number; // Assuming this is the multiplier to the base after which the express execution is enabled.
+  
   id: string; // the id of the swap.
 }
 
@@ -95,6 +103,12 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       while (!isExecuted) {
         console.log('Checking Axelar scan status for swap hash:', swapHash);
         const axelarScanStatus = await this.getStatusAxelarScan(swapHash);
+
+        //no status found is considered a recoverable error.
+        if (!axelarScanStatus) {
+          logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
+          throw this.createRecoverableError("No status found for swap hash.");
+        }
         // need to filter for the one with correct id. This endpoint may return an array with many swaps.
         console.log('Axelar scan status:', axelarScanStatus);
         if (axelarScanStatus.status === 'executed' || axelarScanStatus.status === 'express_executed') {
@@ -104,9 +118,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         }
 
         if (axelarScanStatus.is_insufficient_fee && !payTxHash) {
-          const glmrToFund = axelarScanStatus.fees.base_fee.toString();
+          const glmrToFundUnits = (axelarScanStatus.fees.source_base_fee + axelarScanStatus.fees.source_express_fee.total
+            + axelarScanStatus.fees.destination_base_fee + axelarScanStatus.fees.destination_express_fee.total).toString();
+
           const logIndex = Number(axelarScanStatus.id.split('_')[2]);
-          payTxHash = await this.executeFundTransaction(glmrToFund, swapHash as `0x${string}`, logIndex);
+          payTxHash = await this.executeFundTransaction(glmrToFundUnits, swapHash as `0x${string}`, logIndex);
 
           await state.update({
             state: {

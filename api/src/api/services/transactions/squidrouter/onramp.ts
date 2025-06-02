@@ -91,21 +91,10 @@ export async function createOnrampSquidrouterTransactions(
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     };
 
-    const fundingAmountUnits =
-      getNetworkFromDestination(params.toNetwork) === Networks.Ethereum
-        ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
-        : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
-    const squidrouterSwapValueBuffer = getNetworkFromDestination(params.toNetwork) === Networks.Ethereum ? 10 : 2;
-    const freeFundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits.minus(squidrouterSwapValueBuffer), 18); // 18 decimals for GLMR. Moonbeam is always starting chain.
-    const overpaidFee = bigNumberMin(
-      new Big(route.transactionRequest.value).mul(SQUIDROUTER_FEE_OVERPAY),
-      freeFundingAmountRaw,
-    );
-
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: overpaidFee.toFixed(0, 0),
+      value: '0',
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
