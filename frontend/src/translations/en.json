@@ -340,6 +340,7 @@
     },
     "brlaExtendedForm": {
       "form": {
+        "taxId": "CPF or CNPJ",
         "fullName": "Full Name",
         "phoneNumber": "Phone Number",
         "city": "City",
@@ -359,6 +360,10 @@
         "error": "Verification error"
       },
       "validation": {
+        "taxId": {
+          "required": "Tax ID is required",
+          "format": "Invalid Tax ID format"
+        },
         "phone": {
           "required": "Phone number is required",
           "format": "Invalid phone number format"

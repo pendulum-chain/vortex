@@ -339,6 +339,7 @@
     },
     "brlaExtendedForm": {
       "form": {
+        "taxId": "CPF o CNPJ",
         "fullName": "Nome Completo",
         "phoneNumber": "Número de Telefone",
         "city": "Cidade",
@@ -358,6 +359,10 @@
         "error": "Erro na verificação"
       },
       "validation": {
+        "taxId": {
+          "required": "Tax Id é obrigatório",
+          "format": "Tax Id inválido"
+        },
         "phone": {
           "required": "Número de telefone é obrigatório",
           "format": "Formato de número de telefone inválido"
