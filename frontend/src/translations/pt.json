@@ -418,6 +418,7 @@
       "kycFailureReasons": {
         "face": "A verificação facial falhou. Certifique-se de que sua selfie está nítida e corresponde ao seu documento de identidade.",
         "name": "A verificação do nome falhou. Certifique-se de que seu nome corresponde ao do documento de identidade fornecido.",
+        "invalidTaxId": "Por favor, verifique se o seu CPF ou CNPJ está correto.",
         "unkown": "A verificação KYC falhou. Por favor, tente novamente ou entre em contato com o suporte."
       }
     },

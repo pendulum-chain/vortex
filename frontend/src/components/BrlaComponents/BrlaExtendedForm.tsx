@@ -19,6 +19,7 @@ export const PIXKYCForm = () => {
     statusMessage,
     failureMessage,
     handleFormSubmit: handleKYCFormSubmit,
+    cpfApiError,
     handleBackClick,
     setIsSubmitted,
     setCpf,
@@ -29,7 +30,7 @@ export const PIXKYCForm = () => {
   } = useKYCProcess();
 
   const rampKycLevel2Started = useRampKycLevel2Started();
-  const { kycForm } = useKYCForm();
+  const { kycForm } = useKYCForm({cpfApiError});
   const { clearStorage } = useKYCFormLocalStorage(kycForm);
 
   const { t } = useTranslation();

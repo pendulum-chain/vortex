@@ -419,6 +419,7 @@
       "kycFailureReasons": {
         "face": "Face verification failed. Please ensure your selfie is clear and matches your ID.",
         "name": "Name verification failed. Please ensure your name matches the ID provided.",
+        "invalidTaxId": "Please ensure your CPF or CNPJ is correct.",
         "unkown": "KYC verification failed. Please try again or contact support."
       }
     },

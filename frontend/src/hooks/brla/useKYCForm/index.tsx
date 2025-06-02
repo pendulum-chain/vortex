@@ -7,6 +7,11 @@ import { ExtendedBrlaFieldOptions } from '../../../components/BrlaComponents/Brl
 import { useEffect } from 'react';
 import { useRampFormStore, useRampFormStoreActions } from '../../../stores/ramp/useRampFormStore';
 import { isValidCnpj, isValidCpf } from '../../ramp/schema';
+
+export interface UseKYCFormProps {
+  cpfApiError: string | null;
+}
+
 const getEnumInitialValues = (enumType: Record<string, string>): Record<string, unknown> => {
   return Object.values(enumType).reduce((acc, field) => ({ ...acc, [field]: undefined }), {});
 };
@@ -96,7 +101,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
 export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 
-export const useKYCForm = () => {
+export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
   const { taxId: taxIdFromStore } = useRampFormStore(); 
   const { setTaxId } = useRampFormStoreActions(); 
@@ -119,6 +124,20 @@ export const useKYCForm = () => {
       setTaxId(watchedCpf);
     }
   }, [watchedCpf, setTaxId, taxIdFromStore]);
+
+  useEffect(() => {
+    if (cpfApiError) {
+      kycForm.setError(ExtendedBrlaFieldOptions.TAX_ID, {
+        type: 'invalidTaxId',
+        message: t('components.brlaExtendedForm.kycFailureReasons.invalidTaxId'),
+      });
+    } else {
+      
+      if (kycForm.formState.errors[ExtendedBrlaFieldOptions.TAX_ID]?.type === 'invalidTaxId') {
+        kycForm.clearErrors(ExtendedBrlaFieldOptions.TAX_ID);
+      }
+    }
+  }, [cpfApiError, kycForm.setError, kycForm.clearErrors, kycForm.formState.errors]);
 
    return { kycForm };
 };

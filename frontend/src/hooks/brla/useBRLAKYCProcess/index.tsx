@@ -107,6 +107,7 @@ export const useVerificationStatusUI = (isSubmitted: boolean) => {
 export function useKYCProcess() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [cpf, setCpf] = useState<string | null>(null);
+  const [cpfApiError, setCpfApiError] = useState<string | null>(null);
   const [kycVerificationError, setKycVerificationError] = useState<boolean>(false);
 
   const { STATUS_MESSAGES } = useStatusMessages();
@@ -127,6 +128,7 @@ export function useKYCProcess() {
   const handleBackClick = useCallback(() => {
     setRampKycLevel2Started(false);
     setRampKycStarted(false);
+    setCpfApiError(null);
     resetRampState();
     localStorage.removeItem(storageKeys.BRLA_KYC_TAX_ID);
   }, [setRampKycLevel2Started, setRampKycStarted, resetRampState]);
@@ -152,6 +154,12 @@ export function useKYCProcess() {
       updateStatus(KycStatus.REJECTED, KycLevel.LEVEL_1, STATUS_MESSAGES.ERROR);
       showToast(ToastMessage.KYC_VERIFICATION_FAILED, errorMessage);
 
+      // Treat cpf error as recoverable:
+      if (errorMessage?.includes('cpf is invalid') || errorMessage?.includes('cnpj is invalid')) {
+        setCpfApiError(errorMessage);
+        setIsSubmitted(false); // goes back to the form from the validation component
+        return;
+      }
       return delay(ERROR_DISPLAY_DURATION_MS).then(() => {
         resetToDefault();
         handleBackClick();
@@ -174,6 +182,7 @@ export function useKYCProcess() {
       }
       resetToDefault();
       setIsSubmitted(true);
+      setCpfApiError(null);
 
       const addressObject = {
         cep: formData.cep,
@@ -337,6 +346,7 @@ export function useKYCProcess() {
     statusMessage,
     failureMessage,
     kycVerificationError,
+    cpfApiError,
     handleFormSubmit,
     handleBackClick,
     setCpf,
