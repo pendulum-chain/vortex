@@ -1,7 +1,7 @@
+import { PaymentMethod } from 'src/endpoints/payment-methods.endpoints';
 import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
 
-export type PaymentMethod = 'pix' | 'sepa' | 'cbu';
-export type DestinationType = `${Networks}` | PaymentMethod;
+export type DestinationType = Networks | PaymentMethod;
 
 export enum Networks {
   AssetHub = 'assethub',

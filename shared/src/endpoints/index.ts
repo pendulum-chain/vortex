@@ -11,3 +11,4 @@ export * from './siwe.endpoints';
 export * from './stellar.endpoints';
 export * from './storage.endpoints';
 export * from './subsidize.endpoints';
+export * from './payment-methods.endpoints';
