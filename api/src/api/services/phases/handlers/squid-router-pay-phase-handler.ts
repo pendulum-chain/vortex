@@ -118,8 +118,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         }
 
         if (axelarScanStatus.is_insufficient_fee && !payTxHash) {
-          const glmrToFundUnits = (axelarScanStatus.fees.source_base_fee + axelarScanStatus.fees.source_express_fee.total
-            + axelarScanStatus.fees.destination_base_fee + axelarScanStatus.fees.destination_express_fee.total).toString();
+          const glmrToFundUnits = (axelarScanStatus.fees.source_base_fee + axelarScanStatus.fees.source_express_fee.total).toString();
 
           const logIndex = Number(axelarScanStatus.id.split('_')[2]);
           payTxHash = await this.executeFundTransaction(glmrToFundUnits, swapHash as `0x${string}`, logIndex);
