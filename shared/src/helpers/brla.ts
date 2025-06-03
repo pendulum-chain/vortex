@@ -2,7 +2,6 @@
  * Validates a tax id (CPF) vs a partially masked tax id received from BRLA's pix-info endpoint
  */
 export function validateMaskedNumber(maskedCpf: string, fullCpf: string): boolean {
-
   maskedCpf = maskedCpf.replace(/[-./]/g, '');
   fullCpf = fullCpf.replace(/[-./]/g, '');
 

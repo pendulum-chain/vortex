@@ -17,6 +17,7 @@ import brlaTeleportHandler from './handlers/brla-teleport-handler';
 import completePhaseHandler from './handlers/complete-phase-handler';
 import pendulumToAssethubPhaseHandler from './handlers/pendulum-to-assethub-phase-handler';
 import squidRouterPayPhaseHandler from './handlers/squid-router-pay-phase-handler';
+import distributeFeesHandler from './handlers/distribute-fees-handler';
 /**
  * Register all phase handlers
  */
@@ -41,6 +42,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(brlaTeleportHandler);
   phaseRegistry.registerHandler(pendulumToAssethubPhaseHandler);
   phaseRegistry.registerHandler(squidRouterPayPhaseHandler);
+  phaseRegistry.registerHandler(distributeFeesHandler);
 
   logger.info('Phase handlers registered');
 }

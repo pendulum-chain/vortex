@@ -293,7 +293,7 @@ export const createSubaccount = async (
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
 
     lastInteractionMap.set(id, Date.now());
-    res.status(200).json({ subaccountId: id });
+    res.status(httpStatus.OK).json({ subaccountId: id });
   } catch (error) {
     handleApiError(error, res, 'createSubaccount');
   }
@@ -323,20 +323,20 @@ export const fetchSubaccountKycStatus = async (
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
-      res.status(500).json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
+      res
+        .status(httpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
       return;
     }
 
     const lastInteraction = lastInteractionMap.get(subaccount.id);
     if (!lastInteraction) {
-      res.status(404).json({ error: `No KYC process started for ${taxId}` });
+      res.status(httpStatus.NOT_FOUND).json({ error: `No KYC process started for ${taxId}` });
     }
     if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 60000) {
       // If the last event is older than 1 minute from the last interaction, we assume it's not a new event.
       // So it is ignored.
-      console.log('Last kyc interaction', lastInteraction);
-      console.log('Last kyc event', lastEventCached.createdAt);
-      res.status(404).json({ error: `No new KYC events found for ${taxId}` });
+      res.status(httpStatus.NOT_FOUND).json({ error: `No new KYC events found for ${taxId}` });
       return;
     }
 

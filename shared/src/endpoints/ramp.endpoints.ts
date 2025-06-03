@@ -19,6 +19,7 @@ export type RampPhase =
   | 'stellarPayment'
   | 'subsidizePreSwap'
   | 'subsidizePostSwap'
+  | 'distributeFees'
   | 'brlaTeleport'
   | 'brlaPayoutOnMoonbeam'
   | 'failed'
@@ -61,6 +62,7 @@ export interface RampErrorLog {
   phase: RampPhase;
   error: string;
   details?: Record<string, unknown>;
+  recoverable?: boolean;
 }
 
 export interface PaymentData {

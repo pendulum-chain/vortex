@@ -1,14 +1,12 @@
-import { FiatToken, getNetworkFromDestination, Networks, RampPhase } from 'shared';
+import { FiatToken, getNetworkFromDestination, RampPhase } from 'shared';
 import { BasePhaseHandler } from '../base-phase-handler';
 import RampState from '../../../../models/rampState.model';
 import { API, ApiManager } from '../../pendulum/apiManager';
 import { StateMetadata } from '../meta-state-types';
-import { fundEphemeralAccount, getFundingData } from '../../pendulum/pendulum.service';
-import { ApiPromise } from '@polkadot/api';
+import { fundEphemeralAccount } from '../../pendulum/pendulum.service';
 import Big from 'big.js';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
-import { TOKEN_CONFIG } from 'shared';
 import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
 import logger from '../../../../config/logger';
 
@@ -75,12 +73,12 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected nextPhaseSelector(state: RampState): RampPhase {
     // onramp case
     if (state.type === 'on') {
-      return 'brlaTeleport';
+      return 'moonbeamToPendulumXcm';
     }
 
     // off ramp cases
     if (state.type === 'off' && state.from === 'assethub') {
-      return 'subsidizePreSwap';
+      return 'distributeFees';
     } else {
       return 'moonbeamToPendulum'; // Via contract.subsidizePreSwap
     }

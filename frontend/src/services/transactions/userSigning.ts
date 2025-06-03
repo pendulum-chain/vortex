@@ -45,33 +45,35 @@ export async function signAndSubmitSubstrateTransaction(
   return new Promise((resolve, reject) => {
     let inBlockHash: string | null = null;
 
-    extrinsic.signAndSend(
-      walletAccount.address,
-      {
-        signer: walletAccount.signer as Signer,
-      },
-      (submissionResult: ISubmittableResult) => {
-        const { status, events, dispatchError } = submissionResult;
+    extrinsic
+      .signAndSend(
+        walletAccount.address,
+        {
+          signer: walletAccount.signer as Signer,
+        },
+        (submissionResult: ISubmittableResult) => {
+          const { status, events, dispatchError } = submissionResult;
 
-        if (status.isInBlock && !inBlockHash) {
-          inBlockHash = status.asInBlock.toString();
-        }
-
-        if (status.isFinalized) {
-          const hash = status.asFinalized.toString();
-
-          // Try to find a 'system.ExtrinsicFailed' event
-          if (dispatchError) {
-            reject('Substrate transaction execution failed');
+          if (status.isInBlock && !inBlockHash) {
+            inBlockHash = status.asInBlock.toString();
           }
 
-          resolve(hash);
-        }
-      },
-    ).catch((error) => {
-      // Most likely, the user cancelled the signing process.
-      console.error('Error signing and submitting transaction', error);
-      reject('Error signing and sending transaction:' + error);
-    });
+          if (status.isFinalized) {
+            const hash = status.asFinalized.toString();
+
+            // Try to find a 'system.ExtrinsicFailed' event
+            if (dispatchError) {
+              reject('Substrate transaction execution failed');
+            }
+
+            resolve(hash);
+          }
+        },
+      )
+      .catch((error) => {
+        // Most likely, the user cancelled the signing process.
+        console.error('Error signing and submitting transaction', error);
+        reject('Error signing and sending transaction:' + error);
+      });
   });
 }

@@ -3,6 +3,8 @@ import { Op } from 'sequelize';
 import RampState from '../../models/rampState.model';
 import logger from '../../config/logger';
 import phaseProcessor from '../services/phases/phase-processor';
+import { RampErrorLog } from 'shared';
+import rampService from '../services/ramp/ramp.service';
 
 const TEN_MINUTES_IN_MS = 1 * 60 * 1000;
 
@@ -82,7 +84,7 @@ class RampRecoveryWorker {
           logger.error(`Error recovering ramp state ${state.id}:`, error);
 
           // Prepare error log entry
-          const errorLogEntry = {
+          const errorLogEntry: RampErrorLog = {
             phase: state.currentPhase,
             timestamp: new Date().toISOString(),
             error: error.message || 'Unknown error during recovery',
@@ -91,8 +93,7 @@ class RampRecoveryWorker {
 
           // Attempt to update the state with the error log
           try {
-            const errorLogs = [...(state.errorLogs || []), errorLogEntry];
-            await state.update({ errorLogs });
+            await rampService.appendErrorLog(state.id, errorLogEntry);
             logger.info(`Updated ramp state ${state.id} with error log.`);
           } catch (updateError: any) {
             logger.error(`Failed to update ramp state ${state.id} with error log:`, updateError);

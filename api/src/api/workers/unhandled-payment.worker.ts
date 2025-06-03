@@ -183,7 +183,9 @@ class UnhandledPaymentWorker {
             `ALERT: Found ${matchingPayments.length} unhandled payment(s) for state ${state.id} with reference label ${referenceLabel}. First Payment ID: ${firstMatchingPayment.id}`,
           );
           const reason = 'Payment found for an initial or failed state where none was expected.';
-          const slackMessage = `Unhandled payment for State ID: ${state.id}, Payment ID(s): ${matchingPayments.map((p) => p.id).join(', ')}, Label: ${referenceLabel}, Reason: ${reason}`;
+          const slackMessage = `Unhandled payment for State ID: ${state.id}, Payment ID(s): ${matchingPayments
+            .map((p) => p.id)
+            .join(', ')}, Label: ${referenceLabel}, Reason: ${reason}`;
 
           this.alertsThisCycle.push(slackMessage);
           this.alertedSubaccounts.set(subaccountId, Date.now());
@@ -193,10 +195,18 @@ class UnhandledPaymentWorker {
         const duplicateInfo = this.findFirstDuplicateReferenceInfo(paymentHistory);
         if (duplicateInfo) {
           logger.error(
-            `ALERT: Found duplicate reference label ('${duplicateInfo.label}') in payment history for subaccount of state ${state.id}. Associated Payment IDs: ${duplicateInfo.ids.join(', ')}`,
+            `ALERT: Found duplicate reference label ('${
+              duplicateInfo.label
+            }') in payment history for subaccount of state ${
+              state.id
+            }. Associated Payment IDs: ${duplicateInfo.ids.join(', ')}`,
           );
           const reason = `Duplicate reference label '${duplicateInfo.label}' detected in subaccount ${subaccountId}.`;
-          const slackMessage = `Duplicate payment reference issue associated with State ID: ${state.id}. Duplicated Label: '${duplicateInfo.label}', Involved Payment IDs: ${duplicateInfo.ids.join(', ')}. Reason: ${reason}`;
+          const slackMessage = `Duplicate payment reference issue associated with State ID: ${
+            state.id
+          }. Duplicated Label: '${duplicateInfo.label}', Involved Payment IDs: ${duplicateInfo.ids.join(
+            ', ',
+          )}. Reason: ${reason}`;
 
           this.alertsThisCycle.push(slackMessage);
           this.alertedSubaccounts.set(subaccountId, Date.now());

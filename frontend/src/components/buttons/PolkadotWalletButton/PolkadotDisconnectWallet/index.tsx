@@ -64,7 +64,11 @@ export const DisconnectModal = () => {
       <label tabIndex={0}>
         <WalletButton address={addressForNetwork} />
       </label>
-      <WalletDropdownMenu walletAccount={walletAccount} address={addressForNetwork} removeWalletAccount={removeWalletAccount} />
+      <WalletDropdownMenu
+        walletAccount={walletAccount}
+        address={addressForNetwork}
+        removeWalletAccount={removeWalletAccount}
+      />
     </div>
   );
 };
