@@ -14,7 +14,7 @@ import { KycLevel2Status } from '../../models/kycLevel2.model';
 const lastInteractionMap = new Map<string, number>();
 
 // Maps webhook failure reasons to standardized enum values
-function mapKycFailureReason(webhookReason: Kyc2FailureReason): KycFailureReason {
+function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefined): KycFailureReason {
   switch (webhookReason) {
     case 'face match failure':
       return KycFailureReason.FACE;
