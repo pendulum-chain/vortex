@@ -40,15 +40,24 @@ the flow progression, while still keeping the security benefits of having transa
 
 ## Next Steps
 
+0. **Implement Enhanced Fee Structure**
+   - Create database migrations for `partners` and `fee_configurations` tables.
+   - Modify `quote_tickets` table migration/model.
+   - Update `QuoteService` logic for new fee calculation.
+   - Update API DTOs.
+
 1. **Frontend Integration**
 
    - Implement status polling for ramping processes
+   - *(Deferred)* Modify transaction signing process (if needed for fee changes)
+   - *(Deferred)* Pass `partner_id` in quote requests
+   - *(Deferred)* Display fee breakdown in UI
 
 2. **Testing**
 
-   - Create unit tests for the new services
-   - Develop integration tests for the API endpoints
-   - Test the ramping flows end-to-end
+   - Create unit tests for the new services (including fee logic)
+   - Develop integration tests for the API endpoints (including fee calculation)
+   - Test the ramping flows end-to-end (including partner markup scenarios)
 
 3. **Deployment**
 
@@ -57,9 +66,9 @@ the flow progression, while still keeping the security benefits of having transa
    - Monitor the system for any issues
 
 4. **Documentation**
-   - Update API documentation
+   - Update API documentation (including new fee structure and `partner_id` parameter)
    - Create developer guides for the new endpoints
-   - Document the database schema and migration process
+   - Document the database schema and migration process (including new tables)
 
 ## Active Decisions and Considerations
 
@@ -85,6 +94,14 @@ the flow progression, while still keeping the security benefits of having transa
    - We implemented idempotency keys to prevent duplicate operations
    - Keys are stored in the database and expire after 24 hours
 
+5. **Fee Structure Enhancement (Design Finalized)**
+   - Decided to replace the single `fee` in `QuoteTicket` with `network_fee`, `processing_fee`, `partner_markup_fee`, `total_fee` (all in USD).
+   - Introduced `partners` table for partner-specific markup rules.
+   - Introduced `fee_configurations` table for system fees (Vortex, Anchor, Network Estimate).
+   - Partner identification will use `partner_id` (UUID) passed in the quote request.
+   - Network fee initially set to a static 1 USD estimate.
+   - See `docs/architecture/fee-enhancement-plan.md` for full details.
+
 
 ## Frontend Context (Vortex - Based on Codebase Analysis)
 
@@ -109,6 +126,8 @@ the flow progression, while still keeping the security benefits of having transa
 - Refine and test the BRLA KYC flow integration.
 - Complete implementation of transaction state handling based on backend responses.
 - Add comprehensive unit and integration tests.
+- **(New)** Update quote request to include optional `partner_id`.
+- **(New)** Update UI to display fee breakdown from quote response.
 
 **Open Questions/Issues (Inferred):**
 - How is the frontend state kept in sync with the backend's state machine during the ramp process?
@@ -117,3 +136,4 @@ the flow progression, while still keeping the security benefits of having transa
 
 [2025-04-04 16:47:04] - Added frontend context based on codebase analysis.
    - The frontend can use these keys to safely retry operations
+[2025-04-28 19:27:00] - Updated with Fee Structure Enhancement plan. Added as next step and active decision. Adjusted frontend next steps.

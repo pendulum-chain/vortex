@@ -70,10 +70,9 @@ function TokenSelectionList() {
   const rampDirection = useRampDirection();
 
   const handleTokenSelect = (token: OnChainToken | FiatToken) => {
-
     const isFiatToken = Object.values(FiatToken).includes(token as FiatToken);
     if (isFiatToken && isFiatTokenDisabled(token as FiatToken)) {
-      return; 
+      return;
     }
 
     if (rampDirection === RampDirection.ONRAMP) {

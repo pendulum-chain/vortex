@@ -9,7 +9,7 @@ import { useToastMessage } from '../helpers/notifications';
 
 function useRampAmountWithinAllowedLimits() {
   const { t } = useTranslation();
-  const { showToast, ToastMessage } = useToastMessage()
+  const { showToast, ToastMessage } = useToastMessage();
   const rampDirection = useRampDirection();
 
   return useCallback(
@@ -63,7 +63,7 @@ export function usePreRampCheck() {
 
         const isWithinLimits = await rampWithinLimits(
           executionInput.quote.rampType === 'on' ? executionInput.quote.inputAmount : executionInput.quote.outputAmount,
-          executionInput.taxId
+          executionInput.taxId,
         );
         if (!isWithinLimits) {
           throw new Error('Ramp amount exceeds the allowed limits.');

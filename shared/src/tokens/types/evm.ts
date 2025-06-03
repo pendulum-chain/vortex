@@ -11,6 +11,12 @@ export enum EvmToken {
   USDCE = 'usdce',
 }
 
+export enum UsdLikeEvmToken {
+  USDC = EvmToken.USDC,
+  USDT = EvmToken.USDT,
+  USDCE = EvmToken.USDCE,
+}
+
 export interface EvmTokenDetails extends BaseTokenDetails, PendulumDetails {
   type: TokenType.Evm;
   assetSymbol: string;

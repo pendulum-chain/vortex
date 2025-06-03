@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next';
 import { useWidgetMode } from '../../hooks/useWidgetMode';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 
-
 interface RampSubmitButtonsProps {
   toAmount?: Big;
 }
@@ -23,14 +22,13 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
   const { feeComparisonRef } = useFeeComparisonStore();
   const { trackEvent } = useEventsContext();
   const { getCurrentErrorMessage } = useRampValidation();
-  const executionInput = useRampExecutionInput()
+  const executionInput = useRampExecutionInput();
   const initializeFailedMessage = useInitializeFailedMessage();
   const isRampSummaryDialogVisible = useRampSummaryVisible();
   const fiatToken = useFiatToken();
   const onChainToken = useOnChainToken();
   const rampDirection = useRampDirection();
   const isWidgetMode = useWidgetMode();
-
 
   const inputAmount = useInputAmount();
   const { quote } = useQuoteStore();
@@ -61,8 +59,9 @@ export const RampSubmitButtons: FC<RampSubmitButtonsProps> = ({ toAmount }) => {
     return t('components.swapSubmitButton.confirm');
   };
 
-  const isQuoteOutdated = !!quoteInputAmount && !!inputAmount && !(Big(quoteInputAmount).eq(Big(inputAmount)))
-  const isSubmitButtonDisabled = Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || isQuoteOutdated;
+  const isQuoteOutdated = !!quoteInputAmount && !!inputAmount && !Big(quoteInputAmount).eq(Big(inputAmount));
+  const isSubmitButtonDisabled =
+    Boolean(getCurrentErrorMessage()) || !toAmount || !!initializeFailedMessage || isQuoteOutdated;
   const isSubmitButtonPending = isRampSummaryDialogVisible || Boolean(executionInput) || isQuoteOutdated;
 
   return (

@@ -10,6 +10,7 @@ interface QuoteParams {
   fiatToken: FiatToken;
   selectedNetwork: DestinationType;
   rampType: RampType;
+  partnerId?: string;
 }
 
 type RampType = 'on' | 'off';
@@ -42,7 +43,7 @@ const mapFiatToDestination = (fiatToken: FiatToken): DestinationType => {
   const destinationMap: Record<FiatToken, DestinationType> = {
     brl: 'pix',
     ars: 'cbu',
-    eurc: 'sepa',
+    eur: 'sepa',
   };
 
   return destinationMap[fiatToken] || 'sepa';
@@ -100,7 +101,7 @@ export const useQuoteStore = create<QuoteState>((set) => ({
   exchangeRate: 0,
 
   fetchQuote: async (params: QuoteParams) => {
-    const { inputAmount } = params;
+    const { inputAmount, partnerId } = params;
 
     if (!inputAmount) {
       set({ error: 'Invalid input parameters', loading: false });
@@ -119,6 +120,7 @@ export const useQuoteStore = create<QuoteState>((set) => ({
         quotePayload.inputAmount,
         quotePayload.inputCurrency,
         quotePayload.outputCurrency,
+        partnerId,
       );
 
       const { outputAmount, exchangeRate } = processQuoteResponse(quoteResponse);

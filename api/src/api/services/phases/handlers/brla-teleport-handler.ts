@@ -95,7 +95,7 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         : new Error(`Error checking Moonbeam balance: ${error}`);
     }
 
-    return this.transitionToNextPhase(state, 'moonbeamToPendulumXcm');
+    return this.transitionToNextPhase(state, 'fundEphemeral');
   }
 
   protected isPaymentTimeoutReached(state: RampState): boolean {
