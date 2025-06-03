@@ -34,8 +34,6 @@ export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
 export const STELLAR_CHAIN_ID = -99;
 
-const DEFAULT_NETWORK = Networks.AssetHub;
-
 type EVMNetworks = Exclude<Networks, Networks.AssetHub>;
 
 interface NetworkMetadata {
@@ -97,19 +95,31 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   },
 };
 
-export function isNetworkEVM(network: Networks): network is EVMNetworks {
-  return NETWORK_METADATA[network].isEVM;
-}
-
-export function getNetworkId(network: Networks): number {
-  return NETWORK_METADATA[network].id;
-}
-
-export function getNetworkDisplayName(network: Networks): string {
-  return NETWORK_METADATA[network].displayName;
-}
-
-export function getCaseSensitiveNetwork(network: string): Networks {
+export function getCaseSensitiveNetwork(network: string): Networks | undefined {
   const normalized = network.toLowerCase();
-  return Object.values(Networks).find((n) => n.toLowerCase() === normalized) ?? DEFAULT_NETWORK;
+  return Object.values(Networks).find((n) => n.toLowerCase() === normalized);
 }
+
+export function getNetworkMetadata(network: string): NetworkMetadata | undefined {
+  const normalizedNetwork = getCaseSensitiveNetwork(network);
+  return normalizedNetwork ? NETWORK_METADATA[normalizedNetwork] : undefined;
+}
+
+export function isNetworkEVM(network: Networks): network is EVMNetworks {
+  return getNetworkMetadata(network)?.isEVM ?? false;
+}
+
+export function isNetworkAssetHub(network: Networks): network is Networks.AssetHub {
+  return getNetworkMetadata(network)?.id === ASSETHUB_CHAIN_ID;
+}
+
+export function getNetworkId(network: Networks): number | undefined {
+  return getNetworkMetadata(network)?.id;
+}
+
+export function getNetworkDisplayName(network: Networks): string | undefined {
+  return getNetworkMetadata(network)?.displayName;
+}
+
+
+
