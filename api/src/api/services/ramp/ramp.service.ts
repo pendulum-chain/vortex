@@ -220,9 +220,9 @@ export class RampService extends BaseRampService {
       // TODO check if the ramp has actually been stared. Either assetHub's initial XCM
       // or EVM's initial squidrouter transaction.
       // Offramps starting on Assethub need to have the assetHubToPendulumHash
-      // Offramps starting on an EVM network need to have the squidRouterApproveHash and squidRouterSwapHash
+      // Offramps starting on an EVM network need to have the squidRouterApproveHash and squidrouterSwapHash
       // Onramps might need other checks.
-      // const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
+      // const { squidRouterApproveHash, squidrouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();

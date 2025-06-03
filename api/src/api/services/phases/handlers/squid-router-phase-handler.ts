@@ -82,12 +82,11 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         state: {
           ...state.state,
           squidRouterApproveHash: approveHash,
-          squidRouterSwapHash: swapHash,
+          squidrouterSwapHash: swapHash,
         },
       });
 
       // Transition to the next phase
-      // FIXME we are in onramp here, so we should transition to a different phase
       return this.transitionToNextPhase(updatedState, 'squidrouterPay');
     } catch (error: any) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);

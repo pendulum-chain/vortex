@@ -101,7 +101,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
     try {
       // Get the bridge hash
-      const bridgeCallHash = state.state.squidRouterSwapHash;
+      const bridgeCallHash = state.state.squidrouterSwapHash;
       if (!bridgeCallHash) {
         throw new Error(
           'SquidRouterPayPhaseHandler: Missing bridge hash in state for squidRouterPay phase. State corrupted.',
@@ -129,7 +129,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       let isExecuted = false;
       let payTxHash: string | undefined = state.state.squidrouterPayTxHash; // in case of recovery, we may have already paid.
       while (!isExecuted) {
-        console.log('Checking Axelar scan status for swap hash:', swapHash);
         const axelarScanStatus = await this.getStatusAxelarScan(swapHash);
 
         //no status found is considered a recoverable error.

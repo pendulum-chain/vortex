@@ -96,7 +96,7 @@ export namespace RampEndpoints {
     presignedTxs: PresignedTx[];
     additionalData?: {
       squidRouterApproveHash: string | undefined;
-      squidRouterSwapHash: string | undefined;
+      squidrouterSwapHash: string | undefined;
       assetHubToPendulumHash: string | undefined;
       [key: string]: unknown;
     };

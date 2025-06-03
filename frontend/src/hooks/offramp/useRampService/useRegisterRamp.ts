@@ -217,7 +217,7 @@ export const useRegisterRamp = () => {
         requiredUserActionsCompleted: false,
         userSigningMeta: {
           squidRouterApproveHash: undefined,
-          squidRouterSwapHash: undefined,
+          squidrouterSwapHash: undefined,
           assetHubToPendulumHash: undefined,
         },
       });
@@ -258,7 +258,7 @@ export const useRegisterRamp = () => {
     // Determine if conditions are met before filtering transactions
     const requiredMetaIsEmpty =
       !rampState?.userSigningMeta?.squidRouterApproveHash &&
-      !rampState?.userSigningMeta?.squidRouterSwapHash &&
+      !rampState?.userSigningMeta?.squidrouterSwapHash &&
       !rampState?.userSigningMeta?.assetHubToPendulumHash;
 
     const shouldRequestSignatures =
@@ -302,7 +302,7 @@ export const useRegisterRamp = () => {
     // Kick off user signing process
     const requestSignaturesFromUser = async () => {
       let squidRouterApproveHash: string | undefined = undefined;
-      let squidRouterSwapHash: string | undefined = undefined;
+      let squidrouterSwapHash: string | undefined = undefined;
       let assetHubToPendulumHash: string | undefined = undefined;
 
       // Sign user transactions by nonce
@@ -319,7 +319,7 @@ export const useRegisterRamp = () => {
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase('signed');
         } else if (tx.phase === 'squidrouterSwap') {
-          squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
+          squidrouterSwapHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase('finished');
         } else if (tx.phase === 'assethubToPendulum') {
           if (!substrateWalletAccount) {
@@ -344,7 +344,7 @@ export const useRegisterRamp = () => {
         ...rampState,
         userSigningMeta: {
           squidRouterApproveHash,
-          squidRouterSwapHash,
+          squidrouterSwapHash,
           assetHubToPendulumHash,
         },
       });

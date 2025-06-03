@@ -33,6 +33,6 @@ export interface StateMetadata {
     swapExtrinsicOptions: ExtrinsicOptions;
   };
   unhandledPaymentAlertSent: boolean;
-  squidRouterSwapHash: string;
+  squidrouterSwapHash: string;
   squidrouterPayTxHash: string;
 }

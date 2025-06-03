@@ -1,16 +1,11 @@
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkFromDestination, getNetworkId, Networks } from 'shared';
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks } from 'shared';
 import { createOnrampRouteParams, getRoute } from './route';
 
 import erc20ABI from '../../../../contracts/ERC20';
 import Big from 'big.js';
-import { SQUIDROUTER_FEE_OVERPAY } from './config';
-import {
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
-} from '../../../../constants/constants';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from './config';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -94,7 +89,7 @@ export async function createOnrampSquidrouterTransactions(
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: '10000000000000000', // 0.01 GLMR in raw units
+      value: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, 
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
