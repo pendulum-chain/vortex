@@ -319,7 +319,15 @@
     "feeCollapse": {
       "details": "Details",
       "yourQuote": "Your quote",
-      "vortexFee": "Vortex fee",
+      "processingFee": {
+        "label": "Processing fee",
+        "tooltip": "The processing fee covers payment processing costs."
+      },
+      "networkFee": {
+        "label": "Network fee",
+        "tooltip": "The cost to transfer funds to your wallet, which varies with selected network and network congestion."
+      },
+      "totalFee": "Total Fee",
       "finalAmount": "Final Amount"
     },
     "transactionStatusBanner": {

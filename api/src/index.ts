@@ -23,6 +23,7 @@ import CleanupWorker from './api/workers/cleanup.worker';
 import RampRecoveryWorker from './api/workers/ramp-recovery.worker';
 import registerPhaseHandlers from './api/services/phases/register-handlers';
 import { EventPoller } from './api/services/brla/webhooks';
+import UnhandledPaymentWorker from './api/workers/unhandled-payment.worker';
 
 const { port, env } = config;
 
@@ -61,6 +62,7 @@ const initializeApp = async () => {
     // Start background workers
     new CleanupWorker().start();
     new RampRecoveryWorker().start();
+    new UnhandledPaymentWorker().start();
 
     // Register phase handlers
     registerPhaseHandlers();

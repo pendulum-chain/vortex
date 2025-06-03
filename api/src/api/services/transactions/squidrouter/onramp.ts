@@ -112,17 +112,6 @@ export async function createOnrampSquidrouterTransactions(
       nonce: params.moonbeamEphemeralStartingNonce + 1,
     };
 
-    // Alternative way, untested.
-    // const keyring = new Keyring({ type: 'ethereum' });
-
-    // const ephemeralKeypair = keyring.addFromUri(`${params.moonbeamEphemeralSeed}/m/44'/60'/${0}'/${0}/${0}`);
-
-    // const swapEvmCall =  params.moonbeamNode.api.tx.evm.call(params.moonbeamEphemeralAddress, transactionRequest.target, transactionRequest.data,  transactionRequest.value,  transactionRequest.gasLimit, maxFeePerGas, undefined, undefined, undefined);
-    // const signedSwapEvmCall = await swapEvmCall.signAsync(ephemeralKeypair, {nonce: params.moonbeamEphemeralStartingNonce + 1});
-
-    // console.log('Swap transaction prepared substrate: ', encodeSubmittableExtrinsic(signedSwapEvmCall));
-
-    // Return both signed transactions and transaction data
     return {
       approveData,
       swapData,

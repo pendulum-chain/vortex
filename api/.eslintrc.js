@@ -11,13 +11,6 @@ module.exports = {
     'no-use-before-define': 'off',
     '@typescript-eslint/no-use-before-define': ['error', { variables: false }],
     'no-multi-str': 0,
-    'import/extensions': [
-      'error',
-      'ignorePackages',
-      {
-        ts: 'never',
-      },
-    ],
   },
   env: {
     es2020: true,
@@ -30,7 +23,7 @@ module.exports = {
     project: './tsconfig.json', // Path relative to tsconfigRootDir
     tsconfigRootDir: __dirname, // Correctly resolves the directory of this config file
   },
-  extends: ['airbnb-base', 'prettier', 'plugin:@typescript-eslint/recommended'],
+  extends: ['prettier', 'plugin:@typescript-eslint/recommended'],
   settings: {
     'import/resolver': {
       node: {
