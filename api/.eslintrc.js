@@ -2,6 +2,7 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   rules: {
+    'import/prefer-default-export': 'off',
     'class-methods-use-this': 'off',
     'no-console': 0,
     'no-underscore-dangle': 0,
