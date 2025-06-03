@@ -7,7 +7,6 @@ import { moonbeam } from 'viem/chains';
 
 /**
  * Handler for the squidRouter phase
- * Only used for the onramp flow. For the offramp, the UI can send the transactions to better confirm outputs.
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
   private publicClient: ReturnType<typeof createPublicClient>;

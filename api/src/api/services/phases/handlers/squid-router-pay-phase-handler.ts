@@ -62,8 +62,7 @@ interface AxelarScanStatusResponse {
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const AXL_GAS_SERVICE_MOONBEAM = '0x2d5d7d31F671F86C782533cc367F14109a082712';
 /**
- * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee if necessary.
- * Only used for the onramp flow. For the offramp, the UI can send the transactions to better confirm outputs.
+ * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee if.
  */
 export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private publicClient: ReturnType<typeof createPublicClient>;
@@ -138,7 +137,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
           throw this.createRecoverableError('No status found for swap hash.');
         }
-        // need to filter for the one with correct id. This endpoint may return an array with many swaps.
         if (axelarScanStatus.status === 'executed' || axelarScanStatus.status === 'express_executed') {
           isExecuted = true;
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
@@ -152,7 +150,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
             throw this.createRecoverableError('No status found for swap hash.');
           }
-          console.log('Fee response:', feeResponse);
 
           const glmrToFundUnits = (
             feeResponse.result.source_base_fee +
@@ -177,14 +174,14 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       if (error && (error as any).isRecoverable) {
         throw error;
       }
-      throw new Error(`SquidRouterPayPhaseHandler: Error waiting for transaction confirmation: ${error}`);
+      throw new Error(`SquidRouterPayPhaseHandler: Error waiting checking for Axelar bridge transaction: ${error}`);
     }
   }
 
   /**
    * Execute a call to the Axelar gas service and fund the bridge process.
    * @param glmrUnits The amount of GLMR to fund the transaction with.
-   * @returns ...
+   * @returns Hash of the transaction that funds the Axelar gas service.
    */
   private async executeFundTransaction(glmrUnits: string, swapHash: `0x${string}`, logIndex: number): Promise<string> {
     try {
