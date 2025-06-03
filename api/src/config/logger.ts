@@ -1,29 +1,34 @@
 import { StreamOptions } from 'morgan';
 import winston, { format } from 'winston';
 
+const formatMeta = (meta: any) => {
+  // You can format the splat yourself
+  const splat = meta[Symbol.for('splat')];
+  if (splat && splat.length) {
+    return splat.length === 1 ? JSON.stringify(splat[0]) : JSON.stringify(splat);
+  }
+  return '';
+};
+
+const customFormat = winston.format.printf(
+  ({ timestamp, level, message, label = '', ...meta }) =>
+    `[${timestamp}] ${level}\t ${label} ${message} ${formatMeta(meta)}`,
+);
+
 const logger = winston.createLogger({
   level: 'info',
-  format: format.combine(
-    format.prettyPrint(),
-    format.splat(),
-    format.printf((info) => {
-      if (typeof info.message === 'object') {
-        info.message = JSON.stringify(info.message, null, 3);
-      }
-
-      return info.message;
-    }),
-  ),
   transports: [
-    //
-    // - Write to all logs with level `info` and below to `combined.log`
-    // - Write all logs error (and below) to `error.log`.
-    //
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' }),
-    // This console transport is always active, regardless of environment
+    new winston.transports.File({
+      filename: 'error.log',
+      level: 'error',
+      format: format.combine(format.timestamp({ format: 'MMM D, YYYY HH:mm:ss' }), format.prettyPrint(), customFormat),
+    }),
+    new winston.transports.File({
+      filename: 'combined.log',
+      format: format.combine(format.timestamp({ format: 'MMM D, YYYY HH:mm:ss' }), format.prettyPrint(), customFormat),
+    }),
     new winston.transports.Console({
-      format: winston.format.simple(),
+      format: format.combine(format.colorize(), winston.format.simple()),
     }),
   ],
 });

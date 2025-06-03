@@ -148,12 +148,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
         }
       />
       <FeeDetails
-        fiatSymbol={fiatSymbol}
         fromToken={fromToken}
         toToken={toToken}
         partnerUrl={getPartnerUrl()}
         exchangeRate={Big(executionInput.quote.outputAmount).div(executionInput.quote.inputAmount).toFixed(4)}
-        network={selectedNetwork}
         feesCost={executionInput.quote.fee}
         direction={rampDirection}
         destinationAddress={destinationAddress}

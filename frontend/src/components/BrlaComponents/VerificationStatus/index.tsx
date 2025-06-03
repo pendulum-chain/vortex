@@ -26,8 +26,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
   onBackClick,
 }) => {
   const { status: kycStatus, level } = status;
-  const showSuccess =
-    kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
+  const showSuccess = kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
 
   return (
     <motion.div

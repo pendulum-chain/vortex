@@ -2,7 +2,6 @@ import Big from 'big.js';
 import { createExecuteMessageExtrinsic, Extrinsic, readMessage, ReadMessageResult } from '@pendulum-chain/api-solang';
 import { Abi } from '@polkadot/api-contract';
 import { ApiPromise } from '@polkadot/api';
-
 import { NABLA_ROUTER, PendulumDetails } from 'shared';
 import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
 import { API } from '../../pendulum/apiManager';
@@ -13,6 +12,7 @@ import {
   parseContractBalanceResponse,
 } from '../../../helpers/contracts';
 import logger from '../../../../config/logger';
+import { ExtrinsicOptions } from './index';
 
 export interface PrepareNablaApproveParams {
   inputTokenDetails: PendulumDetails;
@@ -38,17 +38,19 @@ async function createApproveExtrinsic({
   contractAbi,
   callerAddress,
 }: CreateApproveExtrinsicOptions) {
-  logger.info('write', `call approve ${token} for ${spender} with amount ${amount} `);
-
-  const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
-    abi: contractAbi,
-    api,
+  const extrinsicOptions: ExtrinsicOptions = {
     callerAddress,
     contractDeploymentAddress: token,
     messageName: 'approve',
     messageArguments: [spender, amount],
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+  };
+
+  const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
+    ...extrinsicOptions,
+    api,
+    abi: contractAbi,
   });
 
   if (execution.type === 'onlyRpc') {
@@ -57,7 +59,7 @@ async function createApproveExtrinsic({
 
   const { extrinsic } = execution;
 
-  return extrinsic;
+  return { extrinsic, extrinsicOptions };
 }
 
 export async function prepareNablaApproveTransaction({
@@ -65,7 +67,10 @@ export async function prepareNablaApproveTransaction({
   amountRaw,
   pendulumEphemeralAddress,
   pendulumNode,
-}: PrepareNablaApproveParams): Promise<Extrinsic> {
+}: PrepareNablaApproveParams): Promise<{
+  extrinsic: Extrinsic;
+  extrinsicOptions: ExtrinsicOptions;
+}> {
   const { api } = pendulumNode;
 
   const erc20ContractAbi = new Abi(erc20WrapperAbi, api.registry.getChainProperties());
