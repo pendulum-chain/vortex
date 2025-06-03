@@ -12,6 +12,36 @@ import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import Big from 'big.js';
 
+
+interface GpmFeeResult {
+  result: {
+    source_base_fee: number;
+    source_express_fee: {
+      express_gas_overhead_fee: number;
+      relayer_fee: number;
+      relayer_fee_usd: number;
+      express_gas_overhead_fee_usd: number;
+      total: number;
+      total_usd: number;
+    };
+    base_fee: number;
+    base_fee_usd: number;
+    execute_gas_multiplier: number;
+    execute_min_gas_price: string;
+    source_base_fee_string: string;
+    source_base_fee_usd: number;
+    destination_base_fee: number;
+    destination_base_fee_string: string;
+    destination_base_fee_usd: number;
+    source_confirm_fee: number;
+    destination_confirm_fee: number;
+    express_supported: boolean;
+    express_fee: number;
+    express_fee_string: string;
+    express_fee_usd: number;
+    express_execute_gas_multiplier: number;
+  };
+}
 interface AxelarScanStatusResponse {
   is_insufficient_fee: boolean;
   status: string; // executed or express_executed (for complete).
@@ -85,6 +115,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
       return this.transitionToNextPhase(state, 'complete');
     } catch (error: any) {
+
       logger.error(`SquidRouterPayPhaseHandler: Error in squidRouterPay phase for ramp ${state.id}:`, error);
       throw error;
     }
@@ -110,15 +141,23 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           throw this.createRecoverableError("No status found for swap hash.");
         }
         // need to filter for the one with correct id. This endpoint may return an array with many swaps.
-        console.log('Axelar scan status:', axelarScanStatus);
         if (axelarScanStatus.status === 'executed' || axelarScanStatus.status === 'express_executed') {
           isExecuted = true;
           logger.info(`SquidRouterPayPhaseHandler: Transaction ${swapHash} successfully executed on Axelar.`);
           break;
         }
 
-        if (axelarScanStatus.is_insufficient_fee && !payTxHash) {
-          const glmrToFundUnits = (axelarScanStatus.fees.source_base_fee + axelarScanStatus.fees.source_express_fee.total).toString();
+        if (!payTxHash) {
+          const feeResponse = await this.fetchFees(state.to.toString());
+
+          if (!feeResponse) {
+            logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
+            throw this.createRecoverableError("No status found for swap hash.");
+          }
+          console.log('Fee response:', feeResponse);
+          
+          const glmrToFundUnits = (feeResponse.result.source_base_fee + feeResponse.result.destination_base_fee +
+                                     feeResponse.result.express_fee).toString();
 
           const logIndex = Number(axelarScanStatus.id.split('_')[2]);
           payTxHash = await this.executeFundTransaction(glmrToFundUnits, swapHash as `0x${string}`, logIndex);
@@ -134,6 +173,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         await new Promise((resolve) => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
       }
     } catch (error) {
+      
+      if (error && (error as any).isRecoverable) { 
+         throw error; 
+      }
       throw new Error(`SquidRouterPayPhaseHandler: Error waiting for transaction confirmation: ${error}`);
     }
   }
@@ -194,6 +237,33 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       throw error;
     }
   }
+
+  private async fetchFees(toChain: string): Promise<GpmFeeResult | null> {
+    try {
+      const response = await fetch("https://api.gmp.axelarscan.io/", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({method: "getFees",
+                              destinationChain: toChain,
+                              sourceChain: "moonbeam"
+                            }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: GpmFeeResult = await response.json() as GpmFeeResult;
+      return data;
+    
+
+    } catch (error) {
+      return null;
+    }
+
+  }
+
+
 }
 
 export default new SquidRouterPayPhaseHandler();

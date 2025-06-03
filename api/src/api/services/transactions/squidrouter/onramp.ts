@@ -94,7 +94,7 @@ export async function createOnrampSquidrouterTransactions(
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: '0',
+      value: '10000000000000000', // 0.01 GLMR in raw units
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
