@@ -54,7 +54,7 @@ class RampRecoveryWorker {
       const staleStates = await RampState.findAll({
         where: {
           currentPhase: {
-            [Op.ne]: 'complete',
+            [Op.notIn]: ['complete', 'failed'],
           },
           updatedAt: {
             [Op.lt]: new Date(Date.now() - TEN_MINUTES_IN_MS), // 10 minutes ago

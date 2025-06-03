@@ -250,23 +250,6 @@ export class QuoteService extends BaseRampService {
         const { route } = routeResult.data;
         const { toAmountMin } = route.estimate;
 
-        // Check against our moonbeam funding amounts.
-        const squidrouterSwapValue = multiplyByPowerOfTen(new Big(route.transactionRequest.value), -18);
-        const fundingAmountUnits =
-          getNetworkFromDestination(to) === Networks.Ethereum
-            ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
-            : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
-
-        const squidrouterSwapValueBuffer = getNetworkFromDestination(to) === Networks.Ethereum ? 10 : 2;
-
-        // Leave 10 glmr for other operations of the ephemeral, and as buffer for potential price changes.
-        if (squidrouterSwapValue.gte(fundingAmountUnits.minus(squidrouterSwapValueBuffer))) {
-          throw new APIError({
-            status: httpStatus.SERVICE_UNAVAILABLE,
-            message: 'Cannot service this route at the moment. Please try again later.',
-          });
-        }
-
         amountOut.preciseQuotedAmountOut = parseContractBalanceResponse(outTokenDetails.decimals, BigInt(toAmountMin));
 
         amountOut.roundedDownQuotedAmountOut = amountOut.preciseQuotedAmountOut.preciseBigDecimal.round(2, 0);
