@@ -326,6 +326,10 @@
         "label": "Taxa de rede",
         "tooltip": "O custo para transferir fundos para sua carteira, que varia conforme a rede selecionada e a congestão da rede."
       },
+      "netRate": {
+        "label": "Taxa Efetiva",
+        "tooltip": "Esta é a taxa de câmbio que você recebe após a dedução de todas as taxas de processamento e de rede."
+      },
       "totalFee": "Taxa total",
       "finalAmount": "Valor final"
     },
