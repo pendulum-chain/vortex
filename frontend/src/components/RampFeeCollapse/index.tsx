@@ -23,13 +23,16 @@ function calculateInterbankExchangeRate(
   const inputAmount = Big(inputAmountString);
   const outputAmount = Big(outputAmountString);
 
+  let effectiveInputAmount = inputAmount;
+  let effectiveOutputAmount = outputAmount;
+
   if (rampType === 'on') {
-    const inputAmountWithoutFees = inputAmount.minus(fee.total);
-    return inputAmountWithoutFees.gt(0) ? outputAmount.div(inputAmountWithoutFees).toNumber() : 0;
+    effectiveInputAmount = inputAmount.minus(fee.total);
   } else {
-    const outputAmountWithoutFees = outputAmount.plus(fee.total);
-    return inputAmount.gt(0) ? outputAmountWithoutFees.div(inputAmount).toNumber() : 0;
+    effectiveOutputAmount = outputAmount.plus(fee.total);
   }
+
+  return effectiveInputAmount.gt(0) ? effectiveOutputAmount.div(effectiveInputAmount).toNumber() : 0;
 }
 
 // Calculate all-in exchange rate
