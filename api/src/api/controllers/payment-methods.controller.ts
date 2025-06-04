@@ -40,7 +40,7 @@ export const getSupportedPaymentMethods = async (
     const paymentMethodsByFiat = getPaymentMethodsByFiat(paymentMethodsByType, fiat);
 
     res.status(httpStatus.OK).json({
-      paymentMethods: paymentMethodsByFiat,
+      paymentMethods: fiat ? paymentMethodsByFiat : paymentMethodsByType,
     });
   } catch (error) {
     next(error);
