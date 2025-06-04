@@ -1,5 +1,5 @@
-import { PaymentMethod } from 'src/endpoints/payment-methods.endpoints';
 import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
+import { PaymentMethod } from '../endpoints/payment-methods.endpoints';
 
 export type DestinationType = Networks | PaymentMethod;
 
@@ -113,13 +113,14 @@ export function isNetworkAssetHub(network: Networks): network is Networks.AssetH
   return getNetworkMetadata(network)?.id === ASSETHUB_CHAIN_ID;
 }
 
-export function getNetworkId(network: Networks): number | undefined {
-  return getNetworkMetadata(network)?.id;
+export function getNetworkId(network: Networks): number;
+export function getNetworkId(network: unknown): number | undefined;
+export function getNetworkId(network: Networks | unknown): number | undefined {
+  return getNetworkMetadata(network as Networks)?.id;
 }
 
-export function getNetworkDisplayName(network: Networks): string | undefined {
-  return getNetworkMetadata(network)?.displayName;
+export function getNetworkDisplayName(network: Networks): string;
+export function getNetworkDisplayName(network: unknown): string | undefined;
+export function getNetworkDisplayName(network: Networks | unknown): string | undefined {
+  return getNetworkMetadata(network as Networks)?.displayName;
 }
-
-
-

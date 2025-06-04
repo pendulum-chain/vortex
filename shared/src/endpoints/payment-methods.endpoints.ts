@@ -1,4 +1,4 @@
-import { FiatToken } from 'src/tokens';
+import { FiatToken } from '../tokens';
 
 export type PaymentMethodType = 'buy' | 'sell';
 
