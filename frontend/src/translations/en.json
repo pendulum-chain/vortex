@@ -46,7 +46,7 @@
       "arrivalText": {
         "buy": "The tokens will arrive in your wallet in a few minutes.",
         "sell": {
-          "EURC": "Funds will be received in 1 min (Instant SEPA) or 2 days (Standard SEPA). SEPA type dependent on the recipient bank support.",
+          "EURC": "Funds will be received via Standard SEPA within 1–2 business days, depending on recipient bank processing. ",
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
           "default": "Your funds will arrive in your bank account soon."
