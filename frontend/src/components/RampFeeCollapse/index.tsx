@@ -43,6 +43,11 @@ function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmount
   return inputAmount.gt(0) ? outputAmount.div(inputAmount).toNumber() : 0;
 }
 
+// Helper function to format exchange rate strings
+function formatExchangeRateString(rate: number, input: string, output: string) {
+  return `1 ${input} ≈ ${rate.toFixed(4)} ${output}`;
+}
+
 export function RampFeeCollapse() {
   const { t } = useTranslation();
 
@@ -97,7 +102,7 @@ export function RampFeeCollapse() {
   return (
     <div className="flex flex-col gap-2">
       <div className="text-center text-sm text-gray-600">
-        {`1 ${inputCurrency} ≈ ${interbankExchangeRate.toFixed(4)} ${outputCurrency}`}
+        {formatExchangeRateString(interbankExchangeRate, inputCurrency, outputCurrency)}
       </div>
       <div className="border border-blue-700 collapse-arrow collapse overflow-visible">
         <input type="checkbox" />
@@ -139,7 +144,7 @@ export function RampFeeCollapse() {
               </strong>
             </div>
             <div className="flex">
-              <span>{`1 ${inputCurrency} ≈ ${netExchangeRate.toFixed(4)} ${outputCurrency}`}</span>
+              <span>{formatExchangeRateString(netExchangeRate, inputCurrency, outputCurrency)}</span>
             </div>
           </div>
         </div>
