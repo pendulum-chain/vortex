@@ -47,8 +47,6 @@ export const PIXKYCForm = () => {
   }, [setIsSubmitted, setCpf, taxId]);
 
   const handleRetryDocumentUpload = useCallback(() => {
-    // Clear documents from memory and go back to document upload.
-    // Clear kyc pending status.
     setIsSubmitted(false);
     resetToDefault();
   }, [setIsSubmitted]);

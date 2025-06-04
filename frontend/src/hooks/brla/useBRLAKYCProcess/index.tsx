@@ -74,7 +74,6 @@ export const useVerificationStatusUI = (isSubmitted: boolean) => {
 
   const updateStatus = useCallback((status: KycStatus, level: KycLevel, message: StatusMessageType, failureReason?: KycFailureReason) => {
     if (!isSubmitted) return;
-    console.log(`Updating KYC status to ${status} for level ${level}`);
     setVerificationStatus((prev) => {
       if (prev.status === status && prev.level === level) {
         return prev;
@@ -324,14 +323,12 @@ export function useKYCProcess() {
   useEffect(() => {
     const threshold = 60000;
     if (fetchStatusError) {
-      console.log('KYC fetch error:', fetchStatusError);
       if (!lastErrorTimerRef.current) {
-        console.log('Setting error timer for KYC fetch error');
         lastErrorTimerRef.current = setTimeout(() => {
-                  console.log('Setting KYC verification error state');
           setKycVerificationError(true);
           lastErrorTimerRef.current = null;
         }, threshold);
+        
       }
     } else if (lastErrorTimerRef.current) {
       clearTimeout(lastErrorTimerRef.current);

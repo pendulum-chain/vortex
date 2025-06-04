@@ -1,8 +1,7 @@
 import React from 'react';
-import { motion } from 'motion/react'; // Assuming 'motion/react' is your intended import for framer-motion or a similar library
-
-import { KycStatus } from '../../../services/signingService'; // Assuming path is correct
-import { Spinner } from '../../Spinner'; // Assuming path is correct
+import { motion } from 'motion/react'; 
+import { KycStatus } from '../../../services/signingService'; 
+import { Spinner } from '../../Spinner'; 
 
 interface VerificationStatusProps {
   status: { status: KycStatus; level: number };
@@ -30,7 +29,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
   return (
     <motion.div
-      className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center justify-center" // Added justify-center for better vertical alignment
+      className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center justify-center" 
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3 }}
