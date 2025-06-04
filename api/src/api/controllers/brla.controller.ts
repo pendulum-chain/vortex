@@ -21,7 +21,7 @@ function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefin
     case 'name does not match':
       return KycFailureReason.NAME;
     default:
-      return KycFailureReason.UNKOWN; // default
+      return KycFailureReason.UNKNOWN; // default
   }
 }
 

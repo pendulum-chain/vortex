@@ -3,7 +3,7 @@ import { EvmAddress } from '../types';
 export enum KycFailureReason {
   FACE = 'face',
   NAME = 'name',
-  UNKOWN = 'unknown',
+  UNKNOWN = 'unknown',
 }
 
 export namespace BrlaEndpoints {
