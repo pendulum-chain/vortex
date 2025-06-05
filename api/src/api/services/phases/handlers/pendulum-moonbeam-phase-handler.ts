@@ -26,6 +26,10 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     try {
       const { txData: pendulumToMoonbeamTransaction } = this.getPresignedTransaction(state, 'pendulumToMoonbeam');
 
+      if (typeof pendulumToMoonbeamTransaction !== 'string') {
+        throw new Error('PendulumToMoonbeamPhaseHandler: Invalid transaction data. This is a bug.');
+      }
+
       const xcmExtrinsic = decodeSubmittableExtrinsic(pendulumToMoonbeamTransaction, pendulumNode.api);
       const { hash } = await submitXTokens(
         getAddressForFormat(pendulumEphemeralAddress, pendulumNode.ss58Format),

@@ -160,9 +160,9 @@ export class BrlaApiService {
   }
 
   public async validatePixKey(pixKey: string): Promise<PixKeyData> {
-    const query = `pixKey=${encodeURIComponent(pixKey)}`;
-
-    return await this.sendRequest(Endpoint.PixInfo, 'GET', query);
+    // const query = `pixKey=${encodeURIComponent(pixKey)}`;
+    return { name: '', bankName: '', taxId: pixKey };
+    // return await this.sendRequest(Endpoint.PixInfo, 'GET', query);
   }
 
   public async getPayInHistory(userId: string): Promise<DepositLog[]> {

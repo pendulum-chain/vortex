@@ -9,7 +9,7 @@ export interface TokenAvailabilityConfig {
 // This is our central configuration for token availability
 export const fiatTokenAvailability: Record<FiatToken, TokenAvailabilityConfig> = {
   [FiatToken.EURC]: {
-    enabled: false,
+    enabled: true,
     disabledReasonTranslationKey: 'pages.swap.error.EURC_tokenUnavailable',
   },
   [FiatToken.ARS]: {

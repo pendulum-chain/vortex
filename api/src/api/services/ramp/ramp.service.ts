@@ -9,8 +9,9 @@ import {
   UnsignedTx,
   validateMaskedNumber,
 } from 'shared';
+import { Op } from 'sequelize';
 import { BaseRampService } from './base.service';
-import RampState, { RampStateAttributes } from '../../../models/rampState.model';
+import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
@@ -298,6 +299,70 @@ export class RampService extends BaseRampService {
     }
 
     return rampState.errorLogs;
+  }
+
+  /**
+   * Get ramp history for a wallet address
+   */
+  public async getRampHistory(walletAddress: string): Promise<RampEndpoints.GetRampHistoryResponse> {
+    const rampStates = await RampState.findAll({
+      where: {
+        state: {
+          [Op.or]: [{ walletAddress }, { destinationAddress: walletAddress }],
+        },
+        currentPhase: {
+          [Op.ne]: 'initial',
+        },
+      },
+      order: [['createdAt', 'DESC']],
+    });
+
+    const transactions = rampStates.map((ramp) => ({
+      id: ramp.id,
+      type: ramp.type,
+      fromNetwork: ramp.from,
+      toNetwork: ramp.to,
+      fromAmount: ramp.state.inputAmount,
+      toAmount: ramp.state.outputAmount,
+      fromCurrency: ramp.state.inputCurrency,
+      toCurrency: ramp.state.outputCurrency,
+      status: this.mapPhaseToStatus(ramp.currentPhase),
+      date: ramp.createdAt.toISOString(),
+    }));
+
+    return { transactions };
+  }
+
+  /**
+   * Map ramp phase to a user-friendly status
+   */
+  private mapPhaseToStatus(phase: RampPhase): string {
+    if (phase === 'complete') return 'success';
+    if (phase === 'failed' || phase === 'timedOut') return 'failed';
+    return 'pending';
+  }
+
+  /**
+   * Append an error log to a ramping process.
+   * This function limits the number of error logs to 100 per ramping process.
+   * @param id The ID of the ramping process
+   * @param errorLog The error log to append
+   */
+  public async appendErrorLog(id: string, errorLog: RampErrorLog): Promise<void> {
+    const rampState = await RampState.findByPk(id);
+
+    if (!rampState) {
+      throw new APIError({
+        status: httpStatus.NOT_FOUND,
+        message: 'Ramp not found',
+      });
+    }
+
+    // Limit the number of error logs to 100
+    const updatedErrorLogs = [...(rampState.errorLogs || []), errorLog].slice(-100);
+    await rampState.update({
+      errorLogs: updatedErrorLogs,
+    });
   }
 
   private async cancelRamp(id: string): Promise<void> {

@@ -64,14 +64,6 @@ export const useSubmitRamp = () => {
         try {
           await setSelectedNetwork(selectedNetwork);
 
-          trackEvent({
-            event: 'transaction_confirmation',
-            from_asset: getOnChainTokenDetailsOrDefault(selectedNetwork, executionInput.onChainToken).assetSymbol,
-            to_asset: getAnyFiatTokenDetails(executionInput.fiatToken).fiat.symbol,
-            from_amount: executionInput.quote.inputAmount,
-            to_amount: executionInput.quote.outputAmount,
-          });
-
           if (!address) {
             throw new Error('Address must be defined at this stage');
           }
@@ -145,7 +137,9 @@ export const useSubmitRamp = () => {
             );
 
             // We have to add the fee to the amount we are going to send to the anchor. It will be deducted from the amount we are going to receive.
-            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee);
+            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(
+              executionInput.quote.fee.anchor,
+            );
 
             const anchorSessionParams = {
               token: sep10Token,
@@ -196,7 +190,6 @@ export const useSubmitRamp = () => {
       setRampInitiating,
       setSelectedNetwork,
       selectedNetwork,
-      trackEvent,
       address,
       chainId,
       setRampExecutionInput,

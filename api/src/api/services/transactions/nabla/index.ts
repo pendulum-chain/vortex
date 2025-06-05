@@ -1,16 +1,17 @@
-import { AccountMeta, Networks, PendulumDetails, encodeSubmittableExtrinsic } from 'shared';
-import Big from 'big.js';
-import { QuoteTicketAttributes } from '../../../../models/quoteTicket.model';
+import { AccountMeta, encodeSubmittableExtrinsic, Networks, PendulumDetails } from 'shared';
 import { ApiManager } from '../../pendulum/apiManager';
 import { prepareNablaSwapTransaction } from './swap';
 import { prepareNablaApproveTransaction } from './approve';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { CreateExecuteMessageExtrinsicOptions } from '@pendulum-chain/api-solang';
 
-export async function createNablaTransactionsForQuote(
-  quote: QuoteTicketAttributes,
+export type ExtrinsicOptions = Omit<CreateExecuteMessageExtrinsicOptions, 'abi' | 'api'>;
+
+export async function createNablaTransactionsForOfframp(
+  amountRaw: string,
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
+  nablaHardMinimumOutputRaw: string,
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
     throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
@@ -20,12 +21,7 @@ export async function createNablaTransactionsForQuote(
   const networkName = 'pendulum';
   const pendulumNode = await apiManager.getApi(networkName);
 
-  const amountRaw = multiplyByPowerOfTen(
-    new Big(quote.inputAmount),
-    inputTokenPendulumDetails.pendulumDecimals,
-  ).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toFixed(0, 0);
 
   const approveTransaction = await prepareNablaApproveTransaction({
     inputTokenDetails: inputTokenPendulumDetails,
@@ -44,17 +40,23 @@ export async function createNablaTransactionsForQuote(
   });
 
   return {
-    approveTransaction: encodeSubmittableExtrinsic(approveTransaction),
-    swapTransaction: encodeSubmittableExtrinsic(swapTransaction),
+    approve: {
+      transaction: encodeSubmittableExtrinsic(approveTransaction.extrinsic),
+      extrinsicOptions: approveTransaction.extrinsicOptions,
+    },
+    swap: {
+      transaction: encodeSubmittableExtrinsic(swapTransaction.extrinsic),
+      extrinsicOptions: swapTransaction.extrinsicOptions,
+    },
   };
 }
 
 export async function createNablaTransactionsForOnramp(
-  inputAmountUnits: Big,
-  quote: QuoteTicketAttributes,
+  amountRaw: string,
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
+  nablaHardMinimumOutputRaw: string,
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
     throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
@@ -64,9 +66,7 @@ export async function createNablaTransactionsForOnramp(
   const networkName = 'pendulum';
   const pendulumNode = await apiManager.getApi(networkName);
 
-  const amountRaw = multiplyByPowerOfTen(inputAmountUnits, inputTokenPendulumDetails.pendulumDecimals).toFixed(0, 0);
   const pendulumEphemeralAddress = ephemeral.address;
-  const nablaHardMinimumOutputRaw = new Big(quote.outputAmount).add(new Big(quote.fee)).toFixed(0, 0);
 
   const approveTransaction = await prepareNablaApproveTransaction({
     inputTokenDetails: inputTokenPendulumDetails,
@@ -85,7 +85,13 @@ export async function createNablaTransactionsForOnramp(
   });
 
   return {
-    approveTransaction: encodeSubmittableExtrinsic(approveTransaction),
-    swapTransaction: encodeSubmittableExtrinsic(swapTransaction),
+    approve: {
+      transaction: encodeSubmittableExtrinsic(approveTransaction.extrinsic),
+      extrinsicOptions: approveTransaction.extrinsicOptions,
+    },
+    swap: {
+      transaction: encodeSubmittableExtrinsic(swapTransaction.extrinsic),
+      extrinsicOptions: swapTransaction.extrinsicOptions,
+    },
   };
 }

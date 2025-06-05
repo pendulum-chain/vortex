@@ -57,13 +57,13 @@ export type TokenConfig = {
 };
 
 const eurc: StellarTokenConfig = {
-  tomlFileUrl: 'https://circle.anchor.mykobo.co/.well-known/stellar.toml',
+  tomlFileUrl: 'https://stellar.mykobo.co/.well-known/stellar.toml',
   assetCode: 'EURC',
   assetIssuer: 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
   vaultAccountId: '6bsD97dS8ZyomMmp1DLCnCtx25oABtf19dypQKdZe6FBQXSm',
   minWithdrawalAmount: '10000000000000',
   maximumSubsidyAmountRaw: '15000000000000', // 15 units
-  homeDomain: 'circle.anchor.mykobo.co',
+  homeDomain: 'stellar.mykobo.co',
   clientDomainEnabled: true,
   memoEnabled: false,
   pendulumCurrencyId: {

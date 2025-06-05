@@ -1,6 +1,6 @@
 import Big from 'big.js';
 import { RampPhase } from 'shared';
-import { readContract, waitForTransactionReceipt } from '@wagmi/core';
+import { readContract } from '@wagmi/core';
 import { moonbeam } from 'viem/chains';
 import { encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -123,7 +123,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       throw new Error('MoonbeamToPendulumPhaseHandler: Failed to wait for tokens to arrive on Pendulum.');
     }
 
-    return this.transitionToNextPhase(state, 'subsidizePreSwap');
+    return this.transitionToNextPhase(state, 'distributeFees');
   }
 }
 
