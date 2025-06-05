@@ -288,7 +288,7 @@ const useEvents = () => {
 
     const networkId = getNetworkId(selectedNetwork);
 
-    if (!isConnected && wasConnected && networkId) {
+    if (!isConnected && wasConnected) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: 'disconnect',
