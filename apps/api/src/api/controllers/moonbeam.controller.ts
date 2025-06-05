@@ -13,7 +13,7 @@ import {
 } from '../../constants/constants';
 import { SlackNotifier } from '../services/slack.service';
 
-import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
+import splitReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 
 interface StatusResponse {
   status: boolean;
@@ -81,7 +81,9 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
     const { publicClient } = createClients(moonbeamExecutorAccount);
 
-    const balance = await publicClient.getBalance({ address: moonbeamExecutorAccount.address });
+    const balance = await publicClient.getBalance({
+      address: moonbeamExecutorAccount.address,
+    });
     const minimumBalance = BigInt(Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18)).toString());
 
     if (balance < minimumBalance) {

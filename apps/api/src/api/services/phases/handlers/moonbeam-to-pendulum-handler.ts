@@ -7,7 +7,7 @@ import { encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
 
-import splitReceiverABI from '../../../../../../mooncontracts/splitReceiverABI.json';
+import splitReceiverABI from '../../../../../mooncontracts/splitReceiverABI.json';
 import logger from '../../../../config/logger';
 import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from '../../../../constants/constants';
 import RampState from '../../../../models/rampState.model';

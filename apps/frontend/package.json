@@ -1,15 +1,14 @@
 {
-  "name": "vortex",
+  "name": "vortex-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "yarn@4.5.0+sha512.837566d24eec14ec0f5f1411adb544e892b3454255e61fdef8fd05f3429480102806bac7446bc9daff3896b01ae4b62d00096c7e989f1596f2af10b927532f39",
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
     "preview": "vite preview",
     "test": "vitest",
-    "verify": "bun test",
+    "verify": "bun test"
   },
   "dependencies": {
     "@fontsource/roboto": "^5.0.8",
@@ -54,6 +53,7 @@
     "react-hook-form": "^7.54.2",
     "react-i18next": "^15.4.1",
     "react-toastify": "^11.0.5",
+    "shared": "workspace:../../packages/shared",
     "stellar-sdk": "^13.2.0",
     "tailwind-merge": "^3.1.0",
     "tailwindcss": "^4.0.3",
@@ -93,8 +93,5 @@
     "vite": "^6.2.6",
     "vite-plugin-node-polyfills": "^0.23.0",
     "vitest": "^3.1.1"
-  },
-  "resolutions": {
-    "shared": "portal:/Users/marcel/Documents/pendulum-pay/shared"
   }
 }
