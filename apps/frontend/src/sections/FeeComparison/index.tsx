@@ -2,10 +2,10 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { FeeComparisonTable } from './FeeComparisonTable';
 
-import { useFeeComparisonStore } from '../../stores/feeComparison';
 import { useEffect, useRef } from 'react';
-import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
+import { useFeeComparisonStore } from '../../stores/feeComparison';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 
 export const FeeComparison = () => {
   const ref = useRef<HTMLDivElement>(null);

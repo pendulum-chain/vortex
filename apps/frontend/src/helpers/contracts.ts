@@ -1,9 +1,9 @@
-import { INumber } from '@polkadot/types-codec/types';
-import BigNumber from 'big.js';
 import { Limits } from '@pendulum-chain/api-solang';
-import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
 import type { ApiPromise } from '@polkadot/api';
 import { ContractOptions } from '@polkadot/api-contract/types';
+import { INumber } from '@polkadot/types-codec/types';
+import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
+import BigNumber from 'big.js';
 import { roundDownToSignificantDecimals } from 'shared';
 
 const BIG_0 = new BigNumber('0');
@@ -31,7 +31,7 @@ export const defaultWriteLimits: Limits = {
   storageDeposit: undefined,
 };
 
-export const createWriteOptions = (api: ApiPromise, opts?: ContractOptions) => ({
+export const createWriteOptions = (_api: ApiPromise, opts?: ContractOptions) => ({
   gas: {
     refTime: '345000000000',
     proofSize: '1300000',

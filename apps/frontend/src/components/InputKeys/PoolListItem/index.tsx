@@ -1,10 +1,10 @@
-import { OnChainToken, FiatToken, isOnChainToken, OnChainTokenDetails, isFiatToken } from 'shared';
-import { useTranslation } from 'react-i18next';
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { isFiatTokenDisabled, getTokenDisabledReason } from '../../../config/tokenAvailability';
+import { useTranslation } from 'react-i18next';
+import { FiatToken, OnChainToken, OnChainTokenDetails, isFiatToken, isOnChainToken } from 'shared';
+import { getTokenDisabledReason, isFiatTokenDisabled } from '../../../config/tokenAvailability';
 import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
-import { TokenDefinition } from '../SelectionModal';
 import { UserBalance } from '../../UserBalance';
+import { TokenDefinition } from '../SelectionModal';
 interface PoolListItemProps {
   isSelected?: boolean;
   onSelect: (tokenType: OnChainToken | FiatToken) => void;

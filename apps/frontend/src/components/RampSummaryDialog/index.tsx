@@ -1,18 +1,18 @@
-import { FC } from 'react';
 import Big from 'big.js';
+import { FC } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog } from '../Dialog';
-import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from '../../stores/rampStore';
-import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useNetwork } from '../../contexts/network';
-import { RampDirection } from '../RampToggle';
-import { TransactionTokensDisplay } from './TransactionTokensDisplay';
-import { RampSummaryButton } from './RampSummaryButton';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { SigningBoxButton, SigningBoxContent } from '../SigningBox/SigningBoxContent';
 import { useSigningBoxState } from '../../hooks/useSigningBoxState';
 import { usePartnerId } from '../../stores/partnerStore';
+import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
+import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../../stores/rampDirectionStore';
+import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from '../../stores/rampStore';
+import { Dialog } from '../Dialog';
+import { RampDirection } from '../RampToggle';
+import { SigningBoxButton, SigningBoxContent } from '../SigningBox/SigningBoxContent';
+import { RampSummaryButton } from './RampSummaryButton';
+import { TransactionTokensDisplay } from './TransactionTokensDisplay';
 
 export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();

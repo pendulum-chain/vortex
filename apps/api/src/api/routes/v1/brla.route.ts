@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import * as brlaController from '../../controllers/brla.controller';
 import {
-  validateBrlaTriggerOfframpInput,
   validataSubaccountCreation,
+  validateBrlaTriggerOfframpInput,
   validateStartKyc2,
 } from '../../middlewares/validators';
 

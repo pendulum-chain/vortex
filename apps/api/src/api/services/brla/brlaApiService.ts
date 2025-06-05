@@ -1,21 +1,21 @@
-import { BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME, BRLA_BASE_URL } from '../../../constants/constants';
+import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME } from '../../../constants/constants';
+import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import {
-  SubaccountData,
-  RegisterSubaccountPayload,
-  OfframpPayload,
-  OnrampPayload,
-  PixKeyData,
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
-  SwapPayload,
   KYCDocType,
   KycLevel2Response,
   KycRetryPayload,
+  OfframpPayload,
   OnchainLog,
+  OnrampPayload,
+  PixKeyData,
+  RegisterSubaccountPayload,
+  SubaccountData,
+  SwapPayload,
   UsedLimitData,
 } from './types';
-import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import { Event } from './webhooks';
 
 export class BrlaApiService {

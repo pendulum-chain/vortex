@@ -1,7 +1,7 @@
-import { BrlaApiService } from './brlaApiService';
-import { FastQuoteQueryParams, BrlaSupportedChain, OnchainLog, SmartContractOperationType } from './types';
-import { verifyReferenceLabel } from './helpers';
 import logger from '../../../config/logger';
+import { BrlaApiService } from './brlaApiService';
+import { verifyReferenceLabel } from './helpers';
+import { BrlaSupportedChain, FastQuoteQueryParams, OnchainLog, SmartContractOperationType } from './types';
 
 // This service is used to request and keep tracks of teleports (transfers) from BRLA's
 // controlled accounts.

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { SIGNING_SERVICE_URL } from '../constants/constants';
 import { FiatToken } from 'shared';
+import { SIGNING_SERVICE_URL } from '../constants/constants';
 
 interface AccountStatusResponse {
   status: boolean;

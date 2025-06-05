@@ -1,6 +1,6 @@
+import logger from '../../../config/logger';
 import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
 import { BrlaApiService } from './brlaApiService';
-import logger from '../../../config/logger';
 
 type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT' | 'KYC';
 
@@ -74,7 +74,7 @@ export class EventPoller {
       if (!acc.has(event.userId)) {
         acc.set(event.userId, []);
       }
-      acc.get(event.userId)!.push(event);
+      acc.get(event.userId)?.push(event);
       return acc;
     }, new Map<string, Event[]>());
   }

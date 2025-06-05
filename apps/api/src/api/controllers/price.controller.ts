@@ -2,13 +2,6 @@ import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
 
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
-import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
-import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
-import * as transakService from '../services/transak.service';
-import { TransakPriceResult } from '../services/transak.service';
-import * as moonpayService from '../services/moonpay.service';
-import { MoonpayPrice } from '../services/moonpay.service';
-import { PriceQuery } from '../middlewares/validators';
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -16,6 +9,13 @@ import {
   ProviderInternalError,
   UnsupportedPairError,
 } from '../errors/providerErrors';
+import { PriceQuery } from '../middlewares/validators';
+import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
+import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
+import * as moonpayService from '../services/moonpay.service';
+import { MoonpayPrice } from '../services/moonpay.service';
+import * as transakService from '../services/transak.service';
+import { TransakPriceResult } from '../services/transak.service';
 
 type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
 

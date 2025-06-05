@@ -2,13 +2,13 @@ import 'dotenv/config';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { config } from '../../config/vars';
-import {
-  initGoogleSpreadsheet,
-  getOrCreateSheet,
-  appendData,
-  GoogleCredentials,
-} from '../services/spreadsheet.service';
 import { APIError } from '../errors/api-error';
+import {
+  GoogleCredentials,
+  appendData,
+  getOrCreateSheet,
+  initGoogleSpreadsheet,
+} from '../services/spreadsheet.service';
 
 type SheetHeaderValues = readonly string[];
 

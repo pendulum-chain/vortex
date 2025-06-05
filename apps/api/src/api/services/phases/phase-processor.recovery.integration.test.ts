@@ -1,18 +1,18 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, it, mock, beforeAll, afterAll } from 'bun:test';
+import { afterAll, beforeAll, describe, it, mock } from 'bun:test';
 import fs from 'node:fs';
 
-import { PhaseProcessor } from './phase-processor';
-import RampState from '../../../models/rampState.model';
 import QuoteTicket from '../../../models/quoteTicket.model';
-import { RampService } from '../ramp/ramp.service';
+import RampState from '../../../models/rampState.model';
 import { BrlaApiService } from '../brla/brlaApiService';
 import { SubaccountData } from '../brla/types';
+import { RampService } from '../ramp/ramp.service';
+import { PhaseProcessor } from './phase-processor';
 
-import registerPhaseHandlers from './register-handlers';
-import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import path from 'node:path';
+import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import RAMP_STATE_RECOVERY from './failedRampStateRecovery.json';
+import registerPhaseHandlers from './register-handlers';
 //import { RAMP_STATE_RECOVERY } from './ramp-state-recovery';
 
 let rampState: RampState;
@@ -22,32 +22,32 @@ const filePath = path.join(__dirname, 'failedRampStateRecovery.json');
 beforeAll(() => {
   rampState = {
     ...RAMP_STATE_RECOVERY,
-    update: async function (updateData: any, options?: any) {
+    update: async function (updateData: any, _options?: any) {
       rampState = { ...rampState, ...updateData };
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
-    reload: async function (options?: any) {
+    reload: async function (_options?: any) {
       return rampState;
     },
   } as unknown as RampState;
 });
 
-RampState.update = mock(async function (updateData: any, options?: any) {
+RampState.update = mock(async function (updateData: any, _options?: any) {
   rampState = { ...rampState, ...updateData };
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
 }) as any;
 
-RampState.findByPk = mock(async (id: string) => {
+RampState.findByPk = mock(async (_id: string) => {
   return {
     ...rampState,
-    update: async function (updateData: any, options?: any) {
+    update: async function (updateData: any, _options?: any) {
       rampState = { ...rampState, ...updateData };
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
-    reload: async function (options?: any) {
+    reload: async function (_options?: any) {
       return rampState;
     },
   };
@@ -58,11 +58,11 @@ RampState.create = mock(async (data: any) => {
     ...data,
     createdAt: new Date(),
     updatedAt: new Date(),
-    update: async function (updateData: any, options?: any) {
+    update: async function (updateData: any, _options?: any) {
       rampState = { ...rampState, ...updateData };
       return rampState;
     },
-    reload: async function (options?: any) {
+    reload: async function (_options?: any) {
       return rampState;
     },
   };

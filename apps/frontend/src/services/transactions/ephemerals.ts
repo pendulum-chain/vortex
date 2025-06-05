@@ -1,7 +1,7 @@
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
-import { Keypair } from 'stellar-sdk';
 import { EphemeralAccount } from 'shared';
+import { Keypair } from 'stellar-sdk';
 
 export function createMoonbeamEphemeral(): EphemeralAccount {
   const seedPhrase = mnemonicGenerate();

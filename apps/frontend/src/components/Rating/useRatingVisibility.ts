@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useLocalStorage, LocalStorageKeys } from '../../hooks/useLocalStorage';
+import { LocalStorageKeys, useLocalStorage } from '../../hooks/useLocalStorage';
 
 export function useRatingVisibility() {
   const {

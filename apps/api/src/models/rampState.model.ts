@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
-import sequelize from '../config/database';
 import { StateMetadata } from '../api/services/phases/meta-state-types';
+import sequelize from '../config/database';
 
 export interface PhaseHistoryEntry {
   phase: RampPhase;

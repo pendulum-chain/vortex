@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useRef, useState, FormEvent, JSX } from 'react';
+import { FC, FormEvent, JSX, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../helpers/cn';
 

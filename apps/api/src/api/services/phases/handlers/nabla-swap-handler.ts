@@ -1,21 +1,21 @@
 import {
-  createExecuteMessageExtrinsic,
   ExecuteMessageResult,
-  readMessage,
   ReadMessageResult,
+  createExecuteMessageExtrinsic,
+  readMessage,
   submitExtrinsic,
 } from '@pendulum-chain/api-solang';
 import Big from 'big.js';
-import { decodeSubmittableExtrinsic, NABLA_ROUTER, RampPhase } from 'shared';
-import { BasePhaseHandler } from '../base-phase-handler';
+import { NABLA_ROUTER, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import RampState from '../../../../models/rampState.model';
+import { BasePhaseHandler } from '../base-phase-handler';
 
-import { ApiManager } from '../../pendulum/apiManager';
-import { StateMetadata } from '../meta-state-types';
-import logger from '../../../../config/logger';
 import { Abi } from '@polkadot/api-contract';
+import logger from '../../../../config/logger';
 import { routerAbi } from '../../../../contracts/Router';
 import { defaultReadLimits } from '../../../helpers/contracts';
+import { ApiManager } from '../../pendulum/apiManager';
+import { StateMetadata } from '../meta-state-types';
 
 export class NablaSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {

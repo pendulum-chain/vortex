@@ -2,30 +2,30 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
-  assetHubTokenConfig,
-  evmTokenConfig,
   FiatToken,
   FiatTokenDetails,
-  getEnumKeyByStringValue,
-  moonbeamTokenConfig,
   Networks,
   OnChainToken,
   OnChainTokenDetails,
+  assetHubTokenConfig,
+  evmTokenConfig,
+  getEnumKeyByStringValue,
+  moonbeamTokenConfig,
   stellarTokenConfig,
 } from 'shared';
 import { isFiatTokenDisabled } from '../../config/tokenAvailability';
 
-import { useOnchainTokenBalances } from '../../hooks/useOnchainTokenBalances';
 import { useNetwork } from '../../contexts/network';
-import { PoolListItem } from './PoolListItem';
-import { SearchInput } from '../SearchInput';
-import { Skeleton } from '../Skeleton';
-import { Dialog } from '../Dialog';
-import { RampDirection } from '../RampToggle';
+import { useOnchainTokenBalances } from '../../hooks/useOnchainTokenBalances';
+import { useFiatToken, useOnChainToken, useRampFormStoreActions } from '../../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 import { useRampModalActions } from '../../stores/rampModalStore';
 import { useRampModalState } from '../../stores/rampModalStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { useFiatToken, useOnChainToken, useRampFormStoreActions } from '../../stores/ramp/useRampFormStore';
+import { Dialog } from '../Dialog';
+import { RampDirection } from '../RampToggle';
+import { SearchInput } from '../SearchInput';
+import { Skeleton } from '../Skeleton';
+import { PoolListItem } from './PoolListItem';
 
 export interface TokenDefinition {
   assetSymbol: string;
@@ -97,8 +97,8 @@ function TokenSelectionList() {
         ? fiatToken
         : onChainToken
       : tokenSelectModalType === 'from'
-      ? onChainToken
-      : fiatToken;
+        ? onChainToken
+        : fiatToken;
 
   return (
     <div className="relative">
@@ -135,10 +135,13 @@ function useTokenDefinitions(filter: string) {
   const balanceMap = useMemo(() => {
     if (!definitionsWithBalance.length) return {};
 
-    return definitionsWithBalance.reduce((acc, token) => {
-      acc[token.assetSymbol] = token.balance;
-      return acc;
-    }, {} as Record<string, string>);
+    return definitionsWithBalance.reduce(
+      (acc, token) => {
+        acc[token.assetSymbol] = token.balance;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
   }, [definitionsWithBalance]);
 
   const sortedDefinitions = useMemo(() => {

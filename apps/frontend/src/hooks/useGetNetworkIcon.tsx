@@ -1,10 +1,10 @@
-import ASSET_HUB from '../assets/chains/assetHub.svg';
-import POLYGON from '../assets/chains/polygon.svg';
-import ETHEREUM from '../assets/chains/ethereum.svg';
-import BSC from '../assets/chains/bsc.svg';
 import ARBITRUM from '../assets/chains/arbitrum.svg';
-import BASE from '../assets/chains/base.svg';
+import ASSET_HUB from '../assets/chains/assetHub.svg';
 import AVALANCHE from '../assets/chains/avalanche.svg';
+import BASE from '../assets/chains/base.svg';
+import BSC from '../assets/chains/bsc.svg';
+import ETHEREUM from '../assets/chains/ethereum.svg';
+import POLYGON from '../assets/chains/polygon.svg';
 
 import { Networks } from 'shared';
 

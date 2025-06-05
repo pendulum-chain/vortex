@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '../../components/Accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../components/Accordion';
 
 export const FAQAccordion = () => {
   const { t } = useTranslation();

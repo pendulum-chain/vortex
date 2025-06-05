@@ -1,12 +1,12 @@
+import { AnimatePresence, MotionProps, motion } from 'motion/react';
 import { FC } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'motion/react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { FiatToken } from 'shared';
-import { BrlaField, StandardBrlaFieldOptions } from '../BrlaField';
 import { useFiatToken } from '../../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../../stores/rampDirectionStore';
 import { RampDirection } from '../../RampToggle';
+import { BrlaField, StandardBrlaFieldOptions } from '../BrlaField';
 
 const containerAnimation: MotionProps = {
   initial: { opacity: 0, height: 0 },

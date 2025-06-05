@@ -1,4 +1,5 @@
 import httpStatus from 'http-status';
+import { Op } from 'sequelize';
 import {
   AccountMeta,
   FiatToken,
@@ -9,20 +10,19 @@ import {
   UnsignedTx,
   validateMaskedNumber,
 } from 'shared';
-import { Op } from 'sequelize';
-import { BaseRampService } from './base.service';
-import RampState from '../../../models/rampState.model';
-import QuoteTicket from '../../../models/quoteTicket.model';
 import logger from '../../../config/logger';
+import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../constants/constants';
+import QuoteTicket from '../../../models/quoteTicket.model';
+import RampState from '../../../models/rampState.model';
 import { APIError } from '../../errors/api-error';
-import phaseProcessor from '../phases/phase-processor';
-import { validatePresignedTxs } from '../transactions';
-import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
-import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
-import { SubaccountData } from '../brla/types';
 import { BrlaApiService } from '../brla/brlaApiService';
 import { generateReferenceLabel } from '../brla/helpers';
-import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../constants/constants';
+import { SubaccountData } from '../brla/types';
+import phaseProcessor from '../phases/phase-processor';
+import { validatePresignedTxs } from '../transactions';
+import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
+import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
+import { BaseRampService } from './base.service';
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): AccountMeta[] {
   const normalizedAccounts: AccountMeta[] = [];
@@ -48,7 +48,7 @@ export class RampService extends BaseRampService {
    */
   public async registerRamp(
     request: RampEndpoints.RegisterRampRequest,
-    route = '/v1/ramp/register',
+    _route = '/v1/ramp/register',
   ): Promise<RampEndpoints.RegisterRampResponse> {
     return this.withTransaction(async (transaction) => {
       const { signingAccounts, quoteId, additionalData } = request;
@@ -200,7 +200,7 @@ export class RampService extends BaseRampService {
    */
   public async startRamp(
     request: RampEndpoints.StartRampRequest,
-    route = '/v1/ramp/start',
+    _route = '/v1/ramp/start',
   ): Promise<RampEndpoints.StartRampResponse> {
     return this.withTransaction(async (transaction) => {
       const rampState = await RampState.findByPk(request.rampId, {
@@ -407,7 +407,7 @@ export class RampService extends BaseRampService {
           message: `Invalid pixKey or receiverTaxId.`,
         });
       }
-    } catch (error) {
+    } catch (_error) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
         message: `Invalid pixKey or receiverTaxId.`,

@@ -1,14 +1,14 @@
-import { ReactNode } from 'react';
 import { PlayCircleIcon } from '@heroicons/react/20/solid';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
+import { ReactNode } from 'react';
 import { cn } from '../../../helpers/cn';
 
-import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
+import { useTranslation } from 'react-i18next';
 import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet-pink.svg';
-import { wagmiConfig } from '../../../wagmiConfig';
+import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
 import { trimAddress } from '../../../helpers/addressFormatter';
 import { useVortexAccount } from '../../../hooks/useVortexAccount';
-import { useTranslation } from 'react-i18next';
+import { wagmiConfig } from '../../../wagmiConfig';
 
 const WalletButton = ({
   onClick,

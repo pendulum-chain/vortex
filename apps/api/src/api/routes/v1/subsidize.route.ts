@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as subsidizeController from '../../controllers/subsidize.controller';
-import { validatePreSwapSubsidizationInput, validatePostSwapSubsidizationInput } from '../../middlewares/validators';
+import { validatePostSwapSubsidizationInput, validatePreSwapSubsidizationInput } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
 

@@ -1,13 +1,13 @@
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 
-import POLKADOT from '../../assets/trusted-by/polkadot.svg';
-import WEB3 from '../../assets/trusted-by/web3.svg';
+import SEPA from '../../assets/payments/sepa.svg';
 import COINDESK from '../../assets/trusted-by/coindesk.svg';
+import ETHEREUM from '../../assets/trusted-by/ethereum.svg';
 import METAMASK from '../../assets/trusted-by/metamask.svg';
 import PLUGNPLAY from '../../assets/trusted-by/plugnplay.png';
-import ETHEREUM from '../../assets/trusted-by/ethereum.svg';
-import SEPA from '../../assets/payments/sepa.svg';
+import POLKADOT from '../../assets/trusted-by/polkadot.svg';
+import WEB3 from '../../assets/trusted-by/web3.svg';
 
 const trustedByImages = [
   { src: POLKADOT, alt: 'Polkadot logo' },

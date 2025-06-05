@@ -1,6 +1,6 @@
-import { StellarTokenDetails } from 'shared';
 import { SubmittableExtrinsic } from '@polkadot/api/types';
 import { ISubmittableResult } from '@polkadot/types/types';
+import { StellarTokenDetails } from 'shared';
 import { ApiManager } from '../../pendulum/apiManager';
 import { createVaultService } from '../../stellar/vaultService';
 
@@ -34,7 +34,7 @@ export async function prepareSpacewalkRedeemTransaction({
     );
 
     return redeemExtrinsic;
-  } catch (e) {
+  } catch (_e) {
     throw Error("Couldn't create redeem extrinsic");
   }
 }

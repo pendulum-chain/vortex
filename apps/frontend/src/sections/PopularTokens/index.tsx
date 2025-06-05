@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
+import { useEffect, useState } from 'react';
 
-import { getNetworkDisplayName, Networks } from 'shared';
 import { useTranslation } from 'react-i18next';
+import { Networks, getNetworkDisplayName } from 'shared';
 
-import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
-import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useNetwork } from '../../contexts/network';
 import { cn } from '../../helpers/cn';
+import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
+import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 
 const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDC', assetIcon: 'usdc' },

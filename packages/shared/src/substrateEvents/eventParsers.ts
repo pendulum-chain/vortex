@@ -1,9 +1,9 @@
+import { encodeAddress } from '@polkadot/util-crypto';
 // @todo: remove no-explicit-any
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Big from 'big.js';
-import { encodeAddress } from '@polkadot/util-crypto';
 
-import { stellarHexToPublic, hexToString } from '../helpers/conversions';
+import { hexToString, stellarHexToPublic } from '../helpers/conversions';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
 export type XcmSentEvent = ReturnType<typeof parseEventXcmSent>;

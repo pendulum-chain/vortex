@@ -1,11 +1,11 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { RefObject, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { EvmToken, getNetworkDisplayName, getNetworkId, getOnChainTokenDetails, Networks } from 'shared';
+import { RefObject, useEffect, useRef, useState } from 'react';
+import { EvmToken, Networks, getNetworkDisplayName, getNetworkId, getOnChainTokenDetails } from 'shared';
 import { useNetwork } from '../../contexts/network';
-import { NetworkIcon } from '../NetworkIcon';
 import { cn } from '../../helpers/cn';
 import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
+import { NetworkIcon } from '../NetworkIcon';
 
 interface NetworkButtonProps {
   selectedNetwork: Networks;

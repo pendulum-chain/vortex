@@ -1,10 +1,10 @@
 import SafeApiKit from '@safe-global/api-kit';
-import { waitForTransactionReceipt, getChainId } from '@wagmi/core';
+import { getChainId, waitForTransactionReceipt } from '@wagmi/core';
 import { Hash } from 'viem';
 
-import { isTransactionHashSafeWallet } from './isTransactionSafeWallet';
-import { wagmiConfig } from '../../wagmiConfig';
 import { useSafeWalletSignatureStore } from '../../stores/safeWalletSignaturesStore';
+import { wagmiConfig } from '../../wagmiConfig';
+import { isTransactionHashSafeWallet } from './isTransactionSafeWallet';
 
 /**
  * Waits for a transaction to be confirmed, handling both regular and Safe Wallet transactions.

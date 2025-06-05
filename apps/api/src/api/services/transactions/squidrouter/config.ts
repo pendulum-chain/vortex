@@ -1,4 +1,4 @@
-import { AXL_USDC_MOONBEAM, getNetworkId, Networks } from 'shared';
+import { AXL_USDC_MOONBEAM, Networks, getNetworkId } from 'shared';
 
 export const SQUIDROUTER_FEE_OVERPAY = 0.25; // 25% overpayment
 

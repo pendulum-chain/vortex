@@ -1,20 +1,20 @@
-import { Request, Response, NextFunction } from 'express';
-import { Keypair } from 'stellar-sdk';
+import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
+import { Keypair } from 'stellar-sdk';
 
 import { FiatToken } from 'shared';
 import { StellarEndpoints } from 'shared/src/endpoints/stellar.endpoints';
 import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
-import { buildCreationStellarTx, horizonServer } from '../services/stellar.service';
 import { SlackNotifier } from '../services/slack.service';
+import { buildCreationStellarTx, horizonServer } from '../services/stellar.service';
 
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 
 export const createStellarTransactionHandler = async (
   req: Request<{}, {}, StellarEndpoints.CreateStellarTransactionRequest>,
   res: Response<StellarEndpoints.CreateStellarTransactionResponse | StellarEndpoints.StellarErrorResponse>,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
   try {
     if (!FUNDING_SECRET) {
@@ -40,7 +40,7 @@ export const createStellarTransactionHandler = async (
 export const signSep10ChallengeHandler = async (
   req: Request<{}, {}, StellarEndpoints.SignSep10ChallengeRequest>,
   res: Response<StellarEndpoints.SignSep10ChallengeResponse | StellarEndpoints.StellarErrorResponse>,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
   try {
     const { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
@@ -62,7 +62,7 @@ export const signSep10ChallengeHandler = async (
 export const getSep10MasterPKHandler = async (
   _: Request,
   res: Response<StellarEndpoints.GetSep10MasterPKResponse | StellarEndpoints.StellarErrorResponse>,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
   try {
     if (!SEP10_MASTER_SECRET) {

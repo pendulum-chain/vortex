@@ -1,7 +1,7 @@
+import vortexIcon from '../../assets/logo/blue.svg';
 import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
-import vortexIcon from '../../assets/logo/blue.svg';
 
 import { JSX } from 'react';
 import { PriceEndpoints } from 'shared';

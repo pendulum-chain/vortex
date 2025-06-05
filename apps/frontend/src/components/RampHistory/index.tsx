@@ -1,13 +1,13 @@
-import { useEffect } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { AnimatePresence, motion } from 'motion/react';
+import { useEffect } from 'react';
 
-import { useRampHistoryStore } from '../../stores/rampHistoryStore';
-import { useVortexAccount } from '../../hooks/useVortexAccount';
 import { useRampHistory } from '../../hooks/useRampHistory';
+import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useRampHistoryStore } from '../../stores/rampHistoryStore';
 
-import { groupRampHistoryByMonth } from './helpers';
 import { TransactionItem } from './TransactionItem';
+import { groupRampHistoryByMonth } from './helpers';
 import { TransactionGroup } from './types';
 
 export function RampHistory() {

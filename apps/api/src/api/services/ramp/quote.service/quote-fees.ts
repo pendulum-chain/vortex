@@ -1,9 +1,9 @@
 import Big from 'big.js';
 import httpStatus from 'http-status';
 import { DestinationType, RampCurrency } from 'shared';
-import Partner from '../../../../models/partner.model';
-import Anchor from '../../../../models/anchor.model';
 import logger from '../../../../config/logger';
+import Anchor from '../../../../models/anchor.model';
+import Partner from '../../../../models/partner.model';
 import { APIError } from '../../../errors/api-error';
 import { priceFeedService } from '../../priceFeed.service';
 import { getTargetFiatCurrency, validateChainSupport } from './helpers';

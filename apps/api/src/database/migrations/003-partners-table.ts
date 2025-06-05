@@ -1,4 +1,4 @@
-import { QueryInterface, DataTypes } from 'sequelize';
+import { DataTypes, QueryInterface } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Create partners table

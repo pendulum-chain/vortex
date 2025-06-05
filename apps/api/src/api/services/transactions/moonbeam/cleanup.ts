@@ -1,8 +1,8 @@
 import { SubmittableExtrinsic } from '@polkadot/api/types';
 import { ISubmittableResult } from '@polkadot/types/types';
-import { ApiManager } from '../../pendulum/apiManager';
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { privateKeyToAccount } from 'viem/accounts';
+import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
+import { ApiManager } from '../../pendulum/apiManager';
 
 export async function prepareMoonbeamCleanupTransaction(): Promise<
   SubmittableExtrinsic<'promise', ISubmittableResult>

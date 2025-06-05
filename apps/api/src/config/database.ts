@@ -1,6 +1,6 @@
 import { Sequelize } from 'sequelize';
-import { config } from './vars';
 import logger from './logger';
+import { config } from './vars';
 
 // Add database configuration to vars.ts
 declare module './vars' {

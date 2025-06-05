@@ -1,11 +1,11 @@
-import { createContext, ReactNode, useContext, useState, useCallback } from 'react';
+import { ReactNode, createContext, useCallback, useContext, useState } from 'react';
+import { Networks, getNetworkId, isNetworkEVM } from 'shared';
 import { useAccount, useSwitchChain } from 'wagmi';
-import { useLocalStorage, LocalStorageKeys } from '../hooks/useLocalStorage';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
-import { useRampActions } from '../stores/rampStore';
-import { getNetworkId, isNetworkEVM, Networks } from 'shared';
-import { useSep24Actions } from '../stores/sep24Store';
+import { LocalStorageKeys, useLocalStorage } from '../hooks/useLocalStorage';
 import { useRampUrlParams } from '../hooks/useRampUrlParams';
+import { useRampActions } from '../stores/rampStore';
+import { useSep24Actions } from '../stores/sep24Store';
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;

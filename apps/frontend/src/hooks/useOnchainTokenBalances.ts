@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useReadContracts } from 'wagmi';
-import { Abi } from 'viem';
 import Big from 'big.js';
+import { useEffect, useMemo, useState } from 'react';
+import { Abi } from 'viem';
+import { useReadContracts } from 'wagmi';
 
 import {
   AssetHubTokenDetails,
@@ -9,20 +9,20 @@ import {
   EvmTokenDetails,
   EvmTokenDetailsWithBalance,
   FiatTokenDetails,
+  OnChainTokenDetails,
+  OnChainTokenDetailsWithBalance,
   getNetworkId,
   isAssetHubTokenDetails,
   isEvmTokenDetails,
-  OnChainTokenDetails,
-  OnChainTokenDetailsWithBalance,
   nativeToDecimal,
 } from 'shared';
 
-import { useVortexAccount } from './useVortexAccount';
 import { useNetwork } from '../contexts/network';
+import { useAssetHubNode } from '../contexts/polkadotNode';
+import { usePolkadotWalletState } from '../contexts/polkadotWallet';
 import erc20ABI from '../contracts/ERC20';
 import { multiplyByPowerOfTen } from '../helpers/contracts';
-import { usePolkadotWalletState } from '../contexts/polkadotWallet';
-import { useAssetHubNode } from '../contexts/polkadotNode';
+import { useVortexAccount } from './useVortexAccount';
 
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { address } = useVortexAccount();

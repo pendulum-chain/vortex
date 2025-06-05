@@ -1,11 +1,11 @@
+import { ReadMessageResult } from '@pendulum-chain/api-solang';
 import httpStatus from 'http-status';
-import RampState from '../../../models/rampState.model';
+import { PresignedTx, RampErrorLog, RampPhase } from 'shared';
 import logger from '../../../config/logger';
+import RampState from '../../../models/rampState.model';
 import { APIError } from '../../errors/api-error';
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from '../../errors/phase-error';
-import { PresignedTx, RampErrorLog, RampPhase } from 'shared';
 import rampService from '../ramp/ramp.service';
-import { ReadMessageResult } from '@pendulum-chain/api-solang';
 
 /**
  * Base interface for phase handlers

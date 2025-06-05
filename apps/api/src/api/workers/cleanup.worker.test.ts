@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, expect, it, mock, beforeEach } from 'bun:test';
-import CleanupWorker from './cleanup.worker';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import RampState from '../../models/rampState.model';
+import CleanupWorker from './cleanup.worker';
 
 mock.module('../../config/logger', () => ({
   default: {
@@ -14,13 +14,13 @@ mock.module('../../config/logger', () => ({
 type ProcessResult = readonly [boolean, Error | null];
 
 const mockPendulumHandler = {
-  shouldProcess: mock((state: any) => true),
+  shouldProcess: mock((_state: any) => true),
   process: mock(async (): Promise<ProcessResult> => [true, null]),
   getCleanupName: () => 'pendulum',
 };
 
 const mockStellarHandler = {
-  shouldProcess: mock((state: any) => true),
+  shouldProcess: mock((_state: any) => true),
   process: mock(async (): Promise<ProcessResult> => [true, null]),
   getCleanupName: () => 'stellar',
 };
@@ -29,7 +29,7 @@ mock.module('../services/phases/post-process', () => ({
   postProcessHandlers: [mockPendulumHandler, mockStellarHandler],
 }));
 
-const updateMock = mock((values: any, options: any) => {
+const updateMock = mock((_values: any, _options: any) => {
   return Promise.resolve([1, []]);
 });
 RampState.update = updateMock as any;

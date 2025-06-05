@@ -1,9 +1,9 @@
 import { CronJob } from 'cron';
 import { Op } from 'sequelize';
-import RampState from '../../models/rampState.model';
-import logger from '../../config/logger';
-import phaseProcessor from '../services/phases/phase-processor';
 import { RampErrorLog } from 'shared';
+import logger from '../../config/logger';
+import RampState from '../../models/rampState.model';
+import phaseProcessor from '../services/phases/phase-processor';
 import rampService from '../services/ramp/ramp.service';
 
 const TEN_MINUTES_IN_MS = 10 * 60 * 1000;

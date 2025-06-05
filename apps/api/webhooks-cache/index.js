@@ -5,7 +5,7 @@ const httpStatus = require('http-status');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PASSWORD = process.env.PASSWORD || 'bananas';
-const ALLOWED_WEBHOOK_DOMAIN = process.env.ALLOWED_WEBHOOK_DOMAIN || 'https://api.brla.digital';
+const _ALLOWED_WEBHOOK_DOMAIN = process.env.ALLOWED_WEBHOOK_DOMAIN || 'https://api.brla.digital';
 
 app.use(bodyParser.json());
 
@@ -24,9 +24,9 @@ function authMiddleware(req, res, next) {
 }
 
 const checkDomain = (req, res, next) => {
-  const referer = req.get('referer');
-  const origin = req.get('origin');
-  const forwarded = req.get('x-forwarded-host');
+  const _referer = req.get('referer');
+  const _origin = req.get('origin');
+  const _forwarded = req.get('x-forwarded-host');
 
   // TODO how to get the domain from the request?
 
@@ -47,11 +47,11 @@ app.post('*', checkDomain, (req, res) => {
   res.status(httpStatus.OK).send('Event recorded');
 });
 
-app.get('/events', authMiddleware, (req, res) => {
+app.get('/events', authMiddleware, (_req, res) => {
   res.json(events);
 });
 
-app.patch('/delete', authMiddleware, (req, res) => {
+app.patch('/delete', authMiddleware, (_req, _res) => {
   events = [];
 });
 

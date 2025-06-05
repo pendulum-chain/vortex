@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
 import { RampCurrency } from 'shared';
+import sequelize from '../config/database';
 
 // Define the attributes of the Partner model
 export interface PartnerAttributes {

@@ -1,18 +1,18 @@
-import { createPublicClient, http } from 'viem';
-import { moonbeam } from 'viem/chains';
-import erc20ABI from '../../../contracts/ERC20';
 import Big from 'big.js';
-import { ApiManager } from '../pendulum/apiManager';
+import { Networks } from 'shared';
+import { http, createPublicClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { moonbeam } from 'viem/chains';
+import logger from '../../../config/logger';
 import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
   MOONBEAM_FUNDING_PRIVATE_KEY,
 } from '../../../constants/constants';
+import erc20ABI from '../../../contracts/ERC20';
+import { ApiManager } from '../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { privateKeyToAccount } from 'viem/accounts';
 import { createMoonbeamClientsAndConfig } from './createServices';
-import logger from '../../../config/logger';
-import { Networks } from 'shared';
 
 export enum BalanceCheckErrorType {
   Timeout = 'BALANCE_CHECK_TIMEOUT',
@@ -20,7 +20,10 @@ export enum BalanceCheckErrorType {
 }
 
 export class BalanceCheckError extends Error {
-  constructor(public readonly type: BalanceCheckErrorType, message: string) {
+  constructor(
+    public readonly type: BalanceCheckErrorType,
+    message: string,
+  ) {
     super(message);
     this.name = 'BalanceCheckError';
   }
@@ -100,7 +103,7 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string, des
 
 export function getMoonbeamFundingData(
   decimals: number,
-  largeFunding: boolean = false,
+  largeFunding = false,
 ): {
   fundingAmountRaw: string;
   walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>['walletClient'];

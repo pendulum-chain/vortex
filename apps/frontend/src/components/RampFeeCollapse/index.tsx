@@ -1,11 +1,11 @@
-import { useTranslation } from 'react-i18next';
+import { InformationCircleIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
+import { useTranslation } from 'react-i18next';
+import { QuoteEndpoints } from 'shared';
 import { useQuote } from '../../stores/ramp/useQuoteStore';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
-import { InformationCircleIcon } from '@heroicons/react/20/solid';
-import { QuoteEndpoints } from 'shared';
 
 interface FeeItem {
   label: string;

@@ -1,14 +1,14 @@
-import { FiatToken, getNetworkFromDestination, RampPhase } from 'shared';
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
-import { API, ApiManager } from '../../pendulum/apiManager';
-import { StateMetadata } from '../meta-state-types';
-import { fundEphemeralAccount } from '../../pendulum/pendulum.service';
 import Big from 'big.js';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
-import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
-import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
+import { FiatToken, RampPhase, getNetworkFromDestination } from 'shared';
 import logger from '../../../../config/logger';
+import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
+import RampState from '../../../../models/rampState.model';
+import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
+import { API, ApiManager } from '../../pendulum/apiManager';
+import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { fundEphemeralAccount } from '../../pendulum/pendulum.service';
+import { BasePhaseHandler } from '../base-phase-handler';
+import { StateMetadata } from '../meta-state-types';
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {

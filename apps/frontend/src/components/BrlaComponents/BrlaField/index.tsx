@@ -1,9 +1,9 @@
+import { motion } from 'motion/react';
 import { FC } from 'react';
 import { useFormContext, useFormState } from 'react-hook-form';
-import { motion } from 'motion/react';
 
-import { Field, FieldProps } from '../../Field';
 import { cn } from '../../../helpers/cn';
+import { Field, FieldProps } from '../../Field';
 
 export enum StandardBrlaFieldOptions {
   TAX_ID = 'taxId',

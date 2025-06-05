@@ -1,9 +1,9 @@
 import { CronJob } from 'cron';
 import { CleanupPhase } from 'shared'; // <-- Import CleanupPhase
 import logger from '../../config/logger';
-import { BaseRampService } from '../services/ramp/base.service';
 import RampState from '../../models/rampState.model';
-import { postProcessHandlers, BasePostProcessHandler } from '../services/phases/post-process';
+import { BasePostProcessHandler, postProcessHandlers } from '../services/phases/post-process';
+import { BaseRampService } from '../services/ramp/base.service';
 
 interface HandlerError {
   name: CleanupPhase; // <-- Use CleanupPhase type

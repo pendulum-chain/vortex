@@ -2,9 +2,9 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
-import { TextInput } from '../TextInput';
 import { useEventsContext } from '../../contexts/events';
 import { EmailService } from '../../services/api';
+import { TextInput } from '../TextInput';
 
 interface EmailFormProps {
   transactionId?: string;

@@ -1,11 +1,11 @@
-import { FiatToken, RampPhase } from 'shared';
 import Big from 'big.js';
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
-import { StateMetadata } from '../meta-state-types';
-import { ApiManager } from '../../pendulum/apiManager';
-import { getFundingAccount } from '../../../controllers/subsidize.controller';
+import { FiatToken, RampPhase } from 'shared';
 import logger from '../../../../config/logger';
+import RampState from '../../../../models/rampState.model';
+import { getFundingAccount } from '../../../controllers/subsidize.controller';
+import { ApiManager } from '../../pendulum/apiManager';
+import { BasePhaseHandler } from '../base-phase-handler';
+import { StateMetadata } from '../meta-state-types';
 
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {

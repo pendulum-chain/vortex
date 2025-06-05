@@ -1,17 +1,17 @@
-import { useTranslation } from 'react-i18next';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useKYCProcess } from '../../hooks/brla/useBRLAKYCProcess';
 import { useKYCForm } from '../../hooks/brla/useKYCForm';
 import { isValidCnpj } from '../../hooks/ramp/schema';
 import { useRampKycLevel2Started } from '../../stores/rampStore';
 
-import { useBrlaKycTaxIdLocalStorage } from './useBrlaKycTaxIdLocalStorage';
 import { BrlaFieldProps, ExtendedBrlaFieldOptions } from './BrlaField';
-import { VerificationStatus } from './VerificationStatus';
-import { DocumentUpload } from './KYCLevel2Form';
 import { KYCForm } from './KYCForm';
 import { useKYCFormLocalStorage } from './KYCForm/useKYCFormLocalStorage';
+import { DocumentUpload } from './KYCLevel2Form';
+import { VerificationStatus } from './VerificationStatus';
+import { useBrlaKycTaxIdLocalStorage } from './useBrlaKycTaxIdLocalStorage';
 
 export const PIXKYCForm = () => {
   const {

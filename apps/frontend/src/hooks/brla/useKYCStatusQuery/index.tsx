@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { KycStatus, fetchKycStatus } from '../../../services/signingService';
 import { BrlaKycStatus, KycLevel } from '../useBRLAKYCProcess';
-import { fetchKycStatus, KycStatus } from '../../../services/signingService';
 
 const POLLING_INTERVAL_MS = 2000;
 const RETRY_DELAY_MS = 5000; // 5 seconds

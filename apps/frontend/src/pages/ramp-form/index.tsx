@@ -1,17 +1,17 @@
 import { motion } from 'motion/react';
 import { PIXKYCForm } from '../../components/BrlaComponents/BrlaExtendedForm';
 import { PoolSelectorModal } from '../../components/InputKeys/SelectionModal';
-import { RampDirection, RampToggle } from '../../components/RampToggle';
-import { RampSummaryDialog } from '../../components/RampSummaryDialog';
+import { PoweredBy } from '../../components/PoweredBy';
 import { Offramp } from '../../components/Ramp/Offramp';
 import { Onramp } from '../../components/Ramp/Onramp';
-import { RampHistoryButton } from '../../components/RampHistory/RampHistoryButton';
 import { RampHistory } from '../../components/RampHistory';
-import { PoweredBy } from '../../components/PoweredBy';
+import { RampHistoryButton } from '../../components/RampHistory/RampHistoryButton';
+import { RampSummaryDialog } from '../../components/RampSummaryDialog';
+import { RampDirection, RampToggle } from '../../components/RampToggle';
 
+import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
 import { useRampDirection, useRampDirectionToggle } from '../../stores/rampDirectionStore';
 import { useRampKycLevel2Started, useRampKycStarted } from '../../stores/rampStore';
-import { useSetRampUrlParams } from '../../hooks/useRampUrlParams';
 
 export const RampForm = () => {
   const activeSwapDirection = useRampDirection();

@@ -1,11 +1,11 @@
 import { CronJob } from 'cron';
+import { Op } from 'sequelize';
 import logger from '../../config/logger';
 import RampState from '../../models/rampState.model';
 import { BrlaApiService } from '../services/brla/brlaApiService';
-import { Op } from 'sequelize';
 import { generateReferenceLabel, isValidReferenceLabel } from '../services/brla/helpers';
-import { SlackNotifier } from '../services/slack.service';
 import { DepositLog } from '../services/brla/types';
+import { SlackNotifier } from '../services/slack.service';
 
 const DEFAULT_CRON_TIME = '*/15 * * * *';
 const TEN_MINUTES_MS = 10 * 60 * 1000;

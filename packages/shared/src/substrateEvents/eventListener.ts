@@ -24,7 +24,7 @@ export class EventListener {
     this.api = api;
     this.initEventSubscriber();
 
-    this.api!.on('connected', async (): Promise<void> => {
+    this.api?.on('connected', async (): Promise<void> => {
       console.log('Connected (or reconnected) to the endpoint.');
       await this.checkForMissedEvents();
     });
@@ -40,7 +40,7 @@ export class EventListener {
   }
 
   async initEventSubscriber() {
-    this.unsubscribeHandle = (await this.api!.query.system.events((events: any) => {
+    this.unsubscribeHandle = (await this.api?.query.system.events((events: any) => {
       events.forEach((event: any) => {
         this.processEvents(event, this.pendingRedeemEvents);
         this.processEvents(event, this.pendingXcmSentEvents);

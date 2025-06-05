@@ -1,5 +1,5 @@
-import { arbitrum, avalanche, base, bsc, mainnet, polygon } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
+import { arbitrum, avalanche, base, bsc, mainnet, polygon } from '@reown/appkit/networks';
 import { createAppKit } from '@reown/appkit/react';
 import { http } from 'wagmi';
 

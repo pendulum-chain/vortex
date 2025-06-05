@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { RampService } from '../services/api/ramp.service';
 import { Transaction } from '../components/RampHistory/types';
+import { RampService } from '../services/api/ramp.service';
 
 export function useRampHistory(walletAddress: string | undefined) {
   return useQuery({
@@ -24,7 +24,7 @@ export function useRampHistory(walletAddress: string | undefined) {
             date: new Date(tx.date),
             fromCurrency: tx.fromCurrency,
             toCurrency: tx.toCurrency,
-          } as Transaction),
+          }) as Transaction,
       );
 
       return { transactions };

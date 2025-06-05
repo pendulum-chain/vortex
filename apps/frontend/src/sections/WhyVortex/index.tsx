@@ -1,9 +1,9 @@
 import { motion } from 'motion/react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import PERCENT from '../../assets/why-vortex/percent.svg';
 import COFFEE from '../../assets/why-vortex/coffee.svg';
 import LOCK from '../../assets/why-vortex/lock.svg';
+import PERCENT from '../../assets/why-vortex/percent.svg';
 import USER_CHECK from '../../assets/why-vortex/user-check.svg';
 
 interface Feature {

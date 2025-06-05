@@ -1,10 +1,10 @@
-import { CleanupPhase, FiatToken, Networks, PresignedTx, RampPhase, decodeSubmittableExtrinsic } from 'shared';
-import { BasePostProcessHandler } from './base-post-process-handler';
-import RampState from '../../../../models/rampState.model';
-import logger from '../../../../config/logger';
-import { ApiManager } from '../../pendulum/apiManager';
 import { submitExtrinsic } from '@pendulum-chain/api-solang';
+import { CleanupPhase, FiatToken, Networks, PresignedTx, RampPhase, decodeSubmittableExtrinsic } from 'shared';
+import logger from '../../../../config/logger';
+import RampState from '../../../../models/rampState.model';
+import { ApiManager } from '../../pendulum/apiManager';
 import { StateMetadata } from '../meta-state-types';
+import { BasePostProcessHandler } from './base-post-process-handler';
 
 /**
  * Post process handler for Pendulum cleanup operations

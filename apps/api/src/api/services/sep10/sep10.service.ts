@@ -1,8 +1,8 @@
-import { Keypair, TransactionBuilder, Networks, Transaction } from 'stellar-sdk';
 import { FiatToken, TOKEN_CONFIG } from 'shared';
-import { SEP10_MASTER_SECRET, CLIENT_DOMAIN_SECRET } from '../../../constants/constants';
+import { Keypair, Networks, Transaction, TransactionBuilder } from 'stellar-sdk';
+import { CLIENT_DOMAIN_SECRET, SEP10_MASTER_SECRET } from '../../../constants/constants';
 import { fetchTomlValues } from '../../helpers/anchors';
-import { getOutToken, validateTransaction, validateFirstOperation, validateRemainingOperations } from './helpers';
+import { getOutToken, validateFirstOperation, validateRemainingOperations, validateTransaction } from './helpers';
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 

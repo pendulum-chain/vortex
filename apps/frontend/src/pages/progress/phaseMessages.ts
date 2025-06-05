@@ -1,13 +1,13 @@
+import { TFunction } from 'i18next';
 import {
   FiatToken,
+  OnChainToken,
+  RampPhase,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
-  OnChainToken,
-  RampPhase,
 } from 'shared';
 import { RampState } from '../../types/phases';
-import { TFunction } from 'i18next';
 
 export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'translation', undefined>): string {
   if (!ramp || !ramp.ramp) return t('pages.progress.initial');
@@ -30,8 +30,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
     currentState.type === 'off'
       ? getAnyFiatTokenDetails(quote.outputCurrency as FiatToken).assetSymbol
       : toNetwork
-      ? getOnChainTokenDetailsOrDefault(toNetwork, quote.outputCurrency as OnChainToken).assetSymbol
-      : 'Unknown'; // Fallback when network is undefined
+        ? getOnChainTokenDetailsOrDefault(toNetwork, quote.outputCurrency as OnChainToken).assetSymbol
+        : 'Unknown'; // Fallback when network is undefined
 
   if (currentPhase === 'complete') return t('pages.progress.success');
 

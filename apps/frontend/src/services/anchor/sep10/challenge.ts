@@ -1,4 +1,4 @@
-import { Transaction, Networks, Memo, Operation, MemoType } from 'stellar-sdk';
+import { Memo, MemoType, Networks, Operation, Transaction } from 'stellar-sdk';
 
 interface Sep10Challenge {
   transaction: string;

@@ -1,10 +1,10 @@
-import { v4 as uuidv4 } from 'uuid';
-import { Transaction, Op } from 'sequelize';
-import logger from '../../../config/logger';
-import RampState, { RampStateAttributes } from '../../../models/rampState.model';
-import QuoteTicket from '../../../models/quoteTicket.model';
-import sequelize from '../../../config/database';
+import { Op, Transaction } from 'sequelize';
 import { RampPhase } from 'shared';
+import { v4 as uuidv4 } from 'uuid';
+import sequelize from '../../../config/database';
+import logger from '../../../config/logger';
+import QuoteTicket from '../../../models/quoteTicket.model';
+import RampState, { RampStateAttributes } from '../../../models/rampState.model';
 
 export class BaseRampService {
   /**

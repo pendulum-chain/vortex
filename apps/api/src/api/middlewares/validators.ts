@@ -1,13 +1,13 @@
 import { RequestHandler } from 'express';
-import { ParsedQs } from 'qs';
 import httpStatus from 'http-status';
-import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
+import { ParsedQs } from 'qs';
 import { BrlaEndpoints, TokenConfig } from 'shared';
+import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
-import { isValidKYCDocType, RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
+import { RegisterSubaccountPayload, TriggerOfframpRequest, isValidKYCDocType } from '../services/brla/types';
 
 interface CreationBody {
   accountId: string;

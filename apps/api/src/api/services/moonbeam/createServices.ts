@@ -1,7 +1,7 @@
-import { createPublicClient, createWalletClient, http } from 'viem';
-import { moonbeam } from 'viem/chains';
-import { privateKeyToAccount } from 'viem/accounts';
 import { createConfig } from '@wagmi/core';
+import { http, createPublicClient, createWalletClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { moonbeam } from 'viem/chains';
 
 export const createMoonbeamClientsAndConfig = (executorAccount: ReturnType<typeof privateKeyToAccount>) => {
   const walletClient = createWalletClient({

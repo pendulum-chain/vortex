@@ -1,13 +1,15 @@
-import dotenv from 'dotenv';
 import path from 'path';
+import dotenv from 'dotenv';
 
 dotenv.config({
   path: [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '../.env')],
 });
 
-import { config } from './config/vars';
-import logger from './config/logger';
+import { ApiManager } from './api/services/pendulum/apiManager';
+import { testDatabaseConnection } from './config/database';
 import app from './config/express';
+import logger from './config/logger';
+import { config } from './config/vars';
 import {
   CLIENT_DOMAIN_SECRET,
   DEFAULT_POLLING_INTERVAL,
@@ -15,14 +17,12 @@ import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   PENDULUM_FUNDING_SEED,
 } from './constants/constants';
-import { ApiManager } from './api/services/pendulum/apiManager';
-import { testDatabaseConnection } from './config/database';
 import { runMigrations } from './database/migrator';
 import './models'; // Initialize models
+import { EventPoller } from './api/services/brla/webhooks';
+import registerPhaseHandlers from './api/services/phases/register-handlers';
 import CleanupWorker from './api/workers/cleanup.worker';
 import RampRecoveryWorker from './api/workers/ramp-recovery.worker';
-import registerPhaseHandlers from './api/services/phases/register-handlers';
-import { EventPoller } from './api/services/brla/webhooks';
 import UnhandledPaymentWorker from './api/workers/unhandled-payment.worker';
 
 const { port, env } = config;

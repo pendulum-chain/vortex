@@ -1,13 +1,13 @@
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
 import { FiatToken, PriceEndpoints } from 'shared';
-import { useVortexAccount } from '../hooks/useVortexAccount';
 import { getNetworkId, isNetworkEVM } from 'shared';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
+import { useVortexAccount } from '../hooks/useVortexAccount';
 import { storageService } from '../services/storage/local';
-import { useNetwork } from './network';
-import { RampState } from '../types/phases';
 import { useInputAmount } from '../stores/ramp/useRampFormStore';
+import { RampState } from '../types/phases';
+import { useNetwork } from './network';
 
 declare global {
   interface Window {

@@ -1,24 +1,24 @@
-import { useMemo } from 'react';
-import Big from 'big.js';
-import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import Big from 'big.js';
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
+  PriceEndpoints,
   getAnyFiatTokenDetails,
   getNetworkDisplayName,
   getOnChainTokenDetailsOrDefault,
   isNetworkEVM,
-  PriceEndpoints,
 } from 'shared';
-import { FeeProviderRow } from '../FeeProviderRow';
+import { RampDirection } from '../../../components/RampToggle';
+import { activeOptions, cacheKeys } from '../../../constants/cache';
 import { useNetwork } from '../../../contexts/network';
-import { priceProviders } from '../priceProviders';
+import { PriceService } from '../../../services/api';
+import { useQuote } from '../../../stores/ramp/useQuoteStore';
 import { useRampFormStore } from '../../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../../stores/rampDirectionStore';
-import { RampDirection } from '../../../components/RampToggle';
-import { PriceService } from '../../../services/api';
-import { cacheKeys, activeOptions } from '../../../constants/cache';
-import { useQuote } from '../../../stores/ramp/useQuoteStore';
+import { FeeProviderRow } from '../FeeProviderRow';
+import { priceProviders } from '../priceProviders';
 
 const DEFAULT_PROVIDERS = [...priceProviders];
 

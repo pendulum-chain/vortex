@@ -1,5 +1,5 @@
-import React from 'react';
 import { motion } from 'motion/react';
+import React from 'react';
 
 import { KycStatus } from '../../../services/signingService';
 import { Spinner } from '../../Spinner';

@@ -1,10 +1,10 @@
-import { Transaction, Keypair, Memo, Operation, MemoType } from 'stellar-sdk';
+import { Keypair, Memo, MemoType, Operation, Transaction } from 'stellar-sdk';
 
-import { getTokenDetailsSpacewalk, FiatToken } from 'shared';
+import { FiatToken, getTokenDetailsSpacewalk } from 'shared';
 import { TomlValues } from '../../../types/sep';
 
-import { exists, getUrlParams, sep10SignaturesWithLoginRefresh } from './utils';
 import { fetchAndValidateChallenge } from './challenge';
+import { exists, getUrlParams, sep10SignaturesWithLoginRefresh } from './utils';
 
 interface Sep10Response {
   token: string;

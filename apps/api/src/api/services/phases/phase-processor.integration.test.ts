@@ -2,32 +2,32 @@
 import { describe, it, mock } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { PhaseProcessor } from './phase-processor';
-import RampState from '../../../models/rampState.model';
-import QuoteTicket from '../../../models/quoteTicket.model';
-import { RampService } from '../ramp/ramp.service';
-import { BrlaApiService } from '../brla/brlaApiService';
-import { AccountMeta, Networks, EvmToken, FiatToken, signUnsignedTransactions, EvmTransactionData } from 'shared';
-import { SubaccountData } from '../brla/types';
-import { QuoteService } from '../ramp/quote.service';
-import { EphemeralAccount } from 'shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
+import { AccountMeta, EvmToken, EvmTransactionData, FiatToken, Networks, signUnsignedTransactions } from 'shared';
+import { EphemeralAccount } from 'shared';
 import { Keypair } from 'stellar-sdk';
-import { API, ApiManager } from '../pendulum/apiManager';
-import { createPublicClient, createWalletClient, formatGwei, gweiUnits, http, parseGwei } from 'viem';
-import { polygon } from 'viem/chains';
+import { http, createPublicClient, createWalletClient, formatGwei, gweiUnits, parseGwei } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { polygon } from 'viem/chains';
 import { BACKEND_TEST_STARTER_ACCOUNT } from '../../../constants/constants';
+import QuoteTicket from '../../../models/quoteTicket.model';
+import RampState from '../../../models/rampState.model';
+import { BrlaApiService } from '../brla/brlaApiService';
+import { SubaccountData } from '../brla/types';
+import { API, ApiManager } from '../pendulum/apiManager';
+import { QuoteService } from '../ramp/quote.service';
+import { RampService } from '../ramp/ramp.service';
+import { PhaseProcessor } from './phase-processor';
 
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
+import Big from 'big.js';
 import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import registerPhaseHandlers from './register-handlers';
-import Big from 'big.js';
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
-const TAX_ID = process.env.TAX_ID;
+const _TAX_ID = process.env.TAX_ID;
 // BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
 // This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
@@ -103,7 +103,7 @@ console.log('Test Signing Accounts:', testSigningAccountsMeta);
 let rampState: RampState;
 let quoteTicket: QuoteTicket;
 
-RampState.update = mock(async function (updateData: any, options?: any) {
+RampState.update = mock(async function (updateData: any, _options?: any) {
   // Merge the update into the current instance.
   rampState = { ...rampState, ...updateData, updatedAt: new Date() };
 
@@ -112,7 +112,7 @@ RampState.update = mock(async function (updateData: any, options?: any) {
   return rampState;
 }) as any;
 
-RampState.findByPk = mock(async (id: string) => {
+RampState.findByPk = mock(async (_id: string) => {
   return rampState;
 });
 
@@ -121,7 +121,7 @@ RampState.create = mock(async (data: any) => {
     ...data,
     createdAt: new Date(),
     updatedAt: new Date(),
-    update: async function (updateData: any, options?: any) {
+    update: async function (updateData: any, _options?: any) {
       // Merge the update into the current instance.
       rampState = { ...rampState, ...updateData, updatedAt: new Date() };
 
@@ -129,7 +129,7 @@ RampState.create = mock(async (data: any) => {
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
-    reload: async function (options?: any) {
+    reload: async function (_options?: any) {
       return rampState;
     },
   };
@@ -138,14 +138,14 @@ RampState.create = mock(async (data: any) => {
   return rampState;
 }) as any;
 
-QuoteTicket.findByPk = mock(async (id: string) => {
+QuoteTicket.findByPk = mock(async (_id: string) => {
   return quoteTicket;
 });
 
 QuoteTicket.create = mock(async (data: any) => {
   quoteTicket = {
     ...data,
-    update: async function (updateData: any, options?: any) {
+    update: async function (updateData: any, _options?: any) {
       quoteTicket = { ...quoteTicket, ...updateData };
       return quoteTicket;
     },
@@ -229,7 +229,7 @@ rampRecoveryWorker.start = mock(async () => ({}));
 describe('PhaseProcessor Integration Test', () => {
   it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
     try {
-      const processor = new PhaseProcessor();
+      const _processor = new PhaseProcessor();
       const rampService = new RampService();
       const quoteService = new QuoteService();
 
@@ -239,7 +239,7 @@ describe('PhaseProcessor Integration Test', () => {
         walletAddress: EVM_TESTING_ADDRESS,
         paymentData: {
           amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
-          memoType: 'text' as 'text', // Explicitly type as literal 'text' to avoid TypeScript error
+          memoType: 'text' as const, // Explicitly type as literal 'text' to avoid TypeScript error
           memo: '1204asjfnaksf10982e4',
           anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
         },
@@ -259,7 +259,7 @@ describe('PhaseProcessor Integration Test', () => {
 
       additionalData.paymentData.amount = new Big(quoteTicket.outputAmount).add(quoteTicket.fee).toString();
 
-      let registeredRamp = await rampService.registerRamp({
+      const registeredRamp = await rampService.registerRamp({
         signingAccounts: testSigningAccountsMeta,
         quoteId: quoteTicket.id,
         additionalData,
@@ -272,7 +272,7 @@ describe('PhaseProcessor Integration Test', () => {
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
       const presignedTxs = await signUnsignedTransactions(
-        registeredRamp!.unsignedTxs,
+        registeredRamp?.unsignedTxs,
         {
           stellarEphemeral: testSigningAccounts.stellar,
           pendulumEphemeral: testSigningAccounts.pendulum,
@@ -315,12 +315,12 @@ describe('PhaseProcessor Integration Test', () => {
   });
 });
 
-async function executeEvmTransaction(network: Networks, txData: EvmTransactionData): Promise<string> {
+async function executeEvmTransaction(_network: Networks, txData: EvmTransactionData): Promise<string> {
   try {
     const seed = mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!);
     const { privateKey } = HDKey.fromMasterSeed(seed);
 
-    const moonbeamExecutorAccount = privateKeyToAccount(`0x${privateKey!.toHex()}` as `0x${string}`);
+    const moonbeamExecutorAccount = privateKeyToAccount(`0x${privateKey?.toHex()}` as `0x${string}`);
     // const chainId = getNetworkId(network); Need to get the network based on the id.
     const walletClient = createWalletClient({
       account: moonbeamExecutorAccount,
@@ -358,7 +358,7 @@ async function executeEvmTransaction(network: Networks, txData: EvmTransactionDa
   }
 }
 
-async function waitForCompleteRamp(rampId: string) {
+async function waitForCompleteRamp(_rampId: string) {
   const pollInterval = 10 * 1000; // 10 seconds
   const globalTimeout = 15 * 60 * 1000; // 15 minutes
   const stalePhaseTimeout = 5 * 60 * 1000; // 5 minutes

@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-unresolved
-import { describe, expect, it, mock, beforeEach, afterEach } from 'bun:test';
-import { priceFeedService, PriceFeedService } from './priceFeed.service';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { PriceFeedService, priceFeedService } from './priceFeed.service';
 
 // Import the mocked function to check calls
 import { getTokenOutAmount as getTokenOutAmountMock } from './nablaReads/outAmount';

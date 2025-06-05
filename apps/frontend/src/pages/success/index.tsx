@@ -1,14 +1,14 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useTranslation } from 'react-i18next';
 
+import { FiatToken } from 'shared';
 import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
 import { Rating } from '../../components/Rating';
-import { FiatToken } from 'shared';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
-import { useRampExecutionInput } from '../../stores/rampStore';
 import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
+import { useRampExecutionInput } from '../../stores/rampStore';
 
 const Checkmark = () => (
   <div className="flex items-center justify-center w-20 h-20 border-2 border-blue-700 rounded-full">

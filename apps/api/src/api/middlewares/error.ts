@@ -1,9 +1,9 @@
-import httpStatus from 'http-status';
+import { NextFunction, Request, Response } from 'express';
 import { ValidationError } from 'express-validation';
-import { Request, Response, NextFunction } from 'express';
+import httpStatus from 'http-status';
 
-import { APIError } from '../errors/api-error';
 import { config } from '../../config/vars';
+import { APIError } from '../errors/api-error';
 
 const { env } = config;
 
@@ -18,7 +18,7 @@ interface ErrorResponse {
  * Error handler. Send stacktrace only during development
  * @public
  */
-const handler = (err: APIError | Error, req: Request, res: Response, next: NextFunction): void => {
+const handler = (err: APIError | Error, _req: Request, res: Response, _next: NextFunction): void => {
   const apiError = err as APIError;
   const response: ErrorResponse = {
     code: apiError.status || httpStatus.INTERNAL_SERVER_ERROR,

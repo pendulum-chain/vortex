@@ -1,14 +1,14 @@
-import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
-import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
-import QuoteTicket from '../../../../models/quoteTicket.model';
-import { ApiManager } from '../../pendulum/apiManager';
-import logger from '../../../../config/logger';
-import { ISubmittableResult } from '@polkadot/types/types';
-import { DispatchError, EventRecord } from '@polkadot/types/interfaces';
-import { TransactionTemporarilyBannedError } from '../../xcm/send';
 import { ApiPromise } from '@polkadot/api';
+import { SubmittableExtrinsic } from '@polkadot/api-base/types';
+import { DispatchError, EventRecord } from '@polkadot/types/interfaces';
+import { ISubmittableResult } from '@polkadot/types/types';
+import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
+import logger from '../../../../config/logger';
+import QuoteTicket from '../../../../models/quoteTicket.model';
+import RampState from '../../../../models/rampState.model';
+import { ApiManager } from '../../pendulum/apiManager';
+import { TransactionTemporarilyBannedError } from '../../xcm/send';
+import { BasePhaseHandler } from '../base-phase-handler';
 
 /**
  * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum

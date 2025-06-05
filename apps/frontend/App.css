@@ -2,7 +2,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Red Hat Display', sans-serif;
+  font-family: "Red Hat Display", sans-serif;
 }
 
 #app,
@@ -14,7 +14,7 @@ div[data-rk] {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
-@import 'tailwindcss';
+@import "tailwindcss";
 @plugin "daisyui";
 
 @layer utilities {
@@ -80,7 +80,7 @@ div[data-rk] {
 }
 
 .fadein-button-animation::before {
-  content: '';
+  content: "";
   position: absolute;
   z-index: -1;
   top: 0;
@@ -118,8 +118,8 @@ div[data-rk] {
 }
 
 .collapse-title,
-:where(.collapse > input[type='checkbox']),
-:where(.collapse > input[type='radio']) {
+:where(.collapse > input[type="checkbox"]),
+:where(.collapse > input[type="radio"]) {
   min-height: 0rem !important;
 }
 
@@ -130,8 +130,8 @@ div[data-rk] {
   top: 1.4rem !important;
 }
 
-.input-ghost[aria-readonly='true']:focus,
-.input-ghost[aria-readonly='true']:focus-within {
+.input-ghost[aria-readonly="true"]:focus,
+.input-ghost[aria-readonly="true"]:focus-within {
   background-color: transparent !important;
   color: var(--color-base-content);
   border-color: #0000;

@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { AnimatePresence, motion } from 'motion/react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../helpers/cn';
 import { Language } from '../../translations/helpers';

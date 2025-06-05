@@ -1,27 +1,27 @@
-import { useCallback, useMemo } from 'react';
 import Big from 'big.js';
+import { useCallback, useMemo } from 'react';
 import {
   FiatToken,
   FiatTokenDetails,
-  getAnyFiatTokenDetails,
-  getOnChainTokenDetailsOrDefault,
   OnChainTokenDetails,
   QuoteEndpoints,
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
 } from 'shared';
-import { isFiatTokenDisabled, getTokenDisabledReason } from '../../config/tokenAvailability';
+import { getTokenDisabledReason, isFiatTokenDisabled } from '../../config/tokenAvailability';
 
-import { useOnchainTokenBalance } from '../useOnchainTokenBalance';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
-import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
+import { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
+import { RampDirection } from '../../components/RampToggle';
+import { config } from '../../config';
+import { TrackableEvent, useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { TrackableEvent, useEventsContext } from '../../contexts/events';
-import { config } from '../../config';
+import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
+import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../../components/RampToggle';
+import { useOnchainTokenBalance } from '../useOnchainTokenBalance';
 import { useVortexAccount } from '../useVortexAccount';
-import { useTranslation } from 'react-i18next';
-import { TFunction } from 'i18next';
 
 function validateOnramp(
   t: TFunction<'translation', undefined>,

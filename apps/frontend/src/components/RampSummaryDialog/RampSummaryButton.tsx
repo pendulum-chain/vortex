@@ -1,13 +1,17 @@
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 import {
   FiatToken,
   FiatTokenDetails,
+  TokenType,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-  TokenType,
 } from 'shared';
+import { useNetwork } from '../../contexts/network';
+import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
+import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 import {
   useCanRegisterRamp,
   useRampActions,
@@ -15,13 +19,9 @@ import {
   useRampState,
   useSigningRejected,
 } from '../../stores/rampStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../RampToggle';
 import { useIsQuoteExpired, useRampSummaryStore } from '../../stores/rampSummary';
-import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useSep24StoreCachedAnchorUrl } from '../../stores/sep24Store';
-import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
-import { useNetwork } from '../../contexts/network';
+import { RampDirection } from '../RampToggle';
 import { Spinner } from '../Spinner';
 
 interface UseButtonContentProps {

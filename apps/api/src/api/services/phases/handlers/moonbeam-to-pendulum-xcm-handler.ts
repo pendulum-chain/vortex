@@ -1,13 +1,13 @@
 import Big from 'big.js';
-import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
+import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
 
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
-import { StateMetadata } from '../meta-state-types';
-import { ApiManager } from '../../pendulum/apiManager';
-import { waitUntilTrue } from '../../../helpers/functions';
-import { submitMoonbeamXcm } from '../../xcm/send';
 import logger from '../../../../config/logger';
+import RampState from '../../../../models/rampState.model';
+import { waitUntilTrue } from '../../../helpers/functions';
+import { ApiManager } from '../../pendulum/apiManager';
+import { submitMoonbeamXcm } from '../../xcm/send';
+import { BasePhaseHandler } from '../base-phase-handler';
+import { StateMetadata } from '../meta-state-types';
 
 export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {

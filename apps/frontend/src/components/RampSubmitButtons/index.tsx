@@ -1,16 +1,16 @@
-import { FC, useCallback } from 'react';
 import Big from 'big.js';
+import { FC, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEventsContext } from '../../contexts/events';
-import { useFeeComparisonStore } from '../../stores/feeComparison';
-import { useInitializeFailedMessage, useRampExecutionInput, useRampSummaryVisible } from '../../stores/rampStore';
 import { useRampValidation } from '../../hooks/ramp/useRampValidation';
-import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
+import { useWidgetMode } from '../../hooks/useWidgetMode';
+import { useFeeComparisonStore } from '../../stores/feeComparison';
+import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
 import { useFiatToken, useInputAmount, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
+import { useInitializeFailedMessage, useRampExecutionInput, useRampSummaryVisible } from '../../stores/rampStore';
 import { RampDirection } from '../RampToggle';
-import { useTranslation } from 'react-i18next';
-import { useWidgetMode } from '../../hooks/useWidgetMode';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
+import { SwapSubmitButton } from '../buttons/SwapSubmitButton';
 
 interface RampSubmitButtonsProps {
   toAmount?: Big;

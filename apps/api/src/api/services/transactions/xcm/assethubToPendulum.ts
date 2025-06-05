@@ -1,8 +1,8 @@
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { ISubmittableResult } from '@polkadot/types/types';
-import { ApiManager } from '../../pendulum/apiManager';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
+import { ApiManager } from '../../pendulum/apiManager';
 
 type AssethubAssetKey = keyof typeof AssethubAsset;
 // This is a mapping of assethub asset keys to their respective indices used on the assethub network.

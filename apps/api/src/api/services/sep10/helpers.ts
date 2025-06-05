@@ -1,5 +1,5 @@
-import { Transaction, Operation } from 'stellar-sdk';
 import { TOKEN_CONFIG } from 'shared';
+import { Operation, Transaction } from 'stellar-sdk';
 
 interface TokenConfig {
   tomlFileUrl: string;

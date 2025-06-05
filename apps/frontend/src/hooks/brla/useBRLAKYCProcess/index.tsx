@@ -1,15 +1,15 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
 
-import { useRampActions, useRampKycLevel2Started } from '../../../stores/rampStore';
-import { useKycStatusQuery } from '../useKYCStatusQuery';
-import { KYCFormData } from '../useKYCForm';
-import { createSubaccount, KycStatus } from '../../../services/signingService';
-import { useTaxId } from '../../../stores/ramp/useRampFormStore';
-import { useToastMessage } from '../../../helpers/notifications';
-import { isValidCnpj } from '../../ramp/schema';
 import { storageKeys } from '../../../constants/localStorage';
+import { useToastMessage } from '../../../helpers/notifications';
+import { KycStatus, createSubaccount } from '../../../services/signingService';
+import { useTaxId } from '../../../stores/ramp/useRampFormStore';
+import { useRampActions, useRampKycLevel2Started } from '../../../stores/rampStore';
+import { isValidCnpj } from '../../ramp/schema';
+import { KYCFormData } from '../useKYCForm';
+import { useKycStatusQuery } from '../useKYCStatusQuery';
 
 export interface BrlaKycStatus {
   status: string;

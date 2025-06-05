@@ -1,9 +1,9 @@
 import httpStatus from 'http-status';
-import RampState from '../../../models/rampState.model';
-import phaseRegistry from './phase-registry';
 import logger from '../../../config/logger';
+import RampState from '../../../models/rampState.model';
 import { APIError } from '../../errors/api-error';
 import { PhaseError } from '../../errors/phase-error';
+import phaseRegistry from './phase-registry';
 
 /**
  * Process phases for a ramping process

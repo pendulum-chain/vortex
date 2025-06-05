@@ -141,12 +141,15 @@ export class PriceService {
       providers.map((provider) => this.getPrice(provider, fromCrypto, toFiat, amount, network)),
     );
 
-    return results.reduce((acc, result, index) => {
-      const provider = providers[index];
-      if (result.status === 'fulfilled') {
-        acc[provider] = result.value;
-      }
-      return acc;
-    }, {} as Record<PriceEndpoints.Provider, PriceEndpoints.PriceResponse>);
+    return results.reduce(
+      (acc, result, index) => {
+        const provider = providers[index];
+        if (result.status === 'fulfilled') {
+          acc[provider] = result.value;
+        }
+        return acc;
+      },
+      {} as Record<PriceEndpoints.Provider, PriceEndpoints.PriceResponse>,
+    );
   }
 }

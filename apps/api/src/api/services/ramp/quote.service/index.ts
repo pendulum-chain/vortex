@@ -1,26 +1,26 @@
 import Big from 'big.js';
-import { v4 as uuidv4 } from 'uuid';
 import httpStatus from 'http-status';
 import {
   DestinationType,
   EvmToken,
   FiatToken,
-  getOnChainTokenDetailsOrDefault,
   Networks,
   OnChainToken,
   QuoteEndpoints,
   RampCurrency,
+  getOnChainTokenDetailsOrDefault,
 } from 'shared';
-import { BaseRampService } from '../base.service';
-import QuoteTicket, { QuoteTicketMetadata } from '../../../../models/quoteTicket.model';
-import Partner from '../../../../models/partner.model';
+import { v4 as uuidv4 } from 'uuid';
 import logger from '../../../../config/logger';
+import Partner from '../../../../models/partner.model';
+import QuoteTicket, { QuoteTicketMetadata } from '../../../../models/quoteTicket.model';
 import { APIError } from '../../../errors/api-error';
+import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { priceFeedService } from '../../priceFeed.service';
-import { calculateFeeComponents, calculatePreNablaDeductibleFees } from './quote-fees';
+import { BaseRampService } from '../base.service';
 import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput } from './gross-output';
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from './helpers';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { calculateFeeComponents, calculatePreNablaDeductibleFees } from './quote-fees';
 
 export class QuoteService extends BaseRampService {
   public async createQuote(request: QuoteEndpoints.CreateQuoteRequest): Promise<QuoteEndpoints.QuoteResponse> {
@@ -234,7 +234,9 @@ export class QuoteService extends BaseRampService {
         // Convert totalFeeFiat to output currency
         const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(
           // We already deducted pre-Nabla fees in the earlier calculations, so we add them back here so we don't double-deduct
-          new Big(totalFeeFiat).minus(preNablaDeductibleFeeAmount).toString(),
+          new Big(totalFeeFiat)
+            .minus(preNablaDeductibleFeeAmount)
+            .toString(),
           targetFeeFiatCurrency,
           request.outputCurrency,
         );
@@ -247,7 +249,9 @@ export class QuoteService extends BaseRampService {
       // For off-ramp, convert totalFeeFiat to the fiat-representative currency amount
       const totalFeeInOutputFiat = await priceFeedService.convertCurrency(
         // We already deducted pre-Nabla fees in the earlier calculations, so we add them back here so we don't double-deduct
-        new Big(totalFeeFiat).minus(preNablaDeductibleFeeAmount).toString(),
+        new Big(totalFeeFiat)
+          .minus(preNablaDeductibleFeeAmount)
+          .toString(),
         targetFeeFiatCurrency,
         request.outputCurrency,
       );

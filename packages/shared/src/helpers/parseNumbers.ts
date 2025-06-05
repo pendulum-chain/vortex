@@ -1,4 +1,4 @@
-import { u128, UInt } from '@polkadot/types-codec';
+import { UInt, u128 } from '@polkadot/types-codec';
 import BigNumber from 'big.js';
 
 // These are the decimals used for the native currency on the Amplitude network
@@ -17,7 +17,7 @@ export const decimalToNative = (value: BigNumber | number | string) => {
   let bigIntValue;
   try {
     bigIntValue = new BigNumber(value);
-  } catch (error) {
+  } catch (_error) {
     bigIntValue = new BigNumber(0);
   }
   const multiplier = new BigNumber(10).pow(ChainDecimals);
@@ -28,7 +28,7 @@ export const decimalToCustom = (value: BigNumber | number | string, decimals: nu
   let bigIntValue;
   try {
     bigIntValue = new BigNumber(value);
-  } catch (error) {
+  } catch (_error) {
     bigIntValue = new BigNumber(0);
   }
   const multiplier = new BigNumber(10).pow(decimals);
@@ -39,7 +39,7 @@ export const decimalToStellarNative = (value: BigNumber | number | string) => {
   let bigIntValue;
   try {
     bigIntValue = new BigNumber(value);
-  } catch (error) {
+  } catch (_error) {
     bigIntValue = new BigNumber(0);
   }
   const multiplier = new BigNumber(10).pow(StellarDecimals);

@@ -1,13 +1,13 @@
-import { useCallback, useEffect } from 'react';
 import Big from 'big.js';
+import { useCallback, useEffect } from 'react';
 import { FiatToken, OnChainToken } from 'shared';
 
-import { useEventsContext } from '../../contexts/events';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
-import { useNetwork } from '../../contexts/network';
-import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
+import { useEventsContext } from '../../contexts/events';
+import { useNetwork } from '../../contexts/network';
 import { usePartnerId } from '../../stores/partnerStore';
+import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 
 // @TODO: Rethink this hook, because now
 // if you want to get a quote - you get outputAmount through useQuoteService
@@ -40,7 +40,7 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
         selectedNetwork,
         partnerId: partnerId === null ? undefined : partnerId, // Handle null case
       });
-    } catch (err) {
+    } catch (_err) {
       trackEvent({
         event: 'initialization_error',
         error_message: 'signer_service_issue',

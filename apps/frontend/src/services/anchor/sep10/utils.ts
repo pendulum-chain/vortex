@@ -1,9 +1,9 @@
 import { Keyring } from '@polkadot/api';
 import { keccak256 } from 'viem/utils';
 
-import { fetchSep10Signatures, SignerServiceSep10Request } from '../../signingService';
-import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 import { config } from '../../../config';
+import { SIGNING_SERVICE_URL } from '../../../constants/constants';
+import { SignerServiceSep10Request, fetchSep10Signatures } from '../../signingService';
 
 // Returns the hash value for the address.
 // If it's a polkadot address, it will return raw data of the address.

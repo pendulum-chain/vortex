@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
-import { useFiatToken, useInputAmount, useOnChainToken } from '../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../stores/rampDirectionStore';
-import { useQuoteStore } from '../stores/ramp/useQuoteStore';
 import { RampDirection } from '../components/RampToggle';
 import { useEventsContext } from '../contexts/events';
+import { useQuoteStore } from '../stores/ramp/useQuoteStore';
+import { useFiatToken, useInputAmount, useOnChainToken } from '../stores/ramp/useRampFormStore';
+import { useRampDirection } from '../stores/rampDirectionStore';
 
 export const useTrackRampConfirmation = () => {
   const rampDirection = useRampDirection();

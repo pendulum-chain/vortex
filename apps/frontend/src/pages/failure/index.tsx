@@ -1,8 +1,8 @@
-import { useTranslation } from 'react-i18next';
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import { TransactionInfo } from '../../components/TransactionInfo';
+import { useTranslation } from 'react-i18next';
 import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
+import { TransactionInfo } from '../../components/TransactionInfo';
 import { config } from '../../config';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useRampState } from '../../stores/rampStore';

@@ -14,7 +14,7 @@ export const storageService: Storage = {
     if (!exists(value)) return defaultValue;
     try {
       return parser(value as string);
-    } catch (e) {
+    } catch (_e) {
       return defaultValue;
     }
   },

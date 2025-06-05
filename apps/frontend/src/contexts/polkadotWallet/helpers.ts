@@ -1,10 +1,10 @@
-import { getWalletBySource, WalletAccount } from '@talismn/connect-wallets';
+import { WalletAccount, getWalletBySource } from '@talismn/connect-wallets';
 import { getSdkError } from '@walletconnect/utils';
 
 import { walletConnectService } from '../../components/PolkadotWalletSelectorDialog/WalletConnect/WalletConnectService';
+import { WALLETCONNECT_ASSETHUB_ID } from '../../constants/constants';
 import { LocalStorageKeys } from '../../hooks/useLocalStorage';
 import { storageService } from '../../services/storage/local';
-import { WALLETCONNECT_ASSETHUB_ID } from '../../constants/constants';
 
 const initTalisman = async (dAppName: string, selected?: string) => {
   const name = storageService.get(LocalStorageKeys.SELECTED_POLKADOT_WALLET);

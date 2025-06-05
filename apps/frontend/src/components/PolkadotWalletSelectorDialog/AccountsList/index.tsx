@@ -1,8 +1,8 @@
 import { WalletAccount } from '@talismn/connect-wallets';
 import { useDeferredValue, useState } from 'react';
 
-import { SearchInput } from '../../SearchInput';
 import { AccountCard } from '../../AccountCard';
+import { SearchInput } from '../../SearchInput';
 
 interface ConnectModalAccountsListProps {
   accounts: WalletAccount[];

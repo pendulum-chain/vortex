@@ -2,9 +2,9 @@
  * Moonbeam token configuration
  */
 
+import { PENDULUM_BRLA_MOONBEAM } from '../constants/pendulum';
 import { FiatToken, TokenType } from '../types/base';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
-import { PENDULUM_BRLA_MOONBEAM } from '../constants/pendulum';
 
 export const moonbeamTokenConfig: Partial<Record<FiatToken, MoonbeamTokenDetails>> = {
   [FiatToken.BRL]: {

@@ -2,18 +2,18 @@
 import { describe, expect, it, mock } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { PhaseProcessor } from './phase-processor';
-import RampState from '../../../models/rampState.model';
+import { AccountMeta, EvmToken, FiatToken, Networks, signUnsignedTransactions } from 'shared';
 import QuoteTicket from '../../../models/quoteTicket.model';
+import RampState from '../../../models/rampState.model';
 import { RampService } from '../ramp/ramp.service';
-import { AccountMeta, Networks, EvmToken, FiatToken, signUnsignedTransactions } from 'shared';
+import { PhaseProcessor } from './phase-processor';
 
-import { QuoteService } from '../ramp/quote.service';
-import { EphemeralAccount } from 'shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
+import { EphemeralAccount } from 'shared';
 import { Keypair } from 'stellar-sdk';
 import { API, ApiManager } from '../pendulum/apiManager';
+import { QuoteService } from '../ramp/quote.service';
 
 import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import registerPhaseHandlers from './register-handlers';
@@ -94,7 +94,7 @@ console.log('Test Signing Accounts:', testSigningAccountsMeta);
 let rampState: RampState;
 let quoteTicket: QuoteTicket;
 
-RampState.update = mock(async function (updateData: any, options?: any) {
+RampState.update = mock(async function (updateData: any, _options?: any) {
   // Merge the update into the current instance.
   rampState = { ...rampState, ...updateData, updatedAt: new Date() };
 
@@ -102,7 +102,7 @@ RampState.update = mock(async function (updateData: any, options?: any) {
   return rampState;
 }) as any;
 
-RampState.findByPk = mock(async (id: string) => {
+RampState.findByPk = mock(async (_id: string) => {
   return rampState;
 });
 
@@ -111,13 +111,13 @@ RampState.create = mock(async (data: any) => {
     ...data,
     createdAt: new Date(),
     updatedAt: new Date(),
-    update: async function (updateData: any, options?: any) {
+    update: async function (updateData: any, _options?: any) {
       // Merge the update into the current instance.
       rampState = { ...rampState, ...updateData, updatedAt: new Date() };
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
-    reload: async function (options?: any) {
+    reload: async function (_options?: any) {
       return rampState;
     },
   };
@@ -125,7 +125,7 @@ RampState.create = mock(async (data: any) => {
   return rampState;
 }) as any;
 
-QuoteTicket.findByPk = mock(async (id: string) => {
+QuoteTicket.findByPk = mock(async (_id: string) => {
   return quoteTicket;
 });
 
@@ -137,7 +137,7 @@ QuoteTicket.update = mock(async (data: any) => {
 QuoteTicket.create = mock(async (data: any) => {
   quoteTicket = {
     ...data,
-    update: async function (updateData: any, options?: any) {
+    update: async function (updateData: any, _options?: any) {
       quoteTicket = { ...quoteTicket, ...updateData };
       return quoteTicket;
     },
@@ -162,7 +162,7 @@ rampRecoveryWorker.start = mock(async () => ({}));
 describe('Onramp PhaseProcessor Integration Test', () => {
   it('should process an onramp (pix -> evm) through multiple phases until completion', async () => {
     try {
-      const processor = new PhaseProcessor();
+      const _processor = new PhaseProcessor();
       const rampService = new RampService();
       const quoteService = new QuoteService();
 
@@ -183,7 +183,7 @@ describe('Onramp PhaseProcessor Integration Test', () => {
         outputCurrency: TEST_OUTPUT_CURRENCY,
       });
 
-      let registeredRamp = await rampService.registerRamp({
+      const registeredRamp = await rampService.registerRamp({
         signingAccounts: testSigningAccountsMeta,
         quoteId: quoteTicket.id,
         additionalData,
@@ -196,7 +196,7 @@ describe('Onramp PhaseProcessor Integration Test', () => {
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
       const presignedTxs = await signUnsignedTransactions(
-        registeredRamp!.unsignedTxs,
+        registeredRamp?.unsignedTxs,
         {
           stellarEphemeral: testSigningAccounts.stellar,
           pendulumEphemeral: testSigningAccounts.pendulum,
@@ -210,7 +210,7 @@ describe('Onramp PhaseProcessor Integration Test', () => {
 
       // END - MIMIC THE UI
 
-      const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+      const _startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
 
       const finalRampState = await waitForCompleteRamp(registeredRamp.id);
 
@@ -225,7 +225,7 @@ describe('Onramp PhaseProcessor Integration Test', () => {
   });
 });
 
-async function waitForCompleteRamp(rampId: string) {
+async function waitForCompleteRamp(_rampId: string) {
   const pollInterval = 10 * 1000; // 10 seconds
   const globalTimeout = 15 * 60 * 1000; // 15 minutes
   const stalePhaseTimeout = 5 * 60 * 1000; // 5 minutes

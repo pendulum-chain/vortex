@@ -4,7 +4,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
 }
 
-export async function down(queryInterface: QueryInterface): Promise<void> {
+export async function down(_queryInterface: QueryInterface): Promise<void> {
   // Optional: If you want to disable it on rollback
   // await queryInterface.sequelize.query('DROP EXTENSION IF EXISTS "uuid-ossp";');
   // Usually, it's safe to leave the extension enabled even if rolling back later migrations.

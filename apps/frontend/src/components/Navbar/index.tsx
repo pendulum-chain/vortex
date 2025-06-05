@@ -1,11 +1,11 @@
 import { motion } from 'motion/react';
 
-import whiteLogo from '../../assets/logo/white.png';
 import whiteMobileLogo from '../../assets/logo/circle.png';
-import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
-import { NetworkSelector } from '../NetworkSelector';
-import { LanguageSelector } from '../LanguageSelector';
+import whiteLogo from '../../assets/logo/white.png';
 import { useNetwork } from '../../contexts/network';
+import { LanguageSelector } from '../LanguageSelector';
+import { NetworkSelector } from '../NetworkSelector';
+import { ConnectWalletButton } from '../buttons/ConnectWalletButton';
 
 export const Navbar = () => {
   const { networkSelectorDisabled } = useNetwork();

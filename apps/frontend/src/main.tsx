@@ -3,19 +3,19 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 
-import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
-import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createRoot } from 'react-dom/client';
+import { WagmiProvider } from 'wagmi';
 
+import { App } from './app';
+import { config } from './config';
 import { EventsProvider } from './contexts/events';
 import { NetworkProvider } from './contexts/network';
-import { wagmiConfig } from './wagmiConfig';
-import { SiweProvider } from './contexts/siwe';
-import { config } from './config';
-import { App } from './app';
-import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
 import { PolkadotNodeProvider } from './contexts/polkadotNode';
+import { PolkadotWalletStateProvider } from './contexts/polkadotWallet';
+import { SiweProvider } from './contexts/siwe';
+import { wagmiConfig } from './wagmiConfig';
 import './helpers/googleTranslate';
 
 const queryClient = new QueryClient();

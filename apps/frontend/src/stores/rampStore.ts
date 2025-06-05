@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { RampZustand, RampActions } from '../types/phases';
-import { storageService } from '../services/storage/local';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
+import { storageService } from '../services/storage/local';
+import { RampActions, RampZustand } from '../types/phases';
 
 interface RampStore extends RampZustand {
   actions: RampActions;

@@ -1,10 +1,10 @@
-import { decodeSubmittableExtrinsic, getNetworkId, isEvmTransactionData, UnsignedTx } from 'shared';
-import { sendTransaction } from '@wagmi/core';
 import { ApiPromise } from '@polkadot/api';
-import { wagmiConfig } from '../../wagmiConfig';
-import { waitForTransactionConfirmation } from '../../helpers/safe-wallet/waitForTransactionConfirmation';
-import { WalletAccount } from '@talismn/connect-wallets';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
+import { WalletAccount } from '@talismn/connect-wallets';
+import { sendTransaction } from '@wagmi/core';
+import { UnsignedTx, decodeSubmittableExtrinsic, getNetworkId, isEvmTransactionData } from 'shared';
+import { waitForTransactionConfirmation } from '../../helpers/safe-wallet/waitForTransactionConfirmation';
+import { wagmiConfig } from '../../wagmiConfig';
 
 // Sign the transaction with the user's connected wallet.
 export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promise<string> {

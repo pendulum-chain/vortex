@@ -1,5 +1,5 @@
-import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 
 export enum RampDirection {
   OFFRAMP = 'offramp',

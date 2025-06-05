@@ -2,10 +2,10 @@
  * AssetHub token configuration
  */
 
-import { AssetHubToken, TokenType } from '../types/base';
-import { AssetHubTokenDetails } from '../types/assethub';
-import { PENDULUM_USDC_ASSETHUB } from '../constants/pendulum';
 import { Networks } from '../../helpers';
+import { PENDULUM_USDC_ASSETHUB } from '../constants/pendulum';
+import { AssetHubTokenDetails } from '../types/assethub';
+import { AssetHubToken, TokenType } from '../types/base';
 
 export const assetHubTokenConfig: Record<AssetHubToken, AssetHubTokenDetails> = {
   [AssetHubToken.USDC]: {

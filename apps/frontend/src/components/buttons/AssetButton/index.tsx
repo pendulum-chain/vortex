@@ -1,5 +1,5 @@
-import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 
 interface AssetButtonProps {
   assetIcon: string;

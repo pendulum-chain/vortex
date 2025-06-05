@@ -2,10 +2,10 @@ import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 
 import { ISubmittableResult } from '@polkadot/types/types';
-import { getAddressForFormat, parseEventRedeemRequest, SpacewalkRedeemRequestEvent } from 'shared';
+import { SpacewalkRedeemRequestEvent, getAddressForFormat, parseEventRedeemRequest } from 'shared';
+import logger from '../../../config/logger';
 import { API } from '../pendulum/apiManager';
 import { getVaultsForCurrency } from './getVaults';
-import logger from '../../../config/logger';
 
 export async function createVaultService(
   apiComponents: API,
@@ -63,7 +63,7 @@ export class VaultService {
 
             const event = redeemEvents
               .map((event) => parseEventRedeemRequest(event))
-              .filter((event) => event.redeemer === getAddressForFormat(senderAddress, this.apiComponents!.ss58Format));
+              .filter((event) => event.redeemer === getAddressForFormat(senderAddress, this.apiComponents?.ss58Format));
 
             if (event.length == 0) {
               reject(new Error(`No redeem event found for account ${senderAddress}`));
@@ -85,7 +85,7 @@ export class VaultService {
   // If not we either return ExtrinsicFailedError or Unknown dispatch error
   handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
     if (dispatchError?.isModule) {
-      const decoded = this.apiComponents!.api.registry.findMetaError(dispatchError.asModule);
+      const decoded = this.apiComponents?.api.registry.findMetaError(dispatchError.asModule);
       const { name, section, method } = decoded;
 
       return new Error(`Dispatch error: ${section}.${method}:: ${name}`);

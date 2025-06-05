@@ -1,10 +1,10 @@
-import { v4 as uuidv4 } from 'uuid';
 import { Transaction } from 'sequelize';
+import { v4 as uuidv4 } from 'uuid';
+import sequelize from '../../../config/database';
 import logger from '../../../config/logger';
 import KycLevel2, { KycLevel2Status } from '../../../models/kycLevel2.model';
-import sequelize from '../../../config/database';
-import { KYCDocType, KycLevel2Response } from '../brla/types';
 import { BrlaApiService } from '../brla/brlaApiService';
+import { KYCDocType, KycLevel2Response } from '../brla/types';
 
 export class KycService {
   private brlaApiService: BrlaApiService;

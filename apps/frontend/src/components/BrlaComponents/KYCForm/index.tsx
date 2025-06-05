@@ -1,9 +1,9 @@
 import { motion } from 'motion/react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
-import { useTranslation, Trans } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
-import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
+import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { useKYCFormLocalStorage } from './useKYCFormLocalStorage';
 interface KYCFormProps {
   fields: BrlaFieldProps[];

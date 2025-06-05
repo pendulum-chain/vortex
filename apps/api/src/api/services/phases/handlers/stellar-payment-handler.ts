@@ -1,8 +1,8 @@
 import { HORIZON_URL, RampPhase } from 'shared';
 import { Horizon, NetworkError, Networks, Transaction } from 'stellar-sdk';
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
 import logger from '../../../../config/logger';
+import RampState from '../../../../models/rampState.model';
+import { BasePhaseHandler } from '../base-phase-handler';
 
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const horizonServer = new Horizon.Server(HORIZON_URL);

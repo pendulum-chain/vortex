@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { RampDirection } from '../components/RampToggle';
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
-import { DEFAULT_RAMP_DIRECTION, useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
+import { RampDirection } from '../components/RampToggle';
+import { getFirstEnabledFiatToken, isFiatTokenEnabled } from '../config/tokenAvailability';
+import { useNetwork } from '../contexts/network';
+import { useSetPartnerId } from '../stores/partnerStore';
 import {
   DEFAULT_ARS_AMOUNT,
   DEFAULT_BRL_AMOUNT,
   DEFAULT_EURC_AMOUNT,
   useRampFormStoreActions,
 } from '../stores/ramp/useRampFormStore';
-import { useNetwork } from '../contexts/network';
-import { useSetPartnerId } from '../stores/partnerStore';
-import { isFiatTokenEnabled, getFirstEnabledFiatToken } from '../config/tokenAvailability';
+import { DEFAULT_RAMP_DIRECTION, useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
 
 interface RampUrlParams {
   ramp: RampDirection;
@@ -99,10 +99,10 @@ export const useRampUrlParams = (): RampUrlParams => {
       rampParam === undefined
         ? rampDirection
         : rampParam === 'sell'
-        ? RampDirection.OFFRAMP
-        : rampParam === 'buy'
-        ? RampDirection.ONRAMP
-        : DEFAULT_RAMP_DIRECTION;
+          ? RampDirection.OFFRAMP
+          : rampParam === 'buy'
+            ? RampDirection.ONRAMP
+            : DEFAULT_RAMP_DIRECTION;
 
     const from =
       ramp === RampDirection.OFFRAMP

@@ -1,14 +1,14 @@
-import { useTranslation } from 'react-i18next';
-import { Wallet, WalletAccount } from '@talismn/connect-wallets';
 import { ArrowLeftEndOnRectangleIcon } from '@heroicons/react/20/solid';
+import { Wallet, WalletAccount } from '@talismn/connect-wallets';
+import { useTranslation } from 'react-i18next';
 
-import accountBalanceWalletIcon from '../../../../assets/account-balance-wallet.svg';
+import { getAddressForFormat } from 'shared';
 import accountBalanceWalletIconPink from '../../../../assets/account-balance-wallet-pink.svg';
+import accountBalanceWalletIcon from '../../../../assets/account-balance-wallet.svg';
+import { useAssetHubNode } from '../../../../contexts/polkadotNode';
+import { usePolkadotWalletState } from '../../../../contexts/polkadotWallet';
 import { trimAddress } from '../../../../helpers/addressFormatter';
 import { CopyablePublicKey } from '../../../PublicKey/CopyablePublicKey';
-import { usePolkadotWalletState } from '../../../../contexts/polkadotWallet';
-import { useAssetHubNode } from '../../../../contexts/polkadotNode';
-import { getAddressForFormat } from 'shared';
 
 interface WalletButtonProps {
   address: string;

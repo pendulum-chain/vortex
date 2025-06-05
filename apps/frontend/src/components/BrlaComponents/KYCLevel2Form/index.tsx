@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { motion } from 'motion/react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KycLevel2Toggle } from '../../KycLevel2Toggle';
-import { CameraIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { BrlaService, KYCDocType } from '../../../services/api';
+import { KycLevel2Toggle } from '../../KycLevel2Toggle';
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf'];

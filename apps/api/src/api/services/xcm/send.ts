@@ -1,15 +1,15 @@
-import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { parseEventMoonbeamXcmSent, parseEventXcmSent, parseEventXTokens, XcmSentEvent, XTokensEvent } from 'shared';
-import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { ApiPromise } from '@polkadot/api';
+import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { SignedBlock } from '@polkadot/types/interfaces';
+import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { encodeAddress } from '@polkadot/util-crypto';
+import { XTokensEvent, XcmSentEvent, parseEventMoonbeamXcmSent, parseEventXTokens, parseEventXcmSent } from 'shared';
 import logger from '../../../config/logger';
 
 export class TransactionInclusionError extends Error {
   public readonly blockHash: string;
 
-  constructor(blockHash: string, extrinsicHash: string, message?: string) {
+  constructor(blockHash: string, _extrinsicHash: string, message?: string) {
     super(message);
     this.blockHash = blockHash;
     Object.setPrototypeOf(this, TransactionInclusionError.prototype);

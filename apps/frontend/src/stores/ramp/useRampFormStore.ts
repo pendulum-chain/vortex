@@ -1,5 +1,5 @@
-import { create } from 'zustand';
 import { EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
+import { create } from 'zustand';
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.BRL;
 export const DEFAULT_BRL_AMOUNT = '5';

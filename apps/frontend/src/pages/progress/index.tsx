@@ -1,18 +1,18 @@
-import { FC, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'motion/react';
 import { CheckIcon, ExclamationCircleIcon } from '@heroicons/react/20/solid';
+import { motion } from 'motion/react';
+import { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { RampPhase, isNetworkEVM } from 'shared';
 import { Box } from '../../components/Box';
+import { config } from '../../config';
 import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
-import { isNetworkEVM, RampPhase } from 'shared';
 import { GotQuestions } from '../../sections';
-import { useRampActions, useRampState, useRampStore } from '../../stores/rampStore';
 import { RampService } from '../../services/api';
-import { getMessageForPhase } from './phaseMessages';
-import { config } from '../../config';
 import { useRampDirection } from '../../stores/rampDirectionStore';
+import { useRampActions, useRampState, useRampStore } from '../../stores/rampStore';
+import { getMessageForPhase } from './phaseMessages';
 
 // The order of the phases is important for the progress bar.
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {

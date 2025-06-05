@@ -1,14 +1,14 @@
-import { decodeSubmittableExtrinsic, EventListener, RampPhase } from 'shared';
 import Big from 'big.js';
-import { BasePhaseHandler } from '../base-phase-handler';
+import { EventListener, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import RampState from '../../../../models/rampState.model';
+import { BasePhaseHandler } from '../base-phase-handler';
 
 import { ApiManager } from '../../pendulum/apiManager';
 import { StateMetadata } from '../meta-state-types';
 
+import logger from '../../../../config/logger';
 import { checkBalancePeriodically } from '../../stellar/checkBalance';
 import { createVaultService } from '../../stellar/vaultService';
-import logger from '../../../../config/logger';
 
 const maxWaitingTimeMinutes = 10;
 const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
@@ -117,7 +117,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
         maxWaitingTimeMs,
       );
       logger.info('Balance check completed successfully.');
-    } catch (balanceCheckError) {
+    } catch (_balanceCheckError) {
       throw new Error(`Stellar balance did not arrive on time`);
     }
   }

@@ -1,6 +1,6 @@
-import { Sequelize } from 'sequelize';
-import { Umzug, SequelizeStorage, MigrationParams } from 'umzug';
 import path from 'path';
+import { Sequelize } from 'sequelize';
+import { MigrationParams, SequelizeStorage, Umzug } from 'umzug';
 import sequelize from '../config/database';
 import logger from '../config/logger';
 

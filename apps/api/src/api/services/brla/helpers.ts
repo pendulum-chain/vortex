@@ -1,6 +1,6 @@
 import { sha256 } from 'ethers';
-import { EvmAddress } from './brlaTeleportService';
 import QuoteTicket from '../../../models/quoteTicket.model';
+import { EvmAddress } from './brlaTeleportService';
 
 export function verifyReferenceLabel(referenceLabel: string, memo: string): boolean {
   return referenceLabel === memo;

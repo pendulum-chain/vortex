@@ -5,10 +5,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useConnectPolkadotWallet } from '../../hooks/useConnectPolkadotWallet';
+import { Dialog } from '../Dialog';
 import { ConnectModalAccountsList } from './AccountsList';
 import { PolkadotWalletSelectorDialogLoading } from './PolkadotWalletSelectorDialogLoading';
 import { ConnectModalWalletsList } from './WalletsList';
-import { Dialog } from '../Dialog';
 interface PolkadotWalletSelectorDialogProps {
   visible: boolean;
   onClose: () => void;

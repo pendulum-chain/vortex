@@ -1,9 +1,9 @@
 import { ChangeEvent, FC } from 'react';
 import { UseFormRegisterReturn } from 'react-hook-form';
-import { AssetButton } from '../buttons/AssetButton';
+import { cn } from '../../helpers/cn';
 import { RampFormValues } from '../../hooks/ramp/schema';
 import { NumericInput } from '../NumericInput';
-import { cn } from '../../helpers/cn';
+import { AssetButton } from '../buttons/AssetButton';
 
 interface AssetNumericInputProps {
   assetIcon: string;

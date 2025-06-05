@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { getWallets, Wallet } from '@talismn/connect-wallets';
+import { Wallet, getWallets } from '@talismn/connect-wallets';
 import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 
+import { useToastMessage } from '../../helpers/notifications';
 import { storageService } from '../../services/storage/local';
 import { LocalStorageKeys } from '../useLocalStorage';
-import { useToastMessage } from '../../helpers/notifications';
 
 declare global {
   interface Window {

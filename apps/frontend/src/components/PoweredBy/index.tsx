@@ -1,9 +1,9 @@
-import MASTERCARD from '../../assets/payments/mastercard.svg';
-import bank from '../../assets/payments/bank.svg';
-import VISA from '../../assets/payments/visa.svg';
-import vortexLogo from '../../assets/logo/blue.svg';
-import SEPA from '../../assets/payments/sepa.svg';
 import { useTranslation } from 'react-i18next';
+import vortexLogo from '../../assets/logo/blue.svg';
+import bank from '../../assets/payments/bank.svg';
+import MASTERCARD from '../../assets/payments/mastercard.svg';
+import SEPA from '../../assets/payments/sepa.svg';
+import VISA from '../../assets/payments/visa.svg';
 import { cn } from '../../helpers/cn';
 
 interface ImageProps {

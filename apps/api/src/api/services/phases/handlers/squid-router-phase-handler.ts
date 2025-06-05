@@ -1,9 +1,9 @@
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
-import logger from '../../../../config/logger';
-import { getNetworkFromDestination, getNetworkId, RampPhase } from 'shared';
-import { createPublicClient, http } from 'viem';
+import { RampPhase, getNetworkFromDestination, getNetworkId } from 'shared';
+import { http, createPublicClient } from 'viem';
 import { moonbeam } from 'viem/chains';
+import logger from '../../../../config/logger';
+import RampState from '../../../../models/rampState.model';
+import { BasePhaseHandler } from '../base-phase-handler';
 
 /**
  * Handler for the squidRouter phase
@@ -116,7 +116,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * @param txHash The transaction hash
    * @param chainId The chain ID
    */
-  private async waitForTransactionConfirmation(txHash: string, chainId: number): Promise<void> {
+  private async waitForTransactionConfirmation(txHash: string, _chainId: number): Promise<void> {
     try {
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
       if (!receipt || receipt.status !== 'success') {

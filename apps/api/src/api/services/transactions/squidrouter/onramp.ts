@@ -1,16 +1,16 @@
-import { createPublicClient, encodeFunctionData, http } from 'viem';
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks, getNetworkFromDestination, getNetworkId } from 'shared';
+import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { moonbeam } from 'viem/chains';
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, getNetworkFromDestination, getNetworkId, Networks } from 'shared';
 import { createOnrampRouteParams, getRoute } from './route';
 
-import erc20ABI from '../../../../contracts/ERC20';
 import Big from 'big.js';
-import { SQUIDROUTER_FEE_OVERPAY } from './config';
 import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
 } from '../../../../constants/constants';
+import erc20ABI from '../../../../contracts/ERC20';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { SQUIDROUTER_FEE_OVERPAY } from './config';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;

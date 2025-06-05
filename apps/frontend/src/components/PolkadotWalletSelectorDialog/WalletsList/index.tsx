@@ -1,8 +1,8 @@
 import { Wallet } from '@talismn/connect-wallets';
 import { useTranslation } from 'react-i18next';
 
-import { WalletsListItem } from './WalletsListItem';
 import { WalletConnect } from '../WalletConnect';
+import { WalletsListItem } from './WalletsListItem';
 
 interface ConnectWalletListProps {
   wallets?: Wallet[];

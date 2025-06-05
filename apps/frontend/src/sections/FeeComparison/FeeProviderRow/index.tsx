@@ -1,16 +1,16 @@
-import { useEffect, useRef, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import Big from 'big.js';
+import { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PriceEndpoints } from 'shared';
 
-import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
+import { RampDirection } from '../../../components/RampToggle';
 import { Skeleton } from '../../../components/Skeleton';
-import { formatPrice } from '../helpers';
+import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
 import { cn } from '../../../helpers/cn';
-import { PriceProvider } from '../priceProviders';
 import { useQuote } from '../../../stores/ramp/useQuoteStore';
 import { useRampDirection } from '../../../stores/rampDirectionStore';
-import { RampDirection } from '../../../components/RampToggle';
+import { formatPrice } from '../helpers';
+import { PriceProvider } from '../priceProviders';
 
 interface FeeProviderRowProps {
   provider: PriceProvider;

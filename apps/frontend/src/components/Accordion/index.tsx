@@ -1,6 +1,6 @@
+import { AnimatePresence, motion } from 'motion/react';
 import { FC } from 'react';
 import { create } from 'zustand';
-import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../helpers/cn';
 
 interface AccordionProps {

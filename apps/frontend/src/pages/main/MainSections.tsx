@@ -1,15 +1,15 @@
-import {
-  GotQuestions,
-  TrustedBy,
-  FAQAccordion,
-  HowToSell,
-  PopularTokens,
-  WhyVortex,
-  FeeComparison,
-  PitchSection,
-} from '../../sections';
-import { useWidgetMode } from '../../hooks/useWidgetMode';
 import { FC } from 'react';
+import { useWidgetMode } from '../../hooks/useWidgetMode';
+import {
+  FAQAccordion,
+  FeeComparison,
+  GotQuestions,
+  HowToSell,
+  PitchSection,
+  PopularTokens,
+  TrustedBy,
+  WhyVortex,
+} from '../../sections';
 
 const MainSections: FC = () => {
   const isWidgetMode = useWidgetMode();

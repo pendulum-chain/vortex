@@ -1,11 +1,11 @@
-import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from '@pendulum-chain/api-solang';
+import { ExecuteMessageResult, createExecuteMessageExtrinsic, submitExtrinsic } from '@pendulum-chain/api-solang';
 import { Abi } from '@polkadot/api-contract';
-import { decodeSubmittableExtrinsic, RampPhase } from 'shared';
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
-import { ApiManager } from '../../pendulum/apiManager';
+import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import logger from '../../../../config/logger';
 import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
+import RampState from '../../../../models/rampState.model';
+import { ApiManager } from '../../pendulum/apiManager';
+import { BasePhaseHandler } from '../base-phase-handler';
 
 export class NablaApprovePhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {

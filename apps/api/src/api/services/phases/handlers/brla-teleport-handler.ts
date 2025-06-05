@@ -1,15 +1,15 @@
 import Big from 'big.js';
-import { FiatToken, getAnyFiatTokenDetailsMoonbeam, RampPhase } from 'shared';
+import { FiatToken, RampPhase, getAnyFiatTokenDetailsMoonbeam } from 'shared';
 
-import RampState from '../../../../models/rampState.model';
-import { StateMetadata } from '../meta-state-types';
-import { BasePhaseHandler } from '../base-phase-handler';
-import { BrlaApiService } from '../../brla/brlaApiService';
-import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from '../../moonbeam/balance';
-import { BrlaTeleportService } from '../../brla/brlaTeleportService';
-import logger from '../../../../config/logger';
 import { moonbeam } from 'viem/chains';
+import logger from '../../../../config/logger';
+import RampState from '../../../../models/rampState.model';
+import { BrlaApiService } from '../../brla/brlaApiService';
+import { BrlaTeleportService } from '../../brla/brlaTeleportService';
 import { generateReferenceLabel } from '../../brla/helpers';
+import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from '../../moonbeam/balance';
+import { BasePhaseHandler } from '../base-phase-handler';
+import { StateMetadata } from '../meta-state-types';
 
 // The rationale for these difference is that it allows for a finer check over the payment timeout in
 // case of service restart. A smaller timeout for the balance check loop allows to get out to the outer

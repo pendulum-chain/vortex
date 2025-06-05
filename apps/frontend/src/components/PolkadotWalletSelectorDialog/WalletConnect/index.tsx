@@ -1,15 +1,15 @@
 import { WalletConnectModal } from '@walletconnect/modal';
-import UniversalProvider from '@walletconnect/universal-provider';
 import { SessionTypes } from '@walletconnect/types';
+import UniversalProvider from '@walletconnect/universal-provider';
 import { useCallback, useEffect, useState } from 'react';
 
-import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import logo from '../../../assets/wallets/wallet-connect.svg';
+import { config } from '../../../config';
 import { WALLETCONNECT_ASSETHUB_ID } from '../../../constants/constants';
 import { useNetwork } from '../../../contexts/network';
-import { config } from '../../../config';
-import { walletConnectService } from './WalletConnectService';
+import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { useToastMessage } from '../../../helpers/notifications';
+import { walletConnectService } from './WalletConnectService';
 
 export const walletConnectConfig = {
   requiredNamespaces: {

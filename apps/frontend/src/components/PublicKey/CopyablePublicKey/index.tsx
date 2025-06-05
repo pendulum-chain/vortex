@@ -1,6 +1,6 @@
-import { ClickablePublicKey, ClickablePublicKeyProps } from '../ClickablePublicKey';
-import { useClipboard } from '../../../hooks/useClipboard';
 import CopyIcon from '../../../assets/copy-icon.svg';
+import { useClipboard } from '../../../hooks/useClipboard';
+import { ClickablePublicKey, ClickablePublicKeyProps } from '../ClickablePublicKey';
 
 interface CopyablePublicKeyProps extends ClickablePublicKeyProps {
   onClick?: () => void;

@@ -1,11 +1,11 @@
-import { TermsAndConditions } from '../TermsAndConditions';
 import {
-  useTermsChecked,
   useTermsAccepted,
-  useTermsError,
-  useTermsAnimationKey,
   useTermsActions,
+  useTermsAnimationKey,
+  useTermsChecked,
+  useTermsError,
 } from '../../stores/termsStore';
+import { TermsAndConditions } from '../TermsAndConditions';
 
 export const RampTerms = () => {
   const termsChecked = useTermsChecked();

@@ -1,7 +1,7 @@
 import { OnChainTokenDetails } from 'shared';
+import wallet from '../../assets/wallet-bifold-outline.svg';
 import { useOnchainTokenBalance } from '../../hooks/useOnchainTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
-import wallet from '../../assets/wallet-bifold-outline.svg';
 
 interface UserBalanceProps {
   token: OnChainTokenDetails;

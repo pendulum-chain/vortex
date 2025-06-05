@@ -1,10 +1,10 @@
-import { FC } from 'react';
-import { Spinner } from '../../Spinner';
 import { useAppKitAccount } from '@reown/appkit/react';
-import { ConnectWalletButton } from '../ConnectWalletButton';
-import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
+import { FC } from 'react';
 import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../../../contexts/network';
+import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
+import { Spinner } from '../../Spinner';
+import { ConnectWalletButton } from '../ConnectWalletButton';
 
 interface SwapSubmitButtonProps {
   text: string;

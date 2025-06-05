@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, JSX } from 'react';
 import { WalletAccount } from '@talismn/connect-wallets';
+import { JSX, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { LocalStorageKeys, useLocalStorage } from '../../hooks/useLocalStorage';
-import { handleWalletConnectDisconnect, initSelectedWallet } from './helpers';
 import { storageService } from '../../services/storage/local';
+import { handleWalletConnectDisconnect, initSelectedWallet } from './helpers';
 
 export interface PolkadotWalletState {
   tenantRPC?: string;

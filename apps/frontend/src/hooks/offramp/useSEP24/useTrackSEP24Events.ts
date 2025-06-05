@@ -1,6 +1,6 @@
-import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { Networks } from 'shared';
-import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from 'shared';
+import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { RampExecutionInput, RampState } from '../../../types/phases';
 
 export const useTrackSEP24Events = () => {

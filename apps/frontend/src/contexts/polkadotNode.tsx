@@ -1,8 +1,8 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { createContext, useContext, JSX } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { JSX, createContext, useContext } from 'react';
 
-import { ASSETHUB_WSS, PENDULUM_WSS, MOONBEAM_WSS } from '../constants/constants';
+import { ASSETHUB_WSS, MOONBEAM_WSS, PENDULUM_WSS } from '../constants/constants';
 import { useToastMessage } from '../helpers/notifications';
 
 export interface ApiComponents {

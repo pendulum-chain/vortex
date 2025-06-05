@@ -1,7 +1,7 @@
-import { UseFormRegisterReturn } from 'react-hook-form';
-import { handleOnChangeNumericInput, handleOnPasteNumericInput } from './helpers';
 import { ChangeEvent, ClipboardEvent } from 'react';
+import { UseFormRegisterReturn } from 'react-hook-form';
 import { cn } from '../../helpers/cn';
+import { handleOnChangeNumericInput, handleOnPasteNumericInput } from './helpers';
 
 interface NumericInputProps {
   register: UseFormRegisterReturn;

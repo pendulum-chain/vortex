@@ -5,9 +5,9 @@ import httpStatus from 'http-status';
 
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
 import { SubsidizeEndpoints } from 'shared/src/endpoints/subsidize.endpoints';
+import logger from '../../config/logger';
 import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { ApiManager } from '../services/pendulum/apiManager';
-import logger from '../../config/logger';
 
 export const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {

@@ -1,11 +1,11 @@
-import { FC } from 'react';
-import Big from 'big.js';
 import { ChevronRightIcon } from '@heroicons/react/20/solid';
+import Big from 'big.js';
+import { FC } from 'react';
 
+import { Networks, getNetworkDisplayName, roundDownToSignificantDecimals } from 'shared';
 import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
-import { getNetworkDisplayName, Networks, roundDownToSignificantDecimals } from 'shared';
-import { Transaction } from '../types';
 import { StatusBadge } from '../../StatusBadge';
+import { Transaction } from '../types';
 
 interface TransactionItemProps {
   transaction: Transaction;

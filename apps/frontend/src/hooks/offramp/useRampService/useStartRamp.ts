@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useRampStore } from '../../../stores/rampStore';
 import { RampService } from '../../../services/api';
+import { useRampStore } from '../../../stores/rampStore';
 import { useTrackRampConfirmation } from '../../useTrackRampConfirmation';
 
 export const useStartRamp = () => {

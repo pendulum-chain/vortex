@@ -1,6 +1,6 @@
-import { Abi } from '@polkadot/api-contract';
+import { ReadMessageResult, readMessage } from '@pendulum-chain/api-solang';
 import { ApiPromise } from '@polkadot/api';
-import { readMessage, ReadMessageResult } from '@pendulum-chain/api-solang';
+import { Abi } from '@polkadot/api-contract';
 import { defaultReadLimits } from '../../helpers/contracts';
 
 const ALICE = '6mfqoTMHrMeVMyKwjqomUjVomPMJ4AjdCm1VReFtk7Be8wqr';

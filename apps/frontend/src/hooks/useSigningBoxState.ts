@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../contexts/network';
-import { RampSigningPhase } from '../types/phases';
 import { useRampSigningPhase, useSigningRejected } from '../stores/rampStore';
 import { useSafeWalletSignatureStore } from '../stores/safeWalletSignaturesStore';
+import { RampSigningPhase } from '../types/phases';
 
 const PROGRESS_CONFIGS: Record<'EVM' | 'NON_EVM', Record<RampSigningPhase, number>> = {
   EVM: {

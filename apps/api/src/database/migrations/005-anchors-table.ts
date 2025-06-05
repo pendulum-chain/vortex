@@ -1,4 +1,4 @@
-import { QueryInterface, DataTypes, Op } from 'sequelize';
+import { DataTypes, Op, QueryInterface } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Create anchors table

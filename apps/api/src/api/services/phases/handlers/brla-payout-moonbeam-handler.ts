@@ -1,13 +1,13 @@
 import Big from 'big.js';
-import { getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum, RampPhase } from 'shared';
+import { RampPhase, getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum } from 'shared';
 
+import { polygon } from 'viem/chains';
+import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';
-import { StateMetadata } from '../meta-state-types';
-import { BasePhaseHandler } from '../base-phase-handler';
 import { BrlaApiService } from '../../brla/brlaApiService';
 import { checkEvmBalancePeriodically } from '../../moonbeam/balance';
-import logger from '../../../../config/logger';
-import { polygon } from 'viem/chains';
+import { BasePhaseHandler } from '../base-phase-handler';
+import { StateMetadata } from '../meta-state-types';
 
 export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {

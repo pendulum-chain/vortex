@@ -8,13 +8,8 @@
     "dev": "vite --host",
     "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
     "preview": "vite preview",
-    "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix",
-    "lint:ts": "tsc --noEmit",
     "test": "vitest",
-    "format": "prettier . --write",
-    "verify": "yarn lint && yarn lint:ts && yarn test",
-    "postinstall": "husky install"
+    "verify": "bun test",
   },
   "dependencies": {
     "@fontsource/roboto": "^5.0.8",
@@ -98,13 +93,6 @@
     "vite": "^6.2.6",
     "vite-plugin-node-polyfills": "^0.23.0",
     "vitest": "^3.1.1"
-  },
-  "engines": {
-    "npm": "please-use-yarn",
-    "yarn": ">=1.22.19"
-  },
-  "lint-staged": {
-    "*": "prettier --write"
   },
   "resolutions": {
     "shared": "portal:/Users/marcel/Documents/pendulum-pay/shared"

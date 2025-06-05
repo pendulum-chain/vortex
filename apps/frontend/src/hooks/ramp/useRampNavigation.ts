@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { ReactNode } from 'react';
-import { useRampState, useRampStarted } from '../../stores/rampStore';
+import { useRampStarted, useRampState } from '../../stores/rampStore';
 
 export const useRampNavigation = (
   successComponent: ReactNode,

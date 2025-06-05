@@ -31,7 +31,7 @@ export async function getTokenOutAmount(params: {
   let amountBig: Big;
   try {
     amountBig = new Big(fromAmountString);
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Invalid amount string provided');
   }
 

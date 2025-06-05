@@ -1,7 +1,7 @@
 export class PhaseError extends Error {
   readonly isRecoverable: boolean;
 
-  constructor(message: string, isRecoverable: boolean = false) {
+  constructor(message: string, isRecoverable = false) {
     super(message);
     this.name = this.constructor.name;
     this.isRecoverable = isRecoverable;

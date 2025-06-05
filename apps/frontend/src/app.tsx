@@ -8,8 +8,8 @@ import enTranslations from './translations/en.json';
 import ptTranslations from './translations/pt.json';
 
 import '../App.css';
-import { getLanguageFromPath, Language } from './translations/helpers';
 import { Main } from './pages/main';
+import { Language, getLanguageFromPath } from './translations/helpers';
 
 export function App() {
   const lng = getLanguageFromPath();

@@ -1,6 +1,6 @@
-import { create } from 'zustand';
 import Big from 'big.js';
 import { DestinationType, FiatToken, OnChainToken, QuoteEndpoints } from 'shared';
+import { create } from 'zustand';
 
 import { QuoteService } from '../../services/api';
 

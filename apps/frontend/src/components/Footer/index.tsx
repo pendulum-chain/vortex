@@ -1,7 +1,7 @@
 import { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Telegram } from '../../assets/SocialsTelegram';
 import { Github } from '../../assets/SocialsGithub';
+import { Telegram } from '../../assets/SocialsTelegram';
 import { X } from '../../assets/SocialsX';
 import VORTEX_LOGO from '../../assets/logo/blue.svg';
 import SATOSHIPAY_LOGO from '../../assets/logo/satoshipay.svg';

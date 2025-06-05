@@ -1,9 +1,9 @@
+import { QRCodeSVG } from 'qrcode.react';
 import { FC } from 'react';
 import { useTranslation } from 'react-i18next';
-import { QRCodeSVG } from 'qrcode.react';
-import { CopyButton } from '../CopyButton';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { useRampState } from '../../stores/rampStore';
+import { CopyButton } from '../CopyButton';
 import { RampDirection } from '../RampToggle';
 
 export const BRLOnrampDetails: FC = () => {

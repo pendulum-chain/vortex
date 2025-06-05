@@ -1,8 +1,8 @@
-import { Horizon } from 'stellar-sdk';
 import Big from 'big.js';
+import { Horizon } from 'stellar-sdk';
 
-import { HORIZON_URL } from '../../../constants/constants';
 import logger from '../../../config/logger';
+import { HORIZON_URL } from '../../../constants/constants';
 
 export function checkBalancePeriodically(
   stellarTargetAccountId: string,

@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
+import httpStatus from 'http-status';
 import { validateMaskedNumber } from 'shared';
 import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
-import httpStatus from 'http-status';
-import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
+import logger from '../../config/logger';
+import { PayInCodeQuery } from '../middlewares/validators';
+import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
-import { PayInCodeQuery } from '../middlewares/validators';
-import logger from '../../config/logger';
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const lastInteractionMap = new Map<string, number>();
@@ -38,7 +38,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
       try {
         const details = JSON.parse(errorMessageString);
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details });
-      } catch (e) {
+      } catch (_e) {
         // The error was not encoded as JSON
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details: errorMessageString });
       }
@@ -165,7 +165,7 @@ export const triggerBrlaOfframp = async (
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
         return;
       }
-    } catch (error) {
+    } catch (_error) {
       res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
       return;
     }

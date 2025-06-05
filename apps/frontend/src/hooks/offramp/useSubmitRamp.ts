@@ -1,11 +1,7 @@
-import { useCallback } from 'react';
 import Big from 'big.js';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useVortexAccount } from '../useVortexAccount';
-import { useNetwork } from '../../contexts/network';
-import { useEventsContext } from '../../contexts/events';
-import { useSiweContext } from '../../contexts/siwe';
 import {
   BrlaEndpoints,
   FiatToken,
@@ -13,18 +9,22 @@ import {
   getOnChainTokenDetailsOrDefault,
   getTokenDetailsSpacewalk,
 } from 'shared';
-import { fetchTomlValues } from '../../services/stellar';
-import { sep24First } from '../../services/anchor/sep24/first';
+import { RampDirection } from '../../components/RampToggle';
+import { SIGNING_SERVICE_URL } from '../../constants/constants';
+import { useEventsContext } from '../../contexts/events';
+import { useNetwork } from '../../contexts/network';
+import { useSiweContext } from '../../contexts/siwe';
+import { useToastMessage } from '../../helpers/notifications';
 import { sep10 } from '../../services/anchor/sep10';
+import { sep24First } from '../../services/anchor/sep24/first';
+import { BrlaService } from '../../services/api';
+import { fetchTomlValues } from '../../services/stellar';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 import { useRampActions } from '../../stores/rampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
-import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { RampExecutionInput } from '../../types/phases';
-import { useToastMessage } from '../../helpers/notifications';
 import { isValidCnpj, isValidCpf } from '../ramp/schema';
-import { BrlaService } from '../../services/api';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../../components/RampToggle';
+import { useVortexAccount } from '../useVortexAccount';
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();

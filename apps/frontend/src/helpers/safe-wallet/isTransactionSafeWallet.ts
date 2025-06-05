@@ -33,17 +33,17 @@ export async function isTransactionHashSafeWallet(hash: Hash, chainId: number) {
     // Transaction found on chain, so it's a regular Ethereum transaction
     // Note: If a transaction isn't found, it could be a Safe transaction or just not indexed by the node yet
     return false;
-  } catch (error) {
+  } catch (_error) {
     // Transaction not found on chain, check if it's a Safe Wallet transaction
     const safeApiKit = new SafeApiKit({
       chainId: BigInt(chainId),
     });
 
     try {
-      const safeTx = await safeApiKit.getTransaction(hash);
+      const _safeTx = await safeApiKit.getTransaction(hash);
 
       return true;
-    } catch (e) {
+    } catch (_e) {
       // Wait for 1 second before retrying to help the node index the transaction
       await delay(1000);
 

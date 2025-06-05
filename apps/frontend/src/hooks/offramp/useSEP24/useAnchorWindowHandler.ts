@@ -1,15 +1,15 @@
-import { useCallback } from 'react';
 import Big from 'big.js';
+import { useCallback } from 'react';
 import { PaymentData } from 'shared';
 
 import { useNetwork } from '../../../contexts/network';
 
 import { sep24Second } from '../../../services/anchor/sep24/second';
 
-import { useTrackSEP24Events } from './useTrackSEP24Events';
+import { useToastMessage } from '../../../helpers/notifications';
 import { useRampActions, useRampStore } from '../../../stores/rampStore';
 import { useSep24AnchorSessionParams, useSep24InitialResponse } from '../../../stores/sep24Store';
-import { useToastMessage } from '../../../helpers/notifications';
+import { useTrackSEP24Events } from './useTrackSEP24Events';
 
 const handleError = (error: unknown, setRampingStarted: (started: boolean) => void): void => {
   console.error('Error in SEP-24 flow:', error);

@@ -2,8 +2,8 @@
  * AssetHub token types
  */
 
-import { BaseTokenDetails, PendulumDetails, TokenType } from './base';
 import { Networks } from '../../helpers';
+import { BaseTokenDetails, PendulumDetails, TokenType } from './base';
 
 export interface AssetHubTokenDetails extends BaseTokenDetails, PendulumDetails {
   type: TokenType.AssetHub;

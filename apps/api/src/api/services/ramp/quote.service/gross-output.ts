@@ -2,27 +2,27 @@ import { Big } from 'big.js';
 import httpStatus from 'http-status';
 import {
   DestinationType,
+  EvmTokenDetails,
+  Networks,
+  OnChainToken,
+  RampCurrency,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getPendulumDetails,
   isEvmTokenDetails,
-  Networks,
-  OnChainToken,
-  RampCurrency,
-  EvmTokenDetails,
 } from 'shared';
-import { APIError } from '../../../errors/api-error';
-import { ApiManager } from '../../pendulum/apiManager';
-import { getTokenOutAmount, TokenOutData } from '../../nablaReads/outAmount';
-import { createOnrampRouteParams, getRoute, RouteParams } from '../../transactions/squidrouter/route';
-import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../../helpers/contracts';
+import logger from '../../../../config/logger';
 import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
 } from '../../../../constants/constants';
+import { APIError } from '../../../errors/api-error';
+import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../../helpers/contracts';
+import { TokenOutData, getTokenOutAmount } from '../../nablaReads/outAmount';
+import { ApiManager } from '../../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { priceFeedService } from '../../priceFeed.service';
-import logger from '../../../../config/logger';
+import { RouteParams, createOnrampRouteParams, getRoute } from '../../transactions/squidrouter/route';
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;

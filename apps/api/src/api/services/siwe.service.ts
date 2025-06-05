@@ -1,10 +1,10 @@
-import { generateNonce } from 'siwe';
-import { createPublicClient, http } from 'viem';
-import { polygon } from 'viem/chains';
 import { signatureVerify } from '@polkadot/util-crypto';
-import { SignInMessage } from '../helpers/siweMessageFormatter';
-import { deriveMemoFromAddress } from '../helpers/memoDerivation';
+import { generateNonce } from 'siwe';
+import { http, createPublicClient } from 'viem';
+import { polygon } from 'viem/chains';
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
+import { deriveMemoFromAddress } from '../helpers/memoDerivation';
+import { SignInMessage } from '../helpers/siweMessageFormatter';
 
 class ValidationError extends Error {
   constructor(message: string) {
@@ -43,8 +43,8 @@ export const verifySiweMessage = async (
   const siweMessage = existingSiweDataForNonce.siweMessage
     ? existingSiweDataForNonce.siweMessage
     : initialSiweMessage
-    ? SignInMessage.fromMessage(initialSiweMessage)
-    : undefined;
+      ? SignInMessage.fromMessage(initialSiweMessage)
+      : undefined;
 
   const { address } = existingSiweDataForNonce;
 

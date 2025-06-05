@@ -1,9 +1,9 @@
 import {
   BaseFiatTokenDetails,
-  isFiatTokenDetails,
-  isOnChainTokenDetails,
   OnChainTokenDetails,
   TokenDetails,
+  isFiatTokenDetails,
+  isOnChainTokenDetails,
 } from 'shared';
 
 import { FiatTokenDetails } from 'shared';

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { getPriceForProvider, getAllPricesBundled } from '../../controllers/price.controller';
-import { validatePriceInput, PriceQuery, validateBundledPriceInput } from '../../middlewares/validators';
+import { getAllPricesBundled, getPriceForProvider } from '../../controllers/price.controller';
+import { PriceQuery, validateBundledPriceInput, validatePriceInput } from '../../middlewares/validators';
 
 const router: Router = Router({ mergeParams: true });
 

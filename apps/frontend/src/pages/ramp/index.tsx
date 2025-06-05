@@ -1,8 +1,8 @@
+import { useRampNavigation } from '../../hooks/ramp/useRampNavigation';
 import { FailurePage } from '../failure';
 import { ProgressPage } from '../progress';
-import { SuccessPage } from '../success';
 import { RampForm } from '../ramp-form';
-import { useRampNavigation } from '../../hooks/ramp/useRampNavigation';
+import { SuccessPage } from '../success';
 
 export const Ramp = () => {
   const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <RampForm />);

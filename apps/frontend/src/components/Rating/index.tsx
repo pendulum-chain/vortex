@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
-import { validator } from 'web3';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { validator } from 'web3';
 
-import { CloseButton } from '../buttons/CloseButton';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
-import { useRatingVisibility } from './useRatingVisibility';
+import { CloseButton } from '../buttons/CloseButton';
 import { RatingForm } from './RatingForm';
+import { useRatingVisibility } from './useRatingVisibility';
 import './index.css';
 import { RatingService } from '../../services/api';
 

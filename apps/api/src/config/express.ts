@@ -1,15 +1,15 @@
-import express from 'express';
-import morgan from 'morgan';
 import bodyParser from 'body-parser';
 import compress from 'compression';
-import methodOverride from 'method-override';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import methodOverride from 'method-override';
+import morgan from 'morgan';
 
-import routes from '../api/routes/v1';
 import { converter, handler, notFound } from '../api/middlewares/error';
+import routes from '../api/routes/v1';
 
 import { config } from './vars';
 

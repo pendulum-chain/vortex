@@ -1,5 +1,5 @@
-import { toast, ToastContainer, ToastContainerProps, ToastItem } from 'react-toastify';
 import { useEffect, useState } from 'react';
+import { ToastContainer, ToastContainerProps, ToastItem, toast } from 'react-toastify';
 import { Popover } from '../Popover';
 
 export function useHasActiveToasts() {

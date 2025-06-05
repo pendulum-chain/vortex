@@ -1,6 +1,6 @@
 import { Horizon } from 'stellar-sdk';
-import { HORIZON_URL } from '../../../constants/constants';
 import logger from '../../../config/logger';
+import { HORIZON_URL } from '../../../constants/constants';
 
 const horizonServer = new Horizon.Server(HORIZON_URL);
 
