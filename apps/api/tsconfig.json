@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "paths": {
-      "shared": ["../shared/dist/cjs"]
+      "@packages/*": ["../../packages/*/src"]
     },
     "module": "esnext",
     "target": "esnext",
