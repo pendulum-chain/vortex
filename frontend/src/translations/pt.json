@@ -318,7 +318,19 @@
     "feeCollapse": {
       "details": "Detalhes",
       "yourQuote": "Sua cotação",
-      "vortexFee": "Taxa da Vortex",
+      "processingFee": {
+        "label": "Taxa de processamento",
+        "tooltip": "A taxa de processamento cobre os custos de processamento de pagamento."
+      },
+      "networkFee": {
+        "label": "Taxa de rede",
+        "tooltip": "O custo para transferir fundos para sua carteira, que varia conforme a rede selecionada e a congestão da rede."
+      },
+      "netRate": {
+        "label": "Câmbio Efetiva",
+        "tooltip": "Esta é a taxa de câmbio que você recebe após a dedução de todas as taxas de processamento e de rede."
+      },
+      "totalFee": "Taxa total",
       "finalAmount": "Valor final"
     },
     "transactionStatusBanner": {

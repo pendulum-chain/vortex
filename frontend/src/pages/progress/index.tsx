@@ -23,6 +23,7 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,
+  distributeFees: 24,
   subsidizePostSwap: 24,
   pendulumToMoonbeam: 40,
   pendulumToAssethub: 30,
@@ -50,6 +51,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   squidrouterSwap: 10,
   moonbeamToPendulum: 40,
   assethubToPendulum: 24,
+  distributeFees: 24,
   subsidizePreSwap: 24,
   nablaApprove: 24,
   nablaSwap: 24,
@@ -72,7 +74,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
 // Not all phases are relevant for the progress bar, so we need to exclude some.
-const RELEVANT_PHASES_COUNT = {off: 13, on: 12};
+const RELEVANT_PHASES_COUNT = { off: 14, on: 13 };
 
 const useProgressUpdate = (
   currentPhase: RampPhase,
@@ -82,8 +84,8 @@ const useProgressUpdate = (
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void,
 ) => {
-  const rampDirection = useRampDirection()
-  const numberOfPhases = rampDirection === "onramp" ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
+  const rampDirection = useRampDirection();
+  const numberOfPhases = rampDirection === 'onramp' ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
   const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {
@@ -315,15 +317,15 @@ export const ProgressPage = () => {
   const message = getMessageForPhase(rampState, t);
 
   const showIsDelayedWarning = useMemo(() => {
-    // Check if the last ramp update was more than 10 minutes ago
-    if (rampState?.ramp?.updatedAt && rampState?.ramp?.currentPhase !== 'complete') {
-      const updatedAt = new Date(rampState.ramp.updatedAt);
+    // Check if the ramp was created more than 10 minutes ago and is not in the 'complete' phase
+    if (rampState?.ramp?.createdAt && rampState?.ramp?.currentPhase !== 'complete') {
+      const createdAt = new Date(rampState.ramp.createdAt);
       const currentTime = new Date();
-      const timeDiff = Math.abs(currentTime.getTime() - updatedAt.getTime());
+      const timeDiff = Math.abs(currentTime.getTime() - createdAt.getTime());
       return timeDiff > 10 * 60 * 1000; // 10 minutes
     }
     return false;
-  }, [rampState?.ramp?.currentPhase, rampState?.ramp?.updatedAt]);
+  }, [rampState?.ramp?.currentPhase, rampState?.ramp?.createdAt]);
 
   useEffect(() => {
     // Only set up the polling if we have a ramp ID
