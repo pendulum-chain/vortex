@@ -1,4 +1,4 @@
-import { EmailEndpoints } from 'shared';
+import { EmailEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

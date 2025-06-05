@@ -1,8 +1,8 @@
+import { RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
 import { ApiPromise } from '@polkadot/api';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { DispatchError, EventRecord } from '@polkadot/types/interfaces';
 import { ISubmittableResult } from '@polkadot/types/types';
-import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import logger from '../../../../config/logger';
 import QuoteTicket from '../../../../models/quoteTicket.model';
 import RampState from '../../../../models/rampState.model';

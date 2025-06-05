@@ -1,6 +1,6 @@
+import { FiatTokenDetails, Networks, OnChainTokenDetails, QuoteEndpoints, isFiatTokenDetails } from '@packages/shared';
 import { FC } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiatTokenDetails, Networks, OnChainTokenDetails, QuoteEndpoints, isFiatTokenDetails } from 'shared';
 
 import { ExchangeRate } from '../ExchangeRate';
 import { RampDirection } from '../RampToggle';

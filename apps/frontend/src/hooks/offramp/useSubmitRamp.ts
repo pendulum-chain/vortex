@@ -8,7 +8,7 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   getTokenDetailsSpacewalk,
-} from 'shared';
+} from '@packages/shared';
 import { RampDirection } from '../../components/RampToggle';
 import { SIGNING_SERVICE_URL } from '../../constants/constants';
 import { useEventsContext } from '../../contexts/events';
@@ -102,7 +102,10 @@ export const useSubmitRamp = () => {
               }
 
               // append EVM address to execution input
-              const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
+              const updatedBrlaRampExecution = {
+                ...executionInput,
+                brlaEvmAddress,
+              };
               setRampExecutionInput(updatedBrlaRampExecution);
 
               setRampSummaryVisible(true);

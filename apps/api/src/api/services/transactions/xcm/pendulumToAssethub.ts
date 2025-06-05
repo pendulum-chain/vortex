@@ -1,8 +1,8 @@
+import { PendulumCurrencyId } from '@packages/shared';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { ISubmittableResult } from '@polkadot/types/types';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
-import { PendulumCurrencyId } from 'shared';
 import { ApiManager } from '../../pendulum/apiManager';
 
 export async function createPendulumToAssethubTransfer(
@@ -14,7 +14,9 @@ export async function createPendulumToAssethubTransfer(
   const destination = {
     V3: {
       parents: 1,
-      interior: { X2: [{ Parachain: 1000 }, { AccountId32: { network: undefined, id: receiverId } }] },
+      interior: {
+        X2: [{ Parachain: 1000 }, { AccountId32: { network: undefined, id: receiverId } }],
+      },
     },
   };
 

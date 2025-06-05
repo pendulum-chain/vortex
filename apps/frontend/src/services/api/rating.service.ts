@@ -1,4 +1,4 @@
-import { RatingEndpoints } from 'shared';
+import { RatingEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

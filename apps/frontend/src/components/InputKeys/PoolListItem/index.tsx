@@ -1,6 +1,6 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
+import { FiatToken, OnChainToken, OnChainTokenDetails, isFiatToken, isOnChainToken } from '@packages/shared';
 import { useTranslation } from 'react-i18next';
-import { FiatToken, OnChainToken, OnChainTokenDetails, isFiatToken, isOnChainToken } from 'shared';
 import { getTokenDisabledReason, isFiatTokenDisabled } from '../../../config/tokenAvailability';
 import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { UserBalance } from '../../UserBalance';

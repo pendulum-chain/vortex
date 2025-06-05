@@ -1,5 +1,5 @@
+import { DestinationType, RampCurrency } from '@packages/shared';
 import httpStatus from 'http-status';
-import { DestinationType, RampCurrency } from 'shared';
 import { APIError } from '../../../errors/api-error';
 
 /**

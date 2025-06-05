@@ -1,4 +1,4 @@
-import { FiatToken } from 'shared';
+import { FiatToken } from '@packages/shared';
 import { DEFAULT_FIAT_TOKEN } from '../stores/ramp/useRampFormStore';
 
 export interface TokenAvailabilityConfig {

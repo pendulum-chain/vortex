@@ -1,4 +1,4 @@
-import { FiatToken, getTokenDetailsSpacewalk } from 'shared';
+import { FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
 import { config } from '../../../config';
 import { IAnchorSessionParams, ISep24Intermediate } from '../../../types/sep';
 

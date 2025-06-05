@@ -30,7 +30,7 @@ and response types:
 
 ```typescript
 import { Request, Response } from 'express';
-import { BrlaEndpoints } from 'shared';
+import { BrlaEndpoints } from '@packages/shared';
 
 export const getBrlaUser = async (
   req: Request<{}, {}, {}, BrlaEndpoints.GetUserRequest>,
@@ -46,7 +46,7 @@ In the frontend, you can use these types to ensure that your API calls are sendi
 the response data correctly:
 
 ```typescript
-import { BrlaEndpoints } from 'shared';
+import { BrlaEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 export class BrlaService {

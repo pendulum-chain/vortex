@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import * as Yup from 'yup';
 
-import { FiatToken, OnChainToken } from 'shared';
+import { FiatToken, OnChainToken } from '@packages/shared';
 import { RampDirection } from '../../components/RampToggle';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 

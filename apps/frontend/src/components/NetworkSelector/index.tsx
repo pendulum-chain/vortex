@@ -1,7 +1,7 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { EvmToken, Networks, getNetworkDisplayName, getNetworkId, getOnChainTokenDetails } from '@packages/shared';
 import { AnimatePresence, motion } from 'motion/react';
 import { RefObject, useEffect, useRef, useState } from 'react';
-import { EvmToken, Networks, getNetworkDisplayName, getNetworkId, getOnChainTokenDetails } from 'shared';
 import { useNetwork } from '../../contexts/network';
 import { cn } from '../../helpers/cn';
 import { useRampFormStore } from '../../stores/ramp/useRampFormStore';

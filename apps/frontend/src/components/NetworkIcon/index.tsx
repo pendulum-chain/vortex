@@ -1,5 +1,5 @@
+import { Networks, getNetworkDisplayName } from '@packages/shared';
 import { FC, HTMLAttributes } from 'react';
-import { Networks, getNetworkDisplayName } from 'shared';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
 
 interface Props extends HTMLAttributes<HTMLImageElement> {

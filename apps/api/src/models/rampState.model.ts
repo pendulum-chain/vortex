@@ -1,5 +1,5 @@
+import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from '@packages/shared';
 import { DataTypes, Model, Optional } from 'sequelize';
-import { CleanupPhase, DestinationType, PresignedTx, RampErrorLog, RampPhase, UnsignedTx } from 'shared';
 import { StateMetadata } from '../api/services/phases/meta-state-types';
 import sequelize from '../config/database';
 

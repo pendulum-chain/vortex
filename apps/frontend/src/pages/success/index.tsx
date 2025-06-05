@@ -1,7 +1,7 @@
 import { CheckIcon } from '@heroicons/react/20/solid';
 import { useTranslation } from 'react-i18next';
 
-import { FiatToken } from 'shared';
+import { FiatToken } from '@packages/shared';
 import { Box } from '../../components/Box';
 import { EmailForm } from '../../components/EmailForm';
 import { Rating } from '../../components/Rating';

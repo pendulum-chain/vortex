@@ -1,5 +1,5 @@
+import { DestinationType, FiatToken, OnChainToken, QuoteEndpoints } from '@packages/shared';
 import Big from 'big.js';
-import { DestinationType, FiatToken, OnChainToken, QuoteEndpoints } from 'shared';
 import { create } from 'zustand';
 
 import { QuoteService } from '../../services/api';
@@ -134,7 +134,12 @@ export const useQuoteStore = create<QuoteState>((set) => ({
     } catch (error) {
       console.error('Error fetching quote:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to get quote';
-      set({ error: errorMessage, loading: false, quote: undefined, outputAmount: undefined });
+      set({
+        error: errorMessage,
+        loading: false,
+        quote: undefined,
+        outputAmount: undefined,
+      });
     }
   },
 

@@ -1,4 +1,4 @@
-import { SiweEndpoints } from 'shared';
+import { SiweEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

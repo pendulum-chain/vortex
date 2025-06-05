@@ -1,4 +1,4 @@
-import { RampPhase, decodeSubmittableExtrinsic, getAddressForFormat } from 'shared';
+import { RampPhase, decodeSubmittableExtrinsic, getAddressForFormat } from '@packages/shared';
 import RampState from '../../../../models/rampState.model';
 import { BasePhaseHandler } from '../base-phase-handler';
 

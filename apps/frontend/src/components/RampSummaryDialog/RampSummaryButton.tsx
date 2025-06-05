@@ -1,13 +1,13 @@
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   FiatToken,
   FiatTokenDetails,
   TokenType,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-} from 'shared';
+} from '@packages/shared';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../../contexts/network';
 import { useRampSubmission } from '../../hooks/ramp/useRampSubmission';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';

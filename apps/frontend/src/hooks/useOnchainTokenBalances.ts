@@ -15,7 +15,7 @@ import {
   isAssetHubTokenDetails,
   isEvmTokenDetails,
   nativeToDecimal,
-} from 'shared';
+} from '@packages/shared';
 
 import { useNetwork } from '../contexts/network';
 import { useAssetHubNode } from '../contexts/polkadotNode';
@@ -83,7 +83,9 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
         const assetInfo = assetInfos[index];
         const accountInfo = accountInfos[index];
 
-        const { minBalance: rawMinBalance } = assetInfo.toJSON() as { minBalance: number };
+        const { minBalance: rawMinBalance } = assetInfo.toJSON() as {
+          minBalance: number;
+        };
 
         const rawBalance = (accountInfo.toJSON() as { balance?: number })?.balance ?? 0;
         const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;

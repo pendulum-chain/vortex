@@ -1,6 +1,6 @@
+import { PresignedTx, RampErrorLog, RampPhase } from '@packages/shared';
 import { ReadMessageResult } from '@pendulum-chain/api-solang';
 import httpStatus from 'http-status';
-import { PresignedTx, RampErrorLog, RampPhase } from 'shared';
 import logger from '../../../config/logger';
 import RampState from '../../../models/rampState.model';
 import { APIError } from '../../errors/api-error';

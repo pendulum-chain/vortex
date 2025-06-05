@@ -1,5 +1,5 @@
+import { RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
 import Big from 'big.js';
-import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
 
 import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';

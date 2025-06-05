@@ -1,5 +1,5 @@
+import { Networks, getNetworkId, isNetworkEVM } from '@packages/shared';
 import { ReactNode, createContext, useCallback, useContext, useState } from 'react';
-import { Networks, getNetworkId, isNetworkEVM } from 'shared';
 import { useAccount, useSwitchChain } from 'wagmi';
 import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
 import { LocalStorageKeys, useLocalStorage } from '../hooks/useLocalStorage';

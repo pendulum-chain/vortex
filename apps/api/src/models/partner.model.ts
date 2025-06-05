@@ -1,5 +1,5 @@
+import { RampCurrency } from '@packages/shared';
 import { DataTypes, Model, Optional } from 'sequelize';
-import { RampCurrency } from 'shared';
 import sequelize from '../config/database';
 
 // Define the attributes of the Partner model

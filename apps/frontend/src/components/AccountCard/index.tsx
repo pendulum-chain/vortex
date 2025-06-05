@@ -1,5 +1,5 @@
+import { getAddressForFormat } from '@packages/shared';
 import { WalletAccount } from '@talismn/connect-wallets';
-import { getAddressForFormat } from 'shared';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
 import { usePolkadotWalletState } from '../../contexts/polkadotWallet';
 import { trimAddress } from '../../helpers/addressFormatter';

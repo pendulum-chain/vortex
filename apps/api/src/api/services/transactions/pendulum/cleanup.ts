@@ -1,6 +1,6 @@
+import { PendulumCurrencyId, getAddressForFormat } from '@packages/shared';
 import { SubmittableExtrinsic } from '@polkadot/api/types';
 import { ISubmittableResult } from '@polkadot/types/types';
-import { PendulumCurrencyId, getAddressForFormat } from 'shared';
 import { getFundingAccount } from '../../../controllers/subsidize.controller';
 import { ApiManager } from '../../pendulum/apiManager';
 

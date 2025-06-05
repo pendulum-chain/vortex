@@ -1,6 +1,6 @@
 import { Keypair, Memo, MemoType, Operation, Transaction } from 'stellar-sdk';
 
-import { FiatToken, getTokenDetailsSpacewalk } from 'shared';
+import { FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
 import { TomlValues } from '../../../types/sep';
 
 import { fetchAndValidateChallenge } from './challenge';

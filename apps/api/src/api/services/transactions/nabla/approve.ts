@@ -1,8 +1,8 @@
+import { NABLA_ROUTER, PendulumDetails } from '@packages/shared';
 import { Extrinsic, ReadMessageResult, createExecuteMessageExtrinsic, readMessage } from '@pendulum-chain/api-solang';
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
 import Big from 'big.js';
-import { NABLA_ROUTER, PendulumDetails } from 'shared';
 import logger from '../../../../config/logger';
 import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
 import {

@@ -1,5 +1,5 @@
+import { PresignedTx } from '@packages/shared';
 import httpStatus from 'http-status';
-import { PresignedTx } from 'shared';
 import { APIError } from '../../errors/api-error';
 
 export function encodeEvmTransactionData(data: unknown) {

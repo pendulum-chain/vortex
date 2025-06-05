@@ -1,8 +1,8 @@
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
+import { Networks, getNetworkDisplayName } from '@packages/shared';
 import { useTranslation } from 'react-i18next';
-import { Networks, getNetworkDisplayName } from 'shared';
 
 import { useNetwork } from '../../contexts/network';
 import { cn } from '../../helpers/cn';
@@ -62,7 +62,13 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
   );
 };
 
-const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
+const NetworkBadge = ({
+  network,
+  isAnimating,
+}: {
+  network: Networks;
+  isAnimating: boolean;
+}) => {
   const networkIcon = useGetNetworkIcon(network);
   const { setSelectedNetwork } = useNetwork();
 
@@ -77,7 +83,13 @@ const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating
   );
 };
 
-const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: string }; isAnimating: boolean }) => {
+const TokenBadge = ({
+  token,
+  isAnimating,
+}: {
+  token: { name: string; assetIcon: string };
+  isAnimating: boolean;
+}) => {
   const icon = useGetAssetIcon(token.assetIcon);
   return <Badge icon={icon} label={token.name} isAnimating={isAnimating} rotationDuration={0.3} />;
 };
@@ -85,7 +97,10 @@ const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: 
 export function PopularTokens() {
   const { t } = useTranslation();
 
-  const [animatingIndex, setAnimatingIndex] = useState<{ type: 'network' | 'token'; index: number }>({
+  const [animatingIndex, setAnimatingIndex] = useState<{
+    type: 'network' | 'token';
+    index: number;
+  }>({
     type: 'network',
     index: 0,
   });

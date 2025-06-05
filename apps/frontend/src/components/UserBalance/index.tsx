@@ -1,4 +1,4 @@
-import { OnChainTokenDetails } from 'shared';
+import { OnChainTokenDetails } from '@packages/shared';
 import wallet from '../../assets/wallet-bifold-outline.svg';
 import { useOnchainTokenBalance } from '../../hooks/useOnchainTokenBalance';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
@@ -9,7 +9,13 @@ interface UserBalanceProps {
   className?: string;
 }
 
-const SimpleBalance = ({ token, className }: { token: OnChainTokenDetails; className?: string }) => {
+const SimpleBalance = ({
+  token,
+  className,
+}: {
+  token: OnChainTokenDetails;
+  className?: string;
+}) => {
   const onchainTokenBalanceRaw = useOnchainTokenBalance({ token });
   const onchainTokenBalance = onchainTokenBalanceRaw?.balance || '0';
 
@@ -20,7 +26,13 @@ const SimpleBalance = ({ token, className }: { token: OnChainTokenDetails; class
   );
 };
 
-const FullBalance = ({ token, onClick }: { token: OnChainTokenDetails; onClick: (amount: string) => void }) => {
+const FullBalance = ({
+  token,
+  onClick,
+}: {
+  token: OnChainTokenDetails;
+  onClick: (amount: string) => void;
+}) => {
   const onchainTokenBalanceRaw = useOnchainTokenBalance({ token });
   const onchainTokenBalance = onchainTokenBalanceRaw?.balance || '0';
 

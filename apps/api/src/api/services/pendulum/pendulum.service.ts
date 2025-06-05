@@ -1,7 +1,7 @@
+import { TOKEN_CONFIG } from '@packages/shared';
 import { Keyring } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
 import Big from 'big.js';
-import { TOKEN_CONFIG } from 'shared';
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
 import { ApiManager, SubstrateApiNetwork } from './apiManager';
 import { multiplyByPowerOfTen } from './helpers';

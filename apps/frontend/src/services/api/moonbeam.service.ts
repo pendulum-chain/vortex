@@ -1,4 +1,4 @@
-import { MoonbeamEndpoints } from 'shared';
+import { MoonbeamEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

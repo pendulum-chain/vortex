@@ -2,7 +2,7 @@ import { ArrowLeftEndOnRectangleIcon } from '@heroicons/react/20/solid';
 import { Wallet, WalletAccount } from '@talismn/connect-wallets';
 import { useTranslation } from 'react-i18next';
 
-import { getAddressForFormat } from 'shared';
+import { getAddressForFormat } from '@packages/shared';
 import accountBalanceWalletIconPink from '../../../../assets/account-balance-wallet-pink.svg';
 import accountBalanceWalletIcon from '../../../../assets/account-balance-wallet.svg';
 import { useAssetHubNode } from '../../../../contexts/polkadotNode';

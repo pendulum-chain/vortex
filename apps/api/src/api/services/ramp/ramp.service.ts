@@ -1,5 +1,3 @@
-import httpStatus from 'http-status';
-import { Op } from 'sequelize';
 import {
   AccountMeta,
   FiatToken,
@@ -9,7 +7,9 @@ import {
   RampPhase,
   UnsignedTx,
   validateMaskedNumber,
-} from 'shared';
+} from '@packages/shared';
+import httpStatus from 'http-status';
+import { Op } from 'sequelize';
 import logger from '../../../config/logger';
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../constants/constants';
 import QuoteTicket from '../../../models/quoteTicket.model';
@@ -169,7 +169,9 @@ export class RampService extends BaseRampService {
           ...stateMeta,
         },
         processingLock: { locked: false, lockedAt: null },
-        postCompleteState: { cleanup: { cleanupCompleted: false, cleanupAt: null, errors: null } },
+        postCompleteState: {
+          cleanup: { cleanupCompleted: false, cleanupAt: null, errors: null },
+        },
         quoteId: quote.id,
       };
 
@@ -433,17 +435,26 @@ export class RampService extends BaseRampService {
     const brlaApiService = BrlaApiService.getInstance();
     const subaccount = await brlaApiService.getSubaccount(taxId);
     if (!subaccount) {
-      throw new APIError({ status: httpStatus.BAD_REQUEST, message: `Subaccount not found.` });
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: `Subaccount not found.`,
+      });
     }
 
     if (subaccount.kyc.level < 1) {
-      throw new APIError({ status: httpStatus.BAD_REQUEST, message: `KYC invalid.` });
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: `KYC invalid.`,
+      });
     }
 
     const { limitMint } = subaccount.kyc.limits;
 
     if (Number(amount) > limitMint) {
-      throw new APIError({ status: httpStatus.BAD_REQUEST, message: `Amount exceeds KYC limits.` });
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: `Amount exceeds KYC limits.`,
+      });
     }
 
     const brCode = await brlaApiService.generateBrCode({

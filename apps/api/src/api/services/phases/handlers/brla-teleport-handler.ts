@@ -1,5 +1,5 @@
+import { FiatToken, RampPhase, getAnyFiatTokenDetailsMoonbeam } from '@packages/shared';
 import Big from 'big.js';
-import { FiatToken, RampPhase, getAnyFiatTokenDetailsMoonbeam } from 'shared';
 
 import { moonbeam } from 'viem/chains';
 import logger from '../../../../config/logger';

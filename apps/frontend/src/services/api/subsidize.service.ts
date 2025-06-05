@@ -1,4 +1,4 @@
-import { SubsidizeEndpoints } from 'shared';
+import { SubsidizeEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

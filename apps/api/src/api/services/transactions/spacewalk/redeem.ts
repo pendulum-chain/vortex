@@ -1,6 +1,6 @@
+import { StellarTokenDetails } from '@packages/shared';
 import { SubmittableExtrinsic } from '@polkadot/api/types';
 import { ISubmittableResult } from '@polkadot/types/types';
-import { StellarTokenDetails } from 'shared';
 import { ApiManager } from '../../pendulum/apiManager';
 import { createVaultService } from '../../stellar/vaultService';
 

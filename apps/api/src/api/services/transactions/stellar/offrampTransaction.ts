@@ -1,5 +1,10 @@
+import {
+  HORIZON_URL,
+  PaymentData,
+  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
+  StellarTokenDetails,
+} from '@packages/shared';
 import Big from 'big.js';
-import { HORIZON_URL, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from 'shared';
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from 'stellar-sdk';
 import logger from '../../../../config/logger';
 import { FUNDING_SECRET, SEQUENCE_TIME_WINDOW_IN_SECONDS, STELLAR_BASE_FEE } from '../../../../constants/constants';
@@ -73,7 +78,10 @@ export async function buildPaymentAndMergeTx({
       .addOperation(
         Operation.setOptions({
           source: ephemeralAccountId,
-          signer: { ed25519PublicKey: fundingAccountKeypair.publicKey(), weight: 1 },
+          signer: {
+            ed25519PublicKey: fundingAccountKeypair.publicKey(),
+            weight: 1,
+          },
           lowThreshold: 2,
           medThreshold: 2,
           highThreshold: 2,

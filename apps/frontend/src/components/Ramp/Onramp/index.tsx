@@ -1,8 +1,8 @@
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from '@packages/shared';
 import { motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from 'shared';
 
 import { useEventsContext } from '../../../contexts/events';
 import { useNetwork } from '../../../contexts/network';

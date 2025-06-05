@@ -1,9 +1,15 @@
+import {
+  XTokensEvent,
+  XcmSentEvent,
+  parseEventMoonbeamXcmSent,
+  parseEventXTokens,
+  parseEventXcmSent,
+} from '@packages/shared';
 import { ApiPromise } from '@polkadot/api';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 import { SignedBlock } from '@polkadot/types/interfaces';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { encodeAddress } from '@polkadot/util-crypto';
-import { XTokensEvent, XcmSentEvent, parseEventMoonbeamXcmSent, parseEventXTokens, parseEventXcmSent } from 'shared';
 import logger from '../../../config/logger';
 
 export class TransactionInclusionError extends Error {

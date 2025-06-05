@@ -1,6 +1,6 @@
+import { EvmTokenDetails, EvmTransactionData, Networks } from '@packages/shared';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
-import { EvmTokenDetails, EvmTransactionData, Networks } from 'shared';
 import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { moonbeam } from 'viem/chains';
 import erc20ABI from '../../../../contracts/ERC20';

@@ -1,5 +1,5 @@
+import { isNetworkEVM } from '@packages/shared';
 import { useEffect, useState } from 'react';
-import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../contexts/network';
 import { useRampSigningPhase, useSigningRejected } from '../stores/rampStore';
 import { useSafeWalletSignatureStore } from '../stores/safeWalletSignaturesStore';

@@ -1,4 +1,4 @@
-import { EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
+import { EvmToken, FiatToken, Networks, OnChainToken } from '@packages/shared';
 import { create } from 'zustand';
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.BRL;

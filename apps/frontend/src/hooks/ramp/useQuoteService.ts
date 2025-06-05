@@ -1,6 +1,6 @@
+import { FiatToken, OnChainToken } from '@packages/shared';
 import Big from 'big.js';
 import { useCallback, useEffect } from 'react';
-import { FiatToken, OnChainToken } from 'shared';
 
 import { RampDirection } from '../../components/RampToggle';
 import { useEventsContext } from '../../contexts/events';

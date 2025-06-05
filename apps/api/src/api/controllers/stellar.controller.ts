@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { Keypair } from 'stellar-sdk';
 
-import { FiatToken } from 'shared';
+import { FiatToken } from '@packages/shared';
 import { StellarEndpoints } from 'shared/src/endpoints/stellar.endpoints';
 import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
@@ -31,9 +31,10 @@ export const createStellarTransactionHandler = async (
     return;
   } catch (error) {
     console.error('Error in createStellarTransaction:', error);
-    res
-      .status(httpStatus.INTERNAL_SERVER_ERROR)
-      .json({ error: 'Failed to create transaction', details: (error as Error).message });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      error: 'Failed to create transaction',
+      details: (error as Error).message,
+    });
   }
 };
 
@@ -49,13 +50,19 @@ export const signSep10ChallengeHandler = async (
       req.body.clientPublicKey,
       req.derivedMemo,
     );
-    res.json({ masterClientSignature, masterClientPublic, clientSignature, clientPublic });
+    res.json({
+      masterClientSignature,
+      masterClientPublic,
+      clientSignature,
+      clientPublic,
+    });
     return;
   } catch (error) {
     console.error('Error in signSep10Challenge:', error);
-    res
-      .status(httpStatus.INTERNAL_SERVER_ERROR)
-      .json({ error: 'Failed to sign challenge', details: (error as Error).message });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      error: 'Failed to sign challenge',
+      details: (error as Error).message,
+    });
   }
 };
 
@@ -73,9 +80,10 @@ export const getSep10MasterPKHandler = async (
     return;
   } catch (error) {
     console.error('Error in getSep10MasterPK:', error);
-    res
-      .status(httpStatus.INTERNAL_SERVER_ERROR)
-      .json({ error: 'Failed to get master public key', details: (error as Error).message });
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      error: 'Failed to get master public key',
+      details: (error as Error).message,
+    });
   }
 };
 

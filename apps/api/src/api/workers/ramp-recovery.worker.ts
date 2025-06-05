@@ -1,6 +1,6 @@
+import { RampErrorLog } from '@packages/shared';
 import { CronJob } from 'cron';
 import { Op } from 'sequelize';
-import { RampErrorLog } from 'shared';
 import logger from '../../config/logger';
 import RampState from '../../models/rampState.model';
 import phaseProcessor from '../services/phases/phase-processor';

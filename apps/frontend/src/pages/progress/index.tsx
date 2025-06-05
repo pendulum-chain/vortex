@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { RampPhase, isNetworkEVM } from 'shared';
+import { RampPhase, isNetworkEVM } from '@packages/shared';
 import { Box } from '../../components/Box';
 import { config } from '../../config';
 import { useEventsContext } from '../../contexts/events';
@@ -341,7 +341,10 @@ export const ProgressPage = () => {
         // Get the latest rampState from the store to ensure we're using current data
         const currentRampState = useRampStore.getState().rampState;
         if (currentRampState) {
-          const updatedRampState = { ...currentRampState, ramp: updatedRampProcess };
+          const updatedRampState = {
+            ...currentRampState,
+            ramp: updatedRampProcess,
+          };
           setRampState(updatedRampState);
         }
 

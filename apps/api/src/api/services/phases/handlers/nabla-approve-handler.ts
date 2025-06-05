@@ -1,6 +1,6 @@
+import { RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
 import { ExecuteMessageResult, createExecuteMessageExtrinsic, submitExtrinsic } from '@pendulum-chain/api-solang';
 import { Abi } from '@polkadot/api-contract';
-import { RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import logger from '../../../../config/logger';
 import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
 import RampState from '../../../../models/rampState.model';

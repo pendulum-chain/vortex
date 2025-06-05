@@ -1,8 +1,8 @@
 import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 
+import { SpacewalkRedeemRequestEvent, getAddressForFormat, parseEventRedeemRequest } from '@packages/shared';
 import { ISubmittableResult } from '@polkadot/types/types';
-import { SpacewalkRedeemRequestEvent, getAddressForFormat, parseEventRedeemRequest } from 'shared';
 import logger from '../../../config/logger';
 import { API } from '../pendulum/apiManager';
 import { getVaultsForCurrency } from './getVaults';

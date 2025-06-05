@@ -1,5 +1,5 @@
+import { FiatTokenDetails, OnChainTokenDetails } from '@packages/shared';
 import { FC } from 'react';
-import { FiatTokenDetails, OnChainTokenDetails } from 'shared';
 import { getTokenSymbol } from '../../helpers/getTokenSymbol';
 
 interface ExchangeRateProps {

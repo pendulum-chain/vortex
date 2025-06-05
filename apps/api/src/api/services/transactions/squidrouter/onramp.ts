@@ -1,4 +1,10 @@
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks, getNetworkFromDestination, getNetworkId } from 'shared';
+import {
+  AXL_USDC_MOONBEAM,
+  EvmTokenDetails,
+  Networks,
+  getNetworkFromDestination,
+  getNetworkId,
+} from '@packages/shared';
 import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { createOnrampRouteParams, getRoute } from './route';

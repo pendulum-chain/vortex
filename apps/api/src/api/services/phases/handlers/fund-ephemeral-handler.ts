@@ -1,5 +1,5 @@
+import { FiatToken, RampPhase, getNetworkFromDestination } from '@packages/shared';
 import Big from 'big.js';
-import { FiatToken, RampPhase, getNetworkFromDestination } from 'shared';
 import logger from '../../../../config/logger';
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import RampState from '../../../../models/rampState.model';

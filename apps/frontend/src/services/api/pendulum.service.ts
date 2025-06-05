@@ -1,4 +1,4 @@
-import { PendulumEndpoints } from 'shared';
+import { PendulumEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

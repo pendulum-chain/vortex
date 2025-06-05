@@ -1,6 +1,6 @@
+import { DestinationType, RampCurrency } from '@packages/shared';
 import Big from 'big.js';
 import httpStatus from 'http-status';
-import { DestinationType, RampCurrency } from 'shared';
 import logger from '../../../../config/logger';
 import Anchor from '../../../../models/anchor.model';
 import Partner from '../../../../models/partner.model';

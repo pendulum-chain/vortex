@@ -1,5 +1,5 @@
-import { Networks } from 'shared';
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from 'shared';
+import { Networks } from '@packages/shared';
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from '@packages/shared';
 import { createTransactionEvent, useEventsContext } from '../../../contexts/events';
 import { RampExecutionInput, RampState } from '../../../types/phases';
 

@@ -1,5 +1,3 @@
-import { Big } from 'big.js';
-import httpStatus from 'http-status';
 import {
   DestinationType,
   EvmTokenDetails,
@@ -10,7 +8,9 @@ import {
   getOnChainTokenDetails,
   getPendulumDetails,
   isEvmTokenDetails,
-} from 'shared';
+} from '@packages/shared';
+import { Big } from 'big.js';
+import httpStatus from 'http-status';
 import logger from '../../../../config/logger';
 import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,

@@ -1,5 +1,5 @@
+import { Networks } from '@packages/shared';
 import Big from 'big.js';
-import { Networks } from 'shared';
 import { http, createPublicClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
@@ -91,7 +91,9 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string, des
       value: BigInt(fundingAmountRaw),
     });
 
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash as `0x${string}`,
+    });
     if (!receipt || receipt.status !== 'success') {
       throw new Error(`fundMoonbeamEphemeralAccount: Transaction ${txHash} failed or was not found`);
     }

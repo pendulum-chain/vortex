@@ -1,4 +1,4 @@
-import { HORIZON_URL, RampPhase } from 'shared';
+import { HORIZON_URL, RampPhase } from '@packages/shared';
 import { Horizon, NetworkError, Networks, Transaction } from 'stellar-sdk';
 import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';

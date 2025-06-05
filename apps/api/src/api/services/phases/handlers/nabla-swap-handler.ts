@@ -1,3 +1,4 @@
+import { NABLA_ROUTER, RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
 import {
   ExecuteMessageResult,
   ReadMessageResult,
@@ -6,7 +7,6 @@ import {
   submitExtrinsic,
 } from '@pendulum-chain/api-solang';
 import Big from 'big.js';
-import { NABLA_ROUTER, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import RampState from '../../../../models/rampState.model';
 import { BasePhaseHandler } from '../base-phase-handler';
 

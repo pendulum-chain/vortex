@@ -1,5 +1,5 @@
+import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from '@packages/shared';
 import { useEffect, useMemo, useRef } from 'react';
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
 import { RampDirection } from '../components/RampToggle';
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from '../config/tokenAvailability';
 import { useNetwork } from '../contexts/network';

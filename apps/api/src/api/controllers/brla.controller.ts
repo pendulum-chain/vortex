@@ -1,6 +1,6 @@
+import { validateMaskedNumber } from '@packages/shared';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
-import { validateMaskedNumber } from 'shared';
 import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
 import { eventPoller } from '../..';
 import logger from '../../config/logger';
@@ -90,7 +90,10 @@ export const getBrlaUser = async (
       return;
     }
 
-    res.json({ evmAddress: subaccount.wallets.evm, kycLevel: subaccount.kyc.level });
+    res.json({
+      evmAddress: subaccount.wallets.evm,
+      kycLevel: subaccount.kyc.level,
+    });
     return;
   } catch (error) {
     handleApiError(error, res, 'getBrlaUser');
@@ -253,7 +256,11 @@ export const createSubaccount = async (
     // if company startDate field was provided, convert it to BRLA format
     const startDate = convertDateToBRLAFormat(req.body.startDate);
 
-    let subaccountPayload: RegisterSubaccountPayload = { ...req.body, birthdate, startDate };
+    let subaccountPayload: RegisterSubaccountPayload = {
+      ...req.body,
+      birthdate,
+      startDate,
+    };
 
     // Extra validation for company fields
     if (taxIdType === 'CNPJ') {
@@ -287,7 +294,10 @@ export const createSubaccount = async (
       return;
     }
 
-    subaccountPayload = { ...subaccountPayload, companyName: subaccountPayload.companyName };
+    subaccountPayload = {
+      ...subaccountPayload,
+      companyName: subaccountPayload.companyName,
+    };
     logger.info('Subaccount Payload', subaccountPayload);
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
@@ -323,9 +333,9 @@ export const fetchSubaccountKycStatus = async (
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
-      res
-        .status(httpStatus.INTERNAL_SERVER_ERROR)
-        .json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
+      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+        error: `Internal Server Error: No KYC events found for ${taxId}`,
+      });
       return;
     }
 
@@ -410,7 +420,9 @@ export const startKYC2 = async (
     }
 
     if (subaccount.kyc.level !== 1) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'KYC invalid. User must have a valid KYC level 1 status' });
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: 'KYC invalid. User must have a valid KYC level 1 status',
+      });
       return;
     }
 

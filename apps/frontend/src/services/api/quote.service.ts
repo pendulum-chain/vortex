@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteEndpoints } from 'shared';
+import { DestinationType, FiatToken, OnChainToken, QuoteEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

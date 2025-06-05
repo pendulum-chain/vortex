@@ -2,15 +2,15 @@
 import { describe, expect, it, mock } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { AccountMeta, EvmToken, FiatToken, Networks, signUnsignedTransactions } from 'shared';
+import { AccountMeta, EvmToken, FiatToken, Networks, signUnsignedTransactions } from '@packages/shared';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import RampState from '../../../models/rampState.model';
 import { RampService } from '../ramp/ramp.service';
 import { PhaseProcessor } from './phase-processor';
 
+import { EphemeralAccount } from '@packages/shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
-import { EphemeralAccount } from 'shared';
 import { Keypair } from 'stellar-sdk';
 import { API, ApiManager } from '../pendulum/apiManager';
 import { QuoteService } from '../ramp/quote.service';
@@ -210,7 +210,10 @@ describe('Onramp PhaseProcessor Integration Test', () => {
 
       // END - MIMIC THE UI
 
-      const _startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
+      const _startedRamp = await rampService.startRamp({
+        rampId: registeredRamp.id,
+        presignedTxs,
+      });
 
       const finalRampState = await waitForCompleteRamp(registeredRamp.id);
 

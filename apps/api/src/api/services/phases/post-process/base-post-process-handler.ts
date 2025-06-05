@@ -1,4 +1,4 @@
-import { CleanupPhase, PresignedTx } from 'shared';
+import { CleanupPhase, PresignedTx } from '@packages/shared';
 import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';
 

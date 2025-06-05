@@ -1,4 +1,4 @@
-import { RampPhase, getNetworkFromDestination, getNetworkId } from 'shared';
+import { RampPhase, getNetworkFromDestination, getNetworkId } from '@packages/shared';
 import { http, createPublicClient } from 'viem';
 import { moonbeam } from 'viem/chains';
 import logger from '../../../../config/logger';
@@ -103,7 +103,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    */
   private async executeTransaction(txData: string): Promise<string> {
     try {
-      const txHash = await this.publicClient.sendRawTransaction({ serializedTransaction: txData as `0x${string}` });
+      const txHash = await this.publicClient.sendRawTransaction({
+        serializedTransaction: txData as `0x${string}`,
+      });
       return txHash;
     } catch (error) {
       logger.error('Error sending raw transaction', error);
@@ -118,7 +120,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    */
   private async waitForTransactionConfirmation(txHash: string, _chainId: number): Promise<void> {
     try {
-      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      const receipt = await this.publicClient.waitForTransactionReceipt({
+        hash: txHash as `0x${string}`,
+      });
       if (!receipt || receipt.status !== 'success') {
         throw new Error(`SquidRouterPhaseHandler: Transaction ${txHash} failed or was not found`);
       }

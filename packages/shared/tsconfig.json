@@ -7,12 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": true,
-    "declarationDir": "dist/types",
-    "outDir": "dist/esm",
     "rootDir": "src",
     "baseUrl": ".",
     "paths": {
-      "shared": ["./dist/esm"]
+      "@packages/shared/*": ["src/*"]
     }
   },
   "include": ["src"],

@@ -1,5 +1,5 @@
+import { AccountMeta, FiatToken, Networks, getAddressForFormat, signUnsignedTransactions } from '@packages/shared';
 import { useCallback, useEffect } from 'react';
-import { AccountMeta, FiatToken, Networks, getAddressForFormat, signUnsignedTransactions } from 'shared';
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { useToastMessage } from '../../../helpers/notifications';
@@ -159,9 +159,18 @@ export const useRegisterRamp = () => {
 
       const quoteId = executionInput.quote.id;
       const signingAccounts: AccountMeta[] = [
-        { address: executionInput.ephemerals.stellarEphemeral.address, network: Networks.Stellar },
-        { address: executionInput.ephemerals.moonbeamEphemeral.address, network: Networks.Moonbeam },
-        { address: executionInput.ephemerals.pendulumEphemeral.address, network: Networks.Pendulum },
+        {
+          address: executionInput.ephemerals.stellarEphemeral.address,
+          network: Networks.Stellar,
+        },
+        {
+          address: executionInput.ephemerals.moonbeamEphemeral.address,
+          network: Networks.Moonbeam,
+        },
+        {
+          address: executionInput.ephemerals.pendulumEphemeral.address,
+          network: Networks.Pendulum,
+        },
       ];
 
       if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL) {

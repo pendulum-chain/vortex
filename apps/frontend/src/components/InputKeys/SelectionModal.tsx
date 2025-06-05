@@ -12,7 +12,7 @@ import {
   getEnumKeyByStringValue,
   moonbeamTokenConfig,
   stellarTokenConfig,
-} from 'shared';
+} from '@packages/shared';
 import { isFiatTokenDisabled } from '../../config/tokenAvailability';
 
 import { useNetwork } from '../../contexts/network';

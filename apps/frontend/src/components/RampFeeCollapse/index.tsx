@@ -1,7 +1,7 @@
 import { InformationCircleIcon } from '@heroicons/react/20/solid';
+import { QuoteEndpoints } from '@packages/shared';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
-import { QuoteEndpoints } from 'shared';
 import { useQuote } from '../../stores/ramp/useQuoteStore';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
@@ -65,7 +65,14 @@ export function RampFeeCollapse() {
         outputAmount: 0,
         inputCurrency: rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken,
         outputCurrency: rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken,
-        fee: { total: '0', network: '0', vortex: '0', anchor: '0', partnerMarkup: '0', currency: fiatToken },
+        fee: {
+          total: '0',
+          network: '0',
+          vortex: '0',
+          anchor: '0',
+          partnerMarkup: '0',
+          currency: fiatToken,
+        },
       };
 
   const inputCurrency = quote.inputCurrency.toUpperCase();

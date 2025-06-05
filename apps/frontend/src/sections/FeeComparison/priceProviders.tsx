@@ -3,8 +3,8 @@ import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
 
+import { PriceEndpoints } from '@packages/shared';
 import { JSX } from 'react';
-import { PriceEndpoints } from 'shared';
 
 export interface PriceProvider {
   name: PriceEndpoints.Provider | 'vortex';

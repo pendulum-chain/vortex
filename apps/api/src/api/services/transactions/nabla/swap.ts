@@ -1,7 +1,7 @@
+import { NABLA_ROUTER, PendulumDetails } from '@packages/shared';
 import { Extrinsic, createExecuteMessageExtrinsic } from '@pendulum-chain/api-solang';
 import { ApiPromise } from '@polkadot/api';
 import { Abi } from '@polkadot/api-contract';
-import { NABLA_ROUTER, PendulumDetails } from 'shared';
 import { config } from '../../../../config';
 import logger from '../../../../config/logger';
 import { routerAbi } from '../../../../contracts/Router';
@@ -56,7 +56,11 @@ export async function createSwapExtrinsic({
     skipDryRunning: true, // We have to skip this because it will not work before the approval transaction executed
   };
 
-  const { execution } = await createExecuteMessageExtrinsic({ ...extrinsicOptions, api, abi: contractAbi });
+  const { execution } = await createExecuteMessageExtrinsic({
+    ...extrinsicOptions,
+    api,
+    abi: contractAbi,
+  });
 
   if (execution.type === 'onlyRpc') {
     throw Error("Couldn't create swap extrinsic. Can't execute only-RPC");

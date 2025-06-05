@@ -1,4 +1,4 @@
-import { CleanupPhase, FiatToken, HORIZON_URL } from 'shared';
+import { CleanupPhase, FiatToken, HORIZON_URL } from '@packages/shared';
 import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from 'stellar-sdk';
 import logger from '../../../../config/logger';
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../../constants/constants';

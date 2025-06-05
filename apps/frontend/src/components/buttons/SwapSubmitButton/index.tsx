@@ -1,6 +1,6 @@
+import { isNetworkEVM } from '@packages/shared';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { FC } from 'react';
-import { isNetworkEVM } from 'shared';
 import { useNetwork } from '../../../contexts/network';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { Spinner } from '../../Spinner';

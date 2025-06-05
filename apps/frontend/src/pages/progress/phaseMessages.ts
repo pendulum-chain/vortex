@@ -1,4 +1,3 @@
-import { TFunction } from 'i18next';
 import {
   FiatToken,
   OnChainToken,
@@ -6,7 +5,8 @@ import {
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
-} from 'shared';
+} from '@packages/shared';
+import { TFunction } from 'i18next';
 import { RampState } from '../../types/phases';
 
 export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'translation', undefined>): string {
@@ -38,7 +38,10 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
   const getSwappingMessage = () => t('pages.progress.swappingTo', { assetSymbol: outputAssetSymbol });
   const getMoonbeamToPendulumMessage = () => t('pages.progress.moonbeamToPendulum', { assetSymbol: inputAssetSymbol });
   const getSquidrouterSwapMessage = () =>
-    t('pages.progress.squidrouterSwap', { assetSymbol: outputAssetSymbol, network: toNetwork });
+    t('pages.progress.squidrouterSwap', {
+      assetSymbol: outputAssetSymbol,
+      network: toNetwork,
+    });
 
   const getTransferringMessage = () => t('pages.progress.transferringToLocalPartner');
 
@@ -53,14 +56,24 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
     subsidizePostSwap: getSwappingMessage(),
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
-    assethubToPendulum: t('pages.progress.assethubToPendulum', { assetSymbol: inputAssetSymbol }),
-    pendulumToMoonbeam: t('pages.progress.pendulumToMoonbeam', { assetSymbol: outputAssetSymbol }),
-    spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputAssetSymbol }),
+    assethubToPendulum: t('pages.progress.assethubToPendulum', {
+      assetSymbol: inputAssetSymbol,
+    }),
+    pendulumToMoonbeam: t('pages.progress.pendulumToMoonbeam', {
+      assetSymbol: outputAssetSymbol,
+    }),
+    spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', {
+      assetSymbol: outputAssetSymbol,
+    }),
     brlaPayoutOnMoonbeam: getTransferringMessage(),
-    stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
+    stellarPayment: t('pages.progress.stellarPayment', {
+      assetSymbol: outputAssetSymbol,
+    }),
     squidrouterApprove: getSquidrouterSwapMessage(),
     squidrouterSwap: getSquidrouterSwapMessage(),
-    pendulumToAssethub: t('pages.progress.pendulumToAssethub', { assetSymbol: outputAssetSymbol }),
+    pendulumToAssethub: t('pages.progress.pendulumToAssethub', {
+      assetSymbol: outputAssetSymbol,
+    }),
     brlaTeleport: t('pages.progress.brlaTeleport'),
     failed: '', // Not relevant for progress page
     complete: '', // Not relevant for progress page

@@ -1,5 +1,5 @@
+import { FiatToken } from '@packages/shared';
 import { useQuery } from '@tanstack/react-query';
-import { FiatToken } from 'shared';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 
 interface AccountStatusResponse {
@@ -164,7 +164,13 @@ export const fetchSep10Signatures = async ({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, usesMemo, address }),
+    body: JSON.stringify({
+      challengeXDR,
+      outToken,
+      clientPublicKey,
+      usesMemo,
+      address,
+    }),
   });
   if (response.status !== 200) {
     if (response.status === 401) {
@@ -174,7 +180,12 @@ export const fetchSep10Signatures = async ({
   }
 
   const { clientSignature, clientPublic, masterClientSignature, masterClientPublic } = await response.json();
-  return { clientSignature, clientPublic, masterClientSignature, masterClientPublic };
+  return {
+    clientSignature,
+    clientPublic,
+    masterClientSignature,
+    masterClientPublic,
+  };
 };
 
 export const fetchOfframpStatus = async (taxId: string) => {

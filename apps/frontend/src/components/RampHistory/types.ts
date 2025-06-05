@@ -1,4 +1,4 @@
-import { Networks, PaymentMethod } from 'shared';
+import { Networks, PaymentMethod } from '@packages/shared';
 
 export type TransactionStatus = 'success' | 'pending' | 'failed';
 

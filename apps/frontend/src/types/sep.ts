@@ -1,4 +1,4 @@
-import { StellarTokenDetails } from 'shared';
+import { StellarTokenDetails } from '@packages/shared';
 
 export interface TomlValues {
   signingKey?: string;

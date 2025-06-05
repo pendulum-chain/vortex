@@ -1,4 +1,4 @@
-import { PendulumDetails, RampCurrency, StellarTokenDetails } from 'shared';
+import { PendulumDetails, RampCurrency, StellarTokenDetails } from '@packages/shared';
 import { ExtrinsicOptions } from '../transactions/nabla';
 
 export interface StateMetadata {
@@ -16,7 +16,10 @@ export interface StateMetadata {
   squidRouterReceiverHash: string;
   // Only used in offramp - eurc & ars route
   stellarEphemeralAccountId: string;
-  stellarTarget: { stellarTargetAccountId: string; stellarTokenDetails: StellarTokenDetails };
+  stellarTarget: {
+    stellarTargetAccountId: string;
+    stellarTokenDetails: StellarTokenDetails;
+  };
   executeSpacewalkNonce: number;
   // Only used in onramp - brla
   inputAmountUnits: string;

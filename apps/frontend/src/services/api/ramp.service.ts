@@ -1,4 +1,4 @@
-import { AccountMeta, PresignedTx, RampEndpoints } from 'shared';
+import { AccountMeta, PresignedTx, RampEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

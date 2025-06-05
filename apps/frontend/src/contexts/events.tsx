@@ -1,7 +1,7 @@
+import { FiatToken, PriceEndpoints } from '@packages/shared';
+import { getNetworkId, isNetworkEVM } from '@packages/shared';
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
-import { FiatToken, PriceEndpoints } from 'shared';
-import { getNetworkId, isNetworkEVM } from 'shared';
 import { LocalStorageKeys } from '../hooks/useLocalStorage';
 import { useVortexAccount } from '../hooks/useVortexAccount';
 import { storageService } from '../services/storage/local';

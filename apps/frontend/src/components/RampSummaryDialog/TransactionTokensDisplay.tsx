@@ -1,7 +1,4 @@
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
-import Big from 'big.js';
-import { FC, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   BaseFiatTokenDetails,
   FiatTokenDetails,
@@ -10,7 +7,10 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isStellarOutputTokenDetails,
-} from 'shared';
+} from '@packages/shared';
+import Big from 'big.js';
+import { FC, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../../contexts/network';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
 import { trimAddress } from '../../helpers/addressFormatter';
@@ -45,7 +45,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   const { apiComponents } = useAssetHubNode();
   const { address, chainId } = useVortexAccount();
 
-  const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({
+    minutes: ONRAMP_EXPIRY_MINUTES,
+    seconds: 0,
+  });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
   const { setIsQuoteExpired } = useRampSummaryActions();
 

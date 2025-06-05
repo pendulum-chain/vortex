@@ -1,8 +1,8 @@
+import { RampPhase } from '@packages/shared';
 import { u8aToHex } from '@polkadot/util';
 import { decodeAddress } from '@polkadot/util-crypto';
 import { readContract } from '@wagmi/core';
 import Big from 'big.js';
-import { RampPhase } from 'shared';
 import { encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';

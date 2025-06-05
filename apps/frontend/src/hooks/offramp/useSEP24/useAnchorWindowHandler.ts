@@ -1,6 +1,6 @@
+import { PaymentData } from '@packages/shared';
 import Big from 'big.js';
 import { useCallback } from 'react';
-import { PaymentData } from 'shared';
 
 import { useNetwork } from '../../../contexts/network';
 

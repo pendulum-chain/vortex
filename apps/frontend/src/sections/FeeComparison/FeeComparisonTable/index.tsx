@@ -9,7 +9,7 @@ import {
   getNetworkDisplayName,
   getOnChainTokenDetailsOrDefault,
   isNetworkEVM,
-} from 'shared';
+} from '@packages/shared';
 import { RampDirection } from '../../../components/RampToggle';
 import { activeOptions, cacheKeys } from '../../../constants/cache';
 import { useNetwork } from '../../../contexts/network';
@@ -89,7 +89,9 @@ export function FeeComparisonTable() {
   const networkDisplay = !isNetworkEVM(selectedNetwork) ? (
     <div
       className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-      data-tip={t('sections.feeComparison.table.tooltip', { network: getNetworkDisplayName(selectedNetwork) })}
+      data-tip={t('sections.feeComparison.table.tooltip', {
+        network: getNetworkDisplayName(selectedNetwork),
+      })}
     >
       <span translate="no">(Polygon)</span>
     </div>

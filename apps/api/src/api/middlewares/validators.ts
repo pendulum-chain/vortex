@@ -1,7 +1,7 @@
+import { BrlaEndpoints, TokenConfig } from '@packages/shared';
 import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
 import { ParsedQs } from 'qs';
-import { BrlaEndpoints, TokenConfig } from 'shared';
 import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
@@ -413,7 +413,9 @@ export const validateStartKyc2: RequestHandler = (req, res, next) => {
   }
 
   if (!isValidKYCDocType(documentType)) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: 'Invalid document type. Document type must be: RG or CNH',
+    });
     return;
   }
 

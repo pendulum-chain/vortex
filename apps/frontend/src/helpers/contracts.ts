@@ -1,10 +1,10 @@
+import { roundDownToSignificantDecimals } from '@packages/shared';
 import { Limits } from '@pendulum-chain/api-solang';
 import type { ApiPromise } from '@polkadot/api';
 import { ContractOptions } from '@polkadot/api-contract/types';
 import { INumber } from '@polkadot/types-codec/types';
 import type { QueryKey, UseQueryOptions } from '@tanstack/react-query';
 import BigNumber from 'big.js';
-import { roundDownToSignificantDecimals } from 'shared';
 
 const BIG_0 = new BigNumber('0');
 

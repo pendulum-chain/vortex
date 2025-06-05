@@ -1,5 +1,5 @@
+import { CleanupPhase } from '@packages/shared'; // <-- Import CleanupPhase
 import { CronJob } from 'cron';
-import { CleanupPhase } from 'shared'; // <-- Import CleanupPhase
 import logger from '../../config/logger';
 import RampState from '../../models/rampState.model';
 import { BasePostProcessHandler, postProcessHandlers } from '../services/phases/post-process';

@@ -1,4 +1,4 @@
-import { BrlaEndpoints, EvmAddress } from 'shared';
+import { BrlaEndpoints, EvmAddress } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 export enum KYCDocType {

@@ -1,4 +1,4 @@
-import { StorageEndpoints } from 'shared';
+import { StorageEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

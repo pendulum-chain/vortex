@@ -1,5 +1,3 @@
-import Big from 'big.js';
-import httpStatus from 'http-status';
 import {
   DestinationType,
   EvmToken,
@@ -9,7 +7,9 @@ import {
   QuoteEndpoints,
   RampCurrency,
   getOnChainTokenDetailsOrDefault,
-} from 'shared';
+} from '@packages/shared';
+import Big from 'big.js';
+import httpStatus from 'http-status';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../../../../config/logger';
 import Partner from '../../../../models/partner.model';

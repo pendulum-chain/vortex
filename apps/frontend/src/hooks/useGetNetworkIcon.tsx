@@ -6,7 +6,7 @@ import BSC from '../assets/chains/bsc.svg';
 import ETHEREUM from '../assets/chains/ethereum.svg';
 import POLYGON from '../assets/chains/polygon.svg';
 
-import { Networks } from 'shared';
+import { Networks } from '@packages/shared';
 
 export const NETWORK_ICONS: Record<Networks, string> = {
   [Networks.AssetHub]: ASSET_HUB,

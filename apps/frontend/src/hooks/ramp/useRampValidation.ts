@@ -1,5 +1,3 @@
-import Big from 'big.js';
-import { useCallback, useMemo } from 'react';
 import {
   FiatToken,
   FiatTokenDetails,
@@ -7,7 +5,9 @@ import {
   QuoteEndpoints,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-} from 'shared';
+} from '@packages/shared';
+import Big from 'big.js';
+import { useCallback, useMemo } from 'react';
 import { getTokenDisabledReason, isFiatTokenDisabled } from '../../config/tokenAvailability';
 
 import { TFunction } from 'i18next';

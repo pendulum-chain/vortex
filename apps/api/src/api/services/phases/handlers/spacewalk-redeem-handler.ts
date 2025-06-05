@@ -1,5 +1,5 @@
+import { EventListener, RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
 import Big from 'big.js';
-import { EventListener, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import RampState from '../../../../models/rampState.model';
 import { BasePhaseHandler } from '../base-phase-handler';
 

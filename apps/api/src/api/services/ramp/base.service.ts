@@ -1,5 +1,5 @@
+import { RampPhase } from '@packages/shared';
 import { Op, Transaction } from 'sequelize';
-import { RampPhase } from 'shared';
 import { v4 as uuidv4 } from 'uuid';
 import sequelize from '../../../config/database';
 import logger from '../../../config/logger';

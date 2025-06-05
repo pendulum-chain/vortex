@@ -2,7 +2,7 @@ import { ChevronRightIcon } from '@heroicons/react/20/solid';
 import Big from 'big.js';
 import { FC } from 'react';
 
-import { Networks, getNetworkDisplayName, roundDownToSignificantDecimals } from 'shared';
+import { Networks, getNetworkDisplayName, roundDownToSignificantDecimals } from '@packages/shared';
 import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { StatusBadge } from '../../StatusBadge';
 import { Transaction } from '../types';

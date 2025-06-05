@@ -4,9 +4,9 @@ import {
   TokenDetails,
   isFiatTokenDetails,
   isOnChainTokenDetails,
-} from 'shared';
+} from '@packages/shared';
 
-import { FiatTokenDetails } from 'shared';
+import { FiatTokenDetails } from '@packages/shared';
 
 export const getTokenSymbol = (token: BaseFiatTokenDetails | OnChainTokenDetails): string => {
   if (isFiatTokenDetails(token as TokenDetails)) {

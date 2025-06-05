@@ -1,4 +1,4 @@
-import { PriceEndpoints } from 'shared';
+import { PriceEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

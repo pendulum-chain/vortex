@@ -1,4 +1,4 @@
-import { FiatToken, StellarEndpoints } from 'shared';
+import { FiatToken, StellarEndpoints } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**

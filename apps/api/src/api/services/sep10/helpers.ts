@@ -1,4 +1,4 @@
-import { TOKEN_CONFIG } from 'shared';
+import { TOKEN_CONFIG } from '@packages/shared';
 import { Operation, Transaction } from 'stellar-sdk';
 
 interface TokenConfig {

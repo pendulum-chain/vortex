@@ -1,5 +1,12 @@
+import {
+  CleanupPhase,
+  FiatToken,
+  Networks,
+  PresignedTx,
+  RampPhase,
+  decodeSubmittableExtrinsic,
+} from '@packages/shared';
 import { submitExtrinsic } from '@pendulum-chain/api-solang';
-import { CleanupPhase, FiatToken, Networks, PresignedTx, RampPhase, decodeSubmittableExtrinsic } from 'shared';
 import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';
 import { ApiManager } from '../../pendulum/apiManager';

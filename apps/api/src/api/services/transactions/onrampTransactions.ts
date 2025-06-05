@@ -1,4 +1,3 @@
-import Big from 'big.js';
 import {
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
@@ -16,7 +15,8 @@ import {
   isMoonbeamTokenDetails,
   isOnChainToken,
   isOnChainTokenDetails,
-} from 'shared';
+} from '@packages/shared';
+import Big from 'big.js';
 import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
 import logger from '../../../config/logger';
 import Partner from '../../../models/partner.model';
@@ -57,7 +57,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
-  const vortexPartner = await Partner.findOne({ where: { name: 'vortex', isActive: true } });
+  const vortexPartner = await Partner.findOne({
+    where: { name: 'vortex', isActive: true },
+  });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
     logger.warn('Vortex partner or payout address not found, skipping fee distribution transaction');
     return null;
@@ -66,7 +68,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({ where: { id: quote.partnerId, isActive: true } });
+    const quotePartner = await Partner.findOne({
+      where: { id: quote.partnerId, isActive: true },
+    });
     if (quotePartner && quotePartner.payoutAddress) {
       partnerPayoutAddress = quotePartner.payoutAddress;
     }
@@ -558,7 +562,10 @@ export async function prepareOnrampTransactions(
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    outputAmountBeforeFinalStep: { units: outputAmountBeforeFinalStepUnits, raw: outputAmountBeforeFinalStepRaw },
+    outputAmountBeforeFinalStep: {
+      units: outputAmountBeforeFinalStepUnits,
+      raw: outputAmountBeforeFinalStepRaw,
+    },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,

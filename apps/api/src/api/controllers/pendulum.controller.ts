@@ -3,7 +3,7 @@ import Big from 'big.js';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
-import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
+import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '@packages/shared';
 import { PendulumEndpoints } from 'shared/src/endpoints/pendulum.endpoints';
 import logger from '../../config/logger';
 import {
@@ -75,7 +75,11 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
         tokenConfig.pendulumCurrencyId,
       );
 
-      const tokenData = tokenBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
+      const tokenData = tokenBalanceResponse.toHuman() as {
+        free: string;
+        reserved: string;
+        frozen: string;
+      };
       const tokenBalance = Big(tokenData.free.replaceAll(',', '') ?? '0');
       const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
       const remainingMaxSubsidiesAvailable = tokenBalance.div(maximumSubsidyAmountRaw);
@@ -106,7 +110,11 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     fundingAccountKeypair.address,
     TOKEN_CONFIG.glmr.pendulumCurrencyId,
   );
-  const glmrData = glmrBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
+  const glmrData = glmrBalanceResponse.toHuman() as {
+    free: string;
+    reserved: string;
+    frozen: string;
+  };
   const glmrBalance = Big(glmrData.free.replaceAll(',', '') ?? '0');
 
   if (
