@@ -1,0 +1,20 @@
+{
+  "name": "vortex-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n 'backend,mobile,web' -c '#007755,#2f6da3,#550077' 'cd apps/backend && bun dev' 'cd apps/mobile && bun ios' 'cd apps/web && bun --bun run dev'",
+    "typecheck": "bunx --bun tsc",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --apply .",
+    "format": "biome format .",
+    "format:fix": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.2.2",
+    "concurrently": "^6.2.0"
+  }
+}
