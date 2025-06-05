@@ -1,0 +1,135 @@
+{
+  "formatter": {
+    "enabled": true,
+    "useEditorconfig": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 120,
+    "attributePosition": "auto",
+    "bracketSpacing": true,
+    "ignore": [
+      "**/.prettierignore",
+      "**/node_modules/",
+      "**/coverage/",
+      "**/dist/",
+      "**/build/",
+      "**/internals/",
+      "**/docs/",
+      "**/.lighthouseci/",
+      "**/coins/*",
+      "**/*.yml",
+      "**/*.sol",
+      "**/package-lock.json",
+      "**/package.json",
+      "**/bun.lock",
+      "**/favicon.png",
+      "**/CHANGELOG.md",
+      "**/*.svg",
+      "**/.gitignore",
+      "**/*.png",
+      "**/*.webp",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/_redirects",
+      "**/LICENSE"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "complexity": {
+        "noBannedTypes": "error",
+        "noUselessThisAlias": "error",
+        "noUselessTypeConstraint": "error"
+      },
+      "correctness": {
+        "noInvalidUseBeforeDeclaration": "error",
+        "noPrecisionLoss": "error",
+        "noUnusedVariables": "error",
+        "useArrayLiterals": "off"
+      },
+      "style": {
+        "noInferrableTypes": "error",
+        "noNamespace": "error",
+        "noNonNullAssertion": "warn",
+        "useAsConstAssertion": "error",
+        "useBlockStatements": "off"
+      },
+      "suspicious": {
+        "noConsole": "off",
+        "noEmptyBlockStatements": "error",
+        "noEmptyInterface": "error",
+        "noExplicitAny": "warn",
+        "noExtraNonNullAssertion": "error",
+        "noMisleadingInstantiator": "error",
+        "useNamespaceKeyword": "error"
+      }
+    },
+    "ignore": [
+      "**/node_modules/",
+      "**/dist/",
+      "**/build/",
+      "**/lib/",
+      "**/types/",
+      "**/coverage/",
+      "**/gql/",
+      "**/signer-service",
+      "**/*.d.ts",
+      "**/*.config.*",
+      "**/.eslintrc.*"
+    ]
+  },
+  "javascript": {
+    "formatter": {
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "quoteStyle": "single",
+      "attributePosition": "auto",
+      "bracketSpacing": true
+    }
+  },
+  "overrides": [
+    {
+      "include": ["*.ts", "*.tsx", "*.mts", "*.cts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noConstAssign": "off",
+            "noGlobalObjectCalls": "off",
+            "noInvalidConstructorSuper": "off",
+            "noNewSymbol": "off",
+            "noSetterReturn": "off",
+            "noUndeclaredVariables": "off",
+            "noUnreachable": "off",
+            "noUnreachableSuper": "off"
+          },
+          "style": {
+            "noArguments": "error",
+            "noVar": "error",
+            "useConst": "error"
+          },
+          "suspicious": {
+            "noDuplicateClassMembers": "off",
+            "noDuplicateObjectKeys": "off",
+            "noDuplicateParameters": "off",
+            "noFunctionAssign": "off",
+            "noImportAssign": "off",
+            "noRedeclare": "off",
+            "noUnsafeNegation": "off",
+            "useGetterReturn": "off",
+            "useValidTypeof": "off"
+          }
+        }
+      }
+    },
+    { "include": ["**/*"] }
+  ]
+}

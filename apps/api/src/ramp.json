@@ -1,0 +1,47 @@
+{
+  "rampStarted": true,
+  "rampRegistered": true,
+  "rampInitiating": true,
+  "rampKycStarted": false,
+  "rampPaymentConfirmed": false,
+  "rampExecutionInput": {
+    "ephemerals": {
+      "pendulumEphemeral": {
+        "secret": "tide plug green job couch moral cake swift doctor strong balcony armed",
+        "address": "5FgZ1tHihWkVauxtis4bsnW4f8Q8tNZd9ZnBwoDjJg45anFT"
+      },
+      "stellarEphemeral": {
+        "secret": "SD2AFWO5XZHNG254HUPQLHWIK2ZMDF24RJSZY5I3WS6VJXX7KUN2XIU5",
+        "address": "GCOXZDZPJE526P2LPBNOQUCZ3523BULTZZSWD7WR3BEX7JOW6IVRBY54"
+      },
+      "moonbeamEphemeral": {
+        "secret": "pupil observe square evoke current liar flash weird old grape art index",
+        "address": "0x59C833EB076021D0CFa0Ae1046B26E35BA5F50d4"
+      }
+    },
+    "quote": {
+      "id": "f5f31c23-9405-44af-aa80-9ef54effb818",
+      "rampType": "off",
+      "from": "polygon",
+      "to": "pix",
+      "inputAmount": "1.00",
+      "inputCurrency": "usdc",
+      "outputAmount": "5.15",
+      "outputCurrency": "brl",
+      "fee": "0.75",
+      "expiresAt": "2025-04-16T08:14:44.000Z"
+    },
+    "ramp": {
+      "id": "3e14ffa4-25dd-431a-9176-9ceeeb9ba6e8"
+    },
+    "onChainToken": "usdc",
+    "fiatToken": "brl",
+    "userWalletAddress": "0xe071139C72E60CD7cc5A584E1A57d14f4A4adEE0",
+    "network": "polygon",
+    "taxId": "718.784.051-95",
+    "pixId": "718.784.051-95",
+    "brlaEvmAddress": "0x7284E6D7f16bF016f7b1e68DE256A78fE4fC3C11"
+  },
+  "rampSummaryVisible": true,
+  "canRegisterRamp": false
+}
