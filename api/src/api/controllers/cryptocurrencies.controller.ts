@@ -6,6 +6,7 @@ import {
   SupportedCryptocurrencyDetails,
 } from 'shared/src/endpoints/supported-cryptocurrencies.endpoints';
 import { getSupportedCryptocurrencies } from '../../config/cryptocurrencies.config';
+import { APIError } from '../errors/api-error';
 
 /**
  * Get supported cryptocurrencies with detailed information based on network
@@ -15,7 +16,7 @@ import { getSupportedCryptocurrencies } from '../../config/cryptocurrencies.conf
  */
 export const getSupportedCryptocurrenciesHandler = async (
   req: Request<unknown, unknown, unknown, GetSupportedCryptocurrenciesRequest>,
-  res: Response<GetSupportedCryptocurrenciesResponse>,
+  res: Response<GetSupportedCryptocurrenciesResponse | { error: string }>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -27,6 +28,13 @@ export const getSupportedCryptocurrenciesHandler = async (
       cryptocurrencies,
     });
   } catch (error) {
+    if (error instanceof APIError) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: error.message,
+      });
+      return;
+    }
+
     next(error);
   }
 };

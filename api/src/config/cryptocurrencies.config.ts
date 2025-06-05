@@ -1,4 +1,24 @@
-import { SupportedCryptocurrencyDetails, evmTokenConfig, EvmToken, AssetHubToken, Networks, isNetworkEVM, isNetworkAssetHub, assetHubTokenConfig } from 'shared';
+import {
+  SupportedCryptocurrencyDetails,
+  assetHubTokenConfig,
+  evmTokenConfig,
+  EvmToken,
+  AssetHubToken,
+  isNetworkEVM,
+  isNetworkAssetHub,
+  Networks,
+} from 'shared';
+import { APIError } from '../api/errors/api-error';
+
+const supportedNetworks = Object.values(Networks)
+  .filter((network) => isNetworkEVM(network) || isNetworkAssetHub(network))
+  .join("', '");
+
+const throwInvalidNetworkError = (network: string): never => {
+  throw new APIError({
+    message: `Invalid network: '${network}'. Supported networks are: '${supportedNetworks}'`,
+  });
+};
 
 const mapEvmTokenToDetails = (network: Networks, token: EvmToken): SupportedCryptocurrencyDetails => {
   const details = evmTokenConfig[network][token];
@@ -22,22 +42,21 @@ const mapAssetHubTokenToDetails = (token: AssetHubToken): SupportedCryptocurrenc
 
 const getEvmNetworkTokens = (network: Networks): SupportedCryptocurrencyDetails[] => {
   if (!isNetworkEVM(network)) {
-    throw new Error(`Invalid EVM network: ${network}`);
+    throwInvalidNetworkError(network);
   }
-  return Object.values(EvmToken).map(token => mapEvmTokenToDetails(network, token));
+  return Object.values(EvmToken).map((token) => mapEvmTokenToDetails(network, token));
 };
 
-const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] =>
-  Object.values(AssetHubToken).map(mapAssetHubTokenToDetails);
+const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] => {
+  return Object.values(AssetHubToken).map(mapAssetHubTokenToDetails);
+};
 
 const getAllEvmNetworkTokens = (): SupportedCryptocurrencyDetails[] =>
-  Object.values(Networks)
-    .filter(isNetworkEVM)
-    .flatMap(getEvmNetworkTokens);
+  Object.values(Networks).filter(isNetworkEVM).flatMap(getEvmNetworkTokens);
 
 const getAllNetworkTokens = (): SupportedCryptocurrencyDetails[] => [
   ...getAllEvmNetworkTokens(),
-  ...getAssetHubTokens()
+  ...getAssetHubTokens(),
 ];
 
 /**
@@ -54,5 +73,11 @@ export function getSupportedCryptocurrencies(network?: Networks): SupportedCrypt
     return getAssetHubTokens();
   }
 
-  return getAllNetworkTokens();
+  if (!network) {
+    return getAllNetworkTokens();
+  }
+
+  throwInvalidNetworkError(network);
+
+  return [];
 }
