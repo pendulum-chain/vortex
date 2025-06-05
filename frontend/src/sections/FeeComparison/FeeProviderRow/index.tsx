@@ -123,7 +123,7 @@ export function FeeProviderRow({
                 {error || !providerPrice ? (
                   <>
                     <span className="font-bold text-md">N/A</span>
-                    {isBRLOnramp && <span>(min {MINIMUM_BRL_BUY_AMOUNT[provider.name]}BRL)</span>}
+                    {isBRLOnramp && <span className="ml-1">(min {MINIMUM_BRL_BUY_AMOUNT[provider.name]}BRL)</span>}
                   </>
                 ) : (
                   <>
