@@ -328,6 +328,10 @@
         "tooltip": "The cost to transfer funds to your wallet, which varies with selected network and network congestion."
       },
       "totalFee": "Total Fee",
+      "netRate": {
+        "label": "Effective Rate",
+        "tooltip": "This is the exchange rate you receive after all processing and network fees have been deducted."
+      },
       "finalAmount": "Final Amount"
     },
     "transactionStatusBanner": {
