@@ -4,12 +4,48 @@ import { useQuote } from '../../stores/ramp/useQuoteStore';
 import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../RampToggle';
-import { ArrowDownIcon, InformationCircleIcon } from '@heroicons/react/20/solid';
+import { InformationCircleIcon } from '@heroicons/react/20/solid';
+import { QuoteEndpoints } from 'shared';
 
 interface FeeItem {
   label: string;
   tooltip?: string;
   value: string;
+}
+
+// This function calculates the interbank exchange rate based on the quote response, neglecting any fees.
+function calculateInterbankExchangeRate(
+  rampType: string,
+  inputAmountString: Big.BigSource,
+  outputAmountString: Big.BigSource,
+  fee: QuoteEndpoints.FeeStructure,
+) {
+  const inputAmount = Big(inputAmountString);
+  const outputAmount = Big(outputAmountString);
+
+  let effectiveInputAmount = inputAmount;
+  let effectiveOutputAmount = outputAmount;
+
+  if (rampType === 'on') {
+    effectiveInputAmount = inputAmount.minus(fee.total);
+  } else {
+    effectiveOutputAmount = outputAmount.plus(fee.total);
+  }
+
+  return effectiveInputAmount.gt(0) ? effectiveOutputAmount.div(effectiveInputAmount).toNumber() : 0;
+}
+
+// Calculate all-in exchange rate
+function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmountString: Big.BigSource) {
+  const inputAmount = Big(inputAmountString);
+  const outputAmount = Big(outputAmountString);
+
+  return inputAmount.gt(0) ? outputAmount.div(inputAmount).toNumber() : 0;
+}
+
+// Helper function to format exchange rate strings
+function formatExchangeRateString(rate: number, input: string, output: string) {
+  return `1 ${input} ≈ ${rate.toFixed(4)} ${output}`;
 }
 
 export function RampFeeCollapse() {
@@ -24,21 +60,23 @@ export function RampFeeCollapse() {
   const quote = availableQuote
     ? availableQuote
     : {
+        rampType: 'on',
         inputAmount: 0,
         outputAmount: 0,
         inputCurrency: rampDirection === RampDirection.ONRAMP ? fiatToken : onChainToken,
         outputCurrency: rampDirection === RampDirection.ONRAMP ? onChainToken : fiatToken,
-        fee: { total: 0, network: 0, vortex: 0, anchor: 0, partnerMarkup: 0, currency: fiatToken },
+        fee: { total: '0', network: '0', vortex: '0', anchor: '0', partnerMarkup: '0', currency: fiatToken },
       };
 
-  // Calculate exchange rate
-  const inputAmount = Big(quote.inputAmount);
-  const outputAmount = Big(quote.outputAmount);
   const inputCurrency = quote.inputCurrency.toUpperCase();
   const outputCurrency = quote.outputCurrency.toUpperCase();
-
-  // Calculate exchange rate (how much outputCurrency you get for 1 inputCurrency)
-  const exchangeRate = inputAmount.gt(0) ? outputAmount.div(inputAmount).toNumber() : 0;
+  const interbankExchangeRate = calculateInterbankExchangeRate(
+    quote.rampType,
+    quote.inputAmount,
+    quote.outputAmount,
+    quote.fee,
+  );
+  const netExchangeRate = calculateNetExchangeRate(quote.inputAmount, quote.outputAmount);
 
   // Generate fee items for display
   const feeItems: FeeItem[] = [];
@@ -64,7 +102,7 @@ export function RampFeeCollapse() {
   return (
     <div className="flex flex-col gap-2">
       <div className="text-center text-sm text-gray-600">
-        {`1 ${inputCurrency} ≈ ${exchangeRate.toFixed(4)} ${outputCurrency}`}
+        {formatExchangeRateString(interbankExchangeRate, inputCurrency, outputCurrency)}
       </div>
       <div className="border border-blue-700 collapse-arrow collapse overflow-visible">
         <input type="checkbox" />
@@ -94,6 +132,19 @@ export function RampFeeCollapse() {
               <span>
                 {quote.fee.total} {quote.fee.currency.toUpperCase()}
               </span>
+            </div>
+          </div>
+          <div className="flex justify-between pt-2">
+            <div
+              className="tooltip tooltip-primary tooltip-top before:whitespace-pre-wrap before:content-[attr(data-tip)]"
+              data-tip={t('components.feeCollapse.netRate.tooltip')}
+            >
+              <strong className="flex items-center font-bold">
+                {t('components.feeCollapse.netRate.label')} <InformationCircleIcon className="w-4 h-4 ml-1" />
+              </strong>
+            </div>
+            <div className="flex">
+              <span>{formatExchangeRateString(netExchangeRate, inputCurrency, outputCurrency)}</span>
             </div>
           </div>
         </div>
