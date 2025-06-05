@@ -6,12 +6,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n 'backend,mobile,web' -c '#007755,#2f6da3,#550077' 'cd apps/backend && bun dev' 'cd apps/mobile && bun ios' 'cd apps/web && bun --bun run dev'",
+    "dev": "concurrently -n 'backend,frontend' -c '#007755,#2f6da3,#550077' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev'",
     "typecheck": "bunx --bun tsc",
     "lint": "biome lint .",
     "lint:fix": "biome lint --apply .",
     "format": "biome format --write .",
-    "format:all": "biome check --write --no-errors-on-unmatched",
+    "format:extensive": "biome check --write --no-errors-on-unmatched --unsafe --fix",
     "verify": "biome check --no-errors-on-unmatched",
     "prepare": "husky"
   },
@@ -25,10 +25,10 @@
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
-      "biome check --write --no-errors-on-unmatched --unsafe --fix"
+      "biome format --write"
     ],
     "*": [
-      "biome check --no-errors-on-unmatched --files-ignore-unknown=true"
+      "biome format --write"
     ]
   }
 }
