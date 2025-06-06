@@ -1,15 +1,15 @@
-import { createWalletClient, createPublicClient, http, encodeFunctionData, Address } from 'viem';
+import { Address, createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import Big from 'big.js';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
-import { MoonbeamEndpoints } from 'shared/src/endpoints/moonbeam.endpoints';
+import { MoonbeamEndpoints } from 'shared';
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
+  MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
 } from '../../constants/constants';
 import { SlackNotifier } from '../services/slack.service';
 
