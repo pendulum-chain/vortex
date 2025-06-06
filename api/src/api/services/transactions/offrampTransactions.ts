@@ -21,7 +21,7 @@ import {
 
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
-import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
+import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared';
 import Partner from '../../../models/partner.model';
 import { ApiManager } from '../pendulum/apiManager';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { EmailEndpoints } from 'shared/src/endpoints/email.endpoints';
+import { EmailEndpoints } from 'shared';
 import { config } from '../../config';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 

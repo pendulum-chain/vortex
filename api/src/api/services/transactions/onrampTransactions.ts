@@ -14,10 +14,11 @@ import {
   isOnChainToken,
   isOnChainTokenDetails,
   Networks,
+  PENDULUM_USDC_ASSETHUB,
+  PENDULUM_USDC_AXL,
   UnsignedTx,
 } from 'shared';
 import Big from 'big.js';
-import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
 import Partner from '../../../models/partner.model';
 import { ApiManager } from '../pendulum/apiManager';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';

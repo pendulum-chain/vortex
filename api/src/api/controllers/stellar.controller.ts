@@ -3,7 +3,7 @@ import { Keypair } from 'stellar-sdk';
 import httpStatus from 'http-status';
 
 import { FiatToken } from 'shared';
-import { StellarEndpoints } from 'shared/src/endpoints/stellar.endpoints';
+import { StellarEndpoints } from 'shared';
 import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
 import { buildCreationStellarTx, horizonServer } from '../services/stellar.service';
