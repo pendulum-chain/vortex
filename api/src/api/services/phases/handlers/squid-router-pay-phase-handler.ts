@@ -5,7 +5,7 @@ import { RampPhase } from 'shared';
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { getStatus } from '../../transactions/squidrouter/route';
-import { axelarGasServiceAbi } from '../../../../contracts/axelarGasServiceAbi';
+import { axelarGasServiceAbi } from '../../../../contracts/AxelarGasService';
 import { privateKeyToAccount } from 'viem/accounts';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
