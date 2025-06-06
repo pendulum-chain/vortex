@@ -7,6 +7,7 @@ import { ExtendedBrlaFieldOptions } from '../../../components/BrlaComponents/Brl
 import { useEffect } from 'react';
 import { useRampFormStore, useRampFormStoreActions } from '../../../stores/ramp/useRampFormStore';
 import { isValidCnpj, isValidCpf } from '../../ramp/schema';
+import { useRampStore } from '../../../stores/rampStore';
 
 export interface UseKYCFormProps {
   cpfApiError: string | null;
@@ -27,7 +28,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
           t('components.brlaExtendedForm.validation.taxId.format'), 
           (value) => {
             if (!value) {
-              return true; 
+              return false; 
             }
             return isValidCpf(value) || isValidCnpj(value); 
           }
@@ -104,6 +105,7 @@ export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
   const { taxId: taxIdFromStore } = useRampFormStore(); 
+  const { rampExecutionInput: executionInput, actions: { setRampExecutionInput }} = useRampStore();
   const { setTaxId } = useRampFormStoreActions(); 
 
   const kycFormSchema = createKycFormSchema(t);
@@ -120,10 +122,11 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const watchedCpf = kycForm.watch(ExtendedBrlaFieldOptions.TAX_ID);
 
   useEffect(() => {
-    if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore) {
+    if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== '') {
       setTaxId(watchedCpf);
+      if (executionInput) setRampExecutionInput({ ...executionInput, taxId: watchedCpf });
     }
-  }, [watchedCpf, setTaxId, taxIdFromStore]);
+  }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, setRampExecutionInput]);
 
   useEffect(() => {
     if (cpfApiError) {
