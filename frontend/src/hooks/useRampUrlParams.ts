@@ -7,6 +7,7 @@ import {
   DEFAULT_ASSETHUB_ONCHAIN_TOKEN,
   DEFAULT_BRL_AMOUNT,
   DEFAULT_EURC_AMOUNT,
+  DEFAULT_EVM_ONCHAIN_TOKEN,
   useRampFormStoreActions,
 } from '../stores/ramp/useRampFormStore';
 import { useNetwork } from '../contexts/network';
