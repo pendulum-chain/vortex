@@ -12,7 +12,7 @@ export async function createPendulumToMoonbeamTransfer(
     V3: {
       parents: 1,
       interior: {
-        X2: [{ Parachain: 2004 }, { AccountKey20: { key: destinationAddress, network: 'Any' } }],
+        X2: [{ Parachain: 2004 }, { AccountKey20: { key: destinationAddress, network: undefined } }],
       },
     },
   };
