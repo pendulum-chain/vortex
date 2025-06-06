@@ -3,6 +3,8 @@ import { useEffect, useCallback } from 'react';
 import { FiatToken } from 'shared';
 import { yupResolver } from '@hookform/resolvers/yup';
 
+import { useDebouncedFormValue } from './useDebouncedFormValue';
+
 import { RampFormValues, useSchema } from './schema';
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
@@ -71,9 +73,7 @@ export const useRampForm = (): {
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
-      if (name === 'inputAmount' && values.inputAmount !== undefined) {
-        setInputAmount(values.inputAmount || '0');
-      } else if (name === 'taxId' && values.taxId !== undefined) {
+      if (name === 'taxId' && values.taxId !== undefined) {
         setTaxId(values.taxId);
       } else if (name === 'pixId' && values.pixId !== undefined) {
         setPixId(values.pixId);
@@ -91,7 +91,11 @@ export const useRampForm = (): {
     });
 
     return () => subscription.unsubscribe();
-  }, [form, setInputAmount, setTaxId, setPixId, setOnChainToken, setFiatToken, enforceTokenConstraints]);
+  }, [form, setTaxId, setPixId, setOnChainToken, setFiatToken, enforceTokenConstraints]);
+
+  // Watch inputAmount specifically with debounce
+  const inputAmountValue = form.watch('inputAmount');
+  useDebouncedFormValue(inputAmountValue, (value) => setInputAmount(value || '0'), 1000);
 
   useEffect(() => {
     const currentInputAmount = form.getValues('inputAmount');

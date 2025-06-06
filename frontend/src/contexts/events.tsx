@@ -45,25 +45,25 @@ export interface WalletConnectEvent {
   network_selected?: string;
 }
 
-export interface OfframpingParameters {
+export interface RampParameters {
   from_asset: string;
   to_asset: string;
   from_amount: string;
   to_amount: string;
 }
 
-export type TransactionEvent = OfframpingParameters & {
+export type TransactionEvent = RampParameters & {
   event: 'transaction_confirmation' | 'kyc_started' | 'kyc_completed' | 'transaction_success' | 'transaction_failure';
 };
 
-export type TransactionFailedEvent = OfframpingParameters & {
+export type TransactionFailedEvent = RampParameters & {
   event: 'transaction_failure';
   phase_name: string;
   phase_index: number;
   error_message: string;
 };
 
-export type CompareQuoteEvent = OfframpingParameters & {
+export type CompareQuoteEvent = RampParameters & {
   event: 'compare_quote';
   moonpay_quote?: string;
   alchemypay_quote?: string;
@@ -159,7 +159,7 @@ const useEvents = () => {
 
   const scheduledPrices = useRef<
     | {
-        parameters: OfframpingParameters;
+        parameters: RampParameters;
         prices: Partial<Record<PriceEndpoints.Provider, string>>;
       }
     | undefined
@@ -216,7 +216,7 @@ const useEvents = () => {
     (
       service: PriceEndpoints.Provider | 'vortex',
       price: string,
-      parameters: OfframpingParameters,
+      parameters: RampParameters,
       enableEventTracking: boolean,
     ) => {
       if (!enableEventTracking) return;
@@ -286,21 +286,23 @@ const useEvents = () => {
     const wasChanged = previous !== address;
     const isConnected = address !== undefined;
 
+    const networkId = getNetworkId(selectedNetwork);
+
     if (!isConnected && wasConnected) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: 'disconnect',
         account_address: previous,
         input_amount: inputAmount ? inputAmount.toString() : '0',
-        network_selected: getNetworkId(selectedNetwork).toString(),
+        network_selected: networkId.toString(),
       });
-    } else if (wasChanged) {
+    } else if (wasChanged && networkId) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: wasConnected ? 'change' : 'connect',
         account_address: address,
         input_amount: inputAmount ? inputAmount.toString() : '0',
-        network_selected: getNetworkId(selectedNetwork).toString(),
+        network_selected: networkId.toString(),
       });
     }
 
