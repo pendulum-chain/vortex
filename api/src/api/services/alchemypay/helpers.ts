@@ -1,76 +1,103 @@
+/**
+ * Remove empty keys from an object
+ * @param map The object to remove empty keys from
+ * @returns The object without empty keys
+ */
 export function removeEmptyKeys(map: Record<string, unknown>): Record<string, unknown> {
-  const retMap: Record<string, unknown> = {};
-
-  for (const [key, value] of Object.entries(map)) {
+  return Object.entries(map).reduce((acc, [key, value]) => {
     if (value !== null && value !== '') {
-      retMap[key] = value;
+      acc[key] = value;
     }
-  }
-
-  return retMap;
+    return acc;
+  }, {} as Record<string, unknown>);
 }
 
-function sortMap(map: Record<string, unknown>): Record<string, unknown> {
-  const sortedMap = new Map(Object.entries(removeEmptyKeys(map)).sort(([aKey], [bKey]) => aKey.localeCompare(bKey)));
-
-  for (const [key, value] of sortedMap.entries()) {
-    if (typeof value === 'object') {
-      sortedMap.set(key, sortObject(value));
-    }
-  }
-
-  return Object.fromEntries(sortedMap.entries());
-}
-
-function sortList(list: unknown[]): unknown[] {
-  const objectList: unknown[] = [];
-  const intList: number[] = [];
-  const floatList: number[] = [];
-  const stringList: string[] = [];
-  const jsonArray: object[] = [];
-
-  for (const item of list) {
-    if (typeof item === 'object') {
-      jsonArray.push(item as object);
-    } else if (Number.isInteger(item)) {
-      intList.push(item as number);
-    } else if (typeof item === 'number') {
-      floatList.push(item);
-    } else if (typeof item === 'string') {
-      stringList.push(item);
-    } else {
-      intList.push(Number(item));
-    }
-  }
-
-  intList.sort((a, b) => a - b);
-  floatList.sort((a, b) => a - b);
-  stringList.sort();
-
-  objectList.push(...intList, ...floatList, ...stringList, ...jsonArray);
-  list.length = 0;
-  list.push(...objectList);
-
-  const retList: unknown[] = [];
-
-  for (const item of list) {
-    if (typeof item === 'object') {
-      retList.push(sortObject(item));
-    } else {
-      retList.push(item);
-    }
-  }
-
-  return retList;
-}
-
+/**
+ * Sort an object recursively
+ * @param obj The object to sort
+ * @returns The sorted object
+ */
 export function sortObject(obj: unknown): Record<string, unknown> | unknown[] | unknown {
-  if (typeof obj === 'object') {
-    if (Array.isArray(obj)) {
-      return sortList(obj);
-    }
-    return sortMap(obj as Record<string, unknown>);
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
   }
 
-  return obj;
+  if (Array.isArray(obj)) {
+    const intList: number[] = [];
+    const floatList: number[] = [];
+    const stringList: string[] = [];
+    const jsonArray: object[] = [];
+
+    obj.forEach((item) => {
+      if (typeof item === 'object' && item !== null) {
+        jsonArray.push(item as object);
+      } else if (Number.isInteger(item)) {
+        intList.push(item as number);
+      } else if (typeof item === 'number') {
+        floatList.push(item);
+      } else if (typeof item === 'string') {
+        stringList.push(item);
+      } else {
+        intList.push(Number(item));
+      }
+    });
+
+    intList.sort((a, b) => a - b);
+    floatList.sort((a, b) => a - b);
+    stringList.sort();
+
+    const newList = [...intList, ...floatList, ...stringList, ...jsonArray];
+    return newList.map((item) => (typeof item === 'object' ? sortObject(item) : item));
+  }
+
+  const sortedMap = new Map(
+    Object.entries(removeEmptyKeys(obj as Record<string, unknown>)).sort(([aKey], [bKey]) => aKey.localeCompare(bKey)),
+  );
+
+  return Object.fromEntries(
+    Array.from(sortedMap.entries()).map(([key, value]) => [key, typeof value === 'object' ? sortObject(value) : value]),
+  );
+}
+
+/**
+ * Get the path part of a URL with sorted query parameters
+ * @param requestUrl The URL
+ * @returns The path with sorted query parameters
+ */
+export function getPath(requestUrl: string): string {
+  const uri = new URL(requestUrl);
+  const path = uri.pathname;
+  const params = Array.from(uri.searchParams.entries());
+
+  if (params.length === 0) {
+    return path;
+  }
+  const sortedParams = [...params].sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
+  const queryString = sortedParams.map(([key, value]) => `${key}=${value}`).join('&');
+  return `${path}?${queryString}`;
+}
+
+/**
+ * Get the JSON body for a request, sorted for API signing
+ * @param body The body string
+ * @returns The sorted JSON body
+ */
+export function getJsonBody(body: string): string {
+  let map: Record<string, unknown>;
+
+  try {
+    map = JSON.parse(body);
+  } catch (error) {
+    map = {};
+    console.error("Couldn't parse JSON body", error);
+  }
+
+  if (Object.keys(map).length === 0) {
+    return '';
+  }
+
+  map = removeEmptyKeys(map);
+  map = sortObject(map) as Record<string, unknown>;
+
+  return JSON.stringify(map);
 }
