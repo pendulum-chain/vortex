@@ -17,8 +17,7 @@ import { getTokenOutAmount, TokenOutData } from '../../nablaReads/outAmount';
 import { createOnrampRouteParams, getRoute, RouteParams } from '../../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../../helpers/contracts';
 import {
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
+  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS
 } from '../../../../constants/constants';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { priceFeedService } from '../../priceFeed.service';
@@ -125,10 +124,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams): Promise<any> {
 function validateSquidrouterSwapValue(routeResult: any, finalEvmDestination: DestinationType): void {
   const squidrouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
 
-  const fundingAmountUnits =
-    getNetworkFromDestination(finalEvmDestination) === Networks.Ethereum
-      ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
-      : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
+  const fundingAmountUnits = Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
 
   const squidrouterSwapValueBuffer = getNetworkFromDestination(finalEvmDestination) === Networks.Ethereum ? 10 : 2;
 

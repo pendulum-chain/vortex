@@ -10,7 +10,6 @@ import {
   getOnChainTokenDetails,
   OnChainToken,
   isEvmTokenDetails,
-  Networks,
 } from 'shared';
 import { BaseRampService } from './base.service';
 import QuoteTicket, { QuoteTicketMetadata } from '../../../models/quoteTicket.model';
@@ -21,11 +20,6 @@ import { ApiManager } from '../pendulum/apiManager';
 import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import {
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
-} from '../../../constants/constants';
-import { multiplyByPowerOfTen } from '../pendulum/helpers';
 /**
  * Trims trailing zeros from a decimal string, keeping at least two decimal places.
  * @param decimalString - The decimal string to format

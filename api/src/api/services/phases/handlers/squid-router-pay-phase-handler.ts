@@ -5,7 +5,7 @@ import { RampPhase } from 'shared';
 import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { getStatus } from '../../transactions/squidrouter/route';
-import { axelarGasService } from '../../../../contracts/AxelarGasService';
+import { axelarGasServiceAbi } from '../../../../contracts/axelarGasServiceAbi';
 import { privateKeyToAccount } from 'viem/accounts';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
@@ -187,7 +187,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // Create addNativeGas transaction data
       const refundAddress = this.walletClient.account.address;
       const transactionData = encodeFunctionData({
-        abi: axelarGasService,
+        abi: axelarGasServiceAbi,
         functionName: 'addNativeGas',
         args: [swapHash, logIndex, refundAddress],
       });

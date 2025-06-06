@@ -1,4 +1,4 @@
-export const axelarGasService = [
+export const axelarGasServiceAbi = [
   {
     inputs: [{ internalType: 'address', name: 'gasCollector_', type: 'address' }],
     stateMutability: 'nonpayable',
