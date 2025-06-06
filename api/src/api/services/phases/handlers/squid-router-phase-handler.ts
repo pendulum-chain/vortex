@@ -87,7 +87,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       });
 
       // Transition to the next phase
-      return this.transitionToNextPhase(updatedState, 'squidrouterPay');
+      return this.transitionToNextPhase(updatedState, 'squidRouterPay');
     } catch (error: any) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;
