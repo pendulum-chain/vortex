@@ -1,18 +1,11 @@
 import { useCallback } from 'react';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
+import { BrlaEndpoints, FiatToken, getTokenDetailsSpacewalk } from 'shared';
 
 import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
-import { useEventsContext } from '../../contexts/events';
 import { useSiweContext } from '../../contexts/siwe';
-import {
-  BrlaEndpoints,
-  FiatToken,
-  getAnyFiatTokenDetails,
-  getOnChainTokenDetailsOrDefault,
-  getTokenDetailsSpacewalk,
-} from 'shared';
 import { fetchTomlValues } from '../../services/stellar';
 import { sep24First } from '../../services/anchor/sep24/first';
 import { sep10 } from '../../services/anchor/sep10';
@@ -29,7 +22,6 @@ export const useSubmitRamp = () => {
   const { t } = useTranslation();
   const { showToast, ToastMessage } = useToastMessage();
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
-  const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const rampDirection = useRampDirection();
