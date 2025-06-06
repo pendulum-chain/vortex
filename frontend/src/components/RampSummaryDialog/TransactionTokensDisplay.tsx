@@ -116,10 +116,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
     return isStellarOutputTokenDetails(fiatToken) ? fiatToken.anchorHomepageUrl : fiatToken.partnerUrl;
   };
 
-  const fiatSymbol = isOnramp
-    ? (fromToken as BaseFiatTokenDetails).fiat.symbol
-    : (toToken as BaseFiatTokenDetails).fiat.symbol;
-
   const destinationAddress = isOnramp
     ? chainId && chainId > 0
       ? trimAddress(address || '')
