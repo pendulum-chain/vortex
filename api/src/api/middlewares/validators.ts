@@ -1,8 +1,7 @@
 import { RequestHandler } from 'express';
 import { ParsedQs } from 'qs';
 import httpStatus from 'http-status';
-import { PriceEndpoints } from 'shared';
-import { BrlaEndpoints, TokenConfig } from 'shared';
+import { BrlaEndpoints, TokenConfig, PriceEndpoints } from 'shared';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
