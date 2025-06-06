@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { FormProvider } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { LabeledInput } from '../../LabeledInput';
 import { BrlaSwapFields } from '../../BrlaComponents/BrlaSwapFields';
@@ -22,9 +23,9 @@ import { useFiatToken, useInputAmount, useOnChainToken } from '../../../stores/r
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
-import { useTranslation } from 'react-i18next';
-import { useInitializeFailedMessage } from '../../../stores/rampStore';
+
 import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
+import { RampErrorMessage } from '../../RampErrorMessage';
 
 export const Offramp = () => {
   const { t } = useTranslation();
@@ -46,7 +47,6 @@ export const Offramp = () => {
   }, [toAmount, form]);
 
   const { getCurrentErrorMessage } = useRampValidation();
-  const initializeFailedMessage = useInitializeFailedMessage();
   const { onRampConfirm } = useRampSubmission();
   const validateTerms = useValidateTerms();
 
@@ -133,13 +133,7 @@ export const Offramp = () => {
           <BenefitsList />
         </section>
         <BrlaSwapFields />
-        {initializeFailedMessage && (
-          <section className="flex justify-center w-full mt-5">
-            <div className="flex items-center gap-4">
-              <p className="text-red-600">{initializeFailedMessage}</p>
-            </div>
-          </section>
-        )}
+        <RampErrorMessage />
         <section className="w-full mt-5">
           <RampTerms />
         </section>
