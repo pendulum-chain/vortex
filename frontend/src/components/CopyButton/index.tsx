@@ -1,3 +1,4 @@
+import { ToastMessage, useToastMessage } from '../../helpers/notifications';
 import { useClipboard } from '../../hooks/useClipboard';
 
 interface CopyButtonProps {
@@ -9,7 +10,13 @@ interface CopyButtonProps {
 
 export const CopyButton = (props: CopyButtonProps) => {
   const clipboard = useClipboard();
-  const onClick = props.onClick || (() => clipboard.copyToClipboard(props.text));
+  const { showToast } = useToastMessage();
+  const onClick =
+    props.onClick ||
+    (() => {
+      clipboard.copyToClipboard(props.text);
+      showToast(ToastMessage.COPY_TEXT);
+    });
 
   return (
     <button className={`break-all btn p-1 m-0 rounded ${props.className || ''}`} type="button" onClick={onClick}>
