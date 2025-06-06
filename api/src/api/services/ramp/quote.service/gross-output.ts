@@ -244,7 +244,7 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
     logger.error('Error calculating Nabla swap output:', error);
     throw new APIError({
       status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate Nabla swap output',
+      message: 'Failed to calculate the quote. Please try a lower amount.',
     });
   }
 }
@@ -294,7 +294,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     logger.error('Error calculating EVM bridge and network fee:', error);
     throw new APIError({
       status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate EVM bridge and network fee',
+      message: 'Failed to calculate the quote. Please try a higher amount.',
     });
   }
 }

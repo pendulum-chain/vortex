@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import httpStatus from 'http-status';
-import { RampEndpoints } from 'shared/src/endpoints/ramp.endpoints';
+import { RampEndpoints } from 'shared';
 import rampService from '../services/ramp/ramp.service';
 import { APIError } from '../errors/api-error';
 import logger from '../../config/logger';

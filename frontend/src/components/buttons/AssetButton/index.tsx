@@ -1,3 +1,4 @@
+import { cn } from '../../../helpers/cn';
 import { useGetAssetIcon } from '../../../hooks/useGetAssetIcon';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 
@@ -13,7 +14,10 @@ export function AssetButton({ assetIcon, tokenSymbol, onClick, disabled }: Asset
 
   return (
     <button
-      className="hover:bg-blue-200 cursor-pointer rounded-full h-8 flex text-base items-center mt-0.5 border border-blue-700 px-2 py-1 pr-3"
+      className={cn(
+        ' cursor-pointer rounded-full h-8 flex text-base items-center mt-0.5 border border-blue-700 px-2 py-1 pr-3',
+        disabled ? 'cursor-not-allowed' : 'hover:bg-blue-200',
+      )}
       onClick={onClick}
       type="button"
       disabled={disabled}

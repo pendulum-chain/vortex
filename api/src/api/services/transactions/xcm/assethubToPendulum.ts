@@ -24,10 +24,10 @@ export async function createAssethubToPendulumXCM(
   const receiverId = u8aToHex(decodeAddress(destinationAddress));
   const assetIndex = AssethubAsset[assetKey];
 
-  const destination = { V2: { parents: 1, interior: { X1: { Parachain: 2094 } } } };
-  const beneficiary = { V2: { parents: 0, interior: { X1: { AccountId32: { network: undefined, id: receiverId } } } } };
+  const destination = { V3: { parents: 1, interior: { X1: { Parachain: 2094 } } } };
+  const beneficiary = { V3: { parents: 0, interior: { X1: { AccountId32: { network: undefined, id: receiverId } } } } };
   const assets = {
-    V2: [
+    V3: [
       {
         id: {
           Concrete: { parents: 0, interior: { X2: [{ PalletInstance: 50 }, { GeneralIndex: assetIndex }] } },

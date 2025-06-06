@@ -22,26 +22,31 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   tokenSymbol,
   onClick,
   registerInput,
+  loading,
   ...rest
 }) => (
   <div
     aria-readonly={rest.readOnly}
     className={cn(
       'flex pl-2 py-1 mb-2 mt-1 items-center',
-      rest.disabled && 'opacity-50 input-disabled',
       rest.readOnly ? 'pr-0.5' : 'input-vortex-primary border-1 border-neutral-300 w-full input input-ghost',
     )}
   >
     <div className="flex items-center">
-      <AssetButton disabled={rest.disabled} assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
+      <AssetButton assetIcon={assetIcon} tokenSymbol={tokenSymbol} onClick={onClick} />
     </div>
 
-    {rest.loading ? (
+    {loading ? (
       <div className="loading loading-bars loading-md ml-auto mr-4"></div>
     ) : (
       <NumericInput
+        loading={loading}
         register={registerInput}
-        additionalStyle={cn('text-right text-lg', rest.readOnly && 'text-xl')}
+        additionalStyle={cn(
+          'text-right text-lg',
+          rest.readOnly && 'text-xl',
+          rest.disabled && 'opacity-50 input-disabled',
+        )}
         {...rest}
       />
     )}

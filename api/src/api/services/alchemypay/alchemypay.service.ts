@@ -1,229 +1,83 @@
-import crypto from 'node:crypto';
-import { config } from '../../../config/vars';
-import { removeEmptyKeys, sortObject } from './helpers';
-import {
-  InvalidAmountError,
-  InvalidParameterError,
-  ProviderInternalError,
-  UnsupportedPairError,
-} from '../../errors/providerErrors';
+import { PriceEndpoints } from 'shared';
+import { ProviderInternalError } from '../../errors/providerErrors';
+import { createQuoteRequest } from './request-creator';
+import { processAlchemyPayResponse, AlchemyPayResponse } from './response-handler';
+import { getCryptoCurrencyCode, getFiatCode, getAlchemyPayNetworkCode } from './utils';
 
-const { priceProviders } = config;
+type FetchResult = {
+  response: Response;
+  body: AlchemyPayResponse;
+};
 
-export interface AlchemyPayPrice {
-  cryptoPrice: number;
-  cryptoAmount: number;
-  fiatAmount: number;
-  totalFee: number;
-}
-
-interface AlchemyPayResponse {
-  success: boolean;
-  returnMsg?: string;
-  data: {
-    cryptoPrice: string;
-    rampFee: string;
-    networkFee: string;
-    fiatQuantity: string;
-  };
-}
-
-function apiSign(timestamp: string, method: string, requestUrl: string, body: string, secretKey: string): string {
-  const content = timestamp + method.toUpperCase() + getPath(requestUrl) + getJsonBody(body);
-  return crypto.createHmac('sha256', secretKey).update(content).digest('base64');
-}
-
-function getPath(requestUrl: string): string {
-  const uri = new URL(requestUrl);
-  const path = uri.pathname;
-  const params = Array.from(uri.searchParams.entries());
-
-  if (params.length === 0) {
-    return path;
-  }
-  const sortedParams = [...params].sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
-  const queryString = sortedParams.map(([key, value]) => `${key}=${value}`).join('&');
-  return `${path}?${queryString}`;
-}
-
-function getJsonBody(body: string): string {
-  let map: Record<string, unknown>;
-
+/**
+ * Fetch data from AlchemyPay API
+ * @param url The URL to fetch
+ * @param request The request options
+ * @returns The response and parsed body
+ */
+async function fetchAlchemyPayData(url: string, request: RequestInit): Promise<FetchResult> {
   try {
-    map = JSON.parse(body);
-  } catch (error) {
-    map = {};
-    console.error("Couldn't parse JSON body", error);
-  }
-
-  if (Object.keys(map).length === 0) {
-    return '';
-  }
-
-  map = removeEmptyKeys(map);
-  map = sortObject(map) as Record<string, unknown>;
-
-  return JSON.stringify(map);
-}
-
-// See https://alchemypay.readme.io/docs/price-query
-async function priceQuery(
-  crypto: string,
-  fiat: string,
-  amount: string,
-  network: string,
-  side: string,
-): Promise<AlchemyPayPrice> {
-  const { secretKey, baseUrl, appId } = priceProviders.alchemyPay;
-  if (!secretKey || !appId) throw new Error('AlchemyPay configuration missing');
-
-  const httpMethod = 'POST';
-  const requestPath = '/open/api/v4/merchant/order/quote';
-  const requestUrl = baseUrl + requestPath;
-  const timestamp = String(Date.now());
-
-  const bodyString = JSON.stringify({
-    crypto,
-    network,
-    fiat,
-    amount,
-    side,
-  });
-  // It's important to sort the body before signing. It's also important for the POST request to have the body sorted.
-  const sortedBody = getJsonBody(bodyString);
-
-  const signature = apiSign(timestamp, httpMethod, requestUrl, sortedBody, secretKey.trim());
-
-  const headers = {
-    'Content-Type': 'application/json',
-    appId,
-    timestamp,
-    sign: signature,
-  } as const;
-
-  const request = {
-    method: 'POST',
-    headers,
-    body: sortedBody,
-  } as const;
-
-  let response: Response;
-  try {
-    response = await fetch(requestUrl, request);
+    const response = await fetch(url, request);
+    const body = (await response.json()) as AlchemyPayResponse;
+    return { response, body };
   } catch (fetchError) {
     console.error('AlchemyPay fetch error:', fetchError);
     throw new ProviderInternalError(`Network error fetching price from AlchemyPay: ${(fetchError as Error).message}`);
   }
-
-  let body: AlchemyPayResponse;
-  try {
-    body = (await response.json()) as AlchemyPayResponse;
-  } catch (jsonError) {
-    console.error('AlchemyPay JSON parse error:', jsonError);
-    // If we can't parse the JSON, it's likely an unexpected response format or server issue
-    throw new ProviderInternalError(
-      `Failed to parse response from AlchemyPay (Status: ${response.status}): ${response.statusText}`,
-    );
-  }
-
-  if (!response.ok) {
-    // Handle HTTP errors (4xx, 5xx)
-    const errorMessage = body?.returnMsg || `HTTP error ${response.status}: ${response.statusText}`;
-    console.error(`AlchemyPay API Error (${response.status}): ${errorMessage}`);
-    if (response.status >= 500) {
-      throw new ProviderInternalError(`AlchemyPay server error: ${errorMessage}`);
-    } else if (response.status >= 400) {
-      // Try to map 4xx errors based on message
-      if (errorMessage.toLowerCase().includes('minimum') || errorMessage.toLowerCase().includes('maximum')) {
-        throw new InvalidAmountError(`AlchemyPay: ${errorMessage}`);
-      }
-      if (
-        errorMessage.toLowerCase().includes('unsupported') ||
-        errorMessage.toLowerCase().includes('invalid currency')
-      ) {
-        throw new UnsupportedPairError(`AlchemyPay: ${errorMessage}`);
-      }
-      // Default 4xx to InvalidParameterError
-      throw new InvalidParameterError(`AlchemyPay API error: ${errorMessage}`);
-    } else {
-      // Other non-2xx errors
-      throw new ProviderInternalError(`Unexpected HTTP status ${response.status} from AlchemyPay: ${errorMessage}`);
-    }
-  }
-
-  // Handle cases where response is ok (2xx) but success flag is false
-  if (!body.success) {
-    const errorMessage = body.returnMsg || 'AlchemyPay API returned success=false with no message';
-    console.error(`AlchemyPay API Logic Error: ${errorMessage}`);
-    // Analyze returnMsg for specific errors
-    if (errorMessage.toLowerCase().includes('minimum') || errorMessage.toLowerCase().includes('maximum')) {
-      throw new InvalidAmountError(`AlchemyPay: ${errorMessage}`);
-    }
-    if (errorMessage.toLowerCase().includes('unsupported') || errorMessage.toLowerCase().includes('invalid currency')) {
-      throw new UnsupportedPairError(`AlchemyPay: ${errorMessage}`);
-    }
-    if (errorMessage.toLowerCase().includes('invalid parameter')) {
-      throw new InvalidParameterError(`AlchemyPay: ${errorMessage}`);
-    }
-    throw new ProviderInternalError(`AlchemyPay API logic error: ${errorMessage}`);
-  }
-
-  if (!body.data) {
-    throw new ProviderInternalError('AlchemyPay API returned success=true but no data field');
-  }
-
-  const { cryptoPrice, rampFee, networkFee, fiatQuantity } = body.data;
-
-  const totalFee = (Number(rampFee) || 0) + (Number(networkFee) || 0);
-  // According to a comment in the response sample [here](https://alchemypay.readme.io/docs/price-query#response-sample)
-  // the `fiatQuantity` does not yet include the fees so we need to subtract them.
-  const fiatAmount = Math.max(0, (Number(fiatQuantity) || 0) - totalFee);
-
-  return {
-    cryptoPrice: Number(cryptoPrice),
-    cryptoAmount: Number(amount),
-    fiatAmount,
-    totalFee,
-  };
 }
 
-const NETWORK_MAP: Record<string, string> = {
-  POLYGON: 'MATIC',
-  BSC: 'BSC',
-  ARBITRUM: 'ARBITRUM',
-  AVALANCHE: 'AVAX',
-  ETHEREUM: 'ETH',
-};
-
-const CRYPTO_MAP: Record<string, string> = {
-  usdc: 'USDC',
-  'usdc.e': 'USDC.e',
-  usdce: 'USDC.e',
-  usdt: 'USDT',
-};
-
-function getAlchemyPayNetworkCode(network: string): string {
-  return NETWORK_MAP[network.toUpperCase()] ?? network;
-}
-
-function getCryptoCurrencyCode(fromCrypto: string): string {
-  return CRYPTO_MAP[fromCrypto.toLowerCase()] ?? fromCrypto.toUpperCase();
-}
-
-function getFiatCode(toFiat: string): string {
-  // The currencies need to be in uppercase
-  return toFiat.toUpperCase();
-}
-
-export const getPriceFor = (
-  fromCrypto: string,
-  toFiat: string,
+/**
+ * Query the AlchemyPay API for price quotes
+ * @param cryptoCurrencyCode The cryptocurrency code
+ * @param fiatCurrencyCode The fiat currency code
+ * @param amount The amount to convert
+ * @param network The blockchain network
+ * @param direction The direction of the conversion (onramp or offramp)
+ * @returns Standardized price response
+ */
+async function priceQuery(
+  cryptoCurrencyCode: string,
+  fiatCurrencyCode: string,
   amount: string,
+  network: string,
+  direction: PriceEndpoints.Direction,
+): Promise<PriceEndpoints.AlchemyPayPriceResponse> {
+  const { requestUrl, request } = createQuoteRequest(direction, cryptoCurrencyCode, fiatCurrencyCode, amount, network);
+
+  const { response, body } = await fetchAlchemyPayData(requestUrl, request);
+
+  return processAlchemyPayResponse(response, body, amount, direction);
+}
+
+/**
+ * Get price information from AlchemyPay
+ * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
+ * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
+ * @param amount The amount to convert
+ * @param direction The direction of the conversion (onramp or offramp)
+ * @param network Optional network name
+ * @returns AlchemyPay price information in standardized format
+ */
+export const getPriceFor = (
+  sourceCurrency: string,
+  targetCurrency: string,
+  amount: string | number,
+  direction: PriceEndpoints.Direction,
   network?: string,
-): Promise<AlchemyPayPrice> => {
+): Promise<PriceEndpoints.AlchemyPayPriceResponse> => {
   const DEFAULT_NETWORK = 'POLYGON';
   const networkCode = getAlchemyPayNetworkCode(network || DEFAULT_NETWORK);
-  const side = 'SELL';
 
-  return priceQuery(getCryptoCurrencyCode(fromCrypto), getFiatCode(toFiat), amount, networkCode, side);
+  // For offramp: source is crypto, target is fiat
+  // For onramp: source is fiat, target is crypto
+  const cryptoCurrency = direction === 'onramp' ? targetCurrency : sourceCurrency;
+  const fiatCurrency = direction === 'onramp' ? sourceCurrency : targetCurrency;
+
+  return priceQuery(
+    getCryptoCurrencyCode(cryptoCurrency),
+    getFiatCode(fiatCurrency),
+    amount.toString(),
+    networkCode,
+    direction,
+  );
 };

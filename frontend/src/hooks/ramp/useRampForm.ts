@@ -3,6 +3,8 @@ import { useEffect, useCallback } from 'react';
 import { FiatToken } from 'shared';
 import { yupResolver } from '@hookform/resolvers/yup';
 
+import { useDebouncedFormValue } from './useDebouncedFormValue';
+
 import { RampFormValues, useSchema } from './schema';
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
@@ -63,35 +65,22 @@ export const useRampForm = (): {
   );
 
   useEffect(() => {
-    const constrainedToken = enforceTokenConstraints(fiatToken);
-    if (constrainedToken !== fiatToken) {
-      setFiatToken(constrainedToken);
-    }
-  }, [direction, fiatToken, setFiatToken, enforceTokenConstraints]);
-
-  useEffect(() => {
     const subscription = form.watch((values, { name }) => {
-      if (name === 'inputAmount' && values.inputAmount !== undefined) {
-        setInputAmount(values.inputAmount || '0');
-      } else if (name === 'taxId' && values.taxId !== undefined) {
+      if (name === 'taxId' && values.taxId !== undefined) {
         setTaxId(values.taxId);
       } else if (name === 'pixId' && values.pixId !== undefined) {
         setPixId(values.pixId);
       } else if (name === 'onChainToken' && values.onChainToken !== undefined) {
         setOnChainToken(values.onChainToken);
-      } else if (name === 'fiatToken' && values.fiatToken !== undefined) {
-        const constrainedToken = enforceTokenConstraints(values.fiatToken);
-
-        if (constrainedToken !== values.fiatToken) {
-          form.setValue('fiatToken', constrainedToken);
-        }
-
-        setFiatToken(constrainedToken);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [form, setInputAmount, setTaxId, setPixId, setOnChainToken, setFiatToken, enforceTokenConstraints]);
+  }, [form, setTaxId, setPixId, setOnChainToken, setFiatToken, enforceTokenConstraints]);
+
+  // Watch inputAmount specifically with debounce
+  const inputAmountValue = form.watch('inputAmount');
+  useDebouncedFormValue(inputAmountValue, (value) => setInputAmount(value || '0'), 1000);
 
   useEffect(() => {
     const currentInputAmount = form.getValues('inputAmount');
@@ -99,29 +88,37 @@ export const useRampForm = (): {
     if (storeInputAmountStr !== '0' && currentInputAmount !== storeInputAmountStr) {
       form.setValue('inputAmount', storeInputAmountStr);
     }
+  }, [form, inputAmount]);
 
+  useEffect(() => {
     const currentOnChainToken = form.getValues('onChainToken');
     if (onChainToken && onChainToken !== currentOnChainToken) {
       form.setValue('onChainToken', onChainToken);
     }
+  }, [form, onChainToken]);
 
+  useEffect(() => {
     const currentFiatToken = form.getValues('fiatToken');
     const constrainedToken = enforceTokenConstraints(fiatToken);
-
     if (constrainedToken !== currentFiatToken) {
       form.setValue('fiatToken', constrainedToken);
+      setFiatToken(constrainedToken);
     }
+  }, [form, fiatToken, enforceTokenConstraints, setFiatToken]);
 
+  useEffect(() => {
     const currentTaxId = form.getValues('taxId');
     if (taxId !== currentTaxId) {
       form.setValue('taxId', taxId || '');
     }
+  }, [form, taxId]);
 
+  useEffect(() => {
     const currentPixId = form.getValues('pixId');
     if (pixId !== currentPixId) {
       form.setValue('pixId', pixId || '');
     }
-  }, [form, taxId, pixId, inputAmount, onChainToken, fiatToken, enforceTokenConstraints]);
+  }, [form, pixId]);
 
   const reset = () => {
     resetStore();

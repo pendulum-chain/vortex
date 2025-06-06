@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
-import { PendulumEndpoints } from 'shared/src/endpoints/pendulum.endpoints';
+import { PendulumEndpoints } from 'shared';
 import {
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,

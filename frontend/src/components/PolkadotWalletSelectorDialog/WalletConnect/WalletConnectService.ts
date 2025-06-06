@@ -18,8 +18,8 @@ export const walletConnectService = {
           name: 'Vortex',
           description:
             'Vortex provides a seamless solution for converting stablecoins into fiat currencies, enabling effortless offramps to EUR and ARS.',
-          url: 'https://app.vortexfinance.com',
-          icons: ['https://app.vortexfinance.com/favicon.png'],
+          url: 'https://app.vortexfinance.co',
+          icons: ['https://app.vortexfinance.co/favicon.png'],
         },
       } as UniversalProviderOpts));
     return this.provider;

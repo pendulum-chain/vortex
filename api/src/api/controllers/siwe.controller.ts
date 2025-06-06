@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
-import { SiweEndpoints } from 'shared/src/endpoints/siwe.endpoints';
+import { SiweEndpoints } from 'shared';
 import { createAndSendNonce, verifyAndStoreSiweMessage } from '../services/siwe.service';
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
 
