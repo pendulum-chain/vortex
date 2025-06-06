@@ -211,7 +211,7 @@ async function createSquidrouterTransactions(
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(approveData) as any,
-    phase: 'squidrouterApprove',
+    phase: 'squidRouterApprove',
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
@@ -220,7 +220,7 @@ async function createSquidrouterTransactions(
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(swapData) as any,
-    phase: 'squidrouterSwap',
+    phase: 'squidRouterSwap',
     network: account.network,
     nonce: nextNonce,
     signer: account.address,

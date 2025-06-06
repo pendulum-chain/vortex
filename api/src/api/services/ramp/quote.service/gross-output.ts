@@ -123,12 +123,12 @@ async function getSquidrouterRouteData(routeParams: RouteParams): Promise<any> {
  * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
  */
 async function calculateSquidrouterNetworkFee(routeResult: any): Promise<string> {
-  const squidrouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
+  const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
 
   try {
     // Get current GLMR price in USD from price feed service
     const glmrPriceUSD = await priceFeedService.getCryptoPrice('moonbeam', 'usd');
-    const squidFeeUSD = squidrouterSwapValue.mul(glmrPriceUSD).toFixed(6);
+    const squidFeeUSD = squidRouterSwapValue.mul(glmrPriceUSD).toFixed(6);
     logger.debug(`Network fee calculated using GLMR price: $${glmrPriceUSD}, fee: $${squidFeeUSD}`);
     return squidFeeUSD;
   } catch (error) {
@@ -138,7 +138,7 @@ async function calculateSquidrouterNetworkFee(routeResult: any): Promise<string>
     );
     // Fallback to previous hardcoded value as safety measure
     const fallbackGlmrPrice = 0.08;
-    const squidFeeUSD = squidrouterSwapValue.mul(fallbackGlmrPrice).toFixed(6);
+    const squidFeeUSD = squidRouterSwapValue.mul(fallbackGlmrPrice).toFixed(6);
     logger.warn(`Using fallback GLMR price: $${fallbackGlmrPrice}, fee: $${squidFeeUSD}`);
     return squidFeeUSD;
   }

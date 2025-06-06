@@ -166,7 +166,7 @@ export class QuoteService extends BaseRampService {
     );
 
     // g. Handle EVM Bridge/Swap (If On-Ramp to EVM non-AssetHub)
-    let squidrouterNetworkFeeUSD = '0';
+    let squidRouterNetworkFeeUSD = '0';
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
@@ -179,13 +179,13 @@ export class QuoteService extends BaseRampService {
         finalEvmDestination: request.to,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
       });
-      squidrouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
+      squidRouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
 
       // Deduct all the fees that are distributed after the Nabla swap and before the EVM bridge
       const outputAmountMoonbeamDecimal = new Big(nablaSwapResult.nablaOutputAmountDecimal)
         .minus(vortexFeeUsd)
         .minus(partnerMarkupFeeUsd)
-        .minus(squidrouterNetworkFeeUSD);
+        .minus(squidRouterNetworkFeeUSD);
       outputAmountMoonbeamRaw = multiplyByPowerOfTen(
         outputAmountMoonbeamDecimal,
         getOnChainTokenDetailsOrDefault(Networks.Moonbeam, usdCurrency).pendulumDecimals,
@@ -203,13 +203,13 @@ export class QuoteService extends BaseRampService {
       finalGrossOutputAmountDecimal = new Big(evmBridgeResult.finalGrossOutputAmountDecimal);
     }
 
-    const squidrouterNetworkFeeFiat = await priceFeedService.convertCurrency(
-      squidrouterNetworkFeeUSD,
+    const squidRouterNetworkFeeFiat = await priceFeedService.convertCurrency(
+      squidRouterNetworkFeeUSD,
       usdCurrency,
       targetFeeFiatCurrency,
     );
     // Network fee is only the Squidrouter fee for now
-    const networkFeeFiatForTotal = squidrouterNetworkFeeFiat;
+    const networkFeeFiatForTotal = squidRouterNetworkFeeFiat;
 
     // Calculate total fee in fiat
     const totalFeeFiat = new Big(networkFeeFiatForTotal)
@@ -219,7 +219,7 @@ export class QuoteService extends BaseRampService {
       .toFixed(2);
 
     // Network fee is only the Squidrouter fee for now
-    const totalNetworkFeeUsd = squidrouterNetworkFeeUSD;
+    const totalNetworkFeeUsd = squidRouterNetworkFeeUSD;
     const totalFeeUsd = new Big(totalNetworkFeeUsd)
       .plus(vortexFeeUsd)
       .plus(anchorFeeUsd)

@@ -53,7 +53,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     if (state.type === 'off') {
       return 'brlaPayoutOnMoonbeam';
     } else {
-      return 'squidrouterSwap';
+      return 'squidRouterSwap';
     }
   }
 }
