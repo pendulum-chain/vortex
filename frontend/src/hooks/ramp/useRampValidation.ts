@@ -176,6 +176,8 @@ export const useRampValidation = () => {
   });
 
   const getCurrentErrorMessage = useCallback(() => {
+    if (quoteError) return quoteError;
+
     if (isDisconnected) return;
 
     // First check if the fiat token is enabled
@@ -202,8 +204,6 @@ export const useRampValidation = () => {
     }
 
     if (validationError) return validationError;
-
-    if (quoteError) return quoteError;
 
     return null;
   }, [
