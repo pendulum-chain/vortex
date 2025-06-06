@@ -83,7 +83,11 @@ export const useSubmitRamp = () => {
                   ? remainingLimitResponse.remainingLimitOfframp
                   : remainingLimitResponse.remainingLimitOnramp;
 
-              const amountNum = Number(executionInput.quote.inputAmount);
+              const amountNum = Number(
+                rampDirection === RampDirection.OFFRAMP
+                  ? executionInput.quote.outputAmount
+                  : executionInput.quote.inputAmount,
+              );
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
                 // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and
