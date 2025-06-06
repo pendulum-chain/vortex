@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { RampDirection } from '../components/RampToggle';
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from 'shared';
-import { DEFAULT_RAMP_DIRECTION, useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
+import { useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
 import {
   DEFAULT_ARS_AMOUNT,
+  DEFAULT_ASSETHUB_ONCHAIN_TOKEN,
   DEFAULT_BRL_AMOUNT,
   DEFAULT_EURC_AMOUNT,
   useRampFormStoreActions,
@@ -11,6 +12,7 @@ import {
 import { useNetwork } from '../contexts/network';
 import { useSetPartnerId } from '../stores/partnerStore';
 import { isFiatTokenEnabled, getFirstEnabledFiatToken } from '../config/tokenAvailability';
+import { DEFAULT_RAMP_DIRECTION } from '../helpers/path';
 
 interface RampUrlParams {
   ramp: RampDirection;
@@ -27,7 +29,7 @@ const defaultFiatTokenAmounts: Record<FiatToken, string> = {
   brl: DEFAULT_BRL_AMOUNT,
 };
 
-function findFiatToken(fiatToken?: string): FiatToken | undefined {
+function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
   if (!fiatToken) {
     return undefined;
   }
@@ -40,8 +42,13 @@ function findFiatToken(fiatToken?: string): FiatToken | undefined {
   }
 
   const [_, tokenValue] = matchedFiatToken;
+  const foundToken = tokenValue as FiatToken;
 
-  return tokenValue as FiatToken;
+  if (rampDirection === RampDirection.ONRAMP && foundToken !== FiatToken.BRL) {
+    return FiatToken.BRL;
+  }
+
+  return foundToken;
 }
 
 function findOnChainToken(tokenStr?: string, networkType?: Networks | string): OnChainToken | undefined {
@@ -56,7 +63,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     const matchedToken = assetHubTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
 
     if (!matchedToken) {
-      return undefined;
+      return DEFAULT_ASSETHUB_ONCHAIN_TOKEN;
     }
 
     const [_, tokenValue] = matchedToken;
@@ -66,7 +73,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     const matchedToken = evmTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
 
     if (!matchedToken) {
-      return undefined;
+      return DEFAULT_EVM_ONCHAIN_TOKEN;
     }
 
     const [_, tokenValue] = matchedToken;
@@ -107,10 +114,10 @@ export const useRampUrlParams = (): RampUrlParams => {
     const from =
       ramp === RampDirection.OFFRAMP
         ? findOnChainToken(fromTokenParam, networkParam || selectedNetwork)
-        : findFiatToken(fromTokenParam);
+        : findFiatToken(fromTokenParam, ramp);
     const to =
       ramp === RampDirection.OFFRAMP
-        ? findFiatToken(toTokenParam)
+        ? findFiatToken(toTokenParam, ramp)
         : findOnChainToken(toTokenParam, networkParam || selectedNetwork);
 
     const fromAmount =
