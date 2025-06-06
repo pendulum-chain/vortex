@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
-    "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
-    "preview": "vite preview",
+    "dev": "bunx --bun vite --host",
+    "build": "tsc && NODE_OPTIONS='--max_old_space_size=8192' bunx --bun vite build && cp -R src/assets/coins dist/assets/coins && cp _redirects dist/_redirects",
+    "preview": "bunx --bun vite preview",
     "test": "vitest",
     "verify": "bun test"
   },
