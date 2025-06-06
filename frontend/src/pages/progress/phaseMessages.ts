@@ -60,6 +60,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
     stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
     squidrouterApprove: getSquidrouterSwapMessage(),
     squidrouterSwap: getSquidrouterSwapMessage(),
+    squidrouterPay: getSquidrouterSwapMessage(),
     pendulumToAssethub: t('pages.progress.pendulumToAssethub', { assetSymbol: outputAssetSymbol }),
     brlaTeleport: t('pages.progress.brlaTeleport'),
     failed: '', // Not relevant for progress page

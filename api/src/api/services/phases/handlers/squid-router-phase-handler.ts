@@ -7,7 +7,6 @@ import { moonbeam } from 'viem/chains';
 
 /**
  * Handler for the squidRouter phase
- * Only used for the onramp flow. For the offramp, the UI can send the transactions to better confirm outputs.
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
   private publicClient: ReturnType<typeof createPublicClient>;
@@ -88,8 +87,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       });
 
       // Transition to the next phase
-      // FIXME we are in onramp here, so we should transition to a different phase
-      return this.transitionToNextPhase(updatedState, 'complete');
+      return this.transitionToNextPhase(updatedState, 'squidrouterPay');
     } catch (error: any) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;
