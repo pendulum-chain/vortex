@@ -4,7 +4,6 @@ import { useTranslation, Trans } from 'react-i18next';
 
 import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
-import { useKYCFormLocalStorage } from './useKYCFormLocalStorage';
 interface KYCFormProps {
   fields: BrlaFieldProps[];
   form: UseFormReturn<KYCFormData>;
@@ -32,6 +31,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
               key={field.id}
               className={
                 [
+                  ExtendedBrlaFieldOptions.TAX_ID,
                   ExtendedBrlaFieldOptions.PHONE,
                   ExtendedBrlaFieldOptions.FULL_NAME,
                   ExtendedBrlaFieldOptions.BIRTHDATE,

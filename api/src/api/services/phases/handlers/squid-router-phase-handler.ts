@@ -41,7 +41,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
     try {
       // Get the presigned transactions for this phase
-      const approveTransaction = this.getPresignedTransaction(state, 'squidrouterApprove');
+      const approveTransaction = this.getPresignedTransaction(state, 'squidRouterApprove');
       const swapTransaction = this.getPresignedTransaction(state, 'squidRouterSwap');
 
       if (!approveTransaction || !swapTransaction) {

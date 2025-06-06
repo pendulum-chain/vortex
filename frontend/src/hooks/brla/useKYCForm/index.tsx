@@ -4,6 +4,14 @@ import * as yup from 'yup';
 import { useTranslation } from 'react-i18next';
 
 import { ExtendedBrlaFieldOptions } from '../../../components/BrlaComponents/BrlaField';
+import { useEffect } from 'react';
+import { useRampFormStore, useRampFormStoreActions } from '../../../stores/ramp/useRampFormStore';
+import { isValidCnpj, isValidCpf } from '../../ramp/schema';
+import { useRampStore } from '../../../stores/rampStore';
+
+export interface UseKYCFormProps {
+  cpfApiError: string | null;
+}
 
 const getEnumInitialValues = (enumType: Record<string, string>): Record<string, unknown> => {
   return Object.values(enumType).reduce((acc, field) => ({ ...acc, [field]: undefined }), {});
@@ -12,6 +20,19 @@ const getEnumInitialValues = (enumType: Record<string, string>): Record<string, 
 const createKycFormSchema = (t: (key: string) => string) =>
   yup
     .object({
+      [ExtendedBrlaFieldOptions.TAX_ID]: yup
+        .string()
+        .required(t('components.brlaExtendedForm.validation.taxId.required'))
+        .test(
+          'is-valid-tax-id', 
+          t('components.brlaExtendedForm.validation.taxId.format'), 
+          (value) => {
+            if (!value) {
+              return false; 
+            }
+            return isValidCpf(value) || isValidCnpj(value); 
+          }
+        ),
       [ExtendedBrlaFieldOptions.PHONE]: yup
         .string()
         .required(t('components.brlaExtendedForm.validation.phone.required'))
@@ -81,16 +102,45 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
 export type KYCFormData = yup.InferType<ReturnType<typeof createKycFormSchema>>;
 
-export const useKYCForm = () => {
+export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
   const { t } = useTranslation();
+  const { taxId: taxIdFromStore } = useRampFormStore(); 
+  const { rampExecutionInput: executionInput, actions: { setRampExecutionInput }} = useRampStore();
+  const { setTaxId } = useRampFormStoreActions(); 
 
   const kycFormSchema = createKycFormSchema(t);
 
   const kycForm = useForm<KYCFormData>({
     resolver: yupResolver(kycFormSchema),
     mode: 'onBlur',
-    defaultValues: getEnumInitialValues(ExtendedBrlaFieldOptions),
+    defaultValues: {
+      ...getEnumInitialValues(ExtendedBrlaFieldOptions),
+      [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || '',
+    },
   });
 
-  return { kycForm };
+  const watchedCpf = kycForm.watch(ExtendedBrlaFieldOptions.TAX_ID);
+
+  useEffect(() => {
+    if (watchedCpf !== undefined && watchedCpf !== taxIdFromStore && watchedCpf !== '') {
+      setTaxId(watchedCpf);
+      if (executionInput) setRampExecutionInput({ ...executionInput, taxId: watchedCpf });
+    }
+  }, [watchedCpf, taxIdFromStore, setTaxId, executionInput, setRampExecutionInput]);
+
+  useEffect(() => {
+    if (cpfApiError) {
+      kycForm.setError(ExtendedBrlaFieldOptions.TAX_ID, {
+        type: 'invalidTaxId',
+        message: t('components.brlaExtendedForm.kycFailureReasons.invalidTaxId'),
+      });
+    } else {
+      
+      if (kycForm.formState.errors[ExtendedBrlaFieldOptions.TAX_ID]?.type === 'invalidTaxId') {
+        kycForm.clearErrors(ExtendedBrlaFieldOptions.TAX_ID);
+      }
+    }
+  }, [cpfApiError, kycForm.setError, kycForm.clearErrors, kycForm.formState.errors]);
+
+   return { kycForm };
 };

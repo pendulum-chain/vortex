@@ -5,12 +5,25 @@ import httpStatus from 'http-status';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';
 import { RegisterSubaccountPayload } from '../services/brla/types';
+import { Kyc2FailureReason } from '../services/brla/webhooks';
 import kycService from '../services/kyc/kyc.service';
-import { PayInCodeQuery } from '../middlewares/validators';
 import logger from '../../config/logger';
+import { KycLevel2Status } from '../../models/kycLevel2.model';
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const lastInteractionMap = new Map<string, number>();
+
+// Maps webhook failure reasons to standardized enum values
+function mapKycFailureReason(webhookReason: Kyc2FailureReason | string | undefined): KycFailureReason {
+  switch (webhookReason) {
+    case 'face match failure':
+      return KycFailureReason.FACE;
+    case 'name does not match':
+      return KycFailureReason.NAME;
+    default:
+      return KycFailureReason.UNKNOWN; // default
+  }
+}
 
 // BRLA API requires the date in the format YYYY-MMM-DD
 function convertDateToBRLAFormat(dateNumber: number | undefined): string {
@@ -333,8 +346,8 @@ export const fetchSubaccountKycStatus = async (
     if (!lastInteraction) {
       res.status(httpStatus.NOT_FOUND).json({ error: `No KYC process started for ${taxId}` });
     }
-    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 60000) {
-      // If the last event is older than 1 minute from the last interaction, we assume it's not a new event.
+    if (lastInteraction && lastEventCached.createdAt <= lastInteraction - 2000) {
+      // If the last event is older than 2 seconds from the last interaction, we assume it's not a new event.
       // So it is ignored.
       res.status(httpStatus.NOT_FOUND).json({ error: `No new KYC events found for ${taxId}` });
       return;
@@ -343,6 +356,7 @@ export const fetchSubaccountKycStatus = async (
     res.status(httpStatus.OK).json({
       type: lastEventCached.subscription,
       status: lastEventCached.data.kycStatus,
+      failureReason: mapKycFailureReason(lastEventCached.data.failureReason),
       level: lastEventCached.data.level,
     });
   } catch (error) {
