@@ -77,13 +77,12 @@ export function checkEvmBalancePeriodically(
   });
 }
 
-export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string, destinationNetwork: Networks) => {
+export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => {
   try {
     const apiManager = ApiManager.getInstance();
     const apiData = await apiManager.getApi('moonbeam');
 
-    const largeFunding = destinationNetwork === Networks.Ethereum;
-    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals, largeFunding);
+    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals);
 
     const txHash = await walletClient.sendTransaction({
       to: ephemeralAddress as `0x${string}`,

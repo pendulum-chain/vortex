@@ -118,24 +118,6 @@ async function getSquidrouterRouteData(routeParams: RouteParams): Promise<any> {
   return routeResult.data;
 }
 
-/**
- * Helper to check Squidrouter swap value against funding limits
- */
-function validateSquidrouterSwapValue(routeResult: any, finalEvmDestination: DestinationType): void {
-  const squidrouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
-
-  const fundingAmountUnits = Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
-
-  const squidrouterSwapValueBuffer = getNetworkFromDestination(finalEvmDestination) === Networks.Ethereum ? 10 : 2;
-
-  // Leave buffer for other operations of the ephemeral, and as buffer for potential price changes.
-  if (squidrouterSwapValue.gte(fundingAmountUnits.minus(squidrouterSwapValueBuffer))) {
-    throw new APIError({
-      status: httpStatus.SERVICE_UNAVAILABLE,
-      message: 'Cannot service this route at the moment. Please try again later.',
-    });
-  }
-}
 
 /**
  * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
@@ -260,9 +242,6 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
 
     // Execute Squidrouter route and validate response
     const routeResult = await getSquidrouterRouteData(routeParams);
-
-    // Check Squidrouter swap value against funding limits
-    validateSquidrouterSwapValue(routeResult, finalEvmDestination);
 
     // Calculate network fee (Squidrouter fee)
     const networkFeeUSD = await calculateSquidrouterNetworkFee(routeResult);
