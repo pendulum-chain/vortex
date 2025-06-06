@@ -7,7 +7,7 @@ import { Language } from '../../translations/helpers';
 
 // Import country flag images
 import brazilFlag from '../../assets/countries/brazil.png';
-import usFlag from '../../assets/countries/united-states.png';
+import usFlag from '../../assets/countries/english.png';
 
 interface LanguageButtonProps {
   selectedLanguage: Language;
