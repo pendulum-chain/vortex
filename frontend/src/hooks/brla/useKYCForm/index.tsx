@@ -110,7 +110,7 @@ export const useKYCForm = ({ cpfApiError }: UseKYCFormProps) => {
 
   const kycForm = useForm<KYCFormData>({
     resolver: yupResolver(kycFormSchema),
-    mode: 'onChange',
+    mode: 'onBlur',
     defaultValues: {
       ...getEnumInitialValues(ExtendedBrlaFieldOptions),
       [ExtendedBrlaFieldOptions.TAX_ID]: taxIdFromStore || '',

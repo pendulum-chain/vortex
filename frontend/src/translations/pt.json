@@ -432,6 +432,14 @@
         "name": "A verificação do nome falhou. Certifique-se de que seu nome corresponde ao do documento de identidade fornecido.",
         "invalidTaxId": "Por favor, verifique se o seu CPF ou CNPJ está correto.",
         "UNKNOWN": "A verificação KYC falhou. Por favor, tente novamente ou entre em contato com o suporte."
+      },
+      "messageDisplay": {
+        "networkError": "Erro de rede, por favor tente novamente mais tarde."
+      },
+      "buttons": {
+        "back": "Voltar",
+        "continue": "Continuar",
+        "tryAgain": "Tentar Novamente"
       }
     },
     "documentUpload": {

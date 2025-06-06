@@ -170,7 +170,7 @@ export const PIXKYCForm = () => {
           failureMessage={failureMessage}
           isLevel2={rampKycLevel2Started}
           onContinue={proceedWithRamp}
-          onBackClick={handleBackClick}
+          onBack={handleBackClick}
           onRetry={handleRetryDocumentUpload}
           kycVerificationError={kycVerificationError}
         />

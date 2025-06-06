@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react'; 
 import { KycStatus } from '../../../services/signingService'; 
 import { Spinner } from '../../Spinner'; 
+import { useTranslation } from 'react-i18next';
 
 interface VerificationStatusProps {
   status: { status: KycStatus; level: number };
@@ -10,7 +11,7 @@ interface VerificationStatusProps {
   isLevel2: boolean;
   kycVerificationError?: boolean;
   onContinue: () => void;
-  onBackClick: () => void;
+  onBack: () => void;
   onRetry: () => void;
 }
 
@@ -22,10 +23,11 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
   kycVerificationError = false,
   onContinue,
   onRetry,
-  onBackClick,
+  onBack,
 }) => {
   const { status: kycStatus, level } = status;
   const showSuccess = kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -43,16 +45,16 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            Network error, please try again later.
+            {t(`components.brlaExtendedForm.messageDisplay.networkError`)}
           </motion.p>
           <motion.button
             className="btn-vortex-primary btn mt-6 px-8" 
-            onClick={onBackClick}
+            onClick={onBack}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.3 }}
           >
-            Back
+            {t(`components.brlaExtendedForm.buttons.back`)}
           </motion.button>
         </>
       ) : (
@@ -91,7 +93,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
-              Continue
+              {t(`components.brlaExtendedForm.buttons.continue`)}
             </motion.button>
           )}
 
@@ -103,7 +105,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
-              Try Again
+              {t(`components.brlaExtendedForm.buttons.tryAgain`)}
             </motion.button>
           )}
         </>

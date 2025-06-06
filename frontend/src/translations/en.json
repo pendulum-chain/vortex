@@ -433,6 +433,14 @@
         "name": "Name verification failed. Please ensure your name matches the ID provided.",
         "invalidTaxId": "Please ensure your CPF or CNPJ is correct.",
         "UNKNOWN": "KYC verification failed. Please try again or contact support."
+      },
+      "messageDisplay": {
+        "networkError": "Network error, please try again later."
+      },
+      "buttons": {
+        "back": "Back",
+        "continue": "Continue",
+        "tryAgain": "Try Again"
       }
     },
     "rating": {
