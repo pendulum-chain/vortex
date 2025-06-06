@@ -27,8 +27,8 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   subsidizePostSwap: 24,
   pendulumToMoonbeam: 40,
   pendulumToAssethub: 30,
-  squidrouterApprove: 10,
-  squidrouterSwap: 10,
+  squidRouterApprove: 10,
+  squidRouterSwap: 10,
 
   complete: 0,
   timedOut: 0,
@@ -47,8 +47,8 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
 export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   initial: 0,
   fundEphemeral: 20,
-  squidrouterApprove: 10,
-  squidrouterSwap: 10,
+  squidRouterApprove: 10,
+  squidRouterSwap: 10,
   moonbeamToPendulum: 40,
   assethubToPendulum: 24,
   distributeFees: 24,

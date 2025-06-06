@@ -24,7 +24,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    return 'squidrouterSwap';
+    return 'squidRouterSwap';
   }
 
   /**
@@ -42,8 +42,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
     try {
       // Get the presigned transactions for this phase
-      const approveTransaction = this.getPresignedTransaction(state, 'squidrouterApprove');
-      const swapTransaction = this.getPresignedTransaction(state, 'squidrouterSwap');
+      const approveTransaction = this.getPresignedTransaction(state, 'squidRouterApprove');
+      const swapTransaction = this.getPresignedTransaction(state, 'squidRouterSwap');
 
       if (!approveTransaction || !swapTransaction) {
         throw new Error('Missing presigned transactions for squidRouter phase');

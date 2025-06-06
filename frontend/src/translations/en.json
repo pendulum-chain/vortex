@@ -33,7 +33,7 @@
       "estimatedTimeEVM": "This usually takes 6-8 minutes.",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "stellarPayment": "Transferring {{assetSymbol}} from Stellar --> local partner",
-      "squidrouterSwap": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
+      "squidRouterSwap": "Transferring {{assetSymbol}} from Moonbeam to {{network}}",
       "pendulumToAssethub": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "brlaTeleport": "Your payment is being processed. This can take up to 5 minutes."
     },

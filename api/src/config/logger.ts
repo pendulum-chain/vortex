@@ -12,7 +12,7 @@ const formatMeta = (meta: any) => {
 
 const customFormat = winston.format.printf(
   ({ timestamp, level, message, label = '', ...meta }) =>
-    `[${timestamp}] ${level}\t ${label} ${message} ${formatMeta(meta)}`,
+    `[${timestamp}] ${level}\t ${label} ${message}`,
 );
 
 const logger = winston.createLogger({
