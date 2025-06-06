@@ -17,7 +17,7 @@ import logger from '../../../config/logger';
 import { APIError } from '../../errors/api-error';
 import { getTokenOutAmount } from '../nablaReads/outAmount';
 import { ApiManager } from '../pendulum/apiManager';
-import { calculateTotalReceive, calculateTotalReceiveOnramp } from '../../helpers/quote';
+import { calculateTotalReceive, calculateTotalReceiveOnramp } from 'shared';
 import { createOnrampRouteParams, getRoute } from '../transactions/squidrouter/route';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 /**

@@ -32,7 +32,9 @@ export interface StateMetadata {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
   };
+  squidRouterApproveHash: string;
+  squidRouterSwapHash: string;
+  squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
-  squidrouterSwapHash: string;
-  squidrouterPayTxHash: string;
+  
 }

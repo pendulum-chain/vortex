@@ -37,7 +37,7 @@ export const useStartRamp = () => {
         }
       } else {
         // Here we assume we are in any EVM network and need squidrouter
-        if (!rampState.userSigningMeta.squidRouterApproveHash || !rampState.userSigningMeta.squidrouterSwapHash) {
+        if (!rampState.userSigningMeta.squidRouterApproveHash || !rampState.userSigningMeta.squidRouterSwapHash) {
           console.error('Squid router hash is missing. Cannot start ramp.');
           return;
         }

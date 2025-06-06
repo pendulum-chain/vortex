@@ -62,7 +62,7 @@ interface AxelarScanStatusResponse {
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const AXL_GAS_SERVICE_MOONBEAM = '0x2d5d7d31F671F86C782533cc367F14109a082712';
 /**
- * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee if.
+ * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
 export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private publicClient: ReturnType<typeof createPublicClient>;
@@ -95,13 +95,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     logger.info(`Executing squidRouterPay phase for ramp ${state.id}`);
 
     if (state.type === 'off') {
-      logger.info(`SquidRouter phase is not supported for off-ramp`);
+      logger.info(`squidRouterPay phase is not supported for off-ramp`);
       return state;
     }
 
     try {
       // Get the bridge hash
-      const bridgeCallHash = state.state.squidrouterSwapHash;
+      const bridgeCallHash = state.state.squidRouterSwapHash;
       if (!bridgeCallHash) {
         throw new Error(
           'SquidRouterPayPhaseHandler: Missing bridge hash in state for squidRouterPay phase. State corrupted.',
@@ -127,7 +127,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // const _ = await getStatus(swapHash); // Found to be unreliable. Returned "not found" for valid transactions.
 
       let isExecuted = false;
-      let payTxHash: string | undefined = state.state.squidrouterPayTxHash; // in case of recovery, we may have already paid.
+      let payTxHash: string | undefined = state.state.squidRouterPayTxHash; // in case of recovery, we may have already paid.
       while (!isExecuted) {
         const axelarScanStatus = await this.getStatusAxelarScan(swapHash);
 
@@ -162,7 +162,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           await state.update({
             state: {
               ...state.state,
-              squidrouterPayTxHash: payTxHash,
+              squidRouterPayTxHash: payTxHash,
             },
           });
         }

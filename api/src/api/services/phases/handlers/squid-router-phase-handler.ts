@@ -82,7 +82,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         state: {
           ...state.state,
           squidRouterApproveHash: approveHash,
-          squidrouterSwapHash: swapHash,
+          squidRouterSwapHash: swapHash,
         },
       });
 
