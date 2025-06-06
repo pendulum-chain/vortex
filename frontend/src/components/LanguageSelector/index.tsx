@@ -7,7 +7,7 @@ import { Language } from '../../translations/helpers';
 
 // Import country flag images
 import brazilFlag from '../../assets/countries/brazil.png';
-import usFlag from '../../assets/countries/united-states.png';
+import usUkFlag from '../../assets/countries/us-uk-hybrid.png';
 
 interface LanguageButtonProps {
   selectedLanguage: Language;
@@ -28,7 +28,7 @@ const LanguageButton = ({ selectedLanguage, isOpen, onClick, disabled }: Languag
     disabled={disabled}
   >
     <img
-      src={selectedLanguage === Language.English ? usFlag : brazilFlag}
+      src={selectedLanguage === Language.English ? usUkFlag : brazilFlag}
       alt={selectedLanguage === Language.English ? 'English' : 'Português'}
       className={cn('w-5 h-5', disabled && 'opacity-50')}
     />
@@ -63,7 +63,7 @@ const LanguageDropdown = ({ isOpen, onLanguageSelect, disabled }: LanguageDropdo
           onClick={() => onLanguageSelect(Language.English)}
           className="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-base-200"
         >
-          <img src={usFlag} alt="English" className="w-5 h-5" />
+          <img src={usUkFlag} alt="English" className="w-5 h-5" />
           <span>English</span>
         </button>
         <button
