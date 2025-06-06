@@ -312,7 +312,6 @@ export const createSubaccount = async (
   }
 };
 
-
 export const fetchSubaccountKycStatus = async (
   req: Request<unknown, unknown, unknown, BrlaEndpoints.GetKycStatusRequest>,
   res: Response<BrlaEndpoints.GetKycStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
@@ -353,8 +352,6 @@ export const fetchSubaccountKycStatus = async (
       res.status(httpStatus.NOT_FOUND).json({ error: `No new KYC events found for ${taxId}` });
       return;
     }
-
-    
 
     res.status(httpStatus.OK).json({
       type: lastEventCached.subscription,
