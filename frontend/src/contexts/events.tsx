@@ -286,21 +286,23 @@ const useEvents = () => {
     const wasChanged = previous !== address;
     const isConnected = address !== undefined;
 
+    const networkId = getNetworkId(selectedNetwork);
+
     if (!isConnected && wasConnected) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: 'disconnect',
         account_address: previous,
         input_amount: inputAmount ? inputAmount.toString() : '0',
-        network_selected: getNetworkId(selectedNetwork).toString(),
+        network_selected: networkId.toString(),
       });
-    } else if (wasChanged) {
+    } else if (wasChanged && networkId) {
       trackEvent({
         event: 'wallet_connect',
         wallet_action: wasConnected ? 'change' : 'connect',
         account_address: address,
         input_amount: inputAmount ? inputAmount.toString() : '0',
-        network_selected: getNetworkId(selectedNetwork).toString(),
+        network_selected: networkId.toString(),
       });
     }
 

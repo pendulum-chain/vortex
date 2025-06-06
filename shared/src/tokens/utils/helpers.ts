@@ -5,13 +5,13 @@
 import { RampCurrency, FiatToken, OnChainToken } from '../types/base';
 import { EvmToken } from '../types/evm';
 import { AssetHubToken } from '../types/base';
-import { TokenDetails, OnChainTokenDetails, FiatTokenDetails } from './typeGuards';
+import { OnChainTokenDetails, FiatTokenDetails } from './typeGuards';
 import { evmTokenConfig } from '../evm/config';
 import { assetHubTokenConfig } from '../assethub/config';
 import { stellarTokenConfig } from '../stellar/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
-import { Networks, PaymentMethod } from '../../helpers';
+import { Networks } from '../../helpers';
 import { StellarTokenDetails } from '../types/stellar';
 
 /**

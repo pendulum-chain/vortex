@@ -12,6 +12,8 @@ import priceRoutes from './price.route';
 import quoteRoutes from './quote.route';
 import brlaRoutes from './brla.route';
 import rampRoutes from './ramp.route';
+import paymentMethodsRoutes from './payment-methods.route';
+import cryptocurrenciesRoutes from './cryptocurrencies.route';
 
 import { sendStatusWithPk as sendStellarStatusWithPk } from '../../controllers/stellar.controller';
 import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../controllers/pendulum.controller';
@@ -106,6 +108,16 @@ router.use('/brla', brlaRoutes);
  * GET/POST v1/ramp
  */
 router.use('/ramp', rampRoutes);
+
+/**
+ * GET v1/supported-payment-methods
+ */
+router.use('/supported-payment-methods', paymentMethodsRoutes);
+
+/**
+ * GET v1/supported-cryptocurrencies
+ */
+router.use('/supported-cryptocurrencies', cryptocurrenciesRoutes);
 
 router.get('/ip', (request: Request, response: Response) => {
   response.send(request.ip);
