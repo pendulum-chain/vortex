@@ -466,6 +466,7 @@
     }
   },
   "toasts": {
+    "copyText": "Copiado para a área de transferência",
     "amountMismatch": "Valores de saque incompatíveis detectados. Por favor, reinicie o processo de saque.",
     "kycCompleted": "Sucesso! Prepare-se para sacar.",
     "kycVerificationFailed": "Não foi possível verificar o status do KYC. Por favor, tente novamente.",
