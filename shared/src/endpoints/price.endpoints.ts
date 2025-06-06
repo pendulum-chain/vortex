@@ -1,5 +1,5 @@
 export namespace PriceEndpoints {
-  // GET /prices?provider=:provider&fromCrypto=:fromCrypto&toFiat=:toFiat&amount=:amount&network=:network
+  // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
   export const VALID_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
   export const VALID_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
   export const VALID_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
@@ -7,6 +7,7 @@ export namespace PriceEndpoints {
   export type Provider = (typeof VALID_PROVIDERS)[number];
   export type CryptoCurrency = (typeof VALID_CRYPTO_CURRENCIES)[number];
   export type FiatCurrency = (typeof VALID_FIAT_CURRENCIES)[number];
+  export type Currency = CryptoCurrency | FiatCurrency;
 
   // Validation functions
   export const isValidProvider = (value: unknown): value is Provider =>
@@ -18,42 +19,65 @@ export namespace PriceEndpoints {
   export const isValidFiatCurrency = (value: unknown): value is FiatCurrency =>
     typeof value === 'string' && VALID_FIAT_CURRENCIES.includes(value.toLowerCase() as FiatCurrency);
 
+  export type Direction = 'onramp' | 'offramp';
+
   export interface PriceRequest {
     provider: Provider;
-    fromCrypto: CryptoCurrency;
-    toFiat: FiatCurrency;
+    sourceCurrency: Currency;
+    targetCurrency: Currency;
     amount: string;
     network?: string;
+    direction: Direction;
   }
 
-  // The response varies by provider, so we define a base interface with common fields
+  // Validation function for direction
+  export const isValidDirection = (value: unknown): value is Direction =>
+    typeof value === 'string' && (value === 'onramp' || value === 'offramp');
+
+  // Validation function for currency based on direction
+  export const isValidCurrencyForDirection = (currency: unknown, expectedType: 'crypto' | 'fiat'): boolean => {
+    return expectedType === 'crypto' ? isValidCryptoCurrency(currency) : isValidFiatCurrency(currency);
+  };
+
+  /**
+   * The standardized response format for all price providers.
+   *
+   * Direction-specific interpretation guide:
+   *
+   * For onramp (buying crypto with fiat):
+   * - requestedAmount: The fiat amount the user is spending
+   * - quoteAmount: The crypto amount the user will receive
+   * - conversionPrice: The price of 1 unit of crypto in fiat
+   *
+   * For offramp (selling crypto for fiat):
+   * - requestedAmount: The crypto amount the user is selling
+   * - quoteAmount: The fiat amount the user will receive
+   * - conversionPrice: The price of 1 unit of crypto in fiat
+   */
   export interface PriceResponseBase {
-    amount: string;
-    fiatAmount: string;
-    fiatCurrency: FiatCurrency;
-    cryptoCurrency: CryptoCurrency;
-    rate: string;
-    fee?: string;
-    networkFee?: string;
-    totalFee?: string;
-
-    [key: string]: any; // Additional provider-specific fields
+    requestedAmount: number;
+    quoteAmount: number;
+    totalFee: number;
+    direction: Direction;
   }
 
-  // Provider-specific response types
+  /**
+   * Provider-specific response types
+   * Each provider extends the base response with its own identifier
+   */
   export interface AlchemyPayPriceResponse extends PriceResponseBase {
     provider: 'alchemypay';
-    // AlchemyPay specific fields
+    // AlchemyPay specific fields can be added here
   }
 
   export interface MoonpayPriceResponse extends PriceResponseBase {
     provider: 'moonpay';
-    // Moonpay specific fields
+    // Moonpay specific fields can be added here
   }
 
   export interface TransakPriceResponse extends PriceResponseBase {
     provider: 'transak';
-    // Transak specific fields
+    // Transak specific fields can be added here
   }
 
   export type PriceResponse = AlchemyPayPriceResponse | MoonpayPriceResponse | TransakPriceResponse;

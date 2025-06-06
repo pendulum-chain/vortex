@@ -36,8 +36,7 @@ export const Offramp = () => {
   const inputAmount = useInputAmount();
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
-  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
-  const { outputAmount: toAmount } = useQuoteService(debouncedInputAmount, onChainToken, fiatToken);
+  const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
 
   const quoteLoading = useQuoteLoading();
 
@@ -61,13 +60,13 @@ export const Offramp = () => {
   const toToken = getAnyFiatTokenDetails(fiatToken);
 
   useEffect(() => {
-    if (!fromAmountFieldTouched || debouncedInputAmount !== inputAmount) return;
+    if (!fromAmountFieldTouched || !inputAmount) return;
 
     trackEvent({
       event: 'amount_type',
-      input_amount: debouncedInputAmount ? debouncedInputAmount.toString() : '0',
+      input_amount: inputAmount.toString(),
     });
-  }, [fromAmountFieldTouched, debouncedInputAmount, inputAmount, trackEvent]);
+  }, [fromAmountFieldTouched, inputAmount, trackEvent]);
 
   const handleInputChange = useCallback(() => {
     setFromAmountFieldTouched(true);
