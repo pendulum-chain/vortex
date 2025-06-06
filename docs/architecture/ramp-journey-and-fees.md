@@ -75,8 +75,8 @@ The ramp process is managed by a state machine, transitioning through various ph
 **Final Delivery (On-Ramp):**
 
 13. **Path A (EVM Destination):**
-    *   **Phase: `pendulumToMoonbeam` (`pendulum-moonbeam-phase-handler.ts`):** Submits XCM transaction to send the final *net* crypto asset (gross output minus total fees) from Pendulum ephemeral to Moonbeam ephemeral. Transitions to `squidrouterSwap`.
-    *   **Phase: `squidrouterSwap` (`squid-router-phase-handler.ts`):** Submits pre-signed Approve and Swap transactions interacting with Squid Router on Moonbeam to bridge/swap the asset to the user's final destination address on the target EVM chain. Transitions to `complete`.
+    *   **Phase: `pendulumToMoonbeam` (`pendulum-moonbeam-phase-handler.ts`):** Submits XCM transaction to send the final *net* crypto asset (gross output minus total fees) from Pendulum ephemeral to Moonbeam ephemeral. Transitions to `squidRouterSwap`.
+    *   **Phase: `squidRouterSwap` (`squid-router-phase-handler.ts`):** Submits pre-signed Approve and Swap transactions interacting with Squid Router on Moonbeam to bridge/swap the asset to the user's final destination address on the target EVM chain. Transitions to `complete`.
 14. **Path B (AssetHub Destination):**
     *   **Phase: `pendulumToAssethub` (`pendulum-to-assethub-phase-handler.ts`):** Submits XCM transaction to send the final *net* crypto asset (gross output minus total fees) from Pendulum ephemeral directly to the user's final destination address on AssetHub. Transitions to `complete`.
 

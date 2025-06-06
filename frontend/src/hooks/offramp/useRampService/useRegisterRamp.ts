@@ -314,11 +314,11 @@ export const useRegisterRamp = () => {
       }
 
       for (const tx of sortedTxs!) {
-        if (tx.phase === 'squidrouterApprove') {
+        if (tx.phase === 'squidRouterApprove') {
           setRampSigningPhase('started');
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase('signed');
-        } else if (tx.phase === 'squidrouterSwap') {
+        } else if (tx.phase === 'squidRouterSwap') {
           squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
           setRampSigningPhase('finished');
         } else if (tx.phase === 'assethubToPendulum') {

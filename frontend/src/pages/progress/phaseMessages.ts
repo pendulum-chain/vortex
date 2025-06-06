@@ -38,7 +38,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
   const getSwappingMessage = () => t('pages.progress.swappingTo', { assetSymbol: outputAssetSymbol });
   const getMoonbeamToPendulumMessage = () => t('pages.progress.moonbeamToPendulum', { assetSymbol: inputAssetSymbol });
   const getSquidrouterSwapMessage = () =>
-    t('pages.progress.squidrouterSwap', { assetSymbol: outputAssetSymbol, network: toNetwork });
+    t('pages.progress.squidRouterSwap', { assetSymbol: outputAssetSymbol, network: toNetwork });
 
   const getTransferringMessage = () => t('pages.progress.transferringToLocalPartner');
 

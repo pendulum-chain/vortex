@@ -290,7 +290,7 @@ describe('PhaseProcessor Integration Test', () => {
       // );
       // console.log('Approve transaction executed with hash:', approveHash);
 
-      // const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidrouterSwap');
+      // const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidRouterSwap');
       // const swapHash = await executeEvmTransaction(
       //   squidSwapTransaction!.network,
       //   squidSwapTransaction!.txData as EvmTransactionData,
