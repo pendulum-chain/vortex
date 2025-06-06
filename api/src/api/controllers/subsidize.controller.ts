@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
 import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
-import { SubsidizeEndpoints } from 'shared/src/endpoints/subsidize.endpoints';
+import { SubsidizeEndpoints } from 'shared';
 import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { ApiManager } from '../services/pendulum/apiManager';
 import logger from '../../config/logger';

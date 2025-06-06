@@ -65,13 +65,6 @@ export const useRampForm = (): {
   );
 
   useEffect(() => {
-    const constrainedToken = enforceTokenConstraints(fiatToken);
-    if (constrainedToken !== fiatToken) {
-      setFiatToken(constrainedToken);
-    }
-  }, [direction, fiatToken, setFiatToken, enforceTokenConstraints]);
-
-  useEffect(() => {
     const subscription = form.watch((values, { name }) => {
       if (name === 'taxId' && values.taxId !== undefined) {
         setTaxId(values.taxId);
@@ -79,14 +72,6 @@ export const useRampForm = (): {
         setPixId(values.pixId);
       } else if (name === 'onChainToken' && values.onChainToken !== undefined) {
         setOnChainToken(values.onChainToken);
-      } else if (name === 'fiatToken' && values.fiatToken !== undefined) {
-        const constrainedToken = enforceTokenConstraints(values.fiatToken);
-
-        if (constrainedToken !== values.fiatToken) {
-          form.setValue('fiatToken', constrainedToken);
-        }
-
-        setFiatToken(constrainedToken);
       }
     });
 
@@ -103,29 +88,37 @@ export const useRampForm = (): {
     if (storeInputAmountStr !== '0' && currentInputAmount !== storeInputAmountStr) {
       form.setValue('inputAmount', storeInputAmountStr);
     }
+  }, [form, inputAmount]);
 
+  useEffect(() => {
     const currentOnChainToken = form.getValues('onChainToken');
     if (onChainToken && onChainToken !== currentOnChainToken) {
       form.setValue('onChainToken', onChainToken);
     }
+  }, [form, onChainToken]);
 
+  useEffect(() => {
     const currentFiatToken = form.getValues('fiatToken');
     const constrainedToken = enforceTokenConstraints(fiatToken);
-
     if (constrainedToken !== currentFiatToken) {
       form.setValue('fiatToken', constrainedToken);
+      setFiatToken(constrainedToken);
     }
+  }, [form, fiatToken, enforceTokenConstraints, setFiatToken]);
 
+  useEffect(() => {
     const currentTaxId = form.getValues('taxId');
     if (taxId !== currentTaxId) {
       form.setValue('taxId', taxId || '');
     }
+  }, [form, taxId]);
 
+  useEffect(() => {
     const currentPixId = form.getValues('pixId');
     if (pixId !== currentPixId) {
       form.setValue('pixId', pixId || '');
     }
-  }, [form, taxId, pixId, inputAmount, onChainToken, fiatToken, enforceTokenConstraints]);
+  }, [form, pixId]);
 
   const reset = () => {
     resetStore();

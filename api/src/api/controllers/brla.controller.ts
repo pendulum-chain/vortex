@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { validateMaskedNumber } from 'shared';
-import { BrlaEndpoints, KycFailureReason } from 'shared/src/endpoints/brla.endpoints';
+import { BrlaEndpoints } from 'shared';
 import httpStatus from 'http-status';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { eventPoller } from '../..';

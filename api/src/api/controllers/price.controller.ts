@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
 import { Networks } from 'shared';
 
-import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
+import { PriceEndpoints } from 'shared';
 import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
 import * as moonpayService from '../services/moonpay/moonpay.service';
 import * as transakService from '../services/transak/transak.service';

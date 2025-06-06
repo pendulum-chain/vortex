@@ -21,8 +21,8 @@ import { useRampModalActions } from '../../../stores/rampModalStore';
 import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
-import { useInitializeFailedMessage } from '../../../stores/rampStore';
 import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
+import { RampErrorMessage } from '../../RampErrorMessage';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -43,7 +43,6 @@ export const Onramp = () => {
   }, [toAmount, form]);
 
   const { getCurrentErrorMessage } = useRampValidation();
-  const initializeFailedMessage = useInitializeFailedMessage();
   const validateTerms = useValidateTerms();
   const { onRampConfirm } = useRampSubmission();
 
@@ -127,13 +126,7 @@ export const Onramp = () => {
           <BenefitsList />
         </section>
         <BrlaSwapFields />
-        {initializeFailedMessage && (
-          <section className="flex justify-center w-full mt-5">
-            <div className="flex items-center gap-4">
-              <p className="text-red-600">{initializeFailedMessage}</p>
-            </div>
-          </section>
-        )}
+        <RampErrorMessage />
         <section className="w-full mt-5">
           <RampTerms />
         </section>

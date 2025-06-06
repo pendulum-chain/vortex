@@ -27,8 +27,9 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   subsidizePostSwap: 24,
   pendulumToMoonbeam: 40,
   pendulumToAssethub: 30,
-  squidRouterApprove: 10,
-  squidRouterSwap: 10,
+  squidrouterApprove: 10,
+  squidrouterSwap: 10,
+  squidrouterPay: 60,
 
   complete: 0,
   timedOut: 0,
@@ -70,6 +71,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   pendulumToAssethub: 0,
   pendulumToMoonbeam: 0,
   stellarCreateAccount: 0,
+  squidrouterPay: 0,
 };
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.

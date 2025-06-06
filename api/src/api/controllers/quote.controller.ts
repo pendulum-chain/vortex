@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import httpStatus from 'http-status';
-import { QuoteEndpoints } from 'shared/src/endpoints/quote.endpoints';
+import { QuoteEndpoints } from 'shared';
 import quoteService from '../services/ramp/quote.service';
 import { APIError } from '../errors/api-error';
 import logger from '../../config/logger';

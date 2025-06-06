@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { StorageEndpoints } from 'shared/src/endpoints/storage.endpoints';
+import { StorageEndpoints } from 'shared';
 import { config } from '../../config/vars';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 

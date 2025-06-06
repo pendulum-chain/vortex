@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { RampDirection } from '../components/RampToggle';
+import { getRampDirectionFromPath } from '../helpers/path';
 
-export const DEFAULT_RAMP_DIRECTION = RampDirection.ONRAMP;
+const defaultRampDirection = getRampDirectionFromPath();
 
 export interface RampDirectionStore {
   activeDirection: RampDirection;
@@ -9,7 +10,7 @@ export interface RampDirectionStore {
 }
 
 export const useRampDirectionStore = create<RampDirectionStore>((set) => ({
-  activeDirection: DEFAULT_RAMP_DIRECTION,
+  activeDirection: defaultRampDirection,
   onToggle: (direction: RampDirection) => set({ activeDirection: direction }),
 }));
 

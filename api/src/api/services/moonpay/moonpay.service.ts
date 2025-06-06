@@ -1,4 +1,4 @@
-import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
+import { PriceEndpoints } from 'shared';
 import { config } from '../../../config/vars';
 import { ProviderInternalError } from '../../errors/providerErrors';
 import { createQuoteRequest } from './request-creator';

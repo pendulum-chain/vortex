@@ -486,6 +486,7 @@
     }
   },
   "toasts": {
+    "copyText": "Copied to clipboard",
     "amountMismatch": "Mismatching offramp amounts detected. Please restart the offramp process.",
     "kycCompleted": "Success! Get ready to off-ramp.",
     "kycVerificationFailed": "Could not verify KYC status. Please try again.",
