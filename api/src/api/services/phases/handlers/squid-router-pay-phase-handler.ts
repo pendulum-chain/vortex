@@ -83,7 +83,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    return 'squidrouterPay';
+    return 'squidRouterPay';
   }
 
   /**

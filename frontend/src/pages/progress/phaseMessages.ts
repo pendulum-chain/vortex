@@ -58,9 +58,9 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<'tr
     spacewalkRedeem: t('pages.progress.executeSpacewalkRedeem', { assetSymbol: outputAssetSymbol }),
     brlaPayoutOnMoonbeam: getTransferringMessage(),
     stellarPayment: t('pages.progress.stellarPayment', { assetSymbol: outputAssetSymbol }),
-    squidrouterApprove: getSquidrouterSwapMessage(),
-    squidrouterSwap: getSquidrouterSwapMessage(),
-    squidrouterPay: getSquidrouterSwapMessage(),
+    squidRouterApprove: getSquidrouterSwapMessage(),
+    squidRouterSwap: getSquidrouterSwapMessage(),
+    squidRouterPay: getSquidrouterSwapMessage(),
     pendulumToAssethub: t('pages.progress.pendulumToAssethub', { assetSymbol: outputAssetSymbol }),
     brlaTeleport: t('pages.progress.brlaTeleport'),
     failed: '', // Not relevant for progress page
