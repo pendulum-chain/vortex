@@ -1,4 +1,6 @@
 import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { TFunction } from 'i18next';
 import Big from 'big.js';
 import {
   FiatToken,
@@ -8,20 +10,18 @@ import {
   OnChainTokenDetails,
   QuoteEndpoints,
 } from 'shared';
-import { isFiatTokenDisabled, getTokenDisabledReason } from '../../config/tokenAvailability';
 
 import { useOnchainTokenBalance } from '../useOnchainTokenBalance';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
+import { useQuote, useQuoteError } from '../../stores/ramp/useQuoteStore';
 import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 import { useNetwork } from '../../contexts/network';
 import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
 import { TrackableEvent, useEventsContext } from '../../contexts/events';
 import { config } from '../../config';
+import { isFiatTokenDisabled, getTokenDisabledReason } from '../../config/tokenAvailability';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { RampDirection } from '../../components/RampToggle';
 import { useVortexAccount } from '../useVortexAccount';
-import { useTranslation } from 'react-i18next';
-import { TFunction } from 'i18next';
 
 function validateOnramp(
   t: TFunction<'translation', undefined>,
@@ -153,7 +153,8 @@ export const useRampValidation = () => {
   const { t } = useTranslation();
 
   const { inputAmount: inputAmountString, onChainToken, fiatToken } = useRampFormStore();
-  const { quote, loading: quoteLoading } = useQuoteStore();
+  const quote = useQuote();
+  const quoteError = useQuoteError();
   const { selectedNetwork } = useNetwork();
   const { trackEvent } = useEventsContext();
   const rampDirection = useRampDirection();
@@ -175,6 +176,8 @@ export const useRampValidation = () => {
   });
 
   const getCurrentErrorMessage = useCallback(() => {
+    if (quoteError) return quoteError;
+
     if (isDisconnected) return;
 
     // First check if the fiat token is enabled
@@ -204,6 +207,7 @@ export const useRampValidation = () => {
 
     return null;
   }, [
+    quoteError,
     isDisconnected,
     isOnramp,
     t,

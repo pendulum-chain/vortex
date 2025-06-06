@@ -4,5 +4,5 @@ export const MINIMUM_BRL_BUY_AMOUNT: Record<PriceEndpoints.Provider | 'vortex', 
   transak: 7, // checked in the API response
   moonpay: 150, // checked in the API response
   alchemypay: 570, // checked in the API response
-  vortex: 2,
+  vortex: 1,
 };
