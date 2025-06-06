@@ -9,7 +9,7 @@ export async function createPendulumToMoonbeamTransfer(
 ) {
   const currencyFeeId = { XCM: 6 };
   const destination = {
-    V2: {
+    V3: {
       parents: 1,
       interior: {
         X2: [{ Parachain: 2004 }, { AccountKey20: { key: destinationAddress, network: 'Any' } }],
