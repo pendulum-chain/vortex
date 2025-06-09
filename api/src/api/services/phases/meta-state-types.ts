@@ -29,6 +29,8 @@ export interface StateMetadata {
   moonbeamEphemeralAddress: string;
   pendulumToAssethubXcmHash: string;
   nabla: {
+    inputTokenCurrencyId: any;
+    outputTokenCurrencyId: any;
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
   };

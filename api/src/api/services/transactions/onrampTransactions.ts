@@ -320,6 +320,8 @@ async function createNablaSwapTransactions(
       nablaSoftMinimumOutputRaw,
       inputAmountBeforeSwapRaw,
       nabla: {
+        inputTokenCurrencyId: inputTokenPendulumDetails.pendulumCurrencyId,
+        outputTokenCurrencyId: outputTokenPendulumDetails.pendulumCurrencyId,
         approveExtrinsicOptions: approve.extrinsicOptions,
         swapExtrinsicOptions: swap.extrinsicOptions,
       },
