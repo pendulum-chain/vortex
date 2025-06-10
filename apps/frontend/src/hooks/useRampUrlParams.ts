@@ -11,6 +11,7 @@ import {
   DEFAULT_BRL_AMOUNT,
   DEFAULT_EURC_AMOUNT,
   DEFAULT_EVM_ONCHAIN_TOKEN,
+  defaultFiatTokenAmounts,
   useRampFormStoreActions,
 } from '../stores/ramp/useRampFormStore';
 import { useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
@@ -23,12 +24,6 @@ interface RampUrlParams {
   fromAmount?: string;
   partnerId?: string;
 }
-
-const defaultFiatTokenAmounts: Record<FiatToken, string> = {
-  eur: DEFAULT_EURC_AMOUNT,
-  ars: DEFAULT_ARS_AMOUNT,
-  brl: DEFAULT_BRL_AMOUNT,
-};
 
 function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
   if (!fiatToken) {

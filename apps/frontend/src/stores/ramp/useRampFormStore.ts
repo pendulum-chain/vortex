@@ -9,11 +9,20 @@ export const DEFAULT_BRL_AMOUNT = '100';
 export const DEFAULT_EURC_AMOUNT = '20';
 export const DEFAULT_ARS_AMOUNT = '20';
 
+export const defaultFiatTokenAmounts: Record<FiatToken, string> = {
+  [FiatToken.EURC]: DEFAULT_EURC_AMOUNT,
+  [FiatToken.ARS]: DEFAULT_ARS_AMOUNT,
+  [FiatToken.BRL]: DEFAULT_BRL_AMOUNT,
+};
+
 export const DEFAULT_ASSETHUB_ONCHAIN_TOKEN = AssetHubToken.USDC;
 export const DEFAULT_EVM_ONCHAIN_TOKEN = EvmToken.USDC;
 
 const defaultFiatToken =
   getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_PT_BR_TOKEN : DEFAULT_FIAT_TOKEN;
+
+const defaultFiatAmount =
+  getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_BRL_AMOUNT : defaultFiatTokenAmounts[defaultFiatToken];
 
 interface RampFormState {
   inputAmount?: string;
@@ -38,7 +47,7 @@ interface RampFormActions {
 const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
 
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
-  inputAmount: DEFAULT_BRL_AMOUNT,
+  inputAmount: defaultFiatAmount,
   onChainToken: storedNetwork !== null && storedNetwork === Networks.AssetHub ? EvmToken.USDC : EvmToken.USDT,
   fiatToken: defaultFiatToken,
   taxId: undefined,
