@@ -1,66 +1,32 @@
 name: ci
 on:
   pull_request:
-    branches: [main, staging]
-  workflow_dispatch:
+    branches: [ main, staging ]
 
 jobs:
   build:
     name: Running ci
-    if:
-      "!contains(toJSON(github.event.commits.*.message), 'chore(release):') &&
-      github.event.pull_request.draft != true"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18]
+        node-version: [ 18 ]
     env:
       CI: true
-    defaults:
-      run:
-        working-directory: ./frontend
 
     steps:
       - name: 🛒 Checkout code
         uses: actions/checkout@v3
 
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: 💿 Setup Nodejs
-        uses: actions/setup-node@v3
+      - name: 🧩 Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: 💾 Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-      - name: 💾 Cache
-        uses: actions/cache@v3
-        id: yarn-cache
-        with:
-          path: |
-            frontend/.cache/Cypress
-            frontend/cypress/cache
-            frontend/node_modules
-            ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-frontend-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-frontend-yarn
+          bun-version: latest
 
       - name: 🧩 Install dependencies
-        if: steps.yarn-cache.outputs.cache-hit != 'true'
-        run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --inline-builds
+        run: bun install
 
-      - name: Install 'shared' directory
-        run: |
-          cd ../shared
-          yarn install 
-          yarn build
-          cd ../frontend
+      - name: ✏️ Typecheck
+        run: bun run typecheck
 
-      - name: ✏️ Lint
-        run: yarn lint:ts
-
-      - name: 🧪 Test
-        run: yarn test --passWithNoTests
+      - name: 🧪 Lint
+        run: bun run lint
