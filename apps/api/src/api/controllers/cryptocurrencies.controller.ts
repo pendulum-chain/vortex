@@ -1,10 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
-import httpStatus from 'http-status';
 import {
   GetSupportedCryptocurrenciesRequest,
   GetSupportedCryptocurrenciesResponse,
   SupportedCryptocurrencyDetails,
-} from 'shared/src/endpoints/supported-cryptocurrencies.endpoints';
+} from '@packages/shared';
+import { NextFunction, Request, Response } from 'express';
+import httpStatus from 'http-status';
 import { getSupportedCryptocurrencies } from '../../config/cryptocurrencies.config';
 import { APIError } from '../errors/api-error';
 
