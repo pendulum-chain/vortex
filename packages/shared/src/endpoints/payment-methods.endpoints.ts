@@ -20,11 +20,16 @@ export interface PaymentMethodLimits {
   max: number;
 }
 
+export interface PaymentMethodConfigFiatToken {
+  id: FiatToken;
+  name: string;
+  limits: PaymentMethodLimits;
+}
+
 export interface PaymentMethodConfig {
   id: PaymentMethod;
   name: PaymentMethodName;
-  supportedFiats: FiatToken[];
-  limits: PaymentMethodLimits;
+  supportedFiats: PaymentMethodConfigFiatToken[];
 }
 
 export interface GetSupportedPaymentMethodsRequest {
