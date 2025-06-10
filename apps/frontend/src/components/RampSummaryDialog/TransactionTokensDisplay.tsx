@@ -1,28 +1,28 @@
-import { FC, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import Big from 'big.js';
 import { ArrowDownIcon } from '@heroicons/react/20/solid';
 import {
   BaseFiatTokenDetails,
   FiatTokenDetails,
+  OnChainTokenDetails,
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isStellarOutputTokenDetails,
-  OnChainTokenDetails,
-} from 'shared';
-import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
-import { useRampState } from '../../stores/rampStore';
-import { RampDirection } from '../RampToggle';
-import { RampExecutionInput } from '../../types/phases';
-import { useRampSummaryActions } from '../../stores/rampSummary';
-import { AssetDisplay } from './AssetDisplay';
-import { FeeDetails } from './FeeDetails';
-import { BRLOnrampDetails } from './BRLOnrampDetails';
+} from '@packages/shared';
+import Big from 'big.js';
+import { FC, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../../contexts/network';
 import { useAssetHubNode } from '../../contexts/polkadotNode';
 import { trimAddress } from '../../helpers/addressFormatter';
+import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { useRampState } from '../../stores/rampStore';
+import { useRampSummaryActions } from '../../stores/rampSummary';
+import { RampExecutionInput } from '../../types/phases';
+import { RampDirection } from '../RampToggle';
+import { AssetDisplay } from './AssetDisplay';
+import { BRLOnrampDetails } from './BRLOnrampDetails';
+import { FeeDetails } from './FeeDetails';
 
 // Define onramp expiry time in minutes. This is not arbitrary, but based on the assumptions imposed by the backend.
 const ONRAMP_EXPIRY_MINUTES = 5;
@@ -45,7 +45,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({
   const { apiComponents } = useAssetHubNode();
   const { address, chainId } = useVortexAccount();
 
-  const [timeLeft, setTimeLeft] = useState({ minutes: ONRAMP_EXPIRY_MINUTES, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({
+    minutes: ONRAMP_EXPIRY_MINUTES,
+    seconds: 0,
+  });
   const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
   const { setIsQuoteExpired } = useRampSummaryActions();
 

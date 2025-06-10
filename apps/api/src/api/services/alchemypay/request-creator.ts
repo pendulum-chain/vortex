@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { PriceEndpoints } from 'shared';
+import { PriceEndpoints } from '@packages/shared';
 import { config } from '../../../config/vars';
 import { getJsonBody, getPath } from './helpers';
 

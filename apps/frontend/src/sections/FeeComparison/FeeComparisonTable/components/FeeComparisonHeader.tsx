@@ -1,5 +1,5 @@
+import { getNetworkDisplayName, isNetworkEVM } from '@packages/shared';
 import { useTranslation } from 'react-i18next';
-import { isNetworkEVM, getNetworkDisplayName } from 'shared';
 import { useNetwork } from '../../../../contexts/network';
 
 interface FeeComparisonHeaderProps {
@@ -15,7 +15,9 @@ export function FeeComparisonHeader({ amount, sourceAssetSymbol }: FeeComparison
   const networkDisplay = !isNetworkEVM(selectedNetwork) ? (
     <div
       className="tooltip tooltip-primary before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-      data-tip={t('sections.feeComparison.table.tooltip', { network: getNetworkDisplayName(selectedNetwork) })}
+      data-tip={t('sections.feeComparison.table.tooltip', {
+        network: getNetworkDisplayName(selectedNetwork),
+      })}
     >
       <span translate="no">(Polygon)</span>
     </div>

@@ -1,10 +1,13 @@
 import {
-  AccountMeta,
-  addAdditionalTransactionsToMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
-  encodeSubmittableExtrinsic,
+  AccountMeta,
   FiatToken,
+  Networks,
+  PaymentData,
+  UnsignedTx,
+  addAdditionalTransactionsToMeta,
+  encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
@@ -14,29 +17,26 @@ import {
   isFiatToken,
   isOnChainToken,
   isStellarOutputTokenDetails,
-  Networks,
-  PaymentData,
-  UnsignedTx,
-} from 'shared';
+} from '@packages/shared';
 
+import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from '@packages/shared';
 import Big from 'big.js';
 import { Keypair } from 'stellar-sdk';
-import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared';
+import logger from '../../../config/logger';
 import Partner from '../../../models/partner.model';
-import { ApiManager } from '../pendulum/apiManager';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
-import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
+import { ApiManager } from '../pendulum/apiManager';
+import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import { StateMetadata } from '../phases/meta-state-types';
+import { priceFeedService } from '../priceFeed.service';
 import { encodeEvmTransactionData } from './index';
 import { createNablaTransactionsForOfframp } from './nabla';
-import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
-import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
-import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
-import { StateMetadata } from '../phases/meta-state-types';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
+import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
+import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
+import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
 import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
-import logger from '../../../config/logger';
-import { priceFeedService } from '../priceFeed.service';
+import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -58,7 +58,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
-  const vortexPartner = await Partner.findOne({ where: { name: 'vortex', isActive: true } });
+  const vortexPartner = await Partner.findOne({
+    where: { name: 'vortex', isActive: true },
+  });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
     logger.warn('Vortex partner or payout address not found, skipping fee distribution transaction');
     return null;
@@ -67,7 +69,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({ where: { id: quote.partnerId, isActive: true } });
+    const quotePartner = await Partner.findOne({
+      where: { id: quote.partnerId, isActive: true },
+    });
     if (quotePartner && quotePartner.payoutAddress) {
       partnerPayoutAddress = quotePartner.payoutAddress;
     }

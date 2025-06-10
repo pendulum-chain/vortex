@@ -1,9 +1,9 @@
-import { Networks } from 'shared';
-import { PriceEndpoints } from 'shared';
+import { Networks } from '@packages/shared';
+import { PriceEndpoints } from '@packages/shared';
 import { config } from '../../../config/vars';
 import { ProviderInternalError } from '../../errors/providerErrors';
 import { createQuoteRequest } from './request-creator';
-import { processTransakResponse, TransakApiResponse } from './response-handler';
+import { TransakApiResponse, processTransakResponse } from './response-handler';
 import { getCryptoCode, getFiatCode } from './utils';
 
 const { priceProviders } = config;

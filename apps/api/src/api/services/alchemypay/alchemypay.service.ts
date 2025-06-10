@@ -1,8 +1,8 @@
-import { PriceEndpoints } from 'shared';
+import { PriceEndpoints } from '@packages/shared';
 import { ProviderInternalError } from '../../errors/providerErrors';
 import { createQuoteRequest } from './request-creator';
-import { processAlchemyPayResponse, AlchemyPayResponse } from './response-handler';
-import { getCryptoCurrencyCode, getFiatCode, getAlchemyPayNetworkCode } from './utils';
+import { AlchemyPayResponse, processAlchemyPayResponse } from './response-handler';
+import { getAlchemyPayNetworkCode, getCryptoCurrencyCode, getFiatCode } from './utils';
 
 type FetchResult = {
   response: Response;

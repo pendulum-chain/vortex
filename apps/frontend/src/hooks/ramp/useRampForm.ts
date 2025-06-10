@@ -1,11 +1,11 @@
-import { useForm, UseFormReturn } from 'react-hook-form';
-import { useEffect, useCallback } from 'react';
-import { FiatToken } from 'shared';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { FiatToken } from '@packages/shared';
+import { useCallback, useEffect } from 'react';
+import { UseFormReturn, useForm } from 'react-hook-form';
 
 import { useDebouncedFormValue } from './useDebouncedFormValue';
 
-import { RampFormValues, useSchema } from './schema';
+import { RampDirection } from '../../components/RampToggle';
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
   useFiatToken,
@@ -16,7 +16,7 @@ import {
   useTaxId,
 } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../../components/RampToggle';
+import { RampFormValues, useSchema } from './schema';
 
 const DEFAULT_RAMP_FORM_VALUES: RampFormValues = {
   ...DEFAULT_RAMP_FORM_STORE_VALUES,

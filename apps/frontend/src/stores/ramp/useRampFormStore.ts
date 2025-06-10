@@ -1,6 +1,6 @@
+import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, getOnChainTokenDetails } from '@packages/shared';
 import { create } from 'zustand';
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, getOnChainTokenDetails } from 'shared';
-import { getLanguageFromPath, Language } from '../../translations/helpers';
+import { Language, getLanguageFromPath } from '../../translations/helpers';
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.EURC;
 export const DEFAULT_PT_BR_TOKEN = FiatToken.BRL;

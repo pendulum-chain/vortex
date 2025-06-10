@@ -1,22 +1,22 @@
-import { useCallback } from 'react';
+import { BrlaEndpoints, FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
 import Big from 'big.js';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BrlaEndpoints, FiatToken, getTokenDetailsSpacewalk } from 'shared';
 
-import { useVortexAccount } from '../useVortexAccount';
+import { RampDirection } from '../../components/RampToggle';
 import { useNetwork } from '../../contexts/network';
 import { useSiweContext } from '../../contexts/siwe';
-import { fetchTomlValues } from '../../services/stellar';
-import { sep24First } from '../../services/anchor/sep24/first';
+import { useToastMessage } from '../../helpers/notifications';
 import { sep10 } from '../../services/anchor/sep10';
+import { sep24First } from '../../services/anchor/sep24/first';
+import { BrlaService } from '../../services/api';
+import { fetchTomlValues } from '../../services/stellar';
+import { useRampDirection } from '../../stores/rampDirectionStore';
 import { useRampActions } from '../../stores/rampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { RampExecutionInput } from '../../types/phases';
-import { useToastMessage } from '../../helpers/notifications';
 import { isValidCnpj, isValidCpf } from '../ramp/schema';
-import { BrlaService } from '../../services/api';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampDirection } from '../../components/RampToggle';
+import { useVortexAccount } from '../useVortexAccount';
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();
@@ -97,7 +97,10 @@ export const useSubmitRamp = () => {
               }
 
               // append EVM address to execution input
-              const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
+              const updatedBrlaRampExecution = {
+                ...executionInput,
+                brlaEvmAddress,
+              };
               setRampExecutionInput(updatedBrlaRampExecution);
 
               setRampSummaryVisible(true);

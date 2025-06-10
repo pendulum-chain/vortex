@@ -1,4 +1,4 @@
-import { PriceEndpoints } from 'shared';
+import { PriceEndpoints } from '@packages/shared';
 import { FeeProviderRow } from '../../FeeProviderRow';
 import { priceProviders } from '../../priceProviders';
 import { useFeeComparisonData } from '../hooks/useFeeComparisonData';

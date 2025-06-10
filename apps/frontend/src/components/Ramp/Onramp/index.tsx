@@ -1,28 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from '@packages/shared';
 import { motion } from 'motion/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 
-import { LabeledInput } from '../../LabeledInput';
-import { BrlaSwapFields } from '../../BrlaComponents/BrlaSwapFields';
-import { AssetNumericInput } from '../../AssetNumericInput';
-import { BenefitsList } from '../../BenefitsList';
 import { useEventsContext } from '../../../contexts/events';
 import { useNetwork } from '../../../contexts/network';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
-import { useRampValidation } from '../../../hooks/ramp/useRampValidation';
-import { useRampSubmission } from '../../../hooks/ramp/useRampSubmission';
-import { useFeeComparisonStore } from '../../../stores/feeComparison';
 import { useRampForm } from '../../../hooks/ramp/useRampForm';
-import { RampTerms } from '../../RampTerms';
-import { useValidateTerms } from '../../../stores/termsStore';
+import { useRampSubmission } from '../../../hooks/ramp/useRampSubmission';
+import { useRampValidation } from '../../../hooks/ramp/useRampValidation';
+import { useFeeComparisonStore } from '../../../stores/feeComparison';
+import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
+import { useFiatToken, useInputAmount, useOnChainToken } from '../../../stores/ramp/useRampFormStore';
 import { useRampModalActions } from '../../../stores/rampModalStore';
-import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
+import { useValidateTerms } from '../../../stores/termsStore';
+import { AssetNumericInput } from '../../AssetNumericInput';
+import { BenefitsList } from '../../BenefitsList';
+import { BrlaSwapFields } from '../../BrlaComponents/BrlaSwapFields';
+import { LabeledInput } from '../../LabeledInput';
+import { RampErrorMessage } from '../../RampErrorMessage';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
-import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
-import { RampErrorMessage } from '../../RampErrorMessage';
+import { RampTerms } from '../../RampTerms';
 
 export const Onramp = () => {
   const { t } = useTranslation();

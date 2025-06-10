@@ -1,5 +1,3 @@
-import { Request, Response, NextFunction } from 'express';
-import httpStatus from 'http-status';
 import {
   FiatToken,
   GetSupportedPaymentMethodsRequest,
@@ -7,7 +5,9 @@ import {
   PaymentMethodConfig,
   PaymentMethodType,
   PaymentMethodTypes,
-} from 'shared';
+} from '@packages/shared';
+import { NextFunction, Request, Response } from 'express';
+import httpStatus from 'http-status';
 import { PAYMENT_METHODS_CONFIG } from '../../config/payment-methods.config';
 import { APIError } from '../errors/api-error';
 

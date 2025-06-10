@@ -1,17 +1,14 @@
-import { createPublicClient, http } from 'viem';
-import { moonbeam } from 'viem/chains';
-import erc20ABI from '../../../contracts/ERC20';
+import { Networks } from '@packages/shared';
 import Big from 'big.js';
-import { ApiManager } from '../pendulum/apiManager';
-import {
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  MOONBEAM_FUNDING_PRIVATE_KEY,
-} from '../../../constants/constants';
-import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import { http, createPublicClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { createMoonbeamClientsAndConfig } from './createServices';
+import { moonbeam } from 'viem/chains';
 import logger from '../../../config/logger';
-import { Networks } from 'shared';
+import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../constants/constants';
+import erc20ABI from '../../../contracts/ERC20';
+import { ApiManager } from '../pendulum/apiManager';
+import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import { createMoonbeamClientsAndConfig } from './createServices';
 
 export enum BalanceCheckErrorType {
   Timeout = 'BALANCE_CHECK_TIMEOUT',
@@ -89,7 +86,9 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
       value: BigInt(fundingAmountRaw),
     });
 
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash as `0x${string}`,
+    });
     if (!receipt || receipt.status !== 'success') {
       throw new Error(`fundMoonbeamEphemeralAccount: Transaction ${txHash} failed or was not found`);
     }
@@ -99,9 +98,7 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
   }
 };
 
-export function getMoonbeamFundingData(
-  decimals: number,
-): {
+export function getMoonbeamFundingData(decimals: number): {
   fundingAmountRaw: string;
   walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>['walletClient'];
   publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>['publicClient'];

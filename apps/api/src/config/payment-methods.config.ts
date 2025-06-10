@@ -1,4 +1,4 @@
-import { FiatToken, PaymentMethodConfig, PaymentMethodName, PaymentMethodType } from 'shared';
+import { FiatToken, PaymentMethodConfig, PaymentMethodName, PaymentMethodType } from '@packages/shared';
 
 const SEPA_PAYMENT_METHOD: PaymentMethodConfig = {
   id: 'sepa',

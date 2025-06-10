@@ -1,4 +1,4 @@
-import { PriceEndpoints } from 'shared';
+import { PriceEndpoints } from '@packages/shared';
 
 export const MINIMUM_BRL_BUY_AMOUNT: Record<PriceEndpoints.Provider | 'vortex', number> = {
   transak: 7, // checked in the API response

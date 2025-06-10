@@ -3,11 +3,11 @@ import Big from 'big.js';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
-import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
-import { SubsidizeEndpoints } from 'shared';
+import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '@packages/shared';
+import { SubsidizeEndpoints } from '@packages/shared';
+import logger from '../../config/logger';
 import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { ApiManager } from '../services/pendulum/apiManager';
-import logger from '../../config/logger';
 
 export const getFundingAccount = () => {
   if (!PENDULUM_FUNDING_SEED) {

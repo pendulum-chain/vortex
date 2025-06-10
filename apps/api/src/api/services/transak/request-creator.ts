@@ -1,4 +1,4 @@
-import { Networks, PriceEndpoints } from 'shared';
+import { Networks, PriceEndpoints } from '@packages/shared';
 import { config } from '../../../config/vars';
 
 const { priceProviders } = config;

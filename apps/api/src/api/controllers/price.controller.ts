@@ -1,12 +1,8 @@
+import { Networks } from '@packages/shared';
 import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
-import { Networks } from 'shared';
 
-import { PriceEndpoints } from 'shared';
-import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
-import * as moonpayService from '../services/moonpay/moonpay.service';
-import * as transakService from '../services/transak/transak.service';
-import { PriceQuery } from '../middlewares/validators';
+import { PriceEndpoints } from '@packages/shared';
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -14,6 +10,10 @@ import {
   ProviderInternalError,
   UnsupportedPairError,
 } from '../errors/providerErrors';
+import { PriceQuery } from '../middlewares/validators';
+import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
+import * as moonpayService from '../services/moonpay/moonpay.service';
+import * as transakService from '../services/transak/transak.service';
 
 type AnyPrice =
   | PriceEndpoints.AlchemyPayPriceResponse
@@ -105,9 +105,9 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
       res.status(httpStatus.BAD_GATEWAY).json({ error: err.message });
     } else {
       console.error('Unexpected server error:', err);
-      res
-        .status(httpStatus.INTERNAL_SERVER_ERROR)
-        .json({ error: 'An internal server error occurred while fetching the price.' });
+      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+        error: 'An internal server error occurred while fetching the price.',
+      });
     }
   }
 };

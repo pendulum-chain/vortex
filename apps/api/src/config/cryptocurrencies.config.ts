@@ -1,13 +1,13 @@
 import {
+  AssetHubToken,
+  EvmToken,
+  Networks,
   SupportedCryptocurrencyDetails,
   assetHubTokenConfig,
   evmTokenConfig,
-  EvmToken,
-  AssetHubToken,
-  isNetworkEVM,
   isNetworkAssetHub,
-  Networks,
-} from 'shared';
+  isNetworkEVM,
+} from '@packages/shared';
 import { APIError } from '../api/errors/api-error';
 
 const supportedNetworks = Object.values(Networks)

@@ -1,4 +1,4 @@
-import { Networks } from 'shared';
+import { Networks } from '@packages/shared';
 import { useNetwork } from '../contexts/network';
 import { useRampFormStore } from '../stores/ramp/useRampFormStore';
 

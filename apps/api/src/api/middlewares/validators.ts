@@ -1,12 +1,12 @@
+import { BrlaEndpoints, PriceEndpoints, TokenConfig } from '@packages/shared';
 import { RequestHandler } from 'express';
-import { ParsedQs } from 'qs';
 import httpStatus from 'http-status';
-import { BrlaEndpoints, TokenConfig, PriceEndpoints } from 'shared';
+import { ParsedQs } from 'qs';
 import { EMAIL_SHEET_HEADER_VALUES } from '../controllers/email.controller';
 import { RATING_SHEET_HEADER_VALUES } from '../controllers/rating.controller';
 import { FLOW_HEADERS } from '../controllers/storage.controller';
-import { isValidKYCDocType, RegisterSubaccountPayload, TriggerOfframpRequest } from '../services/brla/types';
 import { EvmAddress } from '../services/brla/brlaTeleportService';
+import { RegisterSubaccountPayload, TriggerOfframpRequest, isValidKYCDocType } from '../services/brla/types';
 
 interface CreationBody {
   accountId: string;
@@ -451,7 +451,9 @@ export const validateStartKyc2: RequestHandler = (req, res, next) => {
   }
 
   if (!isValidKYCDocType(documentType)) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid document type. Document type must be: RG or CNH' });
+    res.status(httpStatus.BAD_REQUEST).json({
+      error: 'Invalid document type. Document type must be: RG or CNH',
+    });
     return;
   }
 

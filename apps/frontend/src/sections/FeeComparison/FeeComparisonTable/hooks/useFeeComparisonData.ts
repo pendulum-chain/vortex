@@ -1,14 +1,14 @@
-import { useMemo } from 'react';
-import Big from 'big.js';
 import { useQuery } from '@tanstack/react-query';
+import Big from 'big.js';
+import { useMemo } from 'react';
 
-import { PriceEndpoints } from 'shared';
-import { PriceService } from '../../../../services/api';
-import { cacheKeys, activeOptions } from '../../../../constants/cache';
-import { useQuote } from '../../../../stores/ramp/useQuoteStore';
-import { PriceProvider } from '../../priceProviders';
-import { useRampDirection } from '../../../../stores/rampDirectionStore';
+import { PriceEndpoints } from '@packages/shared';
+import { activeOptions, cacheKeys } from '../../../../constants/cache';
 import { useNetwork } from '../../../../contexts/network';
+import { PriceService } from '../../../../services/api';
+import { useQuote } from '../../../../stores/ramp/useQuoteStore';
+import { useRampDirection } from '../../../../stores/rampDirectionStore';
+import { PriceProvider } from '../../priceProviders';
 
 /**
  * Custom hook to fetch and process fee comparison data

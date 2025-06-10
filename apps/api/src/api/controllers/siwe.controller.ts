@@ -1,8 +1,8 @@
+import { SiweEndpoints } from '@packages/shared';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
-import { SiweEndpoints } from 'shared';
-import { createAndSendNonce, verifyAndStoreSiweMessage } from '../services/siwe.service';
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
+import { createAndSendNonce, verifyAndStoreSiweMessage } from '../services/siwe.service';
 
 export const sendSiweMessage = async (
   req: Request<{}, {}, SiweEndpoints.CreateSiweRequest>,

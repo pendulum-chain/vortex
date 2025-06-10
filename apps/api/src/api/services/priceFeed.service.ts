@@ -1,6 +1,6 @@
+import { EvmToken, RampCurrency, UsdLikeEvmToken, getPendulumDetails, isFiatToken } from '@packages/shared';
+import { PENDULUM_USDC_AXL } from '@packages/shared';
 import Big from 'big.js';
-import { EvmToken, getPendulumDetails, isFiatToken, RampCurrency, UsdLikeEvmToken } from 'shared';
-import { PENDULUM_USDC_AXL } from 'shared';
 import logger from '../../config/logger';
 import { getTokenOutAmount } from './nablaReads/outAmount';
 import { ApiManager } from './pendulum/apiManager';

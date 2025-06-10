@@ -1,7 +1,11 @@
 import {
-  AccountMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
+  AccountMeta,
+  Networks,
+  PENDULUM_USDC_ASSETHUB,
+  PENDULUM_USDC_AXL,
+  UnsignedTx,
   encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
@@ -13,27 +17,23 @@ import {
   isMoonbeamTokenDetails,
   isOnChainToken,
   isOnChainTokenDetails,
-  Networks,
-  PENDULUM_USDC_ASSETHUB,
-  PENDULUM_USDC_AXL,
-  UnsignedTx,
-} from 'shared';
+} from '@packages/shared';
 import Big from 'big.js';
+import logger from '../../../config/logger';
 import Partner from '../../../models/partner.model';
-import { ApiManager } from '../pendulum/apiManager';
 import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
-import { encodeEvmTransactionData } from './index';
-import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
-import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
-import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
+import { ApiManager } from '../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
+import { StateMetadata } from '../phases/meta-state-types';
+import { priceFeedService } from '../priceFeed.service';
+import { encodeEvmTransactionData } from './index';
+import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
 import { createNablaTransactionsForOnramp } from './nabla';
 import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
-import { prepareMoonbeamCleanupTransaction } from './moonbeam/cleanup';
-import { StateMetadata } from '../phases/meta-state-types';
-import logger from '../../../config/logger';
-import { priceFeedService } from '../priceFeed.service';
+import { createOnrampSquidrouterTransactions } from './squidrouter/onramp';
+import { createMoonbeamToPendulumXCM } from './xcm/moonbeamToPendulum';
+import { createPendulumToAssethubTransfer } from './xcm/pendulumToAssethub';
+import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -58,7 +58,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
-  const vortexPartner = await Partner.findOne({ where: { name: 'vortex', isActive: true } });
+  const vortexPartner = await Partner.findOne({
+    where: { name: 'vortex', isActive: true },
+  });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
     logger.warn('Vortex partner or payout address not found, skipping fee distribution transaction');
     return null;
@@ -67,7 +69,9 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({ where: { id: quote.partnerId, isActive: true } });
+    const quotePartner = await Partner.findOne({
+      where: { id: quote.partnerId, isActive: true },
+    });
     if (quotePartner && quotePartner.payoutAddress) {
       partnerPayoutAddress = quotePartner.payoutAddress;
     }
@@ -559,7 +563,10 @@ export async function prepareOnrampTransactions(
     outputTokenType: quote.outputCurrency,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    outputAmountBeforeFinalStep: { units: outputAmountBeforeFinalStepUnits, raw: outputAmountBeforeFinalStepRaw },
+    outputAmountBeforeFinalStep: {
+      units: outputAmountBeforeFinalStepUnits,
+      raw: outputAmountBeforeFinalStepRaw,
+    },
     pendulumEphemeralAddress: pendulumEphemeralEntry.address,
     moonbeamEphemeralAddress: moonbeamEphemeralEntry.address,
     destinationAddress,

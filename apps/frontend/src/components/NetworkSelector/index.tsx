@@ -1,11 +1,11 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { RefObject, useEffect, useRef, useState } from 'react';
+import { Networks, getNetworkDisplayName, getNetworkId } from '@packages/shared';
 import { AnimatePresence, motion } from 'motion/react';
-import { getNetworkDisplayName, getNetworkId, Networks } from 'shared';
+import { RefObject, useEffect, useRef, useState } from 'react';
 import { useNetwork } from '../../contexts/network';
-import { NetworkIcon } from '../NetworkIcon';
 import { cn } from '../../helpers/cn';
 import { useNetworkTokenCompatibility } from '../../hooks/useNetworkTokenCompatibility';
+import { NetworkIcon } from '../NetworkIcon';
 
 interface NetworkButtonProps {
   selectedNetwork: Networks;

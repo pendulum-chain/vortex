@@ -1,16 +1,16 @@
-import { BasePhaseHandler } from '../base-phase-handler';
-import RampState from '../../../../models/rampState.model';
-import logger from '../../../../config/logger';
-import { RampPhase } from 'shared';
-import { createPublicClient, encodeFunctionData, http } from 'viem';
-import { moonbeam } from 'viem/chains';
-import { getStatus } from '../../transactions/squidrouter/route';
-import { axelarGasServiceAbi } from '../../../../contracts/AxelarGasService';
+import { RampPhase } from '@packages/shared';
+import Big from 'big.js';
+import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { moonbeam } from 'viem/chains';
+import logger from '../../../../config/logger';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
+import { axelarGasServiceAbi } from '../../../../contracts/AxelarGasService';
+import RampState from '../../../../models/rampState.model';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
-import Big from 'big.js';
+import { getStatus } from '../../transactions/squidrouter/route';
+import { BasePhaseHandler } from '../base-phase-handler';
 
 interface GpmFeeResult {
   result: {
@@ -239,7 +239,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       const response = await fetch('https://api.gmp.axelarscan.io/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'getFees', destinationChain: toChain, sourceChain: 'moonbeam' }),
+        body: JSON.stringify({
+          method: 'getFees',
+          destinationChain: toChain,
+          sourceChain: 'moonbeam',
+        }),
       });
 
       if (!response.ok) {

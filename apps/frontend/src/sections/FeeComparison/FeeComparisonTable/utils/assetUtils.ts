@@ -1,4 +1,10 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault, Networks, FiatToken, OnChainToken } from 'shared';
+import {
+  FiatToken,
+  Networks,
+  OnChainToken,
+  getAnyFiatTokenDetails,
+  getOnChainTokenDetailsOrDefault,
+} from '@packages/shared';
 import { RampDirection } from '../../../../components/RampToggle';
 
 /**
