@@ -174,7 +174,7 @@ class UnhandledPaymentWorker {
 
         // Check 1: Unexpected payment found for the state's specific referenceLabel
         const matchingPayments = paymentHistory.filter(
-          (payment) => payment.referenceLabel === referenceLabel && payment.id,
+          (payment) => payment.referenceLabel === referenceLabel && payment.id && (new Date(payment.createdAt)).getTime() > state.createdAt.getTime(),
         );
 
         if (matchingPayments.length > 0) {
@@ -215,7 +215,7 @@ class UnhandledPaymentWorker {
         // Check 3: Payments with NO reference label, or invalid one.
         const paymentsWithInvalidLabels = paymentHistory.filter(
           (payment) =>
-            payment.id && payment.referenceLabel !== undefined && !isValidReferenceLabel(payment.referenceLabel),
+            payment.id && payment.referenceLabel !== undefined && !isValidReferenceLabel(payment.referenceLabel) && (new Date(payment.createdAt)).getTime() > state.createdAt.getTime(),
         );
 
         if (paymentsWithInvalidLabels.length > 0) {

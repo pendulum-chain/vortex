@@ -2,17 +2,17 @@
  * Helper functions for token configuration
  */
 
-import { Networks, PaymentMethod } from '../../helpers';
-import { assetHubTokenConfig } from '../assethub/config';
-import { evmTokenConfig } from '../evm/config';
-import { moonbeamTokenConfig } from '../moonbeam/config';
-import { stellarTokenConfig } from '../stellar/config';
-import { FiatToken, OnChainToken, RampCurrency } from '../types/base';
-import { AssetHubToken } from '../types/base';
+import { RampCurrency, FiatToken, OnChainToken } from '../types/base';
 import { EvmToken } from '../types/evm';
+import { AssetHubToken } from '../types/base';
+import { OnChainTokenDetails, FiatTokenDetails } from './typeGuards';
+import { evmTokenConfig } from '../evm/config';
+import { assetHubTokenConfig } from '../assethub/config';
+import { stellarTokenConfig } from '../stellar/config';
+import { moonbeamTokenConfig } from '../moonbeam/config';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
+import { Networks } from '../../helpers';
 import { StellarTokenDetails } from '../types/stellar';
-import { FiatTokenDetails, OnChainTokenDetails, TokenDetails } from './typeGuards';
 
 /**
  * Get token details for a specific network and token
@@ -119,8 +119,8 @@ export function getPendulumDetails(tokenType: RampCurrency, network?: Networks) 
   const tokenDetails = isFiatTokenEnum(tokenType)
     ? getAnyFiatTokenDetails(tokenType)
     : network
-      ? getOnChainTokenDetailsOrDefault(network, tokenType as OnChainToken)
-      : undefined;
+    ? getOnChainTokenDetailsOrDefault(network, tokenType as OnChainToken)
+    : undefined;
 
   if (!tokenDetails) {
     throw new Error('Invalid token provided for pendulum details.');

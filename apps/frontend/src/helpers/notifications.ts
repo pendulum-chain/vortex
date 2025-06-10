@@ -11,9 +11,17 @@ export enum ToastMessage {
   ERROR = 'ERROR',
   NODE_CONNECTION_ERROR = 'NODE_CONNECTION_ERROR',
   SIGNING_REJECTED = 'SIGNING_REJECTED',
+  COPY_TEXT = 'COPY_TEXT',
 }
 
 const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey: string }> = {
+  [ToastMessage.COPY_TEXT]: {
+    options: {
+      toastId: ToastMessage.COPY_TEXT,
+      type: 'success',
+    },
+    translationKey: 'toasts.copyText',
+  },
   [ToastMessage.AMOUNT_MISMATCH]: {
     options: {
       toastId: ToastMessage.AMOUNT_MISMATCH,

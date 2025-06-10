@@ -1,11 +1,11 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { EvmToken, Networks, getNetworkDisplayName, getNetworkId, getOnChainTokenDetails } from '@packages/shared';
-import { AnimatePresence, motion } from 'motion/react';
 import { RefObject, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { getNetworkDisplayName, getNetworkId, Networks } from 'shared';
 import { useNetwork } from '../../contexts/network';
-import { cn } from '../../helpers/cn';
-import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
 import { NetworkIcon } from '../NetworkIcon';
+import { cn } from '../../helpers/cn';
+import { useNetworkTokenCompatibility } from '../../hooks/useNetworkTokenCompatibility';
 
 interface NetworkButtonProps {
   selectedNetwork: Networks;
@@ -91,26 +91,16 @@ function useClickOutside(ref: RefObject<HTMLElement | null>, callback: () => voi
 }
 
 export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
-  const { selectedNetwork, setSelectedNetwork } = useNetwork();
-  const {
-    onChainToken,
-    actions: { setOnChainToken },
-  } = useRampFormStore();
+  const { selectedNetwork } = useNetwork();
+  const { handleNetworkSelect } = useNetworkTokenCompatibility();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useClickOutside(dropdownRef, () => setIsOpen(false));
 
-  const handleNetworkSelect = (network: Networks) => {
-    setSelectedNetwork(network, true);
+  const handleNetworkChange = (network: Networks) => {
+    handleNetworkSelect(network, true);
     setIsOpen(false);
-
-    // Check if the tokens are currently available on the selected network
-    const onChainTokenDetails = getOnChainTokenDetails(network, onChainToken);
-    if (!onChainTokenDetails) {
-      // USDC is supported on all networks
-      setOnChainToken(EvmToken.USDC);
-    }
   };
 
   const wrapperProps = disabled
@@ -129,7 +119,7 @@ export const NetworkSelector = ({ disabled }: { disabled?: boolean }) => {
           onClick={() => setIsOpen(!isOpen)}
           disabled={disabled}
         />
-        <NetworkDropdown isOpen={isOpen} onNetworkSelect={handleNetworkSelect} disabled={disabled} />
+        <NetworkDropdown isOpen={isOpen} onNetworkSelect={handleNetworkChange} disabled={disabled} />
       </div>
     </div>
   );

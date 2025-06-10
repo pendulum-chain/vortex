@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { RatingEndpoints } from 'shared/src/endpoints/rating.endpoints';
+import { RatingEndpoints } from 'shared';
 import { config } from '../../config/vars';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 

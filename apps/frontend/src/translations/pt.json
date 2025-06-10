@@ -33,7 +33,7 @@
       "estimatedTimeEVM": "Isso geralmente leva de 6 a 8 minutos.",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "stellarPayment": "Transferindo {{assetSymbol}} de Stellar --> parceiro local",
-      "squidrouterSwap": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
+      "squidRouterSwap": "Transferindo {{assetSymbol}} de Moonbeam para {{network}}",
       "pendulumToAssethub": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "brlaTeleport": "Seu pagamento está sendo processado. Isso pode levar até 5 minutos."
     },
@@ -466,6 +466,7 @@
     }
   },
   "toasts": {
+    "copyText": "Copiado para a área de transferência",
     "amountMismatch": "Valores de saque incompatíveis detectados. Por favor, reinicie o processo de saque.",
     "kycCompleted": "Sucesso! Prepare-se para sacar.",
     "kycVerificationFailed": "Não foi possível verificar o status do KYC. Por favor, tente novamente.",

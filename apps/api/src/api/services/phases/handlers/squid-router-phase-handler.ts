@@ -7,7 +7,6 @@ import { BasePhaseHandler } from '../base-phase-handler';
 
 /**
  * Handler for the squidRouter phase
- * Only used for the onramp flow. For the offramp, the UI can send the transactions to better confirm outputs.
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
   private publicClient: ReturnType<typeof createPublicClient>;
@@ -24,7 +23,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    return 'squidrouterSwap';
+    return 'squidRouterSwap';
   }
 
   /**
@@ -42,8 +41,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
     try {
       // Get the presigned transactions for this phase
-      const approveTransaction = this.getPresignedTransaction(state, 'squidrouterApprove');
-      const swapTransaction = this.getPresignedTransaction(state, 'squidrouterSwap');
+      const approveTransaction = this.getPresignedTransaction(state, 'squidRouterApprove');
+      const swapTransaction = this.getPresignedTransaction(state, 'squidRouterSwap');
 
       if (!approveTransaction || !swapTransaction) {
         throw new Error('Missing presigned transactions for squidRouter phase');
@@ -88,8 +87,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       });
 
       // Transition to the next phase
-      // FIXME we are in onramp here, so we should transition to a different phase
-      return this.transitionToNextPhase(updatedState, 'complete');
+      return this.transitionToNextPhase(updatedState, 'squidRouterPay');
     } catch (error: any) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;

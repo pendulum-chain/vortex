@@ -107,7 +107,7 @@ export function RampFeeCollapse() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 overflow-hidden">
       <div className="text-center text-sm text-gray-600">
         {formatExchangeRateString(interbankExchangeRate, inputCurrency, outputCurrency)}
       </div>
@@ -121,11 +121,13 @@ export function RampFeeCollapse() {
         <div className="text-[15px] collapse-content">
           {feeItems.map((item, index) => (
             <div key={index} className="flex justify-between mt-2">
-              <div
-                className="flex items-center tooltip tooltip-primary tooltip-top before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-                data-tip={item.tooltip}
-              >
-                {item.label} {item.tooltip && <InformationCircleIcon className="w-4 h-4 ml-1" />}
+              <div className="flex items-center ">
+                {item.label}{' '}
+                {item.tooltip && (
+                  <div data-tip={item.tooltip} className="tooltip tooltip-primary tooltip-top tooltip-sm">
+                    <InformationCircleIcon className="w-4 h-4 ml-1" />
+                  </div>
+                )}
               </div>
               <div className="flex">
                 <span>{item.value}</span>
@@ -142,14 +144,15 @@ export function RampFeeCollapse() {
             </div>
           </div>
           <div className="flex justify-between pt-2">
-            <div
-              className="tooltip tooltip-primary tooltip-top before:whitespace-pre-wrap before:content-[attr(data-tip)]"
-              data-tip={t('components.feeCollapse.netRate.tooltip')}
-            >
-              <strong className="flex items-center font-bold">
-                {t('components.feeCollapse.netRate.label')} <InformationCircleIcon className="w-4 h-4 ml-1" />
-              </strong>
-            </div>
+            <strong className="flex items-center font-bold">
+              {t('components.feeCollapse.netRate.label')}
+              <div
+                className="tooltip tooltip-primary tooltip-top tooltip-sm font-normal"
+                data-tip={t('components.feeCollapse.netRate.tooltip')}
+              >
+                <InformationCircleIcon className="w-4 h-4 ml-1" />
+              </div>
+            </strong>
             <div className="flex">
               <span>{formatExchangeRateString(netExchangeRate, inputCurrency, outputCurrency)}</span>
             </div>

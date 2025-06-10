@@ -247,3 +247,7 @@ div[data-rk] {
     opacity: 0.4;
   }
 }
+
+.tooltip-sm:before {
+  width: 13rem !important;
+}

@@ -1,9 +1,9 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import httpStatus from 'http-status';
-import { RampEndpoints } from 'shared/src/endpoints/ramp.endpoints';
-import logger from '../../config/logger';
-import { APIError } from '../errors/api-error';
+import { RampEndpoints } from 'shared';
 import rampService from '../services/ramp/ramp.service';
+import { APIError } from '../errors/api-error';
+import logger from '../../config/logger';
 
 /**
  * Register a new ramping process

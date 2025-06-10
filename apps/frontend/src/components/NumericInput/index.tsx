@@ -11,6 +11,7 @@ interface NumericInputProps {
   defaultValue?: string;
   autoFocus?: boolean;
   disabled?: boolean;
+  loading?: boolean;
   onChange?: (e: ChangeEvent) => void;
 }
 
@@ -22,6 +23,7 @@ export const NumericInput = ({
   defaultValue,
   autoFocus,
   onChange,
+  loading = false,
   disabled = false,
 }: NumericInputProps) => {
   function handleOnChange(e: ChangeEvent): void {
@@ -61,7 +63,7 @@ export const NumericInput = ({
         value={defaultValue}
         autoFocus={autoFocus}
       />
-      {disabled && (
+      {loading && (
         <span className="absolute top-1/2 right-3 -translate-y-1/2 loading loading-bars loading-sm text-primary"></span>
       )}
     </div>

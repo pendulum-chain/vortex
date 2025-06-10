@@ -1,36 +1,27 @@
-import Big from 'big.js';
 import { useCallback } from 'react';
+import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
+import { BrlaEndpoints, FiatToken, getTokenDetailsSpacewalk } from 'shared';
 
-import {
-  BrlaEndpoints,
-  FiatToken,
-  getAnyFiatTokenDetails,
-  getOnChainTokenDetailsOrDefault,
-  getTokenDetailsSpacewalk,
-} from '@packages/shared';
-import { RampDirection } from '../../components/RampToggle';
-import { SIGNING_SERVICE_URL } from '../../constants/constants';
-import { useEventsContext } from '../../contexts/events';
+import { useVortexAccount } from '../useVortexAccount';
 import { useNetwork } from '../../contexts/network';
 import { useSiweContext } from '../../contexts/siwe';
-import { useToastMessage } from '../../helpers/notifications';
-import { sep10 } from '../../services/anchor/sep10';
-import { sep24First } from '../../services/anchor/sep24/first';
-import { BrlaService } from '../../services/api';
 import { fetchTomlValues } from '../../services/stellar';
-import { useRampDirection } from '../../stores/rampDirectionStore';
+import { sep24First } from '../../services/anchor/sep24/first';
+import { sep10 } from '../../services/anchor/sep10';
 import { useRampActions } from '../../stores/rampStore';
 import { useSep24Actions } from '../../stores/sep24Store';
 import { RampExecutionInput } from '../../types/phases';
+import { useToastMessage } from '../../helpers/notifications';
 import { isValidCnpj, isValidCpf } from '../ramp/schema';
-import { useVortexAccount } from '../useVortexAccount';
+import { BrlaService } from '../../services/api';
+import { useRampDirection } from '../../stores/rampDirectionStore';
+import { RampDirection } from '../../components/RampToggle';
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();
   const { showToast, ToastMessage } = useToastMessage();
   const { selectedNetwork, setSelectedNetwork } = useNetwork();
-  const { trackEvent } = useEventsContext();
   const { address } = useVortexAccount();
   const { checkAndWaitForSignature, forceRefreshAndWaitForSignature } = useSiweContext();
   const rampDirection = useRampDirection();
@@ -92,7 +83,11 @@ export const useSubmitRamp = () => {
                   ? remainingLimitResponse.remainingLimitOfframp
                   : remainingLimitResponse.remainingLimitOnramp;
 
-              const amountNum = Number(executionInput.quote.inputAmount);
+              const amountNum = Number(
+                rampDirection === RampDirection.OFFRAMP
+                  ? executionInput.quote.outputAmount
+                  : executionInput.quote.inputAmount,
+              );
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
                 // Check for a kyc level 1 here is implicit, due to checks in `useRampAmountWithinAllowedLimits` and
@@ -102,10 +97,7 @@ export const useSubmitRamp = () => {
               }
 
               // append EVM address to execution input
-              const updatedBrlaRampExecution = {
-                ...executionInput,
-                brlaEvmAddress,
-              };
+              const updatedBrlaRampExecution = { ...executionInput, brlaEvmAddress };
               setRampExecutionInput(updatedBrlaRampExecution);
 
               setRampSummaryVisible(true);

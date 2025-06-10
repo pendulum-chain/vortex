@@ -62,7 +62,7 @@ export async function createOfframpSquidrouterTransactions(
     args: [transactionRequest?.target, params.rawAmount],
   });
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+  const { maxFeePerGas } = await publicClient.estimateFeesPerGas();
 
   return {
     approveData: {

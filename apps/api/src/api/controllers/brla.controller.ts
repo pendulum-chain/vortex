@@ -1,13 +1,13 @@
-import { validateMaskedNumber } from '@packages/shared';
 import { Request, Response } from 'express';
+import { validateMaskedNumber } from 'shared';
+import { BrlaEndpoints } from 'shared';
 import httpStatus from 'http-status';
-import { BrlaEndpoints } from 'shared/src/endpoints/brla.endpoints';
-import { eventPoller } from '../..';
-import logger from '../../config/logger';
-import { PayInCodeQuery } from '../middlewares/validators';
 import { BrlaApiService } from '../services/brla/brlaApiService';
+import { eventPoller } from '../..';
 import { RegisterSubaccountPayload } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
+import { PayInCodeQuery } from '../middlewares/validators';
+import logger from '../../config/logger';
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const lastInteractionMap = new Map<string, number>();
@@ -38,7 +38,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
       try {
         const details = JSON.parse(errorMessageString);
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details });
-      } catch (_e) {
+      } catch (e) {
         // The error was not encoded as JSON
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details: errorMessageString });
       }
@@ -90,10 +90,7 @@ export const getBrlaUser = async (
       return;
     }
 
-    res.json({
-      evmAddress: subaccount.wallets.evm,
-      kycLevel: subaccount.kyc.level,
-    });
+    res.json({ evmAddress: subaccount.wallets.evm, kycLevel: subaccount.kyc.level });
     return;
   } catch (error) {
     handleApiError(error, res, 'getBrlaUser');
@@ -168,7 +165,7 @@ export const triggerBrlaOfframp = async (
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
         return;
       }
-    } catch (_error) {
+    } catch (error) {
       res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
       return;
     }
@@ -256,11 +253,7 @@ export const createSubaccount = async (
     // if company startDate field was provided, convert it to BRLA format
     const startDate = convertDateToBRLAFormat(req.body.startDate);
 
-    let subaccountPayload: RegisterSubaccountPayload = {
-      ...req.body,
-      birthdate,
-      startDate,
-    };
+    let subaccountPayload: RegisterSubaccountPayload = { ...req.body, birthdate, startDate };
 
     // Extra validation for company fields
     if (taxIdType === 'CNPJ') {
@@ -294,10 +287,7 @@ export const createSubaccount = async (
       return;
     }
 
-    subaccountPayload = {
-      ...subaccountPayload,
-      companyName: subaccountPayload.companyName,
-    };
+    subaccountPayload = { ...subaccountPayload, companyName: subaccountPayload.companyName };
     logger.info('Subaccount Payload', subaccountPayload);
 
     const { id } = await brlaApiService.createSubaccount(subaccountPayload);
@@ -333,9 +323,9 @@ export const fetchSubaccountKycStatus = async (
 
     // We should never be in a situation where the subaccount exists but there are no events regarding KYC.
     if (!lastEventCached || lastEventCached.subscription !== 'KYC') {
-      res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-        error: `Internal Server Error: No KYC events found for ${taxId}`,
-      });
+      res
+        .status(httpStatus.INTERNAL_SERVER_ERROR)
+        .json({ error: `Internal Server Error: No KYC events found for ${taxId}` });
       return;
     }
 
@@ -420,9 +410,7 @@ export const startKYC2 = async (
     }
 
     if (subaccount.kyc.level !== 1) {
-      res.status(httpStatus.BAD_REQUEST).json({
-        error: 'KYC invalid. User must have a valid KYC level 1 status',
-      });
+      res.status(httpStatus.BAD_REQUEST).json({ error: 'KYC invalid. User must have a valid KYC level 1 status' });
       return;
     }
 

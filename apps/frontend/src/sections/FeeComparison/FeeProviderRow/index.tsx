@@ -1,16 +1,17 @@
-import { PriceEndpoints } from '@packages/shared';
-import Big from 'big.js';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import Big from 'big.js';
+import { PriceEndpoints } from 'shared';
 
-import { RampDirection } from '../../../components/RampToggle';
+import { RampParameters, useEventsContext } from '../../../contexts/events';
 import { Skeleton } from '../../../components/Skeleton';
-import { OfframpingParameters, useEventsContext } from '../../../contexts/events';
+import { formatPrice } from '../helpers';
 import { cn } from '../../../helpers/cn';
+import { PriceProvider } from '../priceProviders';
 import { useQuote } from '../../../stores/ramp/useQuoteStore';
 import { useRampDirection } from '../../../stores/rampDirectionStore';
-import { formatPrice } from '../helpers';
-import { PriceProvider } from '../priceProviders';
+import { RampDirection } from '../../../components/RampToggle';
+import { MINIMUM_BRL_BUY_AMOUNT } from './utils';
 
 interface FeeProviderRowProps {
   provider: PriceProvider;
@@ -34,6 +35,8 @@ export function FeeProviderRow({
   targetAssetSymbol,
 }: FeeProviderRowProps) {
   const { t } = useTranslation();
+  const rampDirection = useRampDirection();
+  const isBRLOnramp = rampDirection === RampDirection.ONRAMP && sourceAssetSymbol === 'BRL';
 
   const { schedulePrice } = useEventsContext();
   // The vortex price is sometimes lagging behind the amount (as it first has to be calculated asynchronously)
@@ -41,9 +44,6 @@ export function FeeProviderRow({
   const prevVortexPrice = useRef<Big | null>(null);
   const prevProviderPrice = useRef<Big | null>(null);
   const quote = useQuote();
-
-  const rampDirection = useRampDirection();
-  const isOnramp = rampDirection === RampDirection.ONRAMP;
 
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
@@ -56,15 +56,13 @@ export function FeeProviderRow({
   const providerPrice = useMemo(() => {
     if (provider.name === 'vortex') return vortexPrice.gt(0) ? vortexPrice : undefined;
 
-    // FIXME - this is a hack until we implement fetching prices for onramp providers
-    if (isOnramp) return undefined;
-
-    if (result?.status === 'fulfilled' && result.value.fiatAmount) {
-      return Big(result.value.fiatAmount);
+    if (result?.status === 'fulfilled' && result.value.quoteAmount) {
+      // Use quoteAmount which represents what the user will receive
+      return Big(result.value.quoteAmount.toString());
     }
 
     return undefined;
-  }, [provider.name, vortexPrice, isOnramp, result]);
+  }, [provider.name, vortexPrice, result]);
 
   const priceDiff = useMemo(() => {
     if (isLoading || error || !providerPrice) return;
@@ -86,7 +84,7 @@ export function FeeProviderRow({
     if (isLoading || !providerPrice || error) return;
     if (prevVortexPrice.current?.eq(vortexPrice)) return;
 
-    const parameters: OfframpingParameters = {
+    const parameters: RampParameters = {
       from_amount: amount.toFixed(2),
       from_asset: sourceAssetSymbol,
       to_amount: vortexPrice.toFixed(2),
@@ -123,7 +121,10 @@ export function FeeProviderRow({
             <div className="flex flex-col items-center">
               <div className="flex justify-end w-full">
                 {error || !providerPrice ? (
-                  <span className="font-bold text-md">N/A</span>
+                  <>
+                    <span className="font-bold text-md">N/A</span>
+                    {isBRLOnramp && <span className="ml-1">(min {MINIMUM_BRL_BUY_AMOUNT[provider.name]}BRL)</span>}
+                  </>
                 ) : (
                   <>
                     <span className="font-bold text-md text-right">

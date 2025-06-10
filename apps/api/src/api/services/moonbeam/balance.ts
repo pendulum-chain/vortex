@@ -1,18 +1,17 @@
-import { Networks } from '@packages/shared';
-import Big from 'big.js';
-import { http, createPublicClient } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { createPublicClient, http } from 'viem';
 import { moonbeam } from 'viem/chains';
-import logger from '../../../config/logger';
+import erc20ABI from '../../../contracts/ERC20';
+import Big from 'big.js';
+import { ApiManager } from '../pendulum/apiManager';
 import {
   MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
   MOONBEAM_FUNDING_PRIVATE_KEY,
 } from '../../../constants/constants';
-import erc20ABI from '../../../contracts/ERC20';
-import { ApiManager } from '../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../pendulum/helpers';
+import { privateKeyToAccount } from 'viem/accounts';
 import { createMoonbeamClientsAndConfig } from './createServices';
+import logger from '../../../config/logger';
+import { Networks } from 'shared';
 
 export enum BalanceCheckErrorType {
   Timeout = 'BALANCE_CHECK_TIMEOUT',
@@ -78,22 +77,19 @@ export function checkEvmBalancePeriodically(
   });
 }
 
-export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string, destinationNetwork: Networks) => {
+export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => {
   try {
     const apiManager = ApiManager.getInstance();
     const apiData = await apiManager.getApi('moonbeam');
 
-    const largeFunding = destinationNetwork === Networks.Ethereum;
-    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals, largeFunding);
+    const { walletClient, fundingAmountRaw, publicClient } = getMoonbeamFundingData(apiData.decimals);
 
     const txHash = await walletClient.sendTransaction({
       to: ephemeralAddress as `0x${string}`,
       value: BigInt(fundingAmountRaw),
     });
 
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash: txHash as `0x${string}`,
-    });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
     if (!receipt || receipt.status !== 'success') {
       throw new Error(`fundMoonbeamEphemeralAccount: Transaction ${txHash} failed or was not found`);
     }
@@ -105,16 +101,12 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string, des
 
 export function getMoonbeamFundingData(
   decimals: number,
-  largeFunding = false,
 ): {
   fundingAmountRaw: string;
   walletClient: ReturnType<typeof createMoonbeamClientsAndConfig>['walletClient'];
   publicClient: ReturnType<typeof createMoonbeamClientsAndConfig>['publicClient'];
 } {
-  const fundingAmountUnits = largeFunding
-    ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
-    : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
-  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
+  const fundingAmountRaw = multiplyByPowerOfTen(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, decimals).toFixed();
 
   const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
   const { walletClient, publicClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);

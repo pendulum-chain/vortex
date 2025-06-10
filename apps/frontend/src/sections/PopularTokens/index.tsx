@@ -1,13 +1,13 @@
-import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 
-import { Networks, getNetworkDisplayName } from '@packages/shared';
+import { getNetworkDisplayName, Networks } from 'shared';
 import { useTranslation } from 'react-i18next';
 
-import { useNetwork } from '../../contexts/network';
-import { cn } from '../../helpers/cn';
-import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
 import { useGetNetworkIcon } from '../../hooks/useGetNetworkIcon';
+import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
+import { cn } from '../../helpers/cn';
+import { useNetworkTokenCompatibility } from '../../hooks/useNetworkTokenCompatibility';
 
 const tokens: Array<{ name: string; assetIcon: string }> = [
   { name: 'USDC', assetIcon: 'usdc' },
@@ -62,15 +62,9 @@ const Badge = ({ icon, label, isAnimating, rotationDuration = 0.5, onClick }: Ba
   );
 };
 
-const NetworkBadge = ({
-  network,
-  isAnimating,
-}: {
-  network: Networks;
-  isAnimating: boolean;
-}) => {
+const NetworkBadge = ({ network, isAnimating }: { network: Networks; isAnimating: boolean }) => {
   const networkIcon = useGetNetworkIcon(network);
-  const { setSelectedNetwork } = useNetwork();
+  const { handleNetworkSelect } = useNetworkTokenCompatibility();
 
   return (
     <Badge
@@ -78,18 +72,12 @@ const NetworkBadge = ({
       label={getNetworkDisplayName(network)}
       isAnimating={isAnimating}
       rotationDuration={0.5}
-      onClick={() => setSelectedNetwork(network, true)}
+      onClick={() => handleNetworkSelect(network, true)}
     />
   );
 };
 
-const TokenBadge = ({
-  token,
-  isAnimating,
-}: {
-  token: { name: string; assetIcon: string };
-  isAnimating: boolean;
-}) => {
+const TokenBadge = ({ token, isAnimating }: { token: { name: string; assetIcon: string }; isAnimating: boolean }) => {
   const icon = useGetAssetIcon(token.assetIcon);
   return <Badge icon={icon} label={token.name} isAnimating={isAnimating} rotationDuration={0.3} />;
 };
@@ -97,10 +85,7 @@ const TokenBadge = ({
 export function PopularTokens() {
   const { t } = useTranslation();
 
-  const [animatingIndex, setAnimatingIndex] = useState<{
-    type: 'network' | 'token';
-    index: number;
-  }>({
+  const [animatingIndex, setAnimatingIndex] = useState<{ type: 'network' | 'token'; index: number }>({
     type: 'network',
     index: 0,
   });

@@ -1,13 +1,10 @@
 import {
+  AccountMeta,
+  addAdditionalTransactionsToMeta,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
-  AccountMeta,
-  FiatToken,
-  Networks,
-  PaymentData,
-  UnsignedTx,
-  addAdditionalTransactionsToMeta,
   encodeSubmittableExtrinsic,
+  FiatToken,
   getAnyFiatTokenDetails,
   getNetworkFromDestination,
   getNetworkId,
@@ -17,26 +14,29 @@ import {
   isFiatToken,
   isOnChainToken,
   isStellarOutputTokenDetails,
-} from '@packages/shared';
+  Networks,
+  PaymentData,
+  UnsignedTx,
+} from 'shared';
 
 import Big from 'big.js';
-import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared/src/tokens/constants/pendulum';
 import { Keypair } from 'stellar-sdk';
-import logger from '../../../config/logger';
+import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from 'shared';
 import Partner from '../../../models/partner.model';
-import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
 import { ApiManager } from '../pendulum/apiManager';
-import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { StateMetadata } from '../phases/meta-state-types';
-import { priceFeedService } from '../priceFeed.service';
+import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
+import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { encodeEvmTransactionData } from './index';
 import { createNablaTransactionsForOfframp } from './nabla';
-import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
+import { multiplyByPowerOfTen } from '../pendulum/helpers';
 import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
-import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
 import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
-import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
 import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
+import { StateMetadata } from '../phases/meta-state-types';
+import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
+import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
+import logger from '../../../config/logger';
+import { priceFeedService } from '../priceFeed.service';
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -58,9 +58,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const partnerMarkupFeeUSD = metadata.usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
-  const vortexPartner = await Partner.findOne({
-    where: { name: 'vortex', isActive: true },
-  });
+  const vortexPartner = await Partner.findOne({ where: { name: 'vortex', isActive: true } });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
     logger.warn('Vortex partner or payout address not found, skipping fee distribution transaction');
     return null;
@@ -69,9 +67,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true },
-    });
+    const quotePartner = await Partner.findOne({ where: { id: quote.partnerId, isActive: true } });
     if (quotePartner && quotePartner.payoutAddress) {
       partnerPayoutAddress = quotePartner.payoutAddress;
     }
@@ -149,7 +145,7 @@ async function createEvmSourceTransactions(
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(approveData) as any,
-    phase: 'squidrouterApprove',
+    phase: 'squidRouterApprove',
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
@@ -157,7 +153,7 @@ async function createEvmSourceTransactions(
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(swapData) as any,
-    phase: 'squidrouterSwap',
+    phase: 'squidRouterSwap',
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,

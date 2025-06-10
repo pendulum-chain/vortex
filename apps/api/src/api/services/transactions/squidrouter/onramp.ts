@@ -1,22 +1,11 @@
-import {
-  AXL_USDC_MOONBEAM,
-  EvmTokenDetails,
-  Networks,
-  getNetworkFromDestination,
-  getNetworkId,
-} from '@packages/shared';
-import { http, createPublicClient, encodeFunctionData } from 'viem';
+import { createPublicClient, encodeFunctionData, http } from 'viem';
 import { moonbeam } from 'viem/chains';
+import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks } from 'shared';
 import { createOnrampRouteParams, getRoute } from './route';
 
-import Big from 'big.js';
-import {
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM,
-} from '../../../../constants/constants';
 import erc20ABI from '../../../../contracts/ERC20';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
-import { SQUIDROUTER_FEE_OVERPAY } from './config';
+import Big from 'big.js';
+import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from './config';
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -97,21 +86,10 @@ export async function createOnrampSquidrouterTransactions(
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
     };
 
-    const fundingAmountUnits =
-      getNetworkFromDestination(params.toNetwork) === Networks.Ethereum
-        ? Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS_ETHEREUM)
-        : Big(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS);
-    const squidrouterSwapValueBuffer = getNetworkFromDestination(params.toNetwork) === Networks.Ethereum ? 10 : 2;
-    const freeFundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits.minus(squidrouterSwapValueBuffer), 18); // 18 decimals for GLMR. Moonbeam is always starting chain.
-    const overpaidFee = bigNumberMin(
-      new Big(route.transactionRequest.value).mul(1 + SQUIDROUTER_FEE_OVERPAY),
-      freeFundingAmountRaw,
-    );
-
     const swapData = {
       to: transactionRequest.target as `0x${string}`,
       data: transactionRequest.data,
-      value: overpaidFee.toFixed(0, 0),
+      value: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW, 
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),

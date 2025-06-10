@@ -1,21 +1,23 @@
-import { Request, Response, Router } from 'express';
+import { Router, Request, Response } from 'express';
 
-import brlaRoutes from './brla.route';
-import emailRoutes from './email.route';
+import stellarRoutes from './stellar.route';
 import moonbeamRoutes from './moonbeam.route';
 import pendulumRoutes from './pendulum.route';
+import storageRoutes from './storage.route';
+import emailRoutes from './email.route';
+import ratingRoutes from './rating.route';
+import subsidizeRoutes from './subsidize.route';
+import siweRoutes from './siwe.route';
 import priceRoutes from './price.route';
 import quoteRoutes from './quote.route';
+import brlaRoutes from './brla.route';
 import rampRoutes from './ramp.route';
-import ratingRoutes from './rating.route';
-import siweRoutes from './siwe.route';
-import stellarRoutes from './stellar.route';
-import storageRoutes from './storage.route';
-import subsidizeRoutes from './subsidize.route';
+import paymentMethodsRoutes from './payment-methods.route';
+import cryptocurrenciesRoutes from './cryptocurrencies.route';
 
-import { sendStatusWithPk as sendMoonbeamStatusWithPk } from '../../controllers/moonbeam.controller';
-import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../controllers/pendulum.controller';
 import { sendStatusWithPk as sendStellarStatusWithPk } from '../../controllers/stellar.controller';
+import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../controllers/pendulum.controller';
+import { sendStatusWithPk as sendMoonbeamStatusWithPk } from '../../controllers/moonbeam.controller';
 
 type ChainStatus = {
   stellar: unknown;
@@ -106,6 +108,16 @@ router.use('/brla', brlaRoutes);
  * GET/POST v1/ramp
  */
 router.use('/ramp', rampRoutes);
+
+/**
+ * GET v1/supported-payment-methods
+ */
+router.use('/supported-payment-methods', paymentMethodsRoutes);
+
+/**
+ * GET v1/supported-cryptocurrencies
+ */
+router.use('/supported-cryptocurrencies', cryptocurrenciesRoutes);
 
 router.get('/ip', (request: Request, response: Response) => {
   response.send(request.ip);

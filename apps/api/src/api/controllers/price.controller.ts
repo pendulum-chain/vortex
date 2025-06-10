@@ -1,7 +1,12 @@
 import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
+import { Networks } from 'shared';
 
-import { PriceEndpoints } from 'shared/src/endpoints/price.endpoints';
+import { PriceEndpoints } from 'shared';
+import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
+import * as moonpayService from '../services/moonpay/moonpay.service';
+import * as transakService from '../services/transak/transak.service';
+import { PriceQuery } from '../middlewares/validators';
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -9,41 +14,40 @@ import {
   ProviderInternalError,
   UnsupportedPairError,
 } from '../errors/providerErrors';
-import { PriceQuery } from '../middlewares/validators';
-import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
-import { AlchemyPayPrice } from '../services/alchemypay/alchemypay.service';
-import * as moonpayService from '../services/moonpay.service';
-import { MoonpayPrice } from '../services/moonpay.service';
-import * as transakService from '../services/transak.service';
-import { TransakPriceResult } from '../services/transak.service';
 
-type AnyPrice = AlchemyPayPrice | MoonpayPrice | TransakPriceResult;
+type AnyPrice =
+  | PriceEndpoints.AlchemyPayPriceResponse
+  | PriceEndpoints.MoonpayPriceResponse
+  | PriceEndpoints.TransakPriceResponse;
 
 type PriceHandler = (
-  fromCrypto: PriceEndpoints.CryptoCurrency,
-  toFiat: PriceEndpoints.FiatCurrency,
+  sourceCurrency: PriceEndpoints.Currency,
+  targetCurrency: PriceEndpoints.Currency,
   amount: string,
-  network?: string,
+  direction: PriceEndpoints.Direction,
+  network?: Networks,
 ) => Promise<AnyPrice>;
 
 const providerHandlers: Record<PriceEndpoints.Provider, PriceHandler> = {
-  alchemypay: async (fromCrypto, toFiat, amount, network) =>
-    alchemyPayService.getPriceFor(fromCrypto, toFiat, amount, network),
-  moonpay: async (fromCrypto, toFiat, amount) => moonpayService.getPriceFor(fromCrypto, toFiat, amount),
-  transak: async (fromCrypto, toFiat, amount, network) =>
-    transakService.getPriceFor(fromCrypto, toFiat, amount, network),
+  alchemypay: async (sourceCurrency, targetCurrency, amount, direction, network) =>
+    alchemyPayService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network),
+  moonpay: async (sourceCurrency, targetCurrency, amount, direction) =>
+    moonpayService.getPriceFor(sourceCurrency, targetCurrency, amount, direction),
+  transak: async (sourceCurrency, targetCurrency, amount, direction, network) =>
+    transakService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network),
 };
 
 const getPriceFromProvider = async (
   provider: PriceEndpoints.Provider,
-  fromCrypto: PriceEndpoints.CryptoCurrency,
-  toFiat: PriceEndpoints.FiatCurrency,
+  sourceCurrency: PriceEndpoints.Currency,
+  targetCurrency: PriceEndpoints.Currency,
   amount: string,
-  network?: string,
-) => providerHandlers[provider](fromCrypto, toFiat, amount, network);
+  direction: PriceEndpoints.Direction,
+  network?: Networks,
+) => providerHandlers[provider](sourceCurrency, targetCurrency, amount, direction, network);
 
-export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQuery> = async (req, res) => {
-  const { provider, fromCrypto, toFiat, amount, network } = req.query;
+export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, PriceQuery> = async (req, res) => {
+  const { provider, sourceCurrency, targetCurrency, amount, network, direction } = req.query;
 
   if (!provider || typeof provider !== 'string') {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid provider parameter' });
@@ -52,13 +56,13 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
 
   const providerLower = provider.toLowerCase() as PriceEndpoints.Provider;
 
-  if (!fromCrypto || typeof fromCrypto !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid fromCrypto parameter' });
+  if (!sourceCurrency || typeof sourceCurrency !== 'string') {
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid sourceCurrency parameter' });
     return;
   }
 
-  if (!toFiat || typeof toFiat !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid toFiat parameter' });
+  if (!targetCurrency || typeof targetCurrency !== 'string') {
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid targetCurrency parameter' });
     return;
   }
 
@@ -77,10 +81,11 @@ export const getPriceForProvider: RequestHandler<unknown, any, unknown, PriceQue
 
     const price = await getPriceFromProvider(
       providerLower,
-      fromCrypto.toLowerCase() as PriceEndpoints.CryptoCurrency,
-      toFiat.toLowerCase() as PriceEndpoints.FiatCurrency,
+      sourceCurrency as PriceEndpoints.Currency,
+      targetCurrency as PriceEndpoints.Currency,
       amount,
-      networkParam,
+      direction,
+      networkParam as Networks | undefined,
     );
     res.json(price);
     // No need for return here, res.json() ends the response.
@@ -113,17 +118,17 @@ export const getAllPricesBundled: RequestHandler<
   Record<string, never>,
   PriceQuery
 > = async (req, res) => {
-  const { fromCrypto, toFiat, amount, network } = req.query;
+  const { sourceCurrency, targetCurrency, amount, network, direction } = req.query;
 
   // Input validation is handled by the middleware, but we need to ensure
   // the parameters are correctly typed for the service calls
-  if (!fromCrypto || typeof fromCrypto !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid fromCrypto parameter' });
+  if (!sourceCurrency || typeof sourceCurrency !== 'string') {
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid sourceCurrency parameter' });
     return;
   }
 
-  if (!toFiat || typeof toFiat !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid toFiat parameter' });
+  if (!targetCurrency || typeof targetCurrency !== 'string') {
+    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid targetCurrency parameter' });
     return;
   }
 
@@ -132,15 +137,22 @@ export const getAllPricesBundled: RequestHandler<
     return;
   }
 
-  const crypto = fromCrypto.toLowerCase() as PriceEndpoints.CryptoCurrency;
-  const fiat = toFiat.toLowerCase() as PriceEndpoints.FiatCurrency;
+  const source = sourceCurrency as PriceEndpoints.Currency;
+  const target = targetCurrency as PriceEndpoints.Currency;
   const networkParam = network && typeof network === 'string' ? network : undefined;
 
   const providersToQuery: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
 
   const pricePromises = providersToQuery.map(async (provider) => {
     try {
-      const price = await getPriceFromProvider(provider, crypto, fiat, amount, networkParam);
+      const price = await getPriceFromProvider(
+        provider,
+        source,
+        target,
+        amount,
+        direction,
+        networkParam as Networks | undefined,
+      );
       // Return a consistent structure including the provider for easier mapping later
       return { provider, status: 'fulfilled', value: price } as const;
     } catch (err) {

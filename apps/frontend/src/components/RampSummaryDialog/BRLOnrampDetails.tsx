@@ -5,14 +5,17 @@ import { useRampDirection } from '../../stores/rampDirectionStore';
 import { useRampState } from '../../stores/rampStore';
 import { CopyButton } from '../CopyButton';
 import { RampDirection } from '../RampToggle';
+import { useIsQuoteExpired } from '../../stores/rampSummary';
 
 export const BRLOnrampDetails: FC = () => {
-  const rampDirection = useRampDirection();
   const { t } = useTranslation();
+  const rampDirection = useRampDirection();
   const rampState = useRampState();
+  const isQuoteExpired = useIsQuoteExpired();
 
   if (rampDirection !== RampDirection.ONRAMP) return null;
   if (!rampState?.ramp?.brCode) return null;
+  if (isQuoteExpired) return null;
 
   return (
     <section>

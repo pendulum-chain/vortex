@@ -1,11 +1,11 @@
+import { Address, createPublicClient, createWalletClient, encodeFunctionData, http } from 'viem';
+import { moonbeam } from 'viem/chains';
+import { privateKeyToAccount } from 'viem/accounts';
 import Big from 'big.js';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
-import { http, Address, createPublicClient, createWalletClient, encodeFunctionData } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { moonbeam } from 'viem/chains';
 
-import { MoonbeamEndpoints } from 'shared/src/endpoints/moonbeam.endpoints';
+import { MoonbeamEndpoints } from 'shared';
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
@@ -13,7 +13,7 @@ import {
 } from '../../constants/constants';
 import { SlackNotifier } from '../services/slack.service';
 
-import splitReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
+import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
 
 interface StatusResponse {
   status: boolean;
@@ -81,9 +81,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
     const { publicClient } = createClients(moonbeamExecutorAccount);
 
-    const balance = await publicClient.getBalance({
-      address: moonbeamExecutorAccount.address,
-    });
+    const balance = await publicClient.getBalance({ address: moonbeamExecutorAccount.address });
     const minimumBalance = BigInt(Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18)).toString());
 
     if (balance < minimumBalance) {

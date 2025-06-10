@@ -10,25 +10,28 @@ export class PriceService {
   /**
    * Get price information from a provider
    * @param provider The provider name
-   * @param fromCrypto The source cryptocurrency
-   * @param toFiat The target fiat currency
+   * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
+   * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
    * @param amount The amount to convert
+   * @param direction The direction of the conversion (onramp or offramp)
    * @param network Optional network name
    * @returns Price information
    */
   static async getPrice(
     provider: PriceEndpoints.Provider,
-    fromCrypto: PriceEndpoints.CryptoCurrency,
-    toFiat: PriceEndpoints.FiatCurrency,
+    sourceCurrency: PriceEndpoints.Currency,
+    targetCurrency: PriceEndpoints.Currency,
     amount: string,
+    direction: PriceEndpoints.Direction,
     network?: string,
   ): Promise<PriceEndpoints.PriceResponse> {
     return apiRequest<PriceEndpoints.PriceResponse>('get', this.BASE_PATH, undefined, {
       params: {
         provider,
-        fromCrypto,
-        toFiat,
+        sourceCurrency,
+        targetCurrency,
         amount,
+        direction,
         network,
       },
     });
@@ -36,55 +39,60 @@ export class PriceService {
 
   /**
    * Get price information from AlchemyPay
-   * @param fromCrypto The source cryptocurrency
-   * @param toFiat The target fiat currency
+   * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
+   * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
    * @param amount The amount to convert
+   * @param direction The direction of the conversion (onramp or offramp)
    * @param network Optional network name
    * @returns AlchemyPay price information
    */
   static async getAlchemyPayPrice(
-    fromCrypto: PriceEndpoints.CryptoCurrency,
-    toFiat: PriceEndpoints.FiatCurrency,
+    sourceCurrency: PriceEndpoints.Currency,
+    targetCurrency: PriceEndpoints.Currency,
     amount: string,
+    direction: PriceEndpoints.Direction,
     network?: string,
   ): Promise<PriceEndpoints.AlchemyPayPriceResponse> {
-    const response = await this.getPrice('alchemypay', fromCrypto, toFiat, amount, network);
+    const response = await this.getPrice('alchemypay', sourceCurrency, targetCurrency, amount, direction, network);
     return response as PriceEndpoints.AlchemyPayPriceResponse;
   }
 
   /**
    * Get price information from Moonpay
-   * @param fromCrypto The source cryptocurrency
-   * @param toFiat The target fiat currency
+   * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
+   * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
    * @param amount The amount to convert
+   * @param direction The direction of the conversion (onramp or offramp)
    * @param network Optional network name
    * @returns Moonpay price information
    */
   static async getMoonpayPrice(
-    fromCrypto: PriceEndpoints.CryptoCurrency,
-    toFiat: PriceEndpoints.FiatCurrency,
+    sourceCurrency: PriceEndpoints.Currency,
+    targetCurrency: PriceEndpoints.Currency,
     amount: string,
-    network?: string,
+    direction: PriceEndpoints.Direction,
   ): Promise<PriceEndpoints.MoonpayPriceResponse> {
-    const response = await this.getPrice('moonpay', fromCrypto, toFiat, amount, network);
+    const response = await this.getPrice('moonpay', sourceCurrency, targetCurrency, amount, direction);
     return response as PriceEndpoints.MoonpayPriceResponse;
   }
 
   /**
    * Get price information from Transak
-   * @param fromCrypto The source cryptocurrency
-   * @param toFiat The target fiat currency
+   * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
+   * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
    * @param amount The amount to convert
+   * @param direction The direction of the conversion (onramp or offramp)
    * @param network Optional network name
    * @returns Transak price information
    */
   static async getTransakPrice(
-    fromCrypto: PriceEndpoints.CryptoCurrency,
-    toFiat: PriceEndpoints.FiatCurrency,
+    sourceCurrency: PriceEndpoints.Currency,
+    targetCurrency: PriceEndpoints.Currency,
     amount: string,
+    direction: PriceEndpoints.Direction,
     network?: string,
   ): Promise<PriceEndpoints.TransakPriceResponse> {
-    const response = await this.getPrice('transak', fromCrypto, toFiat, amount, network);
+    const response = await this.getPrice('transak', sourceCurrency, targetCurrency, amount, direction, network);
     return response as PriceEndpoints.TransakPriceResponse;
   }
 
@@ -98,23 +106,26 @@ export class PriceService {
    */
   /**
    * Get price information from all providers using the bundled endpoint
-   * @param fromCrypto The source cryptocurrency
-   * @param toFiat The target fiat currency
+   * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
+   * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
    * @param amount The amount to convert
+   * @param direction The direction of the conversion (onramp or offramp)
    * @param network Optional network name
    * @returns Price information from all providers, including success/failure status for each
    */
   static async getAllPricesBundled(
-    fromCrypto: PriceEndpoints.CryptoCurrency,
-    toFiat: PriceEndpoints.FiatCurrency,
+    sourceCurrency: PriceEndpoints.Currency,
+    targetCurrency: PriceEndpoints.Currency,
     amount: string,
+    direction: PriceEndpoints.Direction,
     network?: string,
   ): Promise<PriceEndpoints.AllPricesResponse> {
     return apiRequest<PriceEndpoints.AllPricesResponse>('get', `${this.BASE_PATH}/all`, undefined, {
       params: {
-        fromCrypto,
-        toFiat,
+        sourceCurrency,
+        targetCurrency,
         amount,
+        direction,
         network,
       },
     });
@@ -123,22 +134,24 @@ export class PriceService {
   /**
    * @deprecated Use getAllPricesBundled instead for better error handling and performance
    * Get price information from all providers
-   * @param fromCrypto The source cryptocurrency
-   * @param toFiat The target fiat currency
+   * @param sourceCurrency The source currency (crypto for offramp, fiat for onramp)
+   * @param targetCurrency The target currency (fiat for offramp, crypto for onramp)
    * @param amount The amount to convert
+   * @param direction The direction of the conversion (onramp or offramp)
    * @param network Optional network name
    * @returns Price information from all providers
    */
   static async getAllPrices(
-    fromCrypto: PriceEndpoints.CryptoCurrency,
-    toFiat: PriceEndpoints.FiatCurrency,
+    sourceCurrency: PriceEndpoints.Currency,
+    targetCurrency: PriceEndpoints.Currency,
     amount: string,
+    direction: PriceEndpoints.Direction,
     network?: string,
   ): Promise<Record<PriceEndpoints.Provider, PriceEndpoints.PriceResponse>> {
     const providers: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
 
     const results = await Promise.allSettled(
-      providers.map((provider) => this.getPrice(provider, fromCrypto, toFiat, amount, network)),
+      providers.map((provider) => this.getPrice(provider, sourceCurrency, targetCurrency, amount, direction, network)),
     );
 
     return results.reduce(

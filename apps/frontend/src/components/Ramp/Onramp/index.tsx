@@ -1,29 +1,28 @@
-import { getAnyFiatTokenDetails, getOnChainTokenDetailsOrDefault } from '@packages/shared';
-import { motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { FormProvider } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { getOnChainTokenDetailsOrDefault, getAnyFiatTokenDetails } from 'shared';
 
+import { LabeledInput } from '../../LabeledInput';
+import { BrlaSwapFields } from '../../BrlaComponents/BrlaSwapFields';
+import { AssetNumericInput } from '../../AssetNumericInput';
+import { BenefitsList } from '../../BenefitsList';
 import { useEventsContext } from '../../../contexts/events';
 import { useNetwork } from '../../../contexts/network';
 import { useQuoteService } from '../../../hooks/ramp/useQuoteService';
-import { useRampForm } from '../../../hooks/ramp/useRampForm';
-import { useRampSubmission } from '../../../hooks/ramp/useRampSubmission';
 import { useRampValidation } from '../../../hooks/ramp/useRampValidation';
-import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { useRampSubmission } from '../../../hooks/ramp/useRampSubmission';
 import { useFeeComparisonStore } from '../../../stores/feeComparison';
-import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
-import { useFiatToken, useInputAmount, useOnChainToken } from '../../../stores/ramp/useRampFormStore';
-import { useRampModalActions } from '../../../stores/rampModalStore';
-import { useInitializeFailedMessage } from '../../../stores/rampStore';
+import { useRampForm } from '../../../hooks/ramp/useRampForm';
+import { RampTerms } from '../../RampTerms';
 import { useValidateTerms } from '../../../stores/termsStore';
-import { AssetNumericInput } from '../../AssetNumericInput';
-import { BenefitsList } from '../../BenefitsList';
-import { BrlaSwapFields } from '../../BrlaComponents/BrlaSwapFields';
-import { LabeledInput } from '../../LabeledInput';
+import { useRampModalActions } from '../../../stores/rampModalStore';
+import { useInputAmount, useOnChainToken, useFiatToken } from '../../../stores/ramp/useRampFormStore';
 import { RampFeeCollapse } from '../../RampFeeCollapse';
 import { RampSubmitButtons } from '../../RampSubmitButtons';
-import { RampTerms } from '../../RampTerms';
+import { useQuoteLoading } from '../../../stores/ramp/useQuoteStore';
+import { RampErrorMessage } from '../../RampErrorMessage';
 
 export const Onramp = () => {
   const { t } = useTranslation();
@@ -36,9 +35,7 @@ export const Onramp = () => {
   const fiatToken = useFiatToken();
   const quoteLoading = useQuoteLoading();
 
-  const debouncedInputAmount = useDebouncedValue(inputAmount, 1000);
-
-  const { outputAmount: toAmount } = useQuoteService(debouncedInputAmount, onChainToken, fiatToken);
+  const { outputAmount: toAmount } = useQuoteService(inputAmount, onChainToken, fiatToken);
 
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
@@ -46,7 +43,6 @@ export const Onramp = () => {
   }, [toAmount, form]);
 
   const { getCurrentErrorMessage } = useRampValidation();
-  const initializeFailedMessage = useInitializeFailedMessage();
   const validateTerms = useValidateTerms();
   const { onRampConfirm } = useRampSubmission();
 
@@ -61,13 +57,13 @@ export const Onramp = () => {
   const toToken = getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
 
   useEffect(() => {
-    if (!fromAmountFieldTouched || debouncedInputAmount !== inputAmount) return;
+    if (!fromAmountFieldTouched || !inputAmount) return;
 
     trackEvent({
       event: 'amount_type',
-      input_amount: debouncedInputAmount ? debouncedInputAmount.toString() : '0',
+      input_amount: inputAmount.toString(),
     });
-  }, [fromAmountFieldTouched, debouncedInputAmount, inputAmount, trackEvent]);
+  }, [fromAmountFieldTouched, inputAmount, trackEvent]);
 
   const handleInputChange = useCallback(() => {
     setFromAmountFieldTouched(true);
@@ -130,13 +126,7 @@ export const Onramp = () => {
           <BenefitsList />
         </section>
         <BrlaSwapFields />
-        {initializeFailedMessage && (
-          <section className="flex justify-center w-full mt-5">
-            <div className="flex items-center gap-4">
-              <p className="text-red-600">{initializeFailedMessage}</p>
-            </div>
-          </section>
-        )}
+        <RampErrorMessage />
         <section className="w-full mt-5">
           <RampTerms />
         </section>

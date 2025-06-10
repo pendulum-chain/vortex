@@ -1,20 +1,20 @@
-import { AccountInfo } from '@polkadot/types/interfaces';
 import Big from 'big.js';
+import { AccountInfo } from '@polkadot/types/interfaces';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
-import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '@packages/shared';
-import { PendulumEndpoints } from 'shared/src/endpoints/pendulum.endpoints';
-import logger from '../../config/logger';
+import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from 'shared';
+import { PendulumEndpoints } from 'shared';
 import {
   PENDULUM_FUNDING_AMOUNT_UNITS,
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
 } from '../../constants/constants';
-import { ApiManager } from '../services/pendulum/apiManager';
-import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../services/pendulum/helpers';
 import { fundEphemeralAccount, getFundingData } from '../services/pendulum/pendulum.service';
+import { ChainDecimals, multiplyByPowerOfTen, nativeToDecimal } from '../services/pendulum/helpers';
 import { SlackNotifier } from '../services/slack.service';
+import { ApiManager } from '../services/pendulum/apiManager';
+import logger from '../../config/logger';
 
 // DEPRECATED
 export const fundEphemeralAccountController = async (
@@ -75,11 +75,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
         tokenConfig.pendulumCurrencyId,
       );
 
-      const tokenData = tokenBalanceResponse.toHuman() as {
-        free: string;
-        reserved: string;
-        frozen: string;
-      };
+      const tokenData = tokenBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
       const tokenBalance = Big(tokenData.free.replaceAll(',', '') ?? '0');
       const maximumSubsidyAmountRaw = Big(tokenConfig.maximumSubsidyAmountRaw);
       const remainingMaxSubsidiesAvailable = tokenBalance.div(maximumSubsidyAmountRaw);
@@ -110,11 +106,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     fundingAccountKeypair.address,
     TOKEN_CONFIG.glmr.pendulumCurrencyId,
   );
-  const glmrData = glmrBalanceResponse.toHuman() as {
-    free: string;
-    reserved: string;
-    frozen: string;
-  };
+  const glmrData = glmrBalanceResponse.toHuman() as { free: string; reserved: string; frozen: string };
   const glmrBalance = Big(glmrData.free.replaceAll(',', '') ?? '0');
 
   if (
