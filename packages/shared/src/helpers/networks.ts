@@ -1,4 +1,4 @@
-import { polygon, bsc, arbitrum, base, avalanche, moonbeam, mainnet as ethereum } from 'viem/chains';
+import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon } from 'viem/chains';
 import { PaymentMethod } from '../endpoints/payment-methods.endpoints';
 
 export type DestinationType = Networks | PaymentMethod;

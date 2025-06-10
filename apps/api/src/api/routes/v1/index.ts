@@ -1,23 +1,23 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 
-import stellarRoutes from './stellar.route';
-import moonbeamRoutes from './moonbeam.route';
-import pendulumRoutes from './pendulum.route';
-import storageRoutes from './storage.route';
+import brlaRoutes from './brla.route';
+import cryptocurrenciesRoutes from './cryptocurrencies.route';
 import emailRoutes from './email.route';
-import ratingRoutes from './rating.route';
-import subsidizeRoutes from './subsidize.route';
-import siweRoutes from './siwe.route';
+import moonbeamRoutes from './moonbeam.route';
+import paymentMethodsRoutes from './payment-methods.route';
+import pendulumRoutes from './pendulum.route';
 import priceRoutes from './price.route';
 import quoteRoutes from './quote.route';
-import brlaRoutes from './brla.route';
 import rampRoutes from './ramp.route';
-import paymentMethodsRoutes from './payment-methods.route';
-import cryptocurrenciesRoutes from './cryptocurrencies.route';
+import ratingRoutes from './rating.route';
+import siweRoutes from './siwe.route';
+import stellarRoutes from './stellar.route';
+import storageRoutes from './storage.route';
+import subsidizeRoutes from './subsidize.route';
 
-import { sendStatusWithPk as sendStellarStatusWithPk } from '../../controllers/stellar.controller';
-import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../controllers/pendulum.controller';
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from '../../controllers/moonbeam.controller';
+import { sendStatusWithPk as sendPendulumStatusWithPk } from '../../controllers/pendulum.controller';
+import { sendStatusWithPk as sendStellarStatusWithPk } from '../../controllers/stellar.controller';
 
 type ChainStatus = {
   stellar: unknown;

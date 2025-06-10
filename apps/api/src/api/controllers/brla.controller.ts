@@ -38,7 +38,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
       try {
         const details = JSON.parse(errorMessageString);
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details });
-      } catch (e) {
+      } catch (_e) {
         // The error was not encoded as JSON
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid request', details: errorMessageString });
       }
@@ -168,7 +168,7 @@ export const triggerBrlaOfframp = async (
         res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
         return;
       }
-    } catch (error) {
+    } catch (_error) {
       res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid pixKey or receiverTaxId' });
       return;
     }

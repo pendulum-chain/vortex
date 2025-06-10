@@ -3,9 +3,9 @@ import { FC } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 import { useRampState } from '../../stores/rampStore';
+import { useIsQuoteExpired } from '../../stores/rampSummary';
 import { CopyButton } from '../CopyButton';
 import { RampDirection } from '../RampToggle';
-import { useIsQuoteExpired } from '../../stores/rampSummary';
 
 export const BRLOnrampDetails: FC = () => {
   const { t } = useTranslation();

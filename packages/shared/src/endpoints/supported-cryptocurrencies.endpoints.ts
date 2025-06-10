@@ -1,6 +1,6 @@
 import { Networks } from '../helpers';
-import { OnChainToken } from '../tokens/types/base';
 import { OnChainTokenDetails } from '../tokens';
+import { OnChainToken } from '../tokens/types/base';
 
 export type SupportedCryptocurrency = OnChainToken;
 

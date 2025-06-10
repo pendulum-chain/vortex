@@ -252,7 +252,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
       const data: GpmFeeResult = (await response.json()) as GpmFeeResult;
       return data;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }

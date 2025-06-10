@@ -14,7 +14,7 @@ const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).p
 export const createStellarTransactionHandler = async (
   req: Request<{}, {}, StellarEndpoints.CreateStellarTransactionRequest>,
   res: Response<StellarEndpoints.CreateStellarTransactionResponse | StellarEndpoints.StellarErrorResponse>,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
   try {
     if (!FUNDING_SECRET) {
@@ -41,7 +41,7 @@ export const createStellarTransactionHandler = async (
 export const signSep10ChallengeHandler = async (
   req: Request<{}, {}, StellarEndpoints.SignSep10ChallengeRequest>,
   res: Response<StellarEndpoints.SignSep10ChallengeResponse | StellarEndpoints.StellarErrorResponse>,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
   try {
     const { masterClientSignature, masterClientPublic, clientSignature, clientPublic } = await signSep10Challenge(
@@ -69,7 +69,7 @@ export const signSep10ChallengeHandler = async (
 export const getSep10MasterPKHandler = async (
   _: Request,
   res: Response<StellarEndpoints.GetSep10MasterPKResponse | StellarEndpoints.StellarErrorResponse>,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
   try {
     if (!SEP10_MASTER_SECRET) {

@@ -4,12 +4,15 @@
  * @returns The object without empty keys
  */
 export function removeEmptyKeys(map: Record<string, unknown>): Record<string, unknown> {
-  return Object.entries(map).reduce((acc, [key, value]) => {
-    if (value !== null && value !== '') {
-      acc[key] = value;
-    }
-    return acc;
-  }, {} as Record<string, unknown>);
+  return Object.entries(map).reduce(
+    (acc, [key, value]) => {
+      if (value !== null && value !== '') {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {} as Record<string, unknown>,
+  );
 }
 
 /**
