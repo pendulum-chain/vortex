@@ -13,7 +13,7 @@ import {
 } from '../../constants/constants';
 import { SlackNotifier } from '../services/slack.service';
 
-import splitReceiverABI from '../../../../mooncontracts/splitReceiverABI.json';
+import splitReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 
 interface StatusResponse {
   status: boolean;
