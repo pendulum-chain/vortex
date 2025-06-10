@@ -12,6 +12,8 @@
     "build": "bun run build:frontend && bun run build:backend",
     "build:frontend": "bun run --cwd apps/frontend build",
     "build:backend": "bun run --cwd apps/api build",
+    "serve:frontend": "bun run --cwd apps/frontend preview",
+    "serve:backend": "bun run --cwd apps/api serve",
     "typecheck": "bunx --bun tsc",
     "lint": "biome lint .",
     "lint:fix": "biome lint --apply .",
