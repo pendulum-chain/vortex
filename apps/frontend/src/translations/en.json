@@ -321,7 +321,7 @@
       "yourQuote": "Your quote",
       "processingFee": {
         "label": "Processing fee",
-        "tooltip": "The processing fee covers payment processing costs."
+        "tooltip": "This fee covers partner and Vortex platform costs."
       },
       "networkFee": {
         "label": "Network fee",
