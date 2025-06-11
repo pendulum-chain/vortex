@@ -83,7 +83,11 @@ export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTo
  * Get any fiat token details (Stellar or Moonbeam)
  */
 export function getAnyFiatTokenDetails(fiatToken: FiatToken): FiatTokenDetails {
-  return (stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken])!;
+  const tokenDetails = stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken];
+  if (!tokenDetails) {
+    throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Stellar or Moonbeam.`);
+  }
+  return tokenDetails;
 }
 
 /**
