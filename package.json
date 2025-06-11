@@ -16,7 +16,7 @@
     "serve:backend": "bun run --cwd apps/api serve",
     "typecheck": "bun x --bun tsc",
     "lint": "biome lint .",
-    "lint:fix": "biome lint --apply .",
+    "lint:fix": "biome lint --write .",
     "format:light": "biome check --write --no-errors-on-unmatched --formatter-enabled=true --linter-enabled=false --organize-imports-enabled=true",
     "format:extensive": "biome check --write --unsafe --no-errors-on-unmatched --formatter-enabled=true --linter-enabled=true --organize-imports-enabled=true",
     "verify": "biome check --no-errors-on-unmatched",
