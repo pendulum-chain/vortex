@@ -1,33 +1,48 @@
 import { FiatToken, PaymentMethodConfig, PaymentMethodName, PaymentMethodType } from '@packages/shared';
 
-const SEPA_PAYMENT_METHOD: PaymentMethodConfig = {
-  id: 'sepa',
-  name: PaymentMethodName.SEPA,
-  supportedFiats: [FiatToken.EURC],
+const EUR = {
+  id: FiatToken.EURC,
+  name: 'Euro',
   limits: {
     min: 10,
     max: 50000,
   },
 };
 
+const BRL = {
+  id: FiatToken.BRL,
+  name: 'Brazilian Real',
+  limits: {
+    min: 10,
+    max: 50000,
+  },
+};
+
+const ARS = {
+  id: FiatToken.ARS,
+  name: 'Argentine Peso',
+  limits: {
+    min: 10,
+    max: 50000,
+  },
+};
+
+const SEPA_PAYMENT_METHOD: PaymentMethodConfig = {
+  id: 'sepa',
+  name: PaymentMethodName.SEPA,
+  supportedFiats: [EUR],
+};
+
 const PIX_PAYMENT_METHOD: PaymentMethodConfig = {
   id: 'pix',
   name: PaymentMethodName.PIX,
-  supportedFiats: [FiatToken.BRL],
-  limits: {
-    min: 1,
-    max: 500000,
-  },
+  supportedFiats: [BRL],
 };
 
 const CBU_PAYMENT_METHOD: PaymentMethodConfig = {
   id: 'cbu',
   name: PaymentMethodName.CBU,
-  supportedFiats: [FiatToken.ARS],
-  limits: {
-    min: 1,
-    max: 500000,
-  },
+  supportedFiats: [ARS],
 };
 
 export const PAYMENT_METHODS_CONFIG: Record<PaymentMethodType, PaymentMethodConfig[]> = {
