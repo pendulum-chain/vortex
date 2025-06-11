@@ -1,5 +1,7 @@
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, getOnChainTokenDetails } from '@packages/shared';
 import { create } from 'zustand';
+import { RampDirection } from '../../components/RampToggle';
+import { getRampDirectionFromPath } from '../../helpers/path';
 import { Language, getLanguageFromPath } from '../../translations/helpers';
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.EURC;
@@ -15,14 +17,20 @@ export const defaultFiatTokenAmounts: Record<FiatToken, string> = {
   [FiatToken.BRL]: DEFAULT_BRL_AMOUNT,
 };
 
-export const DEFAULT_ASSETHUB_ONCHAIN_TOKEN = AssetHubToken.USDC;
-export const DEFAULT_EVM_ONCHAIN_TOKEN = EvmToken.USDC;
-
 const defaultFiatToken =
   getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_PT_BR_TOKEN : DEFAULT_FIAT_TOKEN;
 
 const defaultFiatAmount =
   getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_BRL_AMOUNT : defaultFiatTokenAmounts[defaultFiatToken];
+
+const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
+
+const defaultOnChainToken =
+  getRampDirectionFromPath() === RampDirection.ONRAMP
+    ? storedNetwork === Networks.AssetHub
+      ? AssetHubToken.USDC
+      : EvmToken.USDT
+    : EvmToken.USDC;
 
 interface RampFormState {
   inputAmount?: string;
@@ -44,11 +52,9 @@ interface RampFormActions {
   };
 }
 
-const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
-
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   inputAmount: defaultFiatAmount,
-  onChainToken: storedNetwork !== null && storedNetwork === Networks.AssetHub ? EvmToken.USDC : EvmToken.USDT,
+  onChainToken: defaultOnChainToken,
   fiatToken: defaultFiatToken,
   taxId: undefined,
   pixId: undefined,
