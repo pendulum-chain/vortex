@@ -320,7 +320,7 @@
       "yourQuote": "Sua cotação",
       "processingFee": {
         "label": "Taxa de processamento",
-        "tooltip": "A taxa de processamento cobre os custos de processamento de pagamento."
+        "tooltip": "Essa taxa cobre os custos do parceiro e da plataforma Vortex."
       },
       "networkFee": {
         "label": "Taxa de rede",
