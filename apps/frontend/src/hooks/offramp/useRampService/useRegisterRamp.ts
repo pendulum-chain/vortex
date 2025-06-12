@@ -51,7 +51,6 @@ const useProcessLock = (lockKey: string) => {
   // Releases the lock when the process is complete
   const releaseLock = useCallback(() => {
     localStorage.removeItem(lockKey);
-    console.log(`Completed process for ${lockKey}`);
   }, [lockKey]);
 
   return { checkLock, verifyLock, releaseLock };
@@ -124,6 +123,10 @@ export const useRegisterRamp = () => {
     const { processRef } = lockResult;
 
     const registerRampProcess = async () => {
+      if (rampRegistered) {
+        return;
+      }
+
       if (signingRejected) {
         throw new Error('Signing was rejected, cannot proceed with ramp registration');
       }
@@ -240,7 +243,6 @@ export const useRegisterRamp = () => {
         console.error(`Error registering ramp:`, error);
       })
       .finally(() => {
-        console.log('Completed ramp registry process');
         releaseLock();
       });
   }, [
