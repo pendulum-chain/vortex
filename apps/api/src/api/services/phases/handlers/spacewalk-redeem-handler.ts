@@ -10,12 +10,10 @@ import { Horizon, Networks } from 'stellar-sdk';
 import logger from '../../../../config/logger';
 import { checkBalancePeriodically } from '../../stellar/checkBalance';
 import { createVaultService } from '../../stellar/vaultService';
+import { isStellarEphemeralFunded } from './helpers';
 
 const maxWaitingTimeMinutes = 10;
 const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
-
-export const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -47,27 +45,10 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
     // Check if Stellar target account exists on the network and has the respective trustline.
     // Otherwise, the redeem will end up with a 'claimable-payment' operation on Stellar that we cannot claim.
-    try {
-      const account = await horizonServer.loadAccount(stellarTarget.stellarTargetAccountId);
-
-      const trustlineExists = account.balances.some(
-        (balance) =>
-          balance.asset_type === 'credit_alphanum4' &&
-          balance.asset_code === stellarTarget.stellarTokenDetails.stellarAsset.code.string &&
-          balance.asset_issuer === stellarTarget.stellarTokenDetails.stellarAsset.issuer.stellarEncoding,
+    if (!(await isStellarEphemeralFunded(stellarTarget))) {
+      throw new Error(
+        `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarTarget.stellarTargetAccountId} does not exist or does not have the required trustline.`,
       );
-      if (!trustlineExists) {
-        throw new Error(
-          `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarTarget.stellarTargetAccountId} does not have a trustline for the asset ${stellarTarget.stellarTokenDetails.stellarAsset.code.string}.`,
-        );
-      }
-    } catch (error) {
-      if (error?.toString().includes('NotFoundError')) {
-        throw new Error(
-          `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarTarget.stellarTargetAccountId} does not exist.`,
-        );
-      } else
-        throw new Error(`SpacewalkRedeemPhaseHandler: ${error?.toString()} while checking Stellar target account.`);
     }
 
     const { txData: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');

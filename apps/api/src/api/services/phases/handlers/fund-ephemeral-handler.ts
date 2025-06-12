@@ -1,18 +1,19 @@
-import { FiatToken, HORIZON_URL, RampPhase, StellarTokenDetails, getNetworkFromDestination } from '@packages/shared';
-import Big from 'big.js';
-import { Horizon, NetworkError, Networks, Transaction } from 'stellar-sdk';
+import { FiatToken, RampPhase, getNetworkFromDestination } from '@packages/shared';
+import { NetworkError, Transaction } from 'stellar-sdk';
 import logger from '../../../../config/logger';
-import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import RampState from '../../../../models/rampState.model';
 import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
-import { API, ApiManager } from '../../pendulum/apiManager';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { ApiManager } from '../../pendulum/apiManager';
 import { fundEphemeralAccount } from '../../pendulum/pendulum.service';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { StateMetadata } from '../meta-state-types';
-
-const horizonServer = new Horizon.Server(HORIZON_URL);
-const NETWORK_PASSPHRASE = Networks.PUBLIC;
+import {
+  NETWORK_PASSPHRASE,
+  horizonServer,
+  isMoonbeamEphemeralFunded,
+  isPendulumEphemeralFunded,
+  isStellarEphemeralFunded,
+} from './helpers';
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -127,48 +128,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
     }
   }
-}
-
-async function isStellarEphemeralFunded(stellarTarget: {
-  stellarTargetAccountId: string;
-  stellarTokenDetails: StellarTokenDetails;
-}): Promise<boolean> {
-  try {
-    // We check if the Stellar target account exists and has the respective trustline.
-    const account = await horizonServer.loadAccount(stellarTarget.stellarTargetAccountId);
-
-    const trustlineExists = account.balances.some(
-      (balance) =>
-        balance.asset_type === 'credit_alphanum4' &&
-        balance.asset_code === stellarTarget.stellarTokenDetails.stellarAsset.code.string &&
-        balance.asset_issuer === stellarTarget.stellarTokenDetails.stellarAsset.issuer.stellarEncoding,
-    );
-    return trustlineExists;
-  } catch (error) {
-    if (error?.toString().includes('NotFoundError')) {
-      logger.info(
-        `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarTarget.stellarTargetAccountId} does not exist.`,
-      );
-    } else {
-      // We return an error here to ensure that the phase fails and can be retried.
-      throw new Error(`SpacewalkRedeemPhaseHandler: ${error?.toString()} while checking Stellar target account.`);
-    }
-
-    return false;
-  }
-}
-
-async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
-  const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
-  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();
-  const { data: balance } = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
-
-  return Big(balance.free.toString()).gte(fundingAmountRaw);
-}
-
-async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonebamNode: API): Promise<boolean> {
-  const { data: balance } = await moonebamNode.api.query.system.account(moonbeamEphemeralAddress);
-  return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
 }
 
 export default new FundEphemeralPhaseHandler();
