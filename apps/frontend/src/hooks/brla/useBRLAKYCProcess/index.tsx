@@ -288,7 +288,6 @@ export function useKYCProcess() {
   useEffect(() => {
     if (!kycResponse) return;
     if (kycResponse.level !== 2) return;
-    console.log('KYC level 2 response:', kycResponse);
     const handleStatus = async (status: string) => {
       const mappedStatus = status as KycStatus;
 
