@@ -43,7 +43,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       if (state.state.stellarTarget) {
-        const isFunded = await isStellarEphemeralFunded(state.state.stellarTarget);
+        const isFunded = await isStellarEphemeralFunded(
+          state.state.stellarEphemeralAccountId,
+          state.state.stellarTarget.stellarTokenDetails,
+        );
         if (!isFunded) {
           await this.fundStellarEphemeralAccount(state);
         }

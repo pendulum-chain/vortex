@@ -9,26 +9,24 @@ import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 export const horizonServer = new Horizon.Server(HORIZON_URL);
 export const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
-export async function isStellarEphemeralFunded(stellarTarget: {
-  stellarTargetAccountId: string;
-  stellarTokenDetails: StellarTokenDetails;
-}): Promise<boolean> {
+export async function isStellarEphemeralFunded(
+  accountId: string,
+  stellarTokenDetails: StellarTokenDetails,
+): Promise<boolean> {
   try {
     // We check if the Stellar target account exists and has the respective trustline.
-    const account = await horizonServer.loadAccount(stellarTarget.stellarTargetAccountId);
+    const account = await horizonServer.loadAccount(accountId);
 
     const trustlineExists = account.balances.some(
       (balance) =>
         balance.asset_type === 'credit_alphanum4' &&
-        balance.asset_code === stellarTarget.stellarTokenDetails.stellarAsset.code.string &&
-        balance.asset_issuer === stellarTarget.stellarTokenDetails.stellarAsset.issuer.stellarEncoding,
+        balance.asset_code === stellarTokenDetails.stellarAsset.code.string &&
+        balance.asset_issuer === stellarTokenDetails.stellarAsset.issuer.stellarEncoding,
     );
     return trustlineExists;
   } catch (error) {
     if (error?.toString().includes('NotFoundError')) {
-      logger.info(
-        `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarTarget.stellarTargetAccountId} does not exist.`,
-      );
+      logger.info(`SpacewalkRedeemPhaseHandler: Stellar target account ${accountId} does not exist.`);
     } else {
       // We return an error here to ensure that the phase fails and can be retried.
       throw new Error(`SpacewalkRedeemPhaseHandler: ${error?.toString()} while checking Stellar target account.`);
