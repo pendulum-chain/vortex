@@ -23,7 +23,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi('pendulum');
-    const moonebamNode = await apiManager.getApi('moonbeam');
+    const moonbeamNode = await apiManager.getApi('moonbeam');
 
     const { moonbeamEphemeralAddress, pendulumEphemeralAddress } = state.state as StateMetadata;
 
@@ -39,7 +39,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       let isMoonbeamFunded = true;
       if (state.type === 'on' && moonbeamEphemeralAddress) {
-        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonebamNode);
+        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonbeamNode);
       }
 
       if (state.state.stellarTarget) {
@@ -53,7 +53,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       if (!isPendulumFunded) {
-        logger.info('Funding pen ephemeral...');
+        logger.info(`Funding PEN ephemeral account ${pendulumEphemeralAddress}`);
         if (state.type === 'on' && state.to !== 'assethub') {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
         } else if (state.state.outputCurrency === FiatToken.BRL) {
@@ -66,7 +66,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       if (state.type === 'on' && !isMoonbeamFunded) {
-        logger.info('Funding moonbeam ephemeral...');
+        logger.info(`Funding moonbeam ephemeral accout ${moonbeamEphemeralAddress}`);
 
         const destinationNetwork = getNetworkFromDestination(state.to);
         // For onramp case, "to" is always a network.
@@ -109,6 +109,9 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
     try {
       const stellarCreationTransaction = new Transaction(stellarCreationTransactionXDR, NETWORK_PASSPHRASE);
+      logger.info(
+        `Submitting stellar account creation transaction to create ephemeral account: ${state.state.stellarEphemeralAccountId}`,
+      );
       await horizonServer.submitTransaction(stellarCreationTransaction);
     } catch (e) {
       const horizonError = e as NetworkError;

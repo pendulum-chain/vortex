@@ -26,13 +26,12 @@ export async function isStellarEphemeralFunded(
     return trustlineExists;
   } catch (error) {
     if (error?.toString().includes('NotFoundError')) {
-      logger.info(`SpacewalkRedeemPhaseHandler: Stellar target account ${accountId} does not exist.`);
+      logger.info(`Stellar target account ${accountId} does not exist.`);
+      return false;
     } else {
       // We return an error here to ensure that the phase fails and can be retried.
-      throw new Error(`SpacewalkRedeemPhaseHandler: ${error?.toString()} while checking Stellar target account.`);
+      throw new Error(`${error?.toString()} while checking Stellar target account.`);
     }
-
-    return false;
   }
 }
 
