@@ -218,10 +218,13 @@ export const useRegisterRamp = () => {
         moonbeamApiComponents.api,
       );
 
+      // Update ramp with ephemeral signed transactions
+      const updatedRampProcess = await RampService.updateRamp(rampProcess.id, signedTransactions);
+
       setRampRegistered(true);
       setRampState({
         quote: executionInput.quote,
-        ramp: rampProcess,
+        ramp: updatedRampProcess,
         signedTransactions,
         requiredUserActionsCompleted: false,
         userSigningMeta: {
@@ -349,8 +352,22 @@ export const useRegisterRamp = () => {
         }
       }
 
+      // Update ramp with user-signed transactions and additional data
+      const additionalData = {
+        squidRouterApproveHash,
+        squidRouterSwapHash,
+        assetHubToPendulumHash,
+      };
+
+      const updatedRampProcess = await RampService.updateRamp(
+        rampState.ramp!.id,
+        [], // No additional presigned transactions at this point
+        additionalData,
+      );
+
       setRampState({
         ...rampState,
+        ramp: updatedRampProcess,
         userSigningMeta: {
           squidRouterApproveHash,
           squidRouterSwapHash,
