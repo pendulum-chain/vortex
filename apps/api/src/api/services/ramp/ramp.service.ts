@@ -222,8 +222,10 @@ export class RampService extends BaseRampService {
         });
       }
 
-      // Validate presigned transactions
-      validatePresignedTxs(presignedTxs);
+      // Validate presigned transactions, if some were supplied
+      if (presignedTxs && presignedTxs.length > 0) {
+        validatePresignedTxs(presignedTxs);
+      }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)
       const existingTxs = rampState.presignedTxs || [];
