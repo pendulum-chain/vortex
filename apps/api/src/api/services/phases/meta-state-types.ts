@@ -45,4 +45,5 @@ export interface StateMetadata {
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
+  brCode: string | undefined;
 }

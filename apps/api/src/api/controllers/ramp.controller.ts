@@ -27,14 +27,11 @@ export const registerRamp = async (
     }
 
     // Start ramping process
-    const ramp = await rampService.registerRamp(
-      {
-        quoteId,
-        signingAccounts,
-        additionalData,
-      },
-      route,
-    );
+    const ramp = await rampService.registerRamp({
+      quoteId,
+      signingAccounts,
+      additionalData,
+    });
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {

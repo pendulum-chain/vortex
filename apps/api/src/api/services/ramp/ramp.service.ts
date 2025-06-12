@@ -46,10 +46,7 @@ export class RampService extends BaseRampService {
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
    */
-  public async registerRamp(
-    request: RampEndpoints.RegisterRampRequest,
-    _route = '/v1/ramp/register',
-  ): Promise<RampEndpoints.RegisterRampResponse> {
+  public async registerRamp(request: RampEndpoints.RegisterRampRequest): Promise<RampEndpoints.RegisterRampResponse> {
     return this.withTransaction(async (transaction) => {
       const { signingAccounts, quoteId, additionalData } = request;
 
@@ -141,6 +138,7 @@ export class RampService extends BaseRampService {
         }
 
         brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
+        logger.info(`BR Code for onramp: ${brCode}`);
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
@@ -166,6 +164,7 @@ export class RampService extends BaseRampService {
           inputCurrency: quote.inputCurrency,
           outputAmount: quote.outputAmount,
           outputCurrency: quote.outputCurrency,
+          brCode,
           ...request.additionalData,
           ...stateMeta,
         },
@@ -190,9 +189,8 @@ export class RampService extends BaseRampService {
         to: rampState.to,
         createdAt: rampState.createdAt.toISOString(),
         updatedAt: rampState.updatedAt.toISOString(),
+        brCode: rampState.state.brCode,
       };
-
-      brCode ? (response.brCode = brCode) : undefined;
 
       return response;
     });
@@ -266,6 +264,7 @@ export class RampService extends BaseRampService {
         to: rampState.to,
         createdAt: rampState.createdAt.toISOString(),
         updatedAt: new Date().toISOString(), // Use current time since we just updated
+        brCode: rampState.state.brCode,
       };
 
       return response;
