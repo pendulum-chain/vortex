@@ -1,5 +1,6 @@
-import { FiatToken, RampPhase, getNetworkFromDestination } from '@packages/shared';
+import { FiatToken, HORIZON_URL, RampPhase, StellarTokenDetails, getNetworkFromDestination } from '@packages/shared';
 import Big from 'big.js';
+import { Horizon, NetworkError, Networks, Transaction } from 'stellar-sdk';
 import logger from '../../../../config/logger';
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import RampState from '../../../../models/rampState.model';
@@ -9,6 +10,9 @@ import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { fundEphemeralAccount } from '../../pendulum/pendulum.service';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { StateMetadata } from '../meta-state-types';
+
+const horizonServer = new Horizon.Server(HORIZON_URL);
+const NETWORK_PASSPHRASE = Networks.PUBLIC;
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -37,6 +41,13 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonebamNode);
       }
 
+      if (state.state.stellarTarget) {
+        const isFunded = await isStellarEphemeralFunded(state.state.stellarTarget);
+        if (!isFunded) {
+          await this.fundStellarEphemeralAccount(state);
+        }
+      }
+
       if (!isPendulumFunded) {
         logger.info('Funding pen ephemeral...');
         if (state.type === 'on' && state.to !== 'assethub') {
@@ -59,7 +70,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
           throw new Error('FundEphemeralPhaseHandler: Invalid destination network.');
         }
 
-        await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress, destinationNetwork);
+        await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
       }
     } catch (e) {
       console.error('Error in FundEphemeralPhaseHandler:', e);
@@ -82,6 +93,68 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     } else {
       return 'moonbeamToPendulum'; // Via contract.subsidizePreSwap
     }
+  }
+
+  protected async fundStellarEphemeralAccount(state: RampState): Promise<void> {
+    const { txData: stellarCreationTransactionXDR } = this.getPresignedTransaction(state, 'stellarCreateAccount');
+    if (typeof stellarCreationTransactionXDR !== 'string') {
+      throw new Error(
+        'FundEphemeralHandler: `stellarCreateAccount` transaction is not a string -> not an encoded Stellar transaction.',
+      );
+    }
+
+    try {
+      const stellarCreationTransaction = new Transaction(stellarCreationTransactionXDR, NETWORK_PASSPHRASE);
+      await horizonServer.submitTransaction(stellarCreationTransaction);
+    } catch (e) {
+      const horizonError = e as NetworkError;
+      if (horizonError.response.data?.status === 400) {
+        logger.info(
+          `Could not submit the stellar account creation transaction ${JSON.stringify(
+            horizonError.response.data.extras.result_codes,
+          )}`,
+        );
+
+        // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
+        if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
+          logger.info('Recovery mode: Creation already performed.');
+        }
+        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data.extras}`);
+        throw new Error('Could not submit the stellar creation transaction');
+      } else {
+        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data}`);
+        throw new Error('Could not submit the stellar creation transaction');
+      }
+    }
+  }
+}
+
+async function isStellarEphemeralFunded(stellarTarget: {
+  stellarTargetAccountId: string;
+  stellarTokenDetails: StellarTokenDetails;
+}): Promise<boolean> {
+  try {
+    // We check if the Stellar target account exists and has the respective trustline.
+    const account = await horizonServer.loadAccount(stellarTarget.stellarTargetAccountId);
+
+    const trustlineExists = account.balances.some(
+      (balance) =>
+        balance.asset_type === 'credit_alphanum4' &&
+        balance.asset_code === stellarTarget.stellarTokenDetails.stellarAsset.code.string &&
+        balance.asset_issuer === stellarTarget.stellarTokenDetails.stellarAsset.issuer.stellarEncoding,
+    );
+    return trustlineExists;
+  } catch (error) {
+    if (error?.toString().includes('NotFoundError')) {
+      logger.info(
+        `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarTarget.stellarTargetAccountId} does not exist.`,
+      );
+    } else {
+      // We return an error here to ensure that the phase fails and can be retried.
+      throw new Error(`SpacewalkRedeemPhaseHandler: ${error?.toString()} while checking Stellar target account.`);
+    }
+
+    return false;
   }
 }
 
