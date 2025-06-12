@@ -97,7 +97,6 @@ export const startRamp = async (
 ): Promise<void> => {
   try {
     const { rampId } = req.body;
-    const route = req.path; // Get the current route path
 
     // Validate required fields
     if (!rampId) {

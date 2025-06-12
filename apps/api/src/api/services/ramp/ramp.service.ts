@@ -241,14 +241,14 @@ export class RampService extends BaseRampService {
       });
 
       // Merge additional data
-      const existingAdditionalData = rampState.additionalData || {};
+      const existingAdditionalData = rampState.state || {};
       const mergedAdditionalData = { ...existingAdditionalData, ...additionalData };
 
       // Update the ramp state
       await rampState.update(
         {
           presignedTxs: updatedTxs,
-          additionalData: mergedAdditionalData,
+          state: mergedAdditionalData,
         },
         { transaction },
       );

@@ -40,6 +40,7 @@ export interface StateMetadata {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
   };
+  assetHubToPendulumHash: string;
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
