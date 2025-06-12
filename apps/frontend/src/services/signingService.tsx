@@ -1,4 +1,4 @@
-import { FiatToken } from '@packages/shared';
+import { BrlaEndpoints, FiatToken } from '@packages/shared';
 import { useQuery } from '@tanstack/react-query';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 
@@ -36,12 +36,6 @@ export type KycStatusType = keyof typeof KycStatus;
 interface BrlaOfframpStatus {
   type: BrlaOfframpState;
   status: OfframpStatus;
-}
-
-interface BrlaKycStatus {
-  type: BrlaKycState;
-  status: KycStatusType;
-  level: number;
 }
 
 type TaxIdType = 'CPF' | 'CNPJ';
@@ -164,13 +158,7 @@ export const fetchSep10Signatures = async ({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({
-      challengeXDR,
-      outToken,
-      clientPublicKey,
-      usesMemo,
-      address,
-    }),
+    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, usesMemo, address }),
   });
   if (response.status !== 200) {
     if (response.status === 401) {
@@ -180,12 +168,7 @@ export const fetchSep10Signatures = async ({
   }
 
   const { clientSignature, clientPublic, masterClientSignature, masterClientPublic } = await response.json();
-  return {
-    clientSignature,
-    clientPublic,
-    masterClientSignature,
-    masterClientPublic,
-  };
+  return { clientSignature, clientPublic, masterClientSignature, masterClientPublic };
 };
 
 export const fetchOfframpStatus = async (taxId: string) => {
@@ -211,7 +194,7 @@ export const fetchKycStatus = async (taxId: string) => {
     throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
   }
 
-  const eventStatus: BrlaKycStatus = await statusResponse.json();
+  const eventStatus: BrlaEndpoints.GetKycStatusResponse = await statusResponse.json();
   console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
   return eventStatus;
 };
