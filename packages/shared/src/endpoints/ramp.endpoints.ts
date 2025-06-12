@@ -90,16 +90,23 @@ export namespace RampEndpoints {
 
   export type RegisterRampResponse = RampProcess;
 
-  // POST /ramp/start
-  export interface StartRampRequest {
+  // POST /ramp/:rampId/update
+  export interface UpdateRampRequest {
     rampId: string;
     presignedTxs: PresignedTx[];
     additionalData?: {
-      squidRouterApproveHash: string | undefined;
-      squidRouterSwapHash: string | undefined;
-      assetHubToPendulumHash: string | undefined;
+      squidRouterApproveHash?: string;
+      squidRouterSwapHash?: string;
+      assetHubToPendulumHash?: string;
       [key: string]: unknown;
     };
+  }
+
+  export type UpdateRampResponse = RampProcess;
+
+  // POST /ramp/start
+  export interface StartRampRequest {
+    rampId: string;
   }
 
   // The response is the same as RampProcess

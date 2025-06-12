@@ -2,6 +2,10 @@ import { PendulumDetails, RampCurrency, StellarTokenDetails } from '@packages/sh
 import { ExtrinsicOptions } from '../transactions/nabla';
 
 export interface StateMetadata {
+  inputAmount: string;
+  outputAmount: string;
+  inputCurrency: RampCurrency;
+  outputCurrency: RampCurrency;
   nablaSoftMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
   inputTokenPendulumDetails: PendulumDetails;
@@ -27,6 +31,7 @@ export interface StateMetadata {
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;
+  walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;
   moonbeamEphemeralAddress: string;

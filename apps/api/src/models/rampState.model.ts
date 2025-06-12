@@ -34,6 +34,7 @@ export interface RampStateAttributes {
   currentPhase: RampPhase;
   unsignedTxs: UnsignedTx[]; // JSONB array
   presignedTxs: PresignedTx[] | null; // JSONB array
+  additionalData: Record<string, unknown> | null; // JSONB object for additional data
   from: DestinationType;
   to: DestinationType;
   state: StateMetadata; // JSONB
@@ -60,6 +61,8 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
   declare unsignedTxs: UnsignedTx[];
 
   declare presignedTxs: PresignedTx[] | null;
+
+  declare additionalData: Record<string, unknown> | null;
 
   declare from: DestinationType;
 
@@ -131,6 +134,11 @@ RampState.init(
           }
         },
       },
+    },
+    additionalData: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: 'additional_data',
     },
     from: {
       type: DataTypes.STRING(20),

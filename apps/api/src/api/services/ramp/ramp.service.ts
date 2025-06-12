@@ -158,6 +158,7 @@ export class RampService extends BaseRampService {
         currentPhase: 'initial' as RampPhase,
         unsignedTxs,
         presignedTxs: null, // There are no presigned transactions at this point
+        additionalData: null, // No additional data at this point
         from: quote.from,
         to: quote.to,
         state: {
@@ -198,12 +199,81 @@ export class RampService extends BaseRampService {
   }
 
   /**
+   * Update a ramping process with presigned transactions and additional data
+   */
+  public async updateRamp(request: RampEndpoints.UpdateRampRequest): Promise<RampEndpoints.UpdateRampResponse> {
+    return this.withTransaction(async (transaction) => {
+      const { rampId, presignedTxs, additionalData } = request;
+
+      const rampState = await RampState.findByPk(rampId, { transaction });
+
+      if (!rampState) {
+        throw new APIError({
+          status: httpStatus.NOT_FOUND,
+          message: 'Ramp not found',
+        });
+      }
+
+      // Check if the ramp is in a state that allows updates
+      if (rampState.currentPhase !== 'initial') {
+        throw new APIError({
+          status: httpStatus.CONFLICT,
+          message: 'Ramp is not in a state that allows updates',
+        });
+      }
+
+      // Validate presigned transactions
+      validatePresignedTxs(presignedTxs);
+
+      // Merge presigned transactions (replace existing ones with same phase/network/signer)
+      const existingTxs = rampState.presignedTxs || [];
+      const updatedTxs = [...existingTxs];
+
+      presignedTxs.forEach((newTx) => {
+        const existingIndex = updatedTxs.findIndex(
+          (tx) => tx.phase === newTx.phase && tx.network === newTx.network && tx.signer === newTx.signer,
+        );
+        if (existingIndex >= 0) {
+          updatedTxs[existingIndex] = newTx;
+        } else {
+          updatedTxs.push(newTx);
+        }
+      });
+
+      // Merge additional data
+      const existingAdditionalData = rampState.additionalData || {};
+      const mergedAdditionalData = { ...existingAdditionalData, ...additionalData };
+
+      // Update the ramp state
+      await rampState.update(
+        {
+          presignedTxs: updatedTxs,
+          additionalData: mergedAdditionalData,
+        },
+        { transaction },
+      );
+
+      // Create response
+      const response: RampEndpoints.UpdateRampResponse = {
+        id: rampState.id,
+        quoteId: rampState.quoteId,
+        type: rampState.type,
+        currentPhase: rampState.currentPhase,
+        unsignedTxs: rampState.unsignedTxs,
+        from: rampState.from,
+        to: rampState.to,
+        createdAt: rampState.createdAt.toISOString(),
+        updatedAt: new Date().toISOString(), // Use current time since we just updated
+      };
+
+      return response;
+    });
+  }
+
+  /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
-  public async startRamp(
-    request: RampEndpoints.StartRampRequest,
-    _route = '/v1/ramp/start',
-  ): Promise<RampEndpoints.StartRampResponse> {
+  public async startRamp(request: RampEndpoints.StartRampRequest): Promise<RampEndpoints.StartRampResponse> {
     return this.withTransaction(async (transaction) => {
       const rampState = await RampState.findByPk(request.rampId, {
         transaction,
@@ -216,15 +286,16 @@ export class RampService extends BaseRampService {
         });
       }
 
-      // Validate presigned transactions
-      validatePresignedTxs(request.presignedTxs);
+      // Check if presigned transactions are available (should be set by updateRamp)
+      if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: 'No presigned transactions found. Please call updateRamp first.',
+        });
+      }
 
-      // TODO check if the ramp has actually been stared. Either assetHub's initial XCM
-      // or EVM's initial squidrouter transaction.
-      // Offramps starting on Assethub need to have the assetHubToPendulumHash
-      // Offramps starting on an EVM network need to have the squidRouterApproveHash and squidRouterSwapHash
-      // Onramps might need other checks.
-      // const { squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash } = request.additionalData!;
+      // Validate presigned transactions
+      validatePresignedTxs(rampState.presignedTxs);
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();
@@ -238,11 +309,6 @@ export class RampService extends BaseRampService {
           message: 'Maximum time window to start process exceeded. Ramp invalidated.',
         });
       }
-
-      await this.updateRampState(request.rampId, {
-        presignedTxs: request.presignedTxs,
-        state: { ...rampState.state, ...request.additionalData },
-      });
 
       // Start processing the ramp asynchronously
       // We don't await this to avoid blocking the response
@@ -309,9 +375,7 @@ export class RampService extends BaseRampService {
   public async getRampHistory(walletAddress: string): Promise<RampEndpoints.GetRampHistoryResponse> {
     const rampStates = await RampState.findAll({
       where: {
-        state: {
-          [Op.or]: [{ walletAddress }, { destinationAddress: walletAddress }],
-        },
+        [Op.or]: [{ 'state.walletAddress': walletAddress }, { 'state.destinationAddress': walletAddress }],
         currentPhase: {
           [Op.ne]: 'initial',
         },
