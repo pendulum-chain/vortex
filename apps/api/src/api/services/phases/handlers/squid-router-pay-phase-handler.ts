@@ -51,6 +51,7 @@ interface AxelarScanStatusResponse {
     source_express_fee: {
       total: number;
     };
+    source_confirm_fee: number;
     destination_express_fee: {
       total: number;
     };
@@ -143,17 +144,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         }
 
         if (!payTxHash) {
-          const feeResponse = await this.fetchFees(state.to.toString());
-
-          if (!feeResponse) {
-            logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
-            throw this.createRecoverableError('No status found for swap hash.');
-          }
-
           const glmrToFundUnits = (
-            feeResponse.result.source_base_fee +
-            feeResponse.result.destination_base_fee +
-            feeResponse.result.express_fee
+            axelarScanStatus.fees.source_base_fee +
+            axelarScanStatus.fees.source_express_fee.total +
+            axelarScanStatus.fees.source_confirm_fee
           ).toString();
 
           const logIndex = Number(axelarScanStatus.id.split('_')[2]);
