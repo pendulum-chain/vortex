@@ -96,10 +96,11 @@ export const useOnChainToken = () => useRampFormStore((state) => state.onChainTo
 export const useFiatToken = () => useRampFormStore((state) => state.fiatToken);
 export const useTaxId = () => useRampFormStore((state) => state.taxId);
 export const usePixId = () => useRampFormStore((state) => state.pixId);
+export const useLastConstraintDirection = () => useRampFormStore((state) => state.lastConstraintDirection);
 
 export const useConstraintsValid = () => {
   const direction = useRampDirection();
-  const lastConstraintDirection = useRampFormStore((state) => state.lastConstraintDirection);
+  const lastConstraintDirection = useLastConstraintDirection();
   return direction === lastConstraintDirection;
 };
 
