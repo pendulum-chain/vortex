@@ -34,12 +34,12 @@ const defaultOnChainToken =
     : EvmToken.USDC;
 
 interface RampFormState {
-  inputAmount?: string;
+  inputAmount: string;
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   taxId?: string;
   pixId?: string;
-  lastConstraintDirection?: RampDirection;
+  lastConstraintDirection: RampDirection;
 }
 
 interface RampFormActions {
@@ -98,7 +98,7 @@ export const useTaxId = () => useRampFormStore((state) => state.taxId);
 export const usePixId = () => useRampFormStore((state) => state.pixId);
 export const useLastConstraintDirection = () => useRampFormStore((state) => state.lastConstraintDirection);
 
-export const useConstraintsValid = () => {
+export const useQuoteConstraintsValid = () => {
   const direction = useRampDirection();
   const lastConstraintDirection = useLastConstraintDirection();
   return direction === lastConstraintDirection;
