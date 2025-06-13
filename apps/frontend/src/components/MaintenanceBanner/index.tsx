@@ -43,7 +43,7 @@ export const MaintenanceBanner: FC = () => {
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
               <div className="w-6 h-6 sm:w-8 sm:h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <ExclamationTriangleIcon className="h-5 w-5 fill-amber-500" />
+                <ExclamationTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5 fill-amber-500" />
               </div>
             </div>
             <div className="flex-1 min-w-0">
