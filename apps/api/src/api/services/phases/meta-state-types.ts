@@ -23,6 +23,10 @@ export interface StateMetadata {
   executeSpacewalkNonce: number;
   // Only used in onramp - brla
   inputAmountUnits: string;
+  inputAmount: string;
+  inputCurrency: string;
+  outputAmount: string;
+  outputCurrency: string;
   inputAmountBeforeSwapUnits: string;
   taxId: string;
   pixDestination: string;
