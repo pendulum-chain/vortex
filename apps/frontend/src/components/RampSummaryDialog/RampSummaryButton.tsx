@@ -179,10 +179,6 @@ export const RampSummaryButton = () => {
   const onSubmit = () => {
     setIsSubmitted(true);
 
-    if (signingRejected) {
-      setSigningRejected(false);
-    }
-
     // For BRL offramps, set canRegisterRamp to true
     if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === 'off') {
       setCanRegisterRamp(true);
@@ -195,7 +191,14 @@ export const RampSummaryButton = () => {
     }
 
     if (!isOnramp && (toToken as FiatTokenDetails).type !== 'moonbeam' && anchorUrl) {
-      window.open(anchorUrl, '_blank');
+      // If signing was rejected, we do not open the anchor URL again
+      if (!signingRejected) {
+        window.open(anchorUrl, '_blank');
+      }
+    }
+
+    if (signingRejected) {
+      setSigningRejected(false);
     }
   };
 

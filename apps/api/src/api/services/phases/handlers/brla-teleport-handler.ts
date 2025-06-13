@@ -46,7 +46,9 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       subaccountId = subaccount.id;
 
       memo = generateReferenceLabel(state.quoteId);
-      logger.info('Requesting teleport:', subaccountId, inputAmountBrla, moonbeamEphemeralAddress, memo);
+      logger.info(
+        `Requesting teleport for ${subaccountId} with ${inputAmountBrla} BRLA to ${moonbeamEphemeralAddress} and memo ${memo}`,
+      );
 
       await teleportService.requestTeleport(
         subaccountId,

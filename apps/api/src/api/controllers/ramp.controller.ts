@@ -27,14 +27,11 @@ export const registerRamp = async (
     }
 
     // Start ramping process
-    const ramp = await rampService.registerRamp(
-      {
-        quoteId,
-        signingAccounts,
-        additionalData,
-      },
-      route,
-    );
+    const ramp = await rampService.registerRamp({
+      quoteId,
+      signingAccounts,
+      additionalData,
+    });
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
@@ -44,17 +41,17 @@ export const registerRamp = async (
 };
 
 /**
- * Start a new ramping process
+ * Update a ramping process with presigned transactions and additional data
  * @public
  */
-export const startRamp = async (
-  req: Request<{}, {}, RampEndpoints.StartRampRequest>,
-  res: Response<RampEndpoints.StartRampResponse>,
+export const updateRamp = async (
+  req: Request<{ rampId: string }, {}, Omit<RampEndpoints.UpdateRampRequest, 'rampId'>>,
+  res: Response<RampEndpoints.UpdateRampResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { rampId, presignedTxs, additionalData } = req.body;
-    const route = req.path; // Get the current route path
+    const { rampId } = req.params;
+    const { presignedTxs, additionalData } = req.body;
 
     // Validate required fields
     if (!rampId || !presignedTxs) {
@@ -72,15 +69,44 @@ export const startRamp = async (
       });
     }
 
+    // Update ramping process
+    const ramp = await rampService.updateRamp({
+      rampId,
+      presignedTxs,
+      additionalData,
+    });
+
+    res.status(httpStatus.OK).json(ramp);
+  } catch (error) {
+    logger.error('Error updating ramp:', error);
+    next(error);
+  }
+};
+
+/**
+ * Start a new ramping process
+ * @public
+ */
+export const startRamp = async (
+  req: Request<{}, {}, RampEndpoints.StartRampRequest>,
+  res: Response<RampEndpoints.StartRampResponse>,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { rampId } = req.body;
+
+    // Validate required fields
+    if (!rampId) {
+      throw new APIError({
+        status: httpStatus.BAD_REQUEST,
+        message: 'Missing required fields',
+      });
+    }
+
     // Start ramping process
-    const ramp = await rampService.startRamp(
-      {
-        rampId,
-        presignedTxs,
-        additionalData,
-      },
-      route,
-    );
+    const ramp = await rampService.startRamp({
+      rampId,
+    });
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {

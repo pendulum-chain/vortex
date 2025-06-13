@@ -87,6 +87,15 @@ export async function getStatus(transactionId: string | undefined) {
     throw new Error('Transaction ID is undefined');
   }
 
+  console.log(
+    'Fetching status for transaction ID:',
+    transactionId,
+    'with integrator ID:',
+    integratorId,
+    'from base URL:',
+    SQUIDROUTER_BASE_URL,
+  );
+
   try {
     const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
       params: {
