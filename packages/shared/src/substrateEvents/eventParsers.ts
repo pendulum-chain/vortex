@@ -1,9 +1,7 @@
+import { Event } from '@polkadot/types/interfaces';
 import { encodeAddress } from '@polkadot/util-crypto';
-// @todo: remove no-explicit-any
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Big from 'big.js';
 
-import { Event } from '@polkadot/types/interfaces';
 import { hexToString, stellarHexToPublic } from '../helpers/conversions';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
@@ -36,8 +34,8 @@ export function parseEventRedeemRequest({ event }: { event: Event }) {
   return mappedData;
 }
 
-export function parseEventRedeemExecution(event: any) {
-  const rawEventData = JSON.parse(event.event.data.toString());
+export function parseEventRedeemExecution({ event }: { event: Event }) {
+  const rawEventData = JSON.parse(event.data.toString());
   const mappedData = {
     redeemId: rawEventData[0].toString(),
     redeemer: rawEventData[1].toString(),
@@ -58,16 +56,16 @@ export function parseEventRedeemExecution(event: any) {
   return mappedData;
 }
 
-export function parseEventXcmSent(event: any) {
-  const rawEventData = JSON.parse(event.event.data.toString());
+export function parseEventXcmSent({ event }: { event: Event }) {
+  const rawEventData = JSON.parse(event.data.toString());
   const mappedData = {
     originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId32.id.toString()),
   };
   return mappedData;
 }
 
-export function parseEventMoonbeamXcmSent(event: any) {
-  const rawEventData = JSON.parse(event.event.data.toString());
+export function parseEventMoonbeamXcmSent({ event }: { event: Event }) {
+  const rawEventData = JSON.parse(event.data.toString());
 
   const mappedData = {
     originAddress: rawEventData[0].interior.x1[0].accountKey20.key,
@@ -75,15 +73,34 @@ export function parseEventMoonbeamXcmSent(event: any) {
   return mappedData;
 }
 
-export function parseEventXTokens(event: any) {
-  const rawEventData = JSON.parse(event.event.data.toString());
+export function parseEventXTokens({ event }: { event: Event }) {
+  const rawEventData = JSON.parse(event.data.toString());
   const mappedData = {
     sender: rawEventData[0].toString(),
   };
   return mappedData;
 }
 
-function extractStellarAssetInfo(data: any) {
+type StellarAssetData = {
+  stellar:
+    | {
+        stellarNative: string;
+      }
+    | {
+        alphaNum4: {
+          code: string;
+          issuer: string;
+        };
+      }
+    | {
+        alphaNum12: {
+          code: string;
+          issuer: string;
+        };
+      };
+};
+
+function extractStellarAssetInfo(data: StellarAssetData) {
   if ('stellarNative' in data.stellar) {
     return {
       Stellar: 'StellarNative',
@@ -111,8 +128,8 @@ function extractStellarAssetInfo(data: any) {
   }
 }
 
-export function parseTokenDepositEvent(event: any) {
-  const rawEventData = JSON.parse(event.event.data.toString());
+export function parseTokenDepositEvent({ event }: { event: Event }) {
+  const rawEventData = JSON.parse(event.data.toString());
   const mappedData = {
     currencyId: rawEventData[0],
     to: rawEventData[1].toString() as string,
@@ -123,14 +140,14 @@ export function parseTokenDepositEvent(event: any) {
 
 // Both functions used to compare betweem CurrencyId's
 // where {XCM: x} == {xcm: x}
-function normalizeObjectKeys(obj: any) {
-  return Object.keys(obj).reduce((acc: any, key) => {
+function normalizeObjectKeys(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.keys(obj).reduce((acc: Record<string, unknown>, key) => {
     acc[key.toLowerCase()] = obj[key];
     return acc;
   }, {});
 }
 
-export function compareObjects(obj1: any, obj2: any) {
+export function compareObjects(obj1: Record<string, unknown>, obj2: Record<string, unknown>): boolean {
   const normalizedObj1 = normalizeObjectKeys(obj1);
   const normalizedObj2 = normalizeObjectKeys(obj2);
 

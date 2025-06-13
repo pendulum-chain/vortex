@@ -1,5 +1,6 @@
 import { Keyring } from '@polkadot/api';
 import { ApiPromise } from '@polkadot/api';
+import { AddressOrPair } from '@polkadot/api/types';
 import { u8aToHex } from '@polkadot/util';
 import { hdEthereum, mnemonicToLegacySeed } from '@polkadot/util-crypto';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
@@ -81,7 +82,7 @@ async function signMultipleStellarTransactions(
  */
 async function signMultipleSubstrateTransactions(
   tx: UnsignedTx,
-  keypair: any,
+  keypair: AddressOrPair,
   api: ApiPromise,
   startingNonce: number,
 ): Promise<PresignedTx[]> {

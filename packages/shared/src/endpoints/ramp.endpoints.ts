@@ -52,10 +52,12 @@ export interface UnsignedTx {
   network: Networks;
   nonce: number;
   signer: string;
-  meta?: unknown;
+  meta: {
+    additionalTxs?: Record<string, PresignedTx>;
+  };
 }
 
-export type PresignedTx = UnsignedTx & {};
+export type PresignedTx = UnsignedTx;
 
 export interface RampErrorLog {
   timestamp: string;
