@@ -464,6 +464,14 @@
         "finish": "Concluir"
       }
     },
+    "maintenance": {
+      "button": "Modo de Manutenção",
+      "banner": {
+        "started": "Início",
+        "ends": "Término previsto",
+        "estimatedTimeRemaining": "Tempo estimado restante"
+      }
+    },
     "rating": {
       "title": "Sua opinião é importante!",
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",

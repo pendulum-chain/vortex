@@ -3,6 +3,7 @@ import { useAppKitAccount } from '@reown/appkit/react';
 import { FC } from 'react';
 import { useNetwork } from '../../../contexts/network';
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
+import { useMaintenanceAwareButton } from '../../../hooks/useMaintenanceAware';
 import { Spinner } from '../../Spinner';
 import { ConnectWalletButton } from '../ConnectWalletButton';
 
@@ -13,7 +14,7 @@ interface SwapSubmitButtonProps {
 }
 
 export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pending }) => {
-  const showInDisabledState = disabled || pending;
+  const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton(disabled || pending);
 
   const { walletAccount } = usePolkadotWalletState();
   const { isConnected } = useAppKitAccount();
@@ -37,9 +38,9 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
 
   return (
     <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
-      <button className="w-full btn-vortex-primary btn" disabled={showInDisabledState}>
+      <button className="w-full btn-vortex-primary btn" {...buttonProps}>
         {pending && <Spinner />}
-        {text}
+        {isMaintenanceDisabled ? buttonProps.title : text}
       </button>
     </div>
   );

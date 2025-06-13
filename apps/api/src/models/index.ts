@@ -1,6 +1,7 @@
 import sequelize from '../config/database';
 import Anchor from './anchor.model';
 import KycLevel2 from './kycLevel2.model';
+import MaintenanceSchedule from './maintenanceSchedule.model';
 import Partner from './partner.model';
 import QuoteTicket from './quoteTicket.model';
 import RampState from './rampState.model';
@@ -18,6 +19,7 @@ const models = {
   KycLevel2,
   Partner,
   Anchor,
+  MaintenanceSchedule,
 };
 
 // Export models and sequelize instance

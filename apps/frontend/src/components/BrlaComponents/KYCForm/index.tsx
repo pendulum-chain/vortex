@@ -3,6 +3,7 @@ import { FormProvider, UseFormReturn } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { KYCFormData } from '../../../hooks/brla/useKYCForm';
+import { useMaintenanceAwareButton } from '../../../hooks/useMaintenanceAware';
 import { BrlaField, BrlaFieldProps, ExtendedBrlaFieldOptions } from '../BrlaField';
 interface KYCFormProps {
   fields: BrlaFieldProps[];
@@ -14,6 +15,7 @@ interface KYCFormProps {
 export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) => {
   const { handleSubmit } = form;
   const { t } = useTranslation();
+  const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
   return (
     <FormProvider {...form}>
@@ -63,8 +65,8 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
             <button type="button" className="btn-vortex-primary-inverse btn flex-1" onClick={onBackClick}>
               {t('components.brlaKYCForm.buttons.back')}
             </button>
-            <button type="submit" className="btn-vortex-primary btn flex-1">
-              {t('components.brlaKYCForm.buttons.finish')}
+            <button type="submit" className="btn-vortex-primary btn flex-1" {...buttonProps}>
+              {isMaintenanceDisabled ? buttonProps.title : t('components.brlaKYCForm.buttons.finish')}
             </button>
           </div>
         </div>

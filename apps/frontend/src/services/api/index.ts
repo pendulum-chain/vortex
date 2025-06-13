@@ -1,6 +1,7 @@
 export * from './api-client';
 export * from './brla.service';
 export * from './email.service';
+export * from './maintenance.service';
 export * from './moonbeam.service';
 export * from './pendulum.service';
 export * from './price.service';
