@@ -1,4 +1,4 @@
-import { BrlaEndpoints, FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
+import { BrlaErrorResponse, FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
 import Big from 'big.js';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -105,7 +105,7 @@ export const useSubmitRamp = () => {
 
               setRampSummaryVisible(true);
             } catch (err) {
-              const errorResponse = err as BrlaEndpoints.BrlaErrorResponse;
+              const errorResponse = err as BrlaErrorResponse;
 
               // Response can also fail due to invalid KYC. Nevertheless, this should never be the case, as when we create the user we wait for the KYC
               // to be valid, or retry.

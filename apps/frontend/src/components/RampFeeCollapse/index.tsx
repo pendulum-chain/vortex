@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from '@heroicons/react/20/solid';
-import { QuoteEndpoints } from '@packages/shared';
+import { QuoteFeeStructure } from '@packages/shared';
 import Big from 'big.js';
 import { useTranslation } from 'react-i18next';
 import { useQuote } from '../../stores/ramp/useQuoteStore';
@@ -18,7 +18,7 @@ function calculateInterbankExchangeRate(
   rampType: string,
   inputAmountString: Big.BigSource,
   outputAmountString: Big.BigSource,
-  fee: QuoteEndpoints.FeeStructure,
+  fee: QuoteFeeStructure,
 ) {
   const inputAmount = Big(inputAmountString);
   const outputAmount = Big(outputAmountString);

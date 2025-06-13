@@ -1,4 +1,12 @@
-import { RampEndpoints } from '@packages/shared';
+import {
+  GetRampErrorLogsRequest,
+  GetRampErrorLogsResponse,
+  GetRampHistoryRequest,
+  GetRampHistoryResponse,
+  GetRampStatusRequest,
+  GetRampStatusResponse,
+  RampProcess,
+} from '@packages/shared';
 import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import logger from '../../config/logger';
@@ -9,11 +17,7 @@ import rampService from '../services/ramp/ramp.service';
  * Register a new ramping process
  * @public
  */
-export const registerRamp = async (
-  req: Request<{}, {}, RampEndpoints.RegisterRampRequest>,
-  res: Response<RampEndpoints.RegisterRampResponse>,
-  next: NextFunction,
-): Promise<void> => {
+export const registerRamp = async (req: Request, res: Response<RampProcess>, next: NextFunction): Promise<void> => {
   try {
     const { quoteId, signingAccounts, additionalData } = req.body;
     const route = req.path; // Get the current route path
@@ -47,11 +51,7 @@ export const registerRamp = async (
  * Start a new ramping process
  * @public
  */
-export const startRamp = async (
-  req: Request<{}, {}, RampEndpoints.StartRampRequest>,
-  res: Response<RampEndpoints.StartRampResponse>,
-  next: NextFunction,
-): Promise<void> => {
+export const startRamp = async (req: Request, res: Response<RampProcess>, next: NextFunction): Promise<void> => {
   try {
     const { rampId, presignedTxs, additionalData } = req.body;
     const route = req.path; // Get the current route path
@@ -94,8 +94,8 @@ export const startRamp = async (
  * @public
  */
 export const getRampStatus = async (
-  req: Request<RampEndpoints.GetRampStatusRequest>,
-  res: Response<RampEndpoints.GetRampStatusResponse>,
+  req: Request<GetRampStatusRequest>,
+  res: Response<GetRampStatusResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -122,8 +122,8 @@ export const getRampStatus = async (
  * @public
  */
 export const getErrorLogs = async (
-  req: Request<RampEndpoints.GetRampErrorLogsRequest>,
-  res: Response<RampEndpoints.GetRampErrorLogsResponse>,
+  req: Request<GetRampErrorLogsRequest>,
+  res: Response<GetRampErrorLogsResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -150,8 +150,8 @@ export const getErrorLogs = async (
  * @public
  */
 export const getRampHistory = async (
-  req: Request<RampEndpoints.GetRampHistoryRequest>,
-  res: Response<RampEndpoints.GetRampHistoryResponse>,
+  req: Request<GetRampHistoryRequest>,
+  res: Response<GetRampHistoryResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {

@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteEndpoints } from '@packages/shared';
+import { DestinationType, FiatToken, OnChainToken, QuoteResponse } from '@packages/shared';
 import Big from 'big.js';
 import { create } from 'zustand';
 
@@ -25,7 +25,7 @@ interface QuotePayload {
 }
 
 interface QuoteState {
-  quote: QuoteEndpoints.QuoteResponse | undefined;
+  quote: QuoteResponse | undefined;
   loading: boolean;
   error: string | null;
   outputAmount: Big | undefined;
@@ -86,7 +86,7 @@ const createQuotePayload = (params: QuoteParams): QuotePayload => {
  * @param quoteResponse The API response
  * @returns Object containing output amount and exchange rate
  */
-const processQuoteResponse = (quoteResponse: QuoteEndpoints.QuoteResponse) => {
+const processQuoteResponse = (quoteResponse: QuoteResponse) => {
   const outputAmount = Big(quoteResponse.outputAmount);
   const exchangeRate = Number(quoteResponse.outputAmount) / Number(quoteResponse.inputAmount);
 

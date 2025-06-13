@@ -1,10 +1,12 @@
 import {
+  CreateQuoteRequest,
   DestinationType,
   EvmToken,
   FiatToken,
   Networks,
   OnChainToken,
-  QuoteEndpoints,
+  QuoteFeeStructure,
+  QuoteResponse,
   RampCurrency,
   getOnChainTokenDetailsOrDefault,
 } from '@packages/shared';
@@ -23,7 +25,7 @@ import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from '
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from './quote-fees';
 
 export class QuoteService extends BaseRampService {
-  public async createQuote(request: QuoteEndpoints.CreateQuoteRequest): Promise<QuoteEndpoints.QuoteResponse> {
+  public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
     // a. Initial Setup
     validateChainSupport(request.rampType, request.from, request.to);
 
@@ -88,10 +90,10 @@ export class QuoteService extends BaseRampService {
       // On-Ramp: intermediate currency on Pendulum/Moonbeam
       if (request.to === 'assethub') {
         nablaOutputCurrency = request.outputCurrency; // Direct to target OnChainToken
-        toPolkadotDestination = 'assethub';
+        toPolkadotDestination = Networks.AssetHub;
       } else {
         nablaOutputCurrency = EvmToken.USDC; // Use USDC as intermediate for EVM destinations
-        toPolkadotDestination = 'moonbeam';
+        toPolkadotDestination = Networks.Moonbeam;
       }
     } else {
       // Off-Ramp: fiat-representative token on Pendulum
@@ -107,7 +109,7 @@ export class QuoteService extends BaseRampService {
           message: `Unsupported off-ramp destination: ${request.to}`,
         });
       }
-      toPolkadotDestination = 'pendulum';
+      toPolkadotDestination = Networks.Pendulum;
     }
 
     const nablaSwapResult = await calculateNablaSwapOutput({
@@ -116,7 +118,7 @@ export class QuoteService extends BaseRampService {
       nablaOutputCurrency,
       rampType: request.rampType,
       fromPolkadotDestination:
-        request.rampType === 'on' ? request.from : request.from === 'assethub' ? 'assethub' : 'moonbeam',
+        request.rampType === 'on' ? request.from : request.from === 'assethub' ? Networks.AssetHub : Networks.Moonbeam,
       toPolkadotDestination,
     });
 
@@ -270,7 +272,7 @@ export class QuoteService extends BaseRampService {
       request.rampType === 'on' ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
 
     // i. Store and Return Quote
-    const feeToStore: QuoteEndpoints.FeeStructure = {
+    const feeToStore: QuoteFeeStructure = {
       network: networkFeeFiatForTotal,
       vortex: vortexFeeFiat,
       anchor: anchorFeeFiat,
@@ -317,7 +319,7 @@ export class QuoteService extends BaseRampService {
     });
 
     // Format and return the response
-    const responseFeeStructure: QuoteEndpoints.FeeStructure = {
+    const responseFeeStructure: QuoteFeeStructure = {
       network: trimTrailingZeros(networkFeeFiatForTotal),
       vortex: trimTrailingZeros(vortexFeeFiat),
       anchor: trimTrailingZeros(anchorFeeFiat),
@@ -340,14 +342,14 @@ export class QuoteService extends BaseRampService {
     };
   }
 
-  public async getQuote(id: string): Promise<QuoteEndpoints.QuoteResponse | null> {
+  public async getQuote(id: string): Promise<QuoteResponse | null> {
     const quote = await this.getQuoteTicket(id);
 
     if (!quote) {
       return null;
     }
 
-    const responseFeeStructure: QuoteEndpoints.FeeStructure = {
+    const responseFeeStructure: QuoteFeeStructure = {
       network: trimTrailingZeros(quote.fee.network),
       vortex: trimTrailingZeros(quote.fee.vortex),
       anchor: trimTrailingZeros(quote.fee.anchor),

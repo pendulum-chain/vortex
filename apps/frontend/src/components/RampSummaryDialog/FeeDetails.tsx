@@ -1,4 +1,4 @@
-import { FiatTokenDetails, Networks, OnChainTokenDetails, QuoteEndpoints, isFiatTokenDetails } from '@packages/shared';
+import { FiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, isFiatTokenDetails } from '@packages/shared';
 import { FC } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,7 +6,7 @@ import { ExchangeRate } from '../ExchangeRate';
 import { RampDirection } from '../RampToggle';
 
 interface FeeDetailsProps {
-  feesCost: QuoteEndpoints.FeeStructure;
+  feesCost: QuoteFeeStructure;
   exchangeRate: string;
   fromToken: OnChainTokenDetails | FiatTokenDetails;
   toToken: OnChainTokenDetails | FiatTokenDetails;

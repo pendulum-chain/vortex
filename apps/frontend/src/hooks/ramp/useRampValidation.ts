@@ -2,7 +2,7 @@ import {
   FiatToken,
   FiatTokenDetails,
   OnChainTokenDetails,
-  QuoteEndpoints,
+  QuoteResponse,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
 } from '@packages/shared';
@@ -78,7 +78,7 @@ function validateOfframp(
     inputAmount: Big;
     fromToken: OnChainTokenDetails;
     toToken: FiatTokenDetails;
-    quote: QuoteEndpoints.QuoteResponse;
+    quote: QuoteResponse;
     userInputTokenBalance: string | null;
     trackEvent: (event: TrackableEvent) => void;
   },
@@ -197,7 +197,7 @@ export const useRampValidation = () => {
         inputAmount,
         fromToken: fromToken as OnChainTokenDetails,
         toToken: toToken as FiatTokenDetails,
-        quote: quote as QuoteEndpoints.QuoteResponse,
+        quote: quote as QuoteResponse,
         userInputTokenBalance: userInputTokenBalance?.balance || '0',
         trackEvent,
       });

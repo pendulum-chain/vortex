@@ -1,4 +1,4 @@
-import { QuoteEndpoints } from '@packages/shared';
+import { CreateQuoteRequest, GetQuoteRequest, QuoteResponse } from '@packages/shared';
 import Big from 'big.js';
 import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
@@ -12,8 +12,8 @@ import quoteService from '../services/ramp/quote.service';
  * @public
  */
 export const createQuote = async (
-  req: Request<{}, {}, QuoteEndpoints.CreateQuoteRequest>,
-  res: Response<QuoteEndpoints.QuoteResponse>,
+  req: Request<unknown, unknown, CreateQuoteRequest>,
+  res: Response<QuoteResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {
@@ -63,8 +63,8 @@ export const createQuote = async (
  * @public
  */
 export const getQuote = async (
-  req: Request<QuoteEndpoints.GetQuoteRequest>,
-  res: Response<QuoteEndpoints.QuoteResponse>,
+  req: Request<GetQuoteRequest>,
+  res: Response<QuoteResponse>,
   next: NextFunction,
 ): Promise<void> => {
   try {

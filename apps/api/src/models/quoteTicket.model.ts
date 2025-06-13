@@ -1,4 +1,4 @@
-import { DestinationType, FeeStructure, RampCurrency } from '@packages/shared';
+import { DestinationType, QuoteFeeStructure, RampCurrency } from '@packages/shared';
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
@@ -12,7 +12,7 @@ export interface QuoteTicketAttributes {
   inputCurrency: RampCurrency;
   outputAmount: string;
   outputCurrency: RampCurrency;
-  fee: FeeStructure;
+  fee: QuoteFeeStructure;
   partnerId: string | null;
   expiresAt: Date;
   status: 'pending' | 'consumed' | 'expired';
@@ -26,7 +26,7 @@ export interface QuoteTicketMetadata {
   offrampAmountBeforeAnchorFees?: string;
   // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
   // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
-  usdFeeStructure: FeeStructure;
+  usdQuoteFeeStructure: QuoteFeeStructure;
 }
 
 // Define the attributes that can be set during creation
@@ -50,7 +50,7 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare outputCurrency: RampCurrency;
 
-  declare fee: QuoteEndpoints.FeeStructure;
+  declare fee: QuoteFeeStructure;
 
   declare partnerId: string | null;
 

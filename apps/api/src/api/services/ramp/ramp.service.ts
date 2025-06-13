@@ -1,10 +1,16 @@
 import {
   AccountMeta,
   FiatToken,
+  GetRampHistoryResponse,
+  GetRampStatusResponse,
   Networks,
-  RampEndpoints,
   RampErrorLog,
   RampPhase,
+  RampProcess,
+  RegisterRampRequest,
+  RegisterRampResponse,
+  StartRampRequest,
+  StartRampResponse,
   UnsignedTx,
   validateMaskedNumber,
 } from '@packages/shared';
@@ -32,8 +38,14 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): Ac
     if (!allowedNetworks.has(account.network.toLowerCase())) {
       throw new Error(`Invalid network: "${account.network}" provided.`);
     }
+
+    const network = Object.values(Networks).find((network) => network.toLowerCase() === account.network.toLowerCase());
+    if (!network) {
+      throw new Error(`Invalid network: "${account.network}" provided.`);
+    }
+
     normalizedAccounts.push({
-      network: Object.values(Networks).find((network) => network.toLowerCase() === account.network.toLowerCase())!, // We know it exists given the check above
+      network,
       address: account.address,
     });
   });
@@ -42,14 +54,87 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]): Ac
 }
 
 export class RampService extends BaseRampService {
+  private async prepareRampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest['additionalData'],
+    signingAccounts: AccountMeta[],
+  ) {
+    // Create to-be-signed transactions
+    let unsignedTxs: UnsignedTx[] = [];
+    let stateMeta: unknown = {};
+    let brCode: string | undefined;
+
+    if (quote.rampType === 'off') {
+      if (quote.outputCurrency === FiatToken.BRL) {
+        if (
+          !additionalData ||
+          !additionalData.pixDestination ||
+          !additionalData.taxId ||
+          !additionalData.receiverTaxId
+        ) {
+          throw new Error('receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL');
+        }
+        // Validate BRLA off-ramp request
+        const subaccount = await this.validateBrlaOfframpRequest(
+          additionalData.taxId,
+          additionalData.pixDestination,
+          additionalData.receiverTaxId,
+          quote.outputAmount,
+        );
+
+        ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+          quote,
+          signingAccounts: normalizedSigningAccounts,
+          stellarPaymentData: additionalData.paymentData,
+          userAddress: additionalData.walletAddress,
+          pixDestination: additionalData.pixDestination,
+          taxId: additionalData.taxId,
+          receiverTaxId: additionalData.receiverTaxId,
+          brlaEvmAddress: subaccount.wallets.evm,
+        }));
+      } else {
+        ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+          quote,
+          signingAccounts: normalizedSigningAccounts,
+          stellarPaymentData: additionalData?.paymentData,
+          userAddress: additionalData?.walletAddress,
+        }));
+      }
+    } else {
+      // validate we have the destination address
+      if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: 'Parameters destinationAddress and taxId are required for onramp',
+        });
+      }
+
+      const moonbeamEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
+      if (!moonbeamEphemeralEntry) {
+        throw new APIError({
+          status: httpStatus.BAD_REQUEST,
+          message: 'Moonbeam ephemeral not found',
+        });
+      }
+
+      brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
+      ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
+        quote,
+        normalizedSigningAccounts,
+        additionalData.destinationAddress,
+        additionalData.taxId,
+      ));
+    }
+
+    return { unsignedTxs, stateMeta, brCode };
+  }
+
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
    */
-  public async registerRamp(
-    request: RampEndpoints.RegisterRampRequest,
-    _route = '/v1/ramp/register',
-  ): Promise<RampEndpoints.RegisterRampResponse> {
+  public async registerRamp(request: RegisterRampRequest, _route = '/v1/ramp/register'): Promise<RampProcess> {
     return this.withTransaction(async (transaction) => {
       const { signingAccounts, quoteId, additionalData } = request;
 
@@ -83,71 +168,12 @@ export class RampService extends BaseRampService {
       // Normalize to lower case the networks entry of signingAccounts, and compare with allowed ones.
       const normalizedSigningAccounts = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      // Create to-be-signed transactions
-      let unsignedTxs: UnsignedTx[] = [];
-      let stateMeta: any = {};
-      let brCode: string | undefined;
-      if (quote.rampType === 'off') {
-        if (quote.outputCurrency === FiatToken.BRL) {
-          if (
-            !additionalData ||
-            !additionalData.pixDestination ||
-            !additionalData.taxId ||
-            !additionalData.receiverTaxId
-          ) {
-            throw new Error('receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL');
-          }
-          // Validate BRLA off-ramp request
-          const subaccount = await this.validateBrlaOfframpRequest(
-            additionalData.taxId,
-            additionalData.pixDestination,
-            additionalData.receiverTaxId,
-            quote.outputAmount,
-          );
-
-          ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-            quote,
-            signingAccounts: normalizedSigningAccounts,
-            stellarPaymentData: additionalData.paymentData,
-            userAddress: additionalData.walletAddress,
-            pixDestination: additionalData.pixDestination,
-            taxId: additionalData.taxId,
-            receiverTaxId: additionalData.receiverTaxId,
-            brlaEvmAddress: subaccount.wallets.evm,
-          }));
-        } else {
-          ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-            quote,
-            signingAccounts: normalizedSigningAccounts,
-            stellarPaymentData: additionalData?.paymentData,
-            userAddress: additionalData?.walletAddress,
-          }));
-        }
-      } else {
-        // validate we have the destination address
-        if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
-          throw new APIError({
-            status: httpStatus.BAD_REQUEST,
-            message: 'Parameters destinationAddress and taxId are required for onramp',
-          });
-        }
-
-        const moonbeamEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Moonbeam);
-        if (!moonbeamEphemeralEntry) {
-          throw new APIError({
-            status: httpStatus.BAD_REQUEST,
-            message: 'Moonbeam ephemeral not found',
-          });
-        }
-
-        brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
-        ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
-          quote,
-          normalizedSigningAccounts,
-          additionalData?.destinationAddress,
-          additionalData?.taxId,
-        ));
-      }
+      const { unsignedTxs, stateMeta } = await this.prepareRampTransactions(
+        quote,
+        normalizedSigningAccounts,
+        additionalData,
+        signingAccounts,
+      );
 
       // Mark the quote as consumed
       await this.consumeQuote(quote.id, transaction);
@@ -179,7 +205,7 @@ export class RampService extends BaseRampService {
       const rampState = await this.createRampState(stateData);
 
       // Create response
-      const response: RampEndpoints.RegisterRampResponse = {
+      const response: RegisterRampResponse = {
         id: rampState.id,
         quoteId: rampState.quoteId,
         type: rampState.type,
@@ -191,8 +217,6 @@ export class RampService extends BaseRampService {
         updatedAt: rampState.updatedAt.toISOString(),
       };
 
-      brCode ? (response.brCode = brCode) : undefined;
-
       return response;
     });
   }
@@ -200,10 +224,7 @@ export class RampService extends BaseRampService {
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
-  public async startRamp(
-    request: RampEndpoints.StartRampRequest,
-    _route = '/v1/ramp/start',
-  ): Promise<RampEndpoints.StartRampResponse> {
+  public async startRamp(request: StartRampRequest, _route = '/v1/ramp/start'): Promise<StartRampResponse> {
     return this.withTransaction(async (transaction) => {
       const rampState = await RampState.findByPk(request.rampId, {
         transaction,
@@ -251,7 +272,7 @@ export class RampService extends BaseRampService {
       });
 
       // Create response
-      const response: RampEndpoints.StartRampResponse = {
+      const response: StartRampResponse = {
         id: rampState.id,
         quoteId: rampState.quoteId,
         type: rampState.type,
@@ -270,7 +291,7 @@ export class RampService extends BaseRampService {
   /**
    * Get the status of a ramping process
    */
-  public async getRampStatus(id: string): Promise<RampEndpoints.GetRampStatusResponse | null> {
+  public async getRampStatus(id: string): Promise<GetRampStatusResponse | null> {
     const rampState = await this.getRampState(id);
 
     if (!rampState) {
@@ -306,7 +327,7 @@ export class RampService extends BaseRampService {
   /**
    * Get ramp history for a wallet address
    */
-  public async getRampHistory(walletAddress: string): Promise<RampEndpoints.GetRampHistoryResponse> {
+  public async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
     const rampStates = await RampState.findAll({
       where: {
         state: {

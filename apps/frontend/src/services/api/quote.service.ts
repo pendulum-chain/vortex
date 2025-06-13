@@ -1,4 +1,4 @@
-import { DestinationType, FiatToken, OnChainToken, QuoteEndpoints } from '@packages/shared';
+import { CreateQuoteRequest, DestinationType, FiatToken, OnChainToken, QuoteResponse } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -26,8 +26,8 @@ export class QuoteService {
     inputCurrency: OnChainToken | FiatToken,
     outputCurrency: OnChainToken | FiatToken,
     partnerId?: string,
-  ): Promise<QuoteEndpoints.QuoteResponse> {
-    const request: QuoteEndpoints.CreateQuoteRequest = {
+  ): Promise<QuoteResponse> {
+    const request: CreateQuoteRequest = {
       rampType,
       from,
       to,
@@ -41,7 +41,7 @@ export class QuoteService {
       request.partnerId = partnerId;
     }
 
-    return apiRequest<QuoteEndpoints.QuoteResponse>('post', this.BASE_PATH, request);
+    return apiRequest<QuoteResponse>('post', this.BASE_PATH, request);
   }
 
   /**
@@ -49,7 +49,7 @@ export class QuoteService {
    * @param id The quote ID
    * @returns The quote
    */
-  static async getQuote(id: string): Promise<QuoteEndpoints.QuoteResponse> {
-    return apiRequest<QuoteEndpoints.QuoteResponse>('get', `${this.BASE_PATH}/${id}`);
+  static async getQuote(id: string): Promise<QuoteResponse> {
+    return apiRequest<QuoteResponse>('get', `${this.BASE_PATH}/${id}`);
   }
 }
