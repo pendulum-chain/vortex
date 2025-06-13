@@ -40,7 +40,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
     <div style={{ flex: '1 1 calc(50% - 0.75rem/2)' }}>
       <button className="w-full btn-vortex-primary btn" {...buttonProps}>
         {pending && <Spinner />}
-        {isMaintenanceDisabled ? 'Maintenance Mode' : text}
+        {isMaintenanceDisabled ? buttonProps.title : text}
       </button>
     </div>
   );

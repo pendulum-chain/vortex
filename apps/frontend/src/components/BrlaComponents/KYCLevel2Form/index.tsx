@@ -221,7 +221,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
           disabled={buttonProps.disabled || isSubmitDisabled}
         >
           {isMaintenanceDisabled
-            ? 'Maintenance Mode'
+            ? buttonProps.title
             : loading
               ? t('components.documentUpload.buttons.uploading')
               : t('components.documentUpload.buttons.finish')}

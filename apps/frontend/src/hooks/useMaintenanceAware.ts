@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useIsMaintenanceActive } from '../stores/maintenanceStore';
 
 /**
@@ -5,6 +6,7 @@ import { useIsMaintenanceActive } from '../stores/maintenanceStore';
  * Returns whether actions should be disabled due to maintenance
  */
 export const useMaintenanceAware = () => {
+  const { t } = useTranslation();
   const isMaintenanceActive = useIsMaintenanceActive();
 
   return {
@@ -12,7 +14,7 @@ export const useMaintenanceAware = () => {
     shouldDisableActions: isMaintenanceActive,
     getDisabledProps: (isDisabled = false) => ({
       disabled: isDisabled || isMaintenanceActive,
-      title: isMaintenanceActive ? 'Action unavailable due to scheduled maintenance' : undefined,
+      title: isMaintenanceActive ? t('components.maintenance.button') : undefined,
     }),
   };
 };

@@ -1,5 +1,6 @@
 import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
+import logger from '../../config/logger';
 import { maintenanceService } from '../services/maintenance.service';
 
 /**
@@ -15,7 +16,7 @@ export const getMaintenanceStatus: RequestHandler = async (req, res) => {
 
     res.status(httpStatus.OK).json(maintenanceStatus);
   } catch (error) {
-    console.error('Error fetching maintenance status:', error);
+    logger.error(`Error fetching maintenance status: ${error?.toString()}`, error);
 
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       error: 'Internal server error occurred while fetching maintenance status',
@@ -40,7 +41,7 @@ export const getAllMaintenanceSchedules: RequestHandler = async (req, res) => {
       count: schedules.length,
     });
   } catch (error) {
-    console.error('Error fetching maintenance schedules:', error);
+    logger.error(`Error fetching maintenance schedules: ${error?.toString()}`, error);
 
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       error: 'Internal server error occurred while fetching maintenance schedules',
@@ -86,7 +87,7 @@ export const updateScheduleActiveStatus: RequestHandler = async (req, res) => {
       success: true,
     });
   } catch (error) {
-    console.error('Error updating maintenance schedule:', error);
+    logger.error(`Error updating maintenance schedule active status: ${error?.toString()}`, error);
 
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
       error: 'Internal server error occurred while updating maintenance schedule',

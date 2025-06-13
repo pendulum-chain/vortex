@@ -1,8 +1,11 @@
 import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useIsMaintenanceActive, useMaintenanceDetails } from '../../stores/maintenanceStore';
 
 export const MaintenanceBanner: FC = () => {
+  const { t } = useTranslation();
+
   const isMaintenanceActive = useIsMaintenanceActive();
   const maintenanceDetails = useMaintenanceDetails();
 
@@ -52,16 +55,18 @@ export const MaintenanceBanner: FC = () => {
               <div className="mt-2 sm:mt-3 text-xs text-gray-600 space-y-1">
                 <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-1 sm:space-y-0">
                   <div>
-                    <span className="font-medium">Started:</span> {formatDateTime(maintenanceDetails.start_datetime)}
+                    <span className="font-medium">{t('components.maintenance.banner.started')}:</span>{' '}
+                    {formatDateTime(maintenanceDetails.start_datetime)}
                   </div>
                   <div>
-                    <span className="font-medium">Expected end:</span> {formatDateTime(maintenanceDetails.end_datetime)}
+                    <span className="font-medium">{t('components.maintenance.banner.ends')}:</span>{' '}
+                    {formatDateTime(maintenanceDetails.end_datetime)}
                   </div>
                 </div>
                 {maintenanceDetails.estimated_time_remaining_seconds &&
                   maintenanceDetails.estimated_time_remaining_seconds > 0 && (
                     <div>
-                      <span className="font-medium">Estimated time remaining:</span>{' '}
+                      <span className="font-medium">{t('components.maintenance.banner.estimatedTimeRemaining')}:</span>{' '}
                       {formatTimeRemaining(maintenanceDetails.estimated_time_remaining_seconds)}
                     </div>
                   )}

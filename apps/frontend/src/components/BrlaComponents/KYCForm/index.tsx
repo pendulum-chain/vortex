@@ -66,7 +66,7 @@ export const KYCForm = ({ form, onSubmit, onBackClick, fields }: KYCFormProps) =
               {t('components.brlaKYCForm.buttons.back')}
             </button>
             <button type="submit" className="btn-vortex-primary btn flex-1" {...buttonProps}>
-              {isMaintenanceDisabled ? 'Maintenance Mode' : t('components.brlaKYCForm.buttons.finish')}
+              {isMaintenanceDisabled ? buttonProps.title : t('components.brlaKYCForm.buttons.finish')}
             </button>
           </div>
         </div>
