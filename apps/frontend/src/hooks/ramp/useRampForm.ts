@@ -50,6 +50,7 @@ export const useRampForm = (): {
     setFiatToken,
     setTaxId,
     setPixId,
+    setConstraintDirection,
     reset: resetStore,
   } = useRampFormStoreActions();
 
@@ -104,7 +105,9 @@ export const useRampForm = (): {
       form.setValue('fiatToken', constrainedToken);
       setFiatToken(constrainedToken);
     }
-  }, [form, fiatToken, enforceTokenConstraints, setFiatToken]);
+    // Mark that constraints are applied for this direction
+    setConstraintDirection(direction);
+  }, [form, fiatToken, direction, enforceTokenConstraints, setFiatToken, setConstraintDirection]);
 
   useEffect(() => {
     const currentTaxId = form.getValues('taxId');

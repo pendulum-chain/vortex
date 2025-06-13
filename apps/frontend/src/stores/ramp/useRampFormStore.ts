@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { RampDirection } from '../../components/RampToggle';
 import { getRampDirectionFromPath } from '../../helpers/path';
 import { Language, getLanguageFromPath } from '../../translations/helpers';
+import { useRampDirection } from '../rampDirectionStore';
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.EURC;
 export const DEFAULT_PT_BR_TOKEN = FiatToken.BRL;
@@ -38,6 +39,7 @@ interface RampFormState {
   fiatToken: FiatToken;
   taxId?: string;
   pixId?: string;
+  lastConstraintDirection?: RampDirection;
 }
 
 interface RampFormActions {
@@ -47,6 +49,7 @@ interface RampFormActions {
     setFiatToken: (token: FiatToken) => void;
     setTaxId: (taxId: string) => void;
     setPixId: (pixId: string) => void;
+    setConstraintDirection: (direction: RampDirection) => void;
     handleNetworkChange: (network: Networks) => void;
     reset: () => void;
   };
@@ -58,6 +61,7 @@ export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   fiatToken: defaultFiatToken,
   taxId: undefined,
   pixId: undefined,
+  lastConstraintDirection: getRampDirectionFromPath(),
 };
 
 export const useRampFormStore = create<RampFormState & RampFormActions>((set, get) => ({
@@ -68,6 +72,7 @@ export const useRampFormStore = create<RampFormState & RampFormActions>((set, ge
     setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
     setTaxId: (taxId: string) => set({ taxId }),
     setPixId: (pixId: string) => set({ pixId }),
+    setConstraintDirection: (direction: RampDirection) => set({ lastConstraintDirection: direction }),
 
     handleNetworkChange: (network: Networks) => {
       const { onChainToken } = get();
@@ -91,5 +96,11 @@ export const useOnChainToken = () => useRampFormStore((state) => state.onChainTo
 export const useFiatToken = () => useRampFormStore((state) => state.fiatToken);
 export const useTaxId = () => useRampFormStore((state) => state.taxId);
 export const usePixId = () => useRampFormStore((state) => state.pixId);
+
+export const useConstraintsValid = () => {
+  const direction = useRampDirection();
+  const lastConstraintDirection = useRampFormStore((state) => state.lastConstraintDirection);
+  return direction === lastConstraintDirection;
+};
 
 export const useRampFormStoreActions = () => useRampFormStore((state) => state.actions);
