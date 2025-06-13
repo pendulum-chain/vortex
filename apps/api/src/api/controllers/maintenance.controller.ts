@@ -33,7 +33,7 @@ export const getMaintenanceStatus: RequestHandler = async (req, res) => {
  */
 export const getAllMaintenanceSchedules: RequestHandler = async (req, res) => {
   try {
-    const schedules = maintenanceService.getAllSchedules();
+    const schedules = await maintenanceService.getAllSchedules();
 
     res.status(httpStatus.OK).json({
       schedules,
@@ -72,7 +72,7 @@ export const updateScheduleActiveStatus: RequestHandler = async (req, res) => {
       return;
     }
 
-    const success = maintenanceService.updateScheduleActiveStatus(id, isActive);
+    const success = await maintenanceService.updateScheduleActiveStatus(id, isActive);
 
     if (!success) {
       res.status(httpStatus.NOT_FOUND).json({

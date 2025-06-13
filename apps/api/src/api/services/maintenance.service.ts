@@ -1,17 +1,6 @@
+import { Op } from 'sequelize';
 import logger from '../../config/logger';
-
-// Interface for maintenance schedule data
-interface MaintenanceSchedule {
-  id: string;
-  title: string;
-  start_datetime: Date;
-  end_datetime: Date;
-  message_to_display: string;
-  is_active_config: boolean;
-  notes?: string;
-  created_at: Date;
-  updated_at: Date;
-}
+import MaintenanceSchedule from '../../models/maintenanceSchedule.model';
 
 // Interface for the API response
 interface MaintenanceStatusResponse {
@@ -29,21 +18,16 @@ interface MaintenanceStatusResponse {
  * MaintenanceService
  *
  * A service that manages maintenance schedules and provides the current maintenance status.
- * For this initial implementation, it uses an in-memory store to simulate the database table.
+ * This implementation uses the database table `maintenance_schedules` via Sequelize ORM.
  */
 export class MaintenanceService {
   private static instance: MaintenanceService;
-
-  // In-memory store for maintenance schedules (simulating the database table)
-  private maintenanceSchedules: MaintenanceSchedule[] = [];
 
   /**
    * Private constructor to enforce singleton pattern
    */
   private constructor() {
-    // Initialize with some sample data for testing
-    this.initializeSampleData();
-    logger.info('MaintenanceService initialized with in-memory store');
+    logger.info('MaintenanceService initialized with database integration');
   }
 
   /**
@@ -57,81 +41,59 @@ export class MaintenanceService {
   }
 
   /**
-   * Initialize sample maintenance schedules for testing
-   */
-  private initializeSampleData(): void {
-    const now = new Date();
-
-    // Sample maintenance schedule that's currently inactive (in the past)
-    this.maintenanceSchedules.push({
-      id: '550e8400-e29b-41d4-a716-446655440001',
-      title: 'Past Database Upgrade',
-      start_datetime: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
-      end_datetime: new Date(now.getTime() - 1 * 60 * 60 * 1000), // 1 hour ago
-      message_to_display: 'System was under maintenance for database upgrades.',
-      is_active_config: true,
-      notes: 'Completed successfully',
-      created_at: new Date(now.getTime() - 3 * 60 * 60 * 1000),
-      updated_at: new Date(now.getTime() - 3 * 60 * 60 * 1000),
-    });
-
-    // Sample maintenance schedule for future (can be activated for testing)
-    this.maintenanceSchedules.push({
-      id: '550e8400-e29b-41d4-a716-446655440002',
-      title: 'Scheduled System Update',
-      start_datetime: new Date(now.getTime() + 1 * 60 * 60 * 1000), // 1 hour from now
-      end_datetime: new Date(now.getTime() + 3 * 60 * 60 * 1000), // 3 hours from now
-      message_to_display:
-        'Pendulum Pay is undergoing scheduled maintenance. We expect to be back online soon. Thank you for your patience.',
-      is_active_config: false, // Set to true to activate
-      notes: 'Planned system updates and optimizations',
-      created_at: now,
-      updated_at: now,
-    });
-
-    logger.debug(`Initialized ${this.maintenanceSchedules.length} sample maintenance schedules`);
-  }
-
-  /**
    * Get all maintenance schedules (for debugging/admin purposes)
    */
-  public getAllSchedules(): MaintenanceSchedule[] {
-    return [...this.maintenanceSchedules];
+  public async getAllSchedules(): Promise<MaintenanceSchedule[]> {
+    try {
+      const schedules = await MaintenanceSchedule.findAll({
+        order: [['createdAt', 'DESC']],
+      });
+      return schedules;
+    } catch (error) {
+      logger.error('Error fetching all maintenance schedules:', error);
+      throw new Error('Failed to retrieve maintenance schedules');
+    }
   }
 
   /**
-   * Add a new maintenance schedule to the in-memory store
+   * Add a new maintenance schedule to the database
    */
-  public addSchedule(schedule: Omit<MaintenanceSchedule, 'id' | 'created_at' | 'updated_at'>): MaintenanceSchedule {
-    const now = new Date();
-    const newSchedule: MaintenanceSchedule = {
-      ...schedule,
-      id: this.generateUuid(),
-      created_at: now,
-      updated_at: now,
-    };
-
-    this.maintenanceSchedules.push(newSchedule);
-    logger.info(`Added new maintenance schedule: ${newSchedule.title} (${newSchedule.id})`);
-
-    return newSchedule;
+  public async addSchedule(scheduleData: {
+    title: string;
+    startDatetime: Date;
+    endDatetime: Date;
+    messageToDisplay: string;
+    isActiveConfig: boolean;
+    notes?: string;
+  }): Promise<MaintenanceSchedule> {
+    try {
+      const newSchedule = await MaintenanceSchedule.create(scheduleData);
+      logger.info(`Added new maintenance schedule: ${newSchedule.title} (${newSchedule.id})`);
+      return newSchedule;
+    } catch (error) {
+      logger.error('Error adding maintenance schedule:', error);
+      throw new Error('Failed to add maintenance schedule');
+    }
   }
 
   /**
    * Update the active status of a maintenance schedule
    */
-  public updateScheduleActiveStatus(id: string, isActive: boolean): boolean {
-    const schedule = this.maintenanceSchedules.find((s) => s.id === id);
-    if (!schedule) {
-      logger.warn(`Maintenance schedule not found: ${id}`);
-      return false;
+  public async updateScheduleActiveStatus(id: string, isActive: boolean): Promise<boolean> {
+    try {
+      const [updatedRowsCount] = await MaintenanceSchedule.update({ isActiveConfig: isActive }, { where: { id } });
+
+      if (updatedRowsCount === 0) {
+        logger.warn(`Maintenance schedule not found: ${id}`);
+        return false;
+      }
+
+      logger.info(`Updated maintenance schedule ${id} active status to: ${isActive}`);
+      return true;
+    } catch (error) {
+      logger.error('Error updating maintenance schedule active status:', error);
+      throw new Error('Failed to update maintenance schedule');
     }
-
-    schedule.is_active_config = isActive;
-    schedule.updated_at = new Date();
-
-    logger.info(`Updated maintenance schedule ${id} active status to: ${isActive}`);
-    return true;
   }
 
   /**
@@ -148,35 +110,33 @@ export class MaintenanceService {
 
       logger.debug(`Checking maintenance status at ${currentTime.toISOString()}`);
 
-      // Step 1: Filter for active configurations
-      const activeSchedules = this.maintenanceSchedules.filter((schedule) => schedule.is_active_config);
-
-      logger.debug(`Found ${activeSchedules.length} active maintenance configurations`);
-
-      // Step 2: Find any schedule that is currently active (current time within the window)
-      const currentlyActiveSchedule = activeSchedules.find((schedule) => {
-        const isWithinWindow = currentTime >= schedule.start_datetime && currentTime < schedule.end_datetime;
-
-        if (isWithinWindow) {
-          logger.debug(`Found active maintenance window: ${schedule.title} (${schedule.id})`);
-        }
-
-        return isWithinWindow;
+      // Step 1 & 2: Query for active schedules where current time is within the window
+      const currentlyActiveSchedule = await MaintenanceSchedule.findOne({
+        where: {
+          isActiveConfig: true,
+          startDatetime: {
+            [Op.lte]: currentTime, // start_datetime <= current_time
+          },
+          endDatetime: {
+            [Op.gt]: currentTime, // end_datetime > current_time
+          },
+        },
+        order: [['endDatetime', 'ASC']], // If multiple, get the one ending soonest
       });
 
       // Step 3: Build and return the response
       if (currentlyActiveSchedule) {
         // Calculate estimated time remaining in seconds
-        const timeRemainingMs = currentlyActiveSchedule.end_datetime.getTime() - currentTime.getTime();
+        const timeRemainingMs = currentlyActiveSchedule.endDatetime.getTime() - currentTime.getTime();
         const timeRemainingSeconds = Math.max(0, Math.floor(timeRemainingMs / 1000));
 
         const response: MaintenanceStatusResponse = {
           is_maintenance_active: true,
           maintenance_details: {
             title: currentlyActiveSchedule.title,
-            start_datetime: currentlyActiveSchedule.start_datetime.toISOString(),
-            end_datetime: currentlyActiveSchedule.end_datetime.toISOString(),
-            message: currentlyActiveSchedule.message_to_display,
+            start_datetime: currentlyActiveSchedule.startDatetime.toISOString(),
+            end_datetime: currentlyActiveSchedule.endDatetime.toISOString(),
+            message: currentlyActiveSchedule.messageToDisplay,
             estimated_time_remaining_seconds: timeRemainingSeconds,
           },
         };
@@ -199,14 +159,72 @@ export class MaintenanceService {
   }
 
   /**
-   * Simple UUID generator for creating schedule IDs
+   * Get a specific maintenance schedule by ID
    */
-  private generateUuid(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+  public async getScheduleById(id: string): Promise<MaintenanceSchedule | null> {
+    try {
+      const schedule = await MaintenanceSchedule.findByPk(id);
+      return schedule;
+    } catch (error) {
+      logger.error('Error fetching maintenance schedule by ID:', error);
+      throw new Error('Failed to retrieve maintenance schedule');
+    }
+  }
+
+  /**
+   * Delete a maintenance schedule
+   */
+  public async deleteSchedule(id: string): Promise<boolean> {
+    try {
+      const deletedRowsCount = await MaintenanceSchedule.destroy({
+        where: { id },
+      });
+
+      if (deletedRowsCount === 0) {
+        logger.warn(`Maintenance schedule not found for deletion: ${id}`);
+        return false;
+      }
+
+      logger.info(`Deleted maintenance schedule: ${id}`);
+      return true;
+    } catch (error) {
+      logger.error('Error deleting maintenance schedule:', error);
+      throw new Error('Failed to delete maintenance schedule');
+    }
+  }
+
+  /**
+   * Update a maintenance schedule
+   */
+  public async updateSchedule(
+    id: string,
+    updateData: Partial<{
+      title: string;
+      startDatetime: Date;
+      endDatetime: Date;
+      messageToDisplay: string;
+      isActiveConfig: boolean;
+      notes: string;
+    }>,
+  ): Promise<MaintenanceSchedule | null> {
+    try {
+      const [updatedRowsCount] = await MaintenanceSchedule.update(updateData, {
+        where: { id },
+      });
+
+      if (updatedRowsCount === 0) {
+        logger.warn(`Maintenance schedule not found for update: ${id}`);
+        return null;
+      }
+
+      // Fetch and return the updated schedule
+      const updatedSchedule = await MaintenanceSchedule.findByPk(id);
+      logger.info(`Updated maintenance schedule: ${id}`);
+      return updatedSchedule;
+    } catch (error) {
+      logger.error('Error updating maintenance schedule:', error);
+      throw new Error('Failed to update maintenance schedule');
+    }
   }
 }
 
