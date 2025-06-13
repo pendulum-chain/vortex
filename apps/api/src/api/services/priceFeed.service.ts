@@ -387,7 +387,6 @@ export class PriceFeedService {
   }
 
   // Checks if the onchain oracle prices are up to date. Sends a warning to Slack if not.
-  // Only alerts once per 24 hours.
   async checkOnchainOraclePricesUpToDate(): Promise<void> {
     logger.info('Performing onchain oracle prices check...');
 
