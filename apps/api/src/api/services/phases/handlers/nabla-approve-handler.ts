@@ -22,7 +22,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     // Pre check: check if the approve has already been performed.
     try {
       const approval = await pendulumNode.api.query.tokenAllowance.approvals(
-        state.state.nabla.inputTokenCurrencyId,
+        state.state.inputTokenPendulumDetails,
         state.state.pendulumEphemeralAddress,
         NABLA_ROUTER,
       );

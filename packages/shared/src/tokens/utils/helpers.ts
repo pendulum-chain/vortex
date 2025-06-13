@@ -7,7 +7,7 @@ import { assetHubTokenConfig } from '../assethub/config';
 import { evmTokenConfig } from '../evm/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
 import { stellarTokenConfig } from '../stellar/config';
-import { FiatToken, OnChainToken, RampCurrency } from '../types/base';
+import { FiatToken, OnChainToken, PendulumDetails, RampCurrency } from '../types/base';
 import { AssetHubToken } from '../types/base';
 import { EvmToken } from '../types/evm';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
@@ -115,7 +115,7 @@ export function getPendulumCurrencyId(fiatToken: FiatToken) {
 /**
  * Get Pendulum details for a token
  */
-export function getPendulumDetails(tokenType: RampCurrency, network?: Networks) {
+export function getPendulumDetails(tokenType: RampCurrency, network?: Networks): PendulumDetails {
   const tokenDetails = isFiatTokenEnum(tokenType)
     ? getAnyFiatTokenDetails(tokenType)
     : network
