@@ -1,4 +1,4 @@
-import { PriceEndpoints } from '@packages/shared';
+import { AlchemyPayPriceResponse, Direction } from '@packages/shared';
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -79,8 +79,8 @@ function handleLogicError(body: AlchemyPayResponse): never {
 function parseSuccessResponse(
   data: AlchemyPayResponse['data'],
   requestedAmount: string,
-  direction: PriceEndpoints.Direction,
-): PriceEndpoints.AlchemyPayPriceResponse {
+  direction: Direction,
+): AlchemyPayPriceResponse {
   if (!data) {
     throw new ProviderInternalError('AlchemyPay response data is undefined');
   }
@@ -114,8 +114,8 @@ export function processAlchemyPayResponse(
   response: Response,
   body: AlchemyPayResponse,
   requestedAmount: string,
-  direction: PriceEndpoints.Direction,
-): PriceEndpoints.AlchemyPayPriceResponse {
+  direction: Direction,
+): AlchemyPayPriceResponse {
   if (!response.ok) {
     // Handle HTTP errors (4xx, 5xx)
     return handleHttpError(response, body);

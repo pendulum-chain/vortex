@@ -1,4 +1,5 @@
-import { PriceEndpoints } from '@packages/shared';
+import { AlchemyPayPriceResponse } from '@packages/shared';
+import { Direction } from '@packages/shared';
 import { ProviderInternalError } from '../../errors/providerErrors';
 import { createQuoteRequest } from './request-creator';
 import { AlchemyPayResponse, processAlchemyPayResponse } from './response-handler';
@@ -40,8 +41,8 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   network: string,
-  direction: PriceEndpoints.Direction,
-): Promise<PriceEndpoints.AlchemyPayPriceResponse> {
+  direction: Direction,
+): Promise<AlchemyPayPriceResponse> {
   const { requestUrl, request } = createQuoteRequest(direction, cryptoCurrencyCode, fiatCurrencyCode, amount, network);
 
   const { response, body } = await fetchAlchemyPayData(requestUrl, request);
@@ -62,9 +63,9 @@ export const getPriceFor = (
   sourceCurrency: string,
   targetCurrency: string,
   amount: string | number,
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   network?: string,
-): Promise<PriceEndpoints.AlchemyPayPriceResponse> => {
+): Promise<AlchemyPayPriceResponse> => {
   const DEFAULT_NETWORK = 'POLYGON';
   const networkCode = getAlchemyPayNetworkCode(network || DEFAULT_NETWORK);
 

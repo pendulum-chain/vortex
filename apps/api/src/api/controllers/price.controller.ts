@@ -1,8 +1,16 @@
-import { Networks } from '@packages/shared';
+import {
+  AlchemyPayPriceResponse,
+  AllPricesResponse,
+  Currency,
+  Direction,
+  MoonpayPriceResponse,
+  Networks,
+  PriceProvider,
+  TransakPriceResponse,
+} from '@packages/shared';
 import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
 
-import { PriceEndpoints } from '@packages/shared';
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -15,20 +23,17 @@ import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
 import * as moonpayService from '../services/moonpay/moonpay.service';
 import * as transakService from '../services/transak/transak.service';
 
-type AnyPrice =
-  | PriceEndpoints.AlchemyPayPriceResponse
-  | PriceEndpoints.MoonpayPriceResponse
-  | PriceEndpoints.TransakPriceResponse;
+type AnyPrice = AlchemyPayPriceResponse | MoonpayPriceResponse | TransakPriceResponse;
 
 type PriceHandler = (
-  sourceCurrency: PriceEndpoints.Currency,
-  targetCurrency: PriceEndpoints.Currency,
+  sourceCurrency: Currency,
+  targetCurrency: Currency,
   amount: string,
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   network?: Networks,
 ) => Promise<AnyPrice>;
 
-const providerHandlers: Record<PriceEndpoints.Provider, PriceHandler> = {
+const providerHandlers: Record<PriceProvider, PriceHandler> = {
   alchemypay: async (sourceCurrency, targetCurrency, amount, direction, network) =>
     alchemyPayService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network),
   moonpay: async (sourceCurrency, targetCurrency, amount, direction) =>
@@ -38,11 +43,11 @@ const providerHandlers: Record<PriceEndpoints.Provider, PriceHandler> = {
 };
 
 const getPriceFromProvider = async (
-  provider: PriceEndpoints.Provider,
-  sourceCurrency: PriceEndpoints.Currency,
-  targetCurrency: PriceEndpoints.Currency,
+  provider: PriceProvider,
+  sourceCurrency: Currency,
+  targetCurrency: Currency,
   amount: string,
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   network?: Networks,
 ) => providerHandlers[provider](sourceCurrency, targetCurrency, amount, direction, network);
 
@@ -54,7 +59,7 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
     return;
   }
 
-  const providerLower = provider.toLowerCase() as PriceEndpoints.Provider;
+  const providerLower = provider.toLowerCase() as PriceProvider;
 
   if (!sourceCurrency || typeof sourceCurrency !== 'string') {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid sourceCurrency parameter' });
@@ -81,8 +86,8 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
 
     const price = await getPriceFromProvider(
       providerLower,
-      sourceCurrency as PriceEndpoints.Currency,
-      targetCurrency as PriceEndpoints.Currency,
+      sourceCurrency as Currency,
+      targetCurrency as Currency,
       amount,
       direction,
       networkParam as Networks | undefined,
@@ -114,7 +119,7 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
 
 export const getAllPricesBundled: RequestHandler<
   Record<string, never>,
-  PriceEndpoints.AllPricesResponse | { error: string },
+  AllPricesResponse | { error: string },
   Record<string, never>,
   PriceQuery
 > = async (req, res) => {
@@ -137,11 +142,11 @@ export const getAllPricesBundled: RequestHandler<
     return;
   }
 
-  const source = sourceCurrency as PriceEndpoints.Currency;
-  const target = targetCurrency as PriceEndpoints.Currency;
+  const source = sourceCurrency as Currency;
+  const target = targetCurrency as Currency;
   const networkParam = network && typeof network === 'string' ? network : undefined;
 
-  const providersToQuery: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
+  const providersToQuery: PriceProvider[] = ['alchemypay', 'moonpay', 'transak'];
 
   const pricePromises = providersToQuery.map(async (provider) => {
     try {
@@ -164,7 +169,7 @@ export const getAllPricesBundled: RequestHandler<
   // Use Promise.allSettled to wait for all promises, regardless of success/failure
   const results = await Promise.allSettled(pricePromises);
 
-  const response: PriceEndpoints.AllPricesResponse = {};
+  const response: AllPricesResponse = {};
 
   results.forEach((result) => {
     // Promise.allSettled itself always fulfills. We need to check the status of our *inner* promise result.
@@ -174,7 +179,7 @@ export const getAllPricesBundled: RequestHandler<
       if (status === 'fulfilled') {
         response[provider] = { status: 'fulfilled', value };
       } else {
-        let errorStatus = httpStatus.INTERNAL_SERVER_ERROR; // Default internal server error
+        let errorStatus: number = httpStatus.INTERNAL_SERVER_ERROR; // Default internal server error
         let errorMessage = 'An unexpected error occurred with this provider.';
 
         if (reason instanceof ProviderApiError) {

@@ -1,54 +1,54 @@
-// eslint-disable-next-line import/no-unresolved
 import { describe, it, mock } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-  AccountMeta,
-  EvmToken,
-  EvmTransactionData,
-  FiatToken,
-  Networks,
-  signUnsignedTransactions,
-} from '@packages/shared';
-import { EphemeralAccount } from '@packages/shared';
+import { AccountMeta, EvmToken, FiatToken, Networks, signUnsignedTransactions } from '@packages/shared';
+import { DestinationType, EphemeralAccount } from '@packages/shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
+import Big from 'big.js';
+import { UpdateOptions } from 'sequelize';
 import { Keypair } from 'stellar-sdk';
-import { http, createPublicClient, createWalletClient, formatGwei, gweiUnits, parseGwei } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { polygon } from 'viem/chains';
-import { BACKEND_TEST_STARTER_ACCOUNT } from '../../../constants/constants';
-import QuoteTicket from '../../../models/quoteTicket.model';
-import RampState from '../../../models/rampState.model';
+import QuoteTicket, { QuoteTicketAttributes, QuoteTicketCreationAttributes } from '../../../models/quoteTicket.model';
+import RampState, { RampStateAttributes, RampStateCreationAttributes } from '../../../models/rampState.model';
+import RampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import { BrlaApiService } from '../brla/brlaApiService';
 import { SubaccountData } from '../brla/types';
 import { API, ApiManager } from '../pendulum/apiManager';
 import { QuoteService } from '../ramp/quote.service';
 import { RampService } from '../ramp/ramp.service';
 import { PhaseProcessor } from './phase-processor';
-
-import { HDKey } from '@scure/bip32';
-import { mnemonicToSeedSync } from '@scure/bip39';
-import Big from 'big.js';
-import rampRecoveryWorker from '../../workers/ramp-recovery.worker';
 import registerPhaseHandlers from './register-handlers';
 
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
-const _TAX_ID = process.env.TAX_ID;
-// BACKEND_TEST_STARTER_ACCOUNT = "sleep...... al"
-// This is the derivation obtained using mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!) and HDKey.fromMasterSeed(seed)
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
-const EVM_DESTINATION_ADDRESS = '0x7ba99e99bc669b3508aff9cc0a898e869459f877'; // Controlled by us, so funds can arrive here during tests.
-// Stellar mock anchor account. Back to the vault, for now.
+const EVM_DESTINATION_ADDRESS = '0x7ba99e99bc669b3508aff9cc0a898e869459f877';
 const STELLAR_MOCK_ANCHOR_ACCOUNT = 'GAXW7RTC4LA3MGNEA3LO626ABUCZBW3FDQPYBTH6VQA5BFHXXYZUQWY7';
 const TEST_INPUT_AMOUNT = '1';
 const TEST_INPUT_CURRENCY = EvmToken.USDC;
 const TEST_OUTPUT_CURRENCY = FiatToken.ARS;
 
 const QUOTE_TO = 'sepa';
-const QUOTE_FROM = 'polygon';
+const QUOTE_FROM = 'evm';
 
 const filePath = path.join(__dirname, 'lastRampState.json');
+
+interface TestSigningAccounts {
+  stellar: EphemeralAccount;
+  moonbeam: EphemeralAccount;
+  pendulum: EphemeralAccount;
+}
+
+interface AdditionalData {
+  walletAddress: string;
+  paymentData: {
+    amount: string;
+    memoType: 'text';
+    memo: string;
+    anchorTargetAccount: string;
+  };
+  taxId: string;
+  receiverTaxId: string;
+  pixDestination: string;
+}
 
 async function getPendulumNode(): Promise<API> {
   const apiManager = ApiManager.getInstance();
@@ -66,7 +66,6 @@ export async function createSubstrateEphemeral(): Promise<EphemeralAccount> {
   const seedPhrase = mnemonicGenerate();
 
   const keyring = new Keyring({ type: 'sr25519' });
-  // wait a second for the keyring to be ready
   await new Promise((resolve) => setTimeout(resolve, 1000));
   const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
 
@@ -80,24 +79,21 @@ export function createStellarEphemeral(): EphemeralAccount {
   return { secret: ephemeralKeys.secret(), address };
 }
 
-// only for onramp....
-export async function createMoonbeamEphemeralSeed() {
+export async function createMoonbeamEphemeralSeed(): Promise<EphemeralAccount> {
   const seedPhrase = mnemonicGenerate();
   const keyring = new Keyring({ type: 'ethereum' });
 
-  // DO NOT CHANGE THE DERIVATION PATH to be compatible with common ethereum libraries like viem.
   const ephemeralAccountKeypair = keyring.addFromUri(`${seedPhrase}/m/44'/60'/${0}'/${0}/${0}`);
 
   return { secret: seedPhrase, address: ephemeralAccountKeypair.address };
 }
 
-const testSigningAccounts = {
+const testSigningAccounts: TestSigningAccounts = {
   stellar: createStellarEphemeral(),
   moonbeam: await createMoonbeamEphemeralSeed(),
   pendulum: await createSubstrateEphemeral(),
 };
 
-// convert into AccountMeta
 const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).map((networkKey) => {
   const address = testSigningAccounts[networkKey as keyof typeof testSigningAccounts].address;
   const network = networkKey as Networks;
@@ -106,62 +102,72 @@ const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).
 
 console.log('Test Signing Accounts:', testSigningAccountsMeta);
 
-// Mock in memory db of the RampState and quoteTicket model
 let rampState: RampState;
 let quoteTicket: QuoteTicket;
 
-RampState.update = mock(async function (updateData: any, _options?: any) {
-  // Merge the update into the current instance.
-  rampState = { ...rampState, ...updateData, updatedAt: new Date() };
+// Proper Sequelize types
+type RampStateUpdateData = Partial<RampStateAttributes>;
+type QuoteTicketUpdateData = Partial<QuoteTicketAttributes>;
 
-  const filePath = path.join(__dirname, 'lastRampState.json');
+// Mock RampState.update - static method returns [affectedCount, affectedRows]
+RampState.update = mock(async function (updateData: RampStateUpdateData) {
+  rampState = { ...rampState, ...updateData, updatedAt: new Date() } as RampState;
+
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
-}) as any;
+}) as unknown as typeof RampState.update;
 
-RampState.findByPk = mock(async (_id: string) => {
+RampState.findByPk = mock(async (_id: string): Promise<RampState | null> => {
   return rampState;
-});
+}) as typeof RampState.findByPk;
 
-RampState.create = mock(async (data: any) => {
+RampState.create = mock(async (data: RampStateCreationAttributes): Promise<RampState> => {
   rampState = {
     ...data,
+    id: data.id || 'test-id',
     createdAt: new Date(),
     updatedAt: new Date(),
-    update: async function (updateData: any, _options?: any) {
-      // Merge the update into the current instance.
-      rampState = { ...rampState, ...updateData, updatedAt: new Date() };
+    update: async function (
+      updateData: RampStateUpdateData,
+      _options?: UpdateOptions<RampStateAttributes>,
+    ): Promise<RampState> {
+      rampState = { ...rampState, ...updateData, updatedAt: new Date() } as RampState;
 
-      const filePath = path.join(__dirname, 'lastRampState.json');
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
       return rampState;
     },
-    reload: async function (_options?: any) {
+    reload: async function (_options?: UpdateOptions<RampStateAttributes>): Promise<RampState> {
       return rampState;
     },
-  };
-  const filePath = path.join(__dirname, 'lastRampState.json');
+  } as RampState;
+
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
   return rampState;
-}) as any;
+}) as typeof RampState.create;
 
-QuoteTicket.findByPk = mock(async (_id: string) => {
+QuoteTicket.findByPk = mock(async (_id: string): Promise<QuoteTicket | null> => {
   return quoteTicket;
-});
+}) as typeof QuoteTicket.findByPk;
 
-QuoteTicket.create = mock(async (data: any) => {
+QuoteTicket.create = mock(async (data: QuoteTicketCreationAttributes): Promise<QuoteTicket> => {
   quoteTicket = {
     ...data,
-    update: async function (updateData: any, _options?: any) {
-      quoteTicket = { ...quoteTicket, ...updateData };
+    id: data.id || 'test-quote-id',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    update: async function (
+      updateData: QuoteTicketUpdateData,
+      _options?: UpdateOptions<QuoteTicketAttributes>,
+    ): Promise<QuoteTicket> {
+      quoteTicket = { ...quoteTicket, ...updateData } as QuoteTicket;
       return quoteTicket;
     },
-  };
+  } as QuoteTicket;
+
   console.log('Created QuoteTicket:', quoteTicket);
   return quoteTicket;
-}) as any;
+}) as typeof QuoteTicket.create;
 
-// Mock the BrlaApiService
 const mockSubaccountData: SubaccountData = {
   id: 'subaccount123',
   fullName: 'Test User',
@@ -189,26 +195,25 @@ const mockSubaccountData: SubaccountData = {
   },
   createdAt: new Date().toISOString(),
   wallets: {
-    evm: EVM_DESTINATION_ADDRESS, // simulating user's wallet on polygon.
+    evm: EVM_DESTINATION_ADDRESS,
     tron: 'tron123',
   },
   brCode: 'brcode123',
 };
 
-// Mock the BrlaApiService
 const mockBrlaApiService = {
-  getSubaccount: mock(async () => mockSubaccountData),
+  getSubaccount: mock(async (): Promise<SubaccountData> => mockSubaccountData),
   validatePixKey: mock(async () => ({
     name: 'Test Receiver',
     taxId: '758.444.017-77',
     bankName: 'Test Bank',
   })),
   sendRequest: mock(async () => ({})),
-  login: mock(async () => {}),
+  login: mock(async (): Promise<void> => Promise.resolve()),
   triggerOfframp: mock(async () => ({ id: 'offramp123' })),
   createSubaccount: mock(async () => ({ id: 'subaccount123' })),
   getAllEventsByUser: mock(async () => []),
-  acknowledgeEvents: mock(async () => {}),
+  acknowledgeEvents: mock(async (): Promise<void> => Promise.resolve()),
   generateBrCode: mock(async () => ({ brCode: 'brcode123' })),
   getPayInHistory: mock(async () => []),
   createFastQuote: mock(async () => ({ basePrice: '100' })),
@@ -216,7 +221,7 @@ const mockBrlaApiService = {
   getOnChainHistoryOut: mock(async () => []),
 };
 
-const mockVerifyReferenceLabel = mock(async (reference: any, receiverAddress: any) => {
+const mockVerifyReferenceLabel = mock(async (reference: string, receiverAddress: string): Promise<boolean> => {
   console.log('Verifying reference label:', reference, receiverAddress);
   return true;
 });
@@ -229,24 +234,23 @@ mock.module('../brla/helpers', () => {
 
 BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApiService);
 
-RampService.prototype.validateBrlaOfframpRequest = mock(async () => mockSubaccountData);
+RampService.prototype.validateBrlaOfframpRequest = mock(async (): Promise<SubaccountData> => mockSubaccountData);
 
-rampRecoveryWorker.start = mock(async () => ({}));
+RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {});
 
 describe('PhaseProcessor Integration Test', () => {
   it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
     try {
-      const _processor = new PhaseProcessor();
       const rampService = new RampService();
       const quoteService = new QuoteService();
 
       registerPhaseHandlers();
 
-      const additionalData = {
+      const additionalData: AdditionalData = {
         walletAddress: EVM_TESTING_ADDRESS,
         paymentData: {
-          amount: '0.0000000001', // TODO this is user controlled, not only in test, perhaps we should protect. It should come from the quote.
-          memoType: 'text' as const, // Explicitly type as literal 'text' to avoid TypeScript error
+          amount: '0.0000000001',
+          memoType: 'text' as const,
           memo: '1204asjfnaksf10982e4',
           anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
         },
@@ -264,7 +268,9 @@ describe('PhaseProcessor Integration Test', () => {
         outputCurrency: TEST_OUTPUT_CURRENCY,
       });
 
-      additionalData.paymentData.amount = new Big(quoteTicket.outputAmount).add(quoteTicket.fee).toString();
+      additionalData.paymentData.amount = new Big(quoteTicket.outputAmount)
+        .add(new Big(quoteTicket.fee.total))
+        .toString();
 
       const registeredRamp = await rampService.registerRamp({
         signingAccounts: testSigningAccountsMeta,
@@ -273,8 +279,6 @@ describe('PhaseProcessor Integration Test', () => {
       });
 
       console.log('register ramp:', registeredRamp);
-
-      // START - MIMIC THE UI
 
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
@@ -289,30 +293,6 @@ describe('PhaseProcessor Integration Test', () => {
         moonbeamNode.api,
       );
       console.log('Presigned transactions:', presignedTxs);
-      // //sign and send the squidy transactions!
-      // const squidApproveTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidRouterApprove');
-      // const approveHash = await executeEvmTransaction(
-      //   squidApproveTransaction!.network,
-      //   squidApproveTransaction!.txData as EvmTransactionData,
-      // );
-      // console.log('Approve transaction executed with hash:', approveHash);
-
-      // const squidSwapTransaction = registeredRamp!.unsignedTxs.find((tx) => tx.phase === 'squidRouterSwap');
-      // const swapHash = await executeEvmTransaction(
-      //   squidSwapTransaction!.network,
-      //   squidSwapTransaction!.txData as EvmTransactionData,
-      // );
-      // console.log('Swap transaction executed with hash:', swapHash);
-
-      // // END - MIMIC THE UI
-
-      // const startedRamp = await rampService.startRamp({ rampId: registeredRamp.id, presignedTxs });
-
-      // const finalRampState = await waitForCompleteRamp(registeredRamp.id);
-
-      // // Some sanity checks.
-      // expect(finalRampState.currentPhase).toBe('complete');
-      // expect(finalRampState.phaseHistory.length).toBeGreaterThan(1);
     } catch (error) {
       console.error('Error during test execution:', error);
 
@@ -321,77 +301,3 @@ describe('PhaseProcessor Integration Test', () => {
     }
   });
 });
-
-async function executeEvmTransaction(_network: Networks, txData: EvmTransactionData): Promise<string> {
-  try {
-    const seed = mnemonicToSeedSync(BACKEND_TEST_STARTER_ACCOUNT!);
-    const { privateKey } = HDKey.fromMasterSeed(seed);
-
-    const moonbeamExecutorAccount = privateKeyToAccount(`0x${privateKey?.toHex()}` as `0x${string}`);
-    // const chainId = getNetworkId(network); Need to get the network based on the id.
-    const walletClient = createWalletClient({
-      account: moonbeamExecutorAccount,
-      chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
-    });
-
-    const publicClient = createPublicClient({
-      chain: polygon,
-      transport: http(`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`),
-    });
-
-    const estimateFeePerGas = await publicClient.estimateFeesPerGas();
-    const hash = await walletClient.sendTransaction({
-      to: txData.to,
-      data: txData.data,
-      value: BigInt(txData.value),
-      gas: BigInt(txData.gas),
-      maxFeePerGas: estimateFeePerGas.maxFeePerGas * 5n,
-      maxPriorityFeePerGas: estimateFeePerGas.maxPriorityFeePerGas * 5n,
-    });
-    console.log('Transaction hash:', hash);
-    // we are naive and assume that it will take a maximum of 30 seconds to get into block, and potentially be reverted.
-    await new Promise((resolve) => setTimeout(resolve, 30000));
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    console.log('Transaction receipt:', receipt);
-    if (!receipt || receipt.status !== 'success') {
-      throw new Error(`Transaction ${hash} failed or was not found`);
-    }
-
-    return receipt.transactionHash;
-  } catch (error) {
-    console.error('Error sending raw EVM transaction', error);
-    throw new Error('Failed to send transaction');
-  }
-}
-
-async function waitForCompleteRamp(_rampId: string) {
-  const pollInterval = 10 * 1000; // 10 seconds
-  const globalTimeout = 15 * 60 * 1000; // 15 minutes
-  const stalePhaseTimeout = 5 * 60 * 1000; // 5 minutes
-
-  const startTime = Date.now();
-  let lastUpdated = new Date(rampState.createdAt).getTime(); // Will be creation time on the first iteration.
-
-  while (true) {
-    const currentState = rampState;
-
-    if (currentState.currentPhase === 'complete') {
-      return currentState;
-    }
-    const currentUpdated = new Date(currentState.updatedAt).getTime();
-    if (currentUpdated > lastUpdated) {
-      lastUpdated = currentUpdated;
-    }
-
-    if (Date.now() - lastUpdated > stalePhaseTimeout) {
-      throw new Error('Ramp state has been stale for more than 5 minutes.');
-    }
-
-    if (Date.now() - startTime > globalTimeout) {
-      throw new Error('Global timeout of 15 minutes reached without completing the ramp process.');
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
-  }
-}

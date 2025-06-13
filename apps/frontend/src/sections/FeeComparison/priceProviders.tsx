@@ -1,18 +1,17 @@
+import { PriceProvider } from '@packages/shared';
 import vortexIcon from '../../assets/logo/blue.svg';
 import alchemyPayIcon from '../../assets/offramp/alchemypay.svg';
 import moonpayIcon from '../../assets/offramp/moonpay.svg';
 import transakIcon from '../../assets/offramp/transak.svg';
 
-import { PriceEndpoints } from '@packages/shared';
 import { JSX } from 'react';
-
-export interface PriceProvider {
-  name: PriceEndpoints.Provider | 'vortex';
+export interface PriceProviderDetails {
+  name: PriceProvider | 'vortex';
   icon?: JSX.Element;
   href: string;
 }
 
-export const priceProviders: PriceProvider[] = [
+export const priceProviders: PriceProviderDetails[] = [
   {
     name: 'alchemypay',
     icon: <img src={alchemyPayIcon} className="w-40 ml-1" alt="AlchemyPay" />,

@@ -1,4 +1,4 @@
-import { EmailEndpoints } from '@packages/shared';
+import { StoreEmailErrorResponse, StoreEmailRequest, StoreEmailResponse } from '@packages/shared';
 import { Request, Response } from 'express';
 import { config } from '../../config';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
@@ -20,8 +20,8 @@ const EMAIL_SHEET_HEADER_VALUES = [
 export { EMAIL_SHEET_HEADER_VALUES };
 
 export const storeEmail = async (
-  req: Request<{}, {}, EmailEndpoints.StoreEmailRequest>,
-  res: Response<EmailEndpoints.StoreEmailResponse | EmailEndpoints.StoreEmailErrorResponse>,
+  req: Request,
+  res: Response<StoreEmailResponse | StoreEmailErrorResponse>,
 ): Promise<void> => {
   if (!spreadsheet.emailSheetId) {
     throw new Error('Email sheet ID is not configured');

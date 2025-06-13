@@ -1,4 +1,5 @@
-import { EmailEndpoints } from '@packages/shared';
+import { StoreEmailResponse } from '@packages/shared';
+import { StoreEmailRequest } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -13,12 +14,12 @@ export class EmailService {
    * @param transactionId The transaction ID
    * @returns Success message
    */
-  static async storeEmail(email: string, transactionId: string): Promise<EmailEndpoints.StoreEmailResponse> {
-    const request: EmailEndpoints.StoreEmailRequest = {
+  static async storeEmail(email: string, transactionId: string): Promise<StoreEmailResponse> {
+    const request: StoreEmailRequest = {
       timestamp: new Date().toISOString(),
       email,
       transactionId,
     };
-    return apiRequest<EmailEndpoints.StoreEmailResponse>('post', `${this.BASE_PATH}/create`, request);
+    return apiRequest<StoreEmailResponse>('post', `${this.BASE_PATH}/create`, request);
   }
 }

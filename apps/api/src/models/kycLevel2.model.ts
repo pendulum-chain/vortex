@@ -1,5 +1,6 @@
+import { BrlaKYCDocType } from '@packages/shared';
 import { DataTypes, Model, Optional } from 'sequelize';
-import { KYCDocType, KycLevel2Response } from '../api/services/brla/types';
+import { KycLevel2Response } from '../api/services/brla/types';
 import sequelize from '../config/database';
 
 export enum KycLevel2Status {
@@ -12,9 +13,9 @@ export enum KycLevel2Status {
 export interface KycLevel2Attributes {
   id: string;
   subaccountId: string;
-  documentType: KYCDocType;
+  documentType: BrlaKYCDocType;
   status: KycLevel2Status;
-  errorLogs: any[];
+  errorLogs: unknown[];
   uploadData: KycLevel2Response;
   createdAt: Date;
   updatedAt: Date;
@@ -28,7 +29,7 @@ type KycLevel2CreationAttributes = Optional<
 class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> implements KycLevel2Attributes {
   declare id: string; // Doubles as token. TODO: is that safe?
   declare subaccountId: string;
-  declare documentType: KYCDocType;
+  declare documentType: BrlaKYCDocType;
   declare status: KycLevel2Status;
   declare errorLogs: unknown[];
   declare uploadData: KycLevel2Response;
@@ -49,7 +50,7 @@ KycLevel2.init(
       field: 'subaccount_id',
     },
     documentType: {
-      type: DataTypes.ENUM(...Object.values(KYCDocType)),
+      type: DataTypes.ENUM(...Object.values(BrlaKYCDocType)),
       allowNull: false,
       field: 'document_type',
     },

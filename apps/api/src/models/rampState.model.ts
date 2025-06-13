@@ -47,7 +47,7 @@ export interface RampStateAttributes {
 }
 
 // Define the attributes that can be set during creation
-type RampStateCreationAttributes = Optional<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt'>;
+export type RampStateCreationAttributes = Optional<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
 // Define the RampState model
 class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> implements RampStateAttributes {

@@ -1,5 +1,6 @@
-import { StorageEndpoints } from '@packages/shared';
+import { FlowType, StoreDataErrorResponse, StoreDataResponse } from '@packages/shared';
 import { Request, Response } from 'express';
+
 import { config } from '../../config/vars';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
 
@@ -62,7 +63,7 @@ export const DUMP_SHEET_HEADER_VALUES_BRLA_TO_ASSETHUB = [
   'pendulumToAssetHubXcmTx',
 ];
 
-export const FLOW_HEADERS: Record<StorageEndpoints.FlowType, FlowHeaders> = {
+export const FLOW_HEADERS: Record<FlowType, FlowHeaders> = {
   'evm-to-stellar': DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR,
   'assethub-to-stellar': DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR,
   'evm-to-brla': DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA,
@@ -71,14 +72,14 @@ export const FLOW_HEADERS: Record<StorageEndpoints.FlowType, FlowHeaders> = {
   'brla-to-assethub': DUMP_SHEET_HEADER_VALUES_BRLA_TO_ASSETHUB,
 };
 export const storeData = async (
-  req: Request<{}, {}, StorageEndpoints.StoreDataRequest>,
-  res: Response<StorageEndpoints.StoreDataResponse | StorageEndpoints.StoreDataErrorResponse>,
+  req: Request,
+  res: Response<StoreDataResponse | StoreDataErrorResponse>,
 ): Promise<void> => {
   if (!spreadsheet.storageSheetId) {
     throw new Error('Storage sheet ID is not defined');
   }
 
-  const sheetHeaderValues = FLOW_HEADERS[req.body.flowType];
+  const sheetHeaderValues = FLOW_HEADERS[req.body.flowType as FlowType];
 
   await storeDataInGoogleSpreadsheet(req, res, spreadsheet.storageSheetId, sheetHeaderValues);
 };

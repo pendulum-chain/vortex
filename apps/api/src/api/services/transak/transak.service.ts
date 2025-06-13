@@ -1,5 +1,4 @@
-import { Networks } from '@packages/shared';
-import { PriceEndpoints } from '@packages/shared';
+import { Direction, Networks, TransakPriceResponse } from '@packages/shared';
 import { config } from '../../../config/vars';
 import { ProviderInternalError } from '../../errors/providerErrors';
 import { createQuoteRequest } from './request-creator';
@@ -46,8 +45,8 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   network: Networks,
-  direction: PriceEndpoints.Direction,
-): Promise<PriceEndpoints.TransakPriceResponse> {
+  direction: Direction,
+): Promise<TransakPriceResponse> {
   const { baseUrl, partnerApiKey } = priceProviders.transak;
 
   if (!partnerApiKey) {
@@ -76,9 +75,9 @@ export const getPriceFor = (
   sourceCurrency: string,
   targetCurrency: string,
   amount: string | number,
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   network?: Networks,
-): Promise<PriceEndpoints.TransakPriceResponse> => {
+): Promise<TransakPriceResponse> => {
   const DEFAULT_NETWORK = 'polygon';
   const networkCode = network?.toLowerCase() || DEFAULT_NETWORK;
 

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { PriceEndpoints } from '@packages/shared';
+import { Direction } from '@packages/shared';
 import { config } from '../../../config/vars';
 import { getJsonBody, getPath } from './helpers';
 
@@ -143,7 +143,7 @@ function createSellQuoteRequest(
  * @returns Request configuration
  */
 export function createQuoteRequest(
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,

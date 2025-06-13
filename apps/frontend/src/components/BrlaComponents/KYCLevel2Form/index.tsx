@@ -1,8 +1,9 @@
 import { CameraIcon, CheckCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { BrlaKYCDocType } from '@packages/shared';
 import { motion } from 'motion/react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BrlaService, KYCDocType } from '../../../services/api';
+import { BrlaService } from '../../../services/api';
 import { KycLevel2Toggle } from '../../KycLevel2Toggle';
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
@@ -36,7 +37,7 @@ async function uploadFileAsBuffer(file: File, url: string) {
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler, onBackClick, taxId }) => {
   const { t } = useTranslation();
 
-  const [docType, setDocType] = useState<KYCDocType>(KYCDocType.RG);
+  const [docType, setDocType] = useState<BrlaKYCDocType>(BrlaKYCDocType.RG);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -90,14 +91,14 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
   };
 
   const isSubmitDisabled =
-    loading || !selfieValid || (docType === KYCDocType.RG ? !frontValid || !backValid : !frontValid);
+    loading || !selfieValid || (docType === BrlaKYCDocType.RG ? !frontValid || !backValid : !frontValid);
 
   const handleSubmit = async () => {
     setError('');
     if (
       !selfieValid ||
-      (docType === KYCDocType.RG && (!frontValid || !backValid)) ||
-      (docType === KYCDocType.CNH && !frontValid)
+      (docType === BrlaKYCDocType.RG && (!frontValid || !backValid)) ||
+      (docType === BrlaKYCDocType.CNH && !frontValid)
     ) {
       setError(t('components.documentUpload.validation.validationError'));
       return;
@@ -110,7 +111,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
       });
 
       const uploads: Promise<void>[] = [];
-      if (docType === KYCDocType.RG) {
+      if (docType === BrlaKYCDocType.RG) {
         if (!selfie || !front || !back) {
           setError(t('components.documentUpload.uploadBug'));
           console.error('Validation flags were true, but file data is missing. This is a bug.');
@@ -175,7 +176,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
           selfieValid,
           CameraIcon,
         )}
-        {docType === KYCDocType.RG && (
+        {docType === BrlaKYCDocType.RG && (
           <>
             {renderField(
               t('components.documentUpload.fields.rgFront'),
@@ -191,7 +192,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
             )}
           </>
         )}
-        {docType === KYCDocType.CNH &&
+        {docType === BrlaKYCDocType.CNH &&
           renderField(
             t('components.documentUpload.fields.cnhDocument'),
             (e) => handleFileChange(e, setFront, setFrontValid),

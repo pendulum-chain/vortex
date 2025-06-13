@@ -1,4 +1,6 @@
-import { PriceEndpoints } from '@packages/shared';
+import { BundledPriceResult, Currency } from '@packages/shared';
+import { PriceProvider } from '@packages/shared';
+import { RampDirection } from '../../components/RampToggle';
 import { apiRequest } from './api-client';
 
 /**
@@ -18,14 +20,14 @@ export class PriceService {
    * @returns Price information
    */
   static async getPrice(
-    provider: PriceEndpoints.Provider,
-    sourceCurrency: PriceEndpoints.Currency,
-    targetCurrency: PriceEndpoints.Currency,
+    provider: PriceProvider,
+    sourceCurrency: Currency,
+    targetCurrency: Currency,
     amount: string,
-    direction: PriceEndpoints.Direction,
+    direction: RampDirection,
     network?: string,
-  ): Promise<PriceEndpoints.PriceResponse> {
-    return apiRequest<PriceEndpoints.PriceResponse>('get', this.BASE_PATH, undefined, {
+  ): Promise<BundledPriceResult> {
+    return apiRequest<BundledPriceResult>('get', this.BASE_PATH, undefined, {
       params: {
         provider,
         sourceCurrency,
@@ -47,14 +49,14 @@ export class PriceService {
    * @returns AlchemyPay price information
    */
   static async getAlchemyPayPrice(
-    sourceCurrency: PriceEndpoints.Currency,
-    targetCurrency: PriceEndpoints.Currency,
+    sourceCurrency: Currency,
+    targetCurrency: Currency,
     amount: string,
-    direction: PriceEndpoints.Direction,
+    direction: RampDirection,
     network?: string,
-  ): Promise<PriceEndpoints.AlchemyPayPriceResponse> {
+  ): Promise<BundledPriceResult> {
     const response = await this.getPrice('alchemypay', sourceCurrency, targetCurrency, amount, direction, network);
-    return response as PriceEndpoints.AlchemyPayPriceResponse;
+    return response;
   }
 
   /**
@@ -67,13 +69,13 @@ export class PriceService {
    * @returns Moonpay price information
    */
   static async getMoonpayPrice(
-    sourceCurrency: PriceEndpoints.Currency,
-    targetCurrency: PriceEndpoints.Currency,
+    sourceCurrency: Currency,
+    targetCurrency: Currency,
     amount: string,
-    direction: PriceEndpoints.Direction,
-  ): Promise<PriceEndpoints.MoonpayPriceResponse> {
+    direction: RampDirection,
+  ): Promise<BundledPriceResult> {
     const response = await this.getPrice('moonpay', sourceCurrency, targetCurrency, amount, direction);
-    return response as PriceEndpoints.MoonpayPriceResponse;
+    return response;
   }
 
   /**
@@ -86,14 +88,14 @@ export class PriceService {
    * @returns Transak price information
    */
   static async getTransakPrice(
-    sourceCurrency: PriceEndpoints.Currency,
-    targetCurrency: PriceEndpoints.Currency,
+    sourceCurrency: Currency,
+    targetCurrency: Currency,
     amount: string,
-    direction: PriceEndpoints.Direction,
+    direction: RampDirection,
     network?: string,
-  ): Promise<PriceEndpoints.TransakPriceResponse> {
+  ): Promise<BundledPriceResult> {
     const response = await this.getPrice('transak', sourceCurrency, targetCurrency, amount, direction, network);
-    return response as PriceEndpoints.TransakPriceResponse;
+    return response;
   }
 
   /**
@@ -114,13 +116,13 @@ export class PriceService {
    * @returns Price information from all providers, including success/failure status for each
    */
   static async getAllPricesBundled(
-    sourceCurrency: PriceEndpoints.Currency,
-    targetCurrency: PriceEndpoints.Currency,
+    sourceCurrency: Currency,
+    targetCurrency: Currency,
     amount: string,
-    direction: PriceEndpoints.Direction,
+    direction: RampDirection,
     network?: string,
-  ): Promise<PriceEndpoints.AllPricesResponse> {
-    return apiRequest<PriceEndpoints.AllPricesResponse>('get', `${this.BASE_PATH}/all`, undefined, {
+  ): Promise<BundledPriceResult> {
+    return apiRequest<BundledPriceResult>('get', `${this.BASE_PATH}/all`, undefined, {
       params: {
         sourceCurrency,
         targetCurrency,
@@ -142,13 +144,13 @@ export class PriceService {
    * @returns Price information from all providers
    */
   static async getAllPrices(
-    sourceCurrency: PriceEndpoints.Currency,
-    targetCurrency: PriceEndpoints.Currency,
+    sourceCurrency: Currency,
+    targetCurrency: Currency,
     amount: string,
-    direction: PriceEndpoints.Direction,
+    direction: RampDirection,
     network?: string,
-  ): Promise<Record<PriceEndpoints.Provider, PriceEndpoints.PriceResponse>> {
-    const providers: PriceEndpoints.Provider[] = ['alchemypay', 'moonpay', 'transak'];
+  ): Promise<Record<PriceProvider, BundledPriceResult>> {
+    const providers: PriceProvider[] = ['alchemypay', 'moonpay', 'transak'];
 
     const results = await Promise.allSettled(
       providers.map((provider) => this.getPrice(provider, sourceCurrency, targetCurrency, amount, direction, network)),
@@ -162,7 +164,7 @@ export class PriceService {
         }
         return acc;
       },
-      {} as Record<PriceEndpoints.Provider, PriceEndpoints.PriceResponse>,
+      {} as Record<PriceProvider, BundledPriceResult>,
     );
   }
 }

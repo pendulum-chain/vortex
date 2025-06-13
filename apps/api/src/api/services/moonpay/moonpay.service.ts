@@ -1,4 +1,4 @@
-import { PriceEndpoints } from '@packages/shared';
+import { Direction, MoonpayPriceResponse } from '@packages/shared';
 import { config } from '../../../config';
 import { ProviderInternalError } from '../../errors/providerErrors';
 import { createQuoteRequest } from './request-creator';
@@ -62,8 +62,8 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   extraFeePercentage: number,
-  direction: PriceEndpoints.Direction,
-): Promise<PriceEndpoints.MoonpayPriceResponse> {
+  direction: Direction,
+): Promise<MoonpayPriceResponse> {
   const { baseUrl, apiKey } = priceProviders.moonpay;
   if (!apiKey) throw new Error('Moonpay API key not configured');
 
@@ -86,8 +86,8 @@ export const getPriceFor = (
   sourceCurrency: string,
   targetCurrency: string,
   amount: string,
-  direction: PriceEndpoints.Direction,
-): Promise<PriceEndpoints.MoonpayPriceResponse> => {
+  direction: Direction,
+): Promise<MoonpayPriceResponse> => {
   // We can specify a custom fee percentage here added on top of the Moonpay fee but we don't
   const extraFeePercentage = 0;
 

@@ -47,7 +47,7 @@ async function createApproveExtrinsic({
     gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
   };
 
-  const { execution, result: readMessageResult } = await createExecuteMessageExtrinsic({
+  const { execution } = await createExecuteMessageExtrinsic({
     ...extrinsicOptions,
     api,
     abi: contractAbi,

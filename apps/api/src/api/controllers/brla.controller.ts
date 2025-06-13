@@ -1,10 +1,27 @@
-import { validateMaskedNumber } from '@packages/shared';
-import { BrlaEndpoints } from '@packages/shared';
+import {
+  BrlaCreateSubaccountRequest,
+  BrlaCreateSubaccountResponse,
+  BrlaErrorResponse,
+  BrlaGetKycStatusRequest,
+  BrlaGetKycStatusResponse,
+  BrlaGetRampStatusRequest,
+  BrlaGetRampStatusResponse,
+  BrlaGetUserRemainingLimitRequest,
+  BrlaGetUserRemainingLimitResponse,
+  BrlaGetUserRequest,
+  BrlaGetUserResponse,
+  BrlaStartKYC2Response,
+  BrlaTriggerOfframpRequest,
+  BrlaTriggerOfframpResponse,
+  BrlaValidatePixKeyRequest,
+  BrlaValidatePixKeyResponse,
+  StartKYC2Request,
+  validateMaskedNumber,
+} from '@packages/shared';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { eventPoller } from '../..';
 import logger from '../../config/logger';
-import { PayInCodeQuery } from '../middlewares/validators';
 import { BrlaApiService } from '../services/brla/brlaApiService';
 import { RegisterSubaccountPayload } from '../services/brla/types';
 import kycService from '../services/kyc/kyc.service';
@@ -68,8 +85,8 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
  * @throws 500 - For any server-side errors during processing
  */
 export const getBrlaUser = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetUserRequest>,
-  res: Response<BrlaEndpoints.GetUserResponse | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, unknown, BrlaGetUserRequest>,
+  res: Response<BrlaGetUserResponse | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -101,8 +118,8 @@ export const getBrlaUser = async (
 };
 
 export const getBrlaUserRemainingLimit = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetUserRemainingLimitRequest>,
-  res: Response<BrlaEndpoints.GetUserRemainingLimitResponse | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, unknown, BrlaGetUserRemainingLimitRequest>,
+  res: Response<BrlaGetUserRemainingLimitResponse | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -146,8 +163,8 @@ export const getBrlaUserRemainingLimit = async (
 };
 
 export const triggerBrlaOfframp = async (
-  req: Request<unknown, unknown, BrlaEndpoints.TriggerOfframpRequest>,
-  res: Response<BrlaEndpoints.TriggerOfframpResponse | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, BrlaTriggerOfframpRequest>,
+  res: Response<BrlaTriggerOfframpResponse | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId, pixKey, amount, receiverTaxId } = req.body;
@@ -193,8 +210,8 @@ export const triggerBrlaOfframp = async (
 };
 
 export const getRampStatus = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetRampStatusRequest>,
-  res: Response<BrlaEndpoints.GetRampStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, unknown, BrlaGetRampStatusRequest>,
+  res: Response<BrlaGetRampStatusResponse | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -237,8 +254,8 @@ export const getRampStatus = async (
 };
 
 export const createSubaccount = async (
-  req: Request<unknown, unknown, BrlaEndpoints.CreateSubaccountRequest>,
-  res: Response<BrlaEndpoints.CreateSubaccountResponse | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, BrlaCreateSubaccountRequest>,
+  res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { cpf, cnpj, taxIdType } = req.body;
@@ -310,8 +327,8 @@ export const createSubaccount = async (
 };
 
 export const fetchSubaccountKycStatus = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.GetKycStatusRequest>,
-  res: Response<BrlaEndpoints.GetKycStatusResponse | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, unknown, BrlaGetKycStatusRequest>,
+  res: Response<BrlaGetKycStatusResponse | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
@@ -373,8 +390,8 @@ export const fetchSubaccountKycStatus = async (
  * @throws 500 - For any server-side errors during processing
  */
 export const validatePixKey = async (
-  req: Request<unknown, unknown, unknown, BrlaEndpoints.ValidatePixKeyRequest>,
-  res: Response<BrlaEndpoints.ValidatePixKeyResponse | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, unknown, BrlaValidatePixKeyRequest>,
+  res: Response<BrlaValidatePixKeyResponse | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { pixKey } = req.query;
@@ -405,8 +422,8 @@ export const validatePixKey = async (
  * @throws 500 - For any server-side errors during processing.
  */
 export const startKYC2 = async (
-  req: Request<unknown, unknown, BrlaEndpoints.StartKYC2Request>,
-  res: Response<BrlaEndpoints.StartKYC2Response | BrlaEndpoints.BrlaErrorResponse>,
+  req: Request<unknown, unknown, StartKYC2Request>,
+  res: Response<BrlaStartKYC2Response | BrlaErrorResponse>,
 ): Promise<void> => {
   try {
     const { taxId, documentType } = req.body;

@@ -10,6 +10,8 @@
     "attributePosition": "auto",
     "bracketSpacing": true,
     "ignore": [
+      "**/dist/**",
+      "**/build/**",
       "**/.prettierignore",
       "**/node_modules/",
       "**/coverage/",

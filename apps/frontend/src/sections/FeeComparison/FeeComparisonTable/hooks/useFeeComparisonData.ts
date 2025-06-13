@@ -1,14 +1,14 @@
+import { BundledPriceResult, Currency } from '@packages/shared';
 import { useQuery } from '@tanstack/react-query';
 import Big from 'big.js';
 import { useMemo } from 'react';
 
-import { PriceEndpoints } from '@packages/shared';
 import { activeOptions, cacheKeys } from '../../../../constants/cache';
 import { useNetwork } from '../../../../contexts/network';
 import { PriceService } from '../../../../services/api';
 import { useQuote } from '../../../../stores/ramp/useQuoteStore';
 import { useRampDirection } from '../../../../stores/rampDirectionStore';
-import { PriceProvider } from '../../priceProviders';
+import { PriceProviderDetails } from '../../priceProviders';
 
 /**
  * Custom hook to fetch and process fee comparison data
@@ -22,7 +22,7 @@ export function useFeeComparisonData(
   amount: string,
   sourceAssetSymbol: string,
   targetAssetSymbol: string,
-  providers: PriceProvider[],
+  providers: PriceProviderDetails[],
 ) {
   const rampDirection = useRampDirection();
   const { selectedNetwork } = useNetwork();
@@ -37,8 +37,8 @@ export function useFeeComparisonData(
     queryFn: () => {
       const direction = rampDirection === 'onramp' ? 'onramp' : 'offramp';
       return PriceService.getAllPricesBundled(
-        sourceAssetSymbol.toLowerCase() as PriceEndpoints.Currency,
-        targetAssetSymbol.toLowerCase() as PriceEndpoints.Currency,
+        sourceAssetSymbol.toLowerCase() as Currency,
+        targetAssetSymbol.toLowerCase() as Currency,
         amount,
         direction,
         selectedNetwork,
@@ -55,7 +55,7 @@ export function useFeeComparisonData(
 
     if (allPricesResponse) {
       Object.entries(allPricesResponse).forEach(([provider, result]) => {
-        const typedResult = result as PriceEndpoints.BundledPriceResult | undefined;
+        const typedResult = result as BundledPriceResult | undefined;
         if (typedResult?.status === 'fulfilled' && typedResult.value.quoteAmount) {
           // Use quoteAmount which represents what the user will receive
           prices[provider] = Big(typedResult.value.quoteAmount.toString());

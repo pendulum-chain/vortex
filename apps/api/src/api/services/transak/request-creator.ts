@@ -1,4 +1,4 @@
-import { Networks, PriceEndpoints } from '@packages/shared';
+import { Direction, Networks } from '@packages/shared';
 import { config } from '../../../config/vars';
 
 const { priceProviders } = config;
@@ -91,7 +91,7 @@ function createSellQuoteRequest(
  * @returns Request configuration
  */
 export function createQuoteRequest(
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,

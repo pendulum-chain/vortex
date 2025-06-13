@@ -1,63 +1,63 @@
 import { EvmAddress } from '../types';
 
 // GET /brla/getUser?taxId=:taxId
-export interface GetUserRequest {
+export interface BrlaGetUserRequest {
   taxId: string;
 }
 
-export interface GetUserResponse {
+export interface BrlaGetUserResponse {
   evmAddress: string;
   kycLevel: number;
 }
 
 // GET /brla/getRampStatus?taxId=:taxId
-export interface GetRampStatusRequest {
+export interface BrlaGetRampStatusRequest {
   taxId: string;
 }
 
-export interface GetRampStatusResponse {
+export interface BrlaGetRampStatusResponse {
   type: string;
   status: string;
 }
 
 // GET /brla/getKycStatus?taxId=:taxId
-export interface GetKycStatusRequest {
+export interface BrlaGetKycStatusRequest {
   taxId: string;
 }
 
-export interface GetKycStatusResponse {
+export interface BrlaGetKycStatusResponse {
   type: string;
   status: string;
   level: number;
 }
 
 // GET /brla/validatePixKey?pixKey=:pixKey
-export interface ValidatePixKeyRequest {
+export interface BrlaValidatePixKeyRequest {
   pixKey: string;
 }
 
-export interface ValidatePixKeyResponse {
+export interface BrlaValidatePixKeyResponse {
   valid: boolean;
 }
 
-export interface GetUserRemainingLimitRequest {
+export interface BrlaGetUserRemainingLimitRequest {
   taxId: string;
 }
 
-export interface GetUserRemainingLimitResponse {
+export interface BrlaGetUserRemainingLimitResponse {
   remainingLimitOnramp: number;
   remainingLimitOfframp: number;
 }
 
 // POST /brla/triggerOfframp
-export interface TriggerOfframpRequest {
+export interface BrlaTriggerOfframpRequest {
   taxId: string;
   pixKey: string;
   amount: string;
   receiverTaxId: string;
 }
 
-export interface TriggerOfframpResponse {
+export interface BrlaTriggerOfframpResponse {
   offrampId: string;
 }
 
@@ -74,7 +74,7 @@ export interface BrlaAddress {
 
 export type TaxIdType = 'CPF' | 'CNPJ';
 
-export interface CreateSubaccountRequest {
+export interface BrlaCreateSubaccountRequest {
   phone: string;
   taxIdType: TaxIdType;
   address: BrlaAddress;
@@ -86,7 +86,7 @@ export interface CreateSubaccountRequest {
   cnpj?: string;
 }
 
-export interface CreateSubaccountResponse {
+export interface BrlaCreateSubaccountResponse {
   subaccountId: string;
 }
 
@@ -95,22 +95,22 @@ export interface BrlaErrorResponse {
   details?: string;
 }
 
-export enum KYCDocType {
+export enum BrlaKYCDocType {
   RG = 'RG',
   CNH = 'CNH',
 }
 
 // POST /brla/startKYC2
 export interface StartKYC2Request {
-  documentType: KYCDocType;
+  documentType: BrlaKYCDocType;
   taxId: string;
 }
 
-export interface StartKYC2Response {
-  uploadUrls: KYCDataUploadFileFiles;
+export interface BrlaStartKYC2Response {
+  uploadUrls: BrlaKYCDataUploadFileFiles;
 }
 
-export interface KYCDataUploadFileFiles {
+export interface BrlaKYCDataUploadFileFiles {
   selfieUploadUrl: string;
   RGFrontUploadUrl: string;
   RGBackUploadUrl: string;

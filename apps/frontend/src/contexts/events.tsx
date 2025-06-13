@@ -1,4 +1,4 @@
-import { FiatToken, PriceEndpoints } from '@packages/shared';
+import { FiatToken, PriceProvider } from '@packages/shared';
 import { getNetworkId, isNetworkEVM } from '@packages/shared';
 import { createContext } from 'react';
 import { PropsWithChildren, useCallback, useContext, useEffect, useRef } from 'react';
@@ -160,7 +160,7 @@ const useEvents = () => {
   const scheduledPrices = useRef<
     | {
         parameters: RampParameters;
-        prices: Partial<Record<PriceEndpoints.Provider, string>>;
+        prices: Partial<Record<PriceProvider, string>>;
       }
     | undefined
   >(undefined);
@@ -213,12 +213,7 @@ const useEvents = () => {
   /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
   /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
   const schedulePrice = useCallback(
-    (
-      service: PriceEndpoints.Provider | 'vortex',
-      price: string,
-      parameters: RampParameters,
-      enableEventTracking: boolean,
-    ) => {
+    (service: PriceProvider | 'vortex', price: string, parameters: RampParameters, enableEventTracking: boolean) => {
       if (!enableEventTracking) return;
 
       const prev = scheduledPrices.current;

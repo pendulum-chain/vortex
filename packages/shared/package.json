@@ -12,6 +12,7 @@
     "format": "prettier . --write"
   },
   "dependencies": {
+    "@pendulum-chain/types": "^1.1.1",
     "@polkadot/api": "^13.2.1",
     "@polkadot/types": "^13.2.1",
     "@polkadot/types-codec": "^13.2.1",

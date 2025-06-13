@@ -3,8 +3,14 @@ import Big from 'big.js';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
-import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '@packages/shared';
-import { PendulumEndpoints } from '@packages/shared';
+import {
+  PendulumFundEphemeralErrorResponse,
+  PendulumFundEphemeralRequest,
+  PendulumFundEphemeralResponse,
+  StellarTokenConfig,
+  TOKEN_CONFIG,
+  XCMTokenConfig,
+} from '@packages/shared';
 import logger from '../../config/logger';
 import {
   PENDULUM_FUNDING_AMOUNT_UNITS,
@@ -18,8 +24,8 @@ import { SlackNotifier } from '../services/slack.service';
 
 // DEPRECATED
 export const fundEphemeralAccountController = async (
-  req: Request<unknown, unknown, PendulumEndpoints.FundEphemeralRequest>,
-  res: Response<PendulumEndpoints.FundEphemeralResponse | PendulumEndpoints.FundEphemeralErrorResponse>,
+  req: Request<unknown, unknown, PendulumFundEphemeralRequest>,
+  res: Response<PendulumFundEphemeralResponse | PendulumFundEphemeralErrorResponse>,
 ) => {
   const { ephemeralAddress, requiresGlmr } = req.body;
   const networkName = 'pendulum';

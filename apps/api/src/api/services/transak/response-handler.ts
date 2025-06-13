@@ -1,4 +1,4 @@
-import { PriceEndpoints } from '@packages/shared';
+import { Direction, TransakPriceResponse } from '@packages/shared';
 import {
   InvalidAmountError,
   InvalidParameterError,
@@ -78,8 +78,8 @@ function handleTransakError(response: Response, body: TransakApiResponse): never
 function validateTransakResponse(
   body: TransakApiResponse,
   requestedAmount: string,
-  direction: PriceEndpoints.Direction,
-): PriceEndpoints.TransakPriceResponse {
+  direction: Direction,
+): TransakPriceResponse {
   if (
     !body.response ||
     body.response.conversionPrice === undefined ||
@@ -117,8 +117,8 @@ export function processTransakResponse(
   response: Response,
   body: TransakApiResponse,
   requestedAmount: string,
-  direction: PriceEndpoints.Direction,
-): PriceEndpoints.TransakPriceResponse {
+  direction: Direction,
+): TransakPriceResponse {
   if (!response.ok || body.error) {
     return handleTransakError(response, body);
   }

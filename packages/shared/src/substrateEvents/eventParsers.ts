@@ -3,6 +3,7 @@ import { encodeAddress } from '@polkadot/util-crypto';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Big from 'big.js';
 
+import { Event } from '@polkadot/types/interfaces';
 import { hexToString, stellarHexToPublic } from '../helpers/conversions';
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
@@ -11,8 +12,8 @@ export type XTokensEvent = ReturnType<typeof parseEventXTokens>;
 
 export type TokenTransferEvent = ReturnType<typeof parseTokenDepositEvent>;
 
-export function parseEventRedeemRequest(event: any) {
-  const rawEventData = JSON.parse(event.event.data.toString());
+export function parseEventRedeemRequest({ event }: { event: Event }) {
+  const rawEventData = JSON.parse(event.data.toString());
   const mappedData = {
     redeemId: rawEventData[0].toString(),
     redeemer: rawEventData[1].toString(),

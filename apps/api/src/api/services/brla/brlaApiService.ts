@@ -1,10 +1,10 @@
+import { BrlaKYCDocType } from '@packages/shared';
 import { BRLA_BASE_URL, BRLA_LOGIN_PASSWORD, BRLA_LOGIN_USERNAME } from '../../../constants/constants';
 import { Endpoint, EndpointMapping, Endpoints, Methods } from './mappings';
 import {
   DepositLog,
   FastQuoteQueryParams,
   FastQuoteResponse,
-  KYCDocType,
   KycLevel2Response,
   KycRetryPayload,
   OfframpPayload,
@@ -51,7 +51,10 @@ export class BrlaApiService {
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email: this.brlaBusinessUsername, password: this.brlaBusinessPassword }),
+      body: JSON.stringify({
+        email: this.brlaBusinessUsername,
+        password: this.brlaBusinessPassword,
+      }),
     });
 
     if (!response.ok) {
@@ -192,7 +195,7 @@ export class BrlaApiService {
     return (await this.sendRequest(Endpoint.OnChainHistoryOut, 'GET', query)).onchainLogs;
   }
 
-  public async startKYC2(subaccountId: string, documentType: KYCDocType): Promise<KycLevel2Response> {
+  public async startKYC2(subaccountId: string, documentType: BrlaKYCDocType): Promise<KycLevel2Response> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.KycLevel2, 'POST', query, { documentType });
   }

@@ -1,4 +1,4 @@
-import { MoonbeamEndpoints } from '@packages/shared';
+import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -13,8 +13,8 @@ export class MoonbeamService {
    * @param payload The XCM payload
    * @returns The transaction hash
    */
-  static async executeXcm(id: string, payload: string): Promise<MoonbeamEndpoints.ExecuteXcmResponse> {
-    const request: MoonbeamEndpoints.ExecuteXcmRequest = { id, payload };
-    return apiRequest<MoonbeamEndpoints.ExecuteXcmResponse>('post', `${this.BASE_PATH}/execute-xcm`, request);
+  static async executeXcm(id: string, payload: string): Promise<MoonbeamExecuteXcmResponse> {
+    const request: MoonbeamExecuteXcmRequest = { id, payload };
+    return apiRequest<MoonbeamExecuteXcmResponse>('post', `${this.BASE_PATH}/execute-xcm`, request);
   }
 }

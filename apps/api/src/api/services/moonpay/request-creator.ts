@@ -1,4 +1,4 @@
-import { PriceEndpoints } from '@packages/shared';
+import { Direction } from '@packages/shared';
 import { config } from '../../../config';
 
 const { priceProviders } = config;
@@ -59,7 +59,7 @@ type RequestConfig = {
 };
 
 export function createQuoteRequest(
-  direction: PriceEndpoints.Direction,
+  direction: Direction,
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,

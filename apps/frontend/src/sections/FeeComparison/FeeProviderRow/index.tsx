@@ -1,8 +1,8 @@
-import { PriceEndpoints } from '@packages/shared';
 import Big from 'big.js';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { BundledPriceResult } from '@packages/shared';
 import { RampDirection } from '../../../components/RampToggle';
 import { Skeleton } from '../../../components/Skeleton';
 import { RampParameters, useEventsContext } from '../../../contexts/events';
@@ -10,15 +10,15 @@ import { cn } from '../../../helpers/cn';
 import { useQuote } from '../../../stores/ramp/useQuoteStore';
 import { useRampDirection } from '../../../stores/rampDirectionStore';
 import { formatPrice } from '../helpers';
-import { PriceProvider } from '../priceProviders';
+import { PriceProviderDetails } from '../priceProviders';
 import { MINIMUM_BRL_BUY_AMOUNT } from './utils';
 
 interface FeeProviderRowProps {
-  provider: PriceProvider;
+  provider: PriceProviderDetails;
   isBestRate: boolean;
   bestPrice: Big;
   isLoading: boolean;
-  result?: PriceEndpoints.BundledPriceResult;
+  result?: BundledPriceResult;
   amountRaw: string;
   sourceAssetSymbol: string;
   targetAssetSymbol: string;

@@ -1,4 +1,16 @@
-import { BrlaEndpoints, PriceEndpoints, TokenConfig } from '@packages/shared';
+import {
+  Currency,
+  Direction,
+  PriceProvider,
+  StartKYC2Request,
+  TokenConfig,
+  VALID_CRYPTO_CURRENCIES,
+  VALID_FIAT_CURRENCIES,
+  VALID_PROVIDERS,
+  isValidCurrencyForDirection,
+  isValidDirection,
+  isValidPriceProvider,
+} from '@packages/shared';
 import { RequestHandler } from 'express';
 import httpStatus from 'http-status';
 import { ParsedQs } from 'qs';
@@ -16,12 +28,12 @@ interface CreationBody {
 }
 
 export interface PriceQuery {
-  provider: PriceEndpoints.Provider;
-  sourceCurrency: PriceEndpoints.Currency;
-  targetCurrency: PriceEndpoints.Currency;
+  provider: PriceProvider;
+  sourceCurrency: Currency;
+  targetCurrency: Currency;
   amount: string;
   network?: string;
-  direction: PriceEndpoints.Direction;
+  direction: Direction;
 }
 
 interface ChangeOpBody extends CreationBody {
@@ -82,10 +94,10 @@ export const validateCreationInput: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, PriceQuery> = (req, res, next) => {
+export const validateBundledPriceInput: RequestHandler<unknown, unknown, unknown, PriceQuery> = (req, res, next) => {
   const { sourceCurrency, targetCurrency, amount, network, direction } = req.query;
 
-  if (!direction || !PriceEndpoints.isValidDirection(direction)) {
+  if (!direction || !isValidDirection(direction)) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: 'Invalid direction parameter. Must be either "onramp" or "offramp".',
     });
@@ -96,23 +108,23 @@ export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, Pri
   // For onramp: source must be fiat, target must be crypto
   const isOfframp = direction === 'offramp';
 
-  if (!sourceCurrency || !PriceEndpoints.isValidCurrencyForDirection(sourceCurrency, isOfframp ? 'crypto' : 'fiat')) {
+  if (!sourceCurrency || !isValidCurrencyForDirection(sourceCurrency, isOfframp ? 'crypto' : 'fiat')) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid sourceCurrency for ${direction}. Must be a ${
         isOfframp ? 'cryptocurrency' : 'fiat currency'
       }. Supported currencies are: ${
-        isOfframp ? PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ') : PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ')
+        isOfframp ? VALID_CRYPTO_CURRENCIES.join(', ') : VALID_FIAT_CURRENCIES.join(', ')
       }`,
     });
     return;
   }
 
-  if (!targetCurrency || !PriceEndpoints.isValidCurrencyForDirection(targetCurrency, isOfframp ? 'fiat' : 'crypto')) {
+  if (!targetCurrency || !isValidCurrencyForDirection(targetCurrency, isOfframp ? 'fiat' : 'crypto')) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid targetCurrency for ${direction}. Must be a ${
         isOfframp ? 'fiat currency' : 'cryptocurrency'
       }. Supported currencies are: ${
-        isOfframp ? PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ') : PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ')
+        isOfframp ? VALID_FIAT_CURRENCIES.join(', ') : VALID_CRYPTO_CURRENCIES.join(', ')
       }`,
     });
     return;
@@ -136,17 +148,17 @@ export const validateBundledPriceInput: RequestHandler<{}, unknown, unknown, Pri
   next();
 };
 
-export const validatePriceInput: RequestHandler<{}, unknown, unknown, PriceQuery> = (req, res, next) => {
+export const validatePriceInput: RequestHandler<unknown, unknown, unknown, PriceQuery> = (req, res, next) => {
   const { provider, sourceCurrency, targetCurrency, amount, network, direction } = req.query;
 
-  if (!provider || !PriceEndpoints.isValidProvider(provider)) {
+  if (!provider || !isValidPriceProvider(provider)) {
     res.status(httpStatus.BAD_REQUEST).json({
-      error: `Invalid provider. Supported providers are: ${PriceEndpoints.VALID_PROVIDERS.join(', ')}`,
+      error: `Invalid provider. Supported providers are: ${VALID_PROVIDERS.join(', ')}`,
     });
     return;
   }
 
-  if (!direction || !PriceEndpoints.isValidDirection(direction)) {
+  if (!direction || !isValidDirection(direction)) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: 'Invalid direction parameter. Must be either "onramp" or "offramp".',
     });
@@ -157,23 +169,23 @@ export const validatePriceInput: RequestHandler<{}, unknown, unknown, PriceQuery
   // For onramp: source must be fiat, target must be crypto
   const isOfframp = direction === 'offramp';
 
-  if (!sourceCurrency || !PriceEndpoints.isValidCurrencyForDirection(sourceCurrency, isOfframp ? 'crypto' : 'fiat')) {
+  if (!sourceCurrency || !isValidCurrencyForDirection(sourceCurrency, isOfframp ? 'crypto' : 'fiat')) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid sourceCurrency for ${direction}. Must be a ${
         isOfframp ? 'cryptocurrency' : 'fiat currency'
       }. Supported currencies are: ${
-        isOfframp ? PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ') : PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ')
+        isOfframp ? VALID_CRYPTO_CURRENCIES.join(', ') : VALID_FIAT_CURRENCIES.join(', ')
       }`,
     });
     return;
   }
 
-  if (!targetCurrency || !PriceEndpoints.isValidCurrencyForDirection(targetCurrency, isOfframp ? 'fiat' : 'crypto')) {
+  if (!targetCurrency || !isValidCurrencyForDirection(targetCurrency, isOfframp ? 'fiat' : 'crypto')) {
     res.status(httpStatus.BAD_REQUEST).json({
       error: `Invalid targetCurrency for ${direction}. Must be a ${
         isOfframp ? 'fiat currency' : 'cryptocurrency'
       }. Supported currencies are: ${
-        isOfframp ? PriceEndpoints.VALID_FIAT_CURRENCIES.join(', ') : PriceEndpoints.VALID_CRYPTO_CURRENCIES.join(', ')
+        isOfframp ? VALID_FIAT_CURRENCIES.join(', ') : VALID_CRYPTO_CURRENCIES.join(', ')
       }`,
     });
     return;
@@ -443,7 +455,7 @@ export const validataSubaccountCreation: RequestHandler = (req, res, next) => {
 };
 
 export const validateStartKyc2: RequestHandler = (req, res, next) => {
-  const { taxId, documentType } = req.body as BrlaEndpoints.StartKYC2Request;
+  const { taxId, documentType } = req.body as StartKYC2Request;
 
   if (!taxId) {
     res.status(httpStatus.BAD_REQUEST).json({ error: 'Missing taxId parameter' });

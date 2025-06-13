@@ -5,7 +5,6 @@ import { http, Address, createPublicClient, createWalletClient, encodeFunctionDa
 import { privateKeyToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
 
-import { MoonbeamEndpoints } from '@packages/shared';
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
@@ -13,6 +12,7 @@ import {
 } from '../../constants/constants';
 import { SlackNotifier } from '../services/slack.service';
 
+import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from '@packages/shared';
 import splitReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
 
 interface StatusResponse {
@@ -36,8 +36,8 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
 };
 
 export const executeXcmController = async (
-  req: Request<{}, {}, MoonbeamEndpoints.ExecuteXcmRequest>,
-  res: Response<MoonbeamEndpoints.ExecuteXcmResponse | { error: string }>,
+  req: Request<unknown, unknown, MoonbeamExecuteXcmRequest>,
+  res: Response<MoonbeamExecuteXcmResponse | { error: string }>,
 ): Promise<void> => {
   const { id, payload } = req.body;
 

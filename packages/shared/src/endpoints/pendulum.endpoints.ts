@@ -1,15 +1,15 @@
 // POST /pendulum/fundEphemeral
-export interface FundEphemeralRequest {
+export interface PendulumFundEphemeralRequest {
   ephemeralAddress: string;
   requiresGlmr?: boolean;
 }
 
-export interface FundEphemeralResponse {
+export interface PendulumFundEphemeralResponse {
   status: 'success';
   data: undefined;
 }
 
-export interface FundEphemeralErrorResponse {
+export interface PendulumFundEphemeralErrorResponse {
   error: string;
   details?: string;
 }

@@ -1,3 +1,5 @@
+import { BrlaKYCDocType } from '@packages/shared';
+
 export interface TriggerOfframpRequest {
   taxId: string;
   pixKey: string;
@@ -210,17 +212,12 @@ export const enum SmartContractOperationType {
   BURN = 'BURN',
 }
 
-export enum KYCDocType {
-  RG = 'RG',
-  CNH = 'CNH',
-}
-
-export function isValidKYCDocType(value: string): value is KYCDocType {
-  return Object.values(KYCDocType).includes(value as unknown as KYCDocType);
+export function isValidKYCDocType(value: string): value is BrlaKYCDocType {
+  return Object.values(BrlaKYCDocType).includes(value as unknown as BrlaKYCDocType);
 }
 
 export interface KycLevel2Payload {
-  documentType: KYCDocType;
+  documentType: BrlaKYCDocType;
 }
 
 export interface KycLevel2Response {

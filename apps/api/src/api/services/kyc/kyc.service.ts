@@ -1,10 +1,11 @@
+import { BrlaKYCDocType } from '@packages/shared';
 import { Transaction } from 'sequelize';
 import { v4 as uuidv4 } from 'uuid';
 import sequelize from '../../../config/database';
 import logger from '../../../config/logger';
 import KycLevel2, { KycLevel2Status } from '../../../models/kycLevel2.model';
 import { BrlaApiService } from '../brla/brlaApiService';
-import { KYCDocType, KycLevel2Response } from '../brla/types';
+import { KycLevel2Response } from '../brla/types';
 
 export class KycService {
   private brlaApiService: BrlaApiService;
@@ -16,7 +17,7 @@ export class KycService {
   protected async createKycLevel2(
     data: {
       subaccountId: string;
-      documentType: KYCDocType;
+      documentType: BrlaKYCDocType;
       status?: KycLevel2Status;
       uploadData?: KycLevel2Response;
     },
@@ -59,7 +60,7 @@ export class KycService {
     }
   }
 
-  public async requestKycLevel2(subaccountId: string, documentType: KYCDocType): Promise<KycLevel2Response> {
+  public async requestKycLevel2(subaccountId: string, documentType: BrlaKYCDocType): Promise<KycLevel2Response> {
     try {
       // Ensure no existing KYC Level 2 process is in progress for the subaccount, or the user is already level 2.
       const existingKycLevel2 = await this.getLatestKycLevel2BySubaccount(subaccountId);

@@ -20,7 +20,7 @@ export async function createPendulumToMoonbeamTransfer(
   const networkName = 'pendulum';
   const pendulumNode = await apiManager.getApi(networkName);
 
-  const { ss58Format, api: pendulumApi } = pendulumNode;
+  const { api: pendulumApi } = pendulumNode;
 
   return pendulumApi.tx.xTokens.transferMulticurrencies(
     [

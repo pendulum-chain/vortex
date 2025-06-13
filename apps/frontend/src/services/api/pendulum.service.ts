@@ -1,4 +1,4 @@
-import { PendulumEndpoints } from '@packages/shared';
+import { PendulumFundEphemeralRequest, PendulumFundEphemeralResponse } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -16,11 +16,11 @@ export class PendulumService {
   static async fundEphemeralAccount(
     ephemeralAddress: string,
     requiresGlmr?: boolean,
-  ): Promise<PendulumEndpoints.FundEphemeralResponse> {
-    const request: PendulumEndpoints.FundEphemeralRequest = {
+  ): Promise<PendulumFundEphemeralResponse> {
+    const request: PendulumFundEphemeralRequest = {
       ephemeralAddress,
       requiresGlmr,
     };
-    return apiRequest<PendulumEndpoints.FundEphemeralResponse>('post', `${this.BASE_PATH}/fundEphemeral`, request);
+    return apiRequest<PendulumFundEphemeralResponse>('post', `${this.BASE_PATH}/fundEphemeral`, request);
   }
 }

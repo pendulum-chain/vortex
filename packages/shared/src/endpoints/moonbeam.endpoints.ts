@@ -1,9 +1,9 @@
 // POST /moonbeam/execute-xcm
-export interface ExecuteXcmRequest {
+export interface MoonbeamExecuteXcmRequest {
   id: string;
   payload: string;
 }
 
-export interface ExecuteXcmResponse {
+export interface MoonbeamExecuteXcmResponse {
   hash: `0x${string}`;
 }

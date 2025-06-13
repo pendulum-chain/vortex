@@ -1,7 +1,7 @@
 import { DestinationType, RampCurrency } from '../index';
 
 // Fee structure
-export interface FeeStructure {
+export interface QuoteFeeStructure {
   network: string;
   anchor: string;
   vortex: string;
@@ -30,7 +30,7 @@ export interface QuoteResponse {
   outputAmount: string;
   inputCurrency: RampCurrency;
   outputCurrency: RampCurrency;
-  fee: FeeStructure;
+  fee: QuoteFeeStructure;
   expiresAt: Date;
 }
 

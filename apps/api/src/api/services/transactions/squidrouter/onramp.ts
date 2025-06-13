@@ -3,7 +3,6 @@ import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { createOnrampRouteParams, getRoute } from './route';
 
-import Big from 'big.js';
 import erc20ABI from '../../../../contracts/ERC20';
 import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from './config';
 
@@ -35,10 +34,6 @@ export interface OnrampTransactionData {
     maxFeePerGas?: string;
     maxPriorityFeePerGas?: string;
   };
-}
-
-function bigNumberMin(a: Big, b: Big): Big {
-  return a.lt(b) ? a : b;
 }
 
 export async function createOnrampSquidrouterTransactions(

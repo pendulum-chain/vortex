@@ -1,4 +1,4 @@
-import { PriceEndpoints } from '@packages/shared';
+import { BundledPriceResult, PriceProvider } from '@packages/shared';
 import { FeeProviderRow } from '../../FeeProviderRow';
 import { priceProviders } from '../../priceProviders';
 import { useFeeComparisonData } from '../hooks/useFeeComparisonData';
@@ -28,9 +28,7 @@ export function FeeComparisonProviderList({
       {sortedProviders.map((provider) => {
         const providerResult =
           provider.name !== 'vortex' && allPricesResponse
-            ? (allPricesResponse[provider.name as PriceEndpoints.Provider] as
-                | PriceEndpoints.BundledPriceResult
-                | undefined)
+            ? (allPricesResponse[provider.name as PriceProvider] as BundledPriceResult | undefined)
             : undefined;
 
         return (

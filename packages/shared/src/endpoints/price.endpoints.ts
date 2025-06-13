@@ -3,14 +3,14 @@ export const VALID_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
 export const VALID_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
 export const VALID_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
 
-export type Provider = (typeof VALID_PROVIDERS)[number];
+export type PriceProvider = (typeof VALID_PROVIDERS)[number];
 export type CryptoCurrency = (typeof VALID_CRYPTO_CURRENCIES)[number];
 export type FiatCurrency = (typeof VALID_FIAT_CURRENCIES)[number];
 export type Currency = CryptoCurrency | FiatCurrency;
 
 // Validation functions
-export const isValidProvider = (value: unknown): value is Provider =>
-  typeof value === 'string' && VALID_PROVIDERS.includes(value.toLowerCase() as Provider);
+export const isValidPriceProvider = (value: unknown): value is PriceProvider =>
+  typeof value === 'string' && VALID_PROVIDERS.includes(value.toLowerCase() as PriceProvider);
 
 export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency =>
   typeof value === 'string' && VALID_CRYPTO_CURRENCIES.includes(value.toLowerCase() as CryptoCurrency);
@@ -21,7 +21,7 @@ export const isValidFiatCurrency = (value: unknown): value is FiatCurrency =>
 export type Direction = 'onramp' | 'offramp';
 
 export interface PriceRequest {
-  provider: Provider;
+  provider: PriceProvider;
   sourceCurrency: Currency;
   targetCurrency: Currency;
   amount: string;
@@ -103,5 +103,5 @@ export type BundledPriceResult =
 
 // The complete response from the bundled price endpoint
 export type AllPricesResponse = {
-  [K in Provider]?: BundledPriceResult;
+  [K in PriceProvider]?: BundledPriceResult;
 };
