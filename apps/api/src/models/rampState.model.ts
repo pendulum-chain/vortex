@@ -6,7 +6,7 @@ import sequelize from '../config/database';
 export interface PhaseHistoryEntry {
   phase: RampPhase;
   timestamp: Date;
-  metadata?: any;
+  metadata?: StateMetadata;
 }
 
 type ProcessingLock = {
