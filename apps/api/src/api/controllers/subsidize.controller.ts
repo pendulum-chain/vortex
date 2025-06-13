@@ -3,8 +3,17 @@ import Big from 'big.js';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 
-import { StellarTokenConfig, TOKEN_CONFIG, XCMTokenConfig } from '@packages/shared';
-import { SubsidizeEndpoints } from '@packages/shared';
+import {
+  StellarTokenConfig,
+  SubsidizeErrorResponse,
+  SubsidizePostSwapRequest,
+  SubsidizePostSwapResponse,
+  SubsidizePreSwapRequest,
+  SubsidizePreSwapResponse,
+  TOKEN_CONFIG,
+  XCMTokenConfig,
+} from '@packages/shared';
+import {} from '@packages/shared';
 import logger from '../../config/logger';
 import { PENDULUM_FUNDING_SEED } from '../../constants/constants';
 import { ApiManager } from '../services/pendulum/apiManager';
@@ -36,8 +45,8 @@ const getPendulumCurrencyConfig = (token: string): StellarTokenConfig | XCMToken
 };
 
 export const subsidizePreSwap = async (
-  req: Request<{}, {}, SubsidizeEndpoints.SubsidizePreSwapRequest>,
-  res: Response<SubsidizeEndpoints.SubsidizePreSwapResponse | SubsidizeEndpoints.SubsidizeErrorResponse>,
+  req: Request<unknown, unknown, SubsidizePreSwapRequest>,
+  res: Response<SubsidizePreSwapResponse | SubsidizeErrorResponse>,
 ): Promise<void> => {
   try {
     const { address, amountRaw, tokenToSubsidize } = req.body;
@@ -69,8 +78,8 @@ export const subsidizePreSwap = async (
 };
 
 export const subsidizePostSwap = async (
-  req: Request<{}, {}, SubsidizeEndpoints.SubsidizePostSwapRequest>,
-  res: Response<SubsidizeEndpoints.SubsidizePostSwapResponse | SubsidizeEndpoints.SubsidizeErrorResponse>,
+  req: Request<unknown, unknown, SubsidizePostSwapRequest>,
+  res: Response<SubsidizePostSwapResponse | SubsidizeErrorResponse>,
 ): Promise<void> => {
   try {
     const { address, amountRaw, token } = req.body;

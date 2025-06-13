@@ -1,4 +1,4 @@
-import { RatingEndpoints } from '@packages/shared';
+import { StoreRatingErrorResponse, StoreRatingResponse } from '@packages/shared';
 import { Request, Response } from 'express';
 import { config } from '../../config/vars';
 import { storeDataInGoogleSpreadsheet } from './googleSpreadSheet.controller';
@@ -18,8 +18,8 @@ export const RATING_SHEET_HEADER_VALUES = [
 ];
 
 export const storeRating = async (
-  req: Request<{}, {}, RatingEndpoints.StoreRatingRequest>,
-  res: Response<RatingEndpoints.StoreRatingResponse | RatingEndpoints.StoreRatingErrorResponse>,
+  req: Request,
+  res: Response<StoreRatingResponse | StoreRatingErrorResponse>,
 ): Promise<void> => {
   if (!spreadsheet.ratingSheetId) {
     throw new Error('Rating sheet ID is not configured');

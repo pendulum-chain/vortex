@@ -1,4 +1,4 @@
-import { SiweEndpoints } from '@packages/shared';
+import { CreateSiweRequest, CreateSiweResponse, ValidateSiweRequest, ValidateSiweResponse } from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -12,9 +12,9 @@ export class SiweService {
    * @param walletAddress The user's wallet address
    * @returns The nonce
    */
-  static async createNonce(walletAddress: string): Promise<SiweEndpoints.CreateSiweResponse> {
-    const request: SiweEndpoints.CreateSiweRequest = { walletAddress };
-    return apiRequest<SiweEndpoints.CreateSiweResponse>('post', `${this.BASE_PATH}/create`, request);
+  static async createNonce(walletAddress: string): Promise<CreateSiweResponse> {
+    const request: CreateSiweRequest = { walletAddress };
+    return apiRequest<CreateSiweResponse>('post', `${this.BASE_PATH}/create`, request);
   }
 
   /**
@@ -24,16 +24,12 @@ export class SiweService {
    * @param siweMessage The SIWE message
    * @returns Validation result
    */
-  static async validateSignature(
-    nonce: string,
-    signature: string,
-    siweMessage: string,
-  ): Promise<SiweEndpoints.ValidateSiweResponse> {
-    const request: SiweEndpoints.ValidateSiweRequest = {
+  static async validateSignature(nonce: string, signature: string, siweMessage: string): Promise<ValidateSiweResponse> {
+    const request: ValidateSiweRequest = {
       nonce,
       signature,
       siweMessage,
     };
-    return apiRequest<SiweEndpoints.ValidateSiweResponse>('post', `${this.BASE_PATH}/validate`, request);
+    return apiRequest<ValidateSiweResponse>('post', `${this.BASE_PATH}/validate`, request);
   }
 }

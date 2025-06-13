@@ -1,4 +1,10 @@
-import { SubsidizeEndpoints } from '@packages/shared';
+import {
+  SubsidizeErrorResponse,
+  SubsidizePostSwapRequest,
+  SubsidizePostSwapResponse,
+  SubsidizePreSwapRequest,
+  SubsidizePreSwapResponse,
+} from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -18,13 +24,13 @@ export class SubsidizeService {
     address: string,
     amountRaw: string,
     tokenToSubsidize: string,
-  ): Promise<SubsidizeEndpoints.SubsidizePreSwapResponse> {
-    const request: SubsidizeEndpoints.SubsidizePreSwapRequest = {
+  ): Promise<SubsidizePreSwapResponse> {
+    const request: SubsidizePreSwapRequest = {
       address,
       amountRaw,
       tokenToSubsidize,
     };
-    return apiRequest<SubsidizeEndpoints.SubsidizePreSwapResponse>('post', `${this.BASE_PATH}/preswap`, request);
+    return apiRequest<SubsidizePreSwapResponse>('post', `${this.BASE_PATH}/preswap`, request);
   }
 
   /**
@@ -38,12 +44,12 @@ export class SubsidizeService {
     address: string,
     amountRaw: string,
     token: string,
-  ): Promise<SubsidizeEndpoints.SubsidizePostSwapResponse> {
-    const request: SubsidizeEndpoints.SubsidizePostSwapRequest = {
+  ): Promise<SubsidizePostSwapResponse> {
+    const request: SubsidizePostSwapRequest = {
       address,
       amountRaw,
       token,
     };
-    return apiRequest<SubsidizeEndpoints.SubsidizePostSwapResponse>('post', `${this.BASE_PATH}/postswap`, request);
+    return apiRequest<SubsidizePostSwapResponse>('post', `${this.BASE_PATH}/postswap`, request);
   }
 }

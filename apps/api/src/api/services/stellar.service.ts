@@ -3,7 +3,7 @@ import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, Transactio
 import { HORIZON_URL, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../constants/constants';
 
 interface CreationTxResult {
-  signature: string[];
+  signature: string;
   sequence: string;
 }
 
@@ -58,7 +58,7 @@ async function buildCreationStellarTx(
     .build();
 
   return {
-    signature: [createAccountTransaction.getKeypairSignature(fundingAccountKeypair)],
+    signature: createAccountTransaction.getKeypairSignature(fundingAccountKeypair),
     sequence: fundingSequence,
   };
 }

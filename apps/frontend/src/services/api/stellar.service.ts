@@ -1,4 +1,11 @@
-import { FiatToken, StellarEndpoints } from '@packages/shared';
+import {
+  CreateStellarTransactionRequest,
+  CreateStellarTransactionResponse,
+  FiatToken,
+  GetSep10MasterPKResponse,
+  SignSep10ChallengeRequest,
+  SignSep10ChallengeResponse,
+} from '@packages/shared';
 import { apiRequest } from './api-client';
 
 /**
@@ -20,14 +27,14 @@ export class StellarService {
     maxTime: number,
     assetCode: string,
     baseFee: string,
-  ): Promise<StellarEndpoints.CreateStellarTransactionResponse> {
-    const request: StellarEndpoints.CreateStellarTransactionRequest = {
+  ): Promise<CreateStellarTransactionResponse> {
+    const request: CreateStellarTransactionRequest = {
       accountId,
       maxTime,
       assetCode,
       baseFee,
     };
-    return apiRequest<StellarEndpoints.CreateStellarTransactionResponse>('post', `${this.BASE_PATH}/create`, request);
+    return apiRequest<CreateStellarTransactionResponse>('post', `${this.BASE_PATH}/create`, request);
   }
 
   /**
@@ -43,21 +50,21 @@ export class StellarService {
     outToken: FiatToken,
     clientPublicKey: string,
     derivedMemo?: string,
-  ): Promise<StellarEndpoints.SignSep10ChallengeResponse> {
-    const request: StellarEndpoints.SignSep10ChallengeRequest = {
+  ): Promise<SignSep10ChallengeResponse> {
+    const request: SignSep10ChallengeRequest = {
       challengeXDR,
       outToken,
       clientPublicKey,
       derivedMemo,
     };
-    return apiRequest<StellarEndpoints.SignSep10ChallengeResponse>('post', `${this.BASE_PATH}/sep10`, request);
+    return apiRequest<SignSep10ChallengeResponse>('post', `${this.BASE_PATH}/sep10`, request);
   }
 
   /**
    * Get the SEP-10 master public key
    * @returns The master public key
    */
-  static async getSep10MasterPK(): Promise<StellarEndpoints.GetSep10MasterPKResponse> {
-    return apiRequest<StellarEndpoints.GetSep10MasterPKResponse>('get', `${this.BASE_PATH}/sep10`);
+  static async getSep10MasterPK(): Promise<GetSep10MasterPKResponse> {
+    return apiRequest<GetSep10MasterPKResponse>('get', `${this.BASE_PATH}/sep10`);
   }
 }

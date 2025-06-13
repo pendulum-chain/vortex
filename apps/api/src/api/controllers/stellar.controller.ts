@@ -2,8 +2,14 @@ import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { Keypair } from 'stellar-sdk';
 
-import { FiatToken } from '@packages/shared';
-import { StellarEndpoints } from '@packages/shared';
+import {
+  CreateStellarTransactionRequest,
+  CreateStellarTransactionResponse,
+  GetSep10MasterPKResponse,
+  SignSep10ChallengeRequest,
+  SignSep10ChallengeResponse,
+  StellarErrorResponse,
+} from '@packages/shared';
 import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from '../../constants/constants';
 import { signSep10Challenge } from '../services/sep10/sep10.service';
 import { SlackNotifier } from '../services/slack.service';
@@ -12,8 +18,8 @@ import { buildCreationStellarTx, horizonServer } from '../services/stellar.servi
 const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
 
 export const createStellarTransactionHandler = async (
-  req: Request<{}, {}, StellarEndpoints.CreateStellarTransactionRequest>,
-  res: Response<StellarEndpoints.CreateStellarTransactionResponse | StellarEndpoints.StellarErrorResponse>,
+  req: Request<unknown, unknown, CreateStellarTransactionRequest>,
+  res: Response<CreateStellarTransactionResponse | StellarErrorResponse>,
   _next: NextFunction,
 ): Promise<void> => {
   try {
@@ -39,8 +45,8 @@ export const createStellarTransactionHandler = async (
 };
 
 export const signSep10ChallengeHandler = async (
-  req: Request<{}, {}, StellarEndpoints.SignSep10ChallengeRequest>,
-  res: Response<StellarEndpoints.SignSep10ChallengeResponse | StellarEndpoints.StellarErrorResponse>,
+  req: Request<unknown, unknown, SignSep10ChallengeRequest>,
+  res: Response<SignSep10ChallengeResponse | StellarErrorResponse>,
   _next: NextFunction,
 ): Promise<void> => {
   try {
@@ -51,10 +57,10 @@ export const signSep10ChallengeHandler = async (
       req.derivedMemo,
     );
     res.json({
-      masterClientSignature,
-      masterClientPublic,
-      clientSignature,
-      clientPublic,
+      masterClientSignature: masterClientSignature ?? '',
+      masterClientPublic: masterClientPublic ?? '',
+      clientSignature: clientSignature ?? '',
+      clientPublic: clientPublic ?? '',
     });
     return;
   } catch (error) {
@@ -68,7 +74,7 @@ export const signSep10ChallengeHandler = async (
 
 export const getSep10MasterPKHandler = async (
   _: Request,
-  res: Response<StellarEndpoints.GetSep10MasterPKResponse | StellarEndpoints.StellarErrorResponse>,
+  res: Response<GetSep10MasterPKResponse | StellarErrorResponse>,
   _next: NextFunction,
 ): Promise<void> => {
   try {
