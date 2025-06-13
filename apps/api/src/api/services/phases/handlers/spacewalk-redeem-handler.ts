@@ -38,22 +38,25 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       !executeSpacewalkNonce ||
       !stellarEphemeralAccountId
     ) {
-      throw new Error('SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.');
+      logger.error('SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.');
+      return this.transitionToNextPhase(state, 'failed');
     }
 
     // Check if Stellar target account exists on the network and has the respective trustline.
     // Otherwise, the redeem will end up with a 'claimable-payment' operation on Stellar that we cannot claim.
     if (!(await isStellarEphemeralFunded(stellarEphemeralAccountId, stellarTarget.stellarTokenDetails))) {
-      throw new Error(
+      logger.error(
         `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarEphemeralAccountId} does not exist or does not have the required trustline.`,
       );
+      return this.transitionToNextPhase(state, 'failed');
     }
 
     const { txData: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');
     if (typeof spacewalkRedeemTransaction !== 'string') {
-      throw new Error(
+      logger.error(
         'SpacewalkRedeemPhaseHandler: Presigned transaction is not a string -> not an encoded Stellar transaction.',
       );
+      return this.transitionToNextPhase(state, 'failed');
     }
 
     try {
