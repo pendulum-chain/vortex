@@ -138,7 +138,6 @@ export class RampService extends BaseRampService {
         }
 
         brCode = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
-        logger.info(`BR Code for onramp: ${brCode}`);
         ({ unsignedTxs, stateMeta } = await prepareOnrampTransactions(
           quote,
           normalizedSigningAccounts,
