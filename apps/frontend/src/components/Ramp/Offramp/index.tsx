@@ -42,7 +42,7 @@ export const Offramp = () => {
 
   // TODO: This is a hack to get the output amount to the form
   useEffect(() => {
-    form.setValue('outputAmount', toAmount?.toString() || '0');
+    form.setValue('outputAmount', toAmount?.toFixed(2, 0) || '0');
   }, [toAmount, form]);
 
   const { getCurrentErrorMessage } = useRampValidation();
