@@ -82,16 +82,13 @@ export class QuoteService extends BaseRampService {
     // d. Perform Nabla Swap
     // Determine nablaOutputCurrency based on ramp type and destination
     let nablaOutputCurrency: RampCurrency;
-    let toPolkadotDestination: DestinationType;
 
     if (request.rampType === 'on') {
       // On-Ramp: intermediate currency on Pendulum/Moonbeam
       if (request.to === 'assethub') {
         nablaOutputCurrency = request.outputCurrency; // Direct to target OnChainToken
-        toPolkadotDestination = 'assethub';
       } else {
         nablaOutputCurrency = EvmToken.USDC; // Use USDC as intermediate for EVM destinations
-        toPolkadotDestination = 'moonbeam';
       }
     } else {
       // Off-Ramp: fiat-representative token on Pendulum
@@ -107,7 +104,6 @@ export class QuoteService extends BaseRampService {
           message: `Unsupported off-ramp destination: ${request.to}`,
         });
       }
-      toPolkadotDestination = 'pendulum';
     }
 
     const nablaSwapResult = await calculateNablaSwapOutput({
@@ -115,9 +111,8 @@ export class QuoteService extends BaseRampService {
       inputCurrency: request.inputCurrency,
       nablaOutputCurrency,
       rampType: request.rampType,
-      fromPolkadotDestination:
-        request.rampType === 'on' ? request.from : request.from === 'assethub' ? 'assethub' : 'moonbeam',
-      toPolkadotDestination,
+      fromPolkadotDestination: request.from,
+      toPolkadotDestination: request.to,
     });
 
     // e. Calculate Full Fee Breakdown
@@ -172,6 +167,10 @@ export class QuoteService extends BaseRampService {
 
     if (request.rampType === 'on' && request.to !== 'assethub') {
       // Do a first call to get a rough estimate of network fees
+      console.log(
+        'Calculating EVM bridge and network fee for on-ramp to EVM... for amount',
+        nablaSwapResult.nablaOutputAmountRaw,
+      );
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
         intermediateCurrencyOnEvm: EvmToken.USDC as OnChainToken,
@@ -186,10 +185,8 @@ export class QuoteService extends BaseRampService {
         .minus(vortexFeeUsd)
         .minus(partnerMarkupFeeUsd)
         .minus(squidRouterNetworkFeeUSD);
-      outputAmountMoonbeamRaw = multiplyByPowerOfTen(
-        outputAmountMoonbeamDecimal,
-        getOnChainTokenDetailsOrDefault(Networks.Moonbeam, usdCurrency).pendulumDecimals,
-      ).toString();
+      // axlUSDC on Moonbeam is 6 decimals
+      outputAmountMoonbeamRaw = multiplyByPowerOfTen(outputAmountMoonbeamDecimal, 6).toString();
 
       // Do a second call with all fees deducted to get the final gross output amount
       const evmBridgeResult = await calculateEvmBridgeAndNetworkFee({

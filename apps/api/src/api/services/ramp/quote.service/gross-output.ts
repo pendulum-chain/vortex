@@ -12,7 +12,6 @@ import {
 import { Big } from 'big.js';
 import httpStatus from 'http-status';
 import logger from '../../../../config/logger';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import { APIError } from '../../../errors/api-error';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../../helpers/contracts';
 import { TokenOutData, getTokenOutAmount } from '../../nablaReads/outAmount';

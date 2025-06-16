@@ -2,13 +2,12 @@
  * Helper functions for token configuration
  */
 
-import { Networks } from '../../helpers';
+import { EvmTerminalNetworks, Networks } from '../../helpers';
 import { assetHubTokenConfig } from '../assethub/config';
 import { evmTokenConfig } from '../evm/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
 import { stellarTokenConfig } from '../stellar/config';
-import { FiatToken, OnChainToken, PendulumDetails, RampCurrency } from '../types/base';
-import { AssetHubToken } from '../types/base';
+import { AssetHubToken, FiatToken, OnChainToken, PendulumDetails, RampCurrency } from '../types/base';
 import { EvmToken } from '../types/evm';
 import { MoonbeamTokenDetails } from '../types/moonbeam';
 import { StellarTokenDetails } from '../types/stellar';
@@ -22,7 +21,10 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
     if (network === Networks.AssetHub) {
       return assetHubTokenConfig[onChainToken as AssetHubToken];
     } else {
-      return evmTokenConfig[network][onChainToken as EvmToken];
+      if (!(network in evmTokenConfig)) {
+        throw new Error(`Network ${network} is not a valid EVM origin network`);
+      }
+      return evmTokenConfig[network as EvmTerminalNetworks][onChainToken as EvmToken];
     }
   } catch (error) {
     console.error(`Error getting input token details: ${error}`);
@@ -47,10 +49,14 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
     }
     return firstAvailableToken;
   } else {
-    const firstAvailableToken = Object.values(evmTokenConfig[network])[0];
+    if (!(network in evmTokenConfig)) {
+      throw new Error(`Network ${network} is not a valid EVM origin network`);
+    }
+    const firstAvailableToken = Object.values(evmTokenConfig[network as EvmTerminalNetworks])[0];
     if (!firstAvailableToken) {
       throw new Error(`No tokens configured for network ${network}`);
     }
+
     return firstAvailableToken;
   }
 }

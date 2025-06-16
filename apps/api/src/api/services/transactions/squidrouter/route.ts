@@ -73,7 +73,7 @@ export async function getRoute(params: RouteParams) {
     return { data: result.data, requestId };
   } catch (error: any) {
     if (error) {
-      logger.error(`Error fetching route from Squidrouter API: ${error.response?.data}}`);
+      logger.error(`Error fetching route from Squidrouter API: ${JSON.stringify(error.response?.data)}}`);
     }
     logger.error(`Error with parameters: ${JSON.stringify(params)}`);
     throw error;

@@ -254,7 +254,7 @@ export class PriceFeedService {
       BNB: 'binancecoin',
     };
 
-    return tokenIdMap[currency as string] || null;
+    return tokenIdMap[currency.toUpperCase()] || null;
   }
 
   // Helper method to satisfy eslint for 'this' usage
