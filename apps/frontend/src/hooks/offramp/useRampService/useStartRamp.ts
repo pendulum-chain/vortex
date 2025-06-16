@@ -44,7 +44,7 @@ export const useStartRamp = () => {
       }
     }
 
-    RampService.startRamp(rampState.ramp.id, rampState.signedTransactions, rampState.userSigningMeta)
+    RampService.startRamp(rampState.ramp.id)
       .then((response) => {
         console.log('startRampResponse', response);
         setRampStarted(true);

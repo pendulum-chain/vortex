@@ -443,6 +443,14 @@
         "tryAgain": "Try Again"
       }
     },
+    "maintenance": {
+      "button": "Maintenance Mode",
+      "banner": {
+        "started": "Started",
+        "ends": "Expected end",
+        "estimatedTimeRemaining": "Estimated time remaining"
+      }
+    },
     "rating": {
       "title": "Your opinion matters!",
       "howWouldYouRateYourExperience": "How would you rate your experience?",

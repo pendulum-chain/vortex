@@ -86,6 +86,33 @@ router.get('/quotes/:id', quoteController.getQuote);
 router.post('/register', rampController.registerRamp);
 
 /**
+ * @api {post} v1/ramp/:rampId/update Update ramping process
+ * @apiDescription Update a ramping process with presigned transactions and additional data
+ * @apiVersion 1.0.0
+ * @apiName UpdateRamp
+ * @apiGroup Ramp
+ * @apiPermission public
+ *
+ * @apiParam  {String}  rampId        Ramp ID (URL parameter)
+ * @apiParam  {Array}   presignedTxs   Presigned transactions
+ * @apiParam  {Object}  [additionalData] Additional data (squidRouterApproveHash, squidRouterSwapHash, assetHubToPendulumHash, etc.)
+ *
+ * @apiSuccess (OK 200) {String}  id           Ramp ID
+ * @apiSuccess (OK 200) {String}  type         Ramp type
+ * @apiSuccess (OK 200) {String}  currentPhase Current phase
+ * @apiSuccess (OK 200) {String}  from         DestinationType
+ * @apiSuccess (OK 200) {String}  to           DestinationType
+ * @apiSuccess (OK 200) {Object}  state        State
+ * @apiSuccess (OK 200) {Date}    createdAt    Creation date
+ * @apiSuccess (OK 200) {Date}    updatedAt    Update date
+ *
+ * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
+ * @apiError (Not Found 404) NotFound Ramp does not exist
+ * @apiError (Conflict 409) ConflictError Ramp is not in a state that allows updates
+ */
+router.post('/:rampId/update', rampController.updateRamp);
+
+/**
  * @api {post} v1/ramp/start Start ramping process
  * @apiDescription Start a new ramping process
  * @apiVersion 1.0.0

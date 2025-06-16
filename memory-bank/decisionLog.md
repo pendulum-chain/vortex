@@ -44,3 +44,51 @@ To improve accuracy, transparency, and maintainability of fee handling, aligning
 ### Known Issues/TODOs
 - The `convertFeeToOutputCurrency` function uses placeholder logic. It **must** be implemented with real price feed data for accurate fee deduction, especially for non-USD output currencies.
 - The GLMR-&gt;USD conversion rate in `calculateGrossOutputAndNetworkFee` is hardcoded (0.08) and needs replacement with dynamic price fetching.
+
+## 2025-12-06: Implementation of updateRamp Endpoint
+
+### Decision
+Implemented a new `updateRamp` endpoint that allows the frontend to submit presigned transactions and additional data before calling `startRamp`. This decouples data submission from process initiation, improving resilience against failures where Vortex doesn't process transactions properly.
+
+### Rationale
+In the past, there were issues where an offramp could not be processed because while the user signed and submitted the transaction on their side, Vortex did not process it properly and never called into the 'startRamp' endpoint. Since 'startRamp' was never called with the presigned transactions of the ephemerals, the ramp couldn't be completed even though the funds left the user's account.
+
+### Implementation Details
+1. **Backend Changes:**
+   - Added `UpdateRampRequest` and `UpdateRampResponse` DTOs to shared package
+   - Extended `RampState` model with `additionalData` field (nullable JSONB)
+   - Implemented `updateRamp` controller and service methods
+   - Added `POST /v1/ramp/:rampId/update` route
+   - Modified `startRamp` to use data from `RampState` instead of request parameters
+   - Created database migration `007-add-additional-data-to-ramp-states.ts`
+
+2. **Frontend Changes:**
+   - Updated `StartRampRequest` DTO to only require `rampId`
+   - Added `updateRamp` method to frontend `RampService`
+   - Integrated `updateRamp` calls in `useRegisterRamp` hook:
+     - Called after ephemeral transactions are signed
+     - Called again after user transactions are signed (for offramps) with additional data
+
+3. **New Flow:**
+   - `register` → `updateRamp` (ephemeral txs) → `updateRamp` (user txs + hashes) → `start`
+   - The backend merges data from multiple `updateRamp` calls
+   - `startRamp` validates that required data is present before processing
+
+### Benefits
+- Improved resilience: Data is stored before process initiation
+- Better error recovery: Failed `startRamp` calls can be retried without re-signing
+- Cleaner separation of concerns: Data submission vs. process execution
+- Maintains existing security model: No private keys stored on backend
+
+## 2025-06-13 11:32:00 - Maintenance Feature Design
+
+### Decision
+Designed a database schema (`maintenance_schedules` table) and an API endpoint (`GET /api/v1/maintenance/status`) for the 'under maintenance' feature. The design includes fields for start/end times, a display message, and an active configuration flag. The API will return the current maintenance status and relevant details.
+
+### Rationale
+To provide a mechanism for informing users when the application is undergoing scheduled maintenance, improving user experience during downtime. The design allows for pre-configuration of maintenance windows and a clear way for the frontend to query the status.
+
+### Implementation Details
+- **Database Table:** `maintenance_schedules` as defined in `docs/architecture/maintenance-feature-design.md`.
+- **API Endpoint:** `GET /api/v1/maintenance/status` as defined in `docs/architecture/maintenance-feature-design.md`.
+- Administrator interaction will be handled via direct database manipulation, as per user confirmation.

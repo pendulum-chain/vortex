@@ -1,14 +1,14 @@
-import { EventListener, RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
+import { RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
 import Big from 'big.js';
 import RampState from '../../../../models/rampState.model';
 import { BasePhaseHandler } from '../base-phase-handler';
 
-import { ApiManager } from '../../pendulum/apiManager';
-import { StateMetadata } from '../meta-state-types';
-
 import logger from '../../../../config/logger';
+import { ApiManager } from '../../pendulum/apiManager';
 import { checkBalancePeriodically } from '../../stellar/checkBalance';
 import { createVaultService } from '../../stellar/vaultService';
+import { StateMetadata } from '../meta-state-types';
+import { isStellarEphemeralFunded } from './helpers';
 
 const maxWaitingTimeMinutes = 10;
 const maxWaitingTimeMs = maxWaitingTimeMinutes * 60 * 1000;
@@ -38,14 +38,25 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
       !executeSpacewalkNonce ||
       !stellarEphemeralAccountId
     ) {
-      throw new Error('SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.');
+      logger.error('SpacewalkRedeemPhaseHandler: State metadata corrupted. This is a bug.');
+      return this.transitionToNextPhase(state, 'failed');
+    }
+
+    // Check if Stellar target account exists on the network and has the respective trustline.
+    // Otherwise, the redeem will end up with a 'claimable-payment' operation on Stellar that we cannot claim.
+    if (!(await isStellarEphemeralFunded(stellarEphemeralAccountId, stellarTarget.stellarTokenDetails))) {
+      logger.error(
+        `SpacewalkRedeemPhaseHandler: Stellar target account ${stellarEphemeralAccountId} does not exist or does not have the required trustline.`,
+      );
+      return this.transitionToNextPhase(state, 'failed');
     }
 
     const { txData: spacewalkRedeemTransaction } = this.getPresignedTransaction(state, 'spacewalkRedeem');
     if (typeof spacewalkRedeemTransaction !== 'string') {
-      throw new Error(
+      logger.error(
         'SpacewalkRedeemPhaseHandler: Presigned transaction is not a string -> not an encoded Stellar transaction.',
       );
+      return this.transitionToNextPhase(state, 'failed');
     }
 
     try {
@@ -75,9 +86,11 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
       logger.info(`Successfully posed redeem request ${redeemRequestEvent.redeemId} for vault ${vaultService.vaultId}`);
 
-      // TODO we may want to use a singleton for the event listener across the backend.
-      const eventListener = EventListener.getEventListener(pendulumNode.api);
-      await eventListener.waitForRedeemExecuteEvent(redeemRequestEvent.redeemId, maxWaitingTimeMs);
+      await this.waitForOutputTokensToArriveOnStellar(
+        outputAmountBeforeFinalStep.units,
+        stellarEphemeralAccountId,
+        stellarTarget.stellarTokenDetails.stellarAsset.code.string,
+      );
 
       return this.transitionToNextPhase(state, 'stellarPayment');
     } catch (e) {
