@@ -45,7 +45,6 @@ To improve accuracy, transparency, and maintainability of fee handling, aligning
 - The `convertFeeToOutputCurrency` function uses placeholder logic. It **must** be implemented with real price feed data for accurate fee deduction, especially for non-USD output currencies.
 - The GLMR-&gt;USD conversion rate in `calculateGrossOutputAndNetworkFee` is hardcoded (0.08) and needs replacement with dynamic price fetching.
 
-
 ## 2025-12-06: Implementation of updateRamp Endpoint
 
 ### Decision
@@ -80,3 +79,16 @@ In the past, there were issues where an offramp could not be processed because w
 - Better error recovery: Failed `startRamp` calls can be retried without re-signing
 - Cleaner separation of concerns: Data submission vs. process execution
 - Maintains existing security model: No private keys stored on backend
+
+## 2025-06-13 11:32:00 - Maintenance Feature Design
+
+### Decision
+Designed a database schema (`maintenance_schedules` table) and an API endpoint (`GET /api/v1/maintenance/status`) for the 'under maintenance' feature. The design includes fields for start/end times, a display message, and an active configuration flag. The API will return the current maintenance status and relevant details.
+
+### Rationale
+To provide a mechanism for informing users when the application is undergoing scheduled maintenance, improving user experience during downtime. The design allows for pre-configuration of maintenance windows and a clear way for the frontend to query the status.
+
+### Implementation Details
+- **Database Table:** `maintenance_schedules` as defined in `docs/architecture/maintenance-feature-design.md`.
+- **API Endpoint:** `GET /api/v1/maintenance/status` as defined in `docs/architecture/maintenance-feature-design.md`.
+- Administrator interaction will be handled via direct database manipulation, as per user confirmation.

@@ -17,15 +17,20 @@ export const PIXKYCForm = () => {
   const {
     verificationStatus,
     statusMessage,
+    failureMessage,
     handleFormSubmit: handleKYCFormSubmit,
+    cpfApiError,
     handleBackClick,
     setIsSubmitted,
     setCpf,
     isSubmitted,
+    kycVerificationError,
+    proceedWithRamp,
+    resetToDefault,
   } = useKYCProcess();
 
   const rampKycLevel2Started = useRampKycLevel2Started();
-  const { kycForm } = useKYCForm();
+  const { kycForm } = useKYCForm({ cpfApiError });
   const { clearStorage } = useKYCFormLocalStorage(kycForm);
 
   const { t } = useTranslation();
@@ -41,18 +46,30 @@ export const PIXKYCForm = () => {
     setCpf(taxId);
   }, [setIsSubmitted, setCpf, taxId]);
 
+  const handleRetryDocumentUpload = useCallback(() => {
+    setIsSubmitted(false);
+    resetToDefault();
+  }, [setIsSubmitted]);
+
   if (!taxId) {
     return null;
   }
 
   const pixformFields: BrlaFieldProps[] = [
     {
+      id: ExtendedBrlaFieldOptions.TAX_ID,
+      label: t('components.brlaExtendedForm.form.taxId'),
+      type: 'text',
+      required: true,
+      index: 0,
+    },
+    {
       id: ExtendedBrlaFieldOptions.FULL_NAME,
       label: t('components.brlaExtendedForm.form.fullName'),
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.fullName'),
       required: true,
-      index: 0,
+      index: 1,
     },
     {
       id: ExtendedBrlaFieldOptions.PHONE,
@@ -60,7 +77,7 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.phoneNumber'),
       required: true,
-      index: 1,
+      index: 2,
     },
     {
       id: ExtendedBrlaFieldOptions.CEP,
@@ -68,7 +85,7 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: 'CEP',
       required: true,
-      index: 2,
+      index: 3,
     },
     {
       id: ExtendedBrlaFieldOptions.CITY,
@@ -76,7 +93,7 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.city'),
       required: true,
-      index: 3,
+      index: 4,
     },
     {
       id: ExtendedBrlaFieldOptions.STATE,
@@ -84,7 +101,7 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.state'),
       required: true,
-      index: 4,
+      index: 5,
     },
     {
       id: ExtendedBrlaFieldOptions.STREET,
@@ -92,7 +109,7 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.street'),
       required: true,
-      index: 5,
+      index: 6,
     },
     {
       id: ExtendedBrlaFieldOptions.NUMBER,
@@ -100,7 +117,7 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.number'),
       required: true,
-      index: 6,
+      index: 7,
     },
     {
       id: ExtendedBrlaFieldOptions.DISTRICT,
@@ -108,14 +125,14 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.district'),
       required: true,
-      index: 7,
+      index: 8,
     },
     {
       id: ExtendedBrlaFieldOptions.BIRTHDATE,
       label: t('components.brlaExtendedForm.form.birthdate'),
       type: 'date',
       required: true,
-      index: 8,
+      index: 9,
     },
   ];
 
@@ -126,28 +143,37 @@ export const PIXKYCForm = () => {
       type: 'text',
       placeholder: t('components.brlaExtendedForm.form.companyName'),
       required: true,
-      index: 9,
+      index: 10,
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.START_DATE,
       label: t('components.brlaExtendedForm.form.startDate'),
       type: 'date',
       required: true,
-      index: 10,
+      index: 11,
     });
     pixformFields.push({
       id: ExtendedBrlaFieldOptions.PARTNER_CPF,
       label: t('components.brlaExtendedForm.form.partnerCpf'),
       type: 'text',
       required: true,
-      index: 11,
+      index: 12,
     });
   }
 
   if (isSubmitted) {
     return (
       <div className="relative">
-        <VerificationStatus status={verificationStatus} message={statusMessage} isLevel2={rampKycLevel2Started} />
+        <VerificationStatus
+          status={verificationStatus}
+          message={statusMessage}
+          failureMessage={failureMessage}
+          isLevel2={rampKycLevel2Started}
+          onContinue={proceedWithRamp}
+          onBack={handleBackClick}
+          onRetry={handleRetryDocumentUpload}
+          kycVerificationError={kycVerificationError}
+        />
       </div>
     );
   }

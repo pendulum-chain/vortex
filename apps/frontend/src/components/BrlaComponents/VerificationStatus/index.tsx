@@ -1,40 +1,115 @@
 import { motion } from 'motion/react';
 import React from 'react';
-
+import { useTranslation } from 'react-i18next';
 import { KycStatus } from '../../../services/signingService';
 import { Spinner } from '../../Spinner';
 
 interface VerificationStatusProps {
   status: { status: KycStatus; level: number };
   message: string;
+  failureMessage?: string;
   isLevel2: boolean;
+  kycVerificationError?: boolean;
+  onContinue: () => void;
+  onBack: () => void;
+  onRetry: () => void;
 }
 
-export const VerificationStatus: React.FC<VerificationStatusProps> = ({ status, message, isLevel2 }) => {
+export const VerificationStatus: React.FC<VerificationStatusProps> = ({
+  status,
+  message,
+  failureMessage,
+  isLevel2,
+  kycVerificationError = false,
+  onContinue,
+  onRetry,
+  onBack,
+}) => {
   const { status: kycStatus, level } = status;
   const showSuccess = kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
+  const { t } = useTranslation();
 
   return (
     <motion.div
-      className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center"
+      className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center justify-center"
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      {kycStatus === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
+      {kycVerificationError ? (
+        <>
+          <ErrorIcon />
+          <motion.p
+            className="mt-4 text-lg font-bold text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            {t(`components.brlaExtendedForm.messageDisplay.networkError`)}
+          </motion.p>
+          <motion.button
+            className="btn-vortex-primary btn mt-6 px-8"
+            onClick={onBack}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.3 }}
+          >
+            {t(`components.brlaExtendedForm.buttons.back`)}
+          </motion.button>
+        </>
+      ) : (
+        <>
+          {kycStatus === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
 
-      {showSuccess && <SuccessIcon />}
+          {showSuccess && <SuccessIcon />}
 
-      {kycStatus === KycStatus.REJECTED && <ErrorIcon />}
+          {kycStatus === KycStatus.REJECTED && <ErrorIcon />}
 
-      <motion.p
-        className="mt-4 text-lg font-bold text-center"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-      >
-        {message}
-      </motion.p>
+          <motion.p
+            className="mt-4 text-lg font-bold text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            {message}
+          </motion.p>
+
+          {kycStatus === KycStatus.REJECTED && failureMessage && (
+            <motion.p
+              className="mt-2 text-sm text-red-600 text-center px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            >
+              {failureMessage}
+            </motion.p>
+          )}
+
+          {showSuccess && (
+            <motion.button
+              className="btn-vortex-primary btn mt-6 px-8"
+              onClick={onContinue}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.3 }}
+            >
+              {t(`components.brlaExtendedForm.buttons.continue`)}
+            </motion.button>
+          )}
+
+          {kycStatus === KycStatus.REJECTED && (
+            <motion.button
+              className="btn-vortex-primary btn mt-6 px-8"
+              onClick={onRetry}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.3 }}
+            >
+              {t(`components.brlaExtendedForm.buttons.tryAgain`)}
+            </motion.button>
+          )}
+        </>
+      )}
     </motion.div>
   );
 };

@@ -352,6 +352,7 @@
     },
     "brlaExtendedForm": {
       "form": {
+        "taxId": "CPF or CNPJ",
         "fullName": "Full Name",
         "phoneNumber": "Phone Number",
         "city": "City",
@@ -371,6 +372,10 @@
         "error": "Verification error"
       },
       "validation": {
+        "taxId": {
+          "required": "Tax ID is required",
+          "format": "Invalid Tax ID format"
+        },
         "phone": {
           "required": "Phone number is required",
           "format": "Invalid phone number format"
@@ -422,6 +427,28 @@
           "required": "Partner CPF is required",
           "format": "Invalid Partner CPF format"
         }
+      },
+      "kycFailureReasons": {
+        "face": "Face verification failed. Please ensure your selfie is clear and matches your ID.",
+        "name": "Name verification failed. Please ensure your name matches the ID provided.",
+        "invalidTaxId": "Please ensure your CPF or CNPJ is correct.",
+        "UNKNOWN": "KYC verification failed. Please try again or contact support."
+      },
+      "messageDisplay": {
+        "networkError": "Network error, please try again later."
+      },
+      "buttons": {
+        "back": "Back",
+        "continue": "Continue",
+        "tryAgain": "Try Again"
+      }
+    },
+    "maintenance": {
+      "button": "Maintenance Mode",
+      "banner": {
+        "started": "Started",
+        "ends": "Expected end",
+        "estimatedTimeRemaining": "Estimated time remaining"
       }
     },
     "rating": {

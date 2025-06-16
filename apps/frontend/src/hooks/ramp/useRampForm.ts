@@ -10,6 +10,7 @@ import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
   useFiatToken,
   useInputAmount,
+  useLastConstraintDirection,
   useOnChainToken,
   usePixId,
   useRampFormStoreActions,
@@ -43,6 +44,7 @@ export const useRampForm = (): {
   const onChainToken = useOnChainToken();
   const fiatToken = useFiatToken();
   const direction = useRampDirection();
+  const lastConstraintDirection = useLastConstraintDirection();
 
   const {
     setInputAmount,
@@ -50,6 +52,7 @@ export const useRampForm = (): {
     setFiatToken,
     setTaxId,
     setPixId,
+    setConstraintDirection,
     reset: resetStore,
   } = useRampFormStoreActions();
 
@@ -104,7 +107,11 @@ export const useRampForm = (): {
       form.setValue('fiatToken', constrainedToken);
       setFiatToken(constrainedToken);
     }
-  }, [form, fiatToken, enforceTokenConstraints, setFiatToken]);
+    // Mark that constraints are applied for this direction
+    if (lastConstraintDirection !== direction) {
+      setConstraintDirection(direction);
+    }
+  }, [form, fiatToken, direction, enforceTokenConstraints, setFiatToken, setConstraintDirection]);
 
   useEffect(() => {
     const currentTaxId = form.getValues('taxId');

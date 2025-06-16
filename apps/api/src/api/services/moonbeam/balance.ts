@@ -25,6 +25,32 @@ export class BalanceCheckError extends Error {
   }
 }
 
+interface GetBalanceParams {
+  tokenAddress: `0x${string}`;
+  ownerAddress: `0x${string}`;
+  chain: any;
+}
+
+export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: GetBalanceParams): Promise<Big> {
+  try {
+    const publicClient = createPublicClient({
+      chain,
+      transport: http(),
+    });
+
+    const balanceResult = (await publicClient.readContract({
+      address: tokenAddress,
+      abi: erc20ABI,
+      functionName: 'balanceOf',
+      args: [ownerAddress],
+    })) as string;
+
+    return new Big(balanceResult);
+  } catch (err: any) {
+    throw new Error(`Failed to read token balance: ${err.message ?? err}`);
+  }
+}
+
 export function checkEvmBalancePeriodically(
   tokenAddress: string,
   brlaEvmAddress: string,
