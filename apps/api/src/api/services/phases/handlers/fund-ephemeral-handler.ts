@@ -1,5 +1,6 @@
 import { FiatToken, RampPhase, getNetworkFromDestination } from '@packages/shared';
 import Big from 'big.js';
+
 import logger from '../../../../config/logger';
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import RampState from '../../../../models/rampState.model';
@@ -59,7 +60,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
           throw new Error('FundEphemeralPhaseHandler: Invalid destination network.');
         }
 
-        await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress, destinationNetwork);
+        await fundMoonbeamEphemeralAccount(moonbeamEphemeralAddress);
       }
     } catch (e) {
       console.error('Error in FundEphemeralPhaseHandler:', e);
@@ -88,12 +89,14 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
   const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();
+  // @ts-ignore
   const { data: balance } = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
 
   return Big(balance.free.toString()).gte(fundingAmountRaw);
 }
 
 async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonebamNode: API): Promise<boolean> {
+  // @ts-ignore
   const { data: balance } = await moonebamNode.api.query.system.account(moonbeamEphemeralAddress);
   return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
 }

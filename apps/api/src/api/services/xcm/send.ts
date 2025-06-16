@@ -7,9 +7,10 @@ import {
 } from '@packages/shared';
 import { ApiPromise } from '@polkadot/api';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { SignedBlock } from '@polkadot/types/interfaces';
+import { EventRecord, SignedBlock } from '@polkadot/types/interfaces';
 import { ISubmittableResult, Signer } from '@polkadot/types/types';
 import { encodeAddress } from '@polkadot/util-crypto';
+import { Web3BaseWalletAccount } from 'web3';
 import logger from '../../../config/logger';
 
 export class TransactionInclusionError extends Error {
@@ -37,7 +38,7 @@ function substrateAddressEqual(a: string, b: string): boolean {
 }
 
 export const signAndSubmitXcm = async (
-  walletAccount: WalletAccount,
+  walletAccount: Web3BaseWalletAccount,
   extrinsic: SubmittableExtrinsic<'promise'>,
   afterSignCallback: () => void,
 ): Promise<{ event: XcmSentEvent; hash: string }> => {
@@ -136,8 +137,8 @@ export async function verifyXcmSentEvent(
   const apiAt = await api.at(blockHash);
   const events = await apiAt.query.system.events();
 
-  const xcmSentEvent = events
-    .filter((record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent') // TODO why is this broken?? filter method not part of codec?
+  const xcmSentEvent = (events as unknown as EventRecord[])
+    .filter((record) => record.event.section === 'polkadotXcm' && record.event.method === 'Sent')
     .map(parseEventXcmSent)
     .find((event) => substrateAddressEqual(event.originAddress, address));
 

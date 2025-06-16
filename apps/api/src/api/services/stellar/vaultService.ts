@@ -32,7 +32,7 @@ export class VaultService {
 
   async createRequestRedeemExtrinsic(amountRaw: string, stellarPkBytesBuffer: Buffer) {
     const stellarPkBytes = Uint8Array.from(stellarPkBytesBuffer);
-    return this.apiComponents.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId!);
+    return this.apiComponents.api.tx.redeem.requestRedeem(amountRaw, stellarPkBytes, this.vaultId);
   }
 
   async submitRedeem(

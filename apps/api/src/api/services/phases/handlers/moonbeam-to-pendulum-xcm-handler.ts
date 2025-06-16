@@ -31,6 +31,8 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
         pendulumEphemeralAddress,
         inputTokenPendulumDetails.pendulumCurrencyId,
       );
+
+      // @ts-ignore
       const currentBalance = Big(balanceResponse?.free?.toString() ?? '0');
       return currentBalance.gt(Big(0));
     };
@@ -54,7 +56,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
         }
 
         // TODO verify this works on Moonbeam also. It does not.
-        const { hash } = await submitMoonbeamXcm(moonbeamEphemeralAddress, xcmTransaction);
+        await submitMoonbeamXcm(moonbeamEphemeralAddress, xcmTransaction);
       }
     } catch (e) {
       console.error('Error while executing moonbeam-to-pendulum xcm:', e);

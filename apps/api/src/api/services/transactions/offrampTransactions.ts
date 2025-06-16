@@ -2,9 +2,12 @@ import {
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   AccountMeta,
+  EvmTokenDetails,
+  EvmTransactionData,
   FiatToken,
   Networks,
   PaymentData,
+  PendulumTokenDetails,
   UnsignedTx,
   addAdditionalTransactionsToMeta,
   encodeSubmittableExtrinsic,
@@ -132,7 +135,7 @@ async function createEvmSourceTransactions(
     pendulumEphemeralAddress: string;
     fromNetwork: Networks;
     inputAmountRaw: string;
-    inputTokenDetails: any; // Use any to avoid TypeScript errors
+    inputTokenDetails: EvmTokenDetails;
   },
   unsignedTxs: UnsignedTx[],
 ): Promise<Partial<StateMetadata>> {
@@ -148,19 +151,21 @@ async function createEvmSourceTransactions(
     });
 
   unsignedTxs.push({
-    txData: encodeEvmTransactionData(approveData) as any,
+    txData: encodeEvmTransactionData(approveData) as EvmTransactionData,
     phase: 'squidRouterApprove',
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
+    meta: {},
   });
 
   unsignedTxs.push({
-    txData: encodeEvmTransactionData(swapData) as any,
+    txData: encodeEvmTransactionData(swapData) as EvmTransactionData,
     phase: 'squidRouterSwap',
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
+    meta: {},
   });
 
   return {
@@ -200,6 +205,7 @@ async function createAssetHubSourceTransactions(
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
+    meta: {},
   });
 }
 
@@ -214,8 +220,8 @@ async function createNablaSwapTransactions(
   params: {
     quote: QuoteTicketAttributes;
     account: AccountMeta;
-    inputTokenPendulumDetails: any;
-    outputTokenPendulumDetails: any;
+    inputTokenPendulumDetails: PendulumTokenDetails;
+    outputTokenPendulumDetails: PendulumTokenDetails;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number,
@@ -268,6 +274,7 @@ async function createNablaSwapTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -277,6 +284,7 @@ async function createNablaSwapTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -316,6 +324,7 @@ async function addFeeDistributionTransaction(
       network: account.network,
       nonce: nextNonce,
       signer: account.address,
+      meta: {},
     });
     nextNonce++;
   }
@@ -359,6 +368,7 @@ async function createBRLTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -416,6 +426,7 @@ async function createStellarTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   const executeSpacewalkNonce = nextNonce;
   nextNonce++;
@@ -456,13 +467,12 @@ async function createStellarPaymentTransactions(
 ): Promise<void> {
   const { account, outputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
 
-  const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumber } =
-    await buildPaymentAndMergeTx({
-      ephemeralAccountId: account.address,
-      amountToAnchorUnits: outputAmountUnits.toFixed(),
-      paymentData: stellarPaymentData,
-      tokenConfigStellar: outputTokenDetails,
-    });
+  const { paymentTransactions, mergeAccountTransactions, createAccountTransactions } = await buildPaymentAndMergeTx({
+    ephemeralAccountId: account.address,
+    amountToAnchorUnits: outputAmountUnits.toFixed(),
+    paymentData: stellarPaymentData,
+    tokenConfigStellar: outputTokenDetails,
+  });
 
   const createAccountPrimaryTx: UnsignedTx = {
     txData: createAccountTransactions[0].tx,
@@ -470,6 +480,7 @@ async function createStellarPaymentTransactions(
     network: account.network,
     nonce: 0,
     signer: account.address,
+    meta: {},
   };
 
   const paymentTransactionPrimary: UnsignedTx = {
@@ -478,9 +489,7 @@ async function createStellarPaymentTransactions(
     network: account.network,
     nonce: 1,
     signer: account.address,
-    meta: {
-      expectedSequenceNumber,
-    },
+    meta: {},
   };
 
   const mergeAccountTransactionPrimary: UnsignedTx = {
@@ -489,9 +498,7 @@ async function createStellarPaymentTransactions(
     network: account.network,
     nonce: 2,
     signer: account.address,
-    meta: {
-      expectedSequenceNumber,
-    },
+    meta: {},
   };
 
   const createAccountMultiSignedTxs = createAccountTransactions.map((tx, index) => ({
@@ -564,7 +571,12 @@ export async function prepareOfframpTransactions({
     throw new Error(`Input currency must be on-chain token for offramp, got ${quote.inputCurrency}`);
   }
 
-  const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency)!;
+  const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency);
+
+  if (!inputTokenDetails) {
+    throw new Error(`Input currency must be on-chain token for offramp, got ${quote.inputCurrency}`);
+  }
+
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
 
   if (!isFiatToken(quote.outputCurrency)) {
@@ -694,6 +706,7 @@ export async function prepareOfframpTransactions({
         phase: 'pendulumCleanup',
         network: account.network,
         signer: account.address,
+        meta: {},
       };
 
       if (quote.outputCurrency === FiatToken.BRL) {

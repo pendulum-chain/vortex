@@ -1,9 +1,6 @@
-import { Networks } from '@packages/shared';
 import Big from 'big.js';
-import { http, createPublicClient } from 'viem';
+import { http, Chain, createPublicClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { moonbeam } from 'viem/chains';
-import logger from '../../../config/logger';
 import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../constants/constants';
 import erc20ABI from '../../../contracts/ERC20';
 import { ApiManager } from '../pendulum/apiManager';
@@ -31,7 +28,7 @@ export function checkEvmBalancePeriodically(
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
-  chain: any,
+  chain: Chain,
 ): Promise<Big> {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
@@ -64,10 +61,13 @@ export function checkEvmBalancePeriodically(
             ),
           );
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         clearInterval(intervalId);
         reject(
-          new BalanceCheckError(BalanceCheckErrorType.ReadFailure, `Error checking balance: ${err.message ?? err}`),
+          new BalanceCheckError(
+            BalanceCheckErrorType.ReadFailure,
+            `Error checking balance: ${err instanceof Error ? err.message : String(err)}`,
+          ),
         );
       }
     }, intervalMs);

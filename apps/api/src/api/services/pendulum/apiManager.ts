@@ -41,7 +41,7 @@ export class ApiManager {
 
   private currentTransactionNonce: Map<string, Map<string, number>> = new Map();
 
-  private nonceQueues: Map<string, Promise<any>> = new Map();
+  private nonceQueues: Map<string, Promise<unknown>> = new Map();
 
   private networks: NetworkConfig[] = [];
 
@@ -189,7 +189,7 @@ export class ApiManager {
 
       return new Promise((resolve, reject) => {
         call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
-          const { status, events, dispatchError } = submissionResult;
+          const { status, dispatchError } = submissionResult;
 
           if (dispatchError) {
             reject(new Error(`Transaction failed: ${dispatchError}`));
@@ -217,7 +217,7 @@ export class ApiManager {
           const nonce = await this.getNonce(senderKeypair, networkName);
           return new Promise((resolve, reject) => {
             call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
-              const { status, events, dispatchError } = submissionResult;
+              const { status, dispatchError } = submissionResult;
 
               if (dispatchError) {
                 reject(new Error(`Transaction failed: ${dispatchError}`));

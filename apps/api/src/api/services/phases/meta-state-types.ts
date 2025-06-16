@@ -34,7 +34,7 @@ export interface StateMetadata {
   destinationAddress: string;
   receiverTaxId: string;
   moonbeamEphemeralAddress: string;
-  pendulumToAssethubXcmHash: string;
+  pendulumToAssethubXcmHash?: string;
   nabla: {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
@@ -43,4 +43,5 @@ export interface StateMetadata {
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
+  pendulumToMoonbeamXcmHash?: string;
 }

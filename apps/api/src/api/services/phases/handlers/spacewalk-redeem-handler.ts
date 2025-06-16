@@ -50,6 +50,7 @@ export class SpacewalkRedeemPhaseHandler extends BasePhaseHandler {
 
     try {
       const accountData = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
+      // @ts-ignore
       const currentEphemeralAccountNonce = await accountData.nonce.toNumber();
 
       // Re-execution guard

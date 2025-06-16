@@ -1,12 +1,18 @@
-import { SiweErrorResponse, SiweRequest, SiweResponse } from '@packages/shared';
+import {
+  CreateSiweRequest,
+  CreateSiweResponse,
+  SiweErrorResponse,
+  ValidateSiweRequest,
+  ValidateSiweResponse,
+} from '@packages/shared';
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
 import { createAndSendNonce, verifyAndStoreSiweMessage } from '../services/siwe.service';
 
 export const sendSiweMessage = async (
-  req: Request<unknown, unknown, SiweRequest>,
-  res: Response<SiweResponse | SiweErrorResponse>,
+  req: Request<unknown, unknown, CreateSiweRequest>,
+  res: Response<CreateSiweResponse | SiweErrorResponse>,
 ): Promise<void> => {
   const { walletAddress } = req.body;
 
@@ -26,8 +32,8 @@ export const sendSiweMessage = async (
 };
 
 export const validateSiweSignature = async (
-  req: Request<unknown, unknown, SiweRequest>,
-  res: Response<SiweResponse | SiweErrorResponse>,
+  req: Request<unknown, unknown, ValidateSiweRequest>,
+  res: Response<ValidateSiweResponse | SiweErrorResponse>,
 ): Promise<void> => {
   const { nonce, signature, siweMessage } = req.body;
 

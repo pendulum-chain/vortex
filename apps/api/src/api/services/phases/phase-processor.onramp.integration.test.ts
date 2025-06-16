@@ -29,7 +29,6 @@ const TEST_INPUT_AMOUNT = '1';
 const TEST_INPUT_CURRENCY = FiatToken.BRL;
 const TEST_OUTPUT_CURRENCY = EvmToken.USDC;
 
-const QUOTE_TO = 'assethub';
 const QUOTE_FROM = 'pix';
 
 const filePath = path.join(__dirname, 'lastRampStateOnramp.json');
@@ -157,8 +156,6 @@ mock.module('../brla/helpers', () => {
   };
 });
 
-rampRecoveryWorker.start = mock(async () => ({}));
-
 describe('Onramp PhaseProcessor Integration Test', () => {
   it('should process an onramp (pix -> evm) through multiple phases until completion', async () => {
     try {
@@ -177,7 +174,7 @@ describe('Onramp PhaseProcessor Integration Test', () => {
       const quoteTicket = await quoteService.createQuote({
         rampType: 'on',
         from: QUOTE_FROM,
-        to: QUOTE_TO,
+        to: Networks.AssetHub,
         inputAmount: TEST_INPUT_AMOUNT,
         inputCurrency: TEST_INPUT_CURRENCY,
         outputCurrency: TEST_OUTPUT_CURRENCY,

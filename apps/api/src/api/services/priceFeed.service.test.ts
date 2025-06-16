@@ -144,7 +144,7 @@ describe('PriceFeedService', () => {
       COINGECKO_API_URL: 'https://api.coingecko.com/api/v3',
       CRYPTO_CACHE_TTL_MS: '300000', // 5 minutes
       FIAT_CACHE_TTL_MS: '300000', // 5 minutes
-    };
+    } as any;
 
     // Create a fresh fetch mock for each test
     fetchMock = mock(() =>

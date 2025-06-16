@@ -55,7 +55,7 @@ export const converter = (err: Error | ValidationError, req: Request, res: Respo
   } else if (!(err instanceof APIError)) {
     convertedError = new APIError({
       message: err.message,
-      status: (err as any).status || httpStatus.INTERNAL_SERVER_ERROR,
+      status: (err instanceof APIError ? err.status : httpStatus.INTERNAL_SERVER_ERROR) as number,
       stack: err.stack,
     });
   } else {

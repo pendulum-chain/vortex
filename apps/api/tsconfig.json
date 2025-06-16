@@ -13,6 +13,10 @@
     "resolveJsonModule": true,
     "types": ["bun-types"]
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    // Include the Pendulum types so we can use them in our code
+    "node_modules/@pendulum-chain/types"
+  ],
   "exclude": ["dist", "node_modules"]
 }

@@ -1,8 +1,16 @@
 import { describe, it, mock } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { AccountMeta, EvmToken, FiatToken, Networks, signUnsignedTransactions } from '@packages/shared';
-import { DestinationType, EphemeralAccount } from '@packages/shared';
+import {
+  AccountMeta,
+  DestinationType,
+  EvmToken,
+  FiatToken,
+  Networks,
+  RegisterRampRequest,
+  signUnsignedTransactions,
+} from '@packages/shared';
+import { EphemeralAccount } from '@packages/shared';
 import { Keyring } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import Big from 'big.js';
@@ -16,7 +24,6 @@ import { SubaccountData } from '../brla/types';
 import { API, ApiManager } from '../pendulum/apiManager';
 import { QuoteService } from '../ramp/quote.service';
 import { RampService } from '../ramp/ramp.service';
-import { PhaseProcessor } from './phase-processor';
 import registerPhaseHandlers from './register-handlers';
 
 const EVM_TESTING_ADDRESS = '0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3';
@@ -35,19 +42,6 @@ interface TestSigningAccounts {
   stellar: EphemeralAccount;
   moonbeam: EphemeralAccount;
   pendulum: EphemeralAccount;
-}
-
-interface AdditionalData {
-  walletAddress: string;
-  paymentData: {
-    amount: string;
-    memoType: 'text';
-    memo: string;
-    anchorTargetAccount: string;
-  };
-  taxId: string;
-  receiverTaxId: string;
-  pixDestination: string;
 }
 
 async function getPendulumNode(): Promise<API> {
@@ -236,7 +230,9 @@ BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApi
 
 RampService.prototype.validateBrlaOfframpRequest = mock(async (): Promise<SubaccountData> => mockSubaccountData);
 
-RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {});
+RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {
+  // do nothing
+});
 
 describe('PhaseProcessor Integration Test', () => {
   it('should process an offramp (evm -> sepa) through multiple phases until completion', async () => {
@@ -246,10 +242,19 @@ describe('PhaseProcessor Integration Test', () => {
 
       registerPhaseHandlers();
 
-      const additionalData: AdditionalData = {
+      const quoteTicket = await quoteService.createQuote({
+        rampType: 'off',
+        from: QUOTE_FROM as DestinationType,
+        to: QUOTE_TO,
+        inputAmount: TEST_INPUT_AMOUNT,
+        inputCurrency: TEST_INPUT_CURRENCY,
+        outputCurrency: TEST_OUTPUT_CURRENCY,
+      });
+
+      const additionalData: RegisterRampRequest['additionalData'] = {
         walletAddress: EVM_TESTING_ADDRESS,
         paymentData: {
-          amount: '0.0000000001',
+          amount: new Big(quoteTicket.outputAmount).add(new Big(quoteTicket.fee.total)).toString(),
           memoType: 'text' as const,
           memo: '1204asjfnaksf10982e4',
           anchorTargetAccount: STELLAR_MOCK_ANCHOR_ACCOUNT,
@@ -258,19 +263,6 @@ describe('PhaseProcessor Integration Test', () => {
         receiverTaxId: '758.444.017-77',
         pixDestination: '758.444.017-77',
       };
-
-      const quoteTicket = await quoteService.createQuote({
-        rampType: 'off',
-        from: QUOTE_FROM,
-        to: QUOTE_TO,
-        inputAmount: TEST_INPUT_AMOUNT,
-        inputCurrency: TEST_INPUT_CURRENCY,
-        outputCurrency: TEST_OUTPUT_CURRENCY,
-      });
-
-      additionalData.paymentData.amount = new Big(quoteTicket.outputAmount)
-        .add(new Big(quoteTicket.fee.total))
-        .toString();
 
       const registeredRamp = await rampService.registerRamp({
         signingAccounts: testSigningAccountsMeta,

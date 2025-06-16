@@ -53,6 +53,8 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
         pendulumEphemeralAddress,
         inputTokenPendulumDetails.pendulumCurrencyId,
       );
+
+      // @ts-ignore
       const currentBalance = Big(balanceResponse?.free?.toString() ?? '0');
       return currentBalance.gt(Big(0));
     };

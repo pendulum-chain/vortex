@@ -30,6 +30,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         outputTokenPendulumDetails.pendulumCurrencyId,
       );
 
+      // @ts-ignore
       const currentBalance = Big(balanceResponse?.free?.toString() ?? '0');
       if (currentBalance.eq(Big(0))) {
         throw new Error('Invalid phase: input token did not arrive yet on pendulum');

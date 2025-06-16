@@ -2,9 +2,13 @@ import {
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   AccountMeta,
+  EvmTransactionData,
+  MoonbeamTokenDetails,
   Networks,
+  OnChainTokenDetails,
   PENDULUM_USDC_ASSETHUB,
   PENDULUM_USDC_AXL,
+  PendulumTokenDetails,
   UnsignedTx,
   encodeSubmittableExtrinsic,
   getAnyFiatTokenDetails,
@@ -133,7 +137,7 @@ async function createMoonbeamTransactions(
   params: {
     pendulumEphemeralAddress: string;
     inputAmountPostAnchorFeeRaw: string;
-    inputTokenDetails: any;
+    inputTokenDetails: MoonbeamTokenDetails;
     account: AccountMeta;
     toNetworkId: number;
   },
@@ -155,6 +159,7 @@ async function createMoonbeamTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   // For some reason, the Moonbeam to Pendulum XCM transaction causes a nonce increment of 2.
   nextNonce = nextNonce + 2;
@@ -175,6 +180,7 @@ async function createMoonbeamTransactions(
     network: account.network,
     nonce: moonbeamCleanupNonce,
     signer: account.address,
+    meta: {},
   });
 
   return nextNonce;
@@ -189,7 +195,7 @@ async function createMoonbeamTransactions(
  */
 async function createSquidrouterTransactions(
   params: {
-    outputTokenDetails: any;
+    outputTokenDetails: OnChainTokenDetails;
     toNetwork: Networks;
     rawAmount: string;
     destinationAddress: string;
@@ -201,7 +207,9 @@ async function createSquidrouterTransactions(
   const { outputTokenDetails, toNetwork, rawAmount, destinationAddress, account } = params;
 
   if (!isEvmTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.symbol}`);
+    throw new Error(
+      `Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`,
+    );
   }
 
   const { approveData, swapData } = await createOnrampSquidrouterTransactions({
@@ -214,20 +222,22 @@ async function createSquidrouterTransactions(
   });
 
   unsignedTxs.push({
-    txData: encodeEvmTransactionData(approveData) as any,
+    txData: encodeEvmTransactionData(approveData) as EvmTransactionData,
     phase: 'squidRouterApprove',
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
   unsignedTxs.push({
-    txData: encodeEvmTransactionData(swapData) as any,
+    txData: encodeEvmTransactionData(swapData) as EvmTransactionData,
     phase: 'squidRouterSwap',
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -246,14 +256,14 @@ async function createNablaSwapTransactions(
     inputAmountUnits: Big;
     quote: QuoteTicketAttributes;
     account: AccountMeta;
-    inputTokenPendulumDetails: any;
-    outputTokenPendulumDetails: any;
-    outputTokenDetails: any;
+    inputTokenPendulumDetails: PendulumTokenDetails;
+    outputTokenPendulumDetails: PendulumTokenDetails;
+    outputTokenDetails: OnChainTokenDetails;
   },
   unsignedTxs: UnsignedTx[],
   nextNonce: number,
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
-  const { inputAmountUnits, quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
+  const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
   // The input amount before the swap is the input amount minus the anchor fee
   const anchorFeeInInputCurrency = quote.fee.anchor; // Already denoted in the input currency
@@ -305,6 +315,7 @@ async function createNablaSwapTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -315,6 +326,7 @@ async function createNablaSwapTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -355,6 +367,7 @@ async function addFeeDistributionTransaction(
       network: account.network,
       nonce: nextNonce,
       signer: account.address,
+      meta: {},
     });
     nextNonce++;
   }
@@ -370,8 +383,8 @@ async function addFeeDistributionTransaction(
  * @returns Cleanup transaction template
  */
 async function createPendulumCleanupTx(params: {
-  inputTokenPendulumDetails: any;
-  outputTokenPendulumDetails: any;
+  inputTokenPendulumDetails: PendulumTokenDetails;
+  outputTokenPendulumDetails: PendulumTokenDetails;
   account: AccountMeta;
 }): Promise<Omit<UnsignedTx, 'nonce'>> {
   const { inputTokenPendulumDetails, outputTokenPendulumDetails, account } = params;
@@ -386,6 +399,7 @@ async function createPendulumCleanupTx(params: {
     phase: 'pendulumCleanup',
     network: account.network,
     signer: account.address,
+    meta: {},
   };
 }
 
@@ -400,7 +414,7 @@ async function createPendulumCleanupTx(params: {
 async function createAssetHubDestinationTransactions(
   params: {
     destinationAddress: string;
-    outputTokenDetails: any;
+    outputTokenDetails: OnChainTokenDetails;
     quote: QuoteTicketAttributes;
     account: AccountMeta;
   },
@@ -428,6 +442,7 @@ async function createAssetHubDestinationTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -452,7 +467,7 @@ async function createAssetHubDestinationTransactions(
 async function createEvmDestinationTransactions(
   params: {
     moonbeamEphemeralAddress: string;
-    outputTokenDetails: any;
+    outputTokenDetails: OnChainTokenDetails;
     quote: QuoteTicketAttributes;
     account: AccountMeta;
   },
@@ -474,6 +489,7 @@ async function createEvmDestinationTransactions(
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
+    meta: {},
   });
   nextNonce++;
 
@@ -532,9 +548,9 @@ export async function prepareOnrampTransactions(
   if (!isOnChainToken(quote.outputCurrency)) {
     throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
   }
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency)!;
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
 
-  if (!isOnChainTokenDetails(outputTokenDetails)) {
+  if (!outputTokenDetails || !isOnChainTokenDetails(outputTokenDetails)) {
     throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
   }
 

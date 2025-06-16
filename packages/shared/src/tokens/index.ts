@@ -8,6 +8,7 @@ export * from './types/evm';
 export * from './types/assethub';
 export * from './types/stellar';
 export * from './types/moonbeam';
+export * from './types/pendulum';
 
 // Constants
 export * from './constants/pendulum';

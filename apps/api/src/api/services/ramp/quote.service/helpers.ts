@@ -1,4 +1,4 @@
-import { DestinationType, RampCurrency } from '@packages/shared';
+import { DestinationType, Networks, RampCurrency } from '@packages/shared';
 import httpStatus from 'http-status';
 import { APIError } from '../../../errors/api-error';
 
@@ -10,12 +10,28 @@ export const SUPPORTED_CHAINS: {
   on: { from: DestinationType[]; to: DestinationType[] };
 } = {
   off: {
-    from: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
+    from: [
+      Networks.AssetHub,
+      Networks.Avalanche,
+      Networks.Arbitrum,
+      Networks.BSC,
+      Networks.Base,
+      Networks.Ethereum,
+      Networks.Polygon,
+    ],
     to: ['pix', 'sepa', 'cbu'],
   },
   on: {
     from: ['pix'],
-    to: ['assethub', 'avalanche', 'arbitrum', 'bsc', 'base', 'ethereum', 'polygon'],
+    to: [
+      Networks.AssetHub,
+      Networks.Avalanche,
+      Networks.Arbitrum,
+      Networks.BSC,
+      Networks.Base,
+      Networks.Ethereum,
+      Networks.Polygon,
+    ],
   },
 };
 

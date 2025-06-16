@@ -35,12 +35,11 @@ export function useFeeComparisonData(
   const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery({
     queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, selectedNetwork, rampDirection],
     queryFn: () => {
-      const direction = rampDirection === 'onramp' ? 'onramp' : 'offramp';
       return PriceService.getAllPricesBundled(
         sourceAssetSymbol.toLowerCase() as Currency,
         targetAssetSymbol.toLowerCase() as Currency,
         amount,
-        direction,
+        rampDirection,
         selectedNetwork,
       );
     },
@@ -62,8 +61,6 @@ export function useFeeComparisonData(
         }
       });
     }
-
-    console.log('providerPrices:', prices);
 
     return prices;
   }, [allPricesResponse, vortexPrice]);

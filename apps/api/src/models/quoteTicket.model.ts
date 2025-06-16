@@ -26,7 +26,7 @@ export interface QuoteTicketMetadata {
   offrampAmountBeforeAnchorFees?: string;
   // We have the fee structure in the metadata for easy access when creating the transactions to distribute fees in USD-like
   // stablecoins. This is the same as the fee structure in the quote ticket but in USD instead of the target output currency.
-  usdQuoteFeeStructure: QuoteFeeStructure;
+  usdFeeStructure: QuoteFeeStructure;
 }
 
 // Define the attributes that can be set during creation
