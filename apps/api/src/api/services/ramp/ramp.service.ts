@@ -149,13 +149,12 @@ export class RampService extends BaseRampService {
       // Mark the quote as consumed
       await this.consumeQuote(quote.id, transaction);
 
-      // Create initial state data
-      const stateData = {
+      // Create initial ramp state
+      const rampState = await this.createRampState({
         type: quote.rampType,
         currentPhase: 'initial' as RampPhase,
         unsignedTxs,
         presignedTxs: null, // There are no presigned transactions at this point
-        additionalData: null, // No additional data at this point
         from: quote.from,
         to: quote.to,
         state: {
@@ -172,10 +171,7 @@ export class RampService extends BaseRampService {
           cleanup: { cleanupCompleted: false, cleanupAt: null, errors: null },
         },
         quoteId: quote.id,
-      };
-
-      // Create the ramp state
-      const rampState = await this.createRampState(stateData);
+      });
 
       // Create response
       const response: RampEndpoints.RegisterRampResponse = {
