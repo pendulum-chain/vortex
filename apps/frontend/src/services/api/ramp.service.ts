@@ -28,21 +28,33 @@ export class RampService {
   }
 
   /**
-   * Start a ramping process
+   * Update a ramping process with presigned transactions and additional data
    * @param rampId The ramp ID
    * @param presignedTxs The presigned transactions
    * @param additionalData Additional data
-   * @returns The started ramp process
+   * @returns The updated ramp process
    */
-  static async startRamp(
+  static async updateRamp(
     rampId: string,
     presignedTxs: PresignedTx[],
-    additionalData?: RampEndpoints.StartRampRequest['additionalData'],
-  ): Promise<RampEndpoints.StartRampResponse> {
-    const request: RampEndpoints.StartRampRequest = {
+    additionalData?: RampEndpoints.UpdateRampRequest['additionalData'],
+  ): Promise<RampEndpoints.UpdateRampResponse> {
+    const request: RampEndpoints.UpdateRampRequest = {
       rampId,
       presignedTxs,
       additionalData,
+    };
+    return apiRequest<RampEndpoints.UpdateRampResponse>('post', `${this.BASE_PATH}/${rampId}/update`, request);
+  }
+
+  /**
+   * Start a ramping process
+   * @param rampId The ramp ID
+   * @returns The started ramp process
+   */
+  static async startRamp(rampId: string): Promise<RampEndpoints.StartRampResponse> {
+    const request: RampEndpoints.StartRampRequest = {
+      rampId,
     };
     return apiRequest<RampEndpoints.StartRampResponse>('post', `${this.BASE_PATH}/start`, request);
   }

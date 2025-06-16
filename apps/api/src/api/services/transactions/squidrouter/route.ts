@@ -71,11 +71,11 @@ export async function getRoute(params: RouteParams) {
 
     const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
     return { data: result.data, requestId };
-  } catch (error) {
+  } catch (error: any) {
     if (error) {
-      console.error('Squidrouter API error:', (error as { response: { data: unknown } }).response.data);
+      logger.error(`Error fetching route from Squidrouter API: ${error.response?.data}}`);
     }
-    console.error('Error with parameters:', params);
+    logger.error(`Error with parameters: ${JSON.stringify(params)}`);
     throw error;
   }
 }
@@ -86,6 +86,10 @@ export async function getStatus(transactionId: string | undefined) {
   if (!transactionId) {
     throw new Error('Transaction ID is undefined');
   }
+
+  logger.debug(
+    `Fetching status for transaction ID: ${transactionId} with integrator ID: ${integratorId} from Squidrouter API.`,
+  );
 
   try {
     const result = await axios.get(`${SQUIDROUTER_BASE_URL}/status`, {
@@ -99,7 +103,7 @@ export async function getStatus(transactionId: string | undefined) {
     return result.data;
   } catch (error: any) {
     if (error.response) {
-      console.error('API error:', error.response.data);
+      logger.error(`API error: ${error.response.data}`);
     }
     logger.error(error);
     throw error;
