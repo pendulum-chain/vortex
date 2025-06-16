@@ -1,9 +1,17 @@
+import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
 import { ApiPromise } from '@polkadot/api';
+import { Option, Struct } from '@polkadot/types-codec';
 import Big from 'big.js';
+
 import logger from '../../../config/logger';
 
-function vaultHasEnoughRedeemable(vault: any, redeemableAmount: string): boolean {
-  // issuedTokens - toBeRedeemedTokens = redeemableTokens
+interface VaultRegistryVault extends Struct {
+  readonly id: SpacewalkPrimitivesVaultId;
+  readonly issuedTokens: number; // u128
+  readonly toBeRedeemedTokens: number; // u128
+}
+
+function vaultHasEnoughRedeemable(vault: VaultRegistryVault, redeemableAmount: string): boolean {
   const redeemableTokens = new Big(vault.issuedTokens).sub(new Big(vault.toBeRedeemedTokens));
   if (redeemableTokens.gt(new Big(redeemableAmount))) {
     return true;
@@ -18,7 +26,7 @@ export async function getVaultsForCurrency(
   redeemableAmountRaw: string,
 ) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
-  const vaults = vaultEntries.map(([_, value]) => value.unwrap());
+  const vaults = vaultEntries.map(([_, value]) => (value as Option<VaultRegistryVault>).unwrap());
 
   const vaultsForCurrency = vaults.filter(
     (vault) =>
@@ -28,7 +36,6 @@ export async function getVaultsForCurrency(
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex &&
-      // vault.bannedUntil === null &&
       vaultHasEnoughRedeemable(vault, redeemableAmountRaw),
   );
 
