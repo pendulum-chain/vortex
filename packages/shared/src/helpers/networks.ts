@@ -16,6 +16,17 @@ export enum Networks {
   Stellar = 'stellar',
 }
 
+// This type is used to represent all networks that can be used as a source or destination in the system.
+export type EvmTerminalNetworks =
+  | Networks.Arbitrum
+  | Networks.Avalanche
+  | Networks.Base
+  | Networks.BSC
+  | Networks.Ethereum
+  | Networks.Polygon;
+export type SubstrateTerminalNetworks = Networks.AssetHub;
+export type TerminalNetworks = EvmTerminalNetworks | SubstrateTerminalNetworks;
+
 /**
  * Checks if a destination is a network and returns the network if it is.
  * Returns undefined if the destination is a payment method or not a valid network.
