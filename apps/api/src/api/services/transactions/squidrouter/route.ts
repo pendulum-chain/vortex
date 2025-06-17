@@ -1,5 +1,5 @@
 import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks, getNetworkId } from '@packages/shared';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { encodeFunctionData } from 'viem';
 import squidReceiverABI from '../../../../../mooncontracts/splitReceiverABI.json';
 import logger from '../../../../config/logger';
@@ -56,7 +56,26 @@ export function createOnrampRouteParams(
   };
 }
 
-export async function getRoute(params: RouteParams) {
+export interface SquidrouterRoute {
+  route: {
+    estimate: {
+      toAmountMin: string;
+    };
+    transactionRequest: {
+      value: string;
+      target: string;
+      data: string;
+      gasLimit: string;
+    };
+  };
+}
+
+export interface SquidrouterRouteResult {
+  data: SquidrouterRoute;
+  requestId: string;
+}
+
+export async function getRoute(params: RouteParams): Promise<SquidrouterRouteResult> {
   // This is the integrator ID for the Squidrouter API
   const { integratorId } = squidRouterConfigBase;
   const url = `${SQUIDROUTER_BASE_URL}/route`;
@@ -97,8 +116,8 @@ export async function getStatus(transactionId: string | undefined) {
       },
     });
     return result.data;
-  } catch (error: any) {
-    if (error.response) {
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
       console.error('API error:', error.response.data);
     }
     logger.error(error);
