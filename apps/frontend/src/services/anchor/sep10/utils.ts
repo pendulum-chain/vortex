@@ -1,6 +1,7 @@
 import { Keyring } from '@polkadot/api';
 import { keccak256 } from 'viem/utils';
 
+import { EvmAddress } from '@packages/shared';
 import { config } from '../../../config';
 import { SIGNING_SERVICE_URL } from '../../../constants/constants';
 import { SignerServiceSep10Request, fetchSep10Signatures } from '../../signingService';
@@ -9,7 +10,7 @@ import { SignerServiceSep10Request, fetchSep10Signatures } from '../../signingSe
 // If it's a polkadot address, it will return raw data of the address.
 function getHashValueForAddress(address: string) {
   if (address.startsWith('0x')) {
-    return address as `0x${string}`;
+    return address as EvmAddress;
   } else {
     const keyring = new Keyring({ type: 'sr25519' });
     return keyring.decodeAddress(address);

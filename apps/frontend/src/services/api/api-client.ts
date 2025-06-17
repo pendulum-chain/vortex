@@ -61,7 +61,7 @@ export const handleApiError = (error: unknown, defaultMessage = 'An error occurr
 export async function apiRequest<T>(
   method: 'get' | 'post' | 'put' | 'delete',
   url: string,
-  data?: any,
+  data?: unknown,
   config?: AxiosRequestConfig,
 ): Promise<T> {
   try {

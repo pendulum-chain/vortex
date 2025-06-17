@@ -28,7 +28,9 @@ export function FeeComparisonProviderList({
       {sortedProviders.map((provider) => {
         const providerResult =
           provider.name !== 'vortex' && allPricesResponse
-            ? (allPricesResponse[provider.name as PriceProvider] as BundledPriceResult | undefined)
+            ? (allPricesResponse as Record<PriceProvider, BundledPriceResult | undefined>)[
+                provider.name as PriceProvider
+              ]
             : undefined;
 
         return (

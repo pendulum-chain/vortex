@@ -1,4 +1,4 @@
-import { BundledPriceResult, Currency } from '@packages/shared';
+import { AllPricesResponse, BundledPriceResult, Currency } from '@packages/shared';
 import { PriceProvider } from '@packages/shared';
 import { RampDirection } from '../../components/RampToggle';
 import { apiRequest } from './api-client';
@@ -121,8 +121,8 @@ export class PriceService {
     amount: string,
     direction: RampDirection,
     network?: string,
-  ): Promise<BundledPriceResult> {
-    return apiRequest<BundledPriceResult>('get', `${this.BASE_PATH}/all`, undefined, {
+  ): Promise<AllPricesResponse> {
+    return apiRequest<AllPricesResponse>('get', `${this.BASE_PATH}/all`, undefined, {
       params: {
         sourceCurrency,
         targetCurrency,

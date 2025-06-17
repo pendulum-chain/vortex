@@ -1,5 +1,5 @@
-import { BundledPriceResult, Currency } from '@packages/shared';
-import { useQuery } from '@tanstack/react-query';
+import { AllPricesResponse, BundledPriceResult, Currency } from '@packages/shared';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import Big from 'big.js';
 import { useMemo } from 'react';
 
@@ -32,7 +32,7 @@ export function useFeeComparisonData(
   const vortexPrice = useMemo(() => (quote ? Big(quote.outputAmount) : Big(0)), [quote]);
 
   // Fetch prices from all providers
-  const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery({
+  const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery<AllPricesResponse, Error>({
     queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, selectedNetwork, rampDirection],
     queryFn: () => {
       return PriceService.getAllPricesBundled(
@@ -43,7 +43,7 @@ export function useFeeComparisonData(
         selectedNetwork,
       );
     },
-    ...activeOptions['1m'],
+    ...(activeOptions['1m'] as Omit<UseQueryOptions<AllPricesResponse, Error>, 'queryKey' | 'queryFn'>),
   });
 
   // Process provider prices
