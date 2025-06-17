@@ -18,7 +18,12 @@ import { TokenOutData, getTokenOutAmount } from '../../nablaReads/outAmount';
 import { ApiManager } from '../../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { priceFeedService } from '../../priceFeed.service';
-import { RouteParams, createOnrampRouteParams, getRoute } from '../../transactions/squidrouter/route';
+import {
+  RouteParams,
+  createOfframpRouteParams,
+  createOnrampRouteParams,
+  getRoute,
+} from '../../transactions/squidrouter/route';
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
@@ -41,6 +46,14 @@ export interface EvmBridgeRequest {
   finalOutputCurrency: OnChainToken; // Target token on final EVM chain
   finalEvmDestination: DestinationType; // Target EVM chain
   originalInputAmountForRateCalc: string; // The inputAmountForSwap that went into Nabla, for final rate calculation
+  rampType: 'on' | 'off'; // Whether this is an onramp or offramp
+}
+
+export interface EvmBridgeQuoteRequest {
+  rampType: 'on' | 'off'; // Whether this is an onramp or offramp
+  amountRaw: string; // Raw amount
+  inputOrOutputCurrency: OnChainToken; // The currency being swapped (input for offramp, output for onramp)
+  sourceOrDestination: DestinationType; // The source or destination EVM chain based on rampType
 }
 
 export interface EvmBridgeResult {
@@ -86,17 +99,33 @@ export function getTokenDetailsForEvmDestination(
  * Helper to prepare route parameters for Squidrouter
  */
 function prepareSquidrouterRouteParams(
-  intermediateAmountRaw: string,
+  rampType: 'on' | 'off',
+  amountRaw: string,
   tokenDetails: EvmTokenDetails,
-  finalEvmDestination: DestinationType,
+  sourceOrDestination: DestinationType,
 ): RouteParams {
-  return createOnrampRouteParams(
-    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
-    intermediateAmountRaw,
-    tokenDetails,
-    getNetworkFromDestination(finalEvmDestination)!,
-    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
-  );
+  const placeholderAddress = '0x30a300612ab372cc73e53ffe87fb73d62ed68da3';
+  const placeholderHash = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+  const routeParams =
+    rampType === 'on'
+      ? createOnrampRouteParams(
+          placeholderAddress,
+          amountRaw,
+          tokenDetails,
+          getNetworkFromDestination(sourceOrDestination)!,
+          placeholderAddress,
+        )
+      : createOfframpRouteParams(
+          placeholderAddress,
+          amountRaw,
+          tokenDetails,
+          getNetworkFromDestination(sourceOrDestination)!,
+          placeholderAddress,
+          placeholderHash,
+        );
+
+  return routeParams;
 }
 
 /**
@@ -227,14 +256,26 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
  * Handles EVM bridging/swapping via Squidrouter and calculates its specific network fee
  */
 export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest): Promise<EvmBridgeResult> {
-  const { intermediateAmountRaw, finalOutputCurrency, finalEvmDestination, originalInputAmountForRateCalc } = request;
+  const {
+    intermediateAmountRaw,
+    intermediateCurrencyOnEvm,
+    finalOutputCurrency,
+    finalEvmDestination,
+    originalInputAmountForRateCalc,
+    rampType,
+  } = request;
 
   try {
     // Get token details for final output currency
     const tokenDetails = getTokenDetailsForEvmDestination(finalOutputCurrency, finalEvmDestination);
 
     // Prepare route parameters for Squidrouter
-    const routeParams = prepareSquidrouterRouteParams(intermediateAmountRaw, tokenDetails, finalEvmDestination);
+    const routeParams = prepareSquidrouterRouteParams(
+      rampType,
+      intermediateAmountRaw,
+      tokenDetails,
+      finalEvmDestination,
+    );
 
     // Execute Squidrouter route and validate response
     const routeResult = await getSquidrouterRouteData(routeParams);
@@ -268,4 +309,31 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
       message: 'Failed to calculate the quote. Please try a higher amount.',
     });
   }
+}
+
+export async function getEvmBridgeQuote(request: EvmBridgeQuoteRequest) {
+  const tokenDetails = getTokenDetailsForEvmDestination(request.inputOrOutputCurrency, request.sourceOrDestination);
+  const amountRaw = multiplyByPowerOfTen(request.amountRaw, tokenDetails.decimals).toFixed(0, 0);
+
+  const routeParams = prepareSquidrouterRouteParams(
+    request.rampType,
+    amountRaw,
+    tokenDetails,
+    request.sourceOrDestination,
+  );
+  console.log('route params:', routeParams);
+
+  const result = await getSquidrouterRouteData(routeParams);
+  const outputTokenDecimals = result.route.estimate.toToken.decimals;
+  const outputAmountRaw = result.route.estimate.toAmount;
+  const outputAmountDecimal = parseContractBalanceResponse(
+    outputTokenDecimals,
+    BigInt(outputAmountRaw),
+  ).preciseBigDecimal;
+  const networkFeeUSD = await calculateSquidrouterNetworkFee(result);
+
+  return {
+    outputAmountDecimal,
+    networkFeeUSD,
+  };
 }

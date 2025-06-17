@@ -2,7 +2,7 @@
  * Helper functions for token configuration
  */
 
-import { EvmTerminalNetworks, Networks } from '../../helpers';
+import { EvmNetworks, Networks } from '../../helpers';
 import { assetHubTokenConfig } from '../assethub/config';
 import { evmTokenConfig } from '../evm/config';
 import { moonbeamTokenConfig } from '../moonbeam/config';
@@ -24,7 +24,7 @@ export function getOnChainTokenDetails(network: Networks, onChainToken: OnChainT
       if (!(network in evmTokenConfig)) {
         throw new Error(`Network ${network} is not a valid EVM origin network`);
       }
-      return evmTokenConfig[network as EvmTerminalNetworks][onChainToken as EvmToken];
+      return evmTokenConfig[network as EvmNetworks][onChainToken as EvmToken];
     }
   } catch (error) {
     console.error(`Error getting input token details: ${error}`);
@@ -52,7 +52,7 @@ export function getOnChainTokenDetailsOrDefault(network: Networks, onChainToken:
     if (!(network in evmTokenConfig)) {
       throw new Error(`Network ${network} is not a valid EVM origin network`);
     }
-    const firstAvailableToken = Object.values(evmTokenConfig[network as EvmTerminalNetworks])[0];
+    const firstAvailableToken = Object.values(evmTokenConfig[network as EvmNetworks])[0];
     if (!firstAvailableToken) {
       throw new Error(`No tokens configured for network ${network}`);
     }

@@ -17,15 +17,14 @@ export enum Networks {
 }
 
 // This type is used to represent all networks that can be used as a source or destination in the system.
-export type EvmTerminalNetworks =
+export type EvmNetworks =
   | Networks.Arbitrum
   | Networks.Avalanche
   | Networks.Base
   | Networks.BSC
   | Networks.Ethereum
+  | Networks.Moonbeam
   | Networks.Polygon;
-export type SubstrateTerminalNetworks = Networks.AssetHub;
-export type TerminalNetworks = EvmTerminalNetworks | SubstrateTerminalNetworks;
 
 /**
  * Checks if a destination is a network and returns the network if it is.

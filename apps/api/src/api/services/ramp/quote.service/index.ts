@@ -1,13 +1,4 @@
-import {
-  DestinationType,
-  EvmToken,
-  FiatToken,
-  Networks,
-  OnChainToken,
-  QuoteEndpoints,
-  RampCurrency,
-  getOnChainTokenDetailsOrDefault,
-} from '@packages/shared';
+import { EvmToken, FiatToken, Networks, OnChainToken, QuoteEndpoints, RampCurrency } from '@packages/shared';
 import Big from 'big.js';
 import httpStatus from 'http-status';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,7 +9,7 @@ import { APIError } from '../../../errors/api-error';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { priceFeedService } from '../../priceFeed.service';
 import { BaseRampService } from '../base.service';
-import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput } from './gross-output';
+import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput, getEvmBridgeQuote } from './gross-output';
 import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from './helpers';
 import { calculateFeeComponents, calculatePreNablaDeductibleFees } from './quote-fees';
 
@@ -69,7 +60,19 @@ export class QuoteService extends BaseRampService {
       request.inputCurrency,
     );
 
-    const inputAmountForNablaSwap = new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+    let inputAmountForNablaSwap = new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
+
+    if (request.rampType === 'off' && request.from !== 'assethub') {
+      // Check squidrouter rate and adjust the input amount accordingly
+      const bridgeQuote = await getEvmBridgeQuote({
+        rampType: request.rampType,
+        amountRaw: request.inputAmount,
+        inputOrOutputCurrency: request.inputCurrency as OnChainToken,
+        sourceOrDestination: request.from,
+      });
+      console.log('Bridge result for off-ramp:', bridgeQuote);
+      inputAmountForNablaSwap = new Big(bridgeQuote.outputAmountDecimal).minus(preNablaDeductibleFeeAmount);
+    }
 
     // Ensure inputAmountForNablaSwap is not negative
     if (inputAmountForNablaSwap.lte(0)) {
@@ -106,6 +109,21 @@ export class QuoteService extends BaseRampService {
       }
     }
 
+    console.log(
+      'Calculating Nabla swap output for input amount:',
+      inputAmountForNablaSwap.toString(),
+      'input currency:',
+      request.inputCurrency,
+      'to output currency:',
+      nablaOutputCurrency,
+      'ramp type:',
+      request.rampType,
+      'from destination:',
+      request.from,
+      'to destination:',
+      request.to,
+    );
+
     const nablaSwapResult = await calculateNablaSwapOutput({
       inputAmountForSwap: inputAmountForNablaSwap.toString(),
       inputCurrency: request.inputCurrency,
@@ -117,6 +135,7 @@ export class QuoteService extends BaseRampService {
 
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
+    console.log('Output amount after Nabla swap:', outputAmountOfframp);
 
     const {
       vortexFee,
@@ -173,10 +192,11 @@ export class QuoteService extends BaseRampService {
       );
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
-        intermediateCurrencyOnEvm: EvmToken.USDC as OnChainToken,
+        intermediateCurrencyOnEvm: EvmToken.USDC,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         finalEvmDestination: request.to,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
+        rampType: request.rampType,
       });
       squidRouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
 
@@ -195,6 +215,7 @@ export class QuoteService extends BaseRampService {
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         finalEvmDestination: request.to,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
+        rampType: request.rampType,
       });
 
       finalGrossOutputAmountDecimal = new Big(evmBridgeResult.finalGrossOutputAmountDecimal);

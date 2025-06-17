@@ -2,12 +2,12 @@
  * EVM token configuration
  */
 
-import { EvmTerminalNetworks, Networks } from '../../helpers';
+import { EvmNetworks, Networks } from '../../helpers';
 import { PENDULUM_USDC_AXL } from '../constants/pendulum';
 import { TokenType } from '../types/base';
 import { EvmToken, EvmTokenDetails } from '../types/evm';
 
-export const evmTokenConfig: Record<EvmTerminalNetworks, Partial<Record<EvmToken, EvmTokenDetails>>> = {
+export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTokenDetails>>> = {
   [Networks.Ethereum]: {
     [EvmToken.USDC]: {
       assetSymbol: 'USDC',
@@ -169,6 +169,17 @@ export const evmTokenConfig: Record<EvmTerminalNetworks, Partial<Record<EvmToken
       networkAssetIcon: 'avalancheUSDT',
       decimals: 6,
       network: Networks.Avalanche,
+      type: TokenType.Evm,
+      ...PENDULUM_USDC_AXL,
+    },
+  },
+  [Networks.Moonbeam]: {
+    [EvmToken.USDC]: {
+      assetSymbol: 'USDC',
+      erc20AddressSourceChain: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC on Moonbeam
+      networkAssetIcon: 'moonbeamUSDC',
+      decimals: 6,
+      network: Networks.Moonbeam,
       type: TokenType.Evm,
       ...PENDULUM_USDC_AXL,
     },
