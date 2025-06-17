@@ -17,14 +17,13 @@ export const cacheKeys = {
   allPrices: 'allPrices',
 };
 
-type QueryOptions = Partial<
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Omit<UseQueryOptions<any, any, any, any>, 'queryKey' | 'queryFn'>
+type QueryOptions<TData = unknown, TError = Error> = Partial<
+  Omit<UseQueryOptions<TData, TError, TData, readonly unknown[]>, 'queryKey' | 'queryFn'>
 >;
 
 const getOptions =
-  (active: boolean) =>
-  (time: number): QueryOptions => ({
+  <TData = unknown, TError = Error>(active: boolean) =>
+  (time: number): QueryOptions<TData, TError> => ({
     staleTime: time,
     retry: 2,
     refetchOnReconnect: active,
