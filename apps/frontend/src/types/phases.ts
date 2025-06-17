@@ -6,7 +6,7 @@ import {
   PresignedTx,
   QuoteResponse,
   RampProcess,
-  StartRampRequest,
+  UpdateRampRequest,
 } from '@packages/shared';
 import { EphemeralAccount } from '@packages/shared';
 
@@ -19,7 +19,7 @@ export interface RampState {
   // This is used to track if the user has completed all required actions. For offramps, it's about signing and submitting
   // transactions. For onramps, it's about acknowledging that the payment has been made.
   requiredUserActionsCompleted: boolean;
-  userSigningMeta: StartRampRequest['additionalData'];
+  userSigningMeta: UpdateRampRequest['additionalData'];
 }
 
 export interface RampExecutionInput {

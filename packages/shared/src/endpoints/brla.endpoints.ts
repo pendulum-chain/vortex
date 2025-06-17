@@ -1,4 +1,8 @@
-import { EvmAddress } from '../types';
+export enum KycFailureReason {
+  FACE = 'face',
+  NAME = 'name',
+  UNKNOWN = 'unknown',
+}
 
 // GET /brla/getUser?taxId=:taxId
 export interface BrlaGetUserRequest {
@@ -29,6 +33,7 @@ export interface BrlaGetKycStatusResponse {
   type: string;
   status: string;
   level: number;
+  failureReason: KycFailureReason;
 }
 
 // GET /brla/validatePixKey?pixKey=:pixKey

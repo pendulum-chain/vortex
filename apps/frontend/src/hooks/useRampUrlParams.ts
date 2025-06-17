@@ -5,14 +5,7 @@ import { getFirstEnabledFiatToken, isFiatTokenEnabled } from '../config/tokenAva
 import { useNetwork } from '../contexts/network';
 import { DEFAULT_RAMP_DIRECTION } from '../helpers/path';
 import { useSetPartnerId } from '../stores/partnerStore';
-import {
-  DEFAULT_ARS_AMOUNT,
-  DEFAULT_ASSETHUB_ONCHAIN_TOKEN,
-  DEFAULT_BRL_AMOUNT,
-  DEFAULT_EURC_AMOUNT,
-  DEFAULT_EVM_ONCHAIN_TOKEN,
-  useRampFormStoreActions,
-} from '../stores/ramp/useRampFormStore';
+import { defaultFiatTokenAmounts, useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
 import { useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
 
 interface RampUrlParams {
@@ -23,12 +16,6 @@ interface RampUrlParams {
   fromAmount?: string;
   partnerId?: string;
 }
-
-const defaultFiatTokenAmounts: Record<FiatToken, string> = {
-  eur: DEFAULT_EURC_AMOUNT,
-  ars: DEFAULT_ARS_AMOUNT,
-  brl: DEFAULT_BRL_AMOUNT,
-};
 
 function findFiatToken(fiatToken?: string, rampDirection?: RampDirection): FiatToken | undefined {
   if (!fiatToken) {
@@ -64,7 +51,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     const matchedToken = assetHubTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
 
     if (!matchedToken) {
-      return DEFAULT_ASSETHUB_ONCHAIN_TOKEN;
+      return AssetHubToken.USDC;
     }
 
     const [_, tokenValue] = matchedToken;
@@ -74,7 +61,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
     const matchedToken = evmTokenEntries.find(([_, token]) => token.toLowerCase() === tokenStr);
 
     if (!matchedToken) {
-      return DEFAULT_EVM_ONCHAIN_TOKEN;
+      return EvmToken.USDC;
     }
 
     const [_, tokenValue] = matchedToken;

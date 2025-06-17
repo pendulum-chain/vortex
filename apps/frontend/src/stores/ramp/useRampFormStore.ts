@@ -1,6 +1,9 @@
 import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, getOnChainTokenDetails } from '@packages/shared';
 import { create } from 'zustand';
+import { RampDirection } from '../../components/RampToggle';
+import { getRampDirectionFromPath } from '../../helpers/path';
 import { Language, getLanguageFromPath } from '../../translations/helpers';
+import { useRampDirection } from '../rampDirectionStore';
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.EURC;
 export const DEFAULT_PT_BR_TOKEN = FiatToken.BRL;
@@ -9,18 +12,34 @@ export const DEFAULT_BRL_AMOUNT = '100';
 export const DEFAULT_EURC_AMOUNT = '20';
 export const DEFAULT_ARS_AMOUNT = '20';
 
-export const DEFAULT_ASSETHUB_ONCHAIN_TOKEN = AssetHubToken.USDC;
-export const DEFAULT_EVM_ONCHAIN_TOKEN = EvmToken.USDC;
+export const defaultFiatTokenAmounts: Record<FiatToken, string> = {
+  [FiatToken.EURC]: DEFAULT_EURC_AMOUNT,
+  [FiatToken.ARS]: DEFAULT_ARS_AMOUNT,
+  [FiatToken.BRL]: DEFAULT_BRL_AMOUNT,
+};
 
 const defaultFiatToken =
   getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_PT_BR_TOKEN : DEFAULT_FIAT_TOKEN;
 
+const defaultFiatAmount =
+  getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_BRL_AMOUNT : defaultFiatTokenAmounts[defaultFiatToken];
+
+const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
+
+const defaultOnChainToken =
+  getRampDirectionFromPath() === RampDirection.ONRAMP
+    ? storedNetwork === Networks.AssetHub
+      ? AssetHubToken.USDC
+      : EvmToken.USDT
+    : EvmToken.USDC;
+
 interface RampFormState {
-  inputAmount?: string;
+  inputAmount: string;
   onChainToken: OnChainToken;
   fiatToken: FiatToken;
   taxId?: string;
   pixId?: string;
+  lastConstraintDirection: RampDirection;
 }
 
 interface RampFormActions {
@@ -30,19 +49,19 @@ interface RampFormActions {
     setFiatToken: (token: FiatToken) => void;
     setTaxId: (taxId: string) => void;
     setPixId: (pixId: string) => void;
+    setConstraintDirection: (direction: RampDirection) => void;
     handleNetworkChange: (network: Networks) => void;
     reset: () => void;
   };
 }
 
-const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
-
 export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
-  inputAmount: DEFAULT_BRL_AMOUNT,
-  onChainToken: storedNetwork !== null && storedNetwork === Networks.AssetHub ? EvmToken.USDC : EvmToken.USDT,
+  inputAmount: defaultFiatAmount,
+  onChainToken: defaultOnChainToken,
   fiatToken: defaultFiatToken,
   taxId: undefined,
   pixId: undefined,
+  lastConstraintDirection: getRampDirectionFromPath(),
 };
 
 export const useRampFormStore = create<RampFormState & RampFormActions>((set, get) => ({
@@ -53,6 +72,7 @@ export const useRampFormStore = create<RampFormState & RampFormActions>((set, ge
     setFiatToken: (token: FiatToken) => set({ fiatToken: token }),
     setTaxId: (taxId: string) => set({ taxId }),
     setPixId: (pixId: string) => set({ pixId }),
+    setConstraintDirection: (direction: RampDirection) => set({ lastConstraintDirection: direction }),
 
     handleNetworkChange: (network: Networks) => {
       const { onChainToken } = get();
@@ -76,5 +96,12 @@ export const useOnChainToken = () => useRampFormStore((state) => state.onChainTo
 export const useFiatToken = () => useRampFormStore((state) => state.fiatToken);
 export const useTaxId = () => useRampFormStore((state) => state.taxId);
 export const usePixId = () => useRampFormStore((state) => state.pixId);
+export const useLastConstraintDirection = () => useRampFormStore((state) => state.lastConstraintDirection);
+
+export const useQuoteConstraintsValid = () => {
+  const direction = useRampDirection();
+  const lastConstraintDirection = useLastConstraintDirection();
+  return direction === lastConstraintDirection;
+};
 
 export const useRampFormStoreActions = () => useRampFormStore((state) => state.actions);

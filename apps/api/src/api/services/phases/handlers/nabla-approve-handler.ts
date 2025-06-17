@@ -1,6 +1,8 @@
 import { RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
+import { NABLA_ROUTER } from '@packages/shared';
 import { ExecuteMessageResult, createExecuteMessageExtrinsic, submitExtrinsic } from '@pendulum-chain/api-solang';
 import { Abi } from '@polkadot/api-contract';
+import Big from 'big.js';
 import logger from '../../../../config/logger';
 import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
 import RampState from '../../../../models/rampState.model';
@@ -16,6 +18,25 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     const apiManager = ApiManager.getInstance();
     const networkName = 'pendulum';
     const pendulumNode = await apiManager.getApi(networkName);
+
+    // Pre check: check if the approve has already been performed.
+    try {
+      const approval = await pendulumNode.api.query.tokenAllowance.approvals(
+        state.state.inputTokenPendulumDetails.pendulumCurrencyId,
+        state.state.pendulumEphemeralAddress,
+        NABLA_ROUTER,
+      );
+      const requiredAmount = new Big(state.state.inputAmountBeforeSwapRaw);
+      const approvedAmount = approval.toString() !== '' ? Big(approval.toString()) : Big(0);
+      if (approvedAmount.gte(requiredAmount)) {
+        logger.info(`NablaApprovePhaseHandler: Amount already approved. Skipping approval.`);
+        return this.transitionToNextPhase(state, 'nablaSwap');
+      }
+    } catch (e) {
+      throw this.createRecoverableError(
+        `NablaApprovePhaseHandler: Could not check if the approve has already been performed. ${(e as Error).message}`,
+      );
+    }
 
     try {
       const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, 'nablaApprove');

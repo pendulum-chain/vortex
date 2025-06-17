@@ -68,7 +68,7 @@ async function getNablaSwapOutAmount(
 /**
  * Helper to get token details for final output currency on EVM destination
  */
-function getTokenDetailsForEvmDestination(
+export function getTokenDetailsForEvmDestination(
   finalOutputCurrency: OnChainToken,
   finalEvmDestination: DestinationType,
 ): EvmTokenDetails {

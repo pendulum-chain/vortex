@@ -3,6 +3,7 @@ import { BrlaKYCDocType } from '@packages/shared';
 import { motion } from 'motion/react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMaintenanceAwareButton } from '../../../hooks/useMaintenanceAware';
 import { BrlaService } from '../../../services/api';
 import { KycLevel2Toggle } from '../../KycLevel2Toggle';
 
@@ -36,6 +37,7 @@ async function uploadFileAsBuffer(file: File, url: string) {
 
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler, onBackClick, taxId }) => {
   const { t } = useTranslation();
+  const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton();
 
   const [docType, setDocType] = useState<BrlaKYCDocType>(BrlaKYCDocType.RG);
   const [selfie, setSelfie] = useState<File | null>(null);
@@ -216,9 +218,14 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onSubmitHandler,
           type="button"
           className="btn-vortex-primary btn flex-1"
           onClick={handleSubmit}
-          disabled={isSubmitDisabled}
+          {...buttonProps}
+          disabled={buttonProps.disabled || isSubmitDisabled}
         >
-          {loading ? t('components.documentUpload.buttons.uploading') : t('components.documentUpload.buttons.finish')}
+          {isMaintenanceDisabled
+            ? buttonProps.title
+            : loading
+              ? t('components.documentUpload.buttons.uploading')
+              : t('components.documentUpload.buttons.finish')}
         </button>
       </div>
     </motion.div>

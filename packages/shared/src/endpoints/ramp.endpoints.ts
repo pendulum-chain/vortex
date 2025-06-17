@@ -88,9 +88,16 @@ export interface RegisterRampRequest {
   };
 }
 
+export type UpdateRampResponse = RampProcess;
+
+// POST /ramp/start
+export interface StartRampRequest {
+  rampId: string;
+}
+
 export type RegisterRampResponse = RampProcess;
 
-export interface StartRampRequest {
+export interface UpdateRampRequest {
   rampId: string;
   presignedTxs: PresignedTx[];
   additionalData?: {

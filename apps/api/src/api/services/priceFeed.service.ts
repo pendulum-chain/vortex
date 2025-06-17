@@ -4,6 +4,7 @@ import Big from 'big.js';
 import logger from '../../config/logger';
 import { getTokenOutAmount } from './nablaReads/outAmount';
 import { ApiManager } from './pendulum/apiManager';
+import { SlackNotifier } from './slack.service';
 
 // Cache entry interface
 interface CacheEntry<T> {
@@ -54,6 +55,19 @@ export class PriceFeedService {
 
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
     logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
+
+    // Start cron job to check onchain oracle prices
+    this.checkOnchainOraclePricesUpToDate().catch((error) => {
+      logger.error(`Error checking onchain oracle prices: ${error.message}`);
+    });
+    setInterval(
+      () => {
+        this.checkOnchainOraclePricesUpToDate().catch((error) => {
+          logger.error(`Error checking onchain oracle prices: ${error.message}`);
+        });
+      },
+      24 * 60 * 60 * 1000,
+    ); // Check every 24 hours
   }
 
   /**
@@ -369,6 +383,56 @@ export class PriceFeedService {
       // Return the original amount as fallback
       logger.warn(`Returning original amount ${amount} as fallback due to conversion error`);
       return amount;
+    }
+  }
+
+  // Checks if the onchain oracle prices are up to date. Sends a warning to Slack if not.
+  async checkOnchainOraclePricesUpToDate(): Promise<void> {
+    logger.info('Performing onchain oracle prices check...');
+
+    const apiManager = ApiManager.getInstance();
+    const pendulumApi = await apiManager.getApi('pendulum');
+    const pendulumApiInstance = pendulumApi.api;
+
+    try {
+      // Check if the oracle prices are up to date
+      const allPricesEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap.entries();
+
+      const prices = allPricesEncoded.map(([key, priceData]) => {
+        const price = priceData.toHuman() as { name: string; lastUpdateTimestamp: string };
+        return {
+          name: price.name,
+          lastUpdateTimestamp: price.lastUpdateTimestamp.replaceAll(',', ''),
+        };
+      });
+
+      const outdatedPrices = [];
+      for (const price of prices) {
+        const lastUpdateTimestamp = parseInt(price.lastUpdateTimestamp, 10);
+        const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+        const isPriceUpToDate = currentTime - lastUpdateTimestamp < 3600; // Check if updated within the last hour
+
+        if (!isPriceUpToDate) {
+          logger.warn(
+            `Onchain oracle price for ${price.name} is not up to date. Last update: ${lastUpdateTimestamp}, Current time: ${currentTime}`,
+          );
+
+          outdatedPrices.push(price);
+        }
+      }
+
+      if (outdatedPrices.length > 0) {
+        const slackNotifier = new SlackNotifier();
+        await slackNotifier.sendMessage({
+          text: `⚠️ Onchain oracle prices are not up to date! The following prices are outdated:\n${outdatedPrices.join(
+            ', ',
+          )}`,
+        });
+      } else {
+        logger.info('All onchain oracle prices are up to date.');
+      }
+    } catch (error) {
+      logger.error(`Error checking onchain oracle prices: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

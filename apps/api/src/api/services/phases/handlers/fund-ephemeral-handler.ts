@@ -1,15 +1,19 @@
 import { FiatToken, RampPhase, getNetworkFromDestination } from '@packages/shared';
-import Big from 'big.js';
-
+import { NetworkError, Transaction } from 'stellar-sdk';
 import logger from '../../../../config/logger';
-import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import RampState from '../../../../models/rampState.model';
 import { fundMoonbeamEphemeralAccount } from '../../moonbeam/balance';
-import { API, ApiManager } from '../../pendulum/apiManager';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
+import { ApiManager } from '../../pendulum/apiManager';
 import { fundEphemeralAccount } from '../../pendulum/pendulum.service';
 import { BasePhaseHandler } from '../base-phase-handler';
 import { StateMetadata } from '../meta-state-types';
+import {
+  NETWORK_PASSPHRASE,
+  horizonServer,
+  isMoonbeamEphemeralFunded,
+  isPendulumEphemeralFunded,
+  isStellarEphemeralFunded,
+} from './helpers';
 
 export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -19,7 +23,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi('pendulum');
-    const moonebamNode = await apiManager.getApi('moonbeam');
+    const moonbeamNode = await apiManager.getApi('moonbeam');
 
     const { moonbeamEphemeralAddress, pendulumEphemeralAddress } = state.state as StateMetadata;
 
@@ -35,11 +39,21 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       let isMoonbeamFunded = true;
       if (state.type === 'on' && moonbeamEphemeralAddress) {
-        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonebamNode);
+        isMoonbeamFunded = await isMoonbeamEphemeralFunded(moonbeamEphemeralAddress, moonbeamNode);
+      }
+
+      if (state.state.stellarTarget) {
+        const isFunded = await isStellarEphemeralFunded(
+          state.state.stellarEphemeralAccountId,
+          state.state.stellarTarget.stellarTokenDetails,
+        );
+        if (!isFunded) {
+          await this.fundStellarEphemeralAccount(state);
+        }
       }
 
       if (!isPendulumFunded) {
-        logger.info('Funding pen ephemeral...');
+        logger.info(`Funding PEN ephemeral account ${pendulumEphemeralAddress}`);
         if (state.type === 'on' && state.to !== 'assethub') {
           await fundEphemeralAccount('pendulum', pendulumEphemeralAddress, true);
         } else if (state.state.outputCurrency === FiatToken.BRL) {
@@ -52,7 +66,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       }
 
       if (state.type === 'on' && !isMoonbeamFunded) {
-        logger.info('Funding moonbeam ephemeral...');
+        logger.info(`Funding moonbeam ephemeral accout ${moonbeamEphemeralAddress}`);
 
         const destinationNetwork = getNetworkFromDestination(state.to);
         // For onramp case, "to" is always a network.
@@ -84,21 +98,42 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       return 'moonbeamToPendulum'; // Via contract.subsidizePreSwap
     }
   }
-}
 
-async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
-  const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
-  const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();
-  // @ts-ignore
-  const { data: balance } = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
+  protected async fundStellarEphemeralAccount(state: RampState): Promise<void> {
+    const { txData: stellarCreationTransactionXDR } = this.getPresignedTransaction(state, 'stellarCreateAccount');
+    if (typeof stellarCreationTransactionXDR !== 'string') {
+      throw new Error(
+        'FundEphemeralHandler: `stellarCreateAccount` transaction is not a string -> not an encoded Stellar transaction.',
+      );
+    }
 
-  return Big(balance.free.toString()).gte(fundingAmountRaw);
-}
+    try {
+      const stellarCreationTransaction = new Transaction(stellarCreationTransactionXDR, NETWORK_PASSPHRASE);
+      logger.info(
+        `Submitting stellar account creation transaction to create ephemeral account: ${state.state.stellarEphemeralAccountId}`,
+      );
+      await horizonServer.submitTransaction(stellarCreationTransaction);
+    } catch (e) {
+      const horizonError = e as NetworkError;
+      if (horizonError.response.data?.status === 400) {
+        logger.info(
+          `Could not submit the stellar account creation transaction ${JSON.stringify(
+            horizonError.response.data.extras.result_codes,
+          )}`,
+        );
 
-async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonebamNode: API): Promise<boolean> {
-  // @ts-ignore
-  const { data: balance } = await moonebamNode.api.query.system.account(moonbeamEphemeralAddress);
-  return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
+        // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
+        if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
+          logger.info('Recovery mode: Creation already performed.');
+        }
+        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data.extras}`);
+        throw new Error('Could not submit the stellar creation transaction');
+      } else {
+        logger.error(`Could not submit the stellar creation transaction: ${horizonError.response.data}`);
+        throw new Error('Could not submit the stellar creation transaction');
+      }
+    }
+  }
 }
 
 export default new FundEphemeralPhaseHandler();

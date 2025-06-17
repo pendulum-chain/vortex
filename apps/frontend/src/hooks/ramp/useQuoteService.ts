@@ -7,6 +7,7 @@ import { useEventsContext } from '../../contexts/events';
 import { useNetwork } from '../../contexts/network';
 import { usePartnerId } from '../../stores/partnerStore';
 import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
+import { useQuoteConstraintsValid } from '../../stores/ramp/useRampFormStore';
 import { useRampDirection } from '../../stores/rampDirectionStore';
 
 // @TODO: Rethink this hook, because now
@@ -20,11 +21,13 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
   const rampDirection = useRampDirection();
   const rampType = rampDirection === RampDirection.ONRAMP ? 'on' : 'off';
   const partnerId = usePartnerId();
+  const quoteConstraintsValid = useQuoteConstraintsValid();
 
   const { fetchQuote, outputAmount } = useQuoteStore();
 
   const getQuote = useCallback(async () => {
-    if (!inputAmount) return;
+    // Wait for constraints to be valid before fetching
+    if (!quoteConstraintsValid || !inputAmount) return;
 
     if (partnerId === undefined) {
       // If partnerId is undefined, it's not set yet, so we don't fetch a quote
@@ -46,7 +49,17 @@ export const useQuoteService = (inputAmount: string | undefined, onChainToken: O
         error_message: 'signer_service_issue',
       });
     }
-  }, [inputAmount, fetchQuote, rampType, onChainToken, fiatToken, selectedNetwork, partnerId, trackEvent]);
+  }, [
+    quoteConstraintsValid,
+    inputAmount,
+    fetchQuote,
+    rampType,
+    onChainToken,
+    fiatToken,
+    selectedNetwork,
+    partnerId,
+    trackEvent,
+  ]);
 
   useEffect(() => {
     getQuote();

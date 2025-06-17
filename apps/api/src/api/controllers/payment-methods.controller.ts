@@ -26,8 +26,8 @@ function getPaymentMethodsByType(type: PaymentMethodType): PaymentMethodConfig[]
  * @param fiat - Fiat currency to filter by
  * @returns Filtered payment methods that support the specified fiat
  */
-function getPaymentMethodsByFiat(paymentMethods: PaymentMethodConfig[], fiat: FiatToken): PaymentMethodConfig[] {
-  return paymentMethods.filter((method) => method.supportedFiats.includes(fiat));
+function getPaymentMethodsByFiat(paymentMethods: PaymentMethodConfig[], fiatId: FiatToken): PaymentMethodConfig[] {
+  return paymentMethods.filter((method) => method.supportedFiats.some((supportedFiat) => supportedFiat.id === fiatId));
 }
 
 export const getSupportedPaymentMethods = async (

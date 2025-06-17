@@ -2,6 +2,10 @@ import { PendulumDetails, RampCurrency, StellarTokenDetails } from '@packages/sh
 import { ExtrinsicOptions } from '../transactions/nabla';
 
 export interface StateMetadata {
+  inputAmount: string;
+  outputAmount: string;
+  inputCurrency: RampCurrency;
+  outputCurrency: RampCurrency;
   nablaSoftMinimumOutputRaw: string;
   pendulumEphemeralAddress: string;
   inputTokenPendulumDetails: PendulumDetails;
@@ -23,14 +27,11 @@ export interface StateMetadata {
   executeSpacewalkNonce: number;
   // Only used in onramp - brla
   inputAmountUnits: string;
-  inputAmount: string;
-  inputCurrency: string;
-  outputAmount: string;
-  outputCurrency: string;
   inputAmountBeforeSwapUnits: string;
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;
+  walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;
   moonbeamEphemeralAddress: string;
@@ -39,9 +40,11 @@ export interface StateMetadata {
     approveExtrinsicOptions: ExtrinsicOptions;
     swapExtrinsicOptions: ExtrinsicOptions;
   };
+  assetHubToPendulumHash: string;
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
   unhandledPaymentAlertSent: boolean;
   pendulumToMoonbeamXcmHash?: string;
+  brCode: string | undefined;
 }

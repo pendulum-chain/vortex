@@ -1,47 +1,18 @@
-import { RampPhase } from '@packages/shared';
-import Big from 'big.js';
+import { Networks, OnChainToken, RampPhase } from '@packages/shared';
 import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
+
 import logger from '../../../../config/logger';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { axelarGasServiceAbi } from '../../../../contracts/AxelarGasService';
 import RampState from '../../../../models/rampState.model';
 import { PhaseError } from '../../../errors/phase-error';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
-import { getStatus } from '../../transactions/squidrouter/route';
+import { getTokenDetailsForEvmDestination } from '../../ramp/quote.service/gross-output';
+import { createOnrampRouteParams, getRoute } from '../../transactions/squidrouter/route';
 import { BasePhaseHandler } from '../base-phase-handler';
 
-interface GpmFeeResult {
-  result: {
-    source_base_fee: number;
-    source_express_fee: {
-      express_gas_overhead_fee: number;
-      relayer_fee: number;
-      relayer_fee_usd: number;
-      express_gas_overhead_fee_usd: number;
-      total: number;
-      total_usd: number;
-    };
-    base_fee: number;
-    base_fee_usd: number;
-    execute_gas_multiplier: number;
-    execute_min_gas_price: string;
-    source_base_fee_string: string;
-    source_base_fee_usd: number;
-    destination_base_fee: number;
-    destination_base_fee_string: string;
-    destination_base_fee_usd: number;
-    source_confirm_fee: number;
-    destination_confirm_fee: number;
-    express_supported: boolean;
-    express_fee: number;
-    express_fee_string: string;
-    express_fee_usd: number;
-    express_execute_gas_multiplier: number;
-  };
-}
 interface AxelarScanStatusResponse {
   is_insufficient_fee: boolean;
   status: string; // executed or express_executed (for complete).
@@ -52,6 +23,7 @@ interface AxelarScanStatusResponse {
     source_express_fee: {
       total: number;
     };
+    source_confirm_fee: number;
     destination_express_fee: {
       total: number;
     };
@@ -144,21 +116,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         }
 
         if (!payTxHash) {
-          const feeResponse = await this.fetchFees(state.to.toString());
-
-          if (!feeResponse) {
-            logger.warn(`SquidRouterPayPhaseHandler: No status found for swap hash ${swapHash}.`);
-            throw this.createRecoverableError('No status found for swap hash.');
-          }
-
-          const glmrToFundUnits = (
-            feeResponse.result.source_base_fee +
-            feeResponse.result.destination_base_fee +
-            feeResponse.result.express_fee
-          ).toString();
+          const glmrToFundRaw = await this.fetchFreshRouteValue(state);
 
           const logIndex = Number(axelarScanStatus.id.split('_')[2]);
-          payTxHash = await this.executeFundTransaction(glmrToFundUnits, swapHash as `0x${string}`, logIndex);
+          payTxHash = await this.executeFundTransaction(glmrToFundRaw, swapHash as `0x${string}`, logIndex);
 
           await state.update({
             state: {
@@ -183,7 +144,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * @param glmrUnits The amount of GLMR to fund the transaction with.
    * @returns Hash of the transaction that funds the Axelar gas service.
    */
-  private async executeFundTransaction(glmrUnits: string, swapHash: `0x${string}`, logIndex: number): Promise<string> {
+  private async executeFundTransaction(
+    gmlrValueRaw: string,
+    swapHash: `0x${string}`,
+    logIndex: number,
+  ): Promise<string> {
     try {
       // Create addNativeGas transaction data
       const refundAddress = this.walletClient.account.address;
@@ -192,11 +157,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         functionName: 'addNativeGas',
         args: [swapHash, logIndex, refundAddress],
       });
-      const gmlrValueRaw = multiplyByPowerOfTen(new Big(glmrUnits), 18); // Convert to raw GLMR units
       const { maxFeePerGas, maxPriorityFeePerGas } = await this.publicClient.estimateFeesPerGas();
       const gasPaymentHash = await this.walletClient.sendTransaction({
         to: AXL_GAS_SERVICE_MOONBEAM as `0x${string}`,
-        value: BigInt(gmlrValueRaw.toFixed(0, 0)),
+        value: BigInt(gmlrValueRaw),
         data: transactionData,
         maxFeePerGas,
         maxPriorityFeePerGas,
@@ -235,26 +199,28 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  private async fetchFees(toChain: string): Promise<GpmFeeResult | null> {
+  private async fetchFreshRouteValue(ramp: RampState): Promise<string> {
+    const toNetwork = ramp.to as Networks; // Safe casting. There is no other option for onramp.
+    const stateMeta = ramp.state;
+    const outputTokenDetails = getTokenDetailsForEvmDestination(stateMeta.outputTokenType as OnChainToken, toNetwork);
+
     try {
-      const response = await fetch('https://api.gmp.axelarscan.io/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'getFees',
-          destinationChain: toChain,
-          sourceChain: 'moonbeam',
-        }),
-      });
+      const routeParams = createOnrampRouteParams(
+        stateMeta.moonbeamEphemeralAddress,
+        stateMeta.outputAmountBeforeFinalStep.raw,
+        outputTokenDetails,
+        toNetwork,
+        ramp.state.destinationAddress,
+      );
+      const routeResult = await getRoute(routeParams);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: GpmFeeResult = (await response.json()) as GpmFeeResult;
-      return data;
-    } catch (_error) {
-      return null;
+      const { route } = routeResult.data;
+      const feeValue = route.transactionRequest.value;
+      console.log(`SquidRouterPayPhaseHandler: Fresh route value fetched: ${feeValue}`);
+      return feeValue;
+    } catch (error) {
+      logger.error('SquidRouterPayPhaseHandler: Error fetching fresh route:', error);
+      throw new Error('SquidRouterPayPhaseHandler: Failed to fetch fresh route');
     }
   }
 }
