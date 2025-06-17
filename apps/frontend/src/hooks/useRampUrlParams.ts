@@ -1,12 +1,12 @@
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from '@packages/shared';
-import { useEffect, useMemo, useRef } from 'react';
-import { RampDirection } from '../components/RampToggle';
-import { getFirstEnabledFiatToken, isFiatTokenEnabled } from '../config/tokenAvailability';
-import { useNetwork } from '../contexts/network';
-import { DEFAULT_RAMP_DIRECTION } from '../helpers/path';
-import { useSetPartnerId } from '../stores/partnerStore';
-import { defaultFiatTokenAmounts, useRampFormStoreActions } from '../stores/ramp/useRampFormStore';
-import { useRampDirection, useRampDirectionToggle } from '../stores/rampDirectionStore';
+import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken } from "@packages/shared";
+import { useEffect, useMemo, useRef } from "react";
+import { RampDirection } from "../components/RampToggle";
+import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
+import { useNetwork } from "../contexts/network";
+import { DEFAULT_RAMP_DIRECTION } from "../helpers/path";
+import { useSetPartnerId } from "../stores/partnerStore";
+import { defaultFiatTokenAmounts, useRampFormStoreActions } from "../stores/ramp/useRampFormStore";
+import { useRampDirection, useRampDirectionToggle } from "../stores/rampDirectionStore";
 
 interface RampUrlParams {
   ramp: RampDirection;
@@ -71,7 +71,7 @@ function findOnChainToken(tokenStr?: string, networkType?: Networks | string): O
 
 function getNetworkFromParam(param?: string): Networks | undefined {
   if (param) {
-    const matchedNetwork = Object.values(Networks).find((network) => network.toLowerCase() === param);
+    const matchedNetwork = Object.values(Networks).find(network => network.toLowerCase() === param);
     return matchedNetwork;
   }
   return undefined;
@@ -83,19 +83,19 @@ export const useRampUrlParams = (): RampUrlParams => {
   const rampDirection = useRampDirection();
 
   const urlParams = useMemo(() => {
-    const rampParam = params.get('ramp')?.toLowerCase();
-    const networkParam = params.get('network')?.toLowerCase();
-    const toTokenParam = params.get('to')?.toLowerCase();
-    const fromTokenParam = params.get('from')?.toLowerCase();
-    const inputAmountParam = params.get('fromAmount');
-    const partnerIdParam = params.get('partnerId');
+    const rampParam = params.get("ramp")?.toLowerCase();
+    const networkParam = params.get("network")?.toLowerCase();
+    const toTokenParam = params.get("to")?.toLowerCase();
+    const fromTokenParam = params.get("from")?.toLowerCase();
+    const inputAmountParam = params.get("fromAmount");
+    const partnerIdParam = params.get("partnerId");
 
     const ramp =
       rampParam === undefined
         ? rampDirection
-        : rampParam === 'sell'
+        : rampParam === "sell"
           ? RampDirection.OFFRAMP
-          : rampParam === 'buy'
+          : rampParam === "buy"
             ? RampDirection.ONRAMP
             : DEFAULT_RAMP_DIRECTION;
 
@@ -109,9 +109,7 @@ export const useRampUrlParams = (): RampUrlParams => {
         : findOnChainToken(toTokenParam, networkParam || selectedNetwork);
 
     const fromAmount =
-      ramp === RampDirection.OFFRAMP
-        ? defaultFiatTokenAmounts[to as FiatToken]
-        : defaultFiatTokenAmounts[from as FiatToken];
+      ramp === RampDirection.OFFRAMP ? defaultFiatTokenAmounts[to as FiatToken] : defaultFiatTokenAmounts[from as FiatToken];
 
     return {
       ramp,
@@ -119,7 +117,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       from,
       to,
       fromAmount: inputAmountParam || fromAmount || undefined,
-      partnerId: partnerIdParam || undefined,
+      partnerId: partnerIdParam || undefined
     };
   }, [params, rampDirection, selectedNetwork]);
 
@@ -144,6 +142,7 @@ export const useSetRampUrlParams = () => {
     }
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation> Empty dependency array means run once on mount
   useEffect(() => {
     if (hasInitialized.current) return;
 
@@ -176,6 +175,5 @@ export const useSetRampUrlParams = () => {
     }
 
     hasInitialized.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array means run once on mount
 };

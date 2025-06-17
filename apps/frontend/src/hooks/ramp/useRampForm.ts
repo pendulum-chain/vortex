@@ -1,11 +1,11 @@
-import { yupResolver } from '@hookform/resolvers/yup';
-import { FiatToken } from '@packages/shared';
-import { useCallback, useEffect } from 'react';
-import { UseFormReturn, useForm } from 'react-hook-form';
+import { yupResolver } from "@hookform/resolvers/yup";
+import { FiatToken } from "@packages/shared";
+import { useCallback, useEffect } from "react";
+import { UseFormReturn, useForm } from "react-hook-form";
 
-import { useDebouncedFormValue } from './useDebouncedFormValue';
+import { useDebouncedFormValue } from "./useDebouncedFormValue";
 
-import { RampDirection } from '../../components/RampToggle';
+import { RampDirection } from "../../components/RampToggle";
 import {
   DEFAULT_RAMP_FORM_STORE_VALUES,
   useFiatToken,
@@ -14,17 +14,17 @@ import {
   useOnChainToken,
   usePixId,
   useRampFormStoreActions,
-  useTaxId,
-} from '../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { RampFormValues, useSchema } from './schema';
+  useTaxId
+} from "../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../stores/rampDirectionStore";
+import { RampFormValues, useSchema } from "./schema";
 
 const DEFAULT_RAMP_FORM_VALUES: RampFormValues = {
   ...DEFAULT_RAMP_FORM_STORE_VALUES,
-  inputAmount: '',
+  inputAmount: "",
   outputAmount: undefined,
   deadline: 0,
-  slippage: 0,
+  slippage: 0
 };
 
 export const useRampForm = (): {
@@ -35,7 +35,7 @@ export const useRampForm = (): {
 
   const form = useForm<RampFormValues>({
     resolver: yupResolver(formSchema),
-    defaultValues: DEFAULT_RAMP_FORM_VALUES,
+    defaultValues: DEFAULT_RAMP_FORM_VALUES
   });
 
   const taxId = useTaxId();
@@ -53,7 +53,7 @@ export const useRampForm = (): {
     setTaxId,
     setPixId,
     setConstraintDirection,
-    reset: resetStore,
+    reset: resetStore
   } = useRampFormStoreActions();
 
   const enforceTokenConstraints = useCallback(
@@ -64,66 +64,66 @@ export const useRampForm = (): {
       }
       return token;
     },
-    [direction],
+    [direction]
   );
 
   useEffect(() => {
     const subscription = form.watch((values, { name }) => {
-      if (name === 'taxId' && values.taxId !== undefined) {
+      if (name === "taxId" && values.taxId !== undefined) {
         setTaxId(values.taxId);
-      } else if (name === 'pixId' && values.pixId !== undefined) {
+      } else if (name === "pixId" && values.pixId !== undefined) {
         setPixId(values.pixId);
-      } else if (name === 'onChainToken' && values.onChainToken !== undefined) {
+      } else if (name === "onChainToken" && values.onChainToken !== undefined) {
         setOnChainToken(values.onChainToken);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [form, setTaxId, setPixId, setOnChainToken, setFiatToken, enforceTokenConstraints]);
+  }, [form, setTaxId, setPixId, setOnChainToken]);
 
   // Watch inputAmount specifically with debounce
-  const inputAmountValue = form.watch('inputAmount');
-  useDebouncedFormValue(inputAmountValue, (value) => setInputAmount(value || '0'), 1000);
+  const inputAmountValue = form.watch("inputAmount");
+  useDebouncedFormValue(inputAmountValue, value => setInputAmount(value || "0"), 1000);
 
   useEffect(() => {
-    const currentInputAmount = form.getValues('inputAmount');
-    const storeInputAmountStr = inputAmount?.toString() || '0';
-    if (storeInputAmountStr !== '0' && currentInputAmount !== storeInputAmountStr) {
-      form.setValue('inputAmount', storeInputAmountStr);
+    const currentInputAmount = form.getValues("inputAmount");
+    const storeInputAmountStr = inputAmount?.toString() || "0";
+    if (storeInputAmountStr !== "0" && currentInputAmount !== storeInputAmountStr) {
+      form.setValue("inputAmount", storeInputAmountStr);
     }
   }, [form, inputAmount]);
 
   useEffect(() => {
-    const currentOnChainToken = form.getValues('onChainToken');
+    const currentOnChainToken = form.getValues("onChainToken");
     if (onChainToken && onChainToken !== currentOnChainToken) {
-      form.setValue('onChainToken', onChainToken);
+      form.setValue("onChainToken", onChainToken);
     }
   }, [form, onChainToken]);
 
   useEffect(() => {
-    const currentFiatToken = form.getValues('fiatToken');
+    const currentFiatToken = form.getValues("fiatToken");
     const constrainedToken = enforceTokenConstraints(fiatToken);
     if (constrainedToken !== currentFiatToken) {
-      form.setValue('fiatToken', constrainedToken);
+      form.setValue("fiatToken", constrainedToken);
       setFiatToken(constrainedToken);
     }
     // Mark that constraints are applied for this direction
     if (lastConstraintDirection !== direction) {
       setConstraintDirection(direction);
     }
-  }, [form, fiatToken, direction, enforceTokenConstraints, setFiatToken, setConstraintDirection]);
+  }, [form, fiatToken, direction, enforceTokenConstraints, setFiatToken, setConstraintDirection, lastConstraintDirection]);
 
   useEffect(() => {
-    const currentTaxId = form.getValues('taxId');
+    const currentTaxId = form.getValues("taxId");
     if (taxId !== currentTaxId) {
-      form.setValue('taxId', taxId || '');
+      form.setValue("taxId", taxId || "");
     }
   }, [form, taxId]);
 
   useEffect(() => {
-    const currentPixId = form.getValues('pixId');
+    const currentPixId = form.getValues("pixId");
     if (pixId !== currentPixId) {
-      form.setValue('pixId', pixId || '');
+      form.setValue("pixId", pixId || "");
     }
   }, [form, pixId]);
 
@@ -134,6 +134,6 @@ export const useRampForm = (): {
 
   return {
     form,
-    reset,
+    reset
   };
 };

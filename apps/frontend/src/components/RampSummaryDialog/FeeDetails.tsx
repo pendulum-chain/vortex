@@ -1,9 +1,9 @@
-import { FiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, isFiatTokenDetails } from '@packages/shared';
-import { FC } from 'react';
-import { useTranslation } from 'react-i18next';
+import { FiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, isFiatTokenDetails } from "@packages/shared";
+import { FC } from "react";
+import { useTranslation } from "react-i18next";
 
-import { ExchangeRate } from '../ExchangeRate';
-import { RampDirection } from '../RampToggle';
+import { ExchangeRate } from "../ExchangeRate";
+import { RampDirection } from "../RampToggle";
 
 interface FeeDetailsProps {
   feesCost: QuoteFeeStructure;
@@ -22,7 +22,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   exchangeRate,
   partnerUrl,
   direction,
-  destinationAddress,
+  destinationAddress
 }) => {
   const { t } = useTranslation();
 
@@ -30,16 +30,16 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
 
   const fiatToken = (isOfframp ? toToken : fromToken) as FiatTokenDetails;
   if (!isFiatTokenDetails(fiatToken)) {
-    throw new Error('Invalid fiat token details');
+    throw new Error("Invalid fiat token details");
   }
 
   return (
     <section className="mt-6">
-      <div className="flex justify-between mb-2">
+      <div className="mb-2 flex justify-between">
         <p>
           {isOfframp
-            ? t('components.dialogs.RampSummaryDialog.offrampFee')
-            : t('components.dialogs.RampSummaryDialog.onrampFee')}{' '}
+            ? t("components.dialogs.RampSummaryDialog.offrampFee")
+            : t("components.dialogs.RampSummaryDialog.onrampFee")}{" "}
         </p>
         <p className="flex items-center gap-2">
           <strong>
@@ -47,8 +47,8 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
           </strong>
         </p>
       </div>
-      <div className="flex justify-between mb-2">
-        <p>{t('components.dialogs.RampSummaryDialog.quote')}</p>
+      <div className="mb-2 flex justify-between">
+        <p>{t("components.dialogs.RampSummaryDialog.quote")}</p>
         <p>
           <ExchangeRate
             inputToken={isOfframp ? fromToken : toToken}
@@ -58,13 +58,13 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         </p>
       </div>
       {destinationAddress && (
-        <div className="flex justify-between mb-2">
-          <p>{t('components.dialogs.RampSummaryDialog.destination')}</p>
+        <div className="mb-2 flex justify-between">
+          <p>{t("components.dialogs.RampSummaryDialog.destination")}</p>
           {destinationAddress}
         </div>
       )}
       <div className="flex justify-between">
-        <p>{t('components.dialogs.RampSummaryDialog.partner')}</p>
+        <p>{t("components.dialogs.RampSummaryDialog.partner")}</p>
         <a href={partnerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           {partnerUrl}
         </a>

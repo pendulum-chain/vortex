@@ -1,21 +1,18 @@
-import { AccountMeta, FiatToken, Networks, getAddressForFormat, signUnsignedTransactions } from '@packages/shared';
-import { useCallback, useEffect } from 'react';
-import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../contexts/polkadotNode';
-import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
-import { useToastMessage } from '../../../helpers/notifications';
-import { RampService } from '../../../services/api';
-import {
-  signAndSubmitEvmTransaction,
-  signAndSubmitSubstrateTransaction,
-} from '../../../services/transactions/userSigning';
-import { useRampExecutionInput, useRampStore, useSigningRejected } from '../../../stores/rampStore'; // Import useSigningRejected
-import { RampExecutionInput } from '../../../types/phases';
-import { useVortexAccount } from '../../useVortexAccount';
-import { useAnchorWindowHandler } from '../useSEP24/useAnchorWindowHandler';
-import { useSubmitRamp } from '../useSubmitRamp';
+import { AccountMeta, FiatToken, Networks, getAddressForFormat, signUnsignedTransactions } from "@packages/shared";
+import { useCallback, useEffect } from "react";
+import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
+import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
+import { useToastMessage } from "../../../helpers/notifications";
+import { RampService } from "../../../services/api";
+import { signAndSubmitEvmTransaction, signAndSubmitSubstrateTransaction } from "../../../services/transactions/userSigning";
+import { useRampExecutionInput, useRampStore, useSigningRejected } from "../../../stores/rampStore"; // Import useSigningRejected
+import { RampExecutionInput } from "../../../types/phases";
+import { useVortexAccount } from "../../useVortexAccount";
+import { useAnchorWindowHandler } from "../useSEP24/useAnchorWindowHandler";
+import { useSubmitRamp } from "../useSubmitRamp";
 
-const REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey';
-const START_KEY_LOCAL_STORAGE = 'rampStartKey';
+const REGISTER_KEY_LOCAL_STORAGE = "rampRegisterKey";
+const START_KEY_LOCAL_STORAGE = "rampStartKey";
 
 /**
  * A utility hook to manage process locks using localStorage
@@ -45,7 +42,7 @@ const useProcessLock = (lockKey: string) => {
       }
       return true;
     },
-    [lockKey],
+    [lockKey]
   );
 
   // Releases the lock when the process is complete
@@ -65,7 +62,7 @@ export const useRegisterRamp = () => {
     rampStarted,
     canRegisterRamp,
     rampKycStarted,
-    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected },
+    actions: { setRampRegistered, setRampState, setRampSigningPhase, setCanRegisterRamp, setSigningRejected }
   } = useRampStore();
   const { showToast, ToastMessage } = useToastMessage();
 
@@ -88,12 +85,12 @@ export const useRegisterRamp = () => {
 
     // For Stellar offramps, we need to prepare something in advance
     // Calling this function will result in eventually having the necessary prerequisites set
-    if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL) {
-      console.log('Registering ramp for Stellar offramps');
+    if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL) {
+      console.log("Registering ramp for Stellar offramps");
       await handleOnAnchorWindowOpen();
     }
 
-    if (executionInput.quote.rampType === 'off' && executionInput.fiatToken === FiatToken.BRL) {
+    if (executionInput.quote.rampType === "off" && executionInput.fiatToken === FiatToken.BRL) {
       // Waiting for user input (the ramp summary dialog should show the 'Confirm' button and once clicked,
       // We setCanRegisterRamp to true inside of the RampSummaryButton
     } else {
@@ -109,7 +106,7 @@ export const useRegisterRamp = () => {
   const {
     checkLock: checkSigningLock,
     verifyLock: verifySigningLock,
-    releaseLock: releaseSigningLock,
+    releaseLock: releaseSigningLock
   } = useProcessLock(START_KEY_LOCAL_STORAGE);
 
   // @TODO: maybe change to useCallback
@@ -128,15 +125,15 @@ export const useRegisterRamp = () => {
       }
 
       if (signingRejected) {
-        throw new Error('Signing was rejected, cannot proceed with ramp registration');
+        throw new Error("Signing was rejected, cannot proceed with ramp registration");
       }
 
       if (rampKycStarted) {
-        throw new Error('KYC is not valid yet');
+        throw new Error("KYC is not valid yet");
       }
 
       if (!canRegisterRamp) {
-        throw new Error('Cannot proceed with ramp registration, canRegisterRamp is false');
+        throw new Error("Cannot proceed with ramp registration, canRegisterRamp is false");
       }
 
       // Verify we still own the lock before proceeding
@@ -145,71 +142,71 @@ export const useRegisterRamp = () => {
       }
 
       if (!executionInput) {
-        throw new Error('Missing execution input');
+        throw new Error("Missing execution input");
       }
 
       if (!chainId) {
-        throw new Error('Missing chainId');
+        throw new Error("Missing chainId");
       }
 
       if (!pendulumApiComponents?.api) {
-        throw new Error('Missing pendulumApiComponents');
+        throw new Error("Missing pendulumApiComponents");
       }
 
       if (!moonbeamApiComponents?.api) {
-        throw new Error('Missing moonbeamApiComponents');
+        throw new Error("Missing moonbeamApiComponents");
       }
 
       const quoteId = executionInput.quote.id;
       const signingAccounts: AccountMeta[] = [
         {
           address: executionInput.ephemerals.stellarEphemeral.address,
-          network: Networks.Stellar,
+          network: Networks.Stellar
         },
         {
           address: executionInput.ephemerals.moonbeamEphemeral.address,
-          network: Networks.Moonbeam,
+          network: Networks.Moonbeam
         },
         {
           address: executionInput.ephemerals.pendulumEphemeral.address,
-          network: Networks.Pendulum,
-        },
+          network: Networks.Pendulum
+        }
       ];
 
-      if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL) {
+      if (executionInput.quote.rampType === "off" && executionInput.fiatToken !== FiatToken.BRL) {
         // Checks for Stellar offramps
         if (!executionInput.ephemerals.stellarEphemeral.secret) {
-          throw new Error('Missing Stellar ephemeral secret');
+          throw new Error("Missing Stellar ephemeral secret");
         }
         if (!executionInput.paymentData) {
-          throw new Error('Missing payment data for Stellar offramps');
+          throw new Error("Missing payment data for Stellar offramps");
         }
       }
 
       const additionalData =
-        executionInput.quote.rampType === 'on'
+        executionInput.quote.rampType === "on"
           ? {
               destinationAddress: address,
-              taxId: executionInput.taxId,
+              taxId: executionInput.taxId
             }
           : {
               walletAddress: address,
               paymentData: executionInput.paymentData,
               taxId: executionInput.taxId,
               receiverTaxId: executionInput.taxId,
-              pixDestination: executionInput.taxId,
+              pixDestination: executionInput.taxId
             };
 
       console.log(`Registering ramp with additional data:`, additionalData);
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
       console.log(`Ramp process registered:`, rampProcess);
 
-      const ephemeralTxs = rampProcess.unsignedTxs.filter((tx) => {
+      const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
         if (!address) {
           return true;
         }
 
-        return chainId < 0 && (tx.network === 'pendulum' || tx.network === 'assethub')
+        return chainId < 0 && (tx.network === "pendulum" || tx.network === "assethub")
           ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(address, 0)
           : tx.signer.toLowerCase() !== address.toLowerCase();
       });
@@ -218,7 +215,7 @@ export const useRegisterRamp = () => {
         ephemeralTxs,
         executionInput.ephemerals,
         pendulumApiComponents.api,
-        moonbeamApiComponents.api,
+        moonbeamApiComponents.api
       );
 
       // Update ramp with ephemeral signed transactions
@@ -233,13 +230,13 @@ export const useRegisterRamp = () => {
         userSigningMeta: {
           squidRouterApproveHash: undefined,
           squidRouterSwapHash: undefined,
-          assetHubToPendulumHash: undefined,
-        },
+          assetHubToPendulumHash: undefined
+        }
       });
     };
 
     registerRampProcess()
-      .catch((error) => {
+      .catch(error => {
         console.error(`Error registering ramp:`, error);
       })
       .finally(() => {
@@ -258,12 +255,8 @@ export const useRegisterRamp = () => {
     setRampState,
     verifyLock,
     rampKycStarted,
-    rampStarted,
-    releaseSigningLock,
-    setSigningRejected,
-    showToast,
-    signingRejected,
-    ToastMessage.SIGNING_REJECTED,
+    rampRegistered,
+    signingRejected
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
@@ -281,7 +274,7 @@ export const useRegisterRamp = () => {
       requiredMetaIsEmpty && // User signing metadata hasn't been populated yet
       chainId !== undefined; // Chain ID is available
 
-    if (!rampState || rampState?.ramp?.type === 'on' || !shouldRequestSignatures || signingRejected) {
+    if (!rampState || rampState?.ramp?.type === "on" || !shouldRequestSignatures || signingRejected) {
       return; // Exit early if conditions aren't met
     }
 
@@ -295,12 +288,12 @@ export const useRegisterRamp = () => {
     console.log(`Starting user signing process at ${new Date().toISOString()}`);
 
     // Now filter the transactions after passing the main guard
-    const userTxs = rampState?.ramp?.unsignedTxs.filter((tx) => {
+    const userTxs = rampState?.ramp?.unsignedTxs.filter(tx => {
       if (!address) {
         return false;
       }
 
-      return chainId < 0 && (tx.network === 'pendulum' || tx.network === 'assethub')
+      return chainId < 0 && (tx.network === "pendulum" || tx.network === "assethub")
         ? getAddressForFormat(tx.signer, 0) === getAddressForFormat(address, 0)
         : tx.signer.toLowerCase() === address.toLowerCase();
     });
@@ -328,31 +321,31 @@ export const useRegisterRamp = () => {
       }
 
       if (!sortedTxs) {
-        throw new Error('Missing sorted transactions');
+        throw new Error("Missing sorted transactions");
       }
 
       for (const tx of sortedTxs) {
-        if (tx.phase === 'squidRouterApprove') {
-          setRampSigningPhase('started');
+        if (tx.phase === "squidRouterApprove") {
+          setRampSigningPhase("started");
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
-          setRampSigningPhase('signed');
-        } else if (tx.phase === 'squidRouterSwap') {
+          setRampSigningPhase("signed");
+        } else if (tx.phase === "squidRouterSwap") {
           squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
-          setRampSigningPhase('finished');
-        } else if (tx.phase === 'assethubToPendulum') {
+          setRampSigningPhase("finished");
+        } else if (tx.phase === "assethubToPendulum") {
           if (!substrateWalletAccount) {
-            throw new Error('Missing substrateWalletAccount, user needs to be connected to a wallet account. ');
+            throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
           }
           if (!assethubApiComponents?.api) {
-            throw new Error('Missing assethubApiComponents. Assethub API is not available.');
+            throw new Error("Missing assethubApiComponents. Assethub API is not available.");
           }
-          setRampSigningPhase('started');
+          setRampSigningPhase("started");
           assetHubToPendulumHash = await signAndSubmitSubstrateTransaction(
             tx,
             assethubApiComponents.api,
-            substrateWalletAccount,
+            substrateWalletAccount
           );
-          setRampSigningPhase('finished');
+          setRampSigningPhase("finished");
         } else {
           throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
         }
@@ -362,17 +355,17 @@ export const useRegisterRamp = () => {
       const additionalData = {
         squidRouterApproveHash,
         squidRouterSwapHash,
-        assetHubToPendulumHash,
+        assetHubToPendulumHash
       };
 
       if (!rampState.ramp) {
-        throw new Error('Missing ramp state');
+        throw new Error("Missing ramp state");
       }
 
       const updatedRampProcess = await RampService.updateRamp(
         rampState.ramp.id,
         [], // No additional presigned transactions at this point
-        additionalData,
+        additionalData
       );
 
       setRampState({
@@ -381,8 +374,8 @@ export const useRegisterRamp = () => {
         userSigningMeta: {
           squidRouterApproveHash,
           squidRouterSwapHash,
-          assetHubToPendulumHash,
-        },
+          assetHubToPendulumHash
+        }
       });
     };
 
@@ -390,7 +383,7 @@ export const useRegisterRamp = () => {
       .then(() => {
         console.log(`Done requesting signatures from user`);
       })
-      .catch((error) => {
+      .catch(error => {
         console.error(`Error requesting signatures from user`, error);
         // TODO check if user declined based on error provided
         showToast(ToastMessage.SIGNING_REJECTED);
@@ -412,11 +405,11 @@ export const useRegisterRamp = () => {
     showToast,
     signingRejected,
     ToastMessage.SIGNING_REJECTED,
-    setSigningRejected,
+    setSigningRejected
   ]);
 
   return {
     registerRamp,
-    rampRegistered,
+    rampRegistered
   };
 };

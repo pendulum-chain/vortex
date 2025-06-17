@@ -1,7 +1,7 @@
-import { OnChainTokenDetails } from '@packages/shared';
-import wallet from '../../assets/wallet-bifold-outline.svg';
-import { useOnchainTokenBalance } from '../../hooks/useOnchainTokenBalance';
-import { useVortexAccount } from '../../hooks/useVortexAccount';
+import { OnChainTokenDetails } from "@packages/shared";
+import wallet from "../../assets/wallet-bifold-outline.svg";
+import { useOnchainTokenBalance } from "../../hooks/useOnchainTokenBalance";
+import { useVortexAccount } from "../../hooks/useVortexAccount";
 
 interface UserBalanceProps {
   token: OnChainTokenDetails;
@@ -11,13 +11,13 @@ interface UserBalanceProps {
 
 const SimpleBalance = ({
   token,
-  className,
+  className
 }: {
   token: OnChainTokenDetails;
   className?: string;
 }) => {
   const onchainTokenBalanceRaw = useOnchainTokenBalance({ token });
-  const onchainTokenBalance = onchainTokenBalanceRaw?.balance || '0';
+  const onchainTokenBalance = onchainTokenBalanceRaw?.balance || "0";
 
   return (
     <p className={className}>
@@ -28,25 +28,25 @@ const SimpleBalance = ({
 
 const FullBalance = ({
   token,
-  onClick,
+  onClick
 }: {
   token: OnChainTokenDetails;
   onClick: (amount: string) => void;
 }) => {
   const onchainTokenBalanceRaw = useOnchainTokenBalance({ token });
-  const onchainTokenBalance = onchainTokenBalanceRaw?.balance || '0';
+  const onchainTokenBalance = onchainTokenBalanceRaw?.balance || "0";
 
   const hasBalance = onchainTokenBalance !== undefined && Number(onchainTokenBalance) !== 0;
 
   if (!hasBalance) return null;
   return (
-    <div className="flex items-center justify-end mt-1 mr-0.5">
-      <img src={wallet} alt="Available" className="w-5 h-5 mr-0.5" />
+    <div className="mt-1 mr-0.5 flex items-center justify-end">
+      <img src={wallet} alt="Available" className="mr-0.5 h-5 w-5" />
       <p>
         {onchainTokenBalance} {token.assetSymbol}
       </p>
       <button
-        className="px-1 ml-1 bg-blue-100 rounded-md text-primary hover:underline"
+        className="ml-1 rounded-md bg-blue-100 px-1 text-primary hover:underline"
         type="button"
         onClick={() => onClick(onchainTokenBalance)}
       >
@@ -60,9 +60,5 @@ export const UserBalance = ({ token, onClick, className }: UserBalanceProps) => 
   const { isDisconnected } = useVortexAccount();
 
   if (isDisconnected) return null;
-  return onClick ? (
-    <FullBalance token={token} onClick={onClick} />
-  ) : (
-    <SimpleBalance token={token} className={className} />
-  );
+  return onClick ? <FullBalance token={token} onClick={onClick} /> : <SimpleBalance token={token} className={className} />;
 };

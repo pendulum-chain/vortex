@@ -1,31 +1,31 @@
-import { WalletConnectModal } from '@walletconnect/modal';
-import { SessionTypes } from '@walletconnect/types';
-import UniversalProvider from '@walletconnect/universal-provider';
-import { useCallback, useEffect, useState } from 'react';
+import { WalletConnectModal } from "@walletconnect/modal";
+import { SessionTypes } from "@walletconnect/types";
+import UniversalProvider from "@walletconnect/universal-provider";
+import { useCallback, useEffect, useState } from "react";
 
-import logo from '../../../assets/wallets/wallet-connect.svg';
-import { config } from '../../../config';
-import { WALLETCONNECT_ASSETHUB_ID } from '../../../constants/constants';
-import { useNetwork } from '../../../contexts/network';
-import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
-import { useToastMessage } from '../../../helpers/notifications';
-import { walletConnectService } from './WalletConnectService';
+import logo from "../../../assets/wallets/wallet-connect.svg";
+import { config } from "../../../config";
+import { WALLETCONNECT_ASSETHUB_ID } from "../../../constants/constants";
+import { useNetwork } from "../../../contexts/network";
+import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
+import { useToastMessage } from "../../../helpers/notifications";
+import { walletConnectService } from "./WalletConnectService";
 
 export const walletConnectConfig = {
   requiredNamespaces: {
     polkadot: {
-      methods: ['polkadot_signTransaction', 'polkadot_signMessage'],
-      events: ['chainChanged', 'accountsChanged'],
-      chains: [WALLETCONNECT_ASSETHUB_ID],
-    },
+      methods: ["polkadot_signTransaction", "polkadot_signMessage"],
+      events: ["chainChanged", "accountsChanged"],
+      chains: [WALLETCONNECT_ASSETHUB_ID]
+    }
   },
   optionalNamespaces: {
     polkadot: {
-      methods: ['polkadot_signTransaction', 'polkadot_signMessage'],
-      events: ['chainChanged', 'accountsChanged'],
-      chains: [WALLETCONNECT_ASSETHUB_ID],
-    },
-  },
+      methods: ["polkadot_signTransaction", "polkadot_signMessage"],
+      events: ["chainChanged", "accountsChanged"],
+      chains: [WALLETCONNECT_ASSETHUB_ID]
+    }
+  }
 };
 
 interface WalletConnectProps {
@@ -43,11 +43,11 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
 
   const setupClientDisconnectListener = useCallback(
     async (provider: Promise<UniversalProvider>) => {
-      (await provider).client.on('session_delete', () => {
+      (await provider).client.on("session_delete", () => {
         removeWalletAccount();
       });
     },
-    [removeWalletAccount],
+    [removeWalletAccount]
   );
 
   const handleModal = useCallback(
@@ -56,7 +56,7 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
         modal?.openModal({ uri, onclose: () => setLoading(false) });
       }
     },
-    [modal],
+    [modal]
   );
 
   const handleSession = useCallback(
@@ -65,7 +65,7 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
       setWalletAccount(await walletConnectService.init(session, chainId));
       modal?.closeModal();
     },
-    [setWalletAccount, modal],
+    [setWalletAccount, modal]
   );
 
   const handleConnect = useCallback(async () => {
@@ -96,19 +96,19 @@ export const WalletConnect = ({ onClick }: WalletConnectProps) => {
     setProvider(walletConnectService.getProvider());
     setModal(
       new WalletConnectModal({
-        projectId: config.walletConnect.projectId,
-      }),
+        projectId: config.walletConnect.projectId
+      })
     );
   }, [provider]);
 
   return (
     <button
-      className="flex justify-center w-full border-0 shadow-xs btn outline-primary md:justify-start"
+      className="btn flex w-full justify-center border-0 shadow-xs outline-primary md:justify-start"
       onClick={walletConnectClick}
       disabled={loading}
     >
       <img src={logo} alt="WalletConnect connect button" width={32} height={32} />
-      <p className="ml-2">{loading ? 'Loading...' : 'Wallet Connect'}</p>
+      <p className="ml-2">{loading ? "Loading..." : "Wallet Connect"}</p>
     </button>
   );
 };

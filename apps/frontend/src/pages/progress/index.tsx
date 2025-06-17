@@ -1,18 +1,18 @@
-import { CheckIcon, ExclamationCircleIcon } from '@heroicons/react/20/solid';
-import { motion } from 'motion/react';
-import { FC, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
+import { motion } from "motion/react";
+import { FC, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { RampPhase, isNetworkEVM } from '@packages/shared';
-import { Box } from '../../components/Box';
-import { config } from '../../config';
-import { useEventsContext } from '../../contexts/events';
-import { useNetwork } from '../../contexts/network';
-import { GotQuestions } from '../../sections';
-import { RampService } from '../../services/api';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { useRampActions, useRampState, useRampStore } from '../../stores/rampStore';
-import { getMessageForPhase } from './phaseMessages';
+import { RampPhase, isNetworkEVM } from "@packages/shared";
+import { Box } from "../../components/Box";
+import { config } from "../../config";
+import { useEventsContext } from "../../contexts/events";
+import { useNetwork } from "../../contexts/network";
+import { GotQuestions } from "../../sections";
+import { RampService } from "../../services/api";
+import { useRampDirection } from "../../stores/rampDirectionStore";
+import { useRampActions, useRampState, useRampStore } from "../../stores/rampStore";
+import { getMessageForPhase } from "./phaseMessages";
 
 // The order of the phases is important for the progress bar.
 export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
@@ -41,7 +41,7 @@ export const ONRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   spacewalkRedeem: 0,
   stellarPayment: 0,
   brlaPayoutOnMoonbeam: 0,
-  stellarCreateAccount: 0,
+  stellarCreateAccount: 0
 };
 
 // The order of the phases is important for the progress bar.
@@ -71,7 +71,7 @@ export const OFFRAMPING_PHASE_SECONDS: Record<RampPhase, number> = {
   pendulumToAssethub: 0,
   pendulumToMoonbeam: 0,
   stellarCreateAccount: 0,
-  squidRouterPay: 0,
+  squidRouterPay: 0
 };
 
 // This constant is used to denote how many of the phases are relevant for the progress bar.
@@ -84,10 +84,10 @@ const useProgressUpdate = (
   rampPhaseRecords: Record<RampPhase, number>,
   displayedPercentage: number,
   setDisplayedPercentage: (value: (prev: number) => number) => void,
-  setShowCheckmark: (value: boolean) => void,
+  setShowCheckmark: (value: boolean) => void
 ) => {
   const rampDirection = useRampDirection();
-  const numberOfPhases = rampDirection === 'onramp' ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
+  const numberOfPhases = rampDirection === "onramp" ? RELEVANT_PHASES_COUNT.on : RELEVANT_PHASES_COUNT.off;
   const intervalRef = useRef<NodeJS.Timeout>(null);
 
   useEffect(() => {
@@ -135,7 +135,7 @@ const useProgressUpdate = (
     numberOfPhases,
     rampPhaseRecords,
     setDisplayedPercentage,
-    setShowCheckmark,
+    setShowCheckmark
   ]);
 };
 
@@ -151,9 +151,9 @@ const ProgressCircle: FC<{
     className="relative mt-12"
     initial={{ scale: 0, opacity: 0 }}
     animate={{ scale: 1, opacity: 1 }}
-    transition={{ duration: 0.5, type: 'spring', stiffness: 260, damping: 20 }}
+    transition={{ duration: 0.5, type: "spring", stiffness: 260, damping: 20 }}
   >
-    <svg className="w-[200px] h-[200px]" viewBox="0 0 200 200">
+    <svg className="h-[200px] w-[200px]" viewBox="0 0 200 200">
       <defs>
         <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#60A5FA" />
@@ -170,7 +170,7 @@ const ProgressCircle: FC<{
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         exit={{ pathLength: 0 }}
-        transition={{ duration: 0.8, ease: 'easeInOut' }}
+        transition={{ duration: 0.8, ease: "easeInOut" }}
       />
       <motion.circle
         cx="100"
@@ -182,14 +182,14 @@ const ProgressCircle: FC<{
         transform="rotate(-90 100 100)"
         strokeDasharray={circumference}
         strokeDashoffset={circumference - (circumference * displayedPercentage) / 100}
-        style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-        transition={{ duration: 0.8, ease: 'easeInOut', delay: 0.2 }}
+        style={{ transition: "stroke-dashoffset 0.5s ease" }}
+        transition={{ duration: 0.8, ease: "easeInOut", delay: 0.2 }}
       />
     </svg>
-    <div className="absolute top-0 left-0 flex items-center justify-center w-full h-full">
+    <div className="absolute top-0 left-0 flex h-full w-full items-center justify-center">
       {showCheckmark ? (
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', duration: 0.5 }}>
-          <CheckIcon className="w-12 h-12 text-blue-700" />
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", duration: 0.5 }}>
+          <CheckIcon className="h-12 w-12 text-blue-700" />
         </motion.div>
       ) : (
         <motion.span className="text-4xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
@@ -213,33 +213,30 @@ const TransactionStatusBanner: FC = () => {
   const rampState = useRampState();
 
   return (
-    <section className="flex items-center gap-4 p-5 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
-      <div className="flex-shrink-0 bg-blue-100 rounded-full p-2">
-        <motion.div
-          animate={{ opacity: [0.8, 1, 0.8] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <ExclamationCircleIcon className="w-8 h-8 text-blue-600" />
+    <section className="flex items-center gap-4 rounded-lg border border-blue-200 bg-blue-50 p-5 shadow-sm">
+      <div className="flex-shrink-0 rounded-full bg-blue-100 p-2">
+        <motion.div animate={{ opacity: [0.8, 1, 0.8] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}>
+          <ExclamationCircleIcon className="h-8 w-8 text-blue-600" />
         </motion.div>
       </div>
       <div className="flex-1">
-        <h1 className="text-lg font-semibold text-gray-800">{t('components.transactionStatusBanner.title')}</h1>
-        <p className="text-sm text-gray-700 mt-1">
-          {t('components.transactionStatusBanner.beforeUrl')}
+        <h1 className="font-semibold text-gray-800 text-lg">{t("components.transactionStatusBanner.title")}</h1>
+        <p className="mt-1 text-gray-700 text-sm">
+          {t("components.transactionStatusBanner.beforeUrl")}
           <a
             href={config.supportUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-blue-600 hover:text-blue-800 font-medium mx-1 transition-colors"
+            className="mx-1 font-medium text-blue-600 transition-colors hover:text-blue-800"
           >
-            {t('components.transactionStatusBanner.url')}
+            {t("components.transactionStatusBanner.url")}
           </a>
-          {t('components.transactionStatusBanner.afterUrl')}
+          {t("components.transactionStatusBanner.afterUrl")}
         </p>
-        <div className="text-sm mt-2 text-gray-700 flex flex-row items-center">
-          <span className="whitespace-nowrap mr-2">{t('components.transactionStatusBanner.transactionId')}</span>
-          <span className="font-mono bg-blue-50 border border-blue-100 px-2 py-0.5 rounded text-gray-800 overflow-x-auto">
-            {rampState?.ramp?.id || 'N/A'}
+        <div className="mt-2 flex flex-row items-center text-gray-700 text-sm">
+          <span className="mr-2 whitespace-nowrap">{t("components.transactionStatusBanner.transactionId")}</span>
+          <span className="overflow-x-auto rounded border border-blue-100 bg-blue-50 px-2 py-0.5 font-mono text-gray-800">
+            {rampState?.ramp?.id || "N/A"}
           </span>
         </div>
       </div>
@@ -252,7 +249,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
   currentPhaseIndex,
   message,
   showIsDelayedWarning,
-  rampPhaseRecords,
+  rampPhaseRecords
 }) => {
   const { t } = useTranslation();
 
@@ -267,25 +264,21 @@ const ProgressContent: FC<ProgressContentProps> = ({
     rampPhaseRecords,
     displayedPercentage,
     setDisplayedPercentage,
-    setShowCheckmark,
+    setShowCheckmark
   );
 
   return (
-    <Box className="flex flex-col items-center justify-center mt-4">
-      <div className="flex flex-col items-center justify-center max-w-[400px]">
+    <Box className="mt-4 flex flex-col items-center justify-center">
+      <div className="flex max-w-[400px] flex-col items-center justify-center">
         {showIsDelayedWarning && <TransactionStatusBanner />}
-        <ProgressCircle
-          displayedPercentage={displayedPercentage}
-          showCheckmark={showCheckmark}
-          circumference={circumference}
-        />
+        <ProgressCircle displayedPercentage={displayedPercentage} showCheckmark={showCheckmark} circumference={circumference} />
         <motion.h1
-          className="my-3 text-base font-bold text-blue-700"
+          className="my-3 font-bold text-base text-blue-700"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          {t('pages.progress.transactionInProgress')}
+          {t("pages.progress.transactionInProgress")}
         </motion.h1>
         <motion.h1
           className="mb-3 text-base text-blue-700"
@@ -293,9 +286,7 @@ const ProgressContent: FC<ProgressContentProps> = ({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
-          {!isNetworkEVM(selectedNetwork)
-            ? t('pages.progress.estimatedTimeAssetHub')
-            : t('pages.progress.estimatedTimeEVM')}
+          {!isNetworkEVM(selectedNetwork) ? t("pages.progress.estimatedTimeAssetHub") : t("pages.progress.estimatedTimeEVM")}
         </motion.h1>
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}>
           {message}
@@ -311,16 +302,16 @@ export const ProgressPage = () => {
   const { setRampState } = useRampActions();
   const { t } = useTranslation();
 
-  const rampPhaseRecords = rampState?.ramp?.type === 'on' ? ONRAMPING_PHASE_SECONDS : OFFRAMPING_PHASE_SECONDS;
+  const rampPhaseRecords = rampState?.ramp?.type === "on" ? ONRAMPING_PHASE_SECONDS : OFFRAMPING_PHASE_SECONDS;
 
-  const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || 'initial');
+  const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
   const currentPhaseIndex = Object.keys(rampPhaseRecords).indexOf(currentPhase);
   const message = getMessageForPhase(rampState, t);
 
   const showIsDelayedWarning = useMemo(() => {
     // Check if the ramp was created more than 10 minutes ago and is not in the 'complete' phase
-    if (rampState?.ramp?.createdAt && rampState?.ramp?.currentPhase !== 'complete') {
+    if (rampState?.ramp?.createdAt && rampState?.ramp?.currentPhase !== "complete") {
       const createdAt = new Date(rampState.ramp.createdAt);
       const currentTime = new Date();
       const timeDiff = Math.abs(currentTime.getTime() - createdAt.getTime());
@@ -345,7 +336,7 @@ export const ProgressPage = () => {
         if (currentRampState) {
           const updatedRampState = {
             ...currentRampState,
-            ramp: updatedRampProcess,
+            ramp: updatedRampProcess
           };
           setRampState(updatedRampState);
         }
@@ -353,16 +344,16 @@ export const ProgressPage = () => {
         const maybeNewPhase = updatedRampProcess.currentPhase;
         if (maybeNewPhase !== prevPhaseRef.current) {
           trackEvent({
-            event: 'progress',
+            event: "progress",
             phase_index: Object.keys(rampPhaseRecords).indexOf(maybeNewPhase),
-            phase_name: maybeNewPhase,
+            phase_name: maybeNewPhase
           });
 
           prevPhaseRef.current = maybeNewPhase;
           setCurrentPhase(maybeNewPhase);
         }
       } catch (error) {
-        console.error('Failed to fetch ramp state:', error);
+        console.error("Failed to fetch ramp state:", error);
       }
     };
 

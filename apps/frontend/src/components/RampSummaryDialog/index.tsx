@@ -1,18 +1,18 @@
-import Big from 'big.js';
-import { FC } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNetwork } from '../../contexts/network';
-import { useSigningBoxState } from '../../hooks/useSigningBoxState';
-import { usePartnerId } from '../../stores/partnerStore';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
-import { useFiatToken, useOnChainToken } from '../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from '../../stores/rampStore';
-import { Dialog } from '../Dialog';
-import { RampDirection } from '../RampToggle';
-import { SigningBoxButton, SigningBoxContent } from '../SigningBox/SigningBoxContent';
-import { RampSummaryButton } from './RampSummaryButton';
-import { TransactionTokensDisplay } from './TransactionTokensDisplay';
+import Big from "big.js";
+import { FC } from "react";
+import { useTranslation } from "react-i18next";
+import { useNetwork } from "../../contexts/network";
+import { useSigningBoxState } from "../../hooks/useSigningBoxState";
+import { usePartnerId } from "../../stores/partnerStore";
+import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
+import { useFiatToken, useOnChainToken } from "../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../stores/rampDirectionStore";
+import { useRampActions, useRampExecutionInput, useRampSummaryVisible } from "../../stores/rampStore";
+import { Dialog } from "../Dialog";
+import { RampDirection } from "../RampToggle";
+import { SigningBoxButton, SigningBoxContent } from "../SigningBox/SigningBoxContent";
+import { RampSummaryButton } from "./RampSummaryButton";
+import { TransactionTokensDisplay } from "./TransactionTokensDisplay";
 
 export const RampSummaryDialog: FC = () => {
   const { t } = useTranslation();
@@ -35,18 +35,18 @@ export const RampSummaryDialog: FC = () => {
   const onClose = () => {
     resetRampState();
     fetchQuote({
-      rampType: isOnramp ? 'on' : 'off',
-      inputAmount: Big(quote?.inputAmount || '0'),
+      rampType: isOnramp ? "on" : "off",
+      inputAmount: Big(quote?.inputAmount || "0"),
       onChainToken,
       fiatToken,
       selectedNetwork,
-      partnerId: partnerId === null ? undefined : partnerId, // Handle null case
+      partnerId: partnerId === null ? undefined : partnerId // Handle null case
     });
   };
 
   const headerText = isOnramp
-    ? t('components.dialogs.RampSummaryDialog.headerText.buy')
-    : t('components.dialogs.RampSummaryDialog.headerText.sell');
+    ? t("components.dialogs.RampSummaryDialog.headerText.buy")
+    : t("components.dialogs.RampSummaryDialog.headerText.sell");
 
   const actions = signingBoxVisible ? (
     <SigningBoxButton signatureState={signatureState} confirmations={confirmations} />
@@ -59,7 +59,7 @@ export const RampSummaryDialog: FC = () => {
       <TransactionTokensDisplay executionInput={executionInput} isOnramp={isOnramp} rampDirection={rampDirection} />
 
       {signingBoxVisible && (
-        <div className="mt-6 max-w-[320px] mx-auto">
+        <div className="mx-auto mt-6 max-w-[320px]">
           <SigningBoxContent progress={progress} />
         </div>
       )}

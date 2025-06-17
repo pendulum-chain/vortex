@@ -1,8 +1,8 @@
-import { motion } from 'motion/react';
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { KycStatus } from '../../../services/signingService';
-import { Spinner } from '../../Spinner';
+import { motion } from "motion/react";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { KycStatus } from "../../../services/signingService";
+import { Spinner } from "../../Spinner";
 
 interface VerificationStatusProps {
   status: { status: KycStatus; level: number };
@@ -23,7 +23,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
   kycVerificationError = false,
   onContinue,
   onRetry,
-  onBack,
+  onBack
 }) => {
   const { status: kycStatus, level } = status;
   const showSuccess = kycStatus === KycStatus.APPROVED && ((level === 1 && !isLevel2) || (level === 2 && isLevel2));
@@ -31,7 +31,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
   return (
     <motion.div
-      className="px-4 py-4 mx-4 mt-8 mb-4 rounded-lg shadow-custom md:mx-auto md:w-96 min-h-[480px] flex flex-col items-center justify-center"
+      className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center rounded-lg px-4 py-4 shadow-custom md:mx-auto md:w-96"
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3 }}
@@ -40,7 +40,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
         <>
           <ErrorIcon />
           <motion.p
-            className="mt-4 text-lg font-bold text-center"
+            className="mt-4 text-center font-bold text-lg"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
@@ -66,7 +66,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
           {kycStatus === KycStatus.REJECTED && <ErrorIcon />}
 
           <motion.p
-            className="mt-4 text-lg font-bold text-center"
+            className="mt-4 text-center font-bold text-lg"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
@@ -76,7 +76,7 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
           {kycStatus === KycStatus.REJECTED && failureMessage && (
             <motion.p
-              className="mt-2 text-sm text-red-600 text-center px-4"
+              className="mt-2 px-4 text-center text-red-600 text-sm"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.5 }}
@@ -116,16 +116,16 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
 const SuccessIcon = () => (
   <motion.svg
-    className="w-16 h-16 text-green-500"
+    className="h-16 w-16 text-green-500"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
     initial={{ scale: 0 }}
     animate={{ scale: 1 }}
     transition={{
-      type: 'spring',
+      type: "spring",
       stiffness: 200,
-      damping: 15,
+      damping: 15
     }}
   >
     <motion.path
@@ -142,7 +142,7 @@ const SuccessIcon = () => (
 
 const ErrorIcon = () => (
   <motion.svg
-    className="w-16 h-16 text-red-500"
+    className="h-16 w-16 text-red-500"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"

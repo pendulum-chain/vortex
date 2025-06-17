@@ -1,14 +1,14 @@
-import { PlayCircleIcon } from '@heroicons/react/20/solid';
-import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
-import { ReactNode } from 'react';
-import { cn } from '../../../helpers/cn';
+import { PlayCircleIcon } from "@heroicons/react/20/solid";
+import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
+import { ReactNode } from "react";
+import { cn } from "../../../helpers/cn";
 
-import { useTranslation } from 'react-i18next';
-import accountBalanceWalletIconPink from '../../../assets/account-balance-wallet-pink.svg';
-import accountBalanceWalletIcon from '../../../assets/account-balance-wallet.svg';
-import { trimAddress } from '../../../helpers/addressFormatter';
-import { useVortexAccount } from '../../../hooks/useVortexAccount';
-import { wagmiConfig } from '../../../wagmiConfig';
+import { useTranslation } from "react-i18next";
+import accountBalanceWalletIconPink from "../../../assets/account-balance-wallet-pink.svg";
+import accountBalanceWalletIcon from "../../../assets/account-balance-wallet.svg";
+import { trimAddress } from "../../../helpers/addressFormatter";
+import { useVortexAccount } from "../../../hooks/useVortexAccount";
+import { wagmiConfig } from "../../../wagmiConfig";
 
 const WalletButton = ({
   onClick,
@@ -17,7 +17,7 @@ const WalletButton = ({
   hideIcon = false,
   showPlayIcon = false,
   showWalletIcons = false,
-  address,
+  address
 }: {
   onClick: () => void;
   children?: ReactNode;
@@ -27,20 +27,12 @@ const WalletButton = ({
   showWalletIcons?: boolean;
   address?: string;
 }) => (
-  <button
-    onClick={onClick}
-    type="button"
-    className={cn(customStyles || 'btn-vortex-secondary', 'btn rounded-3xl group')}
-  >
+  <button onClick={onClick} type="button" className={cn(customStyles || "btn-vortex-secondary", "btn group rounded-3xl")}>
     {showWalletIcons ? (
       <>
         <img src={accountBalanceWalletIcon} className="block group-hover:hidden" alt="wallet account button" />
-        <img
-          src={accountBalanceWalletIconPink}
-          className="hidden group-hover:block"
-          alt="wallet account button hovered"
-        />
-        <p className="hidden font-thin md:block ">{address ? trimAddress(address) : ''}</p>
+        <img src={accountBalanceWalletIconPink} className="hidden group-hover:block" alt="wallet account button hovered" />
+        <p className="hidden font-thin md:block ">{address ? trimAddress(address) : ""}</p>
       </>
     ) : (
       <>
@@ -57,20 +49,20 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
   const { caipNetwork: appkitNetwork, switchNetwork } = useAppKitNetwork();
   const { open } = useAppKit();
   const { t } = useTranslation();
-  const isOnSupportedNetwork = wagmiConfig.chains.find((chain) => chain.id === walletChainId) !== undefined;
+  const isOnSupportedNetwork = wagmiConfig.chains.find(chain => chain.id === walletChainId) !== undefined;
 
   if (!isConnected) {
     return (
       <WalletButton
         onClick={() => {
-          open({ view: 'Connect' });
+          open({ view: "Connect" });
         }}
         customStyles={customStyles}
         hideIcon={hideIcon}
         showPlayIcon
       >
         <p className="flex">
-          {t('components.dialogs.connectWallet.connect')} <span className="hidden lg:block lg:ml-1">Wallet</span>
+          {t("components.dialogs.connectWallet.connect")} <span className="hidden lg:ml-1 lg:block">Wallet</span>
         </p>
       </WalletButton>
     );
@@ -87,7 +79,7 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
         hideIcon={hideIcon}
         showPlayIcon
       >
-        {t('components.dialogs.connectWallet.wrongNetwork')}
+        {t("components.dialogs.connectWallet.wrongNetwork")}
       </WalletButton>
     );
   }
@@ -95,7 +87,7 @@ export function EVMWalletButton({ customStyles, hideIcon }: { customStyles?: str
   return (
     <WalletButton
       onClick={() => {
-        open({ view: 'Account' });
+        open({ view: "Account" });
       }}
       showWalletIcons
       address={address}

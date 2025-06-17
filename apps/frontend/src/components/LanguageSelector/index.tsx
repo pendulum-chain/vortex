@@ -1,13 +1,13 @@
-import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { cn } from '../../helpers/cn';
-import { Language } from '../../translations/helpers';
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { cn } from "../../helpers/cn";
+import { Language } from "../../translations/helpers";
 
 // Import country flag images
-import brazilFlag from '../../assets/countries/brazil.png';
-import usFlag from '../../assets/countries/english.png';
+import brazilFlag from "../../assets/countries/brazil.png";
+import usFlag from "../../assets/countries/english.png";
 
 interface LanguageButtonProps {
   selectedLanguage: Language;
@@ -19,8 +19,8 @@ interface LanguageButtonProps {
 const LanguageButton = ({ selectedLanguage, isOpen, onClick, disabled }: LanguageButtonProps) => (
   <motion.button
     className={cn(
-      'flex items-center gap-2 px-2 sm:px-4 py-3 rounded-full bg-base-100',
-      disabled && 'opacity-50 cursor-not-allowed',
+      "flex items-center gap-2 rounded-full bg-base-100 px-2 py-3 sm:px-4",
+      disabled && "cursor-not-allowed opacity-50"
     )}
     onClick={onClick}
     whileHover={{ scale: disabled ? 1 : 1.02 }}
@@ -29,15 +29,11 @@ const LanguageButton = ({ selectedLanguage, isOpen, onClick, disabled }: Languag
   >
     <img
       src={selectedLanguage === Language.English ? usFlag : brazilFlag}
-      alt={selectedLanguage === Language.English ? 'English' : 'Português'}
-      className={cn('w-5 h-5', disabled && 'opacity-50')}
+      alt={selectedLanguage === Language.English ? "English" : "Português"}
+      className={cn("h-5 w-5", disabled && "opacity-50")}
     />
-    <motion.div
-      animate={{ rotate: isOpen ? 180 : 0 }}
-      transition={{ duration: 0.2 }}
-      className={cn(disabled && 'opacity-50')}
-    >
-      <ChevronDownIcon className="block w-4 h-4 ml-1" />
+    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className={cn(disabled && "opacity-50")}>
+      <ChevronDownIcon className="ml-1 block h-4 w-4" />
     </motion.div>
   </motion.button>
 );
@@ -56,21 +52,21 @@ const LanguageDropdown = ({ isOpen, onLanguageSelect, disabled }: LanguageDropdo
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
-        className="absolute z-50 w-48 p-2 mt-2 shadow-lg bg-base-100 rounded-box whitespace-nowrap"
+        className="absolute z-50 mt-2 w-48 whitespace-nowrap rounded-box bg-base-100 p-2 shadow-lg"
         layout
       >
         <button
           onClick={() => onLanguageSelect(Language.English)}
-          className="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-base-200"
+          className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
         >
-          <img src={usFlag} alt="English" className="w-5 h-5" />
+          <img src={usFlag} alt="English" className="h-5 w-5" />
           <span>English</span>
         </button>
         <button
           onClick={() => onLanguageSelect(Language.Portuguese_Brazil)}
-          className="flex items-center w-full gap-2 p-2 rounded-lg hover:bg-base-200"
+          className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-base-200"
         >
-          <img src={brazilFlag} alt="Português" className="w-5 h-5" />
+          <img src={brazilFlag} alt="Português" className="h-5 w-5" />
           <span>Português</span>
         </button>
       </motion.div>
@@ -86,8 +82,8 @@ function useClickOutside(ref: React.RefObject<HTMLDivElement | null>, callback: 
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [callback, ref]);
 }
 
@@ -124,7 +120,7 @@ export const LanguageSelector = ({ disabled }: { disabled?: boolean }) => {
     const newPath = updatePathWithLanguage(currentPath, language);
 
     // Update URL without full page reload
-    window.history.pushState({}, '', newPath);
+    window.history.pushState({}, "", newPath);
 
     // Update i18n language
     i18n.changeLanguage(language);
@@ -134,14 +130,14 @@ export const LanguageSelector = ({ disabled }: { disabled?: boolean }) => {
 
   const wrapperProps = disabled
     ? {
-        className: 'tooltip tooltip-primary tooltip-bottom before:whitespace-pre-wrap before:content-[attr(data-tip)]',
-        'data-tip': 'Language selection is disabled.',
+        className: "tooltip tooltip-primary tooltip-bottom before:whitespace-pre-wrap before:content-[attr(data-tip)]",
+        "data-tip": "Language selection is disabled."
       }
     : {};
 
   return (
     <div {...wrapperProps}>
-      <div className={cn('relative mr-2', disabled && 'pointer-events-none')} ref={dropdownRef}>
+      <div className={cn("relative mr-2", disabled && "pointer-events-none")} ref={dropdownRef}>
         <LanguageButton
           selectedLanguage={currentLanguage}
           isOpen={isOpen}
