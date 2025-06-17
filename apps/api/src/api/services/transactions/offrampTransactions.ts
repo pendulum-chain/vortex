@@ -7,7 +7,9 @@ import {
   FiatToken,
   Networks,
   PaymentData,
+  PendulumDetails,
   PendulumTokenDetails,
+  StellarTokenDetails,
   UnsignedTx,
   addAdditionalTransactionsToMeta,
   encodeSubmittableExtrinsic,
@@ -344,7 +346,7 @@ async function createBRLTransactions(
   params: {
     brlaEvmAddress: string;
     outputAmountRaw: string;
-    outputTokenDetails: any;
+    outputTokenDetails: PendulumDetails;
     account: AccountMeta;
     taxId: string;
     pixDestination: string;
@@ -402,7 +404,7 @@ async function createStellarTransactions(
   params: {
     outputAmountRaw: string;
     stellarEphemeralEntry: AccountMeta;
-    outputTokenDetails: any;
+    outputTokenDetails: StellarTokenDetails;
     account: AccountMeta;
     stellarPaymentData: PaymentData;
   },
@@ -460,7 +462,7 @@ async function createStellarPaymentTransactions(
   params: {
     account: AccountMeta;
     outputAmountUnits: Big;
-    outputTokenDetails: any;
+    outputTokenDetails: StellarTokenDetails;
     stellarPaymentData: PaymentData;
   },
   unsignedTxs: UnsignedTx[],

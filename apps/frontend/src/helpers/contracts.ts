@@ -8,8 +8,7 @@ import BigNumber from 'big.js';
 
 const BIG_0 = new BigNumber('0');
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type QueryOptions<TFnData = any, TError = any, TData = TFnData> = Omit<
+export type QueryOptions<TFnData = unknown, TError = unknown, TData = TFnData> = Omit<
   UseQueryOptions<TFnData, TError, TData, QueryKey>,
   'queryKey' | 'queryFn'
 >;

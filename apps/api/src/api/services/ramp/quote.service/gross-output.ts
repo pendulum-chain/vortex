@@ -3,23 +3,24 @@ import {
   EvmTokenDetails,
   Networks,
   OnChainToken,
+  PendulumDetails,
   RampCurrency,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getPendulumDetails,
   isEvmTokenDetails,
 } from '@packages/shared';
+import { ApiPromise } from '@polkadot/api';
 import { Big } from 'big.js';
 import httpStatus from 'http-status';
 import logger from '../../../../config/logger';
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../../constants/constants';
 import { APIError } from '../../../errors/api-error';
 import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../../helpers/contracts';
 import { TokenOutData, getTokenOutAmount } from '../../nablaReads/outAmount';
 import { ApiManager } from '../../pendulum/apiManager';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { priceFeedService } from '../../priceFeed.service';
-import { RouteParams, createOnrampRouteParams, getRoute } from '../../transactions/squidrouter/route';
+import { RouteParams, SquidrouterRoute, createOnrampRouteParams, getRoute } from '../../transactions/squidrouter/route';
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
@@ -51,10 +52,10 @@ export interface EvmBridgeResult {
 }
 
 async function getNablaSwapOutAmount(
-  apiInstance: any,
+  apiInstance: { api: ApiPromise },
   fromAmountString: string,
-  inputTokenDetails: any,
-  outputTokenDetails: any,
+  inputTokenDetails: PendulumDetails,
+  outputTokenDetails: PendulumDetails,
 ): Promise<TokenOutData> {
   return await getTokenOutAmount({
     api: apiInstance.api,
@@ -71,7 +72,15 @@ function getTokenDetailsForEvmDestination(
   finalOutputCurrency: OnChainToken,
   finalEvmDestination: DestinationType,
 ): EvmTokenDetails {
-  const tokenDetails = getOnChainTokenDetails(getNetworkFromDestination(finalEvmDestination)!, finalOutputCurrency);
+  const network = getNetworkFromDestination(finalEvmDestination);
+  if (!network) {
+    throw new APIError({
+      status: httpStatus.BAD_REQUEST,
+      message: 'Invalid EVM destination network',
+    });
+  }
+
+  const tokenDetails = getOnChainTokenDetails(network, finalOutputCurrency);
 
   if (!tokenDetails || !isEvmTokenDetails(tokenDetails)) {
     throw new APIError({
@@ -91,11 +100,19 @@ function prepareSquidrouterRouteParams(
   tokenDetails: EvmTokenDetails,
   finalEvmDestination: DestinationType,
 ): RouteParams {
+  const network = getNetworkFromDestination(finalEvmDestination);
+  if (!network) {
+    throw new APIError({
+      status: httpStatus.BAD_REQUEST,
+      message: 'Invalid EVM destination network',
+    });
+  }
+
   return createOnrampRouteParams(
     '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
     intermediateAmountRaw,
     tokenDetails,
-    getNetworkFromDestination(finalEvmDestination)!,
+    network,
     '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
   );
 }
@@ -103,7 +120,7 @@ function prepareSquidrouterRouteParams(
 /**
  * Helper to execute Squidrouter route and validate response
  */
-async function getSquidrouterRouteData(routeParams: RouteParams): Promise<any> {
+async function getSquidrouterRouteData(routeParams: RouteParams): Promise<SquidrouterRoute> {
   const routeResult = await getRoute(routeParams);
 
   if (!routeResult?.data?.route?.estimate) {
@@ -119,7 +136,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams): Promise<any> {
 /**
  * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback
  */
-async function calculateSquidrouterNetworkFee(routeResult: any): Promise<string> {
+async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Promise<string> {
   const squidRouterSwapValue = multiplyByPowerOfTen(Big(routeResult.route.transactionRequest.value), -18);
 
   try {

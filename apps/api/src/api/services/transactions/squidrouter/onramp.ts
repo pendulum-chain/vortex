@@ -1,4 +1,4 @@
-import { AXL_USDC_MOONBEAM, EvmTokenDetails, Networks } from '@packages/shared';
+import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from '@packages/shared';
 import { http, createPublicClient, encodeFunctionData } from 'viem';
 import { moonbeam } from 'viem/chains';
 import { createOnrampRouteParams, getRoute } from './route';
@@ -17,8 +17,8 @@ export interface OnrampSquidrouterParams {
 
 export interface OnrampTransactionData {
   approveData: {
-    to: `0x${string}`;
-    data: `0x${string}`;
+    to: EvmAddress;
+    data: EvmAddress;
     value: string;
     gas: string;
     nonce: number;
@@ -26,8 +26,8 @@ export interface OnrampTransactionData {
     maxPriorityFeePerGas?: string;
   };
   swapData: {
-    to: `0x${string}`;
-    data: `0x${string}`;
+    to: EvmAddress;
+    data: EvmAddress;
     value: string;
     gas: string;
     nonce: number;
@@ -72,7 +72,7 @@ export async function createOnrampSquidrouterTransactions(
 
     // Create transaction data objects
     const approveData = {
-      to: AXL_USDC_MOONBEAM as `0x${string}`,
+      to: AXL_USDC_MOONBEAM as EvmAddress,
       data: approveTransactionData,
       value: '0',
       nonce: params.moonbeamEphemeralStartingNonce,
@@ -82,8 +82,8 @@ export async function createOnrampSquidrouterTransactions(
     };
 
     const swapData = {
-      to: transactionRequest.target as `0x${string}`,
-      data: transactionRequest.data,
+      to: transactionRequest.target as EvmAddress,
+      data: transactionRequest.data as EvmAddress,
       value: MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW,
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
