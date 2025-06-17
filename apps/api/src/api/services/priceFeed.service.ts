@@ -398,7 +398,7 @@ export class PriceFeedService {
       // Check if the oracle prices are up to date
       const allPricesEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap.entries();
 
-      const prices = allPricesEncoded.map(([key, priceData]) => {
+      const prices = allPricesEncoded.map(([_, priceData]) => {
         const price = priceData.toHuman() as { name: string; lastUpdateTimestamp: string };
         return {
           name: price.name,

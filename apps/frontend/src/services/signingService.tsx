@@ -1,4 +1,4 @@
-import { BrlaEndpoints, FiatToken } from '@packages/shared';
+import { BrlaGetKycStatusResponse, FiatToken } from '@packages/shared';
 import { useQuery } from '@tanstack/react-query';
 import { SIGNING_SERVICE_URL } from '../constants/constants';
 
@@ -22,8 +22,6 @@ interface SignerServiceSep10Response {
 
 type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
 type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
-
-type BrlaKycState = 'KYC';
 
 export enum KycStatus {
   PENDING = 'PENDING',
@@ -194,7 +192,7 @@ export const fetchKycStatus = async (taxId: string) => {
     throw new Error(`Failed to fetch KYC status from server: ${statusResponse.statusText}`);
   }
 
-  const eventStatus: BrlaEndpoints.GetKycStatusResponse = await statusResponse.json();
+  const eventStatus: BrlaGetKycStatusResponse = await statusResponse.json();
   console.log(`Received event status: ${JSON.stringify(eventStatus)}`);
   return eventStatus;
 };

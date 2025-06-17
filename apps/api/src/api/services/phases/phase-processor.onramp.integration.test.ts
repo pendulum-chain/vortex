@@ -190,6 +190,14 @@ describe('Onramp PhaseProcessor Integration Test', () => {
 
       // START - MIMIC THE UI
 
+      // At this stage, user would send the BRL through pix.
+
+      // END - MIMIC THE UI
+
+      await rampService.startRamp({
+        rampId: registeredRamp.id,
+      });
+
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
       const presignedTxs = await signUnsignedTransactions(
@@ -203,11 +211,7 @@ describe('Onramp PhaseProcessor Integration Test', () => {
         moonbeamNode.api,
       );
 
-      // At this stage, user would send the BRL through pix.
-
-      // END - MIMIC THE UI
-
-      const _startedRamp = await rampService.startRamp({
+      await rampService.updateRamp({
         rampId: registeredRamp.id,
         presignedTxs,
       });

@@ -10,7 +10,7 @@ import { maintenanceService } from '../services/maintenance.service';
  * @returns {Object} 200 - Maintenance status response
  * @returns {Object} 500 - Internal server error
  */
-export const getMaintenanceStatus: RequestHandler = async (req, res) => {
+export const getMaintenanceStatus: RequestHandler = async (_, res) => {
   try {
     const maintenanceStatus = await maintenanceService.getMaintenanceStatus();
 
@@ -32,7 +32,7 @@ export const getMaintenanceStatus: RequestHandler = async (req, res) => {
  * @returns {Object} 200 - Array of maintenance schedules
  * @returns {Object} 500 - Internal server error
  */
-export const getAllMaintenanceSchedules: RequestHandler = async (req, res) => {
+export const getAllMaintenanceSchedules: RequestHandler = async (_, res) => {
   try {
     const schedules = await maintenanceService.getAllSchedules();
 

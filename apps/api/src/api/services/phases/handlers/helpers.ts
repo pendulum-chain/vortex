@@ -38,12 +38,14 @@ export async function isStellarEphemeralFunded(
 export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
   const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, pendulumNode.decimals).toFixed();
+  //@ts-ignore
   const { data: balance } = await pendulumNode.api.query.system.account(pendulumEphemeralAddress);
 
   return Big(balance.free.toString()).gte(fundingAmountRaw);
 }
 
 export async function isMoonbeamEphemeralFunded(moonbeamEphemeralAddress: string, moonebamNode: API): Promise<boolean> {
+  //@ts-ignore
   const { data: balance } = await moonebamNode.api.query.system.account(moonbeamEphemeralAddress);
   return Big(balance.free.toString()).gte(GLMR_FUNDING_AMOUNT_RAW);
 }

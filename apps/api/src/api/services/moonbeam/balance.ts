@@ -1,3 +1,4 @@
+import { EvmAddress } from '@packages/shared';
 import Big from 'big.js';
 import { http, Chain, createPublicClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -23,9 +24,9 @@ export class BalanceCheckError extends Error {
 }
 
 interface GetBalanceParams {
-  tokenAddress: `0x${string}`;
-  ownerAddress: `0x${string}`;
-  chain: any;
+  tokenAddress: EvmAddress;
+  ownerAddress: EvmAddress;
+  chain: Chain;
 }
 
 export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: GetBalanceParams): Promise<Big> {
@@ -43,8 +44,8 @@ export async function getEvmTokenBalance({ tokenAddress, ownerAddress, chain }: 
     })) as string;
 
     return new Big(balanceResult);
-  } catch (err: any) {
-    throw new Error(`Failed to read token balance: ${err.message ?? err}`);
+  } catch (err) {
+    throw new Error(`Failed to read token balance: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -66,7 +67,7 @@ export function checkEvmBalancePeriodically(
         });
 
         const result = (await publicClient.readContract({
-          address: tokenAddress as `0x${string}`,
+          address: tokenAddress as EvmAddress,
           abi: erc20ABI,
           functionName: 'balanceOf',
           args: [brlaEvmAddress],
@@ -131,7 +132,7 @@ export function getMoonbeamFundingData(decimals: number): {
 } {
   const fundingAmountRaw = multiplyByPowerOfTen(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, decimals).toFixed();
 
-  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as EvmAddress);
   const { walletClient, publicClient } = createMoonbeamClientsAndConfig(moonbeamExecutorAccount);
 
   return { fundingAmountRaw, walletClient, publicClient };

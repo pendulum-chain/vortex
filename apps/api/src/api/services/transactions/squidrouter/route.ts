@@ -90,8 +90,8 @@ export async function getRoute(params: RouteParams): Promise<SquidrouterRouteRes
 
     const requestId = result.headers['x-request-id']; // Retrieve request ID from response headers
     return { data: result.data, requestId };
-  } catch (error: any) {
-    if (error) {
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
       logger.error(`Error fetching route from Squidrouter API: ${error.response?.data}}`);
     }
     logger.error(`Error with parameters: ${JSON.stringify(params)}`);

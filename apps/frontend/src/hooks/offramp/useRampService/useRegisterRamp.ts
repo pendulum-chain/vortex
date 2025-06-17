@@ -365,8 +365,12 @@ export const useRegisterRamp = () => {
         assetHubToPendulumHash,
       };
 
+      if (!rampState.ramp) {
+        throw new Error('Missing ramp state');
+      }
+
       const updatedRampProcess = await RampService.updateRamp(
-        rampState.ramp!.id,
+        rampState.ramp.id,
         [], // No additional presigned transactions at this point
         additionalData,
       );

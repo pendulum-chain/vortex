@@ -25,7 +25,7 @@ export class PendulumToMoonbeamXCMPhaseHandler extends BasePhaseHandler {
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi('pendulum');
 
-    const { pendulumEphemeralAddress, moonbeamEphemeralAddress, outputAmountBeforeFinalStep, outputTokenType } =
+    const { pendulumEphemeralAddress, moonbeamEphemeralAddress, outputAmountBeforeFinalStep } =
       state.state as StateMetadata;
 
     if (!pendulumEphemeralAddress || !moonbeamEphemeralAddress) {

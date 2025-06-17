@@ -1,4 +1,4 @@
-import { BrlaEndpoints } from '@packages/shared';
+import { BrlaGetKycStatusResponse } from '@packages/shared';
 import { useQuery } from '@tanstack/react-query';
 import { KycStatus, fetchKycStatus } from '../../../services/signingService';
 import { KycLevel } from '../useBRLAKYCProcess';
@@ -8,7 +8,7 @@ const RETRY_DELAY_MS = 5000; // 5 seconds
 const MAX_RETRIES = 5;
 
 export const useKycStatusQuery = (cpf: string | null, level: KycLevel = KycLevel.LEVEL_1) => {
-  return useQuery<BrlaEndpoints.GetKycStatusResponse, Error>({
+  return useQuery<BrlaGetKycStatusResponse, Error>({
     queryKey: ['kyc-status', cpf],
     queryFn: async () => {
       if (!cpf) throw new Error('CPF is required');
