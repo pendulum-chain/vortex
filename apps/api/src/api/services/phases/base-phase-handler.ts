@@ -6,6 +6,7 @@ import RampState from '../../../models/rampState.model';
 import { APIError } from '../../errors/api-error';
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from '../../errors/phase-error';
 import rampService from '../ramp/ramp.service';
+import { StateMetadata } from './meta-state-types';
 
 /**
  * Base interface for phase handlers
@@ -52,7 +53,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       logger.info(`Phase ${this.getPhaseName()} executed successfully for ramp ${state.id}`);
 
       return updatedState;
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Error executing phase ${this.getPhaseName()} for ramp ${state.id}:`, error);
 
       // Add error to the state
@@ -62,7 +63,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
         throw error;
       }
 
-      throw new UnrecoverablePhaseError(error.message || 'Unknown error in phase execution');
+      throw new UnrecoverablePhaseError(error instanceof Error ? error.message : 'Unknown error in phase execution');
     }
   }
 
@@ -74,15 +75,15 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     return new UnrecoverablePhaseError(message);
   }
 
-  private async logError(state: RampState, error: any): Promise<void> {
+  private async logError(state: RampState, error: unknown): Promise<void> {
     const isPhaseError = error instanceof PhaseError;
     const isRecoverable = isPhaseError && error.isRecoverable === true;
 
     const errorLog: RampErrorLog = {
       phase: this.getPhaseName(),
       timestamp: new Date().toISOString(),
-      error: error.message || 'Unknown error',
-      details: error.stack || {},
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.stack : '', // TODO: verify if this is ok
       recoverable: isRecoverable,
     };
 
@@ -108,13 +109,17 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param metadata Additional metadata for the transition
    * @returns The updated ramp state
    */
-  protected async transitionToNextPhase(state: RampState, nextPhase: RampPhase, metadata?: any): Promise<RampState> {
+  protected async transitionToNextPhase(
+    state: RampState,
+    nextPhase: RampPhase,
+    metadata?: unknown,
+  ): Promise<RampState> {
     const phaseHistory = [
       ...state.phaseHistory,
       {
         phase: nextPhase,
         timestamp: new Date(),
-        metadata,
+        metadata: metadata as StateMetadata | undefined,
       },
     ];
 

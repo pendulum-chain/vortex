@@ -130,8 +130,8 @@ export class EventPoller {
           this.createNewEventCache(userId, userEvents, fetchedUserEvents);
         }
       });
-    } catch (error: any) {
-      console.error('Error polling events:', error.message);
+    } catch (error) {
+      console.error('Error polling events:', (error as Error).message);
     }
   }
 

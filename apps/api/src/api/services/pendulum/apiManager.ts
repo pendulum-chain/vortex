@@ -205,7 +205,8 @@ export class ApiManager {
           }
         });
       });
-    } catch (initialError: any) {
+    } catch (initialE: unknown) {
+      const initialError = initialE instanceof Error ? initialE : new Error(String(initialE));
       // Only retry if the error is regarding bad signature error
       if (initialError.name === 'RpcError' && initialError.message.includes('Transaction has a bad signature')) {
         logger.info(

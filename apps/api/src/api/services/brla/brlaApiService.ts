@@ -200,7 +200,7 @@ export class BrlaApiService {
     return await this.sendRequest(Endpoint.KycLevel2, 'POST', query, { documentType });
   }
 
-  public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<any> {
+  public async retryKYC(subaccountId: string, retryKycPayload: KycRetryPayload): Promise<unknown> {
     const query = `subaccountId=${encodeURIComponent(subaccountId)}`;
     return await this.sendRequest(Endpoint.KycRetry, 'POST', query, retryKycPayload);
   }

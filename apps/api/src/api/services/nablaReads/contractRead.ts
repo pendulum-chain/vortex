@@ -8,14 +8,14 @@ const ALICE = '6mfqoTMHrMeVMyKwjqomUjVomPMJ4AjdCm1VReFtk7Be8wqr';
 type MessageCallErrorResult = ReadMessageResult & { type: 'error' | 'panic' | 'reverted' };
 
 export async function contractRead<ReturnType>(params: {
-  abi: any;
+  abi: Dict<unknown>;
   address: string;
   method: string;
-  args: any[];
+  args: unknown[];
   api: ApiPromise;
   walletAddress?: string;
   noWalletAddressRequired?: boolean;
-  parseSuccessOutput: (data: any) => ReturnType;
+  parseSuccessOutput: (data: bigint[]) => ReturnType;
   parseError: string | ((error: ReadMessageResult & { type: 'error' | 'panic' | 'reverted' }) => string);
 }): Promise<ReturnType> {
   const {

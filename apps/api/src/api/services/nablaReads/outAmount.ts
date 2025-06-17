@@ -52,7 +52,7 @@ export async function getTokenOutAmount(params: {
     args: [amountIn, [inputTokenDetails.pendulumErc20WrapperAddress, outputTokenDetails.pendulumErc20WrapperAddress]],
     api,
     noWalletAddressRequired: true,
-    parseSuccessOutput: (data: any) => {
+    parseSuccessOutput: (data: bigint[]) => {
       const preciseQuotedAmountOut = parseContractBalanceResponse(outputTokenDetails.pendulumDecimals, data[0]);
       const swapFee = parseContractBalanceResponse(outputTokenDetails.pendulumDecimals, data[1]);
       return {
