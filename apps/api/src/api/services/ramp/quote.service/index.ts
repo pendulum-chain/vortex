@@ -78,7 +78,7 @@ export class QuoteService extends BaseRampService {
     if (inputAmountForNablaSwap.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Input amount too low to cover pre-Nabla deductible fees',
+        message: 'Input amount too low to cover fees.',
       });
     }
 
@@ -109,21 +109,6 @@ export class QuoteService extends BaseRampService {
       }
     }
 
-    console.log(
-      'Calculating Nabla swap output for input amount:',
-      inputAmountForNablaSwap.toString(),
-      'input currency:',
-      request.inputCurrency,
-      'to output currency:',
-      nablaOutputCurrency,
-      'ramp type:',
-      request.rampType,
-      'from destination:',
-      request.from,
-      'to destination:',
-      request.to,
-    );
-
     const nablaSwapResult = await calculateNablaSwapOutput({
       inputAmountForSwap: inputAmountForNablaSwap.toString(),
       inputCurrency: request.inputCurrency,
@@ -135,7 +120,6 @@ export class QuoteService extends BaseRampService {
 
     // e. Calculate Full Fee Breakdown
     const outputAmountOfframp = nablaSwapResult.nablaOutputAmountDecimal.toString();
-    console.log('Output amount after Nabla swap:', outputAmountOfframp);
 
     const {
       vortexFee,
@@ -278,7 +262,7 @@ export class QuoteService extends BaseRampService {
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Input amount too low to cover calculated fees',
+        message: 'Input amount too low to cover calculated fees.',
       });
     }
 
