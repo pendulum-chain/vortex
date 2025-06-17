@@ -5,6 +5,12 @@ import { RampFormValues } from '../../hooks/ramp/schema';
 import { NumericInput } from '../NumericInput';
 import { AssetButton } from '../buttons/AssetButton';
 
+// A helper function to determine the number of decimals based on the token symbol.
+// For now, it assumes that ETH-based tokens have 6 decimals and others have 2.
+function getMaxDecimalsForToken(tokenSymbol: string): number {
+  return tokenSymbol.toLowerCase().includes('eth') ? 4 : 2;
+}
+
 interface AssetNumericInputProps {
   assetIcon: string;
   tokenSymbol: string;
@@ -42,6 +48,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
       <NumericInput
         loading={loading}
         register={registerInput}
+        maxDecimals={getMaxDecimalsForToken(tokenSymbol)}
         additionalStyle={cn(
           'text-right text-lg',
           rest.readOnly && 'text-xl',
