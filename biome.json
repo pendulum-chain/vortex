@@ -14,12 +14,12 @@
       "**/build/**",
       "**/.prettierignore",
       "**/node_modules/",
-      "**/coverage/",
-      "**/dist/",
-      "**/build/",
-      "**/internals/",
-      "**/docs/",
-      "**/.lighthouseci/",
+      "**/coverage/*",
+      "**/dist/*",
+      "**/build/*",
+      "**/internals/*",
+      "**/docs/*",
+      "**/.lighthouseci/*",
       "**/coins/*",
       "**/*.yml",
       "**/*.sol",
@@ -73,13 +73,15 @@
     },
     "ignore": [
       "**/node_modules/",
-      "**/dist/",
-      "**/build/",
-      "**/lib/",
-      "**/types/",
-      "**/coverage/",
-      "**/gql/",
-      "**/signer-service",
+      "**/dist/**",
+      "**/build/**",
+      "**/lib/**",
+      "**/types/**",
+      "**/coverage/**",
+      "**/gql/**",
+      "**/signer-service/**",
+      "api/dist/**",
+      "apps/api/dist/**",
       "**/*.d.ts",
       "**/*.config.*",
       "**/.eslintrc.*"
@@ -128,6 +130,16 @@
             "noUnsafeNegation": "off",
             "useGetterReturn": "off",
             "useValidTypeof": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": ["**/*.test.ts", "**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
           }
         }
       }
