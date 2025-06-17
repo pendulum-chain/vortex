@@ -2,6 +2,7 @@
  * EVM token types
  */
 
+import { EvmAddress } from '../..';
 import { Networks } from '../../helpers';
 import { BaseTokenDetails, PendulumDetails, TokenType } from './base';
 
@@ -22,7 +23,7 @@ export interface EvmTokenDetails extends BaseTokenDetails, PendulumDetails {
   assetSymbol: string;
   networkAssetIcon: string;
   network: Networks;
-  erc20AddressSourceChain: `0x${string}`;
+  erc20AddressSourceChain: EvmAddress;
 }
 
 export interface EvmTokenDetailsWithBalance extends EvmTokenDetails {
