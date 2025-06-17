@@ -63,8 +63,6 @@ export function useFeeComparisonData(
       });
     }
 
-    console.log('providerPrices:', prices);
-
     return prices;
   }, [allPricesResponse, vortexPrice]);
 
