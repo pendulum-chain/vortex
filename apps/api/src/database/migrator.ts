@@ -8,9 +8,11 @@ import logger from '../config/logger';
 const umzug = new Umzug({
   migrations: {
     glob: path.join(__dirname, './migrations/*.{ts,js}'),
-    resolve: ({ name, path, context }: MigrationParams<any>) => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const migration = require(path!);
+    resolve: ({ name, path, context }: MigrationParams<unknown>) => {
+      if (!path) {
+        throw new Error(`Migration path is undefined for ${name}`);
+      }
+      const migration = require(path);
       return {
         name,
         up: async () => migration.up(context, Sequelize),
@@ -21,10 +23,10 @@ const umzug = new Umzug({
   context: sequelize.getQueryInterface(),
   storage: new SequelizeStorage({ sequelize }),
   logger: {
-    info: (message: any) => logger.info(message),
-    warn: (message: any) => logger.warn(message),
-    error: (message: any) => logger.error(message),
-    debug: (message: any) => logger.debug(message),
+    info: (message: unknown) => logger.info(message),
+    warn: (message: unknown) => logger.warn(message),
+    error: (message: unknown) => logger.error(message),
+    debug: (message: unknown) => logger.debug(message),
   },
 });
 
