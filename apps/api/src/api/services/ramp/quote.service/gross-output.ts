@@ -296,10 +296,13 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
       finalEffectiveExchangeRate,
     };
   } catch (error) {
-    logger.error('Error calculating EVM bridge and network fee:', error);
+    logger.error(
+      `Error calculating EVM bridge and network fee: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    // We assume that the error is due to a low input amount
     throw new APIError({
       status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate the quote. Please try a higher amount.',
+      message: 'Input amount too low. Please try a larger amount.',
     });
   }
 }
