@@ -1,5 +1,5 @@
-import { ChangeEvent, ClipboardEvent } from 'react';
-import { UseFormRegisterReturn } from 'react-hook-form';
+import { ChangeEvent, ClipboardEvent, useEffect, useRef } from 'react';
+import { UseFormRegisterReturn, useFormContext, useWatch } from 'react-hook-form';
 import { cn } from '../../helpers/cn';
 import { handleOnChangeNumericInput, handleOnPasteNumericInput } from './helpers';
 
@@ -20,22 +20,62 @@ export const NumericInput = ({
   readOnly = false,
   additionalStyle,
   maxDecimals = 2,
-  defaultValue,
   autoFocus,
   onChange,
   loading = false,
   disabled = false,
 }: NumericInputProps) => {
-  function handleOnChange(e: ChangeEvent): void {
+  const { setValue } = useFormContext();
+  const fieldName = register.name;
+  const inputValue = useWatch({ name: fieldName });
+  const prevMaxDecimals = useRef(maxDecimals);
+
+  function trimToMaxDecimals(value: string, decimals: number) {
+    if (!value) return value;
+    const [intPart, decPart] = value.replace(',', '.').split('.');
+    let trimmed = value;
+    if (decPart && decPart.length > decimals) {
+      trimmed = `${intPart}.${decPart.slice(0, decimals)}`;
+    }
+    return trimmed;
+  }
+
+  function handleOnChange(e: ChangeEvent<HTMLInputElement>): void {
     handleOnChangeNumericInput(e, maxDecimals);
+    const value = e.target.value;
+    setValue(fieldName, value, { shouldValidate: true, shouldDirty: true });
     if (onChange) onChange(e);
     register.onChange(e);
   }
 
-  function handleOnPaste(e: ClipboardEvent): void {
+  function handleOnPaste(e: ClipboardEvent<HTMLInputElement>): void {
     handleOnPasteNumericInput(e, maxDecimals);
-    register.onChange(e);
+    // After paste, update value from event
+    const pasted = e.clipboardData.getData('Text');
+    const trimmed = trimToMaxDecimals(pasted, maxDecimals);
+    setValue(fieldName, trimmed, { shouldValidate: true, shouldDirty: true });
+    // Create a synthetic event for register.onChange
+    const syntheticEvent = {
+      ...e,
+      target: { ...e.target, value: trimmed },
+    } as unknown as ChangeEvent<HTMLInputElement>;
+    register.onChange(syntheticEvent);
   }
+
+  // Watch for maxDecimals changes and trim value if needed
+  useEffect(() => {
+    if (prevMaxDecimals.current > maxDecimals) {
+      const trimmed = trimToMaxDecimals(inputValue, maxDecimals);
+      if (trimmed !== inputValue) {
+        setValue(fieldName, trimmed, { shouldValidate: true, shouldDirty: true });
+        // Create a synthetic event for register.onChange
+        const syntheticEvent = { target: { value: trimmed } } as ChangeEvent<HTMLInputElement>;
+        register.onChange(syntheticEvent);
+      }
+    }
+    prevMaxDecimals.current = maxDecimals;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxDecimals, inputValue, setValue, fieldName, register]);
 
   return (
     <div className="relative flex-grow">
@@ -60,7 +100,7 @@ export const NumericInput = ({
         step="any"
         type="text"
         inputMode="decimal"
-        value={defaultValue}
+        value={inputValue ?? ''}
         autoFocus={autoFocus}
       />
       {loading && (
