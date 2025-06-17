@@ -1,7 +1,7 @@
-import { JWT } from 'google-auth-library';
-import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
+import { JWT } from "google-auth-library";
+import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from "google-spreadsheet";
 
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 
 export interface GoogleCredentials {
   email?: string;
@@ -14,18 +14,15 @@ interface SpreadsheetService {
   appendData: (sheet: GoogleSpreadsheetWorksheet, data: Record<string, string>) => Promise<void>;
 }
 
-export const initGoogleSpreadsheet = async (
-  sheetId: string,
-  credentials: GoogleCredentials,
-): Promise<GoogleSpreadsheet> => {
+export const initGoogleSpreadsheet = async (sheetId: string, credentials: GoogleCredentials): Promise<GoogleSpreadsheet> => {
   if (!credentials.email || !credentials.key) {
-    throw new Error('Missing required Google credentials');
+    throw new Error("Missing required Google credentials");
   }
 
   const auth = new JWT({
     email: credentials.email,
     key: credentials.key,
-    scopes: SCOPES,
+    scopes: SCOPES
   });
 
   const doc = new GoogleSpreadsheet(sheetId, auth);
@@ -34,15 +31,12 @@ export const initGoogleSpreadsheet = async (
     await doc.loadInfo();
     return doc;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Failed to load Google Spreadsheet ${sheetId}: ${message}`);
   }
 };
 
-export const getOrCreateSheet = async (
-  doc: GoogleSpreadsheet,
-  headerValues: string[],
-): Promise<GoogleSpreadsheetWorksheet> => {
+export const getOrCreateSheet = async (doc: GoogleSpreadsheet, headerValues: string[]): Promise<GoogleSpreadsheetWorksheet> => {
   const MAX_SHEETS_TO_CHECK = 10;
 
   try {
@@ -62,7 +56,7 @@ export const getOrCreateSheet = async (
     // Create new sheet if no match found
     return await doc.addSheet({ headerValues });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Failed to get or create sheet: ${message}`);
   }
 };
@@ -72,11 +66,10 @@ export const appendData = async (sheet: GoogleSpreadsheetWorksheet, data: Record
 };
 
 const doHeadersMatch = (existingHeaders: string[], newHeaders: string[]): boolean =>
-  existingHeaders.length === newHeaders.length &&
-  existingHeaders.every((header, index) => header === newHeaders[index]);
+  existingHeaders.length === newHeaders.length && existingHeaders.every((header, index) => header === newHeaders[index]);
 
 export const spreadsheetService: SpreadsheetService = {
   initGoogleSpreadsheet,
   getOrCreateSheet,
-  appendData,
+  appendData
 };

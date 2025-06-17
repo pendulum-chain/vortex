@@ -1,7 +1,7 @@
-import { ApiPromise } from '@polkadot/api';
-import { Event, EventRecord } from '@polkadot/types/interfaces';
+import { ApiPromise } from "@polkadot/api";
+import { Event, EventRecord } from "@polkadot/types/interfaces";
 
-import { parseEventRedeemExecution, parseEventXcmSent } from './eventParsers';
+import { parseEventRedeemExecution, parseEventXcmSent } from "./eventParsers";
 
 interface IPendingEvent<T = unknown> {
   id: string;
@@ -22,8 +22,8 @@ export class EventListener {
     this.api = api;
     this.initEventSubscriber();
 
-    this.api?.on('connected', async (): Promise<void> => {
-      console.log('Connected (or reconnected) to the endpoint.');
+    this.api?.on("connected", async (): Promise<void> => {
+      console.log("Connected (or reconnected) to the endpoint.");
       await this.checkForMissedEvents();
     });
   }
@@ -49,7 +49,7 @@ export class EventListener {
 
   waitForRedeemExecuteEvent(redeemId: string, maxWaitingTimeMs: number) {
     const filter = (event: EventRecord) => {
-      if (event.event.section === 'redeem' && event.event.method === 'ExecuteRedeem') {
+      if (event.event.section === "redeem" && event.event.method === "ExecuteRedeem") {
         const eventParsed = parseEventRedeemExecution({ event: event.event });
         if (eventParsed.redeemId == redeemId) {
           return eventParsed;
@@ -65,18 +65,18 @@ export class EventListener {
 
       this.pendingRedeemEvents.push({
         filter,
-        resolve: (event) => {
+        resolve: event => {
           clearTimeout(timeout);
           resolve(event);
         },
-        id: redeemId,
+        id: redeemId
       });
     });
   }
 
   waitForXcmSentEvent(originAddress: string, maxWaitingTimeMs: number) {
     const filter = (event: EventRecord) => {
-      if (event.event.section === 'polkadotXcm' && event.event.method === 'Sent') {
+      if (event.event.section === "polkadotXcm" && event.event.method === "Sent") {
         const eventParsed = parseEventXcmSent({ event: event.event });
         if (eventParsed.originAddress == originAddress) {
           return eventParsed;
@@ -92,11 +92,11 @@ export class EventListener {
 
       this.pendingXcmSentEvents.push({
         filter,
-        resolve: (event) => {
+        resolve: event => {
           clearTimeout(timeout);
           resolve(event);
         },
-        id: originAddress,
+        id: originAddress
       });
     });
   }
@@ -116,9 +116,9 @@ export class EventListener {
     const freshApiPromise = this.api;
     if (!freshApiPromise || !freshApiPromise.isConnected) return;
 
-    this.pendingRedeemEvents.forEach((pendingEvent) => {
+    this.pendingRedeemEvents.forEach(pendingEvent => {
       const redeemId = pendingEvent.id;
-      freshApiPromise.query.redeem.redeemRequests(redeemId).then((redeem) => {
+      freshApiPromise.query.redeem.redeemRequests(redeemId).then(redeem => {
         if (redeem) {
           pendingEvent.resolve(redeem);
         }

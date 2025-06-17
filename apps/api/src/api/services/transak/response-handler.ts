@@ -1,10 +1,10 @@
-import { Direction, TransakPriceResponse } from '@packages/shared';
+import { Direction, TransakPriceResponse } from "@packages/shared";
 import {
   InvalidAmountError,
   InvalidParameterError,
   ProviderInternalError,
-  UnsupportedPairError,
-} from '../../errors/providerErrors';
+  UnsupportedPairError
+} from "../../errors/providerErrors";
 
 /**
  * Transak API response interface
@@ -38,25 +38,25 @@ function handleTransakError(response: Response, body: TransakApiResponse): never
 
   // Classify errors based on message content
   if (
-    lowerErrorMessage.includes('invalid fiat currency') ||
-    lowerErrorMessage.includes('unsupported') ||
-    lowerErrorMessage.includes('not available') ||
-    lowerErrorMessage.includes('invalid crypto currency') ||
-    lowerErrorMessage.includes('invalid network')
+    lowerErrorMessage.includes("invalid fiat currency") ||
+    lowerErrorMessage.includes("unsupported") ||
+    lowerErrorMessage.includes("not available") ||
+    lowerErrorMessage.includes("invalid crypto currency") ||
+    lowerErrorMessage.includes("invalid network")
   ) {
     throw new UnsupportedPairError(`Transak: ${errorMessage}`);
   }
 
   if (
-    lowerErrorMessage.includes('minimum') ||
-    lowerErrorMessage.includes('maximum') ||
-    lowerErrorMessage.includes('limit') ||
-    lowerErrorMessage.includes('exceeds')
+    lowerErrorMessage.includes("minimum") ||
+    lowerErrorMessage.includes("maximum") ||
+    lowerErrorMessage.includes("limit") ||
+    lowerErrorMessage.includes("exceeds")
   ) {
     throw new InvalidAmountError(`Transak: ${errorMessage}`);
   }
 
-  if (response.status === 400 || lowerErrorMessage.includes('invalid parameter')) {
+  if (response.status === 400 || lowerErrorMessage.includes("invalid parameter")) {
     throw new InvalidParameterError(`Transak: ${errorMessage}`);
   }
 
@@ -78,7 +78,7 @@ function handleTransakError(response: Response, body: TransakApiResponse): never
 function validateTransakResponse(
   body: TransakApiResponse,
   requestedAmount: string,
-  direction: Direction,
+  direction: Direction
 ): TransakPriceResponse {
   if (
     !body.response ||
@@ -87,21 +87,21 @@ function validateTransakResponse(
     body.response.fiatAmount === undefined ||
     body.response.totalFee === undefined
   ) {
-    throw new ProviderInternalError('Transak response missing essential data fields');
+    throw new ProviderInternalError("Transak response missing essential data fields");
   }
 
   const {
-    response: { cryptoAmount, fiatAmount, totalFee },
+    response: { cryptoAmount, fiatAmount, totalFee }
   } = body;
 
-  const isBuy = direction === 'onramp';
+  const isBuy = direction === "onramp";
 
   return {
     requestedAmount: Number(requestedAmount),
     quoteAmount: isBuy ? cryptoAmount : fiatAmount,
     totalFee,
     direction,
-    provider: 'transak',
+    provider: "transak"
   };
 }
 
@@ -117,7 +117,7 @@ export function processTransakResponse(
   response: Response,
   body: TransakApiResponse,
   requestedAmount: string,
-  direction: Direction,
+  direction: Direction
 ): TransakPriceResponse {
   if (!response.ok || body.error) {
     return handleTransakError(response, body);

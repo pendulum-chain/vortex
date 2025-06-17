@@ -1,17 +1,15 @@
-import Big from 'big.js';
+import Big from "big.js";
 
-import { OnChainTokenDetails, SPACEWALK_REDEEM_SAFETY_MARGIN } from '@packages/shared';
-import { ContractBalance, multiplyByPowerOfTen } from '../../../helpers/contracts';
+import { OnChainTokenDetails, SPACEWALK_REDEEM_SAFETY_MARGIN } from "@packages/shared";
+import { ContractBalance, multiplyByPowerOfTen } from "../../../helpers/contracts";
 
 export const calculateSwapAmountsWithMargin = (
   fromAmount: Big,
   preciseQuotedAmountOut: ContractBalance,
-  onChainToken: OnChainTokenDetails,
+  onChainToken: OnChainTokenDetails
 ) => {
   // Calculate output amount with margin
-  const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal
-    .round(2, 0)
-    .mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN);
+  const outputAmountBigMargin = preciseQuotedAmountOut.preciseBigDecimal.round(2, 0).mul(1 + SPACEWALK_REDEEM_SAFETY_MARGIN);
   // FIXME
   const decimals = 12;
   // const expectedRedeemAmountRaw = multiplyByPowerOfTen(outputAmountBigMargin, fiatToken.decimals).toFixed();

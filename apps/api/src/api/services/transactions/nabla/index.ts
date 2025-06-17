@@ -1,24 +1,24 @@
-import { AccountMeta, Networks, PendulumDetails, encodeSubmittableExtrinsic } from '@packages/shared';
-import { CreateExecuteMessageExtrinsicOptions } from '@pendulum-chain/api-solang';
-import { ApiManager } from '../../pendulum/apiManager';
-import { prepareNablaApproveTransaction } from './approve';
-import { prepareNablaSwapTransaction } from './swap';
+import { AccountMeta, Networks, PendulumDetails, encodeSubmittableExtrinsic } from "@packages/shared";
+import { CreateExecuteMessageExtrinsicOptions } from "@pendulum-chain/api-solang";
+import { ApiManager } from "../../pendulum/apiManager";
+import { prepareNablaApproveTransaction } from "./approve";
+import { prepareNablaSwapTransaction } from "./swap";
 
-export type ExtrinsicOptions = Omit<CreateExecuteMessageExtrinsicOptions, 'abi' | 'api'>;
+export type ExtrinsicOptions = Omit<CreateExecuteMessageExtrinsicOptions, "abi" | "api">;
 
 export async function createNablaTransactionsForOfframp(
   amountRaw: string,
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
-  nablaHardMinimumOutputRaw: string,
+  nablaHardMinimumOutputRaw: string
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
     throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
   }
 
   const apiManager = ApiManager.getInstance();
-  const networkName = 'pendulum';
+  const networkName = "pendulum";
   const pendulumNode = await apiManager.getApi(networkName);
 
   const pendulumEphemeralAddress = ephemeral.address;
@@ -27,7 +27,7 @@ export async function createNablaTransactionsForOfframp(
     inputTokenDetails: inputTokenPendulumDetails,
     amountRaw,
     pendulumEphemeralAddress,
-    pendulumNode,
+    pendulumNode
   });
 
   const swapTransaction = await prepareNablaSwapTransaction({
@@ -36,18 +36,18 @@ export async function createNablaTransactionsForOfframp(
     nablaHardMinimumOutputRaw,
     amountRaw,
     pendulumEphemeralAddress,
-    pendulumNode,
+    pendulumNode
   });
 
   return {
     approve: {
       transaction: encodeSubmittableExtrinsic(approveTransaction.extrinsic),
-      extrinsicOptions: approveTransaction.extrinsicOptions,
+      extrinsicOptions: approveTransaction.extrinsicOptions
     },
     swap: {
       transaction: encodeSubmittableExtrinsic(swapTransaction.extrinsic),
-      extrinsicOptions: swapTransaction.extrinsicOptions,
-    },
+      extrinsicOptions: swapTransaction.extrinsicOptions
+    }
   };
 }
 
@@ -56,14 +56,14 @@ export async function createNablaTransactionsForOnramp(
   ephemeral: AccountMeta,
   inputTokenPendulumDetails: PendulumDetails,
   outputTokenPendulumDetails: PendulumDetails,
-  nablaHardMinimumOutputRaw: string,
+  nablaHardMinimumOutputRaw: string
 ) {
   if (ephemeral.network !== Networks.Pendulum) {
     throw new Error(`Can't create Nabla transactions for ${ephemeral.network}`);
   }
 
   const apiManager = ApiManager.getInstance();
-  const networkName = 'pendulum';
+  const networkName = "pendulum";
   const pendulumNode = await apiManager.getApi(networkName);
 
   const pendulumEphemeralAddress = ephemeral.address;
@@ -72,7 +72,7 @@ export async function createNablaTransactionsForOnramp(
     inputTokenDetails: inputTokenPendulumDetails,
     amountRaw,
     pendulumEphemeralAddress,
-    pendulumNode,
+    pendulumNode
   });
 
   const swapTransaction = await prepareNablaSwapTransaction({
@@ -81,17 +81,17 @@ export async function createNablaTransactionsForOnramp(
     nablaHardMinimumOutputRaw,
     amountRaw,
     pendulumEphemeralAddress,
-    pendulumNode,
+    pendulumNode
   });
 
   return {
     approve: {
       transaction: encodeSubmittableExtrinsic(approveTransaction.extrinsic),
-      extrinsicOptions: approveTransaction.extrinsicOptions,
+      extrinsicOptions: approveTransaction.extrinsicOptions
     },
     swap: {
       transaction: encodeSubmittableExtrinsic(swapTransaction.extrinsic),
-      extrinsicOptions: swapTransaction.extrinsicOptions,
-    },
+      extrinsicOptions: swapTransaction.extrinsicOptions
+    }
   };
 }

@@ -1,19 +1,19 @@
-import Big from 'big.js';
-import { Request, Response } from 'express';
-import httpStatus from 'http-status';
-import { http, Address, createPublicClient, createWalletClient, encodeFunctionData } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { moonbeam } from 'viem/chains';
+import Big from "big.js";
+import { Request, Response } from "express";
+import httpStatus from "http-status";
+import { http, Address, createPublicClient, createWalletClient, encodeFunctionData } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { moonbeam } from "viem/chains";
 
 import {
   MOONBEAM_EXECUTOR_PRIVATE_KEY,
   MOONBEAM_FUNDING_AMOUNT_UNITS,
-  MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
-} from '../../constants/constants';
-import { SlackNotifier } from '../services/slack.service';
+  MOONBEAM_RECEIVER_CONTRACT_ADDRESS
+} from "../../constants/constants";
+import { SlackNotifier } from "../services/slack.service";
 
-import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from '@packages/shared';
-import splitReceiverABI from '../../../mooncontracts/splitReceiverABI.json';
+import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from "@packages/shared";
+import splitReceiverABI from "../../../mooncontracts/splitReceiverABI.json";
 
 interface StatusResponse {
   status: boolean;
@@ -24,12 +24,12 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
   const walletClient = createWalletClient({
     account: executorAccount,
     chain: moonbeam,
-    transport: http(),
+    transport: http()
   });
 
   const publicClient = createPublicClient({
     chain: moonbeam,
-    transport: http(),
+    transport: http()
   });
 
   return { walletClient, publicClient };
@@ -37,7 +37,7 @@ const createClients = (executorAccount: ReturnType<typeof privateKeyToAccount>) 
 
 export const executeXcmController = async (
   req: Request<unknown, unknown, MoonbeamExecuteXcmRequest>,
-  res: Response<MoonbeamExecuteXcmResponse | { error: string }>,
+  res: Response<MoonbeamExecuteXcmResponse | { error: string }>
 ): Promise<void> => {
   const { id, payload } = req.body;
 
@@ -47,8 +47,8 @@ export const executeXcmController = async (
 
     const data = encodeFunctionData({
       abi: splitReceiverABI,
-      functionName: 'executeXCM',
-      args: [id, payload],
+      functionName: "executeXCM",
+      args: [id, payload]
     });
 
     try {
@@ -58,18 +58,18 @@ export const executeXcmController = async (
         value: 0n,
         data,
         maxFeePerGas,
-        maxPriorityFeePerGas,
+        maxPriorityFeePerGas
       });
       res.json({ hash });
       return;
     } catch (error) {
-      console.error('Error executing XCM:', error);
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid transaction' });
+      console.error("Error executing XCM:", error);
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid transaction" });
       return;
     }
   } catch (error) {
-    console.error('Error executing XCM:', error);
-    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error' });
+    console.error("Error executing XCM:", error);
+    res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Internal Server Error" });
   }
 };
 
@@ -82,20 +82,20 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
     const { publicClient } = createClients(moonbeamExecutorAccount);
 
     const balance = await publicClient.getBalance({
-      address: moonbeamExecutorAccount.address,
+      address: moonbeamExecutorAccount.address
     });
     const minimumBalance = BigInt(Big(MOONBEAM_FUNDING_AMOUNT_UNITS).times(Big(10).pow(18)).toString());
 
     if (balance < minimumBalance) {
       await slackService.sendMessage({
-        text: `Current balance of funding account is ${balance} GLMR please charge the account ${moonbeamExecutorAccount.address}.`,
+        text: `Current balance of funding account is ${balance} GLMR please charge the account ${moonbeamExecutorAccount.address}.`
       });
       return { status: false, public: moonbeamExecutorAccount.address };
     }
 
     return { status: true, public: moonbeamExecutorAccount.address };
   } catch (error) {
-    console.error('Error fetching Moonbeam executor balance:', error);
+    console.error("Error fetching Moonbeam executor balance:", error);
     return { status: false, public: moonbeamExecutorAccount?.address };
   }
 };

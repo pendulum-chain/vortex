@@ -1,6 +1,6 @@
-import { BaseLayout } from '../../layouts';
-import { Ramp } from '../ramp';
-import MainSections from './MainSections';
+import { BaseLayout } from "../../layouts";
+import { Ramp } from "../ramp";
+import MainSections from "./MainSections";
 
 export const Main = () => {
   const main = (

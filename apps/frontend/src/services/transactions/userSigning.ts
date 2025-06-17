@@ -1,31 +1,31 @@
-import { UnsignedTx, decodeSubmittableExtrinsic, getNetworkId, isEvmTransactionData } from '@packages/shared';
-import { ApiPromise } from '@polkadot/api';
-import { ISubmittableResult, Signer } from '@polkadot/types/types';
-import { WalletAccount } from '@talismn/connect-wallets';
-import { sendTransaction } from '@wagmi/core';
-import { waitForTransactionConfirmation } from '../../helpers/safe-wallet/waitForTransactionConfirmation';
-import { wagmiConfig } from '../../wagmiConfig';
+import { UnsignedTx, decodeSubmittableExtrinsic, getNetworkId, isEvmTransactionData } from "@packages/shared";
+import { ApiPromise } from "@polkadot/api";
+import { ISubmittableResult, Signer } from "@polkadot/types/types";
+import { WalletAccount } from "@talismn/connect-wallets";
+import { sendTransaction } from "@wagmi/core";
+import { waitForTransactionConfirmation } from "../../helpers/safe-wallet/waitForTransactionConfirmation";
+import { wagmiConfig } from "../../wagmiConfig";
 
 // Sign the transaction with the user's connected wallet.
 export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promise<string> {
   const { network, txData } = unsignedTx;
 
   if (!isEvmTransactionData(txData)) {
-    throw new Error('Invalid EVM transaction data format for signing transaction');
+    throw new Error("Invalid EVM transaction data format for signing transaction");
   }
 
   const chainId = getNetworkId(network);
 
-  console.log('About to send transaction for phase', unsignedTx.phase);
+  console.log("About to send transaction for phase", unsignedTx.phase);
   const hash = await sendTransaction(wagmiConfig, {
     to: txData.to,
     data: txData.data,
-    value: BigInt(txData.value),
+    value: BigInt(txData.value)
   });
-  console.log('Transaction sent', hash);
+  console.log("Transaction sent", hash);
 
   const confirmedHash = await waitForTransactionConfirmation(hash, chainId);
-  console.log('Transaction confirmed', confirmedHash);
+  console.log("Transaction confirmed", confirmedHash);
   return confirmedHash;
 }
 
@@ -33,12 +33,12 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
 export async function signAndSubmitSubstrateTransaction(
   unsignedTx: UnsignedTx,
   api: ApiPromise,
-  walletAccount: WalletAccount,
+  walletAccount: WalletAccount
 ): Promise<string> {
   const { txData } = unsignedTx;
 
   if (isEvmTransactionData(txData)) {
-    throw new Error('Invalid Substrate transaction data format for signing transaction');
+    throw new Error("Invalid Substrate transaction data format for signing transaction");
   }
 
   const extrinsic = decodeSubmittableExtrinsic(txData, api);
@@ -49,7 +49,7 @@ export async function signAndSubmitSubstrateTransaction(
       .signAndSend(
         walletAccount.address,
         {
-          signer: walletAccount.signer as Signer,
+          signer: walletAccount.signer as Signer
         },
         (submissionResult: ISubmittableResult) => {
           const { status, dispatchError } = submissionResult;
@@ -63,17 +63,17 @@ export async function signAndSubmitSubstrateTransaction(
 
             // Try to find a 'system.ExtrinsicFailed' event
             if (dispatchError) {
-              reject('Substrate transaction execution failed');
+              reject("Substrate transaction execution failed");
             }
 
             resolve(hash);
           }
-        },
+        }
       )
-      .catch((error) => {
+      .catch(error => {
         // Most likely, the user cancelled the signing process.
-        console.error('Error signing and submitting transaction', error);
-        reject('Error signing and sending transaction:' + error);
+        console.error("Error signing and submitting transaction", error);
+        reject("Error signing and sending transaction:" + error);
       });
   });
 }

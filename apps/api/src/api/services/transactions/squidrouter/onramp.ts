@@ -1,10 +1,10 @@
-import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from '@packages/shared';
-import { http, createPublicClient, encodeFunctionData } from 'viem';
-import { moonbeam } from 'viem/chains';
-import { createOnrampRouteParams, getRoute } from './route';
+import { AXL_USDC_MOONBEAM, EvmAddress, EvmTokenDetails, Networks } from "@packages/shared";
+import { http, createPublicClient, encodeFunctionData } from "viem";
+import { moonbeam } from "viem/chains";
+import { createOnrampRouteParams, getRoute } from "./route";
 
-import erc20ABI from '../../../../contracts/ERC20';
-import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from './config';
+import erc20ABI from "../../../../contracts/ERC20";
+import { MOONBEAM_SQUIDROUTER_SWAP_MIN_VALUE_RAW } from "./config";
 
 export interface OnrampSquidrouterParams {
   fromAddress: string;
@@ -36,16 +36,14 @@ export interface OnrampTransactionData {
   };
 }
 
-export async function createOnrampSquidrouterTransactions(
-  params: OnrampSquidrouterParams,
-): Promise<OnrampTransactionData> {
+export async function createOnrampSquidrouterTransactions(params: OnrampSquidrouterParams): Promise<OnrampTransactionData> {
   if (params.toNetwork === Networks.AssetHub) {
-    throw new Error('AssetHub is not supported for Squidrouter onramp');
+    throw new Error("AssetHub is not supported for Squidrouter onramp");
   }
 
   const publicClient = createPublicClient({
     chain: moonbeam,
-    transport: http(),
+    transport: http()
   });
 
   const routeParams = createOnrampRouteParams(
@@ -53,7 +51,7 @@ export async function createOnrampSquidrouterTransactions(
     params.rawAmount,
     params.outputTokenDetails,
     params.toNetwork,
-    params.addressDestination,
+    params.addressDestination
   );
 
   try {
@@ -64,8 +62,8 @@ export async function createOnrampSquidrouterTransactions(
 
     const approveTransactionData = encodeFunctionData({
       abi: erc20ABI,
-      functionName: 'approve',
-      args: [transactionRequest?.target, params.rawAmount],
+      functionName: "approve",
+      args: [transactionRequest?.target, params.rawAmount]
     });
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
@@ -74,11 +72,11 @@ export async function createOnrampSquidrouterTransactions(
     const approveData = {
       to: AXL_USDC_MOONBEAM as EvmAddress,
       data: approveTransactionData,
-      value: '0',
+      value: "0",
       nonce: params.moonbeamEphemeralStartingNonce,
-      gas: '150000',
+      gas: "150000",
       maxFeePerGas: maxFeePerGas.toString(),
-      maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
+      maxPriorityFeePerGas: maxPriorityFeePerGas.toString()
     };
 
     const swapData = {
@@ -88,12 +86,12 @@ export async function createOnrampSquidrouterTransactions(
       gas: transactionRequest.gasLimit,
       maxFeePerGas: maxFeePerGas.toString(),
       maxPriorityFeePerGas: maxPriorityFeePerGas.toString(),
-      nonce: params.moonbeamEphemeralStartingNonce + 1,
+      nonce: params.moonbeamEphemeralStartingNonce + 1
     };
 
     return {
       approveData,
-      swapData,
+      swapData
     };
   } catch (e) {
     throw new Error(`Error getting route: ${routeParams}. Error: ${e}`);

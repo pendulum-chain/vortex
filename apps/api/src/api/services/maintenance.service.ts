@@ -1,6 +1,6 @@
-import { Op } from 'sequelize';
-import logger from '../../config/logger';
-import MaintenanceSchedule from '../../models/maintenanceSchedule.model';
+import { Op } from "sequelize";
+import logger from "../../config/logger";
+import MaintenanceSchedule from "../../models/maintenanceSchedule.model";
 
 // Interface for the API response
 interface MaintenanceStatusResponse {
@@ -27,7 +27,7 @@ export class MaintenanceService {
    * Private constructor to enforce singleton pattern
    */
   private constructor() {
-    logger.info('MaintenanceService initialized with database integration');
+    logger.info("MaintenanceService initialized with database integration");
   }
 
   /**
@@ -46,12 +46,12 @@ export class MaintenanceService {
   public async getAllSchedules(): Promise<MaintenanceSchedule[]> {
     try {
       const schedules = await MaintenanceSchedule.findAll({
-        order: [['createdAt', 'DESC']],
+        order: [["createdAt", "DESC"]]
       });
       return schedules;
     } catch (error) {
-      logger.error('Error fetching all maintenance schedules:', error);
-      throw new Error('Failed to retrieve maintenance schedules');
+      logger.error("Error fetching all maintenance schedules:", error);
+      throw new Error("Failed to retrieve maintenance schedules");
     }
   }
 
@@ -71,8 +71,8 @@ export class MaintenanceService {
       logger.info(`Added new maintenance schedule: ${newSchedule.title} (${newSchedule.id})`);
       return newSchedule;
     } catch (error) {
-      logger.error('Error adding maintenance schedule:', error);
-      throw new Error('Failed to add maintenance schedule');
+      logger.error("Error adding maintenance schedule:", error);
+      throw new Error("Failed to add maintenance schedule");
     }
   }
 
@@ -91,8 +91,8 @@ export class MaintenanceService {
       logger.info(`Updated maintenance schedule ${id} active status to: ${isActive}`);
       return true;
     } catch (error) {
-      logger.error('Error updating maintenance schedule active status:', error);
-      throw new Error('Failed to update maintenance schedule');
+      logger.error("Error updating maintenance schedule active status:", error);
+      throw new Error("Failed to update maintenance schedule");
     }
   }
 
@@ -115,13 +115,13 @@ export class MaintenanceService {
         where: {
           isActiveConfig: true,
           startDatetime: {
-            [Op.lte]: currentTime, // start_datetime <= current_time
+            [Op.lte]: currentTime // start_datetime <= current_time
           },
           endDatetime: {
-            [Op.gt]: currentTime, // end_datetime > current_time
-          },
+            [Op.gt]: currentTime // end_datetime > current_time
+          }
         },
-        order: [['endDatetime', 'ASC']], // If multiple, get the one ending soonest
+        order: [["endDatetime", "ASC"]] // If multiple, get the one ending soonest
       });
 
       // Step 3: Build and return the response
@@ -137,8 +137,8 @@ export class MaintenanceService {
             start_datetime: currentlyActiveSchedule.startDatetime.toISOString(),
             end_datetime: currentlyActiveSchedule.endDatetime.toISOString(),
             message: currentlyActiveSchedule.messageToDisplay,
-            estimated_time_remaining_seconds: timeRemainingSeconds,
-          },
+            estimated_time_remaining_seconds: timeRemainingSeconds
+          }
         };
 
         logger.info(`Maintenance is currently active: ${currentlyActiveSchedule.title}`);
@@ -146,15 +146,15 @@ export class MaintenanceService {
       } else {
         const response: MaintenanceStatusResponse = {
           is_maintenance_active: false,
-          maintenance_details: null,
+          maintenance_details: null
         };
 
-        logger.debug('No active maintenance windows found');
+        logger.debug("No active maintenance windows found");
         return response;
       }
     } catch (error) {
-      logger.error('Error checking maintenance status:', error);
-      throw new Error('Failed to retrieve maintenance status');
+      logger.error("Error checking maintenance status:", error);
+      throw new Error("Failed to retrieve maintenance status");
     }
   }
 
@@ -166,8 +166,8 @@ export class MaintenanceService {
       const schedule = await MaintenanceSchedule.findByPk(id);
       return schedule;
     } catch (error) {
-      logger.error('Error fetching maintenance schedule by ID:', error);
-      throw new Error('Failed to retrieve maintenance schedule');
+      logger.error("Error fetching maintenance schedule by ID:", error);
+      throw new Error("Failed to retrieve maintenance schedule");
     }
   }
 
@@ -177,7 +177,7 @@ export class MaintenanceService {
   public async deleteSchedule(id: string): Promise<boolean> {
     try {
       const deletedRowsCount = await MaintenanceSchedule.destroy({
-        where: { id },
+        where: { id }
       });
 
       if (deletedRowsCount === 0) {
@@ -188,8 +188,8 @@ export class MaintenanceService {
       logger.info(`Deleted maintenance schedule: ${id}`);
       return true;
     } catch (error) {
-      logger.error('Error deleting maintenance schedule:', error);
-      throw new Error('Failed to delete maintenance schedule');
+      logger.error("Error deleting maintenance schedule:", error);
+      throw new Error("Failed to delete maintenance schedule");
     }
   }
 
@@ -205,11 +205,11 @@ export class MaintenanceService {
       messageToDisplay: string;
       isActiveConfig: boolean;
       notes: string;
-    }>,
+    }>
   ): Promise<MaintenanceSchedule | null> {
     try {
       const [updatedRowsCount] = await MaintenanceSchedule.update(updateData, {
-        where: { id },
+        where: { id }
       });
 
       if (updatedRowsCount === 0) {
@@ -222,8 +222,8 @@ export class MaintenanceService {
       logger.info(`Updated maintenance schedule: ${id}`);
       return updatedSchedule;
     } catch (error) {
-      logger.error('Error updating maintenance schedule:', error);
-      throw new Error('Failed to update maintenance schedule');
+      logger.error("Error updating maintenance schedule:", error);
+      throw new Error("Failed to update maintenance schedule");
     }
   }
 }

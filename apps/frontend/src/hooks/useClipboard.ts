@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
 export function useClipboard() {
   return useMemo(
@@ -7,10 +7,10 @@ export function useClipboard() {
         try {
           await navigator.clipboard.writeText(value);
         } catch (error) {
-          console.error('Failed to copy: ', error);
+          console.error("Failed to copy: ", error);
         }
-      },
+      }
     }),
-    [],
+    []
   );
 }

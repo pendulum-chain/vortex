@@ -9,11 +9,11 @@
  */
 export function getCryptoCode(fromCrypto: string): string {
   const normalizedCrypto = fromCrypto.toLowerCase();
-  if (['usdc', 'usdc.e', 'usdce'].includes(normalizedCrypto)) {
-    return 'USDC';
+  if (["usdc", "usdc.e", "usdce"].includes(normalizedCrypto)) {
+    return "USDC";
   }
-  if (normalizedCrypto === 'usdt') {
-    return 'USDT';
+  if (normalizedCrypto === "usdt") {
+    return "USDT";
   }
   return fromCrypto.toUpperCase();
 }

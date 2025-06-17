@@ -1,18 +1,18 @@
-import { PaymentData } from '@packages/shared';
-import Big from 'big.js';
-import { useCallback } from 'react';
+import { PaymentData } from "@packages/shared";
+import Big from "big.js";
+import { useCallback } from "react";
 
-import { useNetwork } from '../../../contexts/network';
+import { useNetwork } from "../../../contexts/network";
 
-import { sep24Second } from '../../../services/anchor/sep24/second';
+import { sep24Second } from "../../../services/anchor/sep24/second";
 
-import { useToastMessage } from '../../../helpers/notifications';
-import { useRampActions, useRampStore } from '../../../stores/rampStore';
-import { useSep24AnchorSessionParams, useSep24InitialResponse } from '../../../stores/sep24Store';
-import { useTrackSEP24Events } from './useTrackSEP24Events';
+import { useToastMessage } from "../../../helpers/notifications";
+import { useRampActions, useRampStore } from "../../../stores/rampStore";
+import { useSep24AnchorSessionParams, useSep24InitialResponse } from "../../../stores/sep24Store";
+import { useTrackSEP24Events } from "./useTrackSEP24Events";
 
 const handleError = (error: unknown, setRampingStarted: (started: boolean) => void): void => {
-  console.error('Error in SEP-24 flow:', error);
+  console.error("Error in SEP-24 flow:", error);
   setRampingStarted(false);
 };
 
@@ -28,7 +28,7 @@ export const useAnchorWindowHandler = () => {
 
   const {
     rampExecutionInput: executionInput,
-    actions: { setRampExecutionInput },
+    actions: { setRampExecutionInput }
   } = useRampStore();
 
   const handleAmountMismatch = useCallback(
@@ -36,17 +36,17 @@ export const useAnchorWindowHandler = () => {
       setOfframpingStarted(false);
       showToast(ToastMessage.AMOUNT_MISMATCH);
     },
-    [showToast, ToastMessage],
+    [showToast, ToastMessage]
   );
 
   return useCallback(async () => {
     console.log(
-      'firstSep24Response',
+      "firstSep24Response",
       firstSep24Response,
-      'anchorSessionParams',
+      "anchorSessionParams",
       anchorSessionParams,
-      'executionInput',
-      executionInput,
+      "executionInput",
+      executionInput
     );
     if (!firstSep24Response || !anchorSessionParams || !executionInput) {
       return;
@@ -67,7 +67,7 @@ export const useAnchorWindowHandler = () => {
         amount: secondSep24Response.amount,
         anchorTargetAccount: secondSep24Response.offrampingAccount,
         memo: secondSep24Response.memo,
-        memoType: secondSep24Response.memoType as 'text' | 'hash',
+        memoType: secondSep24Response.memoType as "text" | "hash"
       };
 
       setRampExecutionInput({ ...executionInput, paymentData });
@@ -82,6 +82,6 @@ export const useAnchorWindowHandler = () => {
     selectedNetwork,
     setRampExecutionInput,
     handleAmountMismatch,
-    setRampStarted,
+    setRampStarted
   ]);
 };

@@ -1,10 +1,10 @@
-import { ApiPromise, WsProvider } from '@polkadot/api';
-import { SubmittableExtrinsic } from '@polkadot/api/types';
-import { KeyringPair } from '@polkadot/keyring/types';
-import { ISubmittableResult } from '@polkadot/types/types';
-import logger from '../../../config/logger';
+import { ApiPromise, WsProvider } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api/types";
+import { KeyringPair } from "@polkadot/keyring/types";
+import { ISubmittableResult } from "@polkadot/types/types";
+import logger from "../../../config/logger";
 
-export type SubstrateApiNetwork = 'assethub' | 'pendulum' | 'moonbeam';
+export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam";
 
 export interface NetworkConfig {
   name: SubstrateApiNetwork;
@@ -13,17 +13,17 @@ export interface NetworkConfig {
 
 const NETWORKS: NetworkConfig[] = [
   {
-    name: 'assethub',
-    wsUrl: 'wss://asset-hub-polkadot-rpc.dwellir.com',
+    name: "assethub",
+    wsUrl: "wss://asset-hub-polkadot-rpc.dwellir.com"
   },
   {
-    name: 'pendulum',
-    wsUrl: 'wss://rpc-pendulum.prd.pendulumchain.tech',
+    name: "pendulum",
+    wsUrl: "wss://rpc-pendulum.prd.pendulumchain.tech"
   },
   {
-    name: 'moonbeam',
-    wsUrl: 'wss://moonbeam.unitedbloc.com',
-  },
+    name: "moonbeam",
+    wsUrl: "wss://moonbeam.unitedbloc.com"
+  }
 ];
 
 export type API = {
@@ -49,7 +49,7 @@ export class ApiManager {
     this.networks = NETWORKS;
 
     // Initialize nonce maps for each network
-    this.networks.forEach((network) => {
+    this.networks.forEach(network => {
       this.currentTransactionNonce.set(network.name, new Map());
       this.nonceQueues.set(network.name, Promise.resolve());
     });
@@ -69,7 +69,7 @@ export class ApiManager {
   }
 
   private getNetworkConfig(networkName: SubstrateApiNetwork): NetworkConfig {
-    const network = this.networks.find((n) => n.name === networkName);
+    const network = this.networks.find(n => n.name === networkName);
     if (!network) {
       throw new Error(`Network ${networkName} not configured`);
     }
@@ -81,12 +81,12 @@ export class ApiManager {
     const wsProvider = new WsProvider(network.wsUrl);
     const api = await ApiPromise.create({
       provider: wsProvider,
-      noInitWarn: true,
+      noInitWarn: true
     });
 
     const chainProperties = api.registry.getChainProperties();
-    const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
-    const decimals = Number(chainProperties?.get('tokenDecimals')?.toHuman()[0]) ?? 12;
+    const ss58Format = Number(chainProperties?.get("ss58Format")?.toString() ?? 42);
+    const decimals = Number(chainProperties?.get("tokenDecimals")?.toHuman()[0]) ?? 12;
 
     this.previousSpecVersions.set(networkName, await this.getSpecVersion(api));
 
@@ -140,7 +140,7 @@ export class ApiManager {
 
     // Create a new promise that continues from the current queue
     const newNoncePromise = nonceQueue
-      .catch((err) => {
+      .catch(err => {
         console.error(`Previous nonce retrieval error for ${networkName}:`, err);
       })
       .then(async () => {
@@ -162,7 +162,7 @@ export class ApiManager {
         logger.info(
           `Nonce mismatch detected on ${networkName}. RPC: ${nonceRpc}, ApiManager: ${lastUsedNonce}, sending transaction with nonce ${
             lastUsedNonce + 1
-          }`,
+          }`
         );
         nonceMap.set(senderKeypair.address, lastUsedNonce + 1);
         return lastUsedNonce + 1;
@@ -176,9 +176,9 @@ export class ApiManager {
   }
 
   public async executeApiCall(
-    createCall: (api: ApiPromise) => SubmittableExtrinsic<'promise', ISubmittableResult>,
+    createCall: (api: ApiPromise) => SubmittableExtrinsic<"promise", ISubmittableResult>,
     senderKeypair: KeyringPair,
-    networkName: SubstrateApiNetwork,
+    networkName: SubstrateApiNetwork
   ): Promise<{ hash: string }> {
     const apiInstance = await this.getApi(networkName);
     const call = createCall(apiInstance.api);
@@ -208,9 +208,9 @@ export class ApiManager {
     } catch (initialE: unknown) {
       const initialError = initialE instanceof Error ? initialE : new Error(String(initialE));
       // Only retry if the error is regarding bad signature error
-      if (initialError.name === 'RpcError' && initialError.message.includes('Transaction has a bad signature')) {
+      if (initialError.name === "RpcError" && initialError.message.includes("Transaction has a bad signature")) {
         logger.info(
-          `Bad signature error encountered while sending transaction on ${networkName}, attempting to refresh the api...`,
+          `Bad signature error encountered while sending transaction on ${networkName}, attempting to refresh the api...`
         );
 
         try {

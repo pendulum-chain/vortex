@@ -1,18 +1,13 @@
-import {
-  HORIZON_URL,
-  PaymentData,
-  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
-  StellarTokenDetails,
-} from '@packages/shared';
-import Big from 'big.js';
-import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from 'stellar-sdk';
-import logger from '../../../../config/logger';
-import { FUNDING_SECRET, SEQUENCE_TIME_WINDOW_IN_SECONDS, STELLAR_BASE_FEE } from '../../../../constants/constants';
+import { HORIZON_URL, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from "@packages/shared";
+import Big from "big.js";
+import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
+import logger from "../../../../config/logger";
+import { FUNDING_SECRET, SEQUENCE_TIME_WINDOW_IN_SECONDS, STELLAR_BASE_FEE } from "../../../../constants/constants";
 
 // Define HorizonServer type
 type HorizonServer = Horizon.Server;
 
-const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : '';
+const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : "";
 const NETWORK_PASSPHRASE = Networks.PUBLIC;
 const MAX_TIME = Date.now() + 1000 * 60 * 10;
 const APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS = 7;
@@ -30,7 +25,7 @@ export async function buildPaymentAndMergeTx({
   ephemeralAccountId,
   amountToAnchorUnits,
   paymentData,
-  tokenConfigStellar,
+  tokenConfigStellar
 }: StellarBuildPaymentAndMergeTx): Promise<{
   expectedSequenceNumber: string;
   paymentTransactions: Array<{ sequence: string; tx: string }>;
@@ -42,8 +37,8 @@ export async function buildPaymentAndMergeTx({
   const NUMBER_OF_PRESIGNED_TXS = 5;
 
   if (!FUNDING_SECRET) {
-    logger.error('Stellar funding secret not defined');
-    throw new Error('Stellar funding secret not defined');
+    logger.error("Stellar funding secret not defined");
+    throw new Error("Stellar funding secret not defined");
   }
 
   const expectedSequenceNumber = await getFutureShiftedLedgerSequence(horizonServer, 32);
@@ -51,7 +46,7 @@ export async function buildPaymentAndMergeTx({
   const fundingAccountKeypair = Keypair.fromSecret(FUNDING_SECRET);
 
   const { memo, memoType, anchorTargetAccount } = paymentData;
-  const transactionMemo = memoType === 'text' ? Memo.text(memo) : Memo.hash(Buffer.from(memo, 'base64'));
+  const transactionMemo = memoType === "text" ? Memo.text(memo) : Memo.hash(Buffer.from(memo, "base64"));
 
   const fundingAccount = await horizonServer.loadAccount(fundingAccountKeypair.publicKey());
 
@@ -67,34 +62,31 @@ export async function buildPaymentAndMergeTx({
 
     const currentCreateAccountTransaction = new TransactionBuilder(currentFundingAccount, {
       fee: baseFee,
-      networkPassphrase: NETWORK_PASSPHRASE,
+      networkPassphrase: NETWORK_PASSPHRASE
     })
       .addOperation(
         Operation.createAccount({
           destination: ephemeralAccountId,
-          startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
-        }),
+          startingBalance: STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS
+        })
       )
       .addOperation(
         Operation.setOptions({
           source: ephemeralAccountId,
           signer: {
             ed25519PublicKey: fundingAccountKeypair.publicKey(),
-            weight: 1,
+            weight: 1
           },
           lowThreshold: 2,
           medThreshold: 2,
-          highThreshold: 2,
-        }),
+          highThreshold: 2
+        })
       )
       .addOperation(
         Operation.changeTrust({
           source: ephemeralAccountId,
-          asset: new Asset(
-            tokenConfigStellar.stellarAsset.code.string,
-            tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
-          ),
-        }),
+          asset: new Asset(tokenConfigStellar.stellarAsset.code.string, tokenConfigStellar.stellarAsset.issuer.stellarEncoding)
+        })
       )
       .setTimebounds(0, maxTime)
       .setMinAccountSequence(String(0))
@@ -104,7 +96,7 @@ export async function buildPaymentAndMergeTx({
 
     createAccountTransactions.push({
       sequence: fundingAccount.sequenceNumber(), // TODO do we require this?
-      tx: currentCreateAccountTransaction.toEnvelope().toXDR().toString('base64'),
+      tx: currentCreateAccountTransaction.toEnvelope().toXDR().toString("base64")
     });
   }
 
@@ -115,17 +107,14 @@ export async function buildPaymentAndMergeTx({
 
     const currentPaymentTransaction = new TransactionBuilder(currentEphemeralAccount, {
       fee: STELLAR_BASE_FEE,
-      networkPassphrase: NETWORK_PASSPHRASE,
+      networkPassphrase: NETWORK_PASSPHRASE
     })
       .addOperation(
         Operation.payment({
           amount: amountToAnchorUnits,
-          asset: new Asset(
-            tokenConfigStellar.stellarAsset.code.string,
-            tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
-          ),
-          destination: anchorTargetAccount,
-        }),
+          asset: new Asset(tokenConfigStellar.stellarAsset.code.string, tokenConfigStellar.stellarAsset.issuer.stellarEncoding),
+          destination: anchorTargetAccount
+        })
       )
       .addMemo(transactionMemo)
       .setTimebounds(0, MAX_TIME)
@@ -136,21 +125,18 @@ export async function buildPaymentAndMergeTx({
 
     const currentMergeAccountTransaction = new TransactionBuilder(currentEphemeralAccount, {
       fee: STELLAR_BASE_FEE,
-      networkPassphrase: NETWORK_PASSPHRASE,
+      networkPassphrase: NETWORK_PASSPHRASE
     })
       .addOperation(
         Operation.changeTrust({
-          asset: new Asset(
-            tokenConfigStellar.stellarAsset.code.string,
-            tokenConfigStellar.stellarAsset.issuer.stellarEncoding,
-          ),
-          limit: '0',
-        }),
+          asset: new Asset(tokenConfigStellar.stellarAsset.code.string, tokenConfigStellar.stellarAsset.issuer.stellarEncoding),
+          limit: "0"
+        })
       )
       .addOperation(
         Operation.accountMerge({
-          destination: FUNDING_PUBLIC_KEY,
-        }),
+          destination: FUNDING_PUBLIC_KEY
+        })
       )
       .setTimebounds(0, MAX_TIME)
       .setMinAccountSequence(String(1n))
@@ -160,12 +146,12 @@ export async function buildPaymentAndMergeTx({
 
     paymentTransactions.push({
       sequence: currentSequenceStr,
-      tx: currentPaymentTransaction.toEnvelope().toXDR().toString('base64'),
+      tx: currentPaymentTransaction.toEnvelope().toXDR().toString("base64")
     });
 
     mergeAccountTransactions.push({
       sequence: currentSequenceStr,
-      tx: currentMergeAccountTransaction.toEnvelope().toXDR().toString('base64'),
+      tx: currentMergeAccountTransaction.toEnvelope().toXDR().toString("base64")
     });
   }
 
@@ -173,19 +159,17 @@ export async function buildPaymentAndMergeTx({
     expectedSequenceNumber: String(expectedSequenceNumber),
     createAccountTransactions,
     paymentTransactions,
-    mergeAccountTransactions,
+    mergeAccountTransactions
   };
 }
 
 async function getFutureShiftedLedgerSequence(horizonServer: HorizonServer, shiftAmount = 32) {
   try {
-    const latestLedger = await horizonServer.ledgers().order('desc').limit(1).call();
+    const latestLedger = await horizonServer.ledgers().order("desc").limit(1).call();
 
     const currentLedgerSequence = latestLedger.records[0].sequence;
 
-    const ledgersIn5Minutes = Math.ceil(
-      SEQUENCE_TIME_WINDOW_IN_SECONDS / APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS,
-    );
+    const ledgersIn5Minutes = Math.ceil(SEQUENCE_TIME_WINDOW_IN_SECONDS / APPROXIMATE_STELLAR_LEDGER_CLOSE_TIME_SECONDS);
 
     const futureLedgerSequence = currentLedgerSequence + ledgersIn5Minutes;
 
@@ -195,7 +179,7 @@ async function getFutureShiftedLedgerSequence(horizonServer: HorizonServer, shif
 
     return shiftedSequence;
   } catch (error) {
-    console.error('Error fetching and calculating ledger sequence:', error);
+    console.error("Error fetching and calculating ledger sequence:", error);
     throw error;
   }
 }

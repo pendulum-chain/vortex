@@ -1,17 +1,17 @@
-import bodyParser from 'body-parser';
-import compress from 'compression';
-import cookieParser from 'cookie-parser';
-import cors from 'cors';
-import express from 'express';
-import rateLimit from 'express-rate-limit';
-import helmet from 'helmet';
-import methodOverride from 'method-override';
-import morgan from 'morgan';
+import bodyParser from "body-parser";
+import compress from "compression";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import express from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import methodOverride from "method-override";
+import morgan from "morgan";
 
-import { converter, handler, notFound } from '../api/middlewares/error';
-import routes from '../api/routes/v1';
+import { converter, handler, notFound } from "../api/middlewares/error";
+import routes from "../api/routes/v1";
 
-import { config } from './vars';
+import { config } from "./vars";
 
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
 
@@ -25,27 +25,27 @@ const app = express();
 app.use(
   cors({
     origin: [
-      'https://app.vortexfinance.co',
-      'https://staging--pendulum-pay.netlify.app',
-      process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : null,
+      "https://app.vortexfinance.co",
+      "https://staging--pendulum-pay.netlify.app",
+      process.env.NODE_ENV === "development" ? "http://localhost:5173" : null
     ].filter(Boolean) as string[],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'], // Explicitly list allowed headers
-    maxAge: 86400, // Cache preflight requests for 24 hours
-  }),
+    allowedHeaders: ["Content-Type", "Authorization"], // Explicitly list allowed headers
+    maxAge: 86400 // Cache preflight requests for 24 hours
+  })
 );
 
 // enable rate limiting
 // Set number of expected proxies
-app.set('trust proxy', rateLimitNumberOfProxies);
+app.set("trust proxy", rateLimitNumberOfProxies);
 
 // Define rate limiter
 const limiter = rateLimit({
   windowMs: Number(rateLimitWindowMinutes) * 60 * 1000,
   max: Number(rateLimitMaxRequests), // Limit each IP to <amount> requests per `window`
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  legacyHeaders: false // Disable the `X-RateLimit-*` headers
 });
 app.use(limiter);
 
@@ -70,7 +70,7 @@ app.use(methodOverride());
 app.use(helmet());
 
 // mount api token routes
-app.use('/v1', routes);
+app.use("/v1", routes);
 
 // if error is not an instanceOf APIError, convert it.
 app.use(converter);

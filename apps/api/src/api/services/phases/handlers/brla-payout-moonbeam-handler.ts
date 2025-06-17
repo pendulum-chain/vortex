@@ -1,17 +1,17 @@
-import { RampPhase, getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum } from '@packages/shared';
-import Big from 'big.js';
+import { RampPhase, getAnyFiatTokenDetailsMoonbeam, isFiatTokenEnum } from "@packages/shared";
+import Big from "big.js";
 
-import { polygon } from 'viem/chains';
-import logger from '../../../../config/logger';
-import RampState from '../../../../models/rampState.model';
-import { BrlaApiService } from '../../brla/brlaApiService';
-import { checkEvmBalancePeriodically } from '../../moonbeam/balance';
-import { BasePhaseHandler } from '../base-phase-handler';
-import { StateMetadata } from '../meta-state-types';
+import { polygon } from "viem/chains";
+import logger from "../../../../config/logger";
+import RampState from "../../../../models/rampState.model";
+import { BrlaApiService } from "../../brla/brlaApiService";
+import { checkEvmBalancePeriodically } from "../../moonbeam/balance";
+import { BasePhaseHandler } from "../base-phase-handler";
+import { StateMetadata } from "../meta-state-types";
 
 export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return 'brlaPayoutOnMoonbeam';
+    return "brlaPayoutOnMoonbeam";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
@@ -19,11 +19,11 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       state.state as StateMetadata;
 
     if (!taxId || !pixDestination || !outputAmountBeforeFinalStep || !brlaEvmAddress || !outputTokenType) {
-      throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.');
+      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
     if (!isFiatTokenEnum(outputTokenType)) {
-      throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: Invalid token type.');
+      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Invalid token type.");
     }
 
     const tokenDetails = getAnyFiatTokenDetailsMoonbeam(outputTokenType);
@@ -38,14 +38,14 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
         outputAmountBeforeFinalStep.raw,
         pollingTimeMs,
         maxWaitingTimeMs,
-        polygon,
+        polygon
       );
     } catch (balanceCheckError) {
       if (balanceCheckError instanceof Error) {
-        if (balanceCheckError.message === 'Balance did not meet the limit within the specified time') {
+        if (balanceCheckError.message === "Balance did not meet the limit within the specified time") {
           throw new Error(`BrlaPayoutOnMoonbeamPhaseHandler: balanceCheckError ${balanceCheckError.message}`);
         } else {
-          logger.error('Error checking Polygon balance:', balanceCheckError);
+          logger.error("Error checking Polygon balance:", balanceCheckError);
           throw new Error(`Error checking Polygon balance`);
         }
       }
@@ -58,20 +58,20 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       const subaccount = await brlaApiService.getSubaccount(taxId);
 
       if (!subaccount) {
-        throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: Subaccount not found.');
+        throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Subaccount not found.");
       }
 
       const subaccountId = subaccount.id;
       await brlaApiService.triggerOfframp(subaccountId, {
         pixKey: pixDestination,
         amount: Number(amount),
-        taxId: receiverTaxId,
+        taxId: receiverTaxId
       });
 
-      return this.transitionToNextPhase(state, 'complete');
+      return this.transitionToNextPhase(state, "complete");
     } catch (e) {
-      console.error('Error in brlaPayoutOnMoonbeam', e);
-      throw new Error('BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.');
+      console.error("Error in brlaPayoutOnMoonbeam", e);
+      throw new Error("BrlaPayoutOnMoonbeamPhaseHandler: Failed to trigger BRLA offramp.");
     }
   }
 }

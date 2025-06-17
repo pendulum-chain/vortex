@@ -1,8 +1,8 @@
-import { Event } from '@polkadot/types/interfaces';
-import { encodeAddress } from '@polkadot/util-crypto';
-import Big from 'big.js';
+import { Event } from "@polkadot/types/interfaces";
+import { encodeAddress } from "@polkadot/util-crypto";
+import Big from "big.js";
 
-import { hexToString, stellarHexToPublic } from '../helpers/conversions';
+import { hexToString, stellarHexToPublic } from "../helpers/conversions";
 
 export type SpacewalkRedeemRequestEvent = ReturnType<typeof parseEventRedeemRequest>;
 export type XcmSentEvent = ReturnType<typeof parseEventXcmSent>;
@@ -19,17 +19,17 @@ export function parseEventRedeemRequest({ event }: { event: Event }) {
       accountId: rawEventData[2].accountId.toString(),
       currencies: {
         collateral: {
-          XCM: parseInt(rawEventData[2].currencies.collateral.xcm.toString(), 10),
+          XCM: parseInt(rawEventData[2].currencies.collateral.xcm.toString(), 10)
         },
-        wrapped: extractStellarAssetInfo(rawEventData[2].currencies.wrapped),
-      },
+        wrapped: extractStellarAssetInfo(rawEventData[2].currencies.wrapped)
+      }
     },
     amount: parseInt(rawEventData[3].toString(), 10),
     asset: extractStellarAssetInfo(rawEventData[4]),
     fee: parseInt(rawEventData[5].toString(), 10),
     premium: parseInt(rawEventData[6].toString(), 10),
     stellarAddress: stellarHexToPublic(rawEventData[7].toString()),
-    transferFee: parseInt(rawEventData[8].toString(), 10),
+    transferFee: parseInt(rawEventData[8].toString(), 10)
   };
   return mappedData;
 }
@@ -43,15 +43,15 @@ export function parseEventRedeemExecution({ event }: { event: Event }) {
       accountId: rawEventData[2].accountId.toString(),
       currencies: {
         collateral: {
-          XCM: parseInt(rawEventData[2].currencies.collateral.xcm.toString(), 10),
+          XCM: parseInt(rawEventData[2].currencies.collateral.xcm.toString(), 10)
         },
-        wrapped: extractStellarAssetInfo(rawEventData[2].currencies.wrapped),
-      },
+        wrapped: extractStellarAssetInfo(rawEventData[2].currencies.wrapped)
+      }
     },
     amount: parseInt(rawEventData[3].toString(), 10),
     asset: extractStellarAssetInfo(rawEventData[4]),
     fee: parseInt(rawEventData[5].toString(), 10),
-    transferFee: parseInt(rawEventData[6].toString(), 10),
+    transferFee: parseInt(rawEventData[6].toString(), 10)
   };
   return mappedData;
 }
@@ -59,7 +59,7 @@ export function parseEventRedeemExecution({ event }: { event: Event }) {
 export function parseEventXcmSent({ event }: { event: Event }) {
   const rawEventData = JSON.parse(event.data.toString());
   const mappedData = {
-    originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId32.id.toString()),
+    originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId32.id.toString())
   };
   return mappedData;
 }
@@ -68,7 +68,7 @@ export function parseEventMoonbeamXcmSent({ event }: { event: Event }) {
   const rawEventData = JSON.parse(event.data.toString());
 
   const mappedData = {
-    originAddress: rawEventData[0].interior.x1[0].accountKey20.key,
+    originAddress: rawEventData[0].interior.x1[0].accountKey20.key
   };
   return mappedData;
 }
@@ -76,7 +76,7 @@ export function parseEventMoonbeamXcmSent({ event }: { event: Event }) {
 export function parseEventXTokens({ event }: { event: Event }) {
   const rawEventData = JSON.parse(event.data.toString());
   const mappedData = {
-    sender: rawEventData[0].toString(),
+    sender: rawEventData[0].toString()
   };
   return mappedData;
 }
@@ -101,30 +101,30 @@ type StellarAssetData = {
 };
 
 function extractStellarAssetInfo(data: StellarAssetData) {
-  if ('stellarNative' in data.stellar) {
+  if ("stellarNative" in data.stellar) {
     return {
-      Stellar: 'StellarNative',
+      Stellar: "StellarNative"
     };
-  } else if ('alphaNum4' in data.stellar) {
+  } else if ("alphaNum4" in data.stellar) {
     return {
       Stellar: {
         AlphaNum4: {
           code: hexToString(data.stellar.alphaNum4.code.toString()),
-          issuer: stellarHexToPublic(data.stellar.alphaNum4.issuer.toString()),
-        },
-      },
+          issuer: stellarHexToPublic(data.stellar.alphaNum4.issuer.toString())
+        }
+      }
     };
-  } else if ('alphaNum12' in data.stellar) {
+  } else if ("alphaNum12" in data.stellar) {
     return {
       Stellar: {
         AlphaNum12: {
           code: hexToString(data.stellar.alphaNum12.code.toString()),
-          issuer: stellarHexToPublic(data.stellar.alphaNum12.issuer.toString()),
-        },
-      },
+          issuer: stellarHexToPublic(data.stellar.alphaNum12.issuer.toString())
+        }
+      }
     };
   } else {
-    throw new Error('Invalid Stellar type');
+    throw new Error("Invalid Stellar type");
   }
 }
 
@@ -133,7 +133,7 @@ export function parseTokenDepositEvent({ event }: { event: Event }) {
   const mappedData = {
     currencyId: rawEventData[0],
     to: rawEventData[1].toString() as string,
-    amountRaw: new Big(rawEventData[2].toString()) as Big,
+    amountRaw: new Big(rawEventData[2].toString()) as Big
   };
   return mappedData;
 }

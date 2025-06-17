@@ -6,22 +6,22 @@ import {
   MoonpayPriceResponse,
   Networks,
   PriceProvider,
-  TransakPriceResponse,
-} from '@packages/shared';
-import { RequestHandler } from 'express';
-import httpStatus from 'http-status';
+  TransakPriceResponse
+} from "@packages/shared";
+import { RequestHandler } from "express";
+import httpStatus from "http-status";
 
 import {
   InvalidAmountError,
   InvalidParameterError,
   ProviderApiError,
   ProviderInternalError,
-  UnsupportedPairError,
-} from '../errors/providerErrors';
-import { PriceQuery } from '../middlewares/validators';
-import * as alchemyPayService from '../services/alchemypay/alchemypay.service';
-import * as moonpayService from '../services/moonpay/moonpay.service';
-import * as transakService from '../services/transak/transak.service';
+  UnsupportedPairError
+} from "../errors/providerErrors";
+import { PriceQuery } from "../middlewares/validators";
+import * as alchemyPayService from "../services/alchemypay/alchemypay.service";
+import * as moonpayService from "../services/moonpay/moonpay.service";
+import * as transakService from "../services/transak/transak.service";
 
 type AnyPrice = AlchemyPayPriceResponse | MoonpayPriceResponse | TransakPriceResponse;
 
@@ -30,7 +30,7 @@ type PriceHandler = (
   targetCurrency: Currency,
   amount: string,
   direction: Direction,
-  network?: Networks,
+  network?: Networks
 ) => Promise<AnyPrice>;
 
 const providerHandlers: Record<PriceProvider, PriceHandler> = {
@@ -39,7 +39,7 @@ const providerHandlers: Record<PriceProvider, PriceHandler> = {
   moonpay: async (sourceCurrency, targetCurrency, amount, direction) =>
     moonpayService.getPriceFor(sourceCurrency, targetCurrency, amount, direction),
   transak: async (sourceCurrency, targetCurrency, amount, direction, network) =>
-    transakService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network),
+    transakService.getPriceFor(sourceCurrency, targetCurrency, amount, direction, network)
 };
 
 const getPriceFromProvider = async (
@@ -48,39 +48,39 @@ const getPriceFromProvider = async (
   targetCurrency: Currency,
   amount: string,
   direction: Direction,
-  network?: Networks,
+  network?: Networks
 ) => providerHandlers[provider](sourceCurrency, targetCurrency, amount, direction, network);
 
 export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, PriceQuery> = async (req, res) => {
   const { provider, sourceCurrency, targetCurrency, amount, network, direction } = req.query;
 
-  if (!provider || typeof provider !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid provider parameter' });
+  if (!provider || typeof provider !== "string") {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid provider parameter" });
     return;
   }
 
   const providerLower = provider.toLowerCase() as PriceProvider;
 
-  if (!sourceCurrency || typeof sourceCurrency !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid sourceCurrency parameter' });
+  if (!sourceCurrency || typeof sourceCurrency !== "string") {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid sourceCurrency parameter" });
     return;
   }
 
-  if (!targetCurrency || typeof targetCurrency !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid targetCurrency parameter' });
+  if (!targetCurrency || typeof targetCurrency !== "string") {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid targetCurrency parameter" });
     return;
   }
 
-  if (!amount || typeof amount !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter' });
+  if (!amount || typeof amount !== "string") {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter" });
     return;
   }
 
-  const networkParam = network && typeof network === 'string' ? network : undefined;
+  const networkParam = network && typeof network === "string" ? network : undefined;
 
   try {
     if (!providerHandlers[providerLower]) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid provider' });
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid provider" });
       return;
     }
 
@@ -90,7 +90,7 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
       targetCurrency as Currency,
       amount,
       direction,
-      networkParam as Networks | undefined,
+      networkParam as Networks | undefined
     );
     res.json(price);
     // No need for return here, res.json() ends the response.
@@ -106,12 +106,12 @@ export const getPriceForProvider: RequestHandler<unknown, unknown, unknown, Pric
       res.status(httpStatus.BAD_REQUEST).json({ error: err.message });
     } else if (err instanceof ProviderInternalError) {
       // 502 Bad Gateway: The upstream provider had an internal issue. Log it.
-      console.error('Provider internal error:', err);
+      console.error("Provider internal error:", err);
       res.status(httpStatus.BAD_GATEWAY).json({ error: err.message });
     } else {
-      console.error('Unexpected server error:', err);
+      console.error("Unexpected server error:", err);
       res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-        error: 'An internal server error occurred while fetching the price.',
+        error: "An internal server error occurred while fetching the price."
       });
     }
   }
@@ -127,28 +127,28 @@ export const getAllPricesBundled: RequestHandler<
 
   // Input validation is handled by the middleware, but we need to ensure
   // the parameters are correctly typed for the service calls
-  if (!sourceCurrency || typeof sourceCurrency !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid sourceCurrency parameter' });
+  if (!sourceCurrency || typeof sourceCurrency !== "string") {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid sourceCurrency parameter" });
     return;
   }
 
-  if (!targetCurrency || typeof targetCurrency !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid targetCurrency parameter' });
+  if (!targetCurrency || typeof targetCurrency !== "string") {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid targetCurrency parameter" });
     return;
   }
 
-  if (!amount || typeof amount !== 'string') {
-    res.status(httpStatus.BAD_REQUEST).json({ error: 'Invalid amount parameter' });
+  if (!amount || typeof amount !== "string") {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid amount parameter" });
     return;
   }
 
   const source = sourceCurrency as Currency;
   const target = targetCurrency as Currency;
-  const networkParam = network && typeof network === 'string' ? network : undefined;
+  const networkParam = network && typeof network === "string" ? network : undefined;
 
-  const providersToQuery: PriceProvider[] = ['alchemypay', 'moonpay', 'transak'];
+  const providersToQuery: PriceProvider[] = ["alchemypay", "moonpay", "transak"];
 
-  const pricePromises = providersToQuery.map(async (provider) => {
+  const pricePromises = providersToQuery.map(async provider => {
     try {
       const price = await getPriceFromProvider(
         provider,
@@ -156,13 +156,13 @@ export const getAllPricesBundled: RequestHandler<
         target,
         amount,
         direction,
-        networkParam as Networks | undefined,
+        networkParam as Networks | undefined
       );
       // Return a consistent structure including the provider for easier mapping later
-      return { provider, status: 'fulfilled', value: price } as const;
+      return { provider, status: "fulfilled", value: price } as const;
     } catch (err) {
       // Catch errors here and return a rejected structure with the error
-      return { provider, status: 'rejected', reason: err } as const;
+      return { provider, status: "rejected", reason: err } as const;
     }
   });
 
@@ -171,16 +171,16 @@ export const getAllPricesBundled: RequestHandler<
 
   const response: AllPricesResponse = {};
 
-  results.forEach((result) => {
+  results.forEach(result => {
     // Promise.allSettled itself always fulfills. We need to check the status of our *inner* promise result.
-    if (result.status === 'fulfilled') {
+    if (result.status === "fulfilled") {
       const { provider, status, value, reason } = result.value;
 
-      if (status === 'fulfilled') {
-        response[provider] = { status: 'fulfilled', value };
+      if (status === "fulfilled") {
+        response[provider] = { status: "fulfilled", value };
       } else {
         let errorStatus: number = httpStatus.INTERNAL_SERVER_ERROR; // Default internal server error
-        let errorMessage = 'An unexpected error occurred with this provider.';
+        let errorMessage = "An unexpected error occurred with this provider.";
 
         if (reason instanceof ProviderApiError) {
           if (reason instanceof ProviderInternalError) {
@@ -203,15 +203,15 @@ export const getAllPricesBundled: RequestHandler<
         }
 
         response[provider] = {
-          status: 'rejected',
-          reason: { message: errorMessage, status: errorStatus },
+          status: "rejected",
+          reason: { message: errorMessage, status: errorStatus }
         };
       }
     } else {
       // This case indicates an issue with the Promise.allSettled structure itself or the mapping,
       // as our inner promises are designed to catch their errors.
       // Log this unexpected scenario for debugging.
-      console.error('Unexpected Promise.allSettled rejection:', result.reason);
+      console.error("Unexpected Promise.allSettled rejection:", result.reason);
       // For now, we won't add an entry for this provider if the outer promise rejects.
     }
   });

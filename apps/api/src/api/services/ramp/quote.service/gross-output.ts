@@ -8,25 +8,25 @@ import {
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getPendulumDetails,
-  isEvmTokenDetails,
-} from '@packages/shared';
-import { ApiPromise } from '@polkadot/api';
-import { Big } from 'big.js';
-import httpStatus from 'http-status';
-import logger from '../../../../config/logger';
-import { APIError } from '../../../errors/api-error';
-import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from '../../../helpers/contracts';
-import { TokenOutData, getTokenOutAmount } from '../../nablaReads/outAmount';
-import { ApiManager } from '../../pendulum/apiManager';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
-import { priceFeedService } from '../../priceFeed.service';
-import { RouteParams, SquidrouterRoute, createOnrampRouteParams, getRoute } from '../../transactions/squidrouter/route';
+  isEvmTokenDetails
+} from "@packages/shared";
+import { ApiPromise } from "@polkadot/api";
+import { Big } from "big.js";
+import httpStatus from "http-status";
+import logger from "../../../../config/logger";
+import { APIError } from "../../../errors/api-error";
+import { parseContractBalanceResponse, stringifyBigWithSignificantDecimals } from "../../../helpers/contracts";
+import { TokenOutData, getTokenOutAmount } from "../../nablaReads/outAmount";
+import { ApiManager } from "../../pendulum/apiManager";
+import { multiplyByPowerOfTen } from "../../pendulum/helpers";
+import { priceFeedService } from "../../priceFeed.service";
+import { RouteParams, SquidrouterRoute, createOnrampRouteParams, getRoute } from "../../transactions/squidrouter/route";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
   inputCurrency: RampCurrency;
   nablaOutputCurrency: RampCurrency;
-  rampType: 'on' | 'off';
+  rampType: "on" | "off";
   fromPolkadotDestination: DestinationType;
   toPolkadotDestination: DestinationType;
 }
@@ -55,13 +55,13 @@ async function getNablaSwapOutAmount(
   apiInstance: { api: ApiPromise },
   fromAmountString: string,
   inputTokenDetails: PendulumDetails,
-  outputTokenDetails: PendulumDetails,
+  outputTokenDetails: PendulumDetails
 ): Promise<TokenOutData> {
   return await getTokenOutAmount({
     api: apiInstance.api,
     fromAmountString,
     inputTokenDetails,
-    outputTokenDetails,
+    outputTokenDetails
   });
 }
 
@@ -70,13 +70,13 @@ async function getNablaSwapOutAmount(
  */
 export function getTokenDetailsForEvmDestination(
   finalOutputCurrency: OnChainToken,
-  finalEvmDestination: DestinationType,
+  finalEvmDestination: DestinationType
 ): EvmTokenDetails {
   const network = getNetworkFromDestination(finalEvmDestination);
   if (!network) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
-      message: 'Invalid EVM destination network',
+      message: "Invalid EVM destination network"
     });
   }
 
@@ -85,7 +85,7 @@ export function getTokenDetailsForEvmDestination(
   if (!tokenDetails || !isEvmTokenDetails(tokenDetails)) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
-      message: 'Invalid token details for EVM bridge',
+      message: "Invalid token details for EVM bridge"
     });
   }
 
@@ -98,22 +98,22 @@ export function getTokenDetailsForEvmDestination(
 function prepareSquidrouterRouteParams(
   intermediateAmountRaw: string,
   tokenDetails: EvmTokenDetails,
-  finalEvmDestination: DestinationType,
+  finalEvmDestination: DestinationType
 ): RouteParams {
   const network = getNetworkFromDestination(finalEvmDestination);
   if (!network) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
-      message: 'Invalid EVM destination network',
+      message: "Invalid EVM destination network"
     });
   }
 
   return createOnrampRouteParams(
-    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
+    "0x30a300612ab372cc73e53ffe87fb73d62ed68da3", // Placeholder address
     intermediateAmountRaw,
     tokenDetails,
     network,
-    '0x30a300612ab372cc73e53ffe87fb73d62ed68da3', // Placeholder address
+    "0x30a300612ab372cc73e53ffe87fb73d62ed68da3" // Placeholder address
   );
 }
 
@@ -126,7 +126,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams): Promise<Squidr
   if (!routeResult?.data?.route?.estimate) {
     throw new APIError({
       status: httpStatus.SERVICE_UNAVAILABLE,
-      message: 'Invalid Squidrouter response',
+      message: "Invalid Squidrouter response"
     });
   }
 
@@ -141,15 +141,13 @@ async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Pr
 
   try {
     // Get current GLMR price in USD from price feed service
-    const glmrPriceUSD = await priceFeedService.getCryptoPrice('moonbeam', 'usd');
+    const glmrPriceUSD = await priceFeedService.getCryptoPrice("moonbeam", "usd");
     const squidFeeUSD = squidRouterSwapValue.mul(glmrPriceUSD).toFixed(6);
     logger.debug(`Network fee calculated using GLMR price: $${glmrPriceUSD}, fee: $${squidFeeUSD}`);
     return squidFeeUSD;
   } catch (error) {
     // If price feed fails, log the error and use a fallback price
-    logger.error(
-      `Failed to get GLMR price, using fallback: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
+    logger.error(`Failed to get GLMR price, using fallback: ${error instanceof Error ? error.message : "Unknown error"}`);
     // Fallback to previous hardcoded value as safety measure
     const fallbackGlmrPrice = 0.08;
     const squidFeeUSD = squidRouterSwapValue.mul(fallbackGlmrPrice).toFixed(6);
@@ -164,12 +162,12 @@ async function calculateSquidrouterNetworkFee(routeResult: SquidrouterRoute): Pr
 function calculateFinalExchangeRate(
   finalGrossOutputAmount: string,
   originalInputAmountForRateCalc: string,
-  tokenDetails: EvmTokenDetails,
+  tokenDetails: EvmTokenDetails
 ): string {
   const finalOutputDecimal = parseContractBalanceResponse(tokenDetails.decimals, BigInt(finalGrossOutputAmount));
   return stringifyBigWithSignificantDecimals(
     finalOutputDecimal.preciseBigDecimal.div(new Big(originalInputAmountForRateCalc)),
-    4,
+    4
   );
 }
 
@@ -179,43 +177,37 @@ function calculateFinalExchangeRate(
  * Performs the initial Nabla swap on Pendulum
  */
 export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promise<NablaSwapResult> {
-  const {
-    inputAmountForSwap,
-    inputCurrency,
-    nablaOutputCurrency,
-    rampType,
-    fromPolkadotDestination,
-    toPolkadotDestination,
-  } = request;
+  const { inputAmountForSwap, inputCurrency, nablaOutputCurrency, rampType, fromPolkadotDestination, toPolkadotDestination } =
+    request;
 
   // Validate input amount
   if (!inputAmountForSwap || Big(inputAmountForSwap).lte(0)) {
     throw new APIError({
       status: httpStatus.BAD_REQUEST,
-      message: 'Input amount for swap must be greater than 0',
+      message: "Input amount for swap must be greater than 0"
     });
   }
 
   try {
     // Get API manager and Pendulum API
     const apiManager = ApiManager.getInstance();
-    const pendulumApi = await apiManager.getApi('pendulum');
+    const pendulumApi = await apiManager.getApi("pendulum");
 
     // Get token details for Pendulum
     const inputTokenPendulumDetails =
-      rampType === 'on'
+      rampType === "on"
         ? getPendulumDetails(inputCurrency)
         : getPendulumDetails(inputCurrency, getNetworkFromDestination(fromPolkadotDestination));
 
     const outputTokenPendulumDetails =
-      rampType === 'on'
+      rampType === "on"
         ? getPendulumDetails(nablaOutputCurrency, getNetworkFromDestination(toPolkadotDestination))
         : getPendulumDetails(nablaOutputCurrency);
 
     if (!inputTokenPendulumDetails || !outputTokenPendulumDetails) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Unable to get Pendulum token details',
+        message: "Unable to get Pendulum token details"
       });
     }
 
@@ -224,19 +216,19 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
       pendulumApi,
       inputAmountForSwap,
       inputTokenPendulumDetails,
-      outputTokenPendulumDetails,
+      outputTokenPendulumDetails
     );
 
     return {
       nablaOutputAmountRaw: swapResult.preciseQuotedAmountOut.rawBalance.toFixed(),
       nablaOutputAmountDecimal: swapResult.preciseQuotedAmountOut.preciseBigDecimal,
-      effectiveExchangeRate: swapResult.effectiveExchangeRate,
+      effectiveExchangeRate: swapResult.effectiveExchangeRate
     };
   } catch (error) {
-    logger.error('Error calculating Nabla swap output:', error);
+    logger.error("Error calculating Nabla swap output:", error);
     throw new APIError({
       status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate the quote. Please try a lower amount.',
+      message: "Failed to calculate the quote. Please try a lower amount."
     });
   }
 }
@@ -264,26 +256,26 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     const finalGrossOutputAmount = routeResult.route.estimate.toAmountMin;
     const finalGrossOutputAmountDecimal = parseContractBalanceResponse(
       tokenDetails.decimals,
-      BigInt(finalGrossOutputAmount),
+      BigInt(finalGrossOutputAmount)
     ).preciseBigDecimal;
 
     // Calculate final effective exchange rate
     const finalEffectiveExchangeRate = calculateFinalExchangeRate(
       finalGrossOutputAmount,
       originalInputAmountForRateCalc,
-      tokenDetails,
+      tokenDetails
     );
 
     return {
       finalGrossOutputAmountDecimal,
       networkFeeUSD,
-      finalEffectiveExchangeRate,
+      finalEffectiveExchangeRate
     };
   } catch (error) {
-    logger.error('Error calculating EVM bridge and network fee:', error);
+    logger.error("Error calculating EVM bridge and network fee:", error);
     throw new APIError({
       status: httpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Failed to calculate the quote. Please try a higher amount.',
+      message: "Failed to calculate the quote. Please try a higher amount."
     });
   }
 }

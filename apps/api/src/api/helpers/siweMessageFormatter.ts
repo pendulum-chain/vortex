@@ -21,7 +21,7 @@ class SignInMessage {
   readonly issuedAt: string;
 
   // fixed statement string
-  static readonly LOGIN_MESSAGE = ' wants you to sign in with your account: ';
+  static readonly LOGIN_MESSAGE = " wants you to sign in with your account: ";
 
   constructor(fields: SignInMessageFields) {
     this.scheme = fields.scheme;
@@ -40,29 +40,29 @@ class SignInMessage {
 
   static fromMessage(message: string): SignInMessage {
     const lines = message
-      .split('\n')
+      .split("\n")
       .map((line: string) => line.trim())
       .filter(Boolean);
 
-    const headerLine = lines.find((line) => line.includes(SignInMessage.LOGIN_MESSAGE)) ?? '';
-    const [domain, address] = headerLine.split(SignInMessage.LOGIN_MESSAGE).map((part) => part.trim());
+    const headerLine = lines.find(line => line.includes(SignInMessage.LOGIN_MESSAGE)) ?? "";
+    const [domain, address] = headerLine.split(SignInMessage.LOGIN_MESSAGE).map(part => part.trim());
 
     const getValue = (prefix: string): string => {
-      const line = lines.find((l) => l.startsWith(prefix)) ?? '';
-      return line.split(`${prefix}:`)[1]?.trim() ?? '';
+      const line = lines.find(l => l.startsWith(prefix)) ?? "";
+      return line.split(`${prefix}:`)[1]?.trim() ?? "";
     };
 
-    const nonce = getValue('Nonce');
-    const issuedAt = getValue('Issued At');
-    const expirationTime = getValue('Expiration Time');
+    const nonce = getValue("Nonce");
+    const issuedAt = getValue("Issued At");
+    const expirationTime = getValue("Expiration Time");
 
     return new SignInMessage({
-      scheme: 'https',
+      scheme: "https",
       domain,
       address,
       nonce,
       expirationTime: new Date(expirationTime).getTime(),
-      issuedAt: new Date(issuedAt).getTime(),
+      issuedAt: new Date(issuedAt).getTime()
     });
   }
 }

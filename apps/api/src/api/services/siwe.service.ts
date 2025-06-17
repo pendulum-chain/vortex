@@ -1,15 +1,15 @@
-import { signatureVerify } from '@polkadot/util-crypto';
-import { generateNonce } from 'siwe';
-import { http, createPublicClient } from 'viem';
-import { polygon } from 'viem/chains';
-import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from '../../constants/constants';
-import { deriveMemoFromAddress } from '../helpers/memoDerivation';
-import { SignInMessage } from '../helpers/siweMessageFormatter';
+import { signatureVerify } from "@polkadot/util-crypto";
+import { generateNonce } from "siwe";
+import { http, createPublicClient } from "viem";
+import { polygon } from "viem/chains";
+import { DEFAULT_LOGIN_EXPIRATION_TIME_HOURS } from "../../constants/constants";
+import { deriveMemoFromAddress } from "../helpers/memoDerivation";
+import { SignInMessage } from "../helpers/siweMessageFormatter";
 
 class ValidationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'SiweValidationError';
+    this.name = "SiweValidationError";
   }
 }
 
@@ -33,11 +33,11 @@ export const createAndSendNonce = async (address: string): Promise<{ nonce: stri
 export const verifySiweMessage = async (
   nonce: string,
   signature: string,
-  initialSiweMessage?: string,
+  initialSiweMessage?: string
 ): Promise<SignInMessage> => {
   const existingSiweDataForNonce = siweMessagesMap.get(nonce);
   if (!existingSiweDataForNonce) {
-    throw new ValidationError('Message not found, we have not sent this nonce or nonce is incorrect');
+    throw new ValidationError("Message not found, we have not sent this nonce or nonce is incorrect");
   }
 
   const siweMessage = existingSiweDataForNonce.siweMessage
@@ -49,37 +49,37 @@ export const verifySiweMessage = async (
   const { address } = existingSiweDataForNonce;
 
   if (!siweMessage) {
-    throw new Error('Message must be provided as a parameter if it has not been initially validated.');
+    throw new Error("Message must be provided as a parameter if it has not been initially validated.");
   }
 
   // verify with substrate (generic) or evm generic (using polygon public client)
   let valid = false;
-  if (address.startsWith('0x')) {
+  if (address.startsWith("0x")) {
     const publicClient = createPublicClient({
       chain: polygon,
-      transport: http(),
+      transport: http()
     });
     valid = await publicClient.verifyMessage({
       address: address as `0x${string}`,
       message: siweMessage.toMessage(), // Validation must be done on the message as string
-      signature: signature as `0x${string}`,
+      signature: signature as `0x${string}`
     });
-  } else if (address.startsWith('5')) {
+  } else if (address.startsWith("5")) {
     valid = signatureVerify(siweMessage.toMessage(), signature, address).isValid;
   } else {
     throw new ValidationError(`verifySiweMessage: Invalid address format: ${address}`);
   }
 
   if (!valid) {
-    throw new ValidationError('Invalid signature');
+    throw new ValidationError("Invalid signature");
   }
   // Perform additional checks to ensure message fields
   if (siweMessage.nonce !== nonce) {
-    throw new ValidationError('Nonce mismatch');
+    throw new ValidationError("Nonce mismatch");
   }
 
   if (siweMessage.expirationTime && new Date(siweMessage.expirationTime) < new Date()) {
-    throw new ValidationError('Message has expired');
+    throw new ValidationError("Message has expired");
   }
 
   return siweMessage;
@@ -89,12 +89,12 @@ export const verifySiweMessage = async (
 const verifyInitialMessageFields = (siweMessage: SignInMessage): void => {
   const { scheme, expirationTime } = siweMessage;
 
-  if (scheme !== 'https') {
-    throw new ValidationError('Scheme must be https');
+  if (scheme !== "https") {
+    throw new ValidationError("Scheme must be https");
   }
 
   if (!expirationTime || isNaN(new Date(expirationTime).getTime())) {
-    throw new ValidationError('Must define a valid expiration time');
+    throw new ValidationError("Must define a valid expiration time");
   }
 
   // Check if expiration is within a reasonable range from current time
@@ -107,19 +107,15 @@ const verifyInitialMessageFields = (siweMessage: SignInMessage): void => {
   const expectedMaxExpirationTimestamp = currentTime + expirationPeriodMs;
 
   if (expirationTimestamp < expectedMinExpirationTimestamp) {
-    throw new ValidationError('Expiration time is too low');
+    throw new ValidationError("Expiration time is too low");
   }
 
   if (expirationTimestamp > expectedMaxExpirationTimestamp) {
-    throw new ValidationError('Expiration time is too high');
+    throw new ValidationError("Expiration time is too high");
   }
 };
 
-export const verifyAndStoreSiweMessage = async (
-  nonce: string,
-  signature: string,
-  siweMessage: string,
-): Promise<string> => {
+export const verifyAndStoreSiweMessage = async (nonce: string, signature: string, siweMessage: string): Promise<string> => {
   const validatedMessage = await verifySiweMessage(nonce, signature, siweMessage);
 
   // Perform additional checks to ensure message fields are valid
@@ -127,7 +123,7 @@ export const verifyAndStoreSiweMessage = async (
 
   // Verification complete. Update the map and append the message.
   const siweData = siweMessagesMap.get(nonce);
-  if (!siweData) throw new ValidationError('Message data not found');
+  if (!siweData) throw new ValidationError("Message data not found");
 
   // Update the map with validated message
   siweData.siweMessage = validatedMessage;
@@ -145,7 +141,7 @@ export const verifyAndStoreSiweMessage = async (
 
 export const validateSignatureAndGetMemo = async (
   nonce: string | null,
-  userChallengeSignature: string | null,
+  userChallengeSignature: string | null
 ): Promise<string | null> => {
   if (!userChallengeSignature || !nonce) {
     return null; // Default memo value when single stellar account is used

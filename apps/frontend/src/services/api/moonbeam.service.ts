@@ -1,11 +1,11 @@
-import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from '@packages/shared';
-import { apiRequest } from './api-client';
+import { MoonbeamExecuteXcmRequest, MoonbeamExecuteXcmResponse } from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Moonbeam API endpoints
  */
 export class MoonbeamService {
-  private static readonly BASE_PATH = '/moonbeam';
+  private static readonly BASE_PATH = "/moonbeam";
 
   /**
    * Execute an XCM operation
@@ -15,6 +15,6 @@ export class MoonbeamService {
    */
   static async executeXcm(id: string, payload: string): Promise<MoonbeamExecuteXcmResponse> {
     const request: MoonbeamExecuteXcmRequest = { id, payload };
-    return apiRequest<MoonbeamExecuteXcmResponse>('post', `${this.BASE_PATH}/execute-xcm`, request);
+    return apiRequest<MoonbeamExecuteXcmResponse>("post", `${this.BASE_PATH}/execute-xcm`, request);
   }
 }

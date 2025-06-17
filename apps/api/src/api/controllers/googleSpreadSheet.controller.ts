@@ -1,14 +1,9 @@
-import 'dotenv/config';
-import { Request, Response } from 'express';
-import httpStatus from 'http-status';
-import { config } from '../../config/vars';
-import { APIError } from '../errors/api-error';
-import {
-  GoogleCredentials,
-  appendData,
-  getOrCreateSheet,
-  initGoogleSpreadsheet,
-} from '../services/spreadsheet.service';
+import "dotenv/config";
+import { Request, Response } from "express";
+import httpStatus from "http-status";
+import { config } from "../../config/vars";
+import { APIError } from "../errors/api-error";
+import { GoogleCredentials, appendData, getOrCreateSheet, initGoogleSpreadsheet } from "../services/spreadsheet.service";
 
 type SheetHeaderValues = readonly string[];
 
@@ -25,35 +20,35 @@ export async function storeDataInGoogleSpreadsheet(
   req: Request,
   res: Response,
   spreadsheetId: string,
-  sheetHeaderValues: SheetHeaderValues,
+  sheetHeaderValues: SheetHeaderValues
 ): Promise<Response<SpreadsheetResponse | SpreadsheetErrorResponse>> {
   try {
     // Ensure credentials are fully defined
     const credentials: GoogleCredentials = {
       email: config.spreadsheet.googleCredentials.email,
-      key: config.spreadsheet.googleCredentials.key,
+      key: config.spreadsheet.googleCredentials.key
     };
 
-    const sheet = await initGoogleSpreadsheet(spreadsheetId, credentials).then((doc) =>
-      getOrCreateSheet(doc, [...sheetHeaderValues]),
+    const sheet = await initGoogleSpreadsheet(spreadsheetId, credentials).then(doc =>
+      getOrCreateSheet(doc, [...sheetHeaderValues])
     );
 
     if (!sheet) {
       throw new APIError({
-        message: 'Failed to store data. Sheet unavailable.',
+        message: "Failed to store data. Sheet unavailable.",
         status: httpStatus.INTERNAL_SERVER_ERROR,
-        isPublic: true,
+        isPublic: true
       });
     }
 
     await appendData(sheet, req.body);
-    return res.status(httpStatus.OK).json({ message: 'Data stored successfully' });
+    return res.status(httpStatus.OK).json({ message: "Data stored successfully" });
   } catch (error) {
-    console.error('Error in storeData:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error("Error in storeData:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Failed to store data',
-      details: errorMessage,
+      error: "Failed to store data",
+      details: errorMessage
     });
   }
 }

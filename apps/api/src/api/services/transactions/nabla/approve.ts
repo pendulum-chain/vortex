@@ -1,18 +1,18 @@
-import { NABLA_ROUTER, PendulumDetails } from '@packages/shared';
-import { Extrinsic, ReadMessageResult, createExecuteMessageExtrinsic, readMessage } from '@pendulum-chain/api-solang';
-import { ApiPromise } from '@polkadot/api';
-import { Abi } from '@polkadot/api-contract';
-import Big from 'big.js';
-import logger from '../../../../config/logger';
-import { erc20WrapperAbi } from '../../../../contracts/ERC20Wrapper';
+import { NABLA_ROUTER, PendulumDetails } from "@packages/shared";
+import { Extrinsic, ReadMessageResult, createExecuteMessageExtrinsic, readMessage } from "@pendulum-chain/api-solang";
+import { ApiPromise } from "@polkadot/api";
+import { Abi } from "@polkadot/api-contract";
+import Big from "big.js";
+import logger from "../../../../config/logger";
+import { erc20WrapperAbi } from "../../../../contracts/ERC20Wrapper";
 import {
   createWriteOptions,
   defaultReadLimits,
   defaultWriteLimits,
-  parseContractBalanceResponse,
-} from '../../../helpers/contracts';
-import { API } from '../../pendulum/apiManager';
-import { ExtrinsicOptions } from './index';
+  parseContractBalanceResponse
+} from "../../../helpers/contracts";
+import { API } from "../../pendulum/apiManager";
+import { ExtrinsicOptions } from "./index";
 
 export interface PrepareNablaApproveParams {
   inputTokenDetails: PendulumDetails;
@@ -36,24 +36,24 @@ async function createApproveExtrinsic({
   spender,
   amount,
   contractAbi,
-  callerAddress,
+  callerAddress
 }: CreateApproveExtrinsicOptions) {
   const extrinsicOptions: ExtrinsicOptions = {
     callerAddress,
     contractDeploymentAddress: token,
-    messageName: 'approve',
+    messageName: "approve",
     messageArguments: [spender, amount],
     limits: { ...defaultWriteLimits, ...createWriteOptions(api) },
-    gasLimitTolerancePercentage: 10, // Allow 3 fold gas tolerance
+    gasLimitTolerancePercentage: 10 // Allow 3 fold gas tolerance
   };
 
   const { execution } = await createExecuteMessageExtrinsic({
     ...extrinsicOptions,
     api,
-    abi: contractAbi,
+    abi: contractAbi
   });
 
-  if (execution.type === 'onlyRpc') {
+  if (execution.type === "onlyRpc") {
     throw Error("Couldn't create approve extrinsic. Can't execute only-RPC");
   }
 
@@ -66,7 +66,7 @@ export async function prepareNablaApproveTransaction({
   inputTokenDetails,
   amountRaw,
   pendulumEphemeralAddress,
-  pendulumNode,
+  pendulumNode
 }: PrepareNablaApproveParams): Promise<{
   extrinsic: Extrinsic;
   extrinsicOptions: ExtrinsicOptions;
@@ -81,13 +81,13 @@ export async function prepareNablaApproveTransaction({
     api,
     contractDeploymentAddress: inputTokenDetails.pendulumErc20WrapperAddress,
     callerAddress: pendulumEphemeralAddress,
-    messageName: 'allowance',
+    messageName: "allowance",
     messageArguments: [pendulumEphemeralAddress, NABLA_ROUTER],
-    limits: defaultReadLimits,
+    limits: defaultReadLimits
   });
 
-  if (response.type !== 'success') {
-    const message = 'Could not load token allowance';
+  if (response.type !== "success") {
+    const message = "Could not load token allowance";
     logger.info(message);
     throw new Error(message);
   }
@@ -104,11 +104,11 @@ export async function prepareNablaApproveTransaction({
         token: inputTokenDetails.pendulumErc20WrapperAddress,
         spender: NABLA_ROUTER,
         contractAbi: erc20ContractAbi,
-        callerAddress: pendulumEphemeralAddress,
+        callerAddress: pendulumEphemeralAddress
       });
     } catch (e) {
       logger.info(`Could not approve token: ${e}`);
-      return Promise.reject('Could not approve token');
+      return Promise.reject("Could not approve token");
     }
   }
 

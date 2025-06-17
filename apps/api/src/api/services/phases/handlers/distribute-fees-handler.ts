@@ -1,14 +1,14 @@
-import { RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
-import { ApiPromise } from '@polkadot/api';
-import { SubmittableExtrinsic } from '@polkadot/api-base/types';
-import { DispatchError, EventRecord } from '@polkadot/types/interfaces';
-import { ISubmittableResult } from '@polkadot/types/types';
-import logger from '../../../../config/logger';
-import QuoteTicket from '../../../../models/quoteTicket.model';
-import RampState from '../../../../models/rampState.model';
-import { ApiManager } from '../../pendulum/apiManager';
-import { TransactionTemporarilyBannedError } from '../../xcm/send';
-import { BasePhaseHandler } from '../base-phase-handler';
+import { RampPhase, decodeSubmittableExtrinsic } from "@packages/shared";
+import { ApiPromise } from "@polkadot/api";
+import { SubmittableExtrinsic } from "@polkadot/api-base/types";
+import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
+import { ISubmittableResult } from "@polkadot/types/types";
+import logger from "../../../../config/logger";
+import QuoteTicket from "../../../../models/quoteTicket.model";
+import RampState from "../../../../models/rampState.model";
+import { ApiManager } from "../../pendulum/apiManager";
+import { TransactionTemporarilyBannedError } from "../../xcm/send";
+import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
  * Handler for distributing Network, Vortex, and Partner fees using a stablecoin on Pendulum
@@ -25,7 +25,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
-    return 'distributeFees';
+    return "distributeFees";
   }
 
   /**
@@ -40,17 +40,17 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     // Determine next phase
-    const nextPhase = state.type === 'on' ? 'subsidizePostSwap' : 'subsidizePreSwap';
+    const nextPhase = state.type === "on" ? "subsidizePostSwap" : "subsidizePreSwap";
 
     try {
       // Get the pre-signed fee distribution transaction. This can be undefined if no fees are to be distributed.
-      const distributeFeeTransaction = this.getPresignedTransaction(state, 'distributeFees');
+      const distributeFeeTransaction = this.getPresignedTransaction(state, "distributeFees");
       if (distributeFeeTransaction === undefined) {
-        logger.info('No fee distribution transaction data found. Skipping fee distribution.');
+        logger.info("No fee distribution transaction data found. Skipping fee distribution.");
         return this.transitionToNextPhase(state, nextPhase);
       }
 
-      const { api } = await this.apiManager.getApi('pendulum');
+      const { api } = await this.apiManager.getApi("pendulum");
 
       const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
       await this.submitTransaction(decodedTx, api);
@@ -58,7 +58,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
       logger.error(`Error distributing fees for ramp ${state.id}:`, error);
-      throw this.createRecoverableError(`Failed to distribute fees: ${error.message || 'Unknown error'}`);
+      throw this.createRecoverableError(`Failed to distribute fees: ${error.message || "Unknown error"}`);
     }
 
     return this.transitionToNextPhase(state, nextPhase);
@@ -70,7 +70,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
    * @param api The API instance
    * @returns The transaction hash
    */
-  private async submitTransaction(tx: SubmittableExtrinsic<'promise'>, api: ApiPromise): Promise<void> {
+  private async submitTransaction(tx: SubmittableExtrinsic<"promise">, api: ApiPromise): Promise<void> {
     logger.debug(`Submitting transaction to Pendulum for ${this.getPhaseName()} phase`);
     return await new Promise((resolve, reject) =>
       tx
@@ -79,11 +79,11 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
           // Try to find a 'system.ExtrinsicFailed' event
           const systemExtrinsicFailedEvent = events.find(
-            (record) => record.event.section === 'system' && record.event.method === 'ExtrinsicFailed',
+            record => record.event.section === "system" && record.event.method === "ExtrinsicFailed"
           );
 
           if (dispatchError) {
-            reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, 'distributeFees'));
+            reject(this.handleDispatchError(api, dispatchError, systemExtrinsicFailedEvent, "distributeFees"));
           }
 
           if (status.isFinalized) {
@@ -91,13 +91,13 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             resolve();
           }
         })
-        .catch((error) => {
+        .catch(error => {
           // 1012 means that the extrinsic is temporarily banned and indicates that the extrinsic was already sent
-          if (error?.message.includes('1012:')) {
-            reject(new TransactionTemporarilyBannedError('Transaction for transfer is temporarily banned.'));
+          if (error?.message.includes("1012:")) {
+            reject(new TransactionTemporarilyBannedError("Transaction for transfer is temporarily banned."));
           }
           reject(new Error(`Failed to do transfer: ${error}`));
-        }),
+        })
     );
   }
 
@@ -113,7 +113,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     api: ApiPromise,
     dispatchError: DispatchError,
     systemExtrinsicFailedEvent: EventRecord | undefined,
-    extrinsicCalled: string,
+    extrinsicCalled: string
   ): Promise<Error> {
     if (dispatchError?.isModule) {
       const decoded = api.registry.findMetaError(dispatchError.asModule);
@@ -126,11 +126,11 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const eventName =
         systemExtrinsicFailedEvent?.event.data && systemExtrinsicFailedEvent?.event.data.length > 0
           ? systemExtrinsicFailedEvent?.event.data[0].toString()
-          : 'Unknown';
+          : "Unknown";
 
       const {
         phase,
-        event: { method, section },
+        event: { method, section }
       } = systemExtrinsicFailedEvent;
       logger.error(`Extrinsic failed in phase ${phase.toString()} with ${section}.${method}:: ${eventName}`);
 

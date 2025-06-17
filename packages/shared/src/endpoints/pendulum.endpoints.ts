@@ -5,7 +5,7 @@ export interface PendulumFundEphemeralRequest {
 }
 
 export interface PendulumFundEphemeralResponse {
-  status: 'success';
+  status: "success";
   data: undefined;
 }
 

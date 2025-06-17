@@ -1,6 +1,6 @@
-import { FiatTokenDetails } from '@packages/shared';
-import { FC, HTMLAttributes } from 'react';
-import { useGetAssetIcon } from '../../hooks/useGetAssetIcon';
+import { FiatTokenDetails } from "@packages/shared";
+import { FC, HTMLAttributes } from "react";
+import { useGetAssetIcon } from "../../hooks/useGetAssetIcon";
 
 interface Props extends HTMLAttributes<HTMLImageElement> {
   fiat: FiatTokenDetails;

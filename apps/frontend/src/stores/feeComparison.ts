@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface FeeComparisonStore {
   feeComparisonRef: React.RefObject<HTMLDivElement | null> | null;
@@ -7,9 +7,9 @@ interface FeeComparisonStore {
   setTrackPrice: (trackPrice: boolean) => void;
 }
 
-export const useFeeComparisonStore = create<FeeComparisonStore>((set) => ({
+export const useFeeComparisonStore = create<FeeComparisonStore>(set => ({
   feeComparisonRef: null,
-  setFeeComparisonRef: (ref) => set({ feeComparisonRef: ref }),
+  setFeeComparisonRef: ref => set({ feeComparisonRef: ref }),
   trackPrice: false,
-  setTrackPrice: (trackPrice) => set({ trackPrice }),
+  setTrackPrice: trackPrice => set({ trackPrice })
 }));

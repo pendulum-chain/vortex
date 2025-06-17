@@ -8,21 +8,21 @@ import {
   QuoteFeeStructure,
   QuoteResponse,
   RampCurrency,
-  getOnChainTokenDetailsOrDefault,
-} from '@packages/shared';
-import Big from 'big.js';
-import httpStatus from 'http-status';
-import { v4 as uuidv4 } from 'uuid';
-import logger from '../../../../config/logger';
-import Partner from '../../../../models/partner.model';
-import QuoteTicket, { QuoteTicketMetadata } from '../../../../models/quoteTicket.model';
-import { APIError } from '../../../errors/api-error';
-import { multiplyByPowerOfTen } from '../../pendulum/helpers';
-import { priceFeedService } from '../../priceFeed.service';
-import { BaseRampService } from '../base.service';
-import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput } from './gross-output';
-import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from './helpers';
-import { calculateFeeComponents, calculatePreNablaDeductibleFees } from './quote-fees';
+  getOnChainTokenDetailsOrDefault
+} from "@packages/shared";
+import Big from "big.js";
+import httpStatus from "http-status";
+import { v4 as uuidv4 } from "uuid";
+import logger from "../../../../config/logger";
+import Partner from "../../../../models/partner.model";
+import QuoteTicket, { QuoteTicketMetadata } from "../../../../models/quoteTicket.model";
+import { APIError } from "../../../errors/api-error";
+import { multiplyByPowerOfTen } from "../../pendulum/helpers";
+import { priceFeedService } from "../../priceFeed.service";
+import { BaseRampService } from "../base.service";
+import { calculateEvmBridgeAndNetworkFee, calculateNablaSwapOutput } from "./gross-output";
+import { getTargetFiatCurrency, trimTrailingZeros, validateChainSupport } from "./helpers";
+import { calculateFeeComponents, calculatePreNablaDeductibleFees } from "./quote-fees";
 
 export class QuoteService extends BaseRampService {
   public async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
@@ -35,8 +35,8 @@ export class QuoteService extends BaseRampService {
       partner = await Partner.findOne({
         where: {
           name: request.partnerId,
-          isActive: true,
-        },
+          isActive: true
+        }
       });
 
       // If partnerId (name) was provided but not found or not active, log a warning and proceed without a partner
@@ -46,11 +46,7 @@ export class QuoteService extends BaseRampService {
     }
 
     // Determine the target fiat currency for fees
-    const targetFeeFiatCurrency = getTargetFiatCurrency(
-      request.rampType,
-      request.inputCurrency,
-      request.outputCurrency,
-    );
+    const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
     // b. Calculate Pre-Nabla Deductible Fees
     const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
@@ -60,7 +56,7 @@ export class QuoteService extends BaseRampService {
       request.rampType,
       request.from,
       request.to,
-      request.partnerId,
+      request.partnerId
     );
 
     // c. Calculate inputAmountForNablaSwap
@@ -68,7 +64,7 @@ export class QuoteService extends BaseRampService {
     const preNablaDeductibleFeeInInputCurrency = await priceFeedService.convertCurrency(
       preNablaDeductibleFeeAmount.toString(),
       feeCurrency,
-      request.inputCurrency,
+      request.inputCurrency
     );
 
     const inputAmountForNablaSwap = new Big(request.inputAmount).minus(preNablaDeductibleFeeInInputCurrency);
@@ -77,7 +73,7 @@ export class QuoteService extends BaseRampService {
     if (inputAmountForNablaSwap.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Input amount too low to cover pre-Nabla deductible fees',
+        message: "Input amount too low to cover pre-Nabla deductible fees"
       });
     }
 
@@ -86,9 +82,9 @@ export class QuoteService extends BaseRampService {
     let nablaOutputCurrency: RampCurrency;
     let toPolkadotDestination: DestinationType;
 
-    if (request.rampType === 'on') {
+    if (request.rampType === "on") {
       // On-Ramp: intermediate currency on Pendulum/Moonbeam
-      if (request.to === 'assethub') {
+      if (request.to === "assethub") {
         nablaOutputCurrency = request.outputCurrency; // Direct to target OnChainToken
         toPolkadotDestination = Networks.AssetHub;
       } else {
@@ -97,16 +93,16 @@ export class QuoteService extends BaseRampService {
       }
     } else {
       // Off-Ramp: fiat-representative token on Pendulum
-      if (request.to === 'pix') {
+      if (request.to === "pix") {
         nablaOutputCurrency = FiatToken.BRL;
-      } else if (request.to === 'sepa') {
+      } else if (request.to === "sepa") {
         nablaOutputCurrency = FiatToken.EURC;
-      } else if (request.to === 'cbu') {
+      } else if (request.to === "cbu") {
         nablaOutputCurrency = FiatToken.ARS;
       } else {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
-          message: `Unsupported off-ramp destination: ${request.to}`,
+          message: `Unsupported off-ramp destination: ${request.to}`
         });
       }
       toPolkadotDestination = Networks.Pendulum;
@@ -118,8 +114,8 @@ export class QuoteService extends BaseRampService {
       nablaOutputCurrency,
       rampType: request.rampType,
       fromPolkadotDestination:
-        request.rampType === 'on' ? request.from : request.from === 'assethub' ? Networks.AssetHub : Networks.Moonbeam,
-      toPolkadotDestination,
+        request.rampType === "on" ? request.from : request.from === "assethub" ? Networks.AssetHub : Networks.Moonbeam,
+      toPolkadotDestination
     });
 
     // e. Calculate Full Fee Breakdown
@@ -129,7 +125,7 @@ export class QuoteService extends BaseRampService {
       vortexFee,
       anchorFee,
       partnerMarkupFee,
-      feeCurrency: calculatedFeeCurrency,
+      feeCurrency: calculatedFeeCurrency
     } = await calculateFeeComponents({
       inputAmount: request.inputAmount,
       outputAmountOfframp,
@@ -138,7 +134,7 @@ export class QuoteService extends BaseRampService {
       to: request.to,
       partnerName: request.partnerId,
       inputCurrency: request.inputCurrency,
-      outputCurrency: request.outputCurrency,
+      outputCurrency: request.outputCurrency
     });
 
     // f. Aggregate and Finalize Fees
@@ -153,7 +149,7 @@ export class QuoteService extends BaseRampService {
       partnerMarkupFeeFiat = await priceFeedService.convertCurrency(
         partnerMarkupFee,
         calculatedFeeCurrency,
-        targetFeeFiatCurrency,
+        targetFeeFiatCurrency
       );
     }
 
@@ -164,22 +160,22 @@ export class QuoteService extends BaseRampService {
     const partnerMarkupFeeUsd = await priceFeedService.convertCurrency(
       partnerMarkupFeeFiat,
       targetFeeFiatCurrency,
-      usdCurrency,
+      usdCurrency
     );
 
     // g. Handle EVM Bridge/Swap (If On-Ramp to EVM non-AssetHub)
-    let squidRouterNetworkFeeUSD = '0';
+    let squidRouterNetworkFeeUSD = "0";
     let finalGrossOutputAmountDecimal = nablaSwapResult.nablaOutputAmountDecimal;
     let outputAmountMoonbeamRaw = nablaSwapResult.nablaOutputAmountRaw;
 
-    if (request.rampType === 'on' && request.to !== 'assethub') {
+    if (request.rampType === "on" && request.to !== "assethub") {
       // Do a first call to get a rough estimate of network fees
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
         intermediateCurrencyOnEvm: EvmToken.USDC as OnChainToken,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         finalEvmDestination: request.to,
-        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
+        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString()
       });
       squidRouterNetworkFeeUSD = preliminaryResult.networkFeeUSD;
 
@@ -190,7 +186,7 @@ export class QuoteService extends BaseRampService {
         .minus(squidRouterNetworkFeeUSD);
       outputAmountMoonbeamRaw = multiplyByPowerOfTen(
         outputAmountMoonbeamDecimal,
-        getOnChainTokenDetailsOrDefault(Networks.Moonbeam, usdCurrency).pendulumDecimals,
+        getOnChainTokenDetailsOrDefault(Networks.Moonbeam, usdCurrency).pendulumDecimals
       ).toString();
 
       // Do a second call with all fees deducted to get the final gross output amount
@@ -199,7 +195,7 @@ export class QuoteService extends BaseRampService {
         intermediateCurrencyOnEvm: EvmToken.USDC as OnChainToken,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         finalEvmDestination: request.to,
-        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
+        originalInputAmountForRateCalc: inputAmountForNablaSwap.toString()
       });
 
       finalGrossOutputAmountDecimal = new Big(evmBridgeResult.finalGrossOutputAmountDecimal);
@@ -208,7 +204,7 @@ export class QuoteService extends BaseRampService {
     const squidRouterNetworkFeeFiat = await priceFeedService.convertCurrency(
       squidRouterNetworkFeeUSD,
       usdCurrency,
-      targetFeeFiatCurrency,
+      targetFeeFiatCurrency
     );
     // Network fee is only the Squidrouter fee for now
     const networkFeeFiatForTotal = squidRouterNetworkFeeFiat;
@@ -222,17 +218,13 @@ export class QuoteService extends BaseRampService {
 
     // Network fee is only the Squidrouter fee for now
     const totalNetworkFeeUsd = squidRouterNetworkFeeUSD;
-    const totalFeeUsd = new Big(totalNetworkFeeUsd)
-      .plus(vortexFeeUsd)
-      .plus(anchorFeeUsd)
-      .plus(partnerMarkupFeeUsd)
-      .toFixed(6);
+    const totalFeeUsd = new Big(totalNetworkFeeUsd).plus(vortexFeeUsd).plus(anchorFeeUsd).plus(partnerMarkupFeeUsd).toFixed(6);
 
     // h. Calculate Final Net Output Amount
     let finalNetOutputAmount: Big;
 
-    if (request.rampType === 'on') {
-      if (request.to === 'assethub') {
+    if (request.rampType === "on") {
+      if (request.to === "assethub") {
         // Convert totalFeeFiat to output currency
         const totalFeeInOutputCurrency = await priceFeedService.convertCurrency(
           // We already deducted pre-Nabla fees in the earlier calculations, so we add them back here so we don't double-deduct
@@ -240,7 +232,7 @@ export class QuoteService extends BaseRampService {
             .minus(preNablaDeductibleFeeAmount)
             .toString(),
           targetFeeFiatCurrency,
-          request.outputCurrency,
+          request.outputCurrency
         );
         finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputCurrency);
       } else {
@@ -255,7 +247,7 @@ export class QuoteService extends BaseRampService {
           .minus(preNablaDeductibleFeeAmount)
           .toString(),
         targetFeeFiatCurrency,
-        request.outputCurrency,
+        request.outputCurrency
       );
       finalNetOutputAmount = finalGrossOutputAmountDecimal.minus(totalFeeInOutputFiat);
     }
@@ -264,12 +256,12 @@ export class QuoteService extends BaseRampService {
     if (finalNetOutputAmount.lte(0)) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Input amount too low to cover calculated fees',
+        message: "Input amount too low to cover calculated fees"
       });
     }
 
     const finalNetOutputAmountStr =
-      request.rampType === 'on' ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
+      request.rampType === "on" ? finalNetOutputAmount.toFixed(6, 0) : finalNetOutputAmount.toFixed(2, 0);
 
     // i. Store and Return Quote
     const feeToStore: QuoteFeeStructure = {
@@ -278,7 +270,7 @@ export class QuoteService extends BaseRampService {
       anchor: anchorFeeFiat,
       partnerMarkup: partnerMarkupFeeFiat,
       total: totalFeeFiat,
-      currency: targetFeeFiatCurrency,
+      currency: targetFeeFiatCurrency
     };
 
     const usdFeeStructure = {
@@ -287,15 +279,15 @@ export class QuoteService extends BaseRampService {
       anchor: anchorFeeUsd,
       partnerMarkup: partnerMarkupFeeUsd,
       total: totalFeeUsd,
-      currency: 'USD',
+      currency: "USD"
     };
 
     // This is the final net output amount before anchor fees are deducted
     const offrampAmountBeforeAnchorFees =
-      request.rampType === 'off' ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
+      request.rampType === "off" ? new Big(finalNetOutputAmountStr).plus(anchorFeeFiat).toFixed() : undefined;
 
     // This is the amount that will end up on Moonbeam just before doing the final step with the squidrouter transaction
-    const onrampOutputAmountMoonbeamRaw = request.rampType === 'on' ? outputAmountMoonbeamRaw : undefined;
+    const onrampOutputAmountMoonbeamRaw = request.rampType === "on" ? outputAmountMoonbeamRaw : undefined;
 
     // Create QuoteTicket
     const quote = await QuoteTicket.create({
@@ -310,12 +302,12 @@ export class QuoteService extends BaseRampService {
       fee: feeToStore,
       partnerId: partner?.id || null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
-      status: 'pending',
+      status: "pending",
       metadata: {
         onrampOutputAmountMoonbeamRaw,
         offrampAmountBeforeAnchorFees,
-        usdFeeStructure,
-      } as QuoteTicketMetadata,
+        usdFeeStructure
+      } as QuoteTicketMetadata
     });
 
     // Format and return the response
@@ -325,7 +317,7 @@ export class QuoteService extends BaseRampService {
       anchor: trimTrailingZeros(anchorFeeFiat),
       partnerMarkup: trimTrailingZeros(partnerMarkupFeeFiat),
       total: trimTrailingZeros(totalFeeFiat),
-      currency: targetFeeFiatCurrency,
+      currency: targetFeeFiatCurrency
     };
 
     return {
@@ -338,7 +330,7 @@ export class QuoteService extends BaseRampService {
       outputAmount: trimTrailingZeros(finalNetOutputAmountStr),
       outputCurrency: quote.outputCurrency,
       fee: responseFeeStructure,
-      expiresAt: quote.expiresAt,
+      expiresAt: quote.expiresAt
     };
   }
 
@@ -355,7 +347,7 @@ export class QuoteService extends BaseRampService {
       anchor: trimTrailingZeros(quote.fee.anchor),
       partnerMarkup: trimTrailingZeros(quote.fee.partnerMarkup),
       total: trimTrailingZeros(quote.fee.total),
-      currency: quote.fee.currency,
+      currency: quote.fee.currency
     };
 
     return {
@@ -368,7 +360,7 @@ export class QuoteService extends BaseRampService {
       outputAmount: trimTrailingZeros(quote.outputAmount),
       outputCurrency: quote.outputCurrency,
       fee: responseFeeStructure,
-      expiresAt: quote.expiresAt,
+      expiresAt: quote.expiresAt
     };
   }
 }

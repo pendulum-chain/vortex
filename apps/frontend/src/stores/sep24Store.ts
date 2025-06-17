@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { IAnchorSessionParams, ISep24Intermediate } from '../types/sep';
+import { create } from "zustand";
+import { IAnchorSessionParams, ISep24Intermediate } from "../types/sep";
 
 export interface Sep24State {
   anchorSessionParams: IAnchorSessionParams | undefined;
@@ -28,18 +28,18 @@ const useSep24Store = create<Sep24Store>()((set, get) => ({
   cachedAnchorUrl: undefined,
 
   actions: {
-    setAnchorSessionParams: (params) => set({ anchorSessionParams: params }),
-    setInitialResponse: (response) => {
+    setAnchorSessionParams: params => set({ anchorSessionParams: params }),
+    setInitialResponse: response => {
       set({ cachedAnchorUrl: response?.url });
       set({ initialResponse: response });
     },
-    setUrlInterval: (interval) => set({ urlInterval: interval }),
+    setUrlInterval: interval => set({ urlInterval: interval }),
 
     reset: () =>
       set({
         anchorSessionParams: undefined,
         initialResponse: undefined,
-        urlInterval: undefined,
+        urlInterval: undefined
       }),
 
     cleanup: () => {
@@ -52,12 +52,12 @@ const useSep24Store = create<Sep24Store>()((set, get) => ({
         actions.setInitialResponse(undefined);
         actions.setAnchorSessionParams(undefined);
       }
-    },
-  },
+    }
+  }
 }));
 
-export const useSep24Actions = () => useSep24Store((state) => state.actions);
-export const useSep24InitialResponse = () => useSep24Store((state) => state.initialResponse);
-export const useSep24UrlInterval = () => useSep24Store((state) => state.urlInterval);
-export const useSep24AnchorSessionParams = () => useSep24Store((state) => state.anchorSessionParams);
-export const useSep24StoreCachedAnchorUrl = () => useSep24Store((state) => state.cachedAnchorUrl);
+export const useSep24Actions = () => useSep24Store(state => state.actions);
+export const useSep24InitialResponse = () => useSep24Store(state => state.initialResponse);
+export const useSep24UrlInterval = () => useSep24Store(state => state.urlInterval);
+export const useSep24AnchorSessionParams = () => useSep24Store(state => state.anchorSessionParams);
+export const useSep24StoreCachedAnchorUrl = () => useSep24Store(state => state.cachedAnchorUrl);

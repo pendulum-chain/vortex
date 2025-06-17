@@ -1,15 +1,15 @@
-import { FiatToken, RampPhase, getAnyFiatTokenDetailsMoonbeam } from '@packages/shared';
-import Big from 'big.js';
+import { FiatToken, RampPhase, getAnyFiatTokenDetailsMoonbeam } from "@packages/shared";
+import Big from "big.js";
 
-import { moonbeam } from 'viem/chains';
-import logger from '../../../../config/logger';
-import RampState from '../../../../models/rampState.model';
-import { BrlaApiService } from '../../brla/brlaApiService';
-import { BrlaTeleportService } from '../../brla/brlaTeleportService';
-import { generateReferenceLabel } from '../../brla/helpers';
-import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from '../../moonbeam/balance';
-import { BasePhaseHandler } from '../base-phase-handler';
-import { StateMetadata } from '../meta-state-types';
+import { moonbeam } from "viem/chains";
+import logger from "../../../../config/logger";
+import RampState from "../../../../models/rampState.model";
+import { BrlaApiService } from "../../brla/brlaApiService";
+import { BrlaTeleportService } from "../../brla/brlaTeleportService";
+import { generateReferenceLabel } from "../../brla/helpers";
+import { BalanceCheckError, BalanceCheckErrorType, checkEvmBalancePeriodically } from "../../moonbeam/balance";
+import { BasePhaseHandler } from "../base-phase-handler";
+import { StateMetadata } from "../meta-state-types";
 
 // The rationale for these difference is that it allows for a finer check over the payment timeout in
 // case of service restart. A smaller timeout for the balance check loop allows to get out to the outer
@@ -19,15 +19,14 @@ const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
-    return 'brlaTeleport';
+    return "brlaTeleport";
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw } =
-      state.state as StateMetadata;
+    const { taxId, moonbeamEphemeralAddress, inputAmountUnits, inputAmountBeforeSwapRaw } = state.state as StateMetadata;
 
     if (!taxId || !moonbeamEphemeralAddress || !inputAmountUnits || !inputAmountBeforeSwapRaw) {
-      throw new Error('BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.');
+      throw new Error("BrlaTeleportPhaseHandler: State metadata corrupted. This is a bug.");
     }
 
     const teleportService = BrlaTeleportService.getInstance();
@@ -41,27 +40,27 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
       const subaccount = await brlaApiService.getSubaccount(taxId);
 
       if (!subaccount) {
-        throw new Error('Subaccount not found');
+        throw new Error("Subaccount not found");
       }
       subaccountId = subaccount.id;
 
       memo = generateReferenceLabel(state.quoteId);
       logger.info(
-        `Requesting teleport for ${subaccountId} with ${inputAmountBrla} BRLA to ${moonbeamEphemeralAddress} and memo ${memo}`,
+        `Requesting teleport for ${subaccountId} with ${inputAmountBrla} BRLA to ${moonbeamEphemeralAddress} and memo ${memo}`
       );
 
       await teleportService.requestTeleport(
         subaccountId,
         Number(inputAmountBrla),
         moonbeamEphemeralAddress as `0x${string}`,
-        memo,
+        memo
       );
 
       // now we wait and verify that funds have arrived at the actual destination ephemeral.
     } catch (e) {
-      logger.error('Error in brlaTeleport', e);
+      logger.error("Error in brlaTeleport", e);
       throw new Error(
-        `BrlaTeleportPhaseHandler: Failed to trigger BRLA pay in. Cause: ${e instanceof Error ? e.message : String(e)}`,
+        `BrlaTeleportPhaseHandler: Failed to trigger BRLA pay in. Cause: ${e instanceof Error ? e.message : String(e)}`
       );
     }
 
@@ -76,20 +75,20 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         inputAmountBeforeSwapRaw,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        moonbeam,
+        moonbeam
       );
 
       // Add delay to ensure the transaction is settled
-      await new Promise((resolve) => setTimeout(resolve, 30000)); // 30 seconds.
+      await new Promise(resolve => setTimeout(resolve, 30000)); // 30 seconds.
     } catch (error) {
       if (!(error instanceof BalanceCheckError)) throw error;
 
       const isCheckTimeout = error.type === BalanceCheckErrorType.Timeout;
       if (isCheckTimeout && this.isPaymentTimeoutReached(state)) {
-        logger.error('Payment timeout. Cancelling ramp.');
+        logger.error("Payment timeout. Cancelling ramp.");
 
         teleportService.cancelPendingTeleport(subaccountId, memo);
-        return this.transitionToNextPhase(state, 'failed');
+        return this.transitionToNextPhase(state, "failed");
       }
 
       throw isCheckTimeout
@@ -97,15 +96,13 @@ export class BrlaTeleportPhaseHandler extends BasePhaseHandler {
         : new Error(`Error checking Moonbeam balance: ${error}`);
     }
 
-    return this.transitionToNextPhase(state, 'fundEphemeral');
+    return this.transitionToNextPhase(state, "fundEphemeral");
   }
 
   protected isPaymentTimeoutReached(state: RampState): boolean {
-    const thisPhaseEntry = state.phaseHistory.find(
-      (phaseHistoryEntry) => phaseHistoryEntry.phase === this.getPhaseName(),
-    );
+    const thisPhaseEntry = state.phaseHistory.find(phaseHistoryEntry => phaseHistoryEntry.phase === this.getPhaseName());
     if (!thisPhaseEntry) {
-      throw new Error('BrlaTeleportPhaseHandler: Phase not found in history. State corrupted.');
+      throw new Error("BrlaTeleportPhaseHandler: Phase not found in history. State corrupted.");
     }
 
     const initialTimestamp = new Date(thisPhaseEntry.timestamp);

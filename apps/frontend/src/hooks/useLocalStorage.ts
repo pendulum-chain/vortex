@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { storageService } from '../services/storage/local';
-import { Storage } from '../services/storage/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { storageService } from "../services/storage/local";
+import { Storage } from "../services/storage/types";
 
 export enum LocalStorageKeys {
-  RATING = 'RATING',
-  SELECTED_NETWORK = 'SELECTED_NETWORK',
-  TRIGGER_ACCOUNT_EVM = 'TRIGGER_ACCOUNT_EVM',
-  TRIGGER_ACCOUNT_POLKADOT = 'TRIGGER_ACCOUNT_POLKADOT',
-  SELECTED_POLKADOT_WALLET = 'SELECTED_POLKADOT_WALLET',
-  SELECTED_POLKADOT_ACCOUNT = 'SELECTED_POLKADOT_ACCOUNT',
-  FIRED_INITIALIZATION_EVENTS = 'FIRED_INITIALIZATION_EVENTS',
-  TERMS_AND_CONDITIONS = 'TERMS_AND_CONDITIONS',
-  RAMPING_STATE = 'RAMPING_STATE',
-  REGISTER_KEY_LOCAL_STORAGE = 'rampRegisterKey',
-  START_KEY_LOCAL_STORAGE = 'rampStartKey',
+  RATING = "RATING",
+  SELECTED_NETWORK = "SELECTED_NETWORK",
+  TRIGGER_ACCOUNT_EVM = "TRIGGER_ACCOUNT_EVM",
+  TRIGGER_ACCOUNT_POLKADOT = "TRIGGER_ACCOUNT_POLKADOT",
+  SELECTED_POLKADOT_WALLET = "SELECTED_POLKADOT_WALLET",
+  SELECTED_POLKADOT_ACCOUNT = "SELECTED_POLKADOT_ACCOUNT",
+  FIRED_INITIALIZATION_EVENTS = "FIRED_INITIALIZATION_EVENTS",
+  TERMS_AND_CONDITIONS = "TERMS_AND_CONDITIONS",
+  RAMPING_STATE = "RAMPING_STATE",
+  REGISTER_KEY_LOCAL_STORAGE = "rampRegisterKey",
+  START_KEY_LOCAL_STORAGE = "rampStartKey"
 }
 
 export const debounce = <T extends unknown[]>(func: (...args: T) => void, timeout = 300) => {
@@ -69,7 +69,7 @@ const getState = <T>(key: string, defaultValue: T, parse: boolean, expire?: numb
   return defaultValue !== undefined
     ? ({
         ...defaultValue,
-        ...parsed,
+        ...parsed
       } as T)
     : parsed;
 };
@@ -79,11 +79,11 @@ export const useLocalStorage = <T>({
   defaultValue,
   debounce: debounceTime,
   parse,
-  expire,
+  expire
 }: UseLocalStorageProps<T>): UseLocalStorageResponse<T> => {
   type TResponse = UseLocalStorageResponse<T>;
   const firstRef = useRef(false);
-  const storageSet = useMemo<Storage['set']>(() => {
+  const storageSet = useMemo<Storage["set"]>(() => {
     const internalSet = (key: string, value: unknown) => {
       storageService.set(key, value);
       if (expire !== undefined) storageService.set(`${key}_`, Date.now());
@@ -93,27 +93,27 @@ export const useLocalStorage = <T>({
 
   const [state, setState] = useState<T>(() => getState<T>(key, defaultValue as T, !!parse, expire));
 
-  const set = useCallback<TResponse['set']>(
-    (value) => {
+  const set = useCallback<TResponse["set"]>(
+    value => {
       storageSet(key, value);
       setState(value);
     },
-    [key, storageSet],
+    [key, storageSet]
   );
-  const clear = useCallback<TResponse['clear']>(() => {
+  const clear = useCallback<TResponse["clear"]>(() => {
     storageService.remove(key);
     storageService.remove(`${key}_`);
     setState(defaultValue as T);
   }, [defaultValue, key]);
-  const merge = useCallback<TResponse['merge']>(
-    (value) => {
-      setState((prev) => {
-        const newVal = typeof value === 'function' ? value(prev) : ({ ...prev, ...value } as T);
+  const merge = useCallback<TResponse["merge"]>(
+    value => {
+      setState(prev => {
+        const newVal = typeof value === "function" ? value(prev) : ({ ...prev, ...value } as T);
         storageSet(key, newVal);
         return newVal;
       });
     },
-    [key, storageSet],
+    [key, storageSet]
   );
 
   useEffect(() => {

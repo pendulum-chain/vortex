@@ -1,8 +1,8 @@
-import { Wallet } from '@talismn/connect-wallets';
-import { useTranslation } from 'react-i18next';
+import { Wallet } from "@talismn/connect-wallets";
+import { useTranslation } from "react-i18next";
 
-import { WalletConnect } from '../WalletConnect';
-import { WalletsListItem } from './WalletsListItem';
+import { WalletConnect } from "../WalletConnect";
+import { WalletsListItem } from "./WalletsListItem";
 
 interface ConnectWalletListProps {
   wallets?: Wallet[];
@@ -14,7 +14,7 @@ export function ConnectModalWalletsList({ wallets, onClick, onClose }: ConnectWa
   const { t } = useTranslation();
 
   if (!wallets?.length) {
-    return <p>{t('components.polkadotWalletSelectorDialog.noWalletInstalled')}</p>;
+    return <p>{t("components.polkadotWalletSelectorDialog.noWalletInstalled")}</p>;
   }
 
   return (

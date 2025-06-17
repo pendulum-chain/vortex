@@ -1,19 +1,19 @@
-import { WalletAccount } from '@talismn/connect-wallets';
-import { useDeferredValue, useState } from 'react';
+import { WalletAccount } from "@talismn/connect-wallets";
+import { useDeferredValue, useState } from "react";
 
-import { AccountCard } from '../../AccountCard';
-import { SearchInput } from '../../SearchInput';
+import { AccountCard } from "../../AccountCard";
+import { SearchInput } from "../../SearchInput";
 
 interface ConnectModalAccountsListProps {
   accounts: WalletAccount[];
 }
 
 export const ConnectModalAccountsList = ({ accounts }: ConnectModalAccountsListProps) => {
-  const [inputSearchValue, setInputSearchValue] = useState<string>('');
+  const [inputSearchValue, setInputSearchValue] = useState<string>("");
   const deferredInputSearchValue = useDeferredValue(inputSearchValue);
 
   const filteredAccounts = deferredInputSearchValue.length
-    ? accounts.filter((account) => account.address.toLowerCase().includes(deferredInputSearchValue.toLowerCase()))
+    ? accounts.filter(account => account.address.toLowerCase().includes(deferredInputSearchValue.toLowerCase()))
     : accounts;
 
   return (

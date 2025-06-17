@@ -1,38 +1,38 @@
-import { isNetworkEVM } from '@packages/shared';
-import { useEffect, useState } from 'react';
-import { useNetwork } from '../contexts/network';
-import { useRampSigningPhase, useSigningRejected } from '../stores/rampStore';
-import { useSafeWalletSignatureStore } from '../stores/safeWalletSignaturesStore';
-import { RampSigningPhase } from '../types/phases';
+import { isNetworkEVM } from "@packages/shared";
+import { useEffect, useState } from "react";
+import { useNetwork } from "../contexts/network";
+import { useRampSigningPhase, useSigningRejected } from "../stores/rampStore";
+import { useSafeWalletSignatureStore } from "../stores/safeWalletSignaturesStore";
+import { RampSigningPhase } from "../types/phases";
 
-const PROGRESS_CONFIGS: Record<'EVM' | 'NON_EVM', Record<RampSigningPhase, number>> = {
+const PROGRESS_CONFIGS: Record<"EVM" | "NON_EVM", Record<RampSigningPhase, number>> = {
   EVM: {
     started: 25,
     approved: 50,
     signed: 75,
     finished: 100,
-    login: 15,
+    login: 15
   },
   NON_EVM: {
     started: 33,
     finished: 100,
     signed: 0,
     approved: 0,
-    login: 15,
-  },
+    login: 15
+  }
 };
 
 const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean) => {
   if (!isEVM) return { max: 1, current: 1 };
-  if (step === 'login') return { max: 1, current: 1 };
-  if (step === 'started') return { max: 2, current: 1 };
+  if (step === "login") return { max: 1, current: 1 };
+  if (step === "started") return { max: 2, current: 1 };
   return { max: 2, current: 2 };
 };
 
 const isValidStep = (step: RampSigningPhase | undefined, isEVM: boolean): step is RampSigningPhase => {
   if (!step) return false;
-  if (step === 'finished' || step === 'login') return true;
-  if (!isEVM && (step === 'approved' || step === 'signed')) return false;
+  if (step === "finished" || step === "login") return true;
+  if (!isEVM && (step === "approved" || step === "signed")) return false;
   return true;
 };
 
@@ -58,11 +58,11 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
 
     setIsVisible(true);
 
-    if (step !== 'finished' && shouldExit) {
+    if (step !== "finished" && shouldExit) {
       setShouldExit(false);
     }
 
-    if (step === 'finished') {
+    if (step === "finished") {
       setProgress(100);
       setTimeout(() => {
         setShouldExit(true);
@@ -99,6 +99,6 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
     progress,
     signatureState,
     confirmations,
-    isValidStep: (s: RampSigningPhase | undefined) => isValidStep(s, isEVM),
+    isValidStep: (s: RampSigningPhase | undefined) => isValidStep(s, isEVM)
   };
 };

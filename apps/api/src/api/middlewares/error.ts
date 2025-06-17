@@ -1,9 +1,9 @@
-import { NextFunction, Request, Response } from 'express';
-import { ValidationError } from 'express-validation';
-import httpStatus from 'http-status';
+import { NextFunction, Request, Response } from "express";
+import { ValidationError } from "express-validation";
+import httpStatus from "http-status";
 
-import { config } from '../../config/vars';
-import { APIError } from '../errors/api-error';
+import { config } from "../../config/vars";
+import { APIError } from "../errors/api-error";
 
 const { env } = config;
 
@@ -24,10 +24,10 @@ const handler = (err: APIError | Error, _req: Request, res: Response, _next: Nex
     code: apiError.status || httpStatus.INTERNAL_SERVER_ERROR,
     message: apiError.message || httpStatus[httpStatus.INTERNAL_SERVER_ERROR],
     errors: apiError.errors,
-    stack: err.stack,
+    stack: err.stack
   };
 
-  if (env !== 'development') {
+  if (env !== "development") {
     delete response.stack;
   }
 
@@ -46,17 +46,17 @@ export const converter = (err: Error | ValidationError, req: Request, res: Respo
 
   if (err instanceof ValidationError) {
     convertedError = new APIError({
-      message: 'Validation Error',
+      message: "Validation Error",
       errors: err.errors,
       status: err.status,
       // @ts-ignore
-      stack: err.stack,
+      stack: err.stack
     });
   } else if (!(err instanceof APIError)) {
     convertedError = new APIError({
       message: err.message,
       status: (err instanceof APIError ? err.status : httpStatus.INTERNAL_SERVER_ERROR) as number,
-      stack: err.stack,
+      stack: err.stack
     });
   } else {
     convertedError = err;
@@ -71,8 +71,8 @@ export const converter = (err: Error | ValidationError, req: Request, res: Respo
  */
 export const notFound = (req: Request, res: Response, next: NextFunction): void => {
   const err = new APIError({
-    message: 'Not found',
-    status: httpStatus.NOT_FOUND,
+    message: "Not found",
+    status: httpStatus.NOT_FOUND
   });
   return handler(err, req, res, next);
 };

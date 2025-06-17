@@ -15,7 +15,7 @@ export class SignInMessage {
   public expirationTime: string;
   public issuedAt?: string;
 
-  static LOGIN_MESSAGE = ' wants you to sign in with your account: ';
+  static LOGIN_MESSAGE = " wants you to sign in with your account: ";
 
   constructor(fields: SignInMessageFields) {
     this.scheme = fields.scheme;
@@ -36,31 +36,31 @@ export class SignInMessage {
 
   public static fromMessage(message: string): SignInMessage {
     const lines = message
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l.length > 0);
 
-    const headerLine = lines.find((line) => line.includes(SignInMessage.LOGIN_MESSAGE)) || '';
-    const [domain, address] = headerLine.split(SignInMessage.LOGIN_MESSAGE).map((part) => part.trim());
+    const headerLine = lines.find(line => line.includes(SignInMessage.LOGIN_MESSAGE)) || "";
+    const [domain, address] = headerLine.split(SignInMessage.LOGIN_MESSAGE).map(part => part.trim());
 
-    const nonceLine = lines.find((line) => line.startsWith('Nonce:')) || '';
-    const nonce = nonceLine.split('Nonce:')[1]?.trim() || '';
+    const nonceLine = lines.find(line => line.startsWith("Nonce:")) || "";
+    const nonce = nonceLine.split("Nonce:")[1]?.trim() || "";
 
-    const issuedAtLine = lines.find((line) => line.startsWith('Issued At:')) || '';
-    const issuedAt = issuedAtLine.split('Issued At:')[1]?.trim(); // Can't really be empty. Constructor will default to current date if not defined.
+    const issuedAtLine = lines.find(line => line.startsWith("Issued At:")) || "";
+    const issuedAt = issuedAtLine.split("Issued At:")[1]?.trim(); // Can't really be empty. Constructor will default to current date if not defined.
     const issuedAtMilis = new Date(issuedAt).getTime();
 
-    const expirationTimeLine = lines.find((line) => line.startsWith('Expiration Time:')) || '';
-    const expirationTime = expirationTimeLine.split('Expiration Time:')[1]?.trim();
+    const expirationTimeLine = lines.find(line => line.startsWith("Expiration Time:")) || "";
+    const expirationTime = expirationTimeLine.split("Expiration Time:")[1]?.trim();
     const expirationTimeMilis = new Date(expirationTime).getTime();
 
     return new SignInMessage({
-      scheme: 'https',
+      scheme: "https",
       domain,
       address,
       nonce,
       expirationTime: expirationTimeMilis,
-      issuedAt: issuedAtMilis,
+      issuedAt: issuedAtMilis
     });
   }
 }

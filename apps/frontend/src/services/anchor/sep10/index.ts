@@ -1,10 +1,10 @@
-import { Keypair, Memo, MemoType, Operation, Transaction } from 'stellar-sdk';
+import { Keypair, Memo, MemoType, Operation, Transaction } from "stellar-sdk";
 
-import { FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
-import { TomlValues } from '../../../types/sep';
+import { FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
+import { TomlValues } from "../../../types/sep";
 
-import { fetchAndValidateChallenge } from './challenge';
-import { exists, getUrlParams, sep10SignaturesWithLoginRefresh } from './utils';
+import { fetchAndValidateChallenge } from "./challenge";
+import { exists, getUrlParams, sep10SignaturesWithLoginRefresh } from "./utils";
 
 interface Sep10Response {
   token: string;
@@ -17,12 +17,12 @@ interface Sep10JwtResponse {
 
 async function submitSignedTransaction(
   webAuthEndpoint: string,
-  transaction: Transaction<Memo<MemoType>, Operation[]>,
+  transaction: Transaction<Memo<MemoType>, Operation[]>
 ): Promise<string> {
   const jwt = await fetch(webAuthEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ transaction: transaction.toXDR().toString() }),
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transaction: transaction.toXDR().toString() })
   });
 
   if (jwt.status !== 200) {
@@ -39,12 +39,12 @@ export async function sep10(
   outputToken: FiatToken,
   address: string,
   checkAndWaitForSignature: () => Promise<void>,
-  forceRefreshAndWaitForSignature: () => Promise<void>,
+  forceRefreshAndWaitForSignature: () => Promise<void>
 ): Promise<Sep10Response> {
   const { signingKey, webAuthEndpoint } = tomlValues;
 
   if (!exists(signingKey) || !exists(webAuthEndpoint)) {
-    throw new Error('sep10: Missing values in TOML file');
+    throw new Error("sep10: Missing values in TOML file");
   }
 
   const ephemeralKeys = Keypair.fromSecret(stellarEphemeralSecret);
@@ -65,8 +65,8 @@ export async function sep10(
       outToken: outputToken,
       clientPublicKey: sep10Account,
       usesMemo,
-      address: address,
-    },
+      address: address
+    }
   );
 
   if (supportsClientDomain) {

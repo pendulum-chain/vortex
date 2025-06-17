@@ -1,12 +1,12 @@
-import { StoreEmailResponse } from '@packages/shared';
-import { StoreEmailRequest } from '@packages/shared';
-import { apiRequest } from './api-client';
+import { StoreEmailResponse } from "@packages/shared";
+import { StoreEmailRequest } from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Email API endpoints
  */
 export class EmailService {
-  private static readonly BASE_PATH = '/email';
+  private static readonly BASE_PATH = "/email";
 
   /**
    * Store a user email
@@ -18,8 +18,8 @@ export class EmailService {
     const request: StoreEmailRequest = {
       timestamp: new Date().toISOString(),
       email,
-      transactionId,
+      transactionId
     };
-    return apiRequest<StoreEmailResponse>('post', `${this.BASE_PATH}/create`, request);
+    return apiRequest<StoreEmailResponse>("post", `${this.BASE_PATH}/create`, request);
   }
 }

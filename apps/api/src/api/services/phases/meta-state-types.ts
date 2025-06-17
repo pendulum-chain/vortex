@@ -1,5 +1,5 @@
-import { PendulumDetails, RampCurrency, StellarTokenDetails } from '@packages/shared';
-import { ExtrinsicOptions } from '../transactions/nabla';
+import { PendulumDetails, RampCurrency, StellarTokenDetails } from "@packages/shared";
+import { ExtrinsicOptions } from "../transactions/nabla";
 
 export interface StateMetadata {
   inputAmount: string;

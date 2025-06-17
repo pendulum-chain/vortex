@@ -1,11 +1,11 @@
-import { Networks, getNetworkId, isNetworkEVM } from '@packages/shared';
-import { ReactNode, createContext, useCallback, useContext, useState } from 'react';
-import { useAccount, useSwitchChain } from 'wagmi';
-import { WALLETCONNECT_ASSETHUB_ID } from '../constants/constants';
-import { LocalStorageKeys, useLocalStorage } from '../hooks/useLocalStorage';
-import { useRampUrlParams } from '../hooks/useRampUrlParams';
-import { useRampActions } from '../stores/rampStore';
-import { useSep24Actions } from '../stores/sep24Store';
+import { Networks, getNetworkId, isNetworkEVM } from "@packages/shared";
+import { ReactNode, createContext, useCallback, useContext, useState } from "react";
+import { useAccount, useSwitchChain } from "wagmi";
+import { WALLETCONNECT_ASSETHUB_ID } from "../constants/constants";
+import { LocalStorageKeys, useLocalStorage } from "../hooks/useLocalStorage";
+import { useRampUrlParams } from "../hooks/useRampUrlParams";
+import { useRampActions } from "../stores/rampStore";
+import { useSep24Actions } from "../stores/sep24Store";
 
 interface NetworkContextType {
   walletConnectPolkadotSelectedNetworkId: string;
@@ -20,7 +20,7 @@ const NetworkContext = createContext<NetworkContextType>({
   selectedNetwork: Networks.AssetHub,
   setSelectedNetwork: async () => undefined,
   networkSelectorDisabled: false,
-  setNetworkSelectorDisabled: () => null,
+  setNetworkSelectorDisabled: () => null
 });
 
 interface NetworkProviderProps {
@@ -30,7 +30,7 @@ interface NetworkProviderProps {
 export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { state: selectedNetworkLocalStorageState, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
     key: LocalStorageKeys.SELECTED_NETWORK,
-    defaultValue: Networks.Polygon,
+    defaultValue: Networks.Polygon
   });
 
   const { network } = useRampUrlParams();
@@ -64,7 +64,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         }
       }
     },
-    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetRampState, cleanupSep24Variables],
+    [connectedEvmChain, switchChainAsync, setSelectedNetworkLocalStorage, resetRampState, cleanupSep24Variables]
   );
 
   return (
@@ -74,7 +74,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
         selectedNetwork,
         setSelectedNetwork,
         networkSelectorDisabled,
-        setNetworkSelectorDisabled,
+        setNetworkSelectorDisabled
       }}
     >
       {children}
@@ -85,7 +85,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
 export const useNetwork = () => {
   const context = useContext(NetworkContext);
   if (!context) {
-    throw new Error('useNetwork must be used within a NetworkProvider');
+    throw new Error("useNetwork must be used within a NetworkProvider");
   }
   return context;
 };

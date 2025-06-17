@@ -1,9 +1,9 @@
-import { ApiPromise, WsProvider } from '@polkadot/api';
-import { useQuery } from '@tanstack/react-query';
-import { JSX, createContext, useContext } from 'react';
+import { ApiPromise, WsProvider } from "@polkadot/api";
+import { useQuery } from "@tanstack/react-query";
+import { JSX, createContext, useContext } from "react";
 
-import { ASSETHUB_WSS, MOONBEAM_WSS, PENDULUM_WSS } from '../constants/constants';
-import { useToastMessage } from '../helpers/notifications';
+import { ASSETHUB_WSS, MOONBEAM_WSS, PENDULUM_WSS } from "../constants/constants";
+import { useToastMessage } from "../helpers/notifications";
 
 export interface ApiComponents {
   api: ApiPromise;
@@ -31,7 +31,7 @@ interface PolkadotNodeContextInterface {
 const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
   state: {},
   isFetched: false,
-  error: null,
+  error: null
 });
 
 async function createApiComponents(socketUrl: string, autoReconnect = true): Promise<ApiComponents> {
@@ -41,14 +41,14 @@ async function createApiComponents(socketUrl: string, autoReconnect = true): Pro
   await api.isReady;
 
   const chainProperties = api.registry.getChainProperties();
-  const ss58Format = Number(chainProperties?.get('ss58Format')?.toString() ?? 42);
-  const decimals = Number(chainProperties?.get('tokenDecimals')?.toHuman()[0]) ?? 12;
+  const ss58Format = Number(chainProperties?.get("ss58Format")?.toString() ?? 42);
+  const decimals = Number(chainProperties?.get("tokenDecimals")?.toHuman()[0]) ?? 12;
 
   const [chain, nodeName, nodeVersion, bestNumberFinalize] = await Promise.all([
     api.rpc.system.chain(),
     api.rpc.system.name(),
     api.rpc.system.version(),
-    api.derive.chain.bestNumber(),
+    api.derive.chain.bestNumber()
   ]);
 
   return {
@@ -60,24 +60,24 @@ async function createApiComponents(socketUrl: string, autoReconnect = true): Pro
     nodeVersion: nodeVersion.toString(),
     bestNumberFinalize: Number(bestNumberFinalize),
     tokenSymbol: chainProperties
-      ?.get('tokenSymbol')
+      ?.get("tokenSymbol")
       ?.toString()
-      ?.replace(/[\\[\]]/g, ''),
+      ?.replace(/[\\[\]]/g, "")
   };
 }
 
 const usePolkadotNodes = () => {
   const context = useContext(PolkadotNodeContext);
   if (!context) {
-    throw new Error('usePolkadotNode must be used within a PolkadotNodeProvider');
+    throw new Error("usePolkadotNode must be used within a PolkadotNodeProvider");
   }
   return context;
 };
 
 enum NodeName {
-  AssetHub = 'assetHub',
-  Pendulum = 'pendulum',
-  Moonbeam = 'moonbeam',
+  AssetHub = "assetHub",
+  Pendulum = "pendulum",
+  Moonbeam = "moonbeam"
 }
 
 const usePolkadotNode = (nodeName: NodeName) => {
@@ -104,16 +104,16 @@ const initializeNetworks = async (): Promise<NetworkState> => {
     const [assetHub, pendulum, moonbeam] = await Promise.all([
       createApiComponents(ASSETHUB_WSS),
       createApiComponents(PENDULUM_WSS),
-      createApiComponents(MOONBEAM_WSS),
+      createApiComponents(MOONBEAM_WSS)
     ]);
 
     return {
       [NodeName.AssetHub]: assetHub,
       [NodeName.Pendulum]: pendulum,
-      moonbeam,
+      moonbeam
     };
   } catch (error) {
-    console.error('Error initializing networks:', error);
+    console.error("Error initializing networks:", error);
     throw error;
   }
 };
@@ -122,15 +122,15 @@ const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
   const {
     data: state = {},
     error,
-    isFetched,
+    isFetched
   } = useQuery({
-    queryKey: ['polkadot-nodes'],
+    queryKey: ["polkadot-nodes"],
     queryFn: initializeNetworks,
-    retry: 3,
+    retry: 3
   });
 
   if (error) {
-    console.error('Failed to initialize Polkadot nodes:', error);
+    console.error("Failed to initialize Polkadot nodes:", error);
   }
 
   return <PolkadotNodeContext.Provider value={{ state, isFetched, error }}>{children}</PolkadotNodeContext.Provider>;

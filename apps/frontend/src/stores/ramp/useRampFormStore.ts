@@ -1,30 +1,29 @@
-import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, getOnChainTokenDetails } from '@packages/shared';
-import { create } from 'zustand';
-import { RampDirection } from '../../components/RampToggle';
-import { getRampDirectionFromPath } from '../../helpers/path';
-import { Language, getLanguageFromPath } from '../../translations/helpers';
-import { useRampDirection } from '../rampDirectionStore';
+import { AssetHubToken, EvmToken, FiatToken, Networks, OnChainToken, getOnChainTokenDetails } from "@packages/shared";
+import { create } from "zustand";
+import { RampDirection } from "../../components/RampToggle";
+import { getRampDirectionFromPath } from "../../helpers/path";
+import { Language, getLanguageFromPath } from "../../translations/helpers";
+import { useRampDirection } from "../rampDirectionStore";
 
 export const DEFAULT_FIAT_TOKEN = FiatToken.EURC;
 export const DEFAULT_PT_BR_TOKEN = FiatToken.BRL;
 
-export const DEFAULT_BRL_AMOUNT = '100';
-export const DEFAULT_EURC_AMOUNT = '20';
-export const DEFAULT_ARS_AMOUNT = '20';
+export const DEFAULT_BRL_AMOUNT = "100";
+export const DEFAULT_EURC_AMOUNT = "20";
+export const DEFAULT_ARS_AMOUNT = "20";
 
 export const defaultFiatTokenAmounts: Record<FiatToken, string> = {
   [FiatToken.EURC]: DEFAULT_EURC_AMOUNT,
   [FiatToken.ARS]: DEFAULT_ARS_AMOUNT,
-  [FiatToken.BRL]: DEFAULT_BRL_AMOUNT,
+  [FiatToken.BRL]: DEFAULT_BRL_AMOUNT
 };
 
-const defaultFiatToken =
-  getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_PT_BR_TOKEN : DEFAULT_FIAT_TOKEN;
+const defaultFiatToken = getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_PT_BR_TOKEN : DEFAULT_FIAT_TOKEN;
 
 const defaultFiatAmount =
   getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_BRL_AMOUNT : defaultFiatTokenAmounts[defaultFiatToken];
 
-const storedNetwork = localStorage.getItem('SELECTED_NETWORK');
+const storedNetwork = localStorage.getItem("SELECTED_NETWORK");
 
 const defaultOnChainToken =
   getRampDirectionFromPath() === RampDirection.ONRAMP
@@ -61,7 +60,7 @@ export const DEFAULT_RAMP_FORM_STORE_VALUES: RampFormState = {
   fiatToken: defaultFiatToken,
   taxId: undefined,
   pixId: undefined,
-  lastConstraintDirection: getRampDirectionFromPath(),
+  lastConstraintDirection: getRampDirectionFromPath()
 };
 
 export const useRampFormStore = create<RampFormState & RampFormActions>((set, get) => ({
@@ -85,18 +84,18 @@ export const useRampFormStore = create<RampFormState & RampFormActions>((set, ge
 
     reset: () => {
       set({
-        ...DEFAULT_RAMP_FORM_STORE_VALUES,
+        ...DEFAULT_RAMP_FORM_STORE_VALUES
       });
-    },
-  },
+    }
+  }
 }));
 
-export const useInputAmount = () => useRampFormStore((state) => state.inputAmount);
-export const useOnChainToken = () => useRampFormStore((state) => state.onChainToken);
-export const useFiatToken = () => useRampFormStore((state) => state.fiatToken);
-export const useTaxId = () => useRampFormStore((state) => state.taxId);
-export const usePixId = () => useRampFormStore((state) => state.pixId);
-export const useLastConstraintDirection = () => useRampFormStore((state) => state.lastConstraintDirection);
+export const useInputAmount = () => useRampFormStore(state => state.inputAmount);
+export const useOnChainToken = () => useRampFormStore(state => state.onChainToken);
+export const useFiatToken = () => useRampFormStore(state => state.fiatToken);
+export const useTaxId = () => useRampFormStore(state => state.taxId);
+export const usePixId = () => useRampFormStore(state => state.pixId);
+export const useLastConstraintDirection = () => useRampFormStore(state => state.lastConstraintDirection);
 
 export const useQuoteConstraintsValid = () => {
   const direction = useRampDirection();
@@ -104,4 +103,4 @@ export const useQuoteConstraintsValid = () => {
   return direction === lastConstraintDirection;
 };
 
-export const useRampFormStoreActions = () => useRampFormStore((state) => state.actions);
+export const useRampFormStoreActions = () => useRampFormStore(state => state.actions);

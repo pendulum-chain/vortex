@@ -1,19 +1,19 @@
-import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon } from 'viem/chains';
-import { PaymentMethod } from '../endpoints/payment-methods.endpoints';
+import { arbitrum, avalanche, base, bsc, mainnet as ethereum, moonbeam, polygon } from "viem/chains";
+import { PaymentMethod } from "../endpoints/payment-methods.endpoints";
 
 export type DestinationType = Networks | PaymentMethod;
 
 export enum Networks {
-  AssetHub = 'assethub',
-  Arbitrum = 'arbitrum',
-  Avalanche = 'avalanche',
-  Base = 'base',
-  BSC = 'bsc',
-  Ethereum = 'ethereum',
-  Polygon = 'polygon',
-  Moonbeam = 'moonbeam',
-  Pendulum = 'pendulum',
-  Stellar = 'stellar',
+  AssetHub = "assethub",
+  Arbitrum = "arbitrum",
+  Avalanche = "avalanche",
+  Base = "base",
+  BSC = "bsc",
+  Ethereum = "ethereum",
+  Polygon = "polygon",
+  Moonbeam = "moonbeam",
+  Pendulum = "pendulum",
+  Stellar = "stellar"
 }
 
 /**
@@ -45,59 +45,59 @@ interface NetworkMetadata {
 const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.AssetHub]: {
     id: ASSETHUB_CHAIN_ID,
-    displayName: 'Polkadot AssetHub',
-    isEVM: false,
+    displayName: "Polkadot AssetHub",
+    isEVM: false
   },
   [Networks.Polygon]: {
     id: polygon.id,
-    displayName: 'Polygon',
-    isEVM: true,
+    displayName: "Polygon",
+    isEVM: true
   },
   [Networks.Ethereum]: {
     id: ethereum.id,
-    displayName: 'Ethereum',
-    isEVM: true,
+    displayName: "Ethereum",
+    isEVM: true
   },
   [Networks.BSC]: {
     id: bsc.id,
-    displayName: 'BNB Smart Chain',
-    isEVM: true,
+    displayName: "BNB Smart Chain",
+    isEVM: true
   },
   [Networks.Arbitrum]: {
     id: arbitrum.id,
-    displayName: 'Arbitrum One',
-    isEVM: true,
+    displayName: "Arbitrum One",
+    isEVM: true
   },
   [Networks.Base]: {
     id: base.id,
-    displayName: 'Base',
-    isEVM: true,
+    displayName: "Base",
+    isEVM: true
   },
   [Networks.Avalanche]: {
     id: avalanche.id,
-    displayName: 'Avalanche',
-    isEVM: true,
+    displayName: "Avalanche",
+    isEVM: true
   },
   [Networks.Moonbeam]: {
     id: moonbeam.id,
-    displayName: 'Moonbeam',
-    isEVM: true,
+    displayName: "Moonbeam",
+    isEVM: true
   },
   [Networks.Pendulum]: {
     id: PENDULUM_CHAIN_ID,
-    displayName: 'Pendulum',
-    isEVM: false,
+    displayName: "Pendulum",
+    isEVM: false
   },
   [Networks.Stellar]: {
     id: STELLAR_CHAIN_ID,
-    displayName: 'Stellar',
-    isEVM: false,
-  },
+    displayName: "Stellar",
+    isEVM: false
+  }
 };
 
 export function getCaseSensitiveNetwork(network: string): Networks | undefined {
   const normalized = network.toLowerCase();
-  return Object.values(Networks).find((n) => n.toLowerCase() === normalized);
+  return Object.values(Networks).find(n => n.toLowerCase() === normalized);
 }
 
 export function getNetworkMetadata(network: string): NetworkMetadata | undefined {

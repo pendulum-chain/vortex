@@ -1,16 +1,16 @@
 const NETWORK_MAP: Record<string, string> = {
-  POLYGON: 'MATIC',
-  BSC: 'BSC',
-  ARBITRUM: 'ARBITRUM',
-  AVALANCHE: 'AVAX',
-  ETHEREUM: 'ETH',
+  POLYGON: "MATIC",
+  BSC: "BSC",
+  ARBITRUM: "ARBITRUM",
+  AVALANCHE: "AVAX",
+  ETHEREUM: "ETH"
 };
 
 const CRYPTO_MAP: Record<string, string> = {
-  usdc: 'USDC',
-  'usdc.e': 'USDC.e',
-  usdce: 'USDC.e',
-  usdt: 'USDT',
+  usdc: "USDC",
+  "usdc.e": "USDC.e",
+  usdce: "USDC.e",
+  usdt: "USDT"
 };
 
 /**

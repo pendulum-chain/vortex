@@ -1,11 +1,11 @@
-import { Direction, MoonpayPriceResponse } from '@packages/shared';
+import { Direction, MoonpayPriceResponse } from "@packages/shared";
 import {
   InvalidAmountError,
   InvalidParameterError,
   ProviderInternalError,
-  UnsupportedPairError,
-} from '../../errors/providerErrors';
-import { MoonpayResponse } from './moonpay.service';
+  UnsupportedPairError
+} from "../../errors/providerErrors";
+import { MoonpayResponse } from "./moonpay.service";
 
 type MoonpayErrorResponse = {
   message?: string;
@@ -18,19 +18,19 @@ function handleMoonpayError(response: Response, body: MoonpayErrorResponse): nev
 
   console.error(`Moonpay API Error (${response.status}): Type: ${errorType}, Message: ${errorMessage}`);
 
-  if (errorType === 'NotFoundError' || errorMessage.toLowerCase().includes('unsupported')) {
+  if (errorType === "NotFoundError" || errorMessage.toLowerCase().includes("unsupported")) {
     throw new UnsupportedPairError(`Moonpay: ${errorMessage}`);
   }
 
   if (
-    errorMessage.toLowerCase().includes('minimum') ||
-    errorMessage.toLowerCase().includes('maximum') ||
-    errorMessage.toLowerCase().includes('limit')
+    errorMessage.toLowerCase().includes("minimum") ||
+    errorMessage.toLowerCase().includes("maximum") ||
+    errorMessage.toLowerCase().includes("limit")
   ) {
     throw new InvalidAmountError(`Moonpay: ${errorMessage}`);
   }
 
-  if (errorType === 'BadRequestError' || response.status === 400) {
+  if (errorType === "BadRequestError" || response.status === 400) {
     throw new InvalidParameterError(`Moonpay: ${errorMessage}`);
   }
 
@@ -41,20 +41,16 @@ function handleMoonpayError(response: Response, body: MoonpayErrorResponse): nev
   throw new InvalidParameterError(`Moonpay API error: ${errorMessage}`);
 }
 
-function validateMoonpayResponse(
-  body: MoonpayResponse,
-  requestedAmount: string,
-  direction: Direction,
-): MoonpayPriceResponse {
+function validateMoonpayResponse(body: MoonpayResponse, requestedAmount: string, direction: Direction): MoonpayPriceResponse {
   if (body.baseCurrencyAmount === undefined || body.quoteCurrencyAmount === undefined || body.feeAmount === undefined) {
-    throw new ProviderInternalError('Moonpay response missing essential data fields');
+    throw new ProviderInternalError("Moonpay response missing essential data fields");
   }
 
   const {
     baseCurrencyAmount: receivedBaseCurrencyAmount,
     quoteCurrencyAmount,
     feeAmount,
-    baseCurrency: { minAmount, code },
+    baseCurrency: { minAmount, code }
   } = body;
 
   if (minAmount > Number(requestedAmount)) {
@@ -63,10 +59,10 @@ function validateMoonpayResponse(
 
   if (Number(requestedAmount) !== receivedBaseCurrencyAmount) {
     console.warn(
-      `Moonpay Warning: Requested base amount ${requestedAmount} differs from received ${receivedBaseCurrencyAmount}`,
+      `Moonpay Warning: Requested base amount ${requestedAmount} differs from received ${receivedBaseCurrencyAmount}`
     );
     throw new ProviderInternalError(
-      `Moonpay response discrepancy: Requested base amount ${requestedAmount}, received ${receivedBaseCurrencyAmount}`,
+      `Moonpay response discrepancy: Requested base amount ${requestedAmount}, received ${receivedBaseCurrencyAmount}`
     );
   }
 
@@ -75,7 +71,7 @@ function validateMoonpayResponse(
     quoteAmount: quoteCurrencyAmount,
     totalFee: feeAmount,
     direction,
-    provider: 'moonpay',
+    provider: "moonpay"
   };
 }
 
@@ -83,7 +79,7 @@ export async function processMoonpayResponse(
   response: Response,
   body: MoonpayResponse,
   requestedAmount: string,
-  direction: Direction,
+  direction: Direction
 ): Promise<MoonpayPriceResponse> {
   if (!response.ok) {
     return handleMoonpayError(response, body);

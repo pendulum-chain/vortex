@@ -1,19 +1,19 @@
-import { useCallback, useState } from 'react';
-import { useEventsContext } from '../../contexts/events';
-import { useNetwork } from '../../contexts/network';
-import { usePreRampCheck } from '../../services/initialChecks';
+import { useCallback, useState } from "react";
+import { useEventsContext } from "../../contexts/events";
+import { useNetwork } from "../../contexts/network";
+import { usePreRampCheck } from "../../services/initialChecks";
 import {
   createMoonbeamEphemeral,
   createPendulumEphemeral,
-  createStellarEphemeral,
-} from '../../services/transactions/ephemerals';
-import { useQuoteStore } from '../../stores/ramp/useQuoteStore';
-import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
-import { useRampActions } from '../../stores/rampStore';
-import { RampExecutionInput } from '../../types/phases';
-import { useRegisterRamp } from '../offramp/useRampService/useRegisterRamp';
-import { useStartRamp } from '../offramp/useRampService/useStartRamp';
-import { useVortexAccount } from '../useVortexAccount';
+  createStellarEphemeral
+} from "../../services/transactions/ephemerals";
+import { useQuoteStore } from "../../stores/ramp/useQuoteStore";
+import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useRampActions } from "../../stores/rampStore";
+import { RampExecutionInput } from "../../types/phases";
+import { useRegisterRamp } from "../offramp/useRampService/useRegisterRamp";
+import { useStartRamp } from "../offramp/useRampService/useStartRamp";
+import { useVortexAccount } from "../useVortexAccount";
 
 interface SubmissionError extends Error {
   code?: string;
@@ -23,7 +23,7 @@ interface SubmissionError extends Error {
 const createEphemerals = () => ({
   pendulumEphemeral: createPendulumEphemeral(),
   stellarEphemeral: createStellarEphemeral(),
-  moonbeamEphemeral: createMoonbeamEphemeral(),
+  moonbeamEphemeral: createMoonbeamEphemeral()
 });
 
 export const useRampSubmission = () => {
@@ -41,17 +41,17 @@ export const useRampSubmission = () => {
   // @TODO: implement Error boundary
   const validateSubmissionData = useCallback(() => {
     if (!address) {
-      throw new Error('No wallet address found. Please connect your wallet.');
+      throw new Error("No wallet address found. Please connect your wallet.");
     }
     if (!quote) {
-      throw new Error('No quote available. Please try again.');
+      throw new Error("No quote available. Please try again.");
     }
     if (!inputAmount) {
-      throw new Error('No amount specified. Please enter an amount.');
+      throw new Error("No amount specified. Please enter an amount.");
     }
-    if (fiatToken === 'brl') {
+    if (fiatToken === "brl") {
       if (!taxId) {
-        throw new Error('Tax ID is required for BRL transactions.');
+        throw new Error("Tax ID is required for BRL transactions.");
       }
     }
   }, [address, quote, inputAmount, fiatToken, taxId]);
@@ -59,10 +59,10 @@ export const useRampSubmission = () => {
   const prepareExecutionInput = useCallback(() => {
     validateSubmissionData();
     if (!quote) {
-      throw new Error('No quote available. Please try again.');
+      throw new Error("No quote available. Please try again.");
     }
     if (!address) {
-      throw new Error('No address found. Please connect your wallet.');
+      throw new Error("No address found. Please connect your wallet.");
     }
 
     const ephemerals = createEphemerals();
@@ -75,28 +75,28 @@ export const useRampSubmission = () => {
       network: selectedNetwork,
       taxId,
       pixId,
-      setInitializeFailed: (message) => {
-        console.error('Initialization failed:', message);
-      },
+      setInitializeFailed: message => {
+        console.error("Initialization failed:", message);
+      }
     };
     return executionInput;
   }, [validateSubmissionData, quote, onChainToken, fiatToken, address, selectedNetwork, taxId, pixId]);
 
   const handleSubmissionError = useCallback(
     (error: SubmissionError) => {
-      console.error('Error preparing submission:', error);
+      console.error("Error preparing submission:", error);
       trackEvent({
-        event: 'transaction_failure',
-        error_message: error.code || 'unknown',
+        event: "transaction_failure",
+        error_message: error.code || "unknown",
         phase_index: 0,
         from_asset: fiatToken,
         to_asset: onChainToken,
-        from_amount: inputAmount?.toString() || '0',
-        to_amount: quote?.outputAmount || '0',
+        from_amount: inputAmount?.toString() || "0",
+        to_amount: quote?.outputAmount || "0"
       });
       setRampInitiating(false);
     },
-    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount, setRampInitiating],
+    [trackEvent, fiatToken, onChainToken, inputAmount, quote?.outputAmount, setRampInitiating]
   );
 
   const onRampConfirm = useCallback(async () => {
@@ -113,14 +113,7 @@ export const useRampSubmission = () => {
     } finally {
       setExecutionPreparing(false);
     }
-  }, [
-    executionPreparing,
-    prepareExecutionInput,
-    preRampCheck,
-    setRampExecutionInput,
-    registerRamp,
-    handleSubmissionError,
-  ]);
+  }, [executionPreparing, prepareExecutionInput, preRampCheck, setRampExecutionInput, registerRamp, handleSubmissionError]);
 
   return {
     onRampConfirm,
@@ -128,6 +121,6 @@ export const useRampSubmission = () => {
     finishOfframping: () => {
       resetRampState();
     },
-    validateSubmissionData,
+    validateSubmissionData
   };
 };

@@ -1,8 +1,8 @@
-import { PriceProvider } from '@packages/shared';
+import { PriceProvider } from "@packages/shared";
 
-export const MINIMUM_BRL_BUY_AMOUNT: Record<PriceProvider | 'vortex', number> = {
+export const MINIMUM_BRL_BUY_AMOUNT: Record<PriceProvider | "vortex", number> = {
   transak: 7, // checked in the API response
   moonpay: 150, // checked in the API response
   alchemypay: 570, // checked in the API response
-  vortex: 1,
+  vortex: 1
 };

@@ -1,10 +1,10 @@
-import { ASSETHUB_CHAIN_ID, isNetworkEVM } from '@packages/shared';
-import { Signer } from '@polkadot/types/types';
-import * as Sentry from '@sentry/react';
-import { useCallback, useEffect, useMemo } from 'react';
-import { useAccount, useSignMessage } from 'wagmi';
-import { useNetwork } from '../contexts/network';
-import { usePolkadotWalletState } from '../contexts/polkadotWallet';
+import { ASSETHUB_CHAIN_ID, isNetworkEVM } from "@packages/shared";
+import { Signer } from "@polkadot/types/types";
+import * as Sentry from "@sentry/react";
+import { useCallback, useEffect, useMemo } from "react";
+import { useAccount, useSignMessage } from "wagmi";
+import { useNetwork } from "../contexts/network";
+import { usePolkadotWalletState } from "../contexts/polkadotWallet";
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.
@@ -29,7 +29,7 @@ export const useVortexAccount = () => {
     if (address) {
       Sentry.setUser({
         ...user,
-        wallet: address,
+        wallet: address
       });
     }
   }, [address]);
@@ -52,9 +52,9 @@ export const useVortexAccount = () => {
 
   const type = useMemo(() => {
     if (!isNetworkEVM(selectedNetwork)) {
-      return 'substrate';
+      return "substrate";
     } else {
-      return 'evm';
+      return "evm";
     }
   }, [selectedNetwork]);
 
@@ -66,23 +66,23 @@ export const useVortexAccount = () => {
         signature = await signMessageAsync({ message: siweMessage });
       } else {
         if (!polkadotWalletAccount) {
-          throw new Error('getMessageSignature: Polkadot wallet account not found. Wallet must be connected to sign.');
+          throw new Error("getMessageSignature: Polkadot wallet account not found. Wallet must be connected to sign.");
         }
         const signer = polkadotWalletAccount.signer as Signer;
         if (!signer.signRaw) {
-          throw new Error('Signer does not support raw signing');
+          throw new Error("Signer does not support raw signing");
         }
         const { signature: substrateSignature } = await signer.signRaw({
-          type: 'payload',
+          type: "payload",
           data: siweMessage,
-          address: polkadotWalletAccount.address,
+          address: polkadotWalletAccount.address
         });
         signature = substrateSignature;
       }
 
       return signature;
     },
-    [polkadotWalletAccount, selectedNetwork, signMessageAsync],
+    [polkadotWalletAccount, selectedNetwork, signMessageAsync]
   );
 
   return {
@@ -90,6 +90,6 @@ export const useVortexAccount = () => {
     chainId,
     address,
     type,
-    getMessageSignature,
+    getMessageSignature
   };
 };

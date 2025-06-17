@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { storageKeys } from '../../constants/localStorage';
-import { useRampFormStoreActions } from '../../stores/ramp/useRampFormStore';
+import { useCallback, useEffect, useState } from "react";
+import { storageKeys } from "../../constants/localStorage";
+import { useRampFormStoreActions } from "../../stores/ramp/useRampFormStore";
 
-import { useTaxId } from '../../stores/ramp/useRampFormStore';
+import { useTaxId } from "../../stores/ramp/useRampFormStore";
 
 export const useBrlaKycTaxIdLocalStorage = () => {
   const storeTaxId = useTaxId();
@@ -13,7 +13,7 @@ export const useBrlaKycTaxIdLocalStorage = () => {
     try {
       return localStorage.getItem(storageKeys.BRLA_KYC_TAX_ID) || undefined;
     } catch (error) {
-      console.error('Error loading taxId from localStorage:', error);
+      console.error("Error loading taxId from localStorage:", error);
       return undefined;
     }
   });
@@ -31,7 +31,7 @@ export const useBrlaKycTaxIdLocalStorage = () => {
         setStoreTaxId(newTaxId);
       }
     },
-    [setStoreTaxId],
+    [setStoreTaxId]
   );
 
   const clearTaxId = () => {

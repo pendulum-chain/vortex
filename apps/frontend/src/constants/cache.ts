@@ -1,24 +1,24 @@
-import { UseQueryOptions } from '@tanstack/react-query';
+import { UseQueryOptions } from "@tanstack/react-query";
 
 export const cacheKeys = {
-  accountBalance: 'accountBalance',
-  tokens: 'tokens',
-  tokenAllowance: 'tokenAllowance',
-  balance: 'balance',
-  walletBalance: 'walletBalance',
-  tokenOutAmount: 'tokenOutAmount',
-  quoteSwapPoolRedeem: 'quoteSwapPoolRedeem',
-  quoteSwapPoolWithdraw: 'quoteSwapPoolWithdraw',
-  quoteBackstopPoolWithdraw: 'quoteBackstopPoolWithdraw',
-  quoteBackstopPoolDrain: 'quoteBackstopPoolDrain',
-  sharesTargetWorth: 'sharesTargetWorth',
-  tokenPrice: 'tokenPrice',
-  nablaInstance: 'nablaInstance',
-  allPrices: 'allPrices',
+  accountBalance: "accountBalance",
+  tokens: "tokens",
+  tokenAllowance: "tokenAllowance",
+  balance: "balance",
+  walletBalance: "walletBalance",
+  tokenOutAmount: "tokenOutAmount",
+  quoteSwapPoolRedeem: "quoteSwapPoolRedeem",
+  quoteSwapPoolWithdraw: "quoteSwapPoolWithdraw",
+  quoteBackstopPoolWithdraw: "quoteBackstopPoolWithdraw",
+  quoteBackstopPoolDrain: "quoteBackstopPoolDrain",
+  sharesTargetWorth: "sharesTargetWorth",
+  tokenPrice: "tokenPrice",
+  nablaInstance: "nablaInstance",
+  allPrices: "allPrices"
 };
 
 type QueryOptions<TData = unknown, TError = Error> = Partial<
-  Omit<UseQueryOptions<TData, TError, TData, readonly unknown[]>, 'queryKey' | 'queryFn'>
+  Omit<UseQueryOptions<TData, TError, TData, readonly unknown[]>, "queryKey" | "queryFn">
 >;
 
 const getOptions =
@@ -27,30 +27,30 @@ const getOptions =
     staleTime: time,
     retry: 2,
     refetchOnReconnect: active,
-    refetchOnWindowFocus: active,
+    refetchOnWindowFocus: active
   });
 
 export const getActiveOptions = getOptions(true);
 export const activeOptions = {
-  '1h': getActiveOptions(3600000),
-  '15m': getActiveOptions(900000),
-  '5m': getActiveOptions(300000),
-  '3m': getActiveOptions(180000),
-  '1m': getActiveOptions(60000),
-  '30s': getActiveOptions(30000),
-  '15s': getActiveOptions(15000),
-  '3s': getActiveOptions(3000),
-  '0': getActiveOptions(0),
+  "1h": getActiveOptions(3600000),
+  "15m": getActiveOptions(900000),
+  "5m": getActiveOptions(300000),
+  "3m": getActiveOptions(180000),
+  "1m": getActiveOptions(60000),
+  "30s": getActiveOptions(30000),
+  "15s": getActiveOptions(15000),
+  "3s": getActiveOptions(3000),
+  "0": getActiveOptions(0)
 };
 export const getInactiveOptions = getOptions(false);
 export const inactiveOptions = {
-  '1h': getInactiveOptions(3600000),
-  '15m': getInactiveOptions(900000),
-  '5m': getInactiveOptions(300000),
-  '3m': getInactiveOptions(180000),
-  '1m': getInactiveOptions(60000),
-  '30s': getInactiveOptions(30000),
-  '15s': getInactiveOptions(15000),
-  '3s': getInactiveOptions(3000),
-  '0': getInactiveOptions(0),
+  "1h": getInactiveOptions(3600000),
+  "15m": getInactiveOptions(900000),
+  "5m": getInactiveOptions(300000),
+  "3m": getInactiveOptions(180000),
+  "1m": getInactiveOptions(60000),
+  "30s": getInactiveOptions(30000),
+  "15s": getInactiveOptions(15000),
+  "3s": getInactiveOptions(3000),
+  "0": getInactiveOptions(0)
 };

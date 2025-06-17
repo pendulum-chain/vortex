@@ -1,5 +1,5 @@
-import httpStatus from 'http-status';
-import ExtendableError from './extendable-error';
+import httpStatus from "http-status";
+import ExtendableError from "./extendable-error";
 
 interface APIErrorParams {
   message: string;
@@ -26,7 +26,7 @@ export class APIError extends ExtendableError {
       errors,
       status,
       isPublic,
-      stack,
+      stack
     });
   }
 }

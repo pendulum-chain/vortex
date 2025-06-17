@@ -16,6 +16,6 @@ export async function waitUntilTrue(test: () => Promise<boolean>, periodMs = 100
     if (await test()) {
       return true;
     }
-    await new Promise((resolve) => setTimeout(resolve, periodMs));
+    await new Promise(resolve => setTimeout(resolve, periodMs));
   }
 }

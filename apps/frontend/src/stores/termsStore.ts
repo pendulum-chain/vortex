@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface TermsState {
   termsChecked: boolean;
@@ -14,7 +14,7 @@ interface TermsState {
   };
 }
 
-const initialAccepted = localStorage.getItem('TERMS_AND_CONDITIONS') === 'accepted';
+const initialAccepted = localStorage.getItem("TERMS_AND_CONDITIONS") === "accepted";
 
 export const useTermsStore = create<TermsState>()((set, get) => ({
   termsChecked: false,
@@ -30,7 +30,7 @@ export const useTermsStore = create<TermsState>()((set, get) => ({
       set({
         termsChecked: !currentChecked,
         termsError: false,
-        isValid: !currentChecked || get().termsAccepted,
+        isValid: !currentChecked || get().termsAccepted
       });
     },
 
@@ -39,7 +39,7 @@ export const useTermsStore = create<TermsState>()((set, get) => ({
     },
 
     incrementAnimationKey: () => {
-      set((state) => ({ termsAnimationKey: state.termsAnimationKey + 1 }));
+      set(state => ({ termsAnimationKey: state.termsAnimationKey + 1 }));
     },
 
     validateTerms: () => {
@@ -52,20 +52,20 @@ export const useTermsStore = create<TermsState>()((set, get) => ({
       }
 
       if (isValid) {
-        localStorage.setItem('TERMS_AND_CONDITIONS', 'accepted');
+        localStorage.setItem("TERMS_AND_CONDITIONS", "accepted");
       }
 
       set({ isValid });
       return isValid;
-    },
-  },
+    }
+  }
 }));
 
-export const useTermsChecked = () => useTermsStore((state) => state.termsChecked);
-export const useTermsAccepted = () => useTermsStore((state) => state.termsAccepted);
-export const useTermsError = () => useTermsStore((state) => state.termsError);
-export const useTermsAnimationKey = () => useTermsStore((state) => state.termsAnimationKey);
-export const useTermsIsValid = () => useTermsStore((state) => state.isValid);
+export const useTermsChecked = () => useTermsStore(state => state.termsChecked);
+export const useTermsAccepted = () => useTermsStore(state => state.termsAccepted);
+export const useTermsError = () => useTermsStore(state => state.termsError);
+export const useTermsAnimationKey = () => useTermsStore(state => state.termsAnimationKey);
+export const useTermsIsValid = () => useTermsStore(state => state.isValid);
 
-export const useTermsActions = () => useTermsStore((state) => state.actions);
-export const useValidateTerms = () => useTermsStore((state) => state.actions.validateTerms);
+export const useTermsActions = () => useTermsStore(state => state.actions);
+export const useValidateTerms = () => useTermsStore(state => state.actions.validateTerms);

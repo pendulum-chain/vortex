@@ -1,12 +1,12 @@
-import { PresignedTx, RampErrorLog, RampPhase } from '@packages/shared';
-import { ReadMessageResult } from '@pendulum-chain/api-solang';
-import httpStatus from 'http-status';
-import logger from '../../../config/logger';
-import RampState from '../../../models/rampState.model';
-import { APIError } from '../../errors/api-error';
-import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from '../../errors/phase-error';
-import rampService from '../ramp/ramp.service';
-import { StateMetadata } from './meta-state-types';
+import { PresignedTx, RampErrorLog, RampPhase } from "@packages/shared";
+import { ReadMessageResult } from "@pendulum-chain/api-solang";
+import httpStatus from "http-status";
+import logger from "../../../config/logger";
+import RampState from "../../../models/rampState.model";
+import { APIError } from "../../errors/api-error";
+import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
+import rampService from "../ramp/ramp.service";
+import { StateMetadata } from "./meta-state-types";
 
 /**
  * Base interface for phase handlers
@@ -42,7 +42,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       if (state.currentPhase !== this.getPhaseName()) {
         throw new APIError({
           status: httpStatus.BAD_REQUEST,
-          message: `Cannot execute phase ${this.getPhaseName()} for ramp in phase ${state.currentPhase}`,
+          message: `Cannot execute phase ${this.getPhaseName()} for ramp in phase ${state.currentPhase}`
         });
       }
 
@@ -63,7 +63,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
         throw error;
       }
 
-      throw new UnrecoverablePhaseError(error instanceof Error ? error.message : 'Unknown error in phase execution');
+      throw new UnrecoverablePhaseError(error instanceof Error ? error.message : "Unknown error in phase execution");
     }
   }
 
@@ -82,9 +82,9 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     const errorLog: RampErrorLog = {
       phase: this.getPhaseName(),
       timestamp: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown error',
-      details: error instanceof Error ? error.stack : '', // TODO: verify if this is ok
-      recoverable: isRecoverable,
+      error: error instanceof Error ? error.message : "Unknown error",
+      details: error instanceof Error ? error.stack : "", // TODO: verify if this is ok
+      recoverable: isRecoverable
     };
 
     await rampService.appendErrorLog(state.id, errorLog);
@@ -109,23 +109,19 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param metadata Additional metadata for the transition
    * @returns The updated ramp state
    */
-  protected async transitionToNextPhase(
-    state: RampState,
-    nextPhase: RampPhase,
-    metadata?: unknown,
-  ): Promise<RampState> {
+  protected async transitionToNextPhase(state: RampState, nextPhase: RampPhase, metadata?: unknown): Promise<RampState> {
     const phaseHistory = [
       ...state.phaseHistory,
       {
         phase: nextPhase,
         timestamp: new Date(),
-        metadata: metadata as StateMetadata | undefined,
-      },
+        metadata: metadata as StateMetadata | undefined
+      }
     ];
 
     await state.update({
       currentPhase: nextPhase,
-      phaseHistory,
+      phaseHistory
     });
 
     return state.reload();
@@ -138,17 +134,17 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @returns The presigned transaction
    */
   protected getPresignedTransaction(state: RampState, phase: RampPhase): PresignedTx {
-    return state.presignedTxs?.find((tx) => tx.phase === phase) as PresignedTx;
+    return state.presignedTxs?.find(tx => tx.phase === phase) as PresignedTx;
   }
 
   protected parseContractMessageResultError(result: ReadMessageResult) {
-    if (result.type === 'error') {
+    if (result.type === "error") {
       return result.error;
-    } else if (result.type === 'panic') {
+    } else if (result.type === "panic") {
       return `${result.errorCode}: ${result.explanation}`;
-    } else if (result.type === 'reverted') {
+    } else if (result.type === "reverted") {
       return `${result.description}`;
     }
-    return 'Could not extract error message for ReadMessageResult.';
+    return "Could not extract error message for ReadMessageResult.";
   }
 }

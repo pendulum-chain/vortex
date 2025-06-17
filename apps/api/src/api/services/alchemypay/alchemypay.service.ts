@@ -1,9 +1,9 @@
-import { AlchemyPayPriceResponse } from '@packages/shared';
-import { Direction } from '@packages/shared';
-import { ProviderInternalError } from '../../errors/providerErrors';
-import { createQuoteRequest } from './request-creator';
-import { AlchemyPayResponse, processAlchemyPayResponse } from './response-handler';
-import { getAlchemyPayNetworkCode, getCryptoCurrencyCode, getFiatCode } from './utils';
+import { AlchemyPayPriceResponse } from "@packages/shared";
+import { Direction } from "@packages/shared";
+import { ProviderInternalError } from "../../errors/providerErrors";
+import { createQuoteRequest } from "./request-creator";
+import { AlchemyPayResponse, processAlchemyPayResponse } from "./response-handler";
+import { getAlchemyPayNetworkCode, getCryptoCurrencyCode, getFiatCode } from "./utils";
 
 type FetchResult = {
   response: Response;
@@ -22,7 +22,7 @@ async function fetchAlchemyPayData(url: string, request: RequestInit): Promise<F
     const body = (await response.json()) as AlchemyPayResponse;
     return { response, body };
   } catch (fetchError) {
-    console.error('AlchemyPay fetch error:', fetchError);
+    console.error("AlchemyPay fetch error:", fetchError);
     throw new ProviderInternalError(`Network error fetching price from AlchemyPay: ${(fetchError as Error).message}`);
   }
 }
@@ -41,7 +41,7 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   network: string,
-  direction: Direction,
+  direction: Direction
 ): Promise<AlchemyPayPriceResponse> {
   const { requestUrl, request } = createQuoteRequest(direction, cryptoCurrencyCode, fiatCurrencyCode, amount, network);
 
@@ -64,21 +64,21 @@ export const getPriceFor = (
   targetCurrency: string,
   amount: string | number,
   direction: Direction,
-  network?: string,
+  network?: string
 ): Promise<AlchemyPayPriceResponse> => {
-  const DEFAULT_NETWORK = 'POLYGON';
+  const DEFAULT_NETWORK = "POLYGON";
   const networkCode = getAlchemyPayNetworkCode(network || DEFAULT_NETWORK);
 
   // For offramp: source is crypto, target is fiat
   // For onramp: source is fiat, target is crypto
-  const cryptoCurrency = direction === 'onramp' ? targetCurrency : sourceCurrency;
-  const fiatCurrency = direction === 'onramp' ? sourceCurrency : targetCurrency;
+  const cryptoCurrency = direction === "onramp" ? targetCurrency : sourceCurrency;
+  const fiatCurrency = direction === "onramp" ? sourceCurrency : targetCurrency;
 
   return priceQuery(
     getCryptoCurrencyCode(cryptoCurrency),
     getFiatCode(fiatCurrency),
     amount.toString(),
     networkCode,
-    direction,
+    direction
   );
 };

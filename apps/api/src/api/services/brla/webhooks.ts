@@ -1,8 +1,8 @@
-import logger from '../../../config/logger';
-import { WEBHOOKS_CACHE_URL } from '../../../constants/constants';
-import { BrlaApiService } from './brlaApiService';
+import logger from "../../../config/logger";
+import { WEBHOOKS_CACHE_URL } from "../../../constants/constants";
+import { BrlaApiService } from "./brlaApiService";
 
-type SubscriptionType = 'BURN' | 'BALANCE-UPDATE' | 'MONEY-TRANSFER' | 'MINT' | 'KYC';
+type SubscriptionType = "BURN" | "BALANCE-UPDATE" | "MONEY-TRANSFER" | "MINT" | "KYC";
 
 export interface Event {
   userId: string;
@@ -14,8 +14,8 @@ export interface Event {
 }
 
 export type Kyc2FailureReason =
-  | 'face match failure' // Selfie issue. Blurred, too dark, too light, glasses, etc.
-  | 'name does not match'; // Document picture issue. Anything from not legible to no document at all.
+  | "face match failure" // Selfie issue. Blurred, too dark, too light, glasses, etc.
+  | "name does not match"; // Document picture issue. Anything from not legible to no document at all.
 
 interface EventData {
   status: string;
@@ -38,7 +38,7 @@ export class EventPoller {
 
   constructor(pollingInterval = 1000) {
     if (!WEBHOOKS_CACHE_URL) {
-      throw new Error('WEBHOOKS_CACHE_URL is not defined!');
+      throw new Error("WEBHOOKS_CACHE_URL is not defined!");
     }
 
     this.apiUrl = WEBHOOKS_CACHE_URL;
@@ -48,7 +48,7 @@ export class EventPoller {
 
   public start() {
     if (this.started) {
-      console.warn('EventPoller already started');
+      console.warn("EventPoller already started");
       return;
     }
     this.poll();
@@ -61,8 +61,8 @@ export class EventPoller {
 
   private async fetchEvents(): Promise<Event[]> {
     const headers = new Headers([
-      ['Content-Type', 'application/json'],
-      ['Auth-password', 'password'],
+      ["Content-Type", "application/json"],
+      ["Auth-password", "password"]
     ]);
     const response = await fetch(this.apiUrl, { headers });
     const events: Event[] = await response.json();
@@ -86,9 +86,7 @@ export class EventPoller {
     const lastTimestamp = userEvents[userEvents.length - 1].createdAt;
 
     // Append all events that are not registered in the cache.
-    const eventsNotRegistered = fetchedUserEvents.filter(
-      (event) => new Date(event.createdAt) > new Date(lastTimestamp),
-    );
+    const eventsNotRegistered = fetchedUserEvents.filter(event => new Date(event.createdAt) > new Date(lastTimestamp));
     userEvents.push(...eventsNotRegistered);
     this.cache.set(userId, userEvents);
     this.acknowledgeEvents(eventsNotRegistered);
@@ -105,8 +103,8 @@ export class EventPoller {
   private async acknowledgeEvents(eventsToAcknowledge: Event[]) {
     // async acknowledge events
     if (eventsToAcknowledge.length > 0) {
-      this.brlaApiService.acknowledgeEvents(eventsToAcknowledge.flatMap((event) => event.id)).catch((error) => {
-        logger.error('Poll: Error while acknowledging events: ', error);
+      this.brlaApiService.acknowledgeEvents(eventsToAcknowledge.flatMap(event => event.id)).catch(error => {
+        logger.error("Poll: Error while acknowledging events: ", error);
       });
     }
   }
@@ -131,7 +129,7 @@ export class EventPoller {
         }
       });
     } catch (error) {
-      console.error('Error polling events:', (error as Error).message);
+      console.error("Error polling events:", (error as Error).message);
     }
   }
 
@@ -151,6 +149,6 @@ export class EventPoller {
     if (!events || events.length === 0) {
       return null;
     }
-    return events.filter((event) => event.subscription === subscription);
+    return events.filter(event => event.subscription === subscription);
   }
 }

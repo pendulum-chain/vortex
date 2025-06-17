@@ -1,22 +1,22 @@
-import { TOKEN_CONFIG } from '@packages/shared';
-import { Keyring } from '@polkadot/api';
-import { KeyringPair } from '@polkadot/keyring/types';
-import Big from 'big.js';
-import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from '../../../constants/constants';
-import { ApiManager, SubstrateApiNetwork } from './apiManager';
-import { multiplyByPowerOfTen } from './helpers';
+import { TOKEN_CONFIG } from "@packages/shared";
+import { Keyring } from "@polkadot/api";
+import { KeyringPair } from "@polkadot/keyring/types";
+import Big from "big.js";
+import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../constants/constants";
+import { ApiManager, SubstrateApiNetwork } from "./apiManager";
+import { multiplyByPowerOfTen } from "./helpers";
 
 const { PENDULUM_FUNDING_SEED } = process.env;
 
 export function getFundingData(
   ss58Format: number,
-  decimals: number,
+  decimals: number
 ): {
   fundingAccountKeypair: KeyringPair;
   fundingAmountRaw: string;
 } {
-  const keyring = new Keyring({ type: 'sr25519', ss58Format });
-  const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED || '');
+  const keyring = new Keyring({ type: "sr25519", ss58Format });
+  const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED || "");
   const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 
@@ -26,7 +26,7 @@ export function getFundingData(
 export const fundEphemeralAccount = async (
   networkName: SubstrateApiNetwork,
   ephemeralAddress: string,
-  requiresGlmr?: boolean,
+  requiresGlmr?: boolean
 ): Promise<boolean> => {
   try {
     const apiManager = ApiManager.getInstance();
@@ -38,28 +38,24 @@ export const fundEphemeralAccount = async (
       const { pendulumCurrencyId } = TOKEN_CONFIG.glmr;
 
       const penFundingTx = apiData.api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw);
-      const glmrFundingTx = apiData.api.tx.tokens.transfer(
-        ephemeralAddress,
-        pendulumCurrencyId,
-        GLMR_FUNDING_AMOUNT_RAW,
-      );
+      const glmrFundingTx = apiData.api.tx.tokens.transfer(ephemeralAddress, pendulumCurrencyId, GLMR_FUNDING_AMOUNT_RAW);
 
       await apiManager.executeApiCall(
-        (api) => api.tx.utility.batchAll([penFundingTx, glmrFundingTx]),
+        api => api.tx.utility.batchAll([penFundingTx, glmrFundingTx]),
         fundingAccountKeypair,
-        networkName,
+        networkName
       );
     } else {
       await apiManager.executeApiCall(
-        (api) => api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw),
+        api => api.tx.balances.transferKeepAlive(ephemeralAddress, fundingAmountRaw),
         fundingAccountKeypair,
-        networkName,
+        networkName
       );
     }
 
     return true;
   } catch (error) {
-    console.error('Error during funding:', error);
+    console.error("Error during funding:", error);
     return false;
   }
 };

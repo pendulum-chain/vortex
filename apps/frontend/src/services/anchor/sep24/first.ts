@@ -1,14 +1,14 @@
-import { FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
-import { config } from '../../../config';
-import { IAnchorSessionParams, ISep24Intermediate } from '../../../types/sep';
+import { FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
+import { config } from "../../../config";
+import { IAnchorSessionParams, ISep24Intermediate } from "../../../types/sep";
 
 export async function sep24First(
   sessionParams: IAnchorSessionParams,
   ANCLAP_sep10Account: string,
-  outputToken: FiatToken,
+  outputToken: FiatToken
 ): Promise<ISep24Intermediate> {
   if (config.test.mockSep24) {
-    return { url: 'https://www.example.com', id: '1234' };
+    return { url: "https://www.example.com", id: "1234" };
   }
 
   const { token, tomlValues, offrampAmount } = sessionParams;
@@ -19,16 +19,16 @@ export async function sep24First(
   const params = {
     asset_code: assetCode,
     amount: offrampAmount,
-    ...(usesMemo && { account: ANCLAP_sep10Account }),
+    ...(usesMemo && { account: ANCLAP_sep10Account })
   };
 
   const response = await fetch(`${sep24Url}/transactions/withdraw/interactive`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify(params),
+    body: JSON.stringify(params)
   });
 
   if (response.status !== 200) {
@@ -37,7 +37,7 @@ export async function sep24First(
   }
 
   const { type, url, id } = await response.json();
-  if (type !== 'interactive_customer_info_needed') {
+  if (type !== "interactive_customer_info_needed") {
     throw new Error(`Unexpected SEP-24 type: ${type}`);
   }
 

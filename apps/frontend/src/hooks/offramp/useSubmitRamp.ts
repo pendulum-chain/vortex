@@ -1,22 +1,22 @@
-import { BrlaErrorResponse, FiatToken, getTokenDetailsSpacewalk } from '@packages/shared';
-import Big from 'big.js';
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { BrlaErrorResponse, FiatToken, getTokenDetailsSpacewalk } from "@packages/shared";
+import Big from "big.js";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
-import { RampDirection } from '../../components/RampToggle';
-import { useNetwork } from '../../contexts/network';
-import { useSiweContext } from '../../contexts/siwe';
-import { useToastMessage } from '../../helpers/notifications';
-import { sep10 } from '../../services/anchor/sep10';
-import { sep24First } from '../../services/anchor/sep24/first';
-import { BrlaService } from '../../services/api';
-import { fetchTomlValues } from '../../services/stellar';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { useRampActions } from '../../stores/rampStore';
-import { useSep24Actions } from '../../stores/sep24Store';
-import { RampExecutionInput } from '../../types/phases';
-import { isValidCnpj, isValidCpf } from '../ramp/schema';
-import { useVortexAccount } from '../useVortexAccount';
+import { RampDirection } from "../../components/RampToggle";
+import { useNetwork } from "../../contexts/network";
+import { useSiweContext } from "../../contexts/siwe";
+import { useToastMessage } from "../../helpers/notifications";
+import { sep10 } from "../../services/anchor/sep10";
+import { sep24First } from "../../services/anchor/sep24/first";
+import { BrlaService } from "../../services/api";
+import { fetchTomlValues } from "../../services/stellar";
+import { useRampDirection } from "../../stores/rampDirectionStore";
+import { useRampActions } from "../../stores/rampStore";
+import { useSep24Actions } from "../../stores/sep24Store";
+import { RampExecutionInput } from "../../types/phases";
+import { isValidCnpj, isValidCpf } from "../ramp/schema";
+import { useVortexAccount } from "../useVortexAccount";
 
 export const useSubmitRamp = () => {
   const { t } = useTranslation();
@@ -33,14 +33,14 @@ export const useSubmitRamp = () => {
     setRampKycStarted,
     setInitializeFailedMessage,
     setRampSummaryVisible,
-    setRampKycLevel2Started,
+    setRampKycLevel2Started
   } = useRampActions();
 
   const {
     setAnchorSessionParams,
     setInitialResponse: setInitialResponseSEP24,
     setUrlInterval: setUrlIntervalSEP24,
-    cleanup: cleanupSEP24,
+    cleanup: cleanupSEP24
   } = useSep24Actions();
   const { chainId } = useVortexAccount();
 
@@ -57,11 +57,11 @@ export const useSubmitRamp = () => {
           await setSelectedNetwork(selectedNetwork);
 
           if (!address) {
-            throw new Error('Address must be defined at this stage');
+            throw new Error("Address must be defined at this stage");
           }
 
           if (!chainId) {
-            throw new Error('ChainId must be defined at this stage');
+            throw new Error("ChainId must be defined at this stage");
           }
 
           // @TODO: BRL-related logic should be in a separate function/hook
@@ -84,9 +84,7 @@ export const useSubmitRamp = () => {
                   : remainingLimitResponse.remainingLimitOnramp;
 
               const amountNum = Number(
-                rampDirection === RampDirection.OFFRAMP
-                  ? executionInput.quote.outputAmount
-                  : executionInput.quote.inputAmount,
+                rampDirection === RampDirection.OFFRAMP ? executionInput.quote.outputAmount : executionInput.quote.inputAmount
               );
               const remainingLimitNum = Number(remainingLimitInUnits);
               if (amountNum > remainingLimitNum) {
@@ -99,7 +97,7 @@ export const useSubmitRamp = () => {
               // append EVM address to execution input
               const updatedBrlaRampExecution = {
                 ...executionInput,
-                brlaEvmAddress,
+                brlaEvmAddress
               };
               setRampExecutionInput(updatedBrlaRampExecution);
 
@@ -112,14 +110,14 @@ export const useSubmitRamp = () => {
               if (isValidCpf(taxId) || isValidCnpj(taxId)) {
                 console.log("User doesn't exist yet.");
                 setRampKycStarted(true);
-              } else if (errorResponse.error.includes('KYC invalid')) {
-                setInitializeFailedMessage(t('hooks.useSubmitOfframp.kycInvalid'));
+              } else if (errorResponse.error.includes("KYC invalid")) {
+                setInitializeFailedMessage(t("hooks.useSubmitOfframp.kycInvalid"));
                 setRampStarted(false);
                 setRampInitiating(false);
                 cleanupSEP24();
                 return;
               }
-              throw new Error('Error while fetching BRLA user');
+              throw new Error("Error while fetching BRLA user");
             }
           } else {
             const stellarEphemeralSecret = executionInput.ephemerals.stellarEphemeral.secret;
@@ -132,19 +130,17 @@ export const useSubmitRamp = () => {
               executionInput.fiatToken, // FIXME is this correct?,
               address,
               checkAndWaitForSignature,
-              forceRefreshAndWaitForSignature,
+              forceRefreshAndWaitForSignature
             );
 
             // We have to add the fee to the amount we are going to send to the anchor. It will be deducted from the amount we are going to receive.
-            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(
-              executionInput.quote.fee.anchor,
-            );
+            const offrampAmountBeforeFees = Big(executionInput.quote.outputAmount).plus(executionInput.quote.fee.anchor);
 
             const anchorSessionParams = {
               token: sep10Token,
               tomlValues,
               tokenConfig: outputToken,
-              offrampAmount: offrampAmountBeforeFees.toFixed(2, 0),
+              offrampAmount: offrampAmountBeforeFees.toFixed(2, 0)
             };
 
             setAnchorSessionParams(anchorSessionParams);
@@ -153,10 +149,10 @@ export const useSubmitRamp = () => {
               const firstSep24Response = await sep24First(
                 anchorSessionParams,
                 sep10Account,
-                executionInput.fiatToken, // FIXME: is this correct?
+                executionInput.fiatToken // FIXME: is this correct?
               );
               const url = new URL(firstSep24Response.url);
-              url.searchParams.append('callback', 'postMessage');
+              url.searchParams.append("callback", "postMessage");
               firstSep24Response.url = url.toString();
               setInitialResponseSEP24(firstSep24Response);
             };
@@ -165,7 +161,7 @@ export const useSubmitRamp = () => {
             try {
               await fetchAndUpdateSep24Url();
             } catch (error) {
-              console.error('Error finalizing the initial state of the offramping process', error);
+              console.error("Error finalizing the initial state of the offramping process", error);
               executionInput.setInitializeFailed();
               setRampStarted(false);
               cleanupSEP24();
@@ -174,9 +170,9 @@ export const useSubmitRamp = () => {
             }
           }
         } catch (error) {
-          console.error('Error initializing the offramping process', (error as Error).message);
-          if ((error as Error).message.includes('User rejected')) {
-            showToast(ToastMessage.ERROR, 'You must sign the login request to be able to sell Argentine Peso');
+          console.error("Error initializing the offramping process", (error as Error).message);
+          if ((error as Error).message.includes("User rejected")) {
+            showToast(ToastMessage.ERROR, "You must sign the login request to be able to sell Argentine Peso");
           } else {
             executionInput.setInitializeFailed();
           }
@@ -206,7 +202,7 @@ export const useSubmitRamp = () => {
       showToast,
       rampDirection,
       setRampKycLevel2Started,
-      ToastMessage.ERROR,
-    ],
+      ToastMessage.ERROR
+    ]
   );
 };

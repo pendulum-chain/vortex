@@ -1,5 +1,5 @@
-import { Direction, Networks } from '@packages/shared';
-import { config } from '../../../config/vars';
+import { Direction, Networks } from "@packages/shared";
+import { config } from "../../../config/vars";
 
 const { priceProviders } = config;
 
@@ -7,7 +7,7 @@ const { priceProviders } = config;
  * Payment method constants for Transak API
  */
 const PAYMENT_METHODS = {
-  CREDIT_CARD: 'credit_debit_card',
+  CREDIT_CARD: "credit_debit_card"
 } as const;
 
 /**
@@ -30,23 +30,23 @@ function createBuyQuoteRequest(
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   fiatAmount: string,
-  network: Networks,
+  network: Networks
 ): RequestConfig {
-  const requestPath = '/api/v1/pricing/public/quotes';
+  const requestPath = "/api/v1/pricing/public/quotes";
 
   const paramsObj: Record<string, string> = {
-    partnerApiKey: priceProviders.transak.partnerApiKey || '',
+    partnerApiKey: priceProviders.transak.partnerApiKey || "",
     cryptoCurrency: cryptoCurrencyCode,
     fiatCurrency: fiatCurrencyCode,
     fiatAmount,
     network: network.toLowerCase(),
-    isBuyOrSell: 'BUY',
-    paymentMethod: PAYMENT_METHODS.CREDIT_CARD,
+    isBuyOrSell: "BUY",
+    paymentMethod: PAYMENT_METHODS.CREDIT_CARD
   };
 
   return {
     requestPath,
-    params: new URLSearchParams(paramsObj),
+    params: new URLSearchParams(paramsObj)
   };
 }
 
@@ -62,22 +62,22 @@ function createSellQuoteRequest(
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   cryptoAmount: string,
-  network: Networks,
+  network: Networks
 ): RequestConfig {
-  const requestPath = '/api/v1/pricing/public/quotes';
+  const requestPath = "/api/v1/pricing/public/quotes";
 
   const paramsObj: Record<string, string> = {
-    partnerApiKey: priceProviders.transak.partnerApiKey || '',
+    partnerApiKey: priceProviders.transak.partnerApiKey || "",
     cryptoCurrency: cryptoCurrencyCode,
     fiatCurrency: fiatCurrencyCode,
     cryptoAmount,
     network: network.toLowerCase(),
-    isBuyOrSell: 'SELL',
+    isBuyOrSell: "SELL"
   };
 
   return {
     requestPath,
-    params: new URLSearchParams(paramsObj),
+    params: new URLSearchParams(paramsObj)
   };
 }
 
@@ -95,9 +95,9 @@ export function createQuoteRequest(
   cryptoCurrencyCode: string,
   fiatCurrencyCode: string,
   amount: string,
-  network: Networks,
+  network: Networks
 ): RequestConfig {
-  return direction === 'onramp'
+  return direction === "onramp"
     ? createBuyQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network)
     : createSellQuoteRequest(cryptoCurrencyCode, fiatCurrencyCode, amount, network);
 }

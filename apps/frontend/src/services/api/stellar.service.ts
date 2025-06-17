@@ -4,15 +4,15 @@ import {
   FiatToken,
   GetSep10MasterPKResponse,
   SignSep10ChallengeRequest,
-  SignSep10ChallengeResponse,
-} from '@packages/shared';
-import { apiRequest } from './api-client';
+  SignSep10ChallengeResponse
+} from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Stellar API endpoints
  */
 export class StellarService {
-  private static readonly BASE_PATH = '/stellar';
+  private static readonly BASE_PATH = "/stellar";
 
   /**
    * Create a Stellar transaction
@@ -26,15 +26,15 @@ export class StellarService {
     accountId: string,
     maxTime: number,
     assetCode: string,
-    baseFee: string,
+    baseFee: string
   ): Promise<CreateStellarTransactionResponse> {
     const request: CreateStellarTransactionRequest = {
       accountId,
       maxTime,
       assetCode,
-      baseFee,
+      baseFee
     };
-    return apiRequest<CreateStellarTransactionResponse>('post', `${this.BASE_PATH}/create`, request);
+    return apiRequest<CreateStellarTransactionResponse>("post", `${this.BASE_PATH}/create`, request);
   }
 
   /**
@@ -49,15 +49,15 @@ export class StellarService {
     challengeXDR: string,
     outToken: FiatToken,
     clientPublicKey: string,
-    derivedMemo?: string,
+    derivedMemo?: string
   ): Promise<SignSep10ChallengeResponse> {
     const request: SignSep10ChallengeRequest = {
       challengeXDR,
       outToken,
       clientPublicKey,
-      derivedMemo,
+      derivedMemo
     };
-    return apiRequest<SignSep10ChallengeResponse>('post', `${this.BASE_PATH}/sep10`, request);
+    return apiRequest<SignSep10ChallengeResponse>("post", `${this.BASE_PATH}/sep10`, request);
   }
 
   /**
@@ -65,6 +65,6 @@ export class StellarService {
    * @returns The master public key
    */
   static async getSep10MasterPK(): Promise<GetSep10MasterPKResponse> {
-    return apiRequest<GetSep10MasterPKResponse>('get', `${this.BASE_PATH}/sep10`);
+    return apiRequest<GetSep10MasterPKResponse>("get", `${this.BASE_PATH}/sep10`);
   }
 }

@@ -1,26 +1,26 @@
-import { AnimatePresence, MotionProps, motion } from 'motion/react';
-import { FC } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { AnimatePresence, MotionProps, motion } from "motion/react";
+import { FC } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
-import { FiatToken } from '@packages/shared';
-import { useFiatToken } from '../../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../../stores/rampDirectionStore';
-import { RampDirection } from '../../RampToggle';
-import { BrlaField, StandardBrlaFieldOptions } from '../BrlaField';
+import { FiatToken } from "@packages/shared";
+import { useFiatToken } from "../../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../../stores/rampDirectionStore";
+import { RampDirection } from "../../RampToggle";
+import { BrlaField, StandardBrlaFieldOptions } from "../BrlaField";
 
 const containerAnimation: MotionProps = {
   initial: { opacity: 0, height: 0 },
-  animate: { opacity: 1, height: 'auto' },
+  animate: { opacity: 1, height: "auto" },
   exit: { opacity: 0, height: 0 },
-  transition: { duration: 0.3 },
+  transition: { duration: 0.3 }
 };
 
 const OFFRAMP_FIELDS = [
-  { id: StandardBrlaFieldOptions.TAX_ID, label: 'cpfOrCnpj', index: 0 },
-  { id: StandardBrlaFieldOptions.PIX_ID, label: 'pixKey', index: 1 },
+  { id: StandardBrlaFieldOptions.TAX_ID, label: "cpfOrCnpj", index: 0 },
+  { id: StandardBrlaFieldOptions.PIX_ID, label: "pixKey", index: 1 }
 ];
 
-const ONRAMP_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: 'cpfOrCnpj', index: 0 }];
+const ONRAMP_FIELDS = [{ id: StandardBrlaFieldOptions.TAX_ID, label: "cpfOrCnpj", index: 0 }];
 
 /**
  * BrlaSwapFields component
@@ -44,7 +44,7 @@ export const BrlaSwapFields: FC = () => {
     <AnimatePresence>
       {fiatToken === FiatToken.BRL && (
         <motion.div {...containerAnimation}>
-          {FIELDS.map((field) => (
+          {FIELDS.map(field => (
             <BrlaField
               className="mt-2"
               key={field.id}
@@ -52,7 +52,7 @@ export const BrlaSwapFields: FC = () => {
               label={t(`components.brlaSwapField.${field.label}`)}
               index={field.index}
               placeholder={t(`components.brlaSwapField.placeholder`, {
-                label: t(`components.brlaSwapField.${field.label}`),
+                label: t(`components.brlaSwapField.${field.label}`)
               })}
             />
           ))}

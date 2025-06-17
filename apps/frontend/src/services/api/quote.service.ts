@@ -1,11 +1,11 @@
-import { CreateQuoteRequest, DestinationType, FiatToken, OnChainToken, QuoteResponse } from '@packages/shared';
-import { apiRequest } from './api-client';
+import { CreateQuoteRequest, DestinationType, FiatToken, OnChainToken, QuoteResponse } from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Quote API endpoints
  */
 export class QuoteService {
-  private static readonly BASE_PATH = '/quotes';
+  private static readonly BASE_PATH = "/quotes";
 
   /**
    * Create a new quote
@@ -19,13 +19,13 @@ export class QuoteService {
    * @returns The created quote
    */
   static async createQuote(
-    rampType: 'on' | 'off',
+    rampType: "on" | "off",
     from: DestinationType,
     to: DestinationType,
     inputAmount: string,
     inputCurrency: OnChainToken | FiatToken,
     outputCurrency: OnChainToken | FiatToken,
-    partnerId?: string,
+    partnerId?: string
   ): Promise<QuoteResponse> {
     const request: CreateQuoteRequest = {
       rampType,
@@ -33,7 +33,7 @@ export class QuoteService {
       to,
       inputAmount,
       inputCurrency,
-      outputCurrency,
+      outputCurrency
     };
 
     // Only add partnerId if it's provided and not empty
@@ -41,7 +41,7 @@ export class QuoteService {
       request.partnerId = partnerId;
     }
 
-    return apiRequest<QuoteResponse>('post', this.BASE_PATH, request);
+    return apiRequest<QuoteResponse>("post", this.BASE_PATH, request);
   }
 
   /**
@@ -50,6 +50,6 @@ export class QuoteService {
    * @returns The quote
    */
   static async getQuote(id: string): Promise<QuoteResponse> {
-    return apiRequest<QuoteResponse>('get', `${this.BASE_PATH}/${id}`);
+    return apiRequest<QuoteResponse>("get", `${this.BASE_PATH}/${id}`);
   }
 }

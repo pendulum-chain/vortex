@@ -21,27 +21,27 @@ import {
   isEvmTokenDetails,
   isFiatToken,
   isOnChainToken,
-  isStellarOutputTokenDetails,
-} from '@packages/shared';
+  isStellarOutputTokenDetails
+} from "@packages/shared";
 
-import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from '@packages/shared';
-import Big from 'big.js';
-import { Keypair } from 'stellar-sdk';
-import logger from '../../../config/logger';
-import Partner from '../../../models/partner.model';
-import { QuoteTicketAttributes, QuoteTicketMetadata } from '../../../models/quoteTicket.model';
-import { ApiManager } from '../pendulum/apiManager';
-import { multiplyByPowerOfTen } from '../pendulum/helpers';
-import { StateMetadata } from '../phases/meta-state-types';
-import { priceFeedService } from '../priceFeed.service';
-import { encodeEvmTransactionData } from './index';
-import { createNablaTransactionsForOfframp } from './nabla';
-import { preparePendulumCleanupTransaction } from './pendulum/cleanup';
-import { prepareSpacewalkRedeemTransaction } from './spacewalk/redeem';
-import { createOfframpSquidrouterTransactions } from './squidrouter/offramp';
-import { buildPaymentAndMergeTx } from './stellar/offrampTransaction';
-import { createAssethubToPendulumXCM } from './xcm/assethubToPendulum';
-import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
+import { PENDULUM_USDC_ASSETHUB, PENDULUM_USDC_AXL } from "@packages/shared";
+import Big from "big.js";
+import { Keypair } from "stellar-sdk";
+import logger from "../../../config/logger";
+import Partner from "../../../models/partner.model";
+import { QuoteTicketAttributes, QuoteTicketMetadata } from "../../../models/quoteTicket.model";
+import { ApiManager } from "../pendulum/apiManager";
+import { multiplyByPowerOfTen } from "../pendulum/helpers";
+import { StateMetadata } from "../phases/meta-state-types";
+import { priceFeedService } from "../priceFeed.service";
+import { encodeEvmTransactionData } from "./index";
+import { createNablaTransactionsForOfframp } from "./nabla";
+import { preparePendulumCleanupTransaction } from "./pendulum/cleanup";
+import { prepareSpacewalkRedeemTransaction } from "./spacewalk/redeem";
+import { createOfframpSquidrouterTransactions } from "./squidrouter/offramp";
+import { buildPaymentAndMergeTx } from "./stellar/offrampTransaction";
+import { createAssethubToPendulumXCM } from "./xcm/assethubToPendulum";
+import { createPendulumToMoonbeamTransfer } from "./xcm/pendulumToMoonbeam";
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase
@@ -50,11 +50,11 @@ import { createPendulumToMoonbeamTransfer } from './xcm/pendulumToMoonbeam';
  */
 async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<string | null> {
   const apiManager = ApiManager.getInstance();
-  const { api } = await apiManager.getApi('pendulum');
+  const { api } = await apiManager.getApi("pendulum");
 
   const metadata = quote.metadata as QuoteTicketMetadata;
   if (!metadata.usdFeeStructure) {
-    logger.warn('No USD fee structure found in quote metadata, skipping fee distribution transaction');
+    logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
     return null;
   }
 
@@ -64,10 +64,10 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
 
   // Get payout addresses
   const vortexPartner = await Partner.findOne({
-    where: { name: 'vortex', isActive: true },
+    where: { name: "vortex", isActive: true }
   });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
-    logger.warn('Vortex partner or payout address not found, skipping fee distribution transaction');
+    logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
     return null;
   }
   const vortexPayoutAddress = vortexPartner.payoutAddress;
@@ -75,7 +75,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   let partnerPayoutAddress = null;
   if (quote.partnerId) {
     const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true },
+      where: { id: quote.partnerId, isActive: true }
     });
     if (quotePartner && quotePartner.payoutAddress) {
       partnerPayoutAddress = quotePartner.payoutAddress;
@@ -110,9 +110,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   }
 
   if (new Big(partnerMarkupFeeStablecoinRaw).gt(0) && partnerPayoutAddress) {
-    transfers.push(
-      api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw),
-    );
+    transfers.push(api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw));
   }
 
   if (transfers.length > 0) {
@@ -139,40 +137,39 @@ async function createEvmSourceTransactions(
     inputAmountRaw: string;
     inputTokenDetails: EvmTokenDetails;
   },
-  unsignedTxs: UnsignedTx[],
+  unsignedTxs: UnsignedTx[]
 ): Promise<Partial<StateMetadata>> {
   const { userAddress, pendulumEphemeralAddress, fromNetwork, inputAmountRaw, inputTokenDetails } = params;
 
-  const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash } =
-    await createOfframpSquidrouterTransactions({
-      inputTokenDetails,
-      fromNetwork,
-      rawAmount: inputAmountRaw,
-      pendulumAddressDestination: pendulumEphemeralAddress,
-      fromAddress: userAddress,
-    });
+  const { approveData, swapData, squidRouterReceiverId, squidRouterReceiverHash } = await createOfframpSquidrouterTransactions({
+    inputTokenDetails,
+    fromNetwork,
+    rawAmount: inputAmountRaw,
+    pendulumAddressDestination: pendulumEphemeralAddress,
+    fromAddress: userAddress
+  });
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(approveData) as EvmTransactionData,
-    phase: 'squidRouterApprove',
+    phase: "squidRouterApprove",
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
-    meta: {},
+    meta: {}
   });
 
   unsignedTxs.push({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData,
-    phase: 'squidRouterSwap',
+    phase: "squidRouterSwap",
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
-    meta: {},
+    meta: {}
   });
 
   return {
     squidRouterReceiverId,
-    squidRouterReceiverHash,
+    squidRouterReceiverHash
   };
 }
 
@@ -188,26 +185,22 @@ async function createAssetHubSourceTransactions(
     inputAmountRaw: string;
   },
   unsignedTxs: UnsignedTx[],
-  fromNetwork: Networks,
+  fromNetwork: Networks
 ): Promise<void> {
   const { userAddress, pendulumEphemeralAddress, inputAmountRaw } = params;
 
   // Create Assethub to Pendulum transaction
-  const assethubToPendulumTransaction = await createAssethubToPendulumXCM(
-    pendulumEphemeralAddress,
-    'usdc',
-    inputAmountRaw,
-  );
+  const assethubToPendulumTransaction = await createAssethubToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw);
 
-  logger.info('assethub to pendulum txs done');
+  logger.info("assethub to pendulum txs done");
 
   unsignedTxs.push({
     txData: encodeSubmittableExtrinsic(assethubToPendulumTransaction),
-    phase: 'assethubToPendulum',
+    phase: "assethubToPendulum",
     network: fromNetwork,
     nonce: 0,
     signer: userAddress,
-    meta: {},
+    meta: {}
   });
 }
 
@@ -226,7 +219,7 @@ async function createNablaSwapTransactions(
     outputTokenPendulumDetails: PendulumTokenDetails;
   },
   unsignedTxs: UnsignedTx[],
-  nextNonce: number,
+  nextNonce: number
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { quote, account, inputTokenPendulumDetails, outputTokenPendulumDetails } = params;
 
@@ -235,16 +228,16 @@ async function createNablaSwapTransactions(
   const anchorFeeInInputCurrency = await priceFeedService.convertCurrency(
     quote.fee.anchor,
     quote.outputCurrency,
-    quote.inputCurrency,
+    quote.inputCurrency
   );
   const totalFeeInInputCurrency = await priceFeedService.convertCurrency(
     quote.fee.total,
     quote.outputCurrency,
-    quote.inputCurrency,
+    quote.inputCurrency
   );
   const inputAmountBeforeSwapRaw = multiplyByPowerOfTen(
     new Big(quote.inputAmount).minus(totalFeeInInputCurrency).plus(anchorFeeInInputCurrency),
-    inputTokenPendulumDetails.pendulumDecimals,
+    inputTokenPendulumDetails.pendulumDecimals
   ).toFixed(0, 0);
 
   // For these minimums, we use the output amount after all fees have been deducted except for the anchor fee.
@@ -253,13 +246,13 @@ async function createNablaSwapTransactions(
   const nablaSoftMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN);
   const nablaSoftMinimumOutputRaw = multiplyByPowerOfTen(
     nablaSoftMinimumOutput,
-    outputTokenPendulumDetails.pendulumDecimals,
+    outputTokenPendulumDetails.pendulumDecimals
   ).toFixed();
 
   const nablaHardMinimumOutput = outputBeforeAnchorFee.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
   const nablaHardMinimumOutputRaw = multiplyByPowerOfTen(
     new Big(nablaHardMinimumOutput),
-    outputTokenPendulumDetails.pendulumDecimals,
+    outputTokenPendulumDetails.pendulumDecimals
   ).toFixed(0, 0);
 
   const { approve, swap } = await createNablaTransactionsForOfframp(
@@ -267,26 +260,26 @@ async function createNablaSwapTransactions(
     account,
     inputTokenPendulumDetails,
     outputTokenPendulumDetails,
-    nablaHardMinimumOutputRaw,
+    nablaHardMinimumOutputRaw
   );
 
   unsignedTxs.push({
     txData: approve.transaction,
-    phase: 'nablaApprove',
+    phase: "nablaApprove",
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
-    meta: {},
+    meta: {}
   });
   nextNonce++;
 
   unsignedTxs.push({
     txData: swap.transaction,
-    phase: 'nablaSwap',
+    phase: "nablaSwap",
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
-    meta: {},
+    meta: {}
   });
   nextNonce++;
 
@@ -297,9 +290,9 @@ async function createNablaSwapTransactions(
       inputAmountBeforeSwapRaw,
       nabla: {
         approveExtrinsicOptions: approve.extrinsicOptions,
-        swapExtrinsicOptions: swap.extrinsicOptions,
-      },
-    },
+        swapExtrinsicOptions: swap.extrinsicOptions
+      }
+    }
   };
 }
 
@@ -315,18 +308,18 @@ async function addFeeDistributionTransaction(
   quote: QuoteTicketAttributes,
   account: AccountMeta,
   unsignedTxs: UnsignedTx[],
-  nextNonce: number,
+  nextNonce: number
 ): Promise<number> {
   const feeDistributionTx = await createFeeDistributionTransaction(quote);
 
   if (feeDistributionTx) {
     unsignedTxs.push({
       txData: feeDistributionTx,
-      phase: 'distributeFees',
+      phase: "distributeFees",
       network: account.network,
       nonce: nextNonce,
       signer: account.address,
-      meta: {},
+      meta: {}
     });
     nextNonce++;
   }
@@ -353,31 +346,31 @@ async function createBRLTransactions(
     receiverTaxId: string;
   },
   unsignedTxs: UnsignedTx[],
-  pendulumCleanupTx: Omit<UnsignedTx, 'nonce'>,
-  nextNonce: number,
+  pendulumCleanupTx: Omit<UnsignedTx, "nonce">,
+  nextNonce: number
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { brlaEvmAddress, outputAmountRaw, outputTokenDetails, account, taxId, pixDestination, receiverTaxId } = params;
 
   const pendulumToMoonbeamTransaction = await createPendulumToMoonbeamTransfer(
     brlaEvmAddress,
     outputAmountRaw,
-    outputTokenDetails.pendulumCurrencyId,
+    outputTokenDetails.pendulumCurrencyId
   );
 
   unsignedTxs.push({
     txData: encodeSubmittableExtrinsic(pendulumToMoonbeamTransaction),
-    phase: 'pendulumToMoonbeam',
+    phase: "pendulumToMoonbeam",
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
-    meta: {},
+    meta: {}
   });
   nextNonce++;
 
   // Add the cleanup transaction with the next nonce
   unsignedTxs.push({
     ...pendulumCleanupTx,
-    nonce: nextNonce,
+    nonce: nextNonce
   });
   nextNonce++;
 
@@ -387,8 +380,8 @@ async function createBRLTransactions(
       taxId,
       brlaEvmAddress,
       pixDestination,
-      receiverTaxId,
-    },
+      receiverTaxId
+    }
   };
 }
 
@@ -409,8 +402,8 @@ async function createStellarTransactions(
     stellarPaymentData: PaymentData;
   },
   unsignedTxs: UnsignedTx[],
-  pendulumCleanupTx: Omit<UnsignedTx, 'nonce'>,
-  nextNonce: number,
+  pendulumCleanupTx: Omit<UnsignedTx, "nonce">,
+  nextNonce: number
 ): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
   const { outputAmountRaw, stellarEphemeralEntry, outputTokenDetails, account, stellarPaymentData } = params;
 
@@ -419,16 +412,16 @@ async function createStellarTransactions(
     outputAmountRaw: outputAmountRaw,
     stellarEphemeralAccountRaw,
     outputTokenDetails,
-    executeSpacewalkNonce: nextNonce,
+    executeSpacewalkNonce: nextNonce
   });
 
   unsignedTxs.push({
     txData: encodeSubmittableExtrinsic(spacewalkRedeemTransaction),
-    phase: 'spacewalkRedeem',
+    phase: "spacewalkRedeem",
     network: account.network,
     nonce: nextNonce,
     signer: account.address,
-    meta: {},
+    meta: {}
   });
   const executeSpacewalkNonce = nextNonce;
   nextNonce++;
@@ -436,7 +429,7 @@ async function createStellarTransactions(
   // Add the cleanup transaction with the next nonce
   unsignedTxs.push({
     ...pendulumCleanupTx,
-    nonce: nextNonce,
+    nonce: nextNonce
   });
   nextNonce++;
 
@@ -445,11 +438,11 @@ async function createStellarTransactions(
     stateMeta: {
       stellarTarget: {
         stellarTargetAccountId: stellarPaymentData.anchorTargetAccount,
-        stellarTokenDetails: outputTokenDetails,
+        stellarTokenDetails: outputTokenDetails
       },
       stellarEphemeralAccountId: stellarEphemeralEntry.address,
-      executeSpacewalkNonce,
-    },
+      executeSpacewalkNonce
+    }
   };
 }
 
@@ -465,7 +458,7 @@ async function createStellarPaymentTransactions(
     outputTokenDetails: StellarTokenDetails;
     stellarPaymentData: PaymentData;
   },
-  unsignedTxs: UnsignedTx[],
+  unsignedTxs: UnsignedTx[]
 ): Promise<void> {
   const { account, outputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
 
@@ -473,40 +466,40 @@ async function createStellarPaymentTransactions(
     ephemeralAccountId: account.address,
     amountToAnchorUnits: outputAmountUnits.toFixed(),
     paymentData: stellarPaymentData,
-    tokenConfigStellar: outputTokenDetails,
+    tokenConfigStellar: outputTokenDetails
   });
 
   const createAccountPrimaryTx: UnsignedTx = {
     txData: createAccountTransactions[0].tx,
-    phase: 'stellarCreateAccount',
+    phase: "stellarCreateAccount",
     network: account.network,
     nonce: 0,
     signer: account.address,
-    meta: {},
+    meta: {}
   };
 
   const paymentTransactionPrimary: UnsignedTx = {
     txData: paymentTransactions[0].tx,
-    phase: 'stellarPayment',
+    phase: "stellarPayment",
     network: account.network,
     nonce: 1,
     signer: account.address,
-    meta: {},
+    meta: {}
   };
 
   const mergeAccountTransactionPrimary: UnsignedTx = {
     txData: mergeAccountTransactions[0].tx,
-    phase: 'stellarCleanup',
+    phase: "stellarCleanup",
     network: account.network,
     nonce: 2,
     signer: account.address,
-    meta: {},
+    meta: {}
   };
 
   const createAccountMultiSignedTxs = createAccountTransactions.map((tx, index) => ({
     ...createAccountPrimaryTx,
     txData: tx.tx,
-    nonce: createAccountPrimaryTx.nonce + index,
+    nonce: createAccountPrimaryTx.nonce + index
   }));
 
   const createAccountTx = addAdditionalTransactionsToMeta(createAccountPrimaryTx, createAccountMultiSignedTxs);
@@ -515,25 +508,19 @@ async function createStellarPaymentTransactions(
   const paymentTransactionMultiSignedTxs = paymentTransactions.map((tx, index) => ({
     ...paymentTransactionPrimary,
     txData: tx.tx,
-    nonce: paymentTransactionPrimary.nonce + index,
+    nonce: paymentTransactionPrimary.nonce + index
   }));
 
-  const paymentTransaction = addAdditionalTransactionsToMeta(
-    paymentTransactionPrimary,
-    paymentTransactionMultiSignedTxs,
-  );
+  const paymentTransaction = addAdditionalTransactionsToMeta(paymentTransactionPrimary, paymentTransactionMultiSignedTxs);
   unsignedTxs.push(paymentTransaction);
 
   const mergeAccountTransactionMultiSignedTxs = mergeAccountTransactions.map((tx, index) => ({
     ...mergeAccountTransactionPrimary,
     txData: tx.tx,
-    nonce: mergeAccountTransactionPrimary.nonce + index,
+    nonce: mergeAccountTransactionPrimary.nonce + index
   }));
 
-  const mergeAccountTx = addAdditionalTransactionsToMeta(
-    mergeAccountTransactionPrimary,
-    mergeAccountTransactionMultiSignedTxs,
-  );
+  const mergeAccountTx = addAdditionalTransactionsToMeta(mergeAccountTransactionPrimary, mergeAccountTransactionMultiSignedTxs);
   unsignedTxs.push(mergeAccountTx);
 }
 
@@ -556,7 +543,7 @@ export async function prepareOfframpTransactions({
   pixDestination,
   taxId,
   receiverTaxId,
-  brlaEvmAddress,
+  brlaEvmAddress
 }: OfframpTransactionParams): Promise<{
   unsignedTxs: UnsignedTx[];
   stateMeta: Partial<StateMetadata>;
@@ -587,32 +574,32 @@ export async function prepareOfframpTransactions({
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
   if (!quote.metadata?.offrampAmountBeforeAnchorFees) {
-    throw new Error('Quote metadata is missing offrampAmountBeforeAnchorFees');
+    throw new Error("Quote metadata is missing offrampAmountBeforeAnchorFees");
   }
 
   const offrampAmountBeforeAnchorFeesUnits = new Big(quote.metadata.offrampAmountBeforeAnchorFees);
   const offrampAmountBeforeAnchorFeesRaw = multiplyByPowerOfTen(
     offrampAmountBeforeAnchorFeesUnits,
-    outputTokenDetails.decimals,
+    outputTokenDetails.decimals
   ).toFixed(0, 0);
 
   if (stellarPaymentData && stellarPaymentData.amount) {
     const stellarAmount = new Big(stellarPaymentData.amount);
     if (!stellarAmount.eq(offrampAmountBeforeAnchorFeesUnits)) {
       throw new Error(
-        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${offrampAmountBeforeAnchorFeesUnits.toString()}`,
+        `Stellar amount ${stellarAmount.toString()} not equal to expected payment ${offrampAmountBeforeAnchorFeesUnits.toString()}`
       );
     }
   }
 
-  const stellarEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Stellar);
+  const stellarEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Stellar);
   if (!stellarEphemeralEntry) {
-    throw new Error('Stellar ephemeral not found');
+    throw new Error("Stellar ephemeral not found");
   }
 
-  const pendulumEphemeralEntry = signingAccounts.find((ephemeral) => ephemeral.network === Networks.Pendulum);
+  const pendulumEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.network === Networks.Pendulum);
   if (!pendulumEphemeralEntry) {
-    throw new Error('Pendulum ephemeral not found');
+    throw new Error("Pendulum ephemeral not found");
   }
 
   const inputTokenPendulumDetails = getPendulumDetails(quote.inputCurrency, fromNetwork);
@@ -625,13 +612,13 @@ export async function prepareOfframpTransactions({
     outputTokenPendulumDetails,
     outputAmountBeforeFinalStep: {
       units: offrampAmountBeforeAnchorFeesUnits.toFixed(),
-      raw: offrampAmountBeforeAnchorFeesRaw,
+      raw: offrampAmountBeforeAnchorFeesRaw
     },
-    pendulumEphemeralAddress: pendulumEphemeralEntry.address,
+    pendulumEphemeralAddress: pendulumEphemeralEntry.address
   };
 
   if (!userAddress) {
-    throw new Error('User address must be provided for offramping.');
+    throw new Error("User address must be provided for offramping.");
   }
 
   if (isEvmTokenDetails(inputTokenDetails)) {
@@ -641,24 +628,24 @@ export async function prepareOfframpTransactions({
         pendulumEphemeralAddress: pendulumEphemeralEntry.address,
         fromNetwork,
         inputAmountRaw,
-        inputTokenDetails,
+        inputTokenDetails
       },
-      unsignedTxs,
+      unsignedTxs
     );
 
     stateMeta = {
       ...stateMeta,
-      ...evmSourceMetadata,
+      ...evmSourceMetadata
     };
   } else {
     await createAssetHubSourceTransactions(
       {
         userAddress,
         pendulumEphemeralAddress: pendulumEphemeralEntry.address,
-        inputAmountRaw,
+        inputAmountRaw
       },
       unsignedTxs,
-      fromNetwork,
+      fromNetwork
     );
   }
 
@@ -685,36 +672,36 @@ export async function prepareOfframpTransactions({
           quote,
           account,
           inputTokenPendulumDetails,
-          outputTokenPendulumDetails,
+          outputTokenPendulumDetails
         },
         unsignedTxs,
-        pendulumNonce,
+        pendulumNonce
       );
 
       pendulumNonce = nablaResult.nextNonce;
       stateMeta = {
         ...stateMeta,
-        ...nablaResult.stateMeta,
+        ...nablaResult.stateMeta
       };
 
       // Prepare cleanup transaction to be added later with the correct nonce
       const pendulumCleanupTransaction = await preparePendulumCleanupTransaction(
         inputTokenPendulumDetails.pendulumCurrencyId,
-        outputTokenPendulumDetails.pendulumCurrencyId,
+        outputTokenPendulumDetails.pendulumCurrencyId
       );
 
-      const pendulumCleanupTx: Omit<UnsignedTx, 'nonce'> = {
+      const pendulumCleanupTx: Omit<UnsignedTx, "nonce"> = {
         txData: encodeSubmittableExtrinsic(pendulumCleanupTransaction),
-        phase: 'pendulumCleanup',
+        phase: "pendulumCleanup",
         network: account.network,
         signer: account.address,
-        meta: {},
+        meta: {}
       };
 
       if (quote.outputCurrency === FiatToken.BRL) {
         if (!brlaEvmAddress || !pixDestination || !taxId || !receiverTaxId) {
           throw new Error(
-            'brlaEvmAddress, pixDestination, receiverTaxId and taxId parameters must be provided for offramp to BRL',
+            "brlaEvmAddress, pixDestination, receiverTaxId and taxId parameters must be provided for offramp to BRL"
           );
         }
 
@@ -726,17 +713,17 @@ export async function prepareOfframpTransactions({
             account,
             taxId,
             pixDestination,
-            receiverTaxId,
+            receiverTaxId
           },
           unsignedTxs,
           pendulumCleanupTx,
-          pendulumNonce,
+          pendulumNonce
         );
 
         pendulumNonce = brlResult.nextNonce;
         stateMeta = {
           ...stateMeta,
-          ...brlResult.stateMeta,
+          ...brlResult.stateMeta
         };
       } else {
         if (!isStellarOutputTokenDetails(outputTokenDetails)) {
@@ -744,7 +731,7 @@ export async function prepareOfframpTransactions({
         }
 
         if (!stellarPaymentData?.anchorTargetAccount) {
-          throw new Error('Stellar payment data must be provided for offramp');
+          throw new Error("Stellar payment data must be provided for offramp");
         }
 
         // Use helper function to create Stellar transactions
@@ -754,17 +741,17 @@ export async function prepareOfframpTransactions({
             stellarEphemeralEntry,
             outputTokenDetails,
             account,
-            stellarPaymentData,
+            stellarPaymentData
           },
           unsignedTxs,
           pendulumCleanupTx,
-          pendulumNonce,
+          pendulumNonce
         );
 
         pendulumNonce = stellarResult.nextNonce;
         stateMeta = {
           ...stateMeta,
-          ...stellarResult.stateMeta,
+          ...stellarResult.stateMeta
         };
       }
     }
@@ -775,7 +762,7 @@ export async function prepareOfframpTransactions({
       }
 
       if (!stellarPaymentData) {
-        throw new Error('Stellar payment data must be provided for offramp');
+        throw new Error("Stellar payment data must be provided for offramp");
       }
 
       await createStellarPaymentTransactions(
@@ -783,9 +770,9 @@ export async function prepareOfframpTransactions({
           account,
           outputAmountUnits: offrampAmountBeforeAnchorFeesUnits,
           outputTokenDetails,
-          stellarPaymentData,
+          stellarPaymentData
         },
-        unsignedTxs,
+        unsignedTxs
       );
     }
   }

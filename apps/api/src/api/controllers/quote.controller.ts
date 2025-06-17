@@ -1,11 +1,11 @@
-import { CreateQuoteRequest, GetQuoteRequest, QuoteResponse } from '@packages/shared';
-import Big from 'big.js';
-import { NextFunction, Request, Response } from 'express';
-import httpStatus from 'http-status';
-import logger from '../../config/logger';
-import { ASSETHUB_XCM_FEE_USDC_UNITS } from '../../constants/constants';
-import { APIError } from '../errors/api-error';
-import quoteService from '../services/ramp/quote.service';
+import { CreateQuoteRequest, GetQuoteRequest, QuoteResponse } from "@packages/shared";
+import Big from "big.js";
+import { NextFunction, Request, Response } from "express";
+import httpStatus from "http-status";
+import logger from "../../config/logger";
+import { ASSETHUB_XCM_FEE_USDC_UNITS } from "../../constants/constants";
+import { APIError } from "../errors/api-error";
+import quoteService from "../services/ramp/quote.service";
 
 /**
  * Create a new quote
@@ -14,7 +14,7 @@ import quoteService from '../services/ramp/quote.service';
 export const createQuote = async (
   req: Request<unknown, unknown, CreateQuoteRequest>,
   res: Response<QuoteResponse>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId } = req.body;
@@ -23,15 +23,15 @@ export const createQuote = async (
     if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Missing required fields',
+        message: "Missing required fields"
       });
     }
 
     // Validate ramp type
-    if (rampType !== 'on' && rampType !== 'off') {
+    if (rampType !== "on" && rampType !== "off") {
       throw new APIError({
         status: httpStatus.BAD_REQUEST,
-        message: 'Invalid ramp type, must be "on" or "off"',
+        message: 'Invalid ramp type, must be "on" or "off"'
       });
     }
 
@@ -43,17 +43,17 @@ export const createQuote = async (
       inputAmount,
       inputCurrency,
       outputCurrency,
-      partnerId,
+      partnerId
     });
 
     // TODO temporary fix. Reduce output amount if onramp to assethub by expected xcm fee.
-    if (rampType === 'on' && to === 'assethub') {
+    if (rampType === "on" && to === "assethub") {
       quote.outputAmount = new Big(quote.outputAmount).sub(ASSETHUB_XCM_FEE_USDC_UNITS).toFixed();
     }
 
     res.status(httpStatus.CREATED).json(quote);
   } catch (error) {
-    logger.error('Error creating quote:', error);
+    logger.error("Error creating quote:", error);
     next(error);
   }
 };
@@ -65,7 +65,7 @@ export const createQuote = async (
 export const getQuote = async (
   req: Request<GetQuoteRequest>,
   res: Response<QuoteResponse>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -75,13 +75,13 @@ export const getQuote = async (
     if (!quote) {
       throw new APIError({
         status: httpStatus.NOT_FOUND,
-        message: 'Quote not found',
+        message: "Quote not found"
       });
     }
 
     res.status(httpStatus.OK).json(quote);
   } catch (error) {
-    logger.error('Error getting quote:', error);
+    logger.error("Error getting quote:", error);
     next(error);
   }
 };
