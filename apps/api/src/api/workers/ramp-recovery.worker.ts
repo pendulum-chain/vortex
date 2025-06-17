@@ -80,7 +80,9 @@ class RampRecoveryWorker {
           await phaseProcessor.processRamp(state.id);
           logger.info(`Successfully processed ramp state ${state.id}`);
           return { status: 'fulfilled', stateId: state.id };
-        } catch (error: any) {
+        } catch (e: unknown) {
+          const error = e as Error;
+
           logger.error(`Error recovering ramp state ${state.id}:`, error);
 
           // Prepare error log entry
@@ -95,7 +97,8 @@ class RampRecoveryWorker {
           try {
             await rampService.appendErrorLog(state.id, errorLogEntry);
             logger.info(`Updated ramp state ${state.id} with error log.`);
-          } catch (updateError: any) {
+          } catch (updateE: unknown) {
+            const updateError = updateE as Error;
             logger.error(`Failed to update ramp state ${state.id} with error log:`, updateError);
             // Log the original error as well if the update fails
             logger.error(`Original recovery error for state ${state.id}:`, error);

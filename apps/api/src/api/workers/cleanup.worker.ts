@@ -1,14 +1,9 @@
-import { CleanupPhase } from '@packages/shared'; // <-- Import CleanupPhase
 import { CronJob } from 'cron';
+
 import logger from '../../config/logger';
 import RampState from '../../models/rampState.model';
-import { BasePostProcessHandler, postProcessHandlers } from '../services/phases/post-process';
+import { postProcessHandlers } from '../services/phases/post-process';
 import { BaseRampService } from '../services/ramp/base.service';
-
-interface HandlerError {
-  name: CleanupPhase; // <-- Use CleanupPhase type
-  error: string;
-}
 
 /**
  * Worker to clean up expired quotes and post-process completed ramps
@@ -122,8 +117,7 @@ class CleanupWorker {
    * Process a single state with appropriate cleanup handlers
    * @param state The state to process
    */
-  // eslint-disable-next-line class-methods-use-this
-  private async processCleanup(state: RampState): Promise<void> {
+  protected async processCleanup(state: RampState): Promise<void> {
     // Identify which handlers should process this state
     const applicableHandlers = postProcessHandlers.filter((handler) => handler.shouldProcess(state));
 
