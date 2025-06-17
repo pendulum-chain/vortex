@@ -99,6 +99,9 @@
       "**/*.config.*"
     ]
   },
+  "files": {
+    "maxSize": 8000000
+  },
   "javascript": {
     "formatter": {
       "jsxQuoteStyle": "double",
