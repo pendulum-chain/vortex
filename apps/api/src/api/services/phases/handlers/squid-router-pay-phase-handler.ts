@@ -7,6 +7,7 @@ import logger from '../../../../config/logger';
 import { MOONBEAM_FUNDING_PRIVATE_KEY } from '../../../../constants/constants';
 import { axelarGasServiceAbi } from '../../../../contracts/AxelarGasService';
 import RampState from '../../../../models/rampState.model';
+import { PhaseError } from '../../../errors/phase-error';
 import { createMoonbeamClientsAndConfig } from '../../moonbeam/createServices';
 import { multiplyByPowerOfTen } from '../../pendulum/helpers';
 import { getStatus } from '../../transactions/squidrouter/route';
@@ -112,7 +113,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       await this.checkStatus(state, bridgeCallHash);
 
       return this.transitionToNextPhase(state, 'complete');
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`SquidRouterPayPhaseHandler: Error in squidRouterPay phase for ramp ${state.id}:`, error);
       throw error;
     }
@@ -170,7 +171,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         await new Promise((resolve) => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
       }
     } catch (error) {
-      if (error && (error as any).isRecoverable) {
+      if (error && error instanceof PhaseError && error.isRecoverable) {
         throw error;
       }
       throw new Error(`SquidRouterPayPhaseHandler: Error waiting checking for Axelar bridge transaction: ${error}`);
@@ -225,10 +226,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         throw new Error(`Error fetching status from axelar scan API: ${response.statusText}`);
       }
       const responseData = await response.json();
-      return (responseData as any).data[0] as AxelarScanStatusResponse;
+      return (responseData as { data: unknown[] }).data[0] as AxelarScanStatusResponse;
     } catch (error) {
-      if ((error as any).response) {
-        console.error('API error:', (error as any).response);
+      if ((error as { response: unknown }).response) {
+        console.error('API error:', (error as { response: unknown }).response);
       }
       throw error;
     }

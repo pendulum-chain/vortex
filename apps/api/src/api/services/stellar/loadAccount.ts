@@ -20,13 +20,13 @@ export async function loadAccountWithRetry(
   for (let i = 0; i < retries; i++) {
     try {
       return await loadAccountWithTimeout(ephemeralAccountId, timeout);
-    } catch (err: any) {
-      if (err?.toString().includes('NotFoundError')) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.toString().includes('NotFoundError')) {
         // The account does not exist
         return null;
       }
       logger.info(`Attempt ${i + 1} to load account ${ephemeralAccountId} failed: ${err}`);
-      lastError = err;
+      lastError = err as Error;
     }
   }
 

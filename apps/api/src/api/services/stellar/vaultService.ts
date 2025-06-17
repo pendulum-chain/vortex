@@ -2,6 +2,7 @@ import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
 import { SubmittableExtrinsic } from '@polkadot/api-base/types';
 
 import { SpacewalkRedeemRequestEvent, getAddressForFormat, parseEventRedeemRequest } from '@packages/shared';
+import { DispatchError, EventRecord } from '@polkadot/types/interfaces';
 import { ISubmittableResult } from '@polkadot/types/types';
 import logger from '../../../config/logger';
 import { API } from '../pendulum/apiManager';
@@ -83,7 +84,11 @@ export class VaultService {
 
   // We first check if dispatchError is of type "module",
   // If not we either return ExtrinsicFailedError or Unknown dispatch error
-  handleDispatchError(dispatchError: any, systemExtrinsicFailedEvent: any, extrinsicCalled: any) {
+  handleDispatchError(
+    dispatchError: DispatchError,
+    systemExtrinsicFailedEvent: EventRecord | undefined,
+    extrinsicCalled: unknown,
+  ) {
     if (dispatchError?.isModule) {
       const decoded = this.apiComponents?.api.registry.findMetaError(dispatchError.asModule);
       const { name, section, method } = decoded;

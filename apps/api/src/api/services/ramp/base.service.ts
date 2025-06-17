@@ -5,6 +5,7 @@ import sequelize from '../../../config/database';
 import logger from '../../../config/logger';
 import QuoteTicket from '../../../models/quoteTicket.model';
 import RampState, { RampStateAttributes } from '../../../models/rampState.model';
+import { StateMetadata } from '../phases/meta-state-types';
 
 export class BaseRampService {
   /**
@@ -48,7 +49,7 @@ export class BaseRampService {
   /**
    * Log a phase transition
    */
-  protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: any): Promise<void> {
+  protected async logPhaseTransition(id: string, newPhase: RampPhase, metadata?: StateMetadata): Promise<void> {
     const rampState = await RampState.findByPk(id);
     if (!rampState) {
       throw new Error(`RampState with id ${id} not found`);

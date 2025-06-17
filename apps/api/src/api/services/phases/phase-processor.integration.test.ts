@@ -285,7 +285,7 @@ describe('PhaseProcessor Integration Test', () => {
         moonbeamNode.api,
       );
       console.log('Presigned transactions:', presignedTxs);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error during test execution:', error);
 
       fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));

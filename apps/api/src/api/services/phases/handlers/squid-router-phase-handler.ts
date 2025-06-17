@@ -1,6 +1,7 @@
 import { RampPhase, getNetworkFromDestination, getNetworkId } from '@packages/shared';
 import { http, createPublicClient } from 'viem';
 import { moonbeam } from 'viem/chains';
+
 import logger from '../../../../config/logger';
 import RampState from '../../../../models/rampState.model';
 import { BasePhaseHandler } from '../base-phase-handler';
@@ -88,7 +89,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
       // Transition to the next phase
       return this.transitionToNextPhase(updatedState, 'squidRouterPay');
-    } catch (error: any) {
+    } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;
     }

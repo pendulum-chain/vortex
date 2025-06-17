@@ -55,7 +55,8 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
       await this.submitTransaction(decodedTx, api);
       logger.info(`Successfully submitted fee distribution transaction for ramp ${state.id}`);
-    } catch (error: any) {
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error(`Error distributing fees for ramp ${state.id}:`, error);
       throw this.createRecoverableError(`Failed to distribute fees: ${error.message || 'Unknown error'}`);
     }

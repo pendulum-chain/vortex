@@ -183,7 +183,8 @@ export class PhaseProcessor {
         logger.info(`Current phase must be different to updated phase for non-terminal states. This is a bug.`);
         this.retriesMap.delete(state.id);
       }
-    } catch (error: any) {
+    } catch (e: unknown) {
+      const error = e as Error;
       const isPhaseError = error instanceof PhaseError;
       const isRecoverable = isPhaseError && error.isRecoverable;
 
@@ -211,7 +212,7 @@ export class PhaseProcessor {
           phase: state.currentPhase,
           timestamp: new Date().toISOString(),
           error: error.message || 'Unknown error',
-          details: error.stack || {},
+          details: error.stack || '',
           recoverable: isRecoverable,
           isPhaseError,
         },

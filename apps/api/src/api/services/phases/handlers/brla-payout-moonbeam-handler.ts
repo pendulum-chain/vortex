@@ -62,7 +62,7 @@ export class BrlaPayoutOnMoonbeamPhaseHandler extends BasePhaseHandler {
       }
 
       const subaccountId = subaccount.id;
-      const { id: offrampId } = await brlaApiService.triggerOfframp(subaccountId, {
+      await brlaApiService.triggerOfframp(subaccountId, {
         pixKey: pixDestination,
         amount: Number(amount),
         taxId: receiverTaxId,
