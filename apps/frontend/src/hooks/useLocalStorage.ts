@@ -16,8 +16,7 @@ export enum LocalStorageKeys {
   START_KEY_LOCAL_STORAGE = 'rampStartKey',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const debounce = <T extends any[]>(func: (...args: T) => any, timeout = 300) => {
+export const debounce = <T extends unknown[]>(func: (...args: T) => void, timeout = 300) => {
   let timer: NodeJS.Timeout | undefined;
   return (...args: T) => {
     clearTimeout(timer);

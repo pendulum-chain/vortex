@@ -91,8 +91,7 @@ export function useSiweSignature() {
 
       const signatureData: SiweSignatureData = {
         signatureSet: true,
-        // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
-        expirationDate: message.expirationTime!, // Field is validated in the message. Should not be null when submitting.
+        expirationDate: message.expirationTime, // Field is validated in the message. Should not be null when submitting.
       };
 
       localStorage.setItem(storageKey, JSON.stringify(signatureData));

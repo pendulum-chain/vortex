@@ -52,7 +52,7 @@ export async function signAndSubmitSubstrateTransaction(
           signer: walletAccount.signer as Signer,
         },
         (submissionResult: ISubmittableResult) => {
-          const { status, events, dispatchError } = submissionResult;
+          const { status, dispatchError } = submissionResult;
 
           if (status.isInBlock && !inBlockHash) {
             inBlockHash = status.asInBlock.toString();

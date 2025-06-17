@@ -1,4 +1,4 @@
-import { DestinationType, Networks } from '../index';
+import { DestinationType, EvmAddress, Networks } from '../index';
 
 export type RampPhase =
   | 'initial'
@@ -34,8 +34,8 @@ export interface AccountMeta {
 }
 
 export interface EvmTransactionData {
-  to: `0x${string}`;
-  data: `0x${string}`;
+  to: EvmAddress;
+  data: EvmAddress;
   value: string;
   gas: string;
   maxFeePerGas?: string;
@@ -63,7 +63,7 @@ export interface RampErrorLog {
   timestamp: string;
   phase: RampPhase;
   error: string;
-  details?: Record<string, unknown>;
+  details?: string;
   recoverable?: boolean;
 }
 

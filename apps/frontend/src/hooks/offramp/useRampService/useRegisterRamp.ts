@@ -322,7 +322,11 @@ export const useRegisterRamp = () => {
         return;
       }
 
-      for (const tx of sortedTxs!) {
+      if (!sortedTxs) {
+        throw new Error('Missing sorted transactions');
+      }
+
+      for (const tx of sortedTxs) {
         if (tx.phase === 'squidRouterApprove') {
           setRampSigningPhase('started');
           squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
