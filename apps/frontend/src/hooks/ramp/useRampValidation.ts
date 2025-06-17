@@ -84,17 +84,17 @@ function validateOfframp(
   },
 ): string | null {
   if (typeof userInputTokenBalance === 'string') {
-    if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
-      trackEvent({
-        event: 'form_error',
-        error_message: 'insufficient_balance',
-        input_amount: inputAmount ? inputAmount.toString() : '0',
-      });
-      return t('pages.swap.error.insufficientFunds', {
-        userInputTokenBalance,
-        assetSymbol: fromToken?.assetSymbol,
-      });
-    }
+    // if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
+    //   trackEvent({
+    //     event: 'form_error',
+    //     error_message: 'insufficient_balance',
+    //     input_amount: inputAmount ? inputAmount.toString() : '0',
+    //   });
+    //   return t('pages.swap.error.insufficientFunds', {
+    //     userInputTokenBalance,
+    //     assetSymbol: fromToken?.assetSymbol,
+    //   });
+    // }
   }
 
   const maxAmountUnits = multiplyByPowerOfTen(Big(toToken.maxWithdrawalAmountRaw), -toToken.decimals);

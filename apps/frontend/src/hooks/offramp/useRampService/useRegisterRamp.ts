@@ -8,6 +8,7 @@ import {
   signAndSubmitEvmTransaction,
   signAndSubmitSubstrateTransaction,
 } from '../../../services/transactions/userSigning';
+import { useMoneriumStore } from '../../../stores/moneriumStore';
 import { useRampExecutionInput, useRampStore, useSigningRejected } from '../../../stores/rampStore'; // Import useSigningRejected
 import { RampExecutionInput } from '../../../types/phases';
 import { useVortexAccount } from '../../useVortexAccount';
@@ -80,6 +81,9 @@ export const useRegisterRamp = () => {
   const prepareRampSubmission = useSubmitRamp();
   const handleOnAnchorWindowOpen = useAnchorWindowHandler();
   const signingRejected = useSigningRejected();
+
+  // Get Monerium auth data
+  const { authToken, codeVerifier } = useMoneriumStore();
 
   // This should be called for onramps, when the user opens the summary dialog, and for offramps, when the user
   // clicks on the Continue button in the form (BRL) or comes back from the anchor page.
@@ -186,19 +190,32 @@ export const useRegisterRamp = () => {
         }
       }
 
-      const additionalData =
-        executionInput.quote.rampType === 'on'
-          ? {
-              destinationAddress: address,
-              taxId: executionInput.taxId,
-            }
-          : {
-              walletAddress: address,
-              paymentData: executionInput.paymentData,
-              taxId: executionInput.taxId,
-              receiverTaxId: executionInput.taxId,
-              pixDestination: executionInput.taxId,
-            };
+      // Build additional data based on ramp type and currency
+
+      let additionalData: any = {};
+
+      if (executionInput.quote.rampType === 'on') {
+        additionalData = {
+          destinationAddress: address,
+          taxId: executionInput.taxId,
+        };
+      } else {
+        additionalData = {
+          walletAddress: address,
+          paymentData: executionInput.paymentData,
+          taxId: executionInput.taxId,
+          receiverTaxId: executionInput.taxId,
+          pixDestination: executionInput.taxId,
+        };
+      }
+
+      // Add Monerium auth data if using Monerium for EUR
+      if (executionInput.fiatToken === FiatToken.EURC && authToken) {
+        additionalData.moneriumAuthCode = authToken;
+
+        // TODO: handle the additionalData object better
+        delete additionalData.paymentData;
+      }
 
       console.log(`Registering ramp with additional data:`, additionalData);
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
@@ -264,6 +281,8 @@ export const useRegisterRamp = () => {
     showToast,
     signingRejected,
     ToastMessage.SIGNING_REJECTED,
+    authToken,
+    codeVerifier,
   ]);
 
   // This hook is responsible for handling the user signing process once the ramp process is registered.
