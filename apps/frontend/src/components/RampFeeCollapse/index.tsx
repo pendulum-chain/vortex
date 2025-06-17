@@ -45,7 +45,17 @@ function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmount
 
 // Helper function to format exchange rate strings
 function formatExchangeRateString(rate: number, input: string, output: string) {
-  return `1 ${input} ≈ ${rate.toFixed(4)} ${output}`;
+  // Check the rate to determine how many decimal places to show
+  // Always show at least 3 significant decimal places
+  if (rate < 0.0001) {
+    return `1 ${input} ≈ ${rate.toFixed(7)} ${output}`;
+  } else if (rate < 0.001) {
+    return `1 ${input} ≈ ${rate.toFixed(6)} ${output}`;
+  } else if (rate < 0.01) {
+    return `1 ${input} ≈ ${rate.toFixed(5)} ${output}`;
+  } else {
+    return `1 ${input} ≈ ${rate.toFixed(4)} ${output}`;
+  }
 }
 
 export function RampFeeCollapse() {
