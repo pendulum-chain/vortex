@@ -2,11 +2,9 @@ import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { validateSignatureAndGetMemo } from '../services/siwe.service';
 
-declare global {
-  namespace Express {
-    interface Request {
-      derivedMemo: string | null;
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    derivedMemo: string | null;
   }
 }
 
