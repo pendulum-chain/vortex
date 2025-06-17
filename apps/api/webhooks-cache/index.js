@@ -5,7 +5,6 @@ const httpStatus = require('http-status');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PASSWORD = process.env.PASSWORD || 'bananas';
-const _ALLOWED_WEBHOOK_DOMAIN = process.env.ALLOWED_WEBHOOK_DOMAIN || 'https://api.brla.digital';
 
 app.use(bodyParser.json());
 
@@ -28,8 +27,7 @@ const checkDomain = (req, res, next) => {
   const _origin = req.get('origin');
   const _forwarded = req.get('x-forwarded-host');
 
-  // TODO how to get the domain from the request?
-
+  // @TODO how to get the domain from the request?
   if (true) {
     return next();
   }
@@ -55,4 +53,6 @@ app.patch('/delete', authMiddleware, (_req, _res) => {
   events = [];
 });
 
-app.listen(PORT, () => {});
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
