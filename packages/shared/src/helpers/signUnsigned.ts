@@ -5,7 +5,7 @@ import { u8aToHex } from '@polkadot/util';
 import { hdEthereum, mnemonicToLegacySeed } from '@polkadot/util-crypto';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { Keypair, Networks as StellarNetworks, Transaction } from 'stellar-sdk';
-import { http, createWalletClient } from 'viem';
+import { http, WalletClient, createWalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { moonbeam } from 'viem/chains';
 import { EphemeralAccount, PresignedTx, UnsignedTx, decodeSubmittableExtrinsic, isEvmTransactionData } from '../index';
@@ -117,7 +117,7 @@ async function signMultipleSubstrateTransactions(
  */
 async function signMultipleEvmTransactions(
   tx: UnsignedTx,
-  walletClient: any,
+  walletClient: WalletClient,
   startingNonce: number,
 ): Promise<PresignedTx[]> {
   const signedTxs: PresignedTx[] = [];
@@ -130,7 +130,14 @@ async function signMultipleEvmTransactions(
     const currentNonce = startingNonce + i;
 
     // Ensure the transaction data is in the correct format
+
+    if (!walletClient.account) {
+      throw new Error('Wallet client account is undefined');
+    }
+
     const txData = {
+      account: walletClient.account,
+      chain: moonbeam,
       to: tx.txData.to,
       data: tx.txData.data,
       value: BigInt(tx.txData.value),
