@@ -6,42 +6,44 @@
     "indentStyle": "space",
     "indentWidth": 2,
     "lineEnding": "lf",
-    "lineWidth": 120,
-    "attributePosition": "auto",
+    "lineWidth": 128,
     "bracketSpacing": true,
     "ignore": [
       "**/dist/**",
       "**/build/**",
-      "**/.prettierignore",
       "**/node_modules/",
-      "**/coverage/*",
-      "**/dist/*",
-      "**/build/*",
-      "**/internals/*",
       "**/docs/*",
+      "**/coverage/*",
       "**/.lighthouseci/*",
-      "**/coins/*",
       "**/*.yml",
       "**/*.sol",
-      "**/package-lock.json",
+      "**/bun.lockb",
       "**/package.json",
-      "**/bun.lock",
-      "**/favicon.png",
-      "**/CHANGELOG.md",
-      "**/*.svg",
+      "**/_redirects",
+      "**/LICENSE",
       "**/.gitignore",
+      "**/.prettierignore",
+      "**/*.svg",
       "**/*.png",
       "**/*.webp",
       "**/*.jpg",
       "**/*.jpeg",
-      "**/*.gif",
-      "**/_redirects",
-      "**/LICENSE"
+      "**/*.gif"
     ]
   },
   "linter": {
     "enabled": true,
     "rules": {
+      "nursery": {
+        "useSortedClasses": {
+          "level": "error",
+          "fix": "safe",
+          "options": {
+            "attributes": ["className"],
+            "functions": ["cn"]
+          }
+        }
+      },
       "recommended": false,
       "complexity": {
         "noBannedTypes": "error",
@@ -52,29 +54,39 @@
         "noInvalidUseBeforeDeclaration": "error",
         "noPrecisionLoss": "error",
         "noUnusedVariables": "error",
-        "useArrayLiterals": "off"
+        "useArrayLiterals": "error",
+        "noConstAssign": "error",
+        "noGlobalObjectCalls": "error",
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error",
+        "noUnreachable": "warn"
       },
       "style": {
         "noInferrableTypes": "error",
         "noNamespace": "error",
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "error",
         "useAsConstAssertion": "error",
+        "noVar": "error",
+        "useConst": "error",
         "useBlockStatements": "off"
       },
       "suspicious": {
-        "noConsole": "off",
         "noEmptyBlockStatements": "error",
         "noEmptyInterface": "error",
-        "noExplicitAny": "warn",
+        "noExplicitAny": "error",
         "noExtraNonNullAssertion": "error",
         "noMisleadingInstantiator": "error",
-        "useNamespaceKeyword": "error"
+        "useNamespaceKeyword": "error",
+        "noRedeclare": "error",
+        "useGetterReturn": "error",
+        "noDuplicateClassMembers": "error",
+        "noConsole": "off"
       }
     },
     "ignore": [
-      "**/node_modules/",
       "**/dist/**",
       "**/build/**",
+      "**/node_modules/",
       "**/lib/**",
       "**/types/**",
       "**/coverage/**",
@@ -83,19 +95,18 @@
       "api/dist/**",
       "apps/api/dist/**",
       "**/*.d.ts",
-      "**/*.config.*",
-      "**/.eslintrc.*"
+      "**/*.config.*"
     ]
   },
   "javascript": {
     "formatter": {
       "jsxQuoteStyle": "double",
       "quoteProperties": "asNeeded",
-      "trailingCommas": "all",
+      "trailingCommas": "none",
       "semicolons": "always",
-      "arrowParentheses": "always",
+      "arrowParentheses": "asNeeded",
       "bracketSameLine": false,
-      "quoteStyle": "single",
+      "quoteStyle": "double",
       "attributePosition": "auto",
       "bracketSpacing": true
     }
