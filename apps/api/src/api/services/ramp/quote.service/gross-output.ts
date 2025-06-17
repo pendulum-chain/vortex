@@ -42,7 +42,6 @@ export interface NablaSwapResult {
 
 export interface EvmBridgeRequest {
   intermediateAmountRaw: string; // Raw output from Nabla swap (e.g. axlUSDC on Moonbeam)
-  intermediateCurrencyOnEvm: OnChainToken; // e.g. EvmToken.axlUSDC
   finalOutputCurrency: OnChainToken; // Target token on final EVM chain
   finalEvmDestination: DestinationType; // Target EVM chain
   originalInputAmountForRateCalc: string; // The inputAmountForSwap that went into Nabla, for final rate calculation
@@ -51,7 +50,7 @@ export interface EvmBridgeRequest {
 
 export interface EvmBridgeQuoteRequest {
   rampType: 'on' | 'off'; // Whether this is an onramp or offramp
-  amountRaw: string; // Raw amount
+  amountDecimal: string; // Raw amount
   inputOrOutputCurrency: OnChainToken; // The currency being swapped (input for offramp, output for onramp)
   sourceOrDestination: DestinationType; // The source or destination EVM chain based on rampType
 }
@@ -256,14 +255,8 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
  * Handles EVM bridging/swapping via Squidrouter and calculates its specific network fee
  */
 export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest): Promise<EvmBridgeResult> {
-  const {
-    intermediateAmountRaw,
-    intermediateCurrencyOnEvm,
-    finalOutputCurrency,
-    finalEvmDestination,
-    originalInputAmountForRateCalc,
-    rampType,
-  } = request;
+  const { intermediateAmountRaw, finalOutputCurrency, finalEvmDestination, originalInputAmountForRateCalc, rampType } =
+    request;
 
   try {
     // Get token details for final output currency
@@ -313,7 +306,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
 
 export async function getEvmBridgeQuote(request: EvmBridgeQuoteRequest) {
   const tokenDetails = getTokenDetailsForEvmDestination(request.inputOrOutputCurrency, request.sourceOrDestination);
-  const amountRaw = multiplyByPowerOfTen(request.amountRaw, tokenDetails.decimals).toFixed(0, 0);
+  const amountRaw = multiplyByPowerOfTen(request.amountDecimal, tokenDetails.decimals).toFixed(0, 0);
 
   const routeParams = prepareSquidrouterRouteParams(
     request.rampType,
@@ -321,7 +314,6 @@ export async function getEvmBridgeQuote(request: EvmBridgeQuoteRequest) {
     tokenDetails,
     request.sourceOrDestination,
   );
-  console.log('route params:', routeParams);
 
   const result = await getSquidrouterRouteData(routeParams);
   const outputTokenDecimals = result.route.estimate.toToken.decimals;

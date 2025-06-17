@@ -1,4 +1,4 @@
-import { EvmToken, FiatToken, Networks, OnChainToken, QuoteEndpoints, RampCurrency } from '@packages/shared';
+import { EvmToken, FiatToken, OnChainToken, QuoteEndpoints, RampCurrency } from '@packages/shared';
 import Big from 'big.js';
 import httpStatus from 'http-status';
 import { v4 as uuidv4 } from 'uuid';
@@ -66,7 +66,7 @@ export class QuoteService extends BaseRampService {
       // Check squidrouter rate and adjust the input amount accordingly
       const bridgeQuote = await getEvmBridgeQuote({
         rampType: request.rampType,
-        amountRaw: request.inputAmount,
+        amountDecimal: request.inputAmount,
         inputOrOutputCurrency: request.inputCurrency as OnChainToken,
         sourceOrDestination: request.from,
       });
@@ -192,7 +192,6 @@ export class QuoteService extends BaseRampService {
       );
       const preliminaryResult = await calculateEvmBridgeAndNetworkFee({
         intermediateAmountRaw: nablaSwapResult.nablaOutputAmountRaw,
-        intermediateCurrencyOnEvm: EvmToken.USDC,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         finalEvmDestination: request.to,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
@@ -211,7 +210,6 @@ export class QuoteService extends BaseRampService {
       // Do a second call with all fees deducted to get the final gross output amount
       const evmBridgeResult = await calculateEvmBridgeAndNetworkFee({
         intermediateAmountRaw: outputAmountMoonbeamRaw,
-        intermediateCurrencyOnEvm: EvmToken.USDC as OnChainToken,
         finalOutputCurrency: request.outputCurrency as OnChainToken,
         finalEvmDestination: request.to,
         originalInputAmountForRateCalc: inputAmountForNablaSwap.toString(),
