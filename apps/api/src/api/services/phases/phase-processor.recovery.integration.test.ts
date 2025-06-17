@@ -3,9 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import RampState, { RampStateAttributes, RampStateCreationAttributes } from '../../../models/rampState.model';
-import RAMP_STATE_RECOVERY from './failedRampStateRecovery.json';
 import { PhaseProcessor } from './phase-processor';
 import registerPhaseHandlers from './register-handlers';
+
+const RAMP_STATE_RECOVERY = {
+  // ...
+};
 
 // Mock the RampRecoveryWorker
 mock.module('../../workers/ramp-recovery.worker', () => ({
