@@ -11,7 +11,7 @@ export const MoneriumService = {
   async checkUserStatus(address: string): Promise<MoneriumUserStatus> {
     try {
       return {
-        isNewUser: true,
+        isNewUser: false,
       };
       //TODO implement.
 

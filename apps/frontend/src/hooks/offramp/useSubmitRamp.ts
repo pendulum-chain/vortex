@@ -42,6 +42,7 @@ export const useSubmitRamp = () => {
     setInitializeFailedMessage,
     setRampSummaryVisible,
     setRampKycLevel2Started,
+    resetRampState,
   } = useRampActions();
 
   const {
@@ -151,13 +152,15 @@ export const useSubmitRamp = () => {
                 // SIWE login for existing users
                 try {
                   const code = await handleMoneriumSiweAuth(address, getMessageSignature);
-                  await exchangeMoneriumCode(code);
+                  //await exchangeMoneriumCode(code);
                 } catch (error) {
                   console.error('Error with Monerium SIWE auth:', error);
                   showToast(ToastMessage.ERROR, 'Failed to authenticate with Monerium');
                   setRampStarted(false);
+                  resetRampState();
                   setRampInitiating(false);
-                  return;
+                } finally {
+                  setRampInitiating(false);
                 }
               }
 
@@ -210,6 +213,7 @@ export const useSubmitRamp = () => {
                 console.error('Error finalizing the initial state of the offramping process', error);
                 executionInput.setInitializeFailed();
                 setRampStarted(false);
+                resetRampState();
                 cleanupSEP24();
               } finally {
                 setRampInitiating(false);
@@ -259,6 +263,7 @@ export const useSubmitRamp = () => {
               console.error('Error finalizing the initial state of the offramping process', error);
               executionInput.setInitializeFailed();
               setRampStarted(false);
+              resetRampState();
               cleanupSEP24();
             } finally {
               setRampInitiating(false);

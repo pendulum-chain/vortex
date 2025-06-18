@@ -180,7 +180,7 @@ export const useRegisterRamp = () => {
         },
       ];
 
-      if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL) {
+      if (executionInput.quote.rampType === 'off' && executionInput.fiatToken !== FiatToken.BRL && !authToken) {
         // Checks for Stellar offramps
         if (!executionInput.ephemerals.stellarEphemeral.secret) {
           throw new Error('Missing Stellar ephemeral secret');

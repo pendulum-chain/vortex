@@ -10,8 +10,8 @@ export const useMoneriumFlow = () => {
 
   // Handle redirect from Monerium
   useEffect(() => {
-    // only listen if a Monerium ramp has been triggered, and the flow state is redirecting
-    if (!triggered || flowState !== 'redirecting') {
+    // only listen if a Monerium ramp has been triggered, and the flow state is redirecting or in siwe mode.
+    if (!triggered || flowState === 'completed' || flowState === 'idle' || flowState === 'authenticating') {
       return;
     }
 
