@@ -31,44 +31,44 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
   return (
     <motion.div
+      animate={{ opacity: 1, scale: 1 }}
       className="mx-4 mt-8 mb-4 flex min-h-[480px] flex-col items-center justify-center rounded-lg px-4 py-4 shadow-custom md:mx-auto md:w-96"
-      initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
+      initial={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
     >
       {kycVerificationError ? (
         <>
           <ErrorIcon />
           <motion.p
+            animate={{ opacity: 1 }}
             className="mt-4 text-center font-bold text-lg"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            {t(`components.brlaExtendedForm.messageDisplay.networkError`)}
+            {t("components.brlaExtendedForm.messageDisplay.networkError")}
           </motion.p>
           <motion.button
-            className="btn-vortex-primary btn mt-6 px-8"
-            onClick={onBack}
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            className="btn-vortex-primary btn mt-6 px-8"
+            initial={{ opacity: 0, y: 20 }}
+            onClick={onBack}
             transition={{ delay: 0.6, duration: 0.3 }}
           >
-            {t(`components.brlaExtendedForm.buttons.back`)}
+            {t("components.brlaExtendedForm.buttons.back")}
           </motion.button>
         </>
       ) : (
         <>
-          {kycStatus === KycStatus.PENDING && <Spinner theme="dark" size="lg" />}
+          {kycStatus === KycStatus.PENDING && <Spinner size="lg" theme="dark" />}
 
           {showSuccess && <SuccessIcon />}
 
           {kycStatus === KycStatus.REJECTED && <ErrorIcon />}
 
           <motion.p
+            animate={{ opacity: 1 }}
             className="mt-4 text-center font-bold text-lg"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
             {message}
@@ -76,9 +76,9 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
           {kycStatus === KycStatus.REJECTED && failureMessage && (
             <motion.p
+              animate={{ opacity: 1 }}
               className="mt-2 px-4 text-center text-red-600 text-sm"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.5 }}
             >
               {failureMessage}
@@ -87,25 +87,25 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
           {showSuccess && (
             <motion.button
-              className="btn-vortex-primary btn mt-6 px-8"
-              onClick={onContinue}
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              className="btn-vortex-primary btn mt-6 px-8"
+              initial={{ opacity: 0, y: 20 }}
+              onClick={onContinue}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
-              {t(`components.brlaExtendedForm.buttons.continue`)}
+              {t("components.brlaExtendedForm.buttons.continue")}
             </motion.button>
           )}
 
           {kycStatus === KycStatus.REJECTED && (
             <motion.button
-              className="btn-vortex-primary btn mt-6 px-8"
-              onClick={onRetry}
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              className="btn-vortex-primary btn mt-6 px-8"
+              initial={{ opacity: 0, y: 20 }}
+              onClick={onRetry}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
-              {t(`components.brlaExtendedForm.buttons.tryAgain`)}
+              {t("components.brlaExtendedForm.buttons.tryAgain")}
             </motion.button>
           )}
         </>
@@ -116,47 +116,47 @@ export const VerificationStatus: React.FC<VerificationStatusProps> = ({
 
 const SuccessIcon = () => (
   <motion.svg
+    animate={{ scale: 1 }}
     className="h-16 w-16 text-green-500"
     fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
     initial={{ scale: 0 }}
-    animate={{ scale: 1 }}
+    stroke="currentColor"
     transition={{
-      type: "spring",
+      damping: 15,
       stiffness: 200,
-      damping: 15
+      type: "spring"
     }}
+    viewBox="0 0 24 24"
   >
     <motion.path
+      animate={{ pathLength: 1 }}
+      d="M5 13l4 4L19 7"
+      initial={{ pathLength: 0 }}
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M5 13l4 4L19 7"
-      initial={{ pathLength: 0 }}
-      animate={{ pathLength: 1 }}
-      transition={{ duration: 0.8, delay: 0.2 }}
+      transition={{ delay: 0.2, duration: 0.8 }}
     />
   </motion.svg>
 );
 
 const ErrorIcon = () => (
   <motion.svg
+    animate={{ opacity: 1, rotate: 0 }}
     className="h-16 w-16 text-red-500"
     fill="none"
-    viewBox="0 0 24 24"
+    initial={{ opacity: 0, rotate: -90 }}
     stroke="currentColor"
-    initial={{ rotate: -90, opacity: 0 }}
-    animate={{ rotate: 0, opacity: 1 }}
     transition={{ duration: 0.5 }}
+    viewBox="0 0 24 24"
   >
     <motion.path
+      animate={{ pathLength: 1 }}
+      d="M6 18L18 6M6 6l12 12"
+      initial={{ pathLength: 0 }}
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M6 18L18 6M6 6l12 12"
-      initial={{ pathLength: 0 }}
-      animate={{ pathLength: 1 }}
       transition={{ duration: 0.6 }}
     />
   </motion.svg>

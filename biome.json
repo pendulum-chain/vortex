@@ -1,44 +1,107 @@
 {
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on",
+        "useSortedAttributes": "on",
+        "useSortedKeys": "on",
+        "useSortedProperties": "on"
+      }
+    },
+    "enabled": true
+  },
   "formatter": {
+    "bracketSpacing": true,
     "enabled": true,
-    "useEditorconfig": true,
     "formatWithErrors": false,
+    "includes": [
+      "**",
+      "!**/dist/**",
+      "!**/build/**",
+      "!**/node_modules/",
+      "!**/docs/**/*",
+      "!**/coverage/**/*",
+      "!**/.lighthouseci/**/*",
+      "!**/*.yml",
+      "!**/*.sol",
+      "!**/bun.lockb",
+      "!**/package.json",
+      "!**/_redirects",
+      "!**/LICENSE",
+      "!**/.gitignore",
+      "!**/.prettierignore",
+      "!**/*.svg",
+      "!**/*.png",
+      "!**/*.webp",
+      "!**/*.jpg",
+      "!**/*.jpeg",
+      "!**/*.gif"
+    ],
     "indentStyle": "space",
     "indentWidth": 2,
     "lineEnding": "lf",
     "lineWidth": 128,
-    "bracketSpacing": true,
-    "ignore": [
-      "**/dist/**",
-      "**/build/**",
-      "**/node_modules/",
-      "**/docs/*",
-      "**/coverage/*",
-      "**/.lighthouseci/*",
-      "**/*.yml",
-      "**/*.sol",
-      "**/bun.lockb",
-      "**/package.json",
-      "**/_redirects",
-      "**/LICENSE",
-      "**/.gitignore",
-      "**/.prettierignore",
-      "**/*.svg",
-      "**/*.png",
-      "**/*.webp",
-      "**/*.jpg",
-      "**/*.jpeg",
-      "**/*.gif"
-    ]
+    "useEditorconfig": true
+  },
+  "javascript": {
+    "formatter": {
+      "arrowParentheses": "asNeeded",
+      "attributePosition": "auto",
+      "bracketSameLine": false,
+      "bracketSpacing": true,
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "none"
+    }
   },
 
   "linter": {
     "enabled": true,
+    "includes": [
+      "**",
+      "!**/dist/**",
+      "!**/build/**",
+      "!**/node_modules/",
+      "!**/lib/**",
+      "!**/types/**",
+      "!**/coverage/**",
+      "!**/gql/**",
+      "!**/signer-service/**",
+      "!**/api/dist/**",
+      "!**/apps/api/dist/**",
+      "!**/*.d.ts",
+      "!**/*.config.*"
+    ],
     "rules": {
+      "a11y": {
+        "noRedundantAlt": "error",
+        "noStaticElementInteractions": "warn",
+        "useAltText": "error",
+        "useAriaPropsForRole": "warn",
+        "useAriaPropsSupportedByRole": "error",
+        "useHeadingContent": "error"
+      },
+      "complexity": {
+        "noBannedTypes": "error",
+        "noUselessThisAlias": "error",
+        "noUselessTypeConstraint": "error"
+      },
+      "correctness": {
+        "noConstAssign": "error",
+        "noGlobalObjectCalls": "error",
+        "noInvalidUseBeforeDeclaration": "error",
+        "noPrecisionLoss": "error",
+        "noUnreachable": "warn",
+        "noUnusedVariables": "error",
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error"
+      },
       "nursery": {
         "useSortedClasses": {
-          "level": "error",
           "fix": "safe",
+          "level": "error",
           "options": {
             "attributes": ["className"],
             "functions": ["cn"]
@@ -46,75 +109,39 @@
         }
       },
       "recommended": false,
-      "complexity": {
-        "noBannedTypes": "error",
-        "noUselessThisAlias": "error",
-        "noUselessTypeConstraint": "error"
-      },
-      "correctness": {
-        "noInvalidUseBeforeDeclaration": "error",
-        "noPrecisionLoss": "error",
-        "noUnusedVariables": "error",
-        "useArrayLiterals": "error",
-        "noConstAssign": "error",
-        "noGlobalObjectCalls": "error",
-        "useExhaustiveDependencies": "error",
-        "useHookAtTopLevel": "error",
-        "noUnreachable": "warn"
-      },
       "style": {
+        "noCommonJs": "error",
+        "noDefaultExport": "warn",
         "noInferrableTypes": "error",
         "noNamespace": "error",
         "noNonNullAssertion": "error",
+        "noSubstr": "error",
+        "noUnusedTemplateLiteral": "warn",
+        "noYodaExpression": "error",
+        "useArrayLiterals": "error",
         "useAsConstAssertion": "error",
-        "noVar": "error",
-        "useConst": "error",
-        "useBlockStatements": "off"
+        "useBlockStatements": "off",
+        "useConst": "error"
       },
       "suspicious": {
+        "noConsole": "off",
+        "noDoubleEquals": "warn",
+        "noDuplicateClassMembers": "error",
         "noEmptyBlockStatements": "error",
         "noEmptyInterface": "error",
         "noExplicitAny": "error",
         "noExtraNonNullAssertion": "error",
         "noMisleadingInstantiator": "error",
-        "useNamespaceKeyword": "error",
         "noRedeclare": "error",
+        "noVar": "error",
         "useGetterReturn": "error",
-        "noDuplicateClassMembers": "error",
-        "noConsole": "off"
+        "useNamespaceKeyword": "error"
       }
-    },
-    "ignore": [
-      "**/dist/**",
-      "**/build/**",
-      "**/node_modules/",
-      "**/lib/**",
-      "**/types/**",
-      "**/coverage/**",
-      "**/gql/**",
-      "**/signer-service/**",
-      "api/dist/**",
-      "apps/api/dist/**",
-      "**/*.d.ts",
-      "**/*.config.*"
-    ]
-  },
-  "javascript": {
-    "formatter": {
-      "jsxQuoteStyle": "double",
-      "quoteProperties": "asNeeded",
-      "trailingCommas": "none",
-      "semicolons": "always",
-      "arrowParentheses": "asNeeded",
-      "bracketSameLine": false,
-      "quoteStyle": "double",
-      "attributePosition": "auto",
-      "bracketSpacing": true
     }
   },
   "overrides": [
     {
-      "include": ["**/*.test.ts", "**/*.test.tsx"],
+      "includes": ["**/*.test.ts", "**/*.test.tsx"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -123,6 +150,6 @@
         }
       }
     },
-    { "include": ["**/*"] }
+    { "includes": ["**/*"] }
   ]
 }

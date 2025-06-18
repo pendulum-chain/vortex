@@ -1,32 +1,32 @@
-import { DestinationType, EvmAddress, Networks } from '../index';
+import { DestinationType, EvmAddress, Networks } from "../index";
 
 export type RampPhase =
-  | 'initial'
-  | 'timedOut'
-  | 'stellarCreateAccount'
-  | 'squidRouterApprove'
-  | 'squidRouterSwap'
-  | 'squidRouterPay'
-  | 'fundEphemeral'
-  | 'nablaApprove'
-  | 'nablaSwap'
-  | 'moonbeamToPendulum'
-  | 'moonbeamToPendulumXcm'
-  | 'pendulumToMoonbeam'
-  | 'assethubToPendulum'
-  | 'pendulumToAssethub'
-  | 'spacewalkRedeem'
-  | 'stellarPayment'
-  | 'subsidizePreSwap'
-  | 'subsidizePostSwap'
-  | 'distributeFees'
-  | 'brlaTeleport'
-  | 'brlaPayoutOnMoonbeam'
-  | 'failed'
-  | 'timedOut'
-  | 'complete';
+  | "initial"
+  | "timedOut"
+  | "stellarCreateAccount"
+  | "squidRouterApprove"
+  | "squidRouterSwap"
+  | "squidRouterPay"
+  | "fundEphemeral"
+  | "nablaApprove"
+  | "nablaSwap"
+  | "moonbeamToPendulum"
+  | "moonbeamToPendulumXcm"
+  | "pendulumToMoonbeam"
+  | "assethubToPendulum"
+  | "pendulumToAssethub"
+  | "spacewalkRedeem"
+  | "stellarPayment"
+  | "subsidizePreSwap"
+  | "subsidizePostSwap"
+  | "distributeFees"
+  | "brlaTeleport"
+  | "brlaPayoutOnMoonbeam"
+  | "failed"
+  | "timedOut"
+  | "complete";
 
-export type CleanupPhase = 'moonbeamCleanup' | 'pendulumCleanup' | 'stellarCleanup';
+export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
 
 export interface AccountMeta {
   address: string;
@@ -43,7 +43,7 @@ export interface EvmTransactionData {
 }
 
 export function isEvmTransactionData(data: string | EvmTransactionData): data is EvmTransactionData {
-  return typeof data === 'object' && data !== null && 'to' in data && 'data' in data;
+  return typeof data === "object" && data !== null && "to" in data && "data" in data;
 }
 
 export interface UnsignedTx {
@@ -53,6 +53,7 @@ export interface UnsignedTx {
   nonce: number;
   signer: string;
   meta: {
+    expectedSequenceNumber?: string;
     additionalTxs?: Record<string, PresignedTx>;
   };
 }
@@ -70,7 +71,7 @@ export interface RampErrorLog {
 export interface PaymentData {
   amount: string;
   memo: string;
-  memoType: 'text' | 'hash';
+  memoType: "text" | "hash";
   anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
@@ -113,7 +114,7 @@ export type StartRampResponse = RampProcess;
 export interface RampProcess {
   id: string;
   quoteId: string;
-  type: 'on' | 'off';
+  type: "on" | "off";
   currentPhase: RampPhase;
   from: DestinationType;
   to: DestinationType;
@@ -142,7 +143,7 @@ export interface GetRampHistoryRequest {
 export type GetRampHistoryResponse = {
   transactions: {
     id: string;
-    type: 'on' | 'off';
+    type: "on" | "off";
     fromNetwork: string;
     toNetwork: string;
     fromAmount: string;

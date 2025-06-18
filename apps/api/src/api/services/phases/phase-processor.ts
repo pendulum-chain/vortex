@@ -1,9 +1,9 @@
-import httpStatus from 'http-status';
-import logger from '../../../config/logger';
-import RampState from '../../../models/rampState.model';
-import { APIError } from '../../errors/api-error';
-import { PhaseError } from '../../errors/phase-error';
-import phaseRegistry from './phase-registry';
+import httpStatus from "http-status";
+import logger from "../../../config/logger";
+import RampState from "../../../models/rampState.model";
+import { APIError } from "../../errors/api-error";
+import { PhaseError } from "../../errors/phase-error";
+import phaseRegistry from "./phase-registry";
 
 /**
  * Process phases for a ramping process
@@ -39,10 +39,10 @@ export class PhaseProcessor {
       {
         processingLock: {
           locked: true,
-          lockedAt: new Date(),
-        },
+          lockedAt: new Date()
+        }
       },
-      { where: { id: state.id } },
+      { where: { id: state.id } }
     );
 
     return true;
@@ -60,10 +60,10 @@ export class PhaseProcessor {
         {
           processingLock: {
             locked: false,
-            lockedAt: null,
-          },
+            lockedAt: null
+          }
         },
-        { where: { id: state.id } },
+        { where: { id: state.id } }
       );
     } catch (error) {
       logger.error(`Error releasing lock for ramp ${state.id}: ${error}`);
@@ -107,8 +107,8 @@ export class PhaseProcessor {
     const state = await RampState.findByPk(rampId);
     if (!state) {
       throw new APIError({
-        status: httpStatus.NOT_FOUND,
         message: `Ramp with ID ${rampId} not found`,
+        status: httpStatus.NOT_FOUND
       });
     }
 
@@ -164,8 +164,8 @@ export class PhaseProcessor {
       // except for complete or fail phases which are terminal.
       if (
         updatedState.currentPhase !== currentPhase &&
-        updatedState.currentPhase !== 'complete' &&
-        updatedState.currentPhase !== 'failed'
+        updatedState.currentPhase !== "complete" &&
+        updatedState.currentPhase !== "failed"
       ) {
         logger.info(`Phase changed from ${currentPhase} to ${updatedState.currentPhase} for ramp ${state.id}`);
 
@@ -173,14 +173,14 @@ export class PhaseProcessor {
 
         // Process the next phase
         await this.processPhase(updatedState);
-      } else if (updatedState.currentPhase === 'complete') {
+      } else if (updatedState.currentPhase === "complete") {
         logger.info(`Ramp ${state.id} completed successfully`);
         this.retriesMap.delete(state.id);
-      } else if (updatedState.currentPhase === 'failed') {
+      } else if (updatedState.currentPhase === "failed") {
         logger.error(`Ramp ${state.id} failed unrecoverably, giving up.`);
         this.retriesMap.delete(state.id);
       } else {
-        logger.info(`Current phase must be different to updated phase for non-terminal states. This is a bug.`);
+        logger.info("Current phase must be different to updated phase for non-terminal states. This is a bug.");
         this.retriesMap.delete(state.id);
       }
     } catch (e: unknown) {
@@ -197,7 +197,7 @@ export class PhaseProcessor {
           const delayMs = Math.pow(2, currentRetries) * 1000;
 
           logger.info(`Scheduling retry ${nextRetry}/${this.MAX_RETRIES} for ramp ${state.id} in ${delayMs}ms`);
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          await new Promise(resolve => setTimeout(resolve, delayMs));
           return this.processPhase(state);
         }
 
@@ -209,13 +209,13 @@ export class PhaseProcessor {
       const errorLogs = [
         ...state.errorLogs,
         {
-          phase: state.currentPhase,
-          timestamp: new Date().toISOString(),
-          error: error.message || 'Unknown error',
-          details: error.stack || '',
-          recoverable: isRecoverable,
+          details: error.stack || "",
+          error: error.message || "Unknown error",
           isPhaseError,
-        },
+          phase: state.currentPhase,
+          recoverable: isRecoverable,
+          timestamp: new Date().toISOString()
+        }
       ];
 
       await state.update({ errorLogs });

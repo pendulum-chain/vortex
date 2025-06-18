@@ -1,9 +1,9 @@
-import { CleanupPhase, Networks, PresignedTx, RampPhase, decodeSubmittableExtrinsic } from '@packages/shared';
-import { submitExtrinsic } from '@pendulum-chain/api-solang';
-import logger from '../../../../config/logger';
-import RampState from '../../../../models/rampState.model';
-import { ApiManager } from '../../pendulum/apiManager';
-import { BasePostProcessHandler } from './base-post-process-handler';
+import { CleanupPhase, decodeSubmittableExtrinsic, Networks, PresignedTx, RampPhase } from "@packages/shared";
+import { submitExtrinsic } from "@pendulum-chain/api-solang";
+import logger from "../../../../config/logger";
+import RampState from "../../../../models/rampState.model";
+import { ApiManager } from "../../pendulum/apiManager";
+import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const CLEANUP_WAITING_TIME_MINUTES = 180; // 3 hours
 /**
@@ -11,19 +11,19 @@ const CLEANUP_WAITING_TIME_MINUTES = 180; // 3 hours
  */
 export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
   public getCleanupName(): CleanupPhase {
-    return 'moonbeamCleanup';
+    return "moonbeamCleanup";
   }
 
   /**
    * Check if this handler should process the given state
    */
   public shouldProcess(state: RampState): boolean {
-    if (state.currentPhase !== 'complete') {
+    if (state.currentPhase !== "complete") {
       return false;
     }
 
     // Moonbeam cleanup is only required for BRL onramp
-    if (state.type !== 'on') {
+    if (state.type !== "on") {
       return false;
     }
 
@@ -37,15 +37,15 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
    */
   public async process(state: RampState): Promise<[boolean, Error | null]> {
     const apiManager = ApiManager.getInstance();
-    const networkName = 'moonbeam';
+    const networkName = "moonbeam";
     const moonbeamNode = await apiManager.getApi(networkName);
 
     // Wait for at least 15 minutes after the complete phase, to allow time for squidrouter to refund
     try {
-      const completeEntry = state.phaseHistory.find((entry) => entry.phase === 'complete');
+      const completeEntry = state.phaseHistory.find(entry => entry.phase === "complete");
 
       if (!completeEntry) {
-        return [false, this.createErrorObject(`No complete entry found in the data`)];
+        return [false, this.createErrorObject("No complete entry found in the data")];
       }
 
       const completeTime = new Date(completeEntry.timestamp);
@@ -56,8 +56,8 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
         return [
           false,
           this.createErrorObject(
-            `At least ${CLEANUP_WAITING_TIME_MINUTES} minutes must pass after the complete phase for moonbeam cleanup`,
-          ),
+            `At least ${CLEANUP_WAITING_TIME_MINUTES} minutes must pass after the complete phase for moonbeam cleanup`
+          )
         ];
       }
     } catch (e) {
@@ -65,12 +65,12 @@ export class MoonbeamPostProcessHandler extends BasePostProcessHandler {
     }
 
     try {
-      const { txData: moonbeamCleanupTransaction } = this.getPresignedTransaction(state, 'moonbeamCleanup');
+      const { txData: moonbeamCleanupTransaction } = this.getPresignedTransaction(state, "moonbeamCleanup");
 
       const approvalExtrinsic = decodeSubmittableExtrinsic(moonbeamCleanupTransaction as string, moonbeamNode.api);
       const result = await submitExtrinsic(approvalExtrinsic);
 
-      if (result.status.type === 'error') {
+      if (result.status.type === "error") {
         return [false, this.createErrorObject(`Moonbeam cleanup failed: ${result.status.error.toString()}`)];
       }
 

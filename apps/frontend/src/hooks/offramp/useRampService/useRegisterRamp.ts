@@ -1,4 +1,4 @@
-import { AccountMeta, FiatToken, Networks, getAddressForFormat, signUnsignedTransactions } from "@packages/shared";
+import { AccountMeta, FiatToken, getAddressForFormat, Networks, signUnsignedTransactions } from "@packages/shared";
 import { useCallback, useEffect } from "react";
 import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from "../../../contexts/polkadotNode";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
@@ -50,7 +50,7 @@ const useProcessLock = (lockKey: string) => {
     localStorage.removeItem(lockKey);
   }, [lockKey]);
 
-  return { checkLock, verifyLock, releaseLock };
+  return { checkLock, releaseLock, verifyLock };
 };
 
 // For Offramp EUR/ARS we trigger it after returning from anchor window
@@ -190,16 +190,16 @@ export const useRegisterRamp = () => {
               taxId: executionInput.taxId
             }
           : {
-              walletAddress: address,
               paymentData: executionInput.paymentData,
-              taxId: executionInput.taxId,
+              pixDestination: executionInput.taxId,
               receiverTaxId: executionInput.taxId,
-              pixDestination: executionInput.taxId
+              taxId: executionInput.taxId,
+              walletAddress: address
             };
 
-      console.log(`Registering ramp with additional data:`, additionalData);
+      console.log("Registering ramp with additional data:", additionalData);
       const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData);
-      console.log(`Ramp process registered:`, rampProcess);
+      console.log("Ramp process registered:", rampProcess);
 
       const ephemeralTxs = rampProcess.unsignedTxs.filter(tx => {
         if (!address) {
@@ -225,19 +225,19 @@ export const useRegisterRamp = () => {
       setRampState({
         quote: executionInput.quote,
         ramp: updatedRampProcess,
-        signedTransactions,
         requiredUserActionsCompleted: false,
+        signedTransactions,
         userSigningMeta: {
+          assetHubToPendulumHash: undefined,
           squidRouterApproveHash: undefined,
-          squidRouterSwapHash: undefined,
-          assetHubToPendulumHash: undefined
+          squidRouterSwapHash: undefined
         }
       });
     };
 
     registerRampProcess()
       .catch(error => {
-        console.error(`Error registering ramp:`, error);
+        console.error("Error registering ramp:", error);
       })
       .finally(() => {
         releaseLock();
@@ -300,11 +300,11 @@ export const useRegisterRamp = () => {
 
     // Add a check to ensure there are actually transactions for the user to sign
     if (userTxs?.length === 0) {
-      console.log(`No user transactions found requiring signature.`);
+      console.log("No user transactions found requiring signature.");
       return;
     }
 
-    console.log(`Proceeding to request signatures from user...`);
+    console.log("Proceeding to request signatures from user...");
 
     // Kick off user signing process
     const requestSignaturesFromUser = async () => {
@@ -353,9 +353,9 @@ export const useRegisterRamp = () => {
 
       // Update ramp with user-signed transactions and additional data
       const additionalData = {
+        assetHubToPendulumHash,
         squidRouterApproveHash,
-        squidRouterSwapHash,
-        assetHubToPendulumHash
+        squidRouterSwapHash
       };
 
       if (!rampState.ramp) {
@@ -372,19 +372,19 @@ export const useRegisterRamp = () => {
         ...rampState,
         ramp: updatedRampProcess,
         userSigningMeta: {
+          assetHubToPendulumHash,
           squidRouterApproveHash,
-          squidRouterSwapHash,
-          assetHubToPendulumHash
+          squidRouterSwapHash
         }
       });
     };
 
     requestSignaturesFromUser()
       .then(() => {
-        console.log(`Done requesting signatures from user`);
+        console.log("Done requesting signatures from user");
       })
       .catch(error => {
-        console.error(`Error requesting signatures from user`, error);
+        console.error("Error requesting signatures from user", error);
         // TODO check if user declined based on error provided
         showToast(ToastMessage.SIGNING_REJECTED);
         setSigningRejected(true);
@@ -409,7 +409,7 @@ export const useRegisterRamp = () => {
   ]);
 
   return {
-    registerRamp,
-    rampRegistered
+    rampRegistered,
+    registerRamp
   };
 };

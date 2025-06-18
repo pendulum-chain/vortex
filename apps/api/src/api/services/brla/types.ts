@@ -1,4 +1,4 @@
-import { BrlaKYCDocType } from '@packages/shared';
+import { BrlaKYCDocType } from "@packages/shared";
 
 export interface TriggerOfframpRequest {
   taxId: string;
@@ -32,7 +32,7 @@ export interface KYCData {
   };
 }
 
-type TaxIdType = 'CPF' | 'CNPJ';
+type TaxIdType = "CPF" | "CNPJ";
 
 type BrlaAddress = {
   cep: string;
@@ -133,12 +133,12 @@ interface MintOp {
 
 // /fast-quote endpoint related types
 
-export type FastQuoteOperationType = 'swap';
+export type FastQuoteOperationType = "swap";
 
-export type FastQuoteCoin = 'BRLA';
+export type FastQuoteCoin = "BRLA";
 
-export const enum BrlaSupportedChain {
-  BRLA = 'Moonbeam',
+export enum BrlaSupportedChain {
+  BRLA = "Moonbeam"
   // etc
 }
 
@@ -207,9 +207,9 @@ export interface SwapPayload {
 }
 
 // Other nested types
-export const enum SmartContractOperationType {
-  MINT = 'MINT',
-  BURN = 'BURN',
+export enum SmartContractOperationType {
+  MINT = "MINT",
+  BURN = "BURN"
 }
 
 export function isValidKYCDocType(value: string): value is BrlaKYCDocType {
