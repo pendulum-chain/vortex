@@ -1,11 +1,11 @@
-import { CreateSiweRequest, CreateSiweResponse, ValidateSiweRequest, ValidateSiweResponse } from '@packages/shared';
-import { apiRequest } from './api-client';
+import { CreateSiweRequest, CreateSiweResponse, ValidateSiweRequest, ValidateSiweResponse } from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Sign-In with Ethereum (SIWE) API endpoints
  */
 export class SiweService {
-  private static readonly BASE_PATH = '/siwe';
+  private static readonly BASE_PATH = "/siwe";
 
   /**
    * Create a SIWE nonce
@@ -14,7 +14,7 @@ export class SiweService {
    */
   static async createNonce(walletAddress: string): Promise<CreateSiweResponse> {
     const request: CreateSiweRequest = { walletAddress };
-    return apiRequest<CreateSiweResponse>('post', `${this.BASE_PATH}/create`, request);
+    return apiRequest<CreateSiweResponse>("post", `${this.BASE_PATH}/create`, request);
   }
 
   /**
@@ -28,8 +28,8 @@ export class SiweService {
     const request: ValidateSiweRequest = {
       nonce,
       signature,
-      siweMessage,
+      siweMessage
     };
-    return apiRequest<ValidateSiweResponse>('post', `${this.BASE_PATH}/validate`, request);
+    return apiRequest<ValidateSiweResponse>("post", `${this.BASE_PATH}/validate`, request);
   }
 }

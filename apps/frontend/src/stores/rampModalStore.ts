@@ -1,46 +1,44 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface RampModalState {
   isOpen: boolean;
   isLoading: boolean;
-  tokenSelectModalType: 'from' | 'to';
+  tokenSelectModalType: "from" | "to";
 }
 
 interface RampModalStore {
   modal: RampModalState;
 
   actions: {
-    openTokenSelectModal: (type: 'from' | 'to') => void;
+    openTokenSelectModal: (type: "from" | "to") => void;
     closeTokenSelectModal: () => void;
   };
 }
 
-export const useRampModalStore = create<RampModalStore>((set) => ({
-  modal: {
-    isOpen: false,
-    isLoading: false,
-    tokenSelectModalType: 'from',
-  },
-
+export const useRampModalStore = create<RampModalStore>(set => ({
   actions: {
-    openTokenSelectModal: (type) =>
-      set((state) => ({
+    closeTokenSelectModal: () =>
+      set(state => ({
+        modal: {
+          ...state.modal,
+          isOpen: false
+        }
+      })),
+    openTokenSelectModal: type =>
+      set(state => ({
         modal: {
           ...state.modal,
           isOpen: true,
-          tokenSelectModalType: type,
-        },
-      })),
-
-    closeTokenSelectModal: () =>
-      set((state) => ({
-        modal: {
-          ...state.modal,
-          isOpen: false,
-        },
-      })),
+          tokenSelectModalType: type
+        }
+      }))
   },
+  modal: {
+    isLoading: false,
+    isOpen: false,
+    tokenSelectModalType: "from"
+  }
 }));
 
-export const useRampModalState = () => useRampModalStore((state) => state.modal);
-export const useRampModalActions = () => useRampModalStore((state) => state.actions);
+export const useRampModalState = () => useRampModalStore(state => state.modal);
+export const useRampModalActions = () => useRampModalStore(state => state.actions);

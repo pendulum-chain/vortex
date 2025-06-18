@@ -1,25 +1,25 @@
-import sequelize from '../config/database';
-import Anchor from './anchor.model';
-import KycLevel2 from './kycLevel2.model';
-import MaintenanceSchedule from './maintenanceSchedule.model';
-import Partner from './partner.model';
-import QuoteTicket from './quoteTicket.model';
-import RampState from './rampState.model';
+import sequelize from "../config/database";
+import Anchor from "./anchor.model";
+import KycLevel2 from "./kycLevel2.model";
+import MaintenanceSchedule from "./maintenanceSchedule.model";
+import Partner from "./partner.model";
+import QuoteTicket from "./quoteTicket.model";
+import RampState from "./rampState.model";
 
 // Define associations
-RampState.belongsTo(QuoteTicket, { foreignKey: 'quoteId', as: 'quote' });
-QuoteTicket.hasOne(RampState, { foreignKey: 'quoteId', as: 'rampState' });
-QuoteTicket.belongsTo(Partner, { foreignKey: 'partnerId', as: 'partner' });
-Partner.hasMany(QuoteTicket, { foreignKey: 'partnerId', as: 'quotes' });
+RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
+QuoteTicket.hasOne(RampState, { as: "rampState", foreignKey: "quoteId" });
+QuoteTicket.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
+Partner.hasMany(QuoteTicket, { as: "quotes", foreignKey: "partnerId" });
 
 // Initialize models
 const models = {
-  QuoteTicket,
-  RampState,
-  KycLevel2,
-  Partner,
   Anchor,
+  KycLevel2,
   MaintenanceSchedule,
+  Partner,
+  QuoteTicket,
+  RampState
 };
 
 // Export models and sequelize instance

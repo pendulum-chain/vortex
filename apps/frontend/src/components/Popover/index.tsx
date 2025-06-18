@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useRef } from "react";
 
 interface PopoverProps {
   children: ReactNode;
@@ -6,7 +6,7 @@ interface PopoverProps {
   isVisible?: boolean;
 }
 
-export const Popover = ({ children, className = '', isVisible = true }: PopoverProps) => {
+export const Popover = ({ children, className = "", isVisible = true }: PopoverProps) => {
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export const Popover = ({ children, className = '', isVisible = true }: PopoverP
   }, [isVisible]);
 
   return (
-    <div ref={popoverRef} popover="manual" className={className}>
+    <div className={className} popover="manual" ref={popoverRef}>
       {children}
     </div>
   );

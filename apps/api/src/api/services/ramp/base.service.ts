@@ -1,29 +1,29 @@
-import { RampPhase } from '@packages/shared';
-import { Op, Transaction } from 'sequelize';
-import { v4 as uuidv4 } from 'uuid';
-import sequelize from '../../../config/database';
-import logger from '../../../config/logger';
-import QuoteTicket from '../../../models/quoteTicket.model';
-import RampState, { RampStateAttributes } from '../../../models/rampState.model';
-import { StateMetadata } from '../phases/meta-state-types';
+import { RampPhase } from "@packages/shared";
+import { Op, Transaction } from "sequelize";
+import { v4 as uuidv4 } from "uuid";
+import sequelize from "../../../config/database";
+import logger from "../../../config/logger";
+import QuoteTicket from "../../../models/quoteTicket.model";
+import RampState, { RampStateAttributes } from "../../../models/rampState.model";
+import { StateMetadata } from "../phases/meta-state-types";
 
 export class BaseRampService {
   /**
    * Create a new ramp state
    */
   protected async createRampState(
-    data: Omit<RampStateAttributes, 'id' | 'createdAt' | 'updatedAt' | 'errorLogs' | 'phaseHistory'>,
+    data: Omit<RampStateAttributes, "id" | "createdAt" | "updatedAt" | "errorLogs" | "phaseHistory">
   ): Promise<RampState> {
     return RampState.create({
       id: uuidv4(),
       ...data,
+      errorLogs: [],
       phaseHistory: [
         {
           phase: data.currentPhase,
-          timestamp: new Date(),
-        },
-      ],
-      errorLogs: [],
+          timestamp: new Date()
+        }
+      ]
     });
   }
 
@@ -32,7 +32,7 @@ export class BaseRampService {
    */
   protected async getRampState(id: string): Promise<RampState | null> {
     return RampState.findByPk(id, {
-      include: [{ model: QuoteTicket, as: 'quote' }],
+      include: [{ as: "quote", model: QuoteTicket }]
     });
   }
 
@@ -41,8 +41,8 @@ export class BaseRampService {
    */
   protected async updateRampState(id: string, data: Partial<RampStateAttributes>): Promise<[number, RampState[]]> {
     return RampState.update(data, {
-      where: { id },
       returning: true,
+      where: { id }
     });
   }
 
@@ -58,15 +58,15 @@ export class BaseRampService {
     const phaseHistory = [
       ...rampState.phaseHistory,
       {
-        phase: newPhase,
-        timestamp: new Date(),
         metadata,
-      },
+        phase: newPhase,
+        timestamp: new Date()
+      }
     ];
 
     await rampState.update({
       currentPhase: newPhase,
-      phaseHistory,
+      phaseHistory
     });
   }
 
@@ -82,12 +82,12 @@ export class BaseRampService {
    */
   protected async consumeQuote(id: string, transaction?: Transaction): Promise<[number, QuoteTicket[]]> {
     return QuoteTicket.update(
-      { status: 'consumed' },
+      { status: "consumed" },
       {
-        where: { id, status: 'pending' },
         returning: true,
         transaction,
-      },
+        where: { id, status: "pending" }
+      }
     );
   }
 
@@ -96,14 +96,14 @@ export class BaseRampService {
    */
   protected async isQuoteValid(id: string): Promise<boolean> {
     const quote = await QuoteTicket.findOne({
-      where: { id },
+      where: { id }
     });
 
     if (!quote) {
       return false;
     }
 
-    return quote.status === 'pending' && new Date(quote.expiresAt) > new Date();
+    return quote.status === "pending" && new Date(quote.expiresAt) > new Date();
   }
 
   /**
@@ -117,7 +117,7 @@ export class BaseRampService {
       return result;
     } catch (error) {
       await transaction.rollback();
-      logger.error('Transaction failed:', error);
+      logger.error("Transaction failed:", error);
       throw error;
     }
   }
@@ -127,15 +127,15 @@ export class BaseRampService {
    */
   public async cleanupExpiredQuotes(): Promise<number> {
     const [count] = await QuoteTicket.update(
-      { status: 'expired' },
+      { status: "expired" },
       {
         where: {
-          status: 'pending',
           expiresAt: {
-            [Op.lt]: new Date(),
+            [Op.lt]: new Date()
           },
-        },
-      },
+          status: "pending"
+        }
+      }
     );
     return count;
   }

@@ -1,7 +1,7 @@
 export enum KycFailureReason {
-  FACE = 'face',
-  NAME = 'name',
-  UNKNOWN = 'unknown',
+  FACE = "face",
+  NAME = "name",
+  UNKNOWN = "unknown"
 }
 
 // GET /brla/getUser?taxId=:taxId
@@ -77,7 +77,7 @@ export interface BrlaAddress {
   complement?: string;
 }
 
-export type TaxIdType = 'CPF' | 'CNPJ';
+export type TaxIdType = "CPF" | "CNPJ";
 
 export interface BrlaCreateSubaccountRequest {
   phone: string;
@@ -101,8 +101,8 @@ export interface BrlaErrorResponse {
 }
 
 export enum BrlaKYCDocType {
-  RG = 'RG',
-  CNH = 'CNH',
+  RG = "RG",
+  CNH = "CNH"
 }
 
 // POST /brla/startKYC2

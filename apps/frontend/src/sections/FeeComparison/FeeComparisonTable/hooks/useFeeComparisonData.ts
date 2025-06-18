@@ -1,14 +1,14 @@
-import { AllPricesResponse, BundledPriceResult, Currency } from '@packages/shared';
-import { UseQueryOptions, useQuery } from '@tanstack/react-query';
-import Big from 'big.js';
-import { useMemo } from 'react';
+import { AllPricesResponse, BundledPriceResult, Currency } from "@packages/shared";
+import { UseQueryOptions, useQuery } from "@tanstack/react-query";
+import Big from "big.js";
+import { useMemo } from "react";
 
-import { activeOptions, cacheKeys } from '../../../../constants/cache';
-import { useNetwork } from '../../../../contexts/network';
-import { PriceService } from '../../../../services/api';
-import { useQuote } from '../../../../stores/ramp/useQuoteStore';
-import { useRampDirection } from '../../../../stores/rampDirectionStore';
-import { PriceProviderDetails } from '../../priceProviders';
+import { activeOptions, cacheKeys } from "../../../../constants/cache";
+import { useNetwork } from "../../../../contexts/network";
+import { PriceService } from "../../../../services/api";
+import { useQuote } from "../../../../stores/ramp/useQuoteStore";
+import { useRampDirection } from "../../../../stores/rampDirectionStore";
+import { PriceProviderDetails } from "../../priceProviders";
 
 /**
  * Custom hook to fetch and process fee comparison data
@@ -22,7 +22,7 @@ export function useFeeComparisonData(
   amount: string,
   sourceAssetSymbol: string,
   targetAssetSymbol: string,
-  providers: PriceProviderDetails[],
+  providers: PriceProviderDetails[]
 ) {
   const rampDirection = useRampDirection();
   const { selectedNetwork } = useNetwork();
@@ -33,29 +33,29 @@ export function useFeeComparisonData(
 
   // Fetch prices from all providers
   const { data: allPricesResponse, isLoading: isLoadingPrices } = useQuery<AllPricesResponse, Error>({
-    queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, selectedNetwork, rampDirection],
     queryFn: () => {
       return PriceService.getAllPricesBundled(
         sourceAssetSymbol.toLowerCase() as Currency,
         targetAssetSymbol.toLowerCase() as Currency,
         amount,
         rampDirection,
-        selectedNetwork,
+        selectedNetwork
       );
     },
-    ...(activeOptions['1m'] as Omit<UseQueryOptions<AllPricesResponse, Error>, 'queryKey' | 'queryFn'>),
+    queryKey: [cacheKeys.allPrices, amount, sourceAssetSymbol, targetAssetSymbol, selectedNetwork, rampDirection],
+    ...(activeOptions["1m"] as Omit<UseQueryOptions<AllPricesResponse, Error>, "queryKey" | "queryFn">)
   });
 
   // Process provider prices
   const providerPrices = useMemo(() => {
     const prices: Record<string, Big> = {};
 
-    prices['vortex'] = vortexPrice;
+    prices["vortex"] = vortexPrice;
 
     if (allPricesResponse) {
       Object.entries(allPricesResponse).forEach(([provider, result]) => {
         const typedResult = result as BundledPriceResult | undefined;
-        if (typedResult?.status === 'fulfilled' && typedResult.value.quoteAmount) {
+        if (typedResult?.status === "fulfilled" && typedResult.value.quoteAmount) {
           // Use quoteAmount which represents what the user will receive
           prices[provider] = Big(typedResult.value.quoteAmount.toString());
         }
@@ -70,7 +70,7 @@ export function useFeeComparisonData(
       (best, [provider, price]) => {
         return price.gt(best.bestPrice) ? { bestPrice: price, bestProvider: provider } : best;
       },
-      { bestPrice: new Big(0), bestProvider: '' },
+      { bestPrice: new Big(0), bestProvider: "" }
     );
   }, [providerPrices]);
 
@@ -84,10 +84,10 @@ export function useFeeComparisonData(
   }, [providerPrices, providers]);
 
   return {
-    providerPrices,
-    bestProvider,
-    sortedProviders,
-    isLoadingPrices,
     allPricesResponse,
+    bestProvider,
+    isLoadingPrices,
+    providerPrices,
+    sortedProviders
   };
 }

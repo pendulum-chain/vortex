@@ -1,6 +1,6 @@
-import { BrlaGetKycStatusResponse, FiatToken } from '@packages/shared';
-import { useQuery } from '@tanstack/react-query';
-import { SIGNING_SERVICE_URL } from '../constants/constants';
+import { BrlaGetKycStatusResponse, FiatToken } from "@packages/shared";
+import { useQuery } from "@tanstack/react-query";
+import { SIGNING_SERVICE_URL } from "../constants/constants";
 
 interface AccountStatusResponse {
   status: boolean;
@@ -20,13 +20,13 @@ interface SignerServiceSep10Response {
   masterClientPublic: string;
 }
 
-type BrlaOfframpState = 'BURN' | 'MONEY-TRANSFER';
-type OfframpStatus = 'QUEUED' | 'POSTED' | 'SUCCESS' | 'FAILED';
+type BrlaOfframpState = "BURN" | "MONEY-TRANSFER";
+type OfframpStatus = "QUEUED" | "POSTED" | "SUCCESS" | "FAILED";
 
 export enum KycStatus {
-  PENDING = 'PENDING',
-  REJECTED = 'REJECTED',
-  APPROVED = 'APPROVED',
+  PENDING = "PENDING",
+  REJECTED = "REJECTED",
+  APPROVED = "APPROVED"
 }
 
 export type KycStatusType = keyof typeof KycStatus;
@@ -36,7 +36,7 @@ interface BrlaOfframpStatus {
   status: OfframpStatus;
 }
 
-type TaxIdType = 'CPF' | 'CNPJ';
+type TaxIdType = "CPF" | "CNPJ";
 
 export interface RegisterSubaccountPayload {
   phone: string;
@@ -69,29 +69,29 @@ export interface SignerServiceSep10Request {
 export class SigningServiceError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'SigningServiceError';
+    this.name = "SigningServiceError";
   }
 }
 
 // Specific errors for each funding account
 export class StellarFundingAccountError extends SigningServiceError {
   constructor() {
-    super('Stellar account is inactive');
-    this.name = 'StellarFundingAccountError';
+    super("Stellar account is inactive");
+    this.name = "StellarFundingAccountError";
   }
 }
 
 export class PendulumFundingAccountError extends SigningServiceError {
   constructor() {
-    super('Pendulum account is inactive');
-    this.name = 'PendulumFundingAccountError';
+    super("Pendulum account is inactive");
+    this.name = "PendulumFundingAccountError";
   }
 }
 
 export class MoonbeamFundingAccountError extends SigningServiceError {
   constructor() {
-    super('Moonbeam account is inactive');
-    this.name = 'MoonbeamFundingAccountError';
+    super("Moonbeam account is inactive");
+    this.name = "MoonbeamFundingAccountError";
   }
 }
 
@@ -99,7 +99,7 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
   try {
     const response = await fetch(`${SIGNING_SERVICE_URL}/v1/status`);
     if (!response.ok) {
-      throw new SigningServiceError('Failed to fetch signing service status');
+      throw new SigningServiceError("Failed to fetch signing service status");
     }
 
     const serviceResponse: SigningServiceStatus = await response.json();
@@ -115,23 +115,23 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
     }
 
     return {
-      stellar: serviceResponse.stellar,
-      pendulum: serviceResponse.pendulum,
       moonbeam: serviceResponse.moonbeam,
+      pendulum: serviceResponse.pendulum,
+      stellar: serviceResponse.stellar
     };
   } catch (error) {
     if (error instanceof SigningServiceError) {
       throw error;
     }
-    console.error('Signing service is down: ', error);
-    throw new SigningServiceError('Signing service is down');
+    console.error("Signing service is down: ", error);
+    throw new SigningServiceError("Signing service is down");
   }
 };
 
 export const useSigningService = () => {
   return useQuery({
-    queryKey: ['signingService'],
     queryFn: fetchSigningServiceAccountId,
+    queryKey: ["signingService"],
     retry: (failureCount, error) => {
       if (
         error instanceof StellarFundingAccountError ||
@@ -141,7 +141,7 @@ export const useSigningService = () => {
         return false;
       }
       return failureCount < 3;
-    },
+    }
   });
 };
 
@@ -150,23 +150,23 @@ export const fetchSep10Signatures = async ({
   outToken,
   clientPublicKey,
   usesMemo,
-  address,
+  address
 }: SignerServiceSep10Request): Promise<SignerServiceSep10Response> => {
   const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ challengeXDR, outToken, clientPublicKey, usesMemo, address }),
+    body: JSON.stringify({ address, challengeXDR, clientPublicKey, outToken, usesMemo }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "POST"
   });
   if (response.status !== 200) {
     if (response.status === 401) {
-      throw new Error('Invalid signature');
+      throw new Error("Invalid signature");
     }
     throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
   }
 
   const { clientSignature, clientPublic, masterClientSignature, masterClientPublic } = await response.json();
-  return { clientSignature, clientPublic, masterClientSignature, masterClientPublic };
+  return { clientPublic, clientSignature, masterClientPublic, masterClientSignature };
 };
 
 export const fetchOfframpStatus = async (taxId: string) => {
@@ -174,7 +174,7 @@ export const fetchOfframpStatus = async (taxId: string) => {
 
   if (statusResponse.status !== 200) {
     if (statusResponse.status === 404) {
-      throw new Error('Offramp not found');
+      throw new Error("Offramp not found");
     } else {
       throw new Error(`Failed to fetch offramp status from server: ${statusResponse.statusText}`);
     }
@@ -199,15 +199,15 @@ export const fetchKycStatus = async (taxId: string) => {
 
 export const createSubaccount = async (kycData: RegisterSubaccountPayload): Promise<{ subaccountId: string }> => {
   const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
     body: JSON.stringify(kycData),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "POST"
   });
 
   if (accountCreationResponse.status === 400) {
     const { details } = await accountCreationResponse.json();
-    throw new Error('Failed to create user. Reason: ' + details.error);
+    throw new Error("Failed to create user. Reason: " + details.error);
   }
 
   if (accountCreationResponse.status !== 200) {

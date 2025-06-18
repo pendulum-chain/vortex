@@ -9,15 +9,15 @@ import {
   RegisterRampResponse,
   StartRampRequest,
   StartRampResponse,
-  UpdateRampRequest,
-} from '@packages/shared';
-import { apiRequest } from './api-client';
+  UpdateRampRequest
+} from "@packages/shared";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Ramp API endpoints
  */
 export class RampService {
-  private static readonly BASE_PATH = '/ramp';
+  private static readonly BASE_PATH = "/ramp";
 
   /**
    * Register a new ramping process
@@ -29,14 +29,14 @@ export class RampService {
   static async registerRamp(
     quoteId: string,
     signingAccounts: AccountMeta[],
-    additionalData?: RegisterRampRequest['additionalData'],
+    additionalData?: RegisterRampRequest["additionalData"]
   ): Promise<RegisterRampResponse> {
     const request: RegisterRampRequest = {
-      quoteId,
-      signingAccounts,
       additionalData,
+      quoteId,
+      signingAccounts
     };
-    return apiRequest<RegisterRampResponse>('post', `${this.BASE_PATH}/register`, request);
+    return apiRequest<RegisterRampResponse>("post", `${this.BASE_PATH}/register`, request);
   }
 
   /**
@@ -49,14 +49,14 @@ export class RampService {
   static async updateRamp(
     rampId: string,
     presignedTxs: PresignedTx[],
-    additionalData?: UpdateRampRequest['additionalData'],
+    additionalData?: UpdateRampRequest["additionalData"]
   ): Promise<StartRampResponse> {
     const request: UpdateRampRequest = {
-      rampId,
-      presignedTxs,
       additionalData,
+      presignedTxs,
+      rampId
     };
-    return apiRequest<StartRampResponse>('post', `${this.BASE_PATH}/start`, request);
+    return apiRequest<StartRampResponse>("post", `${this.BASE_PATH}/start`, request);
   }
 
   /**
@@ -66,9 +66,9 @@ export class RampService {
    */
   static async startRamp(rampId: string): Promise<StartRampResponse> {
     const request: StartRampRequest = {
-      rampId,
+      rampId
     };
-    return apiRequest<StartRampResponse>('post', `${this.BASE_PATH}/start`, request);
+    return apiRequest<StartRampResponse>("post", `${this.BASE_PATH}/start`, request);
   }
 
   /**
@@ -77,7 +77,7 @@ export class RampService {
    * @returns The ramp process status
    */
   static async getRampStatus(id: string): Promise<GetRampStatusResponse> {
-    return apiRequest<GetRampStatusResponse>('get', `${this.BASE_PATH}/${id}`);
+    return apiRequest<GetRampStatusResponse>("get", `${this.BASE_PATH}/${id}`);
   }
 
   /**
@@ -86,7 +86,7 @@ export class RampService {
    * @returns The error logs
    */
   static async getRampErrorLogs(id: string): Promise<GetRampErrorLogsResponse> {
-    return apiRequest<GetRampErrorLogsResponse>('get', `${this.BASE_PATH}/${id}/errors`);
+    return apiRequest<GetRampErrorLogsResponse>("get", `${this.BASE_PATH}/${id}/errors`);
   }
 
   /**
@@ -101,13 +101,13 @@ export class RampService {
     id: string,
     onUpdate?: (status: RampProcess) => void,
     intervalMs = 3000,
-    maxAttempts = 100,
+    maxAttempts = 100
   ): Promise<RampProcess> {
     let attempts = 0;
 
     const poll = async (): Promise<RampProcess> => {
       if (attempts >= maxAttempts) {
-        throw new Error('Maximum polling attempts reached');
+        throw new Error("Maximum polling attempts reached");
       }
 
       attempts++;
@@ -117,11 +117,11 @@ export class RampService {
         onUpdate(status);
       }
 
-      if (status.currentPhase === 'complete' || status.currentPhase === 'failed') {
+      if (status.currentPhase === "complete" || status.currentPhase === "failed") {
         return status;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
       return poll();
     };
 
@@ -134,6 +134,6 @@ export class RampService {
    * @returns The transaction history
    */
   static async getRampHistory(walletAddress: string): Promise<GetRampHistoryResponse> {
-    return apiRequest<GetRampHistoryResponse>('get', `${this.BASE_PATH}/history/${walletAddress}`);
+    return apiRequest<GetRampHistoryResponse>("get", `${this.BASE_PATH}/history/${walletAddress}`);
   }
 }

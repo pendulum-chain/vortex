@@ -1,13 +1,13 @@
-import { BrlaKYCDocType } from '@packages/shared';
-import { DataTypes, Model, Optional } from 'sequelize';
-import { KycLevel2Response } from '../api/services/brla/types';
-import sequelize from '../config/database';
+import { BrlaKYCDocType } from "@packages/shared";
+import { DataTypes, Model, Optional } from "sequelize";
+import { KycLevel2Response } from "../api/services/brla/types";
+import sequelize from "../config/database";
 
 export enum KycLevel2Status {
-  REQUESTED = 'Requested', // Requested by the user. Was sent (by the UI) to brla for processing.
-  REJECTED = 'Rejected',
-  ACCEPTED = 'Accepted',
-  CANCELLED = 'Cancelled',
+  REQUESTED = "Requested", // Requested by the user. Was sent (by the UI) to brla for processing.
+  REJECTED = "Rejected",
+  ACCEPTED = "Accepted",
+  CANCELLED = "Cancelled"
 }
 
 export interface KycLevel2Attributes {
@@ -21,10 +21,7 @@ export interface KycLevel2Attributes {
   updatedAt: Date;
 }
 
-type KycLevel2CreationAttributes = Optional<
-  KycLevel2Attributes,
-  'id' | 'errorLogs' | 'uploadData' | 'createdAt' | 'updatedAt'
->;
+type KycLevel2CreationAttributes = Optional<KycLevel2Attributes, "id" | "errorLogs" | "uploadData" | "createdAt" | "updatedAt">;
 
 class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> implements KycLevel2Attributes {
   declare id: string; // Doubles as token. TODO: is that safe?
@@ -39,67 +36,67 @@ class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> 
 
 KycLevel2.init(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    subaccountId: {
-      type: DataTypes.STRING,
+    createdAt: {
       allowNull: false,
-      field: 'subaccount_id',
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+      type: DataTypes.DATE
     },
     documentType: {
-      type: DataTypes.ENUM(...Object.values(BrlaKYCDocType)),
       allowNull: false,
-      field: 'document_type',
-    },
-    status: {
-      type: DataTypes.ENUM(...Object.values(KycLevel2Status)),
-      allowNull: false,
-      defaultValue: KycLevel2Status.REQUESTED,
-      field: 'status',
+      field: "document_type",
+      type: DataTypes.ENUM(...Object.values(BrlaKYCDocType))
     },
     errorLogs: {
-      type: DataTypes.JSONB,
       allowNull: false,
       defaultValue: [],
-      field: 'error_logs',
+      field: "error_logs",
+      type: DataTypes.JSONB
     },
-    uploadData: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      field: 'upload_data',
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
     },
-    createdAt: {
-      type: DataTypes.DATE,
+    status: {
       allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'created_at',
+      defaultValue: KycLevel2Status.REQUESTED,
+      field: "status",
+      type: DataTypes.ENUM(...Object.values(KycLevel2Status))
+    },
+    subaccountId: {
+      allowNull: false,
+      field: "subaccount_id",
+      type: DataTypes.STRING
     },
     updatedAt: {
-      type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'updated_at',
+      field: "updated_at",
+      type: DataTypes.DATE
     },
+    uploadData: {
+      allowNull: false,
+      field: "upload_data",
+      type: DataTypes.JSONB
+    }
   },
   {
-    sequelize,
-    modelName: 'KycLevel2',
-    tableName: 'kyc_level_2',
-    timestamps: true,
     indexes: [
       {
-        name: 'idx_kyc_level_2_subaccount',
-        fields: ['subaccount_id'],
+        fields: ["subaccount_id"],
+        name: "idx_kyc_level_2_subaccount"
       },
       {
-        name: 'idx_kyc_level_2_status',
-        fields: ['status'],
-      },
+        fields: ["status"],
+        name: "idx_kyc_level_2_status"
+      }
     ],
-  },
+    modelName: "KycLevel2",
+    sequelize,
+    tableName: "kyc_level_2",
+    timestamps: true
+  }
 );
 
 export default KycLevel2;

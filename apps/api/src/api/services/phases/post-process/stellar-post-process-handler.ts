@@ -1,10 +1,10 @@
-import { CleanupPhase, FiatToken, HORIZON_URL } from '@packages/shared';
-import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from 'stellar-sdk';
-import logger from '../../../../config/logger';
-import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from '../../../../constants/constants';
-import RampState from '../../../../models/rampState.model';
-import { StateMetadata } from '../meta-state-types';
-import { BasePostProcessHandler } from './base-post-process-handler';
+import { CleanupPhase, FiatToken, HORIZON_URL } from "@packages/shared";
+import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from "stellar-sdk";
+import logger from "../../../../config/logger";
+import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../../constants/constants";
+import RampState from "../../../../models/rampState.model";
+import { StateMetadata } from "../meta-state-types";
+import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const NETWORK_PASSPHRASE = StellarNetworks.PUBLIC;
 const horizonServer = new Horizon.Server(HORIZON_URL);
@@ -17,11 +17,11 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
    * Check if this handler should process the given state
    */
   public shouldProcess(state: RampState): boolean {
-    if (state.currentPhase !== 'complete') {
+    if (state.currentPhase !== "complete") {
       return false;
     }
 
-    if (state.type !== 'off' || (state.state as StateMetadata).outputTokenType === FiatToken.BRL) {
+    if (state.type !== "off" || (state.state as StateMetadata).outputTokenType === FiatToken.BRL) {
       return false;
     }
 
@@ -32,7 +32,7 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
    * Get the name of the cleanup handler
    */
   public getCleanupName(): CleanupPhase {
-    return 'stellarCleanup';
+    return "stellarCleanup";
   }
 
   /**
@@ -46,12 +46,9 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
       if (expectedLedgerTimeMs > Date.now()) {
         return [false, this.createErrorObject(`Stellar cleanup for ramp state ${state.id} cannot be processed yet.`)];
       }
-      const { txData: stellarCleanupTransactionXDR } = this.getPresignedTransaction(state, 'stellarCleanup');
+      const { txData: stellarCleanupTransactionXDR } = this.getPresignedTransaction(state, "stellarCleanup");
 
-      const stellarCleanupTransactionTransaction = new Transaction(
-        stellarCleanupTransactionXDR as string,
-        NETWORK_PASSPHRASE,
-      );
+      const stellarCleanupTransactionTransaction = new Transaction(stellarCleanupTransactionXDR as string, NETWORK_PASSPHRASE);
       await horizonServer.submitTransaction(stellarCleanupTransactionTransaction);
 
       logger.info(`Successfully processed Stellar cleanup for ramp state ${state.id}`);
@@ -61,22 +58,20 @@ export class StellarPostProcessHandler extends BasePostProcessHandler {
         const horizonError = e as NetworkError;
         if (horizonError.response.data?.status === 400) {
           logger.info(
-            `Could not submit the cleanup transaction ${JSON.stringify(
-              horizonError.response?.data?.extras.result_codes,
-            )}`,
+            `Could not submit the cleanup transaction ${JSON.stringify(horizonError.response?.data?.extras.result_codes)}`
           );
 
-          if (horizonError.response.data.extras.result_codes.transaction === 'tx_bad_seq') {
-            logger.info('Recovery mode: Cleanup already performed.');
+          if (horizonError.response.data.extras.result_codes.transaction === "tx_bad_seq") {
+            logger.info("Recovery mode: Cleanup already performed.");
             return [true, null];
           }
 
           logger.error(horizonError.response.data.extras);
-          return [false, this.createErrorObject('Could not submit the cleanup transaction')];
+          return [false, this.createErrorObject("Could not submit the cleanup transaction")];
         }
 
-        logger.error('Error while submitting the cleanup transaction', e);
-        return [false, this.createErrorObject('Could not submit the cleanup transaction')];
+        logger.error("Error while submitting the cleanup transaction", e);
+        return [false, this.createErrorObject("Could not submit the cleanup transaction")];
       } catch (_parseError) {
         // If we can't parse the error as a Horizon error, it's a different type of error
         return [false, this.createErrorObject(e instanceof Error ? e : String(e))];

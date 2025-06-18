@@ -1,64 +1,64 @@
 import {
   FiatToken,
   FiatTokenDetails,
-  OnChainTokenDetails,
-  QuoteResponse,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
-} from '@packages/shared';
-import Big from 'big.js';
-import { TFunction } from 'i18next';
-import { useCallback, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+  OnChainTokenDetails,
+  QuoteResponse
+} from "@packages/shared";
+import Big from "big.js";
+import { TFunction } from "i18next";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { RampDirection } from '../../components/RampToggle';
-import { config } from '../../config';
-import { getTokenDisabledReason, isFiatTokenDisabled } from '../../config/tokenAvailability';
-import { TrackableEvent, useEventsContext } from '../../contexts/events';
-import { useNetwork } from '../../contexts/network';
-import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from '../../helpers/contracts';
-import { useQuote, useQuoteError } from '../../stores/ramp/useQuoteStore';
-import { useRampFormStore } from '../../stores/ramp/useRampFormStore';
-import { useRampDirection } from '../../stores/rampDirectionStore';
-import { useOnchainTokenBalance } from '../useOnchainTokenBalance';
-import { useVortexAccount } from '../useVortexAccount';
+import { RampDirection } from "../../components/RampToggle";
+import { config } from "../../config";
+import { getTokenDisabledReason, isFiatTokenDisabled } from "../../config/tokenAvailability";
+import { TrackableEvent, useEventsContext } from "../../contexts/events";
+import { useNetwork } from "../../contexts/network";
+import { multiplyByPowerOfTen, stringifyBigWithSignificantDecimals } from "../../helpers/contracts";
+import { useQuote, useQuoteError } from "../../stores/ramp/useQuoteStore";
+import { useRampFormStore } from "../../stores/ramp/useRampFormStore";
+import { useRampDirection } from "../../stores/rampDirectionStore";
+import { useOnchainTokenBalance } from "../useOnchainTokenBalance";
+import { useVortexAccount } from "../useVortexAccount";
 
 function validateOnramp(
-  t: TFunction<'translation', undefined>,
+  t: TFunction<"translation", undefined>,
   {
     inputAmount,
     fromToken,
-    trackEvent,
+    trackEvent
   }: {
     inputAmount: Big;
     fromToken: FiatTokenDetails;
     trackEvent: (event: TrackableEvent) => void;
-  },
+  }
 ): string | null {
   const maxAmountUnits = multiplyByPowerOfTen(Big(fromToken.maxWithdrawalAmountRaw), -fromToken.decimals);
   const minAmountUnits = multiplyByPowerOfTen(Big(fromToken.minWithdrawalAmountRaw), -fromToken.decimals);
 
   if (inputAmount && maxAmountUnits.lt(inputAmount)) {
     trackEvent({
-      event: 'form_error',
-      error_message: 'more_than_maximum_withdrawal',
-      input_amount: inputAmount ? inputAmount.toString() : '0',
+      error_message: "more_than_maximum_withdrawal",
+      event: "form_error",
+      input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t('pages.swap.error.moreThanMaximumWithdrawal.buy', {
-      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2),
+    return t("pages.swap.error.moreThanMaximumWithdrawal.buy", {
       assetSymbol: fromToken.fiat.symbol,
+      maxAmountUnits: stringifyBigWithSignificantDecimals(maxAmountUnits, 2)
     });
   }
 
   if (inputAmount && !inputAmount.eq(0) && minAmountUnits.gt(inputAmount)) {
     trackEvent({
-      event: 'form_error',
-      error_message: 'less_than_minimum_withdrawal',
-      input_amount: inputAmount ? inputAmount.toString() : '0',
+      error_message: "less_than_minimum_withdrawal",
+      event: "form_error",
+      input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t('pages.swap.error.lessThanMinimumWithdrawal.buy', {
-      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2),
+    return t("pages.swap.error.lessThanMinimumWithdrawal.buy", {
       assetSymbol: fromToken.fiat.symbol,
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
     });
   }
 
@@ -66,14 +66,14 @@ function validateOnramp(
 }
 
 function validateOfframp(
-  t: TFunction<'translation', undefined>,
+  t: TFunction<"translation", undefined>,
   {
     inputAmount,
     fromToken,
     toToken,
     quote,
     userInputTokenBalance,
-    trackEvent,
+    trackEvent
   }: {
     inputAmount: Big;
     fromToken: OnChainTokenDetails;
@@ -81,18 +81,18 @@ function validateOfframp(
     quote: QuoteResponse;
     userInputTokenBalance: string | null;
     trackEvent: (event: TrackableEvent) => void;
-  },
+  }
 ): string | null {
-  if (typeof userInputTokenBalance === 'string') {
+  if (typeof userInputTokenBalance === "string") {
     if (Big(userInputTokenBalance).lt(inputAmount ?? 0)) {
       trackEvent({
-        event: 'form_error',
-        error_message: 'insufficient_balance',
-        input_amount: inputAmount ? inputAmount.toString() : '0',
+        error_message: "insufficient_balance",
+        event: "form_error",
+        input_amount: inputAmount ? inputAmount.toString() : "0"
       });
-      return t('pages.swap.error.insufficientFunds', {
-        userInputTokenBalance,
+      return t("pages.swap.error.insufficientFunds", {
         assetSymbol: fromToken?.assetSymbol,
+        userInputTokenBalance
       });
     }
   }
@@ -103,13 +103,13 @@ function validateOfframp(
 
   if (inputAmount && exchangeRate && maxAmountUnits.lt(inputAmount.mul(exchangeRate))) {
     trackEvent({
-      event: 'form_error',
-      error_message: 'more_than_maximum_withdrawal',
-      input_amount: inputAmount ? inputAmount.toString() : '0',
+      error_message: "more_than_maximum_withdrawal",
+      event: "form_error",
+      input_amount: inputAmount ? inputAmount.toString() : "0"
     });
-    return t('pages.swap.error.moreThanMinimumWithdrawal.sell', {
-      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2),
+    return t("pages.swap.error.moreThanMinimumWithdrawal.sell", {
       assetSymbol: toToken.fiat.symbol,
+      minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
     });
   }
 
@@ -118,14 +118,14 @@ function validateOfframp(
   if (!amountOut.eq(0)) {
     if (!config.test.overwriteMinimumTransferAmount && minAmountUnits.gt(amountOut)) {
       trackEvent({
-        event: 'form_error',
-        error_message: 'less_than_minimum_withdrawal',
-        input_amount: inputAmount ? inputAmount.toString() : '0',
+        error_message: "less_than_minimum_withdrawal",
+        event: "form_error",
+        input_amount: inputAmount ? inputAmount.toString() : "0"
       });
 
-      return t('pages.swap.error.lessThanMinimumWithdrawal.sell', {
-        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2),
+      return t("pages.swap.error.lessThanMinimumWithdrawal.sell", {
         assetSymbol: toToken.fiat.symbol,
+        minAmountUnits: stringifyBigWithSignificantDecimals(minAmountUnits, 2)
       });
     }
   }
@@ -134,15 +134,15 @@ function validateOfframp(
 }
 
 function validateTokenAvailability(
-  t: TFunction<'translation', undefined>,
+  t: TFunction<"translation", undefined>,
   fiatToken: FiatToken,
-  trackEvent: (event: TrackableEvent) => void,
+  trackEvent: (event: TrackableEvent) => void
 ): string | null {
   if (isFiatTokenDisabled(fiatToken)) {
     const reason = getTokenDisabledReason(fiatToken);
     trackEvent({
-      event: 'token_unavailable',
-      token: fiatToken,
+      event: "token_unavailable",
+      token: fiatToken
     });
     return t(reason);
   }
@@ -161,18 +161,16 @@ export const useRampValidation = () => {
   const isOnramp = rampDirection === RampDirection.ONRAMP;
   const { isDisconnected } = useVortexAccount();
 
-  const inputAmount = useMemo(() => Big(inputAmountString || '0'), [inputAmountString]);
+  const inputAmount = useMemo(() => Big(inputAmountString || "0"), [inputAmountString]);
 
   const fromToken = isOnramp
     ? getAnyFiatTokenDetails(fiatToken)
     : getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken);
 
-  const toToken = isOnramp
-    ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken)
-    : getAnyFiatTokenDetails(fiatToken);
+  const toToken = isOnramp ? getOnChainTokenDetailsOrDefault(selectedNetwork, onChainToken) : getAnyFiatTokenDetails(fiatToken);
 
   const userInputTokenBalance = useOnchainTokenBalance({
-    token: (isOnramp ? toToken : fromToken) as OnChainTokenDetails,
+    token: (isOnramp ? toToken : fromToken) as OnChainTokenDetails
   });
 
   const getCurrentErrorMessage = useCallback(() => {
@@ -188,18 +186,18 @@ export const useRampValidation = () => {
 
     if (isOnramp) {
       validationError = validateOnramp(t, {
-        inputAmount,
         fromToken: fromToken as FiatTokenDetails,
-        trackEvent,
+        inputAmount,
+        trackEvent
       });
     } else {
       validationError = validateOfframp(t, {
-        inputAmount,
         fromToken: fromToken as OnChainTokenDetails,
-        toToken: toToken as FiatTokenDetails,
+        inputAmount,
         quote: quote as QuoteResponse,
-        userInputTokenBalance: userInputTokenBalance?.balance || '0',
+        toToken: toToken as FiatTokenDetails,
         trackEvent,
+        userInputTokenBalance: userInputTokenBalance?.balance || "0"
       });
     }
 
@@ -217,11 +215,11 @@ export const useRampValidation = () => {
     toToken,
     quote,
     userInputTokenBalance?.balance,
-    fiatToken,
+    fiatToken
   ]);
 
   return {
     getCurrentErrorMessage,
-    isValid: !getCurrentErrorMessage(),
+    isValid: !getCurrentErrorMessage()
   };
 };

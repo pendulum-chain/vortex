@@ -9,13 +9,13 @@ import {
   StartRampRequest,
   StartRampResponse,
   UpdateRampRequest,
-  UpdateRampResponse,
-} from '@packages/shared';
-import { NextFunction, Request, Response } from 'express';
-import httpStatus from 'http-status';
-import logger from '../../config/logger';
-import { APIError } from '../errors/api-error';
-import rampService from '../services/ramp/ramp.service';
+  UpdateRampResponse
+} from "@packages/shared";
+import { NextFunction, Request, Response } from "express";
+import httpStatus from "http-status";
+import logger from "../../config/logger";
+import { APIError } from "../errors/api-error";
+import rampService from "../services/ramp/ramp.service";
 
 /**
  * Register a new ramping process
@@ -28,21 +28,21 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
     // Validate required fields
     if (!quoteId || !signingAccounts || signingAccounts.length === 0) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Missing required fields',
+        message: "Missing required fields",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     // Start ramping process
     const ramp = await rampService.registerRamp({
-      quoteId,
-      signingAccounts,
       additionalData,
+      quoteId,
+      signingAccounts
     });
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error('Error registering ramp:', error);
+    logger.error("Error registering ramp:", error);
     next(error);
   }
 };
@@ -52,9 +52,9 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
  * @public
  */
 export const updateRamp = async (
-  req: Request<{ rampId: string }, unknown, Omit<UpdateRampRequest, 'rampId'>>,
+  req: Request<{ rampId: string }, unknown, Omit<UpdateRampRequest, "rampId">>,
   res: Response<UpdateRampResponse>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { rampId } = req.params;
@@ -63,29 +63,29 @@ export const updateRamp = async (
     // Validate required fields
     if (!rampId || !presignedTxs) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Missing required fields',
+        message: "Missing required fields",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     // Check for the additional data field
-    if (additionalData && typeof additionalData !== 'object') {
+    if (additionalData && typeof additionalData !== "object") {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Invalid additional data format',
+        message: "Invalid additional data format",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     // Update ramping process
     const ramp = await rampService.updateRamp({
-      rampId,
-      presignedTxs,
       additionalData,
+      presignedTxs,
+      rampId
     });
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error('Error updating ramp:', error);
+    logger.error("Error updating ramp:", error);
     next(error);
   }
 };
@@ -97,7 +97,7 @@ export const updateRamp = async (
 export const startRamp = async (
   req: Request<unknown, unknown, StartRampRequest>,
   res: Response<StartRampResponse>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { rampId } = req.body;
@@ -105,19 +105,19 @@ export const startRamp = async (
     // Validate required fields
     if (!rampId) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Missing required fields',
+        message: "Missing required fields",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     // Start ramping process
     const ramp = await rampService.startRamp({
-      rampId,
+      rampId
     });
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error('Error starting ramp:', error);
+    logger.error("Error starting ramp:", error);
     next(error);
   }
 };
@@ -129,7 +129,7 @@ export const startRamp = async (
 export const getRampStatus = async (
   req: Request<GetRampStatusRequest>,
   res: Response<GetRampStatusResponse>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -138,14 +138,14 @@ export const getRampStatus = async (
 
     if (!ramp) {
       throw new APIError({
-        status: httpStatus.NOT_FOUND,
-        message: 'Ramp not found',
+        message: "Ramp not found",
+        status: httpStatus.NOT_FOUND
       });
     }
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error('Error getting ramp status:', error);
+    logger.error("Error getting ramp status:", error);
     next(error);
   }
 };
@@ -157,7 +157,7 @@ export const getRampStatus = async (
 export const getErrorLogs = async (
   req: Request<GetRampErrorLogsRequest>,
   res: Response<GetRampErrorLogsResponse>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -166,14 +166,14 @@ export const getErrorLogs = async (
 
     if (!errorLogs) {
       throw new APIError({
-        status: httpStatus.NOT_FOUND,
-        message: 'Ramp not found',
+        message: "Ramp not found",
+        status: httpStatus.NOT_FOUND
       });
     }
 
     res.status(httpStatus.OK).json(errorLogs);
   } catch (error) {
-    logger.error('Error getting error logs:', error);
+    logger.error("Error getting error logs:", error);
     next(error);
   }
 };
@@ -185,22 +185,22 @@ export const getErrorLogs = async (
 export const getRampHistory = async (
   req: Request<GetRampHistoryRequest>,
   res: Response<GetRampHistoryResponse>,
-  next: NextFunction,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const { walletAddress } = req.params;
 
     if (!walletAddress) {
       throw new APIError({
-        status: httpStatus.BAD_REQUEST,
-        message: 'Wallet address is required',
+        message: "Wallet address is required",
+        status: httpStatus.BAD_REQUEST
       });
     }
 
     const history = await rampService.getRampHistory(walletAddress);
     res.status(httpStatus.OK).json(history);
   } catch (error) {
-    logger.error('Error getting transaction history:', error);
+    logger.error("Error getting transaction history:", error);
     next(error);
   }
 };

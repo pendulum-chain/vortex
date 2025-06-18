@@ -1,14 +1,14 @@
 // Flow types for storage
 export enum OfframpHandlerType {
-  EVM_TO_STELLAR = 'evm-to-stellar',
-  ASSETHUB_TO_STELLAR = 'assethub-to-stellar',
-  EVM_TO_BRLA = 'evm-to-brla',
-  ASSETHUB_TO_BRLA = 'assethub-to-brla',
+  EVM_TO_STELLAR = "evm-to-stellar",
+  ASSETHUB_TO_STELLAR = "assethub-to-stellar",
+  EVM_TO_BRLA = "evm-to-brla",
+  ASSETHUB_TO_BRLA = "assethub-to-brla"
 }
 
 export enum OnrampHandlerType {
-  BRLA_TO_EVM = 'brla-to-evm',
-  BRLA_TO_ASSETHUB = 'brla-to-assethub',
+  BRLA_TO_EVM = "brla-to-evm",
+  BRLA_TO_ASSETHUB = "brla-to-assethub"
 }
 
 export type FlowType = OfframpHandlerType | OnrampHandlerType;

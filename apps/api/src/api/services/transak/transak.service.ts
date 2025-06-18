@@ -1,9 +1,9 @@
-import { Direction, Networks, TransakPriceResponse } from '@packages/shared';
-import { config } from '../../../config/vars';
-import { ProviderInternalError } from '../../errors/providerErrors';
-import { createQuoteRequest } from './request-creator';
-import { TransakApiResponse, processTransakResponse } from './response-handler';
-import { getCryptoCode, getFiatCode } from './utils';
+import { Direction, Networks, TransakPriceResponse } from "@packages/shared";
+import { config } from "../../../config/vars";
+import { ProviderInternalError } from "../../errors/providerErrors";
+import { createQuoteRequest } from "./request-creator";
+import { processTransakResponse, TransakApiResponse } from "./response-handler";
+import { getCryptoCode, getFiatCode } from "./utils";
 
 const { priceProviders } = config;
 
@@ -24,9 +24,9 @@ async function fetchTransakData(url: string): Promise<FetchResult> {
   try {
     const response = await fetch(url);
     const body = (await response.json()) as TransakApiResponse;
-    return { response, body };
+    return { body, response };
   } catch (fetchError) {
-    console.error('Transak fetch error:', fetchError);
+    console.error("Transak fetch error:", fetchError);
     throw new ProviderInternalError(`Network error fetching price from Transak: ${(fetchError as Error).message}`);
   }
 }
@@ -45,12 +45,12 @@ async function priceQuery(
   fiatCurrencyCode: string,
   amount: string,
   network: Networks,
-  direction: Direction,
+  direction: Direction
 ): Promise<TransakPriceResponse> {
   const { baseUrl, partnerApiKey } = priceProviders.transak;
 
   if (!partnerApiKey) {
-    throw new Error('Transak partner API key is not defined');
+    throw new Error("Transak partner API key is not defined");
   }
 
   const { requestPath, params } = createQuoteRequest(direction, cryptoCurrencyCode, fiatCurrencyCode, amount, network);
@@ -76,21 +76,21 @@ export const getPriceFor = (
   targetCurrency: string,
   amount: string | number,
   direction: Direction,
-  network?: Networks,
+  network?: Networks
 ): Promise<TransakPriceResponse> => {
-  const DEFAULT_NETWORK = 'polygon';
+  const DEFAULT_NETWORK = "polygon";
   const networkCode = network?.toLowerCase() || DEFAULT_NETWORK;
 
   // For offramp: source is crypto, target is fiat
   // For onramp: source is fiat, target is crypto
-  const cryptoCurrency = direction === 'onramp' ? targetCurrency : sourceCurrency;
-  const fiatCurrency = direction === 'onramp' ? sourceCurrency : targetCurrency;
+  const cryptoCurrency = direction === "onramp" ? targetCurrency : sourceCurrency;
+  const fiatCurrency = direction === "onramp" ? sourceCurrency : targetCurrency;
 
   return priceQuery(
     getCryptoCode(cryptoCurrency),
     getFiatCode(fiatCurrency),
     amount.toString(),
     networkCode as Networks,
-    direction,
+    direction
   );
 };

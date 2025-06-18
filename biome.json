@@ -10,6 +10,9 @@
     },
     "enabled": true
   },
+  "files": {
+    "maxSize": 8000000
+  },
   "formatter": {
     "bracketSpacing": true,
     "enabled": true,
@@ -35,7 +38,8 @@
       "!**/*.webp",
       "!**/*.jpg",
       "!**/*.jpeg",
-      "!**/*.gif"
+      "!**/*.gif",
+      "!**/apps/api/src/database/migrations/**"
     ],
     "indentStyle": "space",
     "indentWidth": 2,
@@ -56,7 +60,6 @@
       "trailingCommas": "none"
     }
   },
-
   "linter": {
     "enabled": true,
     "includes": [
@@ -72,7 +75,8 @@
       "!**/api/dist/**",
       "!**/apps/api/dist/**",
       "!**/*.d.ts",
-      "!**/*.config.*"
+      "!**/*.config.*",
+      "!**/apps/api/src/database/migrations/**"
     ],
     "rules": {
       "a11y": {
@@ -111,7 +115,6 @@
       "recommended": false,
       "style": {
         "noCommonJs": "error",
-        "noDefaultExport": "warn",
         "noInferrableTypes": "error",
         "noNamespace": "error",
         "noNonNullAssertion": "error",

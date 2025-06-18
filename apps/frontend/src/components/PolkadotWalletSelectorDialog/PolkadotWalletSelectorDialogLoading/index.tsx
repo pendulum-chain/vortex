@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 
 interface PolkadotWalletSelectorDialogLoadingProps {
   selectedWallet: string;
@@ -10,9 +10,9 @@ export const PolkadotWalletSelectorDialogLoading = ({ selectedWallet }: Polkadot
   return (
     <article className="flex flex-col items-center justify-center">
       <span className="loading loading-dots loading-lg"></span>
-      <h1 className="text-2xl">{t('components.dialogs.polkadotWalletSelectorDialogLoading.title')}</h1>
+      <h1 className="text-2xl">{t("components.dialogs.polkadotWalletSelectorDialogLoading.title")}</h1>
       <p className="mt-2.5 w-52 text-center text-sm">
-        {t('components.dialogs.polkadotWalletSelectorDialogLoading.description', { selectedWallet })}
+        {t("components.dialogs.polkadotWalletSelectorDialogLoading.description", { selectedWallet })}
       </p>
     </article>
   );

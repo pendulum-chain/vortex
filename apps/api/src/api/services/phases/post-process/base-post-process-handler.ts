@@ -1,6 +1,6 @@
-import { CleanupPhase, PresignedTx } from '@packages/shared';
-import logger from '../../../../config/logger';
-import RampState from '../../../../models/rampState.model';
+import { CleanupPhase, PresignedTx } from "@packages/shared";
+import logger from "../../../../config/logger";
+import RampState from "../../../../models/rampState.model";
 
 /**
  * Base class for post-process handlers that handle cleanup operations
@@ -46,6 +46,6 @@ export abstract class BasePostProcessHandler {
    * @returns The presigned transaction
    */
   protected getPresignedTransaction(state: RampState, phase: CleanupPhase): PresignedTx {
-    return state.presignedTxs?.find((tx) => tx.phase === phase) as PresignedTx;
+    return state.presignedTxs?.find(tx => tx.phase === phase) as PresignedTx;
   }
 }

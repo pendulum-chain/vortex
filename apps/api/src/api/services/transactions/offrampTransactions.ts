@@ -55,6 +55,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   const metadata = quote.metadata as QuoteTicketMetadata;
   if (!metadata.usdFeeStructure) {
     logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
+    logger.warn("No USD fee structure found in quote metadata, skipping fee distribution transaction");
     return null;
   }
 
@@ -67,6 +68,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
     where: { isActive: true, name: "vortex" }
   });
   if (!vortexPartner || !vortexPartner.payoutAddress) {
+    logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
     logger.warn("Vortex partner or payout address not found, skipping fee distribution transaction");
     return null;
   }
@@ -110,6 +112,7 @@ async function createFeeDistributionTransaction(quote: QuoteTicketAttributes): P
   }
 
   if (new Big(partnerMarkupFeeStablecoinRaw).gt(0) && partnerPayoutAddress) {
+    transfers.push(api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw));
     transfers.push(api.tx.tokens.transferKeepAlive(partnerPayoutAddress, stablecoinCurrencyId, partnerMarkupFeeStablecoinRaw));
   }
 
@@ -192,6 +195,7 @@ async function createAssetHubSourceTransactions(
   // Create Assethub to Pendulum transaction
   const assethubToPendulumTransaction = await createAssethubToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw);
 
+  logger.info("assethub to pendulum txs done");
   logger.info("assethub to pendulum txs done");
 
   unsignedTxs.push({

@@ -1,7 +1,7 @@
 // GET /prices?provider=:provider&sourceCurrency=:sourceCurrency&targetCurrency=:targetCurrency&amount=:amount&network=:network&direction=:direction
-export const VALID_PROVIDERS = ['alchemypay', 'moonpay', 'transak'] as const;
-export const VALID_CRYPTO_CURRENCIES = ['usdc', 'usdce', 'usdc.e', 'usdt'] as const;
-export const VALID_FIAT_CURRENCIES = ['eur', 'ars', 'brl'] as const;
+export const VALID_PROVIDERS = ["alchemypay", "moonpay", "transak"] as const;
+export const VALID_CRYPTO_CURRENCIES = ["usdc", "usdce", "usdc.e", "usdt"] as const;
+export const VALID_FIAT_CURRENCIES = ["eur", "ars", "brl"] as const;
 
 export type PriceProvider = (typeof VALID_PROVIDERS)[number];
 export type CryptoCurrency = (typeof VALID_CRYPTO_CURRENCIES)[number];
@@ -10,15 +10,15 @@ export type Currency = CryptoCurrency | FiatCurrency;
 
 // Validation functions
 export const isValidPriceProvider = (value: unknown): value is PriceProvider =>
-  typeof value === 'string' && VALID_PROVIDERS.includes(value.toLowerCase() as PriceProvider);
+  typeof value === "string" && VALID_PROVIDERS.includes(value.toLowerCase() as PriceProvider);
 
 export const isValidCryptoCurrency = (value: unknown): value is CryptoCurrency =>
-  typeof value === 'string' && VALID_CRYPTO_CURRENCIES.includes(value.toLowerCase() as CryptoCurrency);
+  typeof value === "string" && VALID_CRYPTO_CURRENCIES.includes(value.toLowerCase() as CryptoCurrency);
 
 export const isValidFiatCurrency = (value: unknown): value is FiatCurrency =>
-  typeof value === 'string' && VALID_FIAT_CURRENCIES.includes(value.toLowerCase() as FiatCurrency);
+  typeof value === "string" && VALID_FIAT_CURRENCIES.includes(value.toLowerCase() as FiatCurrency);
 
-export type Direction = 'onramp' | 'offramp';
+export type Direction = "onramp" | "offramp";
 
 export interface PriceRequest {
   provider: PriceProvider;
@@ -31,11 +31,11 @@ export interface PriceRequest {
 
 // Validation function for direction
 export const isValidDirection = (value: unknown): value is Direction =>
-  typeof value === 'string' && (value === 'onramp' || value === 'offramp');
+  typeof value === "string" && (value === "onramp" || value === "offramp");
 
 // Validation function for currency based on direction
-export const isValidCurrencyForDirection = (currency: unknown, expectedType: 'crypto' | 'fiat'): boolean => {
-  return expectedType === 'crypto' ? isValidCryptoCurrency(currency) : isValidFiatCurrency(currency);
+export const isValidCurrencyForDirection = (currency: unknown, expectedType: "crypto" | "fiat"): boolean => {
+  return expectedType === "crypto" ? isValidCryptoCurrency(currency) : isValidFiatCurrency(currency);
 };
 
 /**
@@ -65,17 +65,17 @@ export interface PriceResponseBase {
  * Each provider extends the base response with its own identifier
  */
 export interface AlchemyPayPriceResponse extends PriceResponseBase {
-  provider: 'alchemypay';
+  provider: "alchemypay";
   // AlchemyPay specific fields can be added here
 }
 
 export interface MoonpayPriceResponse extends PriceResponseBase {
-  provider: 'moonpay';
+  provider: "moonpay";
   // Moonpay specific fields can be added here
 }
 
 export interface TransakPriceResponse extends PriceResponseBase {
-  provider: 'transak';
+  provider: "transak";
   // Transak specific fields can be added here
 }
 
@@ -90,11 +90,11 @@ export interface PriceErrorResponse {
 // Represents the result for a single provider in the bundled response
 export type BundledPriceResult =
   | {
-      status: 'fulfilled';
+      status: "fulfilled";
       value: PriceResponse;
     }
   | {
-      status: 'rejected';
+      status: "rejected";
       reason: {
         message: string;
         status?: number;

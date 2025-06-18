@@ -2,20 +2,20 @@
  * EVM token types
  */
 
-import { EvmAddress } from '../..';
-import { Networks } from '../../helpers';
-import { BaseTokenDetails, PendulumDetails, TokenType } from './base';
+import { EvmAddress } from "../..";
+import { Networks } from "../../helpers";
+import { BaseTokenDetails, PendulumDetails, TokenType } from "./base";
 
 export enum EvmToken {
-  USDC = 'usdc',
-  USDT = 'usdt',
-  USDCE = 'usdce',
+  USDC = "usdc",
+  USDT = "usdt",
+  USDCE = "usdce"
 }
 
 export enum UsdLikeEvmToken {
   USDC = EvmToken.USDC,
   USDT = EvmToken.USDT,
-  USDCE = EvmToken.USDCE,
+  USDCE = EvmToken.USDCE
 }
 
 export interface EvmTokenDetails extends BaseTokenDetails, PendulumDetails {

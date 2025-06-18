@@ -1,7 +1,7 @@
-import { RequestHandler } from 'express';
-import httpStatus from 'http-status';
-import logger from '../../config/logger';
-import { maintenanceService } from '../services/maintenance.service';
+import { RequestHandler } from "express";
+import httpStatus from "http-status";
+import logger from "../../config/logger";
+import { maintenanceService } from "../services/maintenance.service";
 
 /**
  * Get the current maintenance status
@@ -19,7 +19,7 @@ export const getMaintenanceStatus: RequestHandler = async (_, res) => {
     logger.error(`Error fetching maintenance status: ${error?.toString()}`, error);
 
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Internal server error occurred while fetching maintenance status',
+      error: "Internal server error occurred while fetching maintenance status"
     });
   }
 };
@@ -37,14 +37,14 @@ export const getAllMaintenanceSchedules: RequestHandler = async (_, res) => {
     const schedules = await maintenanceService.getAllSchedules();
 
     res.status(httpStatus.OK).json({
-      schedules,
       count: schedules.length,
+      schedules
     });
   } catch (error) {
     logger.error(`Error fetching maintenance schedules: ${error?.toString()}`, error);
 
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Internal server error occurred while fetching maintenance schedules',
+      error: "Internal server error occurred while fetching maintenance schedules"
     });
   }
 };
@@ -66,9 +66,9 @@ export const updateScheduleActiveStatus: RequestHandler = async (req, res) => {
     const { id } = req.params;
     const { isActive } = req.body;
 
-    if (typeof isActive !== 'boolean') {
+    if (typeof isActive !== "boolean") {
       res.status(httpStatus.BAD_REQUEST).json({
-        error: 'isActive must be a boolean value',
+        error: "isActive must be a boolean value"
       });
       return;
     }
@@ -77,20 +77,20 @@ export const updateScheduleActiveStatus: RequestHandler = async (req, res) => {
 
     if (!success) {
       res.status(httpStatus.NOT_FOUND).json({
-        error: 'Maintenance schedule not found',
+        error: "Maintenance schedule not found"
       });
       return;
     }
 
     res.status(httpStatus.OK).json({
       message: `Maintenance schedule ${id} active status updated to ${isActive}`,
-      success: true,
+      success: true
     });
   } catch (error) {
     logger.error(`Error updating maintenance schedule active status: ${error?.toString()}`, error);
 
     res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-      error: 'Internal server error occurred while updating maintenance schedule',
+      error: "Internal server error occurred while updating maintenance schedule"
     });
   }
 };

@@ -1,4 +1,4 @@
-import { PendulumCurrencyId } from './base';
+import { PendulumCurrencyId } from "./base";
 
 export type PendulumTokenDetails = {
   pendulumErc20WrapperAddress: string;

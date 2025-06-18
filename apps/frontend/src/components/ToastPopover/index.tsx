@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { ToastContainer, ToastContainerProps, ToastItem, toast } from 'react-toastify';
-import { Popover } from '../Popover';
+import { useEffect, useState } from "react";
+import { ToastContainer, ToastContainerProps, ToastItem, toast } from "react-toastify";
+import { Popover } from "../Popover";
 
 export function useHasActiveToasts() {
   const [activeToasts, setActiveToasts] = useState<ToastItem[]>([]);
   useEffect(() => {
     const unsubscribe = toast.onChange((payload: ToastItem) => {
-      if (payload.status === 'added') {
-        setActiveToasts((prev) => [...prev, payload]);
+      if (payload.status === "added") {
+        setActiveToasts(prev => [...prev, payload]);
       }
-      if (payload.status === 'removed') {
-        setActiveToasts((prev) => prev.filter((t) => t.id !== payload.id));
+      if (payload.status === "removed") {
+        setActiveToasts(prev => prev.filter(t => t.id !== payload.id));
       }
     });
     return () => unsubscribe();

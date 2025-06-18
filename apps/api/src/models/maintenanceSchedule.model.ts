@@ -1,5 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
+import { DataTypes, Model, Optional } from "sequelize";
+import sequelize from "../config/database";
 
 // Define the attributes of the MaintenanceSchedule model
 export interface MaintenanceScheduleAttributes {
@@ -15,7 +15,7 @@ export interface MaintenanceScheduleAttributes {
 }
 
 // Define the attributes that can be set during creation
-type MaintenanceScheduleCreationAttributes = Optional<MaintenanceScheduleAttributes, 'id' | 'createdAt' | 'updatedAt'>;
+type MaintenanceScheduleCreationAttributes = Optional<MaintenanceScheduleAttributes, "id" | "createdAt" | "updatedAt">;
 
 // Define the MaintenanceSchedule model
 class MaintenanceSchedule
@@ -44,69 +44,69 @@ class MaintenanceSchedule
 // Initialize the model
 MaintenanceSchedule.init(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    title: {
-      type: DataTypes.STRING(255),
+    createdAt: {
       allowNull: false,
-    },
-    startDatetime: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'start_datetime',
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+      type: DataTypes.DATE
     },
     endDatetime: {
-      type: DataTypes.DATE,
       allowNull: false,
-      field: 'end_datetime',
+      field: "end_datetime",
+      type: DataTypes.DATE
     },
-    messageToDisplay: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-      field: 'message_to_display',
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
     },
     isActiveConfig: {
-      type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-      field: 'is_active_config',
+      field: "is_active_config",
+      type: DataTypes.BOOLEAN
+    },
+    messageToDisplay: {
+      allowNull: false,
+      field: "message_to_display",
+      type: DataTypes.TEXT
     },
     notes: {
-      type: DataTypes.TEXT,
       allowNull: true,
+      type: DataTypes.TEXT
     },
-    createdAt: {
-      type: DataTypes.DATE,
+    startDatetime: {
       allowNull: false,
-      field: 'created_at',
-      defaultValue: DataTypes.NOW,
+      field: "start_datetime",
+      type: DataTypes.DATE
+    },
+    title: {
+      allowNull: false,
+      type: DataTypes.STRING(255)
     },
     updatedAt: {
-      type: DataTypes.DATE,
       allowNull: false,
-      field: 'updated_at',
       defaultValue: DataTypes.NOW,
-    },
+      field: "updated_at",
+      type: DataTypes.DATE
+    }
   },
   {
-    sequelize,
-    modelName: 'MaintenanceSchedule',
-    tableName: 'maintenance_schedules',
-    timestamps: true,
     indexes: [
       {
-        name: 'idx_maintenance_schedules_active_period',
-        fields: ['is_active_config', 'start_datetime', 'end_datetime'],
+        fields: ["is_active_config", "start_datetime", "end_datetime"],
+        name: "idx_maintenance_schedules_active_period"
       },
       {
-        name: 'idx_maintenance_schedules_active',
-        fields: ['is_active_config'],
-      },
+        fields: ["is_active_config"],
+        name: "idx_maintenance_schedules_active"
+      }
     ],
-  },
+    modelName: "MaintenanceSchedule",
+    sequelize,
+    tableName: "maintenance_schedules",
+    timestamps: true
+  }
 );
 
 export default MaintenanceSchedule;

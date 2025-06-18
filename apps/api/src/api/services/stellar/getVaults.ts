@@ -1,9 +1,9 @@
-import { SpacewalkPrimitivesVaultId } from '@pendulum-chain/types/interfaces';
-import { ApiPromise } from '@polkadot/api';
-import { Option, Struct } from '@polkadot/types-codec';
-import Big from 'big.js';
+import { SpacewalkPrimitivesVaultId } from "@pendulum-chain/types/interfaces";
+import { ApiPromise } from "@polkadot/api";
+import { Option, Struct } from "@polkadot/types-codec";
+import Big from "big.js";
 
-import logger from '../../../config/logger';
+import logger from "../../../config/logger";
 
 interface VaultRegistryVault extends Struct {
   readonly id: SpacewalkPrimitivesVaultId;
@@ -23,20 +23,20 @@ export async function getVaultsForCurrency(
   api: ApiPromise,
   assetCodeHex: string,
   assetIssuerHex: string,
-  redeemableAmountRaw: string,
+  redeemableAmountRaw: string
 ) {
   const vaultEntries = await api.query.vaultRegistry.vaults.entries();
   const vaults = vaultEntries.map(([_, value]) => (value as Option<VaultRegistryVault>).unwrap());
 
   const vaultsForCurrency = vaults.filter(
-    (vault) =>
+    vault =>
       // toString returns the hex string
       // toHuman returns the hex string if the string has length < 4, otherwise the readable string
       vault.id.currencies.wrapped.isStellar &&
       vault.id.currencies.wrapped.asStellar.isAlphaNum4 &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.code.toString() === assetCodeHex &&
       vault.id.currencies.wrapped.asStellar.asAlphaNum4.issuer.toString() === assetIssuerHex &&
-      vaultHasEnoughRedeemable(vault, redeemableAmountRaw),
+      vaultHasEnoughRedeemable(vault, redeemableAmountRaw)
   );
 
   if (vaultsForCurrency.length === 0) {

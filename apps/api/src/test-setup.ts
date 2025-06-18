@@ -1,16 +1,16 @@
-import { mock } from 'bun:test';
+import { mock } from "bun:test";
 
-mock.module('../index', () => ({
+mock.module("../index", () => ({
   default: {},
   eventPoller: {
     start: () => {
-      console.log('start');
+      console.log("start");
     },
     stop: () => {
-      console.log('stop');
-    },
+      console.log("stop");
+    }
   },
   initializeApp: () => {
-    console.log('initializeApp');
-  },
+    console.log("initializeApp");
+  }
 }));

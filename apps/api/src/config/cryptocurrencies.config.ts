@@ -1,42 +1,42 @@
 import {
   AssetHubToken,
-  EvmToken,
-  Networks,
-  SupportedCryptocurrencyDetails,
   assetHubTokenConfig,
+  EvmToken,
   evmTokenConfig,
   isNetworkAssetHub,
   isNetworkEVM,
-} from '@packages/shared';
-import { APIError } from '../api/errors/api-error';
+  Networks,
+  SupportedCryptocurrencyDetails
+} from "@packages/shared";
+import { APIError } from "../api/errors/api-error";
 
 const supportedNetworks = Object.values(Networks)
-  .filter((network) => isNetworkEVM(network) || isNetworkAssetHub(network))
+  .filter(network => isNetworkEVM(network) || isNetworkAssetHub(network))
   .join("', '");
 
 const throwInvalidNetworkError = (network: string): never => {
   throw new APIError({
-    message: `Invalid network: '${network}'. Supported networks are: '${supportedNetworks}'`,
+    message: `Invalid network: '${network}'. Supported networks are: '${supportedNetworks}'`
   });
 };
 
 const mapEvmTokenToDetails = (network: Networks, token: EvmToken): SupportedCryptocurrencyDetails => {
   const details = evmTokenConfig[network][token];
   return {
-    assetSymbol: details.assetSymbol,
     assetContractAddress: details.erc20AddressSourceChain,
-    assetNetwork: details.network,
     assetDecimals: details.decimals,
+    assetNetwork: details.network,
+    assetSymbol: details.assetSymbol
   };
 };
 
 const mapAssetHubTokenToDetails = (token: AssetHubToken): SupportedCryptocurrencyDetails => {
   const details = assetHubTokenConfig[token];
   return {
-    assetSymbol: details.assetSymbol,
+    assetDecimals: details.decimals,
     assetForeignAssetId: details.foreignAssetId,
     assetNetwork: details.network,
-    assetDecimals: details.decimals,
+    assetSymbol: details.assetSymbol
   };
 };
 
@@ -44,7 +44,7 @@ const getEvmNetworkTokens = (network: Networks): SupportedCryptocurrencyDetails[
   if (!isNetworkEVM(network)) {
     throwInvalidNetworkError(network);
   }
-  return Object.values(EvmToken).map((token) => mapEvmTokenToDetails(network, token));
+  return Object.values(EvmToken).map(token => mapEvmTokenToDetails(network, token));
 };
 
 const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] => {
@@ -54,10 +54,7 @@ const getAssetHubTokens = (): SupportedCryptocurrencyDetails[] => {
 const getAllEvmNetworkTokens = (): SupportedCryptocurrencyDetails[] =>
   Object.values(Networks).filter(isNetworkEVM).flatMap(getEvmNetworkTokens);
 
-const getAllNetworkTokens = (): SupportedCryptocurrencyDetails[] => [
-  ...getAllEvmNetworkTokens(),
-  ...getAssetHubTokens(),
-];
+const getAllNetworkTokens = (): SupportedCryptocurrencyDetails[] => [...getAllEvmNetworkTokens(), ...getAssetHubTokens()];
 
 /**
  * Function to get supported cryptocurrencies with details based on network

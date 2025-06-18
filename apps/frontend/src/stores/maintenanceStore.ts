@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { MaintenanceStatusResponse, getMaintenanceStatus } from '../services/api/maintenance.service';
+import { create } from "zustand";
+import { getMaintenanceStatus, MaintenanceStatusResponse } from "../services/api/maintenance.service";
 
 interface MaintenanceStore {
   // State
@@ -17,11 +17,8 @@ interface MaintenanceStore {
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 export const useMaintenanceStore = create<MaintenanceStore>((set, get) => ({
-  // Initial state
-  maintenanceStatus: null,
-  isLoading: false,
+  clearError: () => set({ error: null }),
   error: null,
-  lastFetched: null,
 
   // Actions
   fetchMaintenanceStatus: async () => {
@@ -32,42 +29,43 @@ export const useMaintenanceStore = create<MaintenanceStore>((set, get) => ({
       return;
     }
 
-    set({ isLoading: true, error: null });
+    set({ error: null, isLoading: true });
 
     try {
       const status = await getMaintenanceStatus();
       set({
-        maintenanceStatus: status,
-        isLoading: false,
         error: null,
+        isLoading: false,
         lastFetched: Date.now(),
+        maintenanceStatus: status
       });
     } catch (error) {
-      console.error('Failed to fetch maintenance status:', error);
+      console.error("Failed to fetch maintenance status:", error);
       set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch maintenance status',
+        error: error instanceof Error ? error.message : "Failed to fetch maintenance status",
+        isLoading: false
       });
     }
   },
-
-  clearError: () => set({ error: null }),
+  isLoading: false,
+  lastFetched: null,
+  // Initial state
+  maintenanceStatus: null,
 
   reset: () =>
     set({
-      maintenanceStatus: null,
-      isLoading: false,
       error: null,
+      isLoading: false,
       lastFetched: null,
-    }),
+      maintenanceStatus: null
+    })
 }));
 
 // Selectors for easier access
-export const useMaintenanceStatus = () => useMaintenanceStore((state) => state.maintenanceStatus);
+export const useMaintenanceStatus = () => useMaintenanceStore(state => state.maintenanceStatus);
 export const useIsMaintenanceActive = () =>
-  useMaintenanceStore((state) => state.maintenanceStatus?.is_maintenance_active ?? false);
-export const useMaintenanceDetails = () =>
-  useMaintenanceStore((state) => state.maintenanceStatus?.maintenance_details ?? null);
-export const useMaintenanceLoading = () => useMaintenanceStore((state) => state.isLoading);
-export const useMaintenanceError = () => useMaintenanceStore((state) => state.error);
-export const useFetchMaintenanceStatus = () => useMaintenanceStore((state) => state.fetchMaintenanceStatus);
+  useMaintenanceStore(state => state.maintenanceStatus?.is_maintenance_active ?? false);
+export const useMaintenanceDetails = () => useMaintenanceStore(state => state.maintenanceStatus?.maintenance_details ?? null);
+export const useMaintenanceLoading = () => useMaintenanceStore(state => state.isLoading);
+export const useMaintenanceError = () => useMaintenanceStore(state => state.error);
+export const useFetchMaintenanceStatus = () => useMaintenanceStore(state => state.fetchMaintenanceStatus);

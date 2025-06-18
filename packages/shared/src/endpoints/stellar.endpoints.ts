@@ -1,4 +1,4 @@
-import { FiatToken } from '../index';
+import { FiatToken } from "../index";
 
 // POST /stellar/create
 export interface CreateStellarTransactionRequest {

@@ -1,13 +1,12 @@
-import { AllPricesResponse, BundledPriceResult, Currency } from '@packages/shared';
-import { PriceProvider } from '@packages/shared';
-import { RampDirection } from '../../components/RampToggle';
-import { apiRequest } from './api-client';
+import { AllPricesResponse, BundledPriceResult, Currency, PriceProvider } from "@packages/shared";
+import { RampDirection } from "../../components/RampToggle";
+import { apiRequest } from "./api-client";
 
 /**
  * Service for interacting with Price API endpoints
  */
 export class PriceService {
-  private static readonly BASE_PATH = '/prices';
+  private static readonly BASE_PATH = "/prices";
 
   /**
    * Get price information from a provider
@@ -25,17 +24,17 @@ export class PriceService {
     targetCurrency: Currency,
     amount: string,
     direction: RampDirection,
-    network?: string,
+    network?: string
   ): Promise<BundledPriceResult> {
-    return apiRequest<BundledPriceResult>('get', this.BASE_PATH, undefined, {
+    return apiRequest<BundledPriceResult>("get", this.BASE_PATH, undefined, {
       params: {
-        provider,
-        sourceCurrency,
-        targetCurrency,
         amount,
         direction,
         network,
-      },
+        provider,
+        sourceCurrency,
+        targetCurrency
+      }
     });
   }
 
@@ -53,9 +52,9 @@ export class PriceService {
     targetCurrency: Currency,
     amount: string,
     direction: RampDirection,
-    network?: string,
+    network?: string
   ): Promise<BundledPriceResult> {
-    const response = await this.getPrice('alchemypay', sourceCurrency, targetCurrency, amount, direction, network);
+    const response = await this.getPrice("alchemypay", sourceCurrency, targetCurrency, amount, direction, network);
     return response;
   }
 
@@ -72,9 +71,9 @@ export class PriceService {
     sourceCurrency: Currency,
     targetCurrency: Currency,
     amount: string,
-    direction: RampDirection,
+    direction: RampDirection
   ): Promise<BundledPriceResult> {
-    const response = await this.getPrice('moonpay', sourceCurrency, targetCurrency, amount, direction);
+    const response = await this.getPrice("moonpay", sourceCurrency, targetCurrency, amount, direction);
     return response;
   }
 
@@ -92,9 +91,9 @@ export class PriceService {
     targetCurrency: Currency,
     amount: string,
     direction: RampDirection,
-    network?: string,
+    network?: string
   ): Promise<BundledPriceResult> {
-    const response = await this.getPrice('transak', sourceCurrency, targetCurrency, amount, direction, network);
+    const response = await this.getPrice("transak", sourceCurrency, targetCurrency, amount, direction, network);
     return response;
   }
 
@@ -120,16 +119,16 @@ export class PriceService {
     targetCurrency: Currency,
     amount: string,
     direction: RampDirection,
-    network?: string,
+    network?: string
   ): Promise<AllPricesResponse> {
-    return apiRequest<AllPricesResponse>('get', `${this.BASE_PATH}/all`, undefined, {
+    return apiRequest<AllPricesResponse>("get", `${this.BASE_PATH}/all`, undefined, {
       params: {
-        sourceCurrency,
-        targetCurrency,
         amount,
         direction,
         network,
-      },
+        sourceCurrency,
+        targetCurrency
+      }
     });
   }
 
@@ -148,23 +147,23 @@ export class PriceService {
     targetCurrency: Currency,
     amount: string,
     direction: RampDirection,
-    network?: string,
+    network?: string
   ): Promise<Record<PriceProvider, BundledPriceResult>> {
-    const providers: PriceProvider[] = ['alchemypay', 'moonpay', 'transak'];
+    const providers: PriceProvider[] = ["alchemypay", "moonpay", "transak"];
 
     const results = await Promise.allSettled(
-      providers.map((provider) => this.getPrice(provider, sourceCurrency, targetCurrency, amount, direction, network)),
+      providers.map(provider => this.getPrice(provider, sourceCurrency, targetCurrency, amount, direction, network))
     );
 
     return results.reduce(
       (acc, result, index) => {
         const provider = providers[index];
-        if (result.status === 'fulfilled') {
+        if (result.status === "fulfilled") {
           acc[provider] = result.value;
         }
         return acc;
       },
-      {} as Record<PriceProvider, BundledPriceResult>,
+      {} as Record<PriceProvider, BundledPriceResult>
     );
   }
 }
