@@ -84,6 +84,7 @@ export namespace RampEndpoints {
       pixDestination?: string;
       receiverTaxId?: string;
       taxId?: string;
+      moneriumAuthToken?: string; // Monerium authentication code for Monerium offramps.
       [key: string]: unknown;
     };
   }
@@ -98,6 +99,7 @@ export namespace RampEndpoints {
       squidRouterApproveHash?: string;
       squidRouterSwapHash?: string;
       assetHubToPendulumHash?: string;
+      moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
       [key: string]: unknown;
     };
   }

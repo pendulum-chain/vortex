@@ -188,6 +188,33 @@ export function createOfframpRouteParams(
   };
 }
 
+export function createOfframpGenericRouteParams(
+  fromAddress: string,
+  amount: string,
+  inputTokenDetails: EvmTokenDetails,
+  outputTokenDetails: EvmTokenDetails,
+  fromNetwork: Networks,
+  toNetwork: Networks,
+  destinationAddress: string,
+): RouteParams {
+  const fromChainId = getNetworkId(fromNetwork);
+  const toChainId = getNetworkId(toNetwork);
+
+  return {
+    fromAddress,
+    fromChain: fromChainId.toString(),
+    fromToken: inputTokenDetails.erc20AddressSourceChain,
+    fromAmount: amount,
+    toChain: toChainId.toString(),
+    toToken: outputTokenDetails.erc20AddressSourceChain,
+    toAddress: destinationAddress,
+    slippageConfig: {
+      autoMode: 1,
+    },
+    enableExpress: true,
+  };
+}
+
 export async function testRoute(
   testingToken: EvmTokenDetails,
   attemptedAmountRaw: string,

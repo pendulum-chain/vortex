@@ -20,6 +20,7 @@ import { generateReferenceLabel } from '../brla/helpers';
 import { SubaccountData } from '../brla/types';
 import phaseProcessor from '../phases/phase-processor';
 import { validatePresignedTxs } from '../transactions';
+import { prepareMoneriumEvmOfframpTransactions } from '../transactions/moneriumEvmOfframpTransactions';
 import { prepareOfframpTransactions } from '../transactions/offrampTransactions';
 import { prepareOnrampTransactions } from '../transactions/onrampTransactions';
 import { BaseRampService } from './base.service';
@@ -112,12 +113,21 @@ export class RampService extends BaseRampService {
             receiverTaxId: additionalData.receiverTaxId,
             brlaEvmAddress: subaccount.wallets.evm,
           }));
-        } else {
+        } else if (!additionalData?.moneriumAuthToken) {
+          // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
+          // otherwise, it is automatically assumed to be a Monerium offramp.
           ({ unsignedTxs, stateMeta } = await prepareOfframpTransactions({
             quote,
             signingAccounts: normalizedSigningAccounts,
             stellarPaymentData: additionalData?.paymentData,
             userAddress: additionalData?.walletAddress,
+          }));
+        } else {
+          ({ unsignedTxs, stateMeta } = await prepareMoneriumEvmOfframpTransactions({
+            quote,
+            signingAccounts: normalizedSigningAccounts,
+            userAddress: additionalData?.walletAddress,
+            moneriumAuthToken: additionalData?.moneriumAuthToken,
           }));
         }
       } else {

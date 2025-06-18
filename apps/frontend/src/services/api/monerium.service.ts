@@ -42,4 +42,12 @@ export const MoneriumService = {
       return false;
     }
   },
+
+  /**
+   * Create signature for Monerium offrampm, 10 minutes from now.
+   */
+  async createRampMessage(amount: string, iban: string): Promise<string> {
+    const date = new Date(Date.now() - 1000 * 60 * 10).toISOString();
+    return `Send EUR ${amount} to ${iban} at ${date}`;
+  },
 };

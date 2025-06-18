@@ -4,6 +4,7 @@ import { useAssetHubNode, useMoonbeamNode, usePendulumNode } from '../../../cont
 import { usePolkadotWalletState } from '../../../contexts/polkadotWallet';
 import { useToastMessage } from '../../../helpers/notifications';
 import { RampService } from '../../../services/api';
+import { MoneriumService } from '../../../services/api/monerium.service';
 import {
   signAndSubmitEvmTransaction,
   signAndSubmitSubstrateTransaction,
@@ -70,8 +71,7 @@ export const useRegisterRamp = () => {
   } = useRampStore();
   const { showToast, ToastMessage } = useToastMessage();
 
-  const { address } = useVortexAccount();
-  const { chainId } = useVortexAccount();
+  const { address, chainId, getMessageSignature } = useVortexAccount();
   const { apiComponents: pendulumApiComponents } = usePendulumNode();
   const { apiComponents: moonbeamApiComponents } = useMoonbeamNode();
   const { apiComponents: assethubApiComponents } = useAssetHubNode();
@@ -211,7 +211,7 @@ export const useRegisterRamp = () => {
 
       // Add Monerium auth data if using Monerium for EUR
       if (executionInput.fiatToken === FiatToken.EURC && authToken) {
-        additionalData.moneriumAuthCode = authToken;
+        additionalData.moneriumAuthToken = authToken;
 
         // TODO: handle the additionalData object better
         delete additionalData.paymentData;
@@ -306,6 +306,7 @@ export const useRegisterRamp = () => {
 
     // Check if we can proceed with the signing process
     const lockResult = checkSigningLock();
+
     if (!lockResult.canProceed) {
       return;
     }
@@ -337,6 +338,7 @@ export const useRegisterRamp = () => {
       let squidRouterApproveHash: string | undefined = undefined;
       let squidRouterSwapHash: string | undefined = undefined;
       let assetHubToPendulumHash: string | undefined = undefined;
+      let moneriumOfframpSignature: string | undefined = undefined;
 
       // Sign user transactions by nonce
       const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
@@ -344,6 +346,15 @@ export const useRegisterRamp = () => {
       // Verify we still own the lock
       if (!verifySigningLock(processRef)) {
         return;
+      }
+
+      // If Monerium, prompt offramp message signature
+      if (authToken) {
+        const offrampMessage = await MoneriumService.createRampMessage(
+          rampState.quote.outputAmount,
+          'THIS WILL BE THE IBAN',
+        );
+        moneriumOfframpSignature = await getMessageSignature(offrampMessage);
       }
 
       for (const tx of sortedTxs!) {
@@ -378,6 +389,7 @@ export const useRegisterRamp = () => {
         squidRouterApproveHash,
         squidRouterSwapHash,
         assetHubToPendulumHash,
+        moneriumOfframpSignature,
       };
 
       const updatedRampProcess = await RampService.updateRamp(
@@ -424,6 +436,7 @@ export const useRegisterRamp = () => {
     signingRejected,
     ToastMessage.SIGNING_REJECTED,
     setSigningRejected,
+    authToken,
   ]);
 
   return {
